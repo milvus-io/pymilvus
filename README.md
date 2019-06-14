@@ -45,6 +45,19 @@ Then create `table`
 Status(message='Table test01 created!', code=0)
 ```
 
+Describe the table we just created
+```python
+milvus.describe_table('test01')
+```
+
+
+
+
+
+
+
+
+
 There is a small example in examples/example.py, you can find more guide there.
 
 Build docs

@@ -26,7 +26,7 @@ from milvus.client.Exceptions import (
 
 LOGGER = logging.getLogger(__name__)
 
-__version__='1.0.0'
+__version__ = '0.1.0'
 __NAME__ = 'Milvus Python SDK'
 
 
@@ -141,7 +141,7 @@ class Milvus(ConnectIntf):
         :return: if client is connected
         :rtype bool
         """
-        return self.status == Status.SUCCESS
+        return self._client is not None
 
     def disconnect(self):
         """
@@ -152,7 +152,7 @@ class Milvus(ConnectIntf):
         """
 
         if not self._transport:
-            raise DisconnectNotConnectedClientError('Error')
+            raise DisconnectNotConnectedClientError('Dis')
 
         try:
 
@@ -175,7 +175,7 @@ class Milvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
-        if not self._client:
+        if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
         try:
@@ -195,6 +195,9 @@ class Milvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
         try:
             self._client.DeleteTable(table_name)
         except (TApplicationException, TException) as e:
@@ -220,6 +223,9 @@ class Milvus(ConnectIntf):
             ids: list of id, after inserted every vector is given a id
         :rtype: (Status, list(str))
         """
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
         try:
             ids = self._client.AddVector(table_name=table_name, record_array=records)
         except (TApplicationException, TException) as e:
@@ -252,6 +258,9 @@ class Milvus(ConnectIntf):
             res: return when operation is successful
         :rtype: (Status, list[TopKQueryResult])
         """
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
         res = []
         try:
             top_k_query_results = self._client.SearchVector(
@@ -283,6 +292,9 @@ class Milvus(ConnectIntf):
             table_schema: return when operation is successful
         :rtype: (Status, TableSchema)
         """
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
         try:
             temp = self._client.DescribeTable(table_name)
 
@@ -303,6 +315,9 @@ class Milvus(ConnectIntf):
         :rtype:
             (Status, list[str])
         """
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
         try:
             res = self._client.ShowTables()
             tables = []
@@ -325,8 +340,10 @@ class Milvus(ConnectIntf):
             Status: indicate if operation is successful
 
             res: int, table row count
-
         """
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
         try:
             count = self._client.GetTableRowCount(table_name)
 
