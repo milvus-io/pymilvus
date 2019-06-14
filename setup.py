@@ -7,13 +7,12 @@ README = (HERE / 'README.md').read_text()
 
 setuptools.setup(
     name="pymilvus",
-    version="1.0.0",
+    version="0.1.0",
     description="Python Sdk for Milvus",
     long_description=README,
     long_description_content_type='text/markdown',
-    # TODO LICENSE
     url='https://github.com/milvus-io/pymilvus',
-    license="",
+    license="Apache-2.0",
     packages=["milvus.client", 'milvus.thrift', 'milvus'],
     include_package_data=True,
     install_requires=["thrift"],

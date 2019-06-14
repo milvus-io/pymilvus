@@ -16,7 +16,7 @@ from milvus import Milvus, Prepare, IndexType
 
 ## Getting started
 
-Initial a `milvus` instance and  `connect` to the sever
+Initial a `Milvus` instance and  `connect` to the sever
 
 ```python
 >>> milvus = Milvus()
