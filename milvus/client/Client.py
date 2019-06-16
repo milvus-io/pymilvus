@@ -255,8 +255,8 @@ class Milvus(ConnectIntf):
 
             Status:  indicate if query is successful
 
-            res: return when operation is successful
-        :rtype: (Status, list[TopKQueryResult])
+            res: 2-dim array, return when operation is successful
+        :rtype: (Status, list[(vector_id(int), score(float))])
         """
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
@@ -272,8 +272,7 @@ class Milvus(ConnectIntf):
             if top_k_query_results:
                 for top_k in top_k_query_results:
                     if top_k:
-                        res.append(TopKQueryResult([QueryResult(qr.id, qr.score)
-                                                for qr in top_k.query_result_arrays]))
+                        res.append([(qr.id, qr.score) for qr in top_k.query_result_arrays])
 
         except (TApplicationException, TException) as e:
             LOGGER.error('{}'.format(e))
