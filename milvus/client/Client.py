@@ -151,7 +151,7 @@ class Milvus(ConnectIntf):
         :rtype: Status
         """
 
-        if not self._transport:
+        if not self._transport and not self.connected:
             raise DisconnectNotConnectedClientError('Disconnect not connected client!')
 
         try:
