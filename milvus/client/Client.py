@@ -152,7 +152,7 @@ class Milvus(ConnectIntf):
         """
 
         if not self._transport:
-            raise DisconnectNotConnectedClientError('Dis')
+            raise DisconnectNotConnectedClientError('Disconnect not connected client!')
 
         try:
 
