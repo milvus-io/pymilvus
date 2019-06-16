@@ -180,7 +180,7 @@ class Milvus(ConnectIntf):
 
         try:
             self._client.CreateTable(param)
-        except (TApplicationException, ) as e:
+        except (TApplicationException, TException) as e:
             LOGGER.error('Unable to create table')
             return Status(Status.PERMISSION_DENIED, str(e))
         return Status(message='Table {} created!'.format(param.table_name))
