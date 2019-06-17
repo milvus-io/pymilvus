@@ -27,7 +27,7 @@ from milvus.client.Exceptions import (
 LOGGER = logging.getLogger(__name__)
 
 __version__ = '0.1.0'
-__NAME__ = 'Milvus Python SDK'
+__NAME__ = 'pymilvus'
 
 
 class Prepare(object):
@@ -37,7 +37,7 @@ class Prepare(object):
                      table_name,
                      dimension,
                      index_type=IndexType.INVALIDE,
-                     store_raw_vector = False):
+                     store_raw_vector=False):
         """
         :type table_name: str
         :type dimension: int
@@ -50,7 +50,7 @@ class Prepare(object):
 
         :return: TableSchema object
         """
-        temp = TableSchema(table_name,dimension, index_type, store_raw_vector)
+        temp = TableSchema(table_name, dimension, index_type, store_raw_vector)
 
         return ttypes.TableSchema(table_name=temp.table_name,
                                   dimension=dimension,
@@ -75,7 +75,7 @@ class Prepare(object):
         """
         Transfer a float binary str to RowRecord and return
 
-        :type vector_data: bytearray or bytes
+        :type vector_data: byte_array or bytes
         :param vector_data: (Required) binary vector to store
 
         :return: RowRecord object
@@ -113,7 +113,6 @@ class Milvus(ConnectIntf):
         :return: Status, indicate if connect is successful
         :rtype: Status
         """
-        # TODO URI
         if self.status and self.status == Status.SUCCESS:
             raise RepeatingConnectError("You have already connected!")
 

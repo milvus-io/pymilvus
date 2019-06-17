@@ -1,7 +1,10 @@
-from pymilvus import Milvus, Prepare, IndexType, Status
+from milvus import Milvus, Prepare, IndexType, Status
 import random
 import struct
 from pprint import pprint
+
+_HOST = '192.168.1.101'
+_PORT = '33001'
 
 
 def main():
@@ -12,7 +15,7 @@ def main():
 
     # Connect
     # Please change HOST and PORT to correct one
-    param = {'host': 'HOST', 'port': 'PORT'}
+    param = {'host': _HOST, 'port': _PORT}
     cnn_status = milvus.connect(**param)
     print('# Connect Status: {}'.format(cnn_status))
 
