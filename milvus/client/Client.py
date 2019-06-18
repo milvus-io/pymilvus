@@ -12,6 +12,7 @@ from milvus.thrift import ttypes
 from milvus.client.Abstract import (
     ConnectIntf,
     TableSchema,
+    QueryResult,
     Range,
     RowRecord,
     IndexType
@@ -343,7 +344,8 @@ class Milvus(ConnectIntf):
             if top_k_query_results:
                 for top_k in top_k_query_results:
                     if top_k:
-                        res.append([(qr.id, qr.score) for qr in top_k.query_result_arrays])
+                        res.append([QueryResult(id=qr.id, score=qr.score)
+                                    for qr in top_k.query_result_arrays])
 
         except (TApplicationException, TException) as e:
             LOGGER.error(str(e))
