@@ -8,3 +8,4 @@ doc/en/build/
 **/__pycache__/
 /build/
 .remember
+.env

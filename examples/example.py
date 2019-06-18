@@ -3,8 +3,8 @@ import random
 import struct
 from pprint import pprint
 
-_HOST = '192.168.1.101'
-_PORT = '33001'
+_HOST = 'localhost'
+_PORT = '9090'
 
 
 def main():

@@ -1,8 +1,9 @@
-import logging.config
+import logging
+import sys
 
 from thrift.transport import TSocket
-from thrift.transport import TTransport
-from thrift.protocol import TBinaryProtocol
+from thrift.transport import TTransport, TZlibTransport
+from thrift.protocol import TBinaryProtocol, TCompactProtocol, TJSONProtocol
 from thrift.Thrift import TException, TApplicationException
 
 from milvus.thrift import MilvusService
@@ -12,8 +13,6 @@ from milvus.client.Abstract import (
     TableSchema,
     Range,
     RowRecord,
-    QueryResult,
-    TopKQueryResult,
     IndexType
 )
 
@@ -23,11 +22,23 @@ from milvus.client.Exceptions import (
     DisconnectNotConnectedClientError,
     NotConnectError
 )
+from milvus.settings import DefaultConfig as config
+if sys.version_info[0] > 2:
+    from urllib.parse import urlparse
+else:
+    from urlparse import urlparse
+
 
 LOGGER = logging.getLogger(__name__)
 
 __version__ = '0.1.0'
 __NAME__ = 'pymilvus'
+
+
+class Protocol:
+    JSON = 'JSON'
+    BINARY = 'BINARY'
+    COMPACT = 'COMPACT'
 
 
 class Prepare(object):
@@ -98,7 +109,7 @@ class Milvus(ConnectIntf):
     def __repr__(self):
         return '{}'.format(self.status)
 
-    def connect(self, host='localhost', port='9090', uri=None):
+    def connect(self, host='localhost', port='9090', uri=''):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -106,9 +117,11 @@ class Milvus(ConnectIntf):
         :type  host: str
         :type  port: str
         :type  uri: str
-        :param host: (Required) host of the server
-        :param port: (Required) port of the server
-        :param uri: (Optional)
+        :param host: (Optional) host of the server
+        :param port: (Optional) port of the server
+        :param uri: (Optional) only support tcp proto, example:
+
+                `tcp://127.0.0.1:9090`
 
         :return: Status, indicate if connect is successful
         :rtype: Status
@@ -116,13 +129,64 @@ class Milvus(ConnectIntf):
         if self.status and self.status == Status.SUCCESS:
             raise RepeatingConnectError("You have already connected!")
 
-        transport = TSocket.TSocket(host=host, port=port)
-        self._transport = TTransport.TBufferedTransport(transport)
-        protocol = TBinaryProtocol.TBinaryProtocol(transport)
+        transport = config.THRIFTCLIENT_TRANSPORT
+
+        config_uri = urlparse(transport)
+
+        _uri = urlparse(uri) if uri else config_uri
+
+        if _uri.scheme == "tcp":
+
+            host = host if host else _uri.hostname
+            port = port if port else (_uri.port or 9090)
+
+            self._transport = TSocket.TSocket(host, port)
+        else:
+            raise RuntimeError(
+                'Invalid configuration for THRIFTCLIENT_TRANSPORT: {transport}'.format(
+                    transport=config.THRIFTCLIENT_TRANSPORT
+                )
+            )
+
+        if config.THRIFTCLIENT_BUFFERED:
+            self._transport = TTransport.TBufferedTransport(self._transport)
+        if config.THRIFTCLIENT_ZLIB:
+            self._transport = TZlibTransport.TZlibTransport(self._transport)
+        if config.THRIFTCLIENT_FRAMED:
+            self._transport = TTransport.TFramedTransport(self._transport)
+
+        if config.THRIFTCLIENT_PROTOCOL == Protocol.BINARY:
+            protocol = TBinaryProtocol.TBinaryProtocol(self._transport)
+
+        elif config.THRIFTCLIENT_PROTOCOL == Protocol.COMPACT:
+            protocol = TCompactProtocol.TCompactProtocol(self._transport)
+
+        elif config.THRIFTCLIENT_PROTOCOL == Protocol.JSON:
+            protocol = TJSONProtocol.TJSONProtocol(self._transport)
+
+        else:
+            if uri:
+                raise RuntimeError(
+                    "Invalid param uri: {uri}".format(uri=uri)
+                )
+
+            raise RuntimeError(
+                "invalid configuration for THRIFTCLIENT_PROTOCOL: {protocol}"
+                    .format(protocol=config.THRIFTCLIENT_PROTOCOL)
+            )
+
         self._client = MilvusService.Client(protocol)
 
+        # if self.status and self.status == Status.SUCCESS:
+        #     raise RepeatingConnectError("You have already connected!")
+        #
+        # transport = TSocket.TSocket(host=host, port=port)
+        # self._transport = TTransport.TBufferedTransport(transport)
+        # protocol = TBinaryProtocol.TBinaryProtocol(transport)
+        # self._client = MilvusService.Client(protocol)
+
         try:
-            transport.open()
+            self._transport.open()
             self.status = Status(Status.SUCCESS, 'Connected')
             LOGGER.info('Connected!')
 

@@ -18,7 +18,6 @@ from milvus.thrift import ttypes, MilvusService
 
 from thrift.transport.TSocket import TSocket
 from thrift.transport import TTransport
-from thrift.transport.TTransport import TTransportException
 
 LOGGER = logging.getLogger(__name__)
 
@@ -94,6 +93,24 @@ class TestConnection:
         cnn.connect(**self.param)
         assert cnn.status != Status.SUCCESS
 
+    @mock.patch.object(TSocket, 'open')
+    def test_uri(self, open):
+        open.return_value = None
+        cnn = Milvus()
+
+        cnn.connect(uri='tcp://127.0.0.1:9090')
+        assert cnn.status == Status.SUCCESS
+
+    @mock.patch.object(TSocket, 'open')
+    def test_uri_runtime_error(self, open):
+        open.return_value = None
+        cnn = Milvus()
+        with pytest.raises(RuntimeError):
+            cnn.connect(uri='http://127.0.0.1:9090')
+
+        cnn.connect()
+        assert cnn.status == Status.SUCCESS
+
     @mock.patch.object(TTransport.TBufferedTransport, 'close')
     @mock.patch.object(TSocket, 'open')
     def test_disconnected(self, close, open):
@@ -134,10 +151,9 @@ class TestTable:
 
     def test_false_create_table(self, client):
         param = table_schema_factory()
-        with pytest.raises(TTransportException):
-            res = client.create_table(param)
-            LOGGER.error('{}'.format(res))
-            assert res != Status.SUCCESS
+        res = client.create_table(param)
+        LOGGER.error('{}'.format(res))
+        assert res != Status.SUCCESS
 
     @mock.patch.object(MilvusService.Client, 'DeleteTable')
     def test_delete_table(self, DeleteTable, client):
