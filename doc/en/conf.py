@@ -13,19 +13,19 @@
 import os
 import sys
 sys.path.insert(0, os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    os.path.join('..', '..')
+    # os.path.dirname(os.path.abspath(__file__)),
+    os.path.join('..', '../milvus')
 ))
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'MilvusPythonSDK'
+project = 'pymilvus'
 copyright = '2019, Zilliz'
 author = 'YangXuan'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = '0.1.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -35,7 +35,7 @@ release = '0.0.1'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    # 'sphinx.ext.viewcode'
+    'sphinx.ext.viewcode'
 ]
 
 # Add any paths that contain templates here, relative to this directory.

@@ -7,7 +7,7 @@
 
   <div style="font-size:80px;font-family:Arial;font-weight:bold;">
     <i class="fa fa-check-square" style="color:green;padding-right:5px;"></i>
-    Milvus
+    PyMilvus
   </div>
 
 Milvus Python SDK
@@ -20,5 +20,4 @@ Using Milvus with Python
    :maxdepth: 2
    :hidden:
 
-   QuickStart
    api
