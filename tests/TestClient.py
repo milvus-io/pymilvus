@@ -145,7 +145,6 @@ class TestTable:
     def test_false_create_table(self, client):
         param = table_schema_factory()
         res = client.create_table(param)
-        LOGGER.error('{}'.format(res))
         assert res != Status.SUCCESS
 
     @mock.patch.object(MilvusService.Client, 'DeleteTable')
@@ -276,7 +275,6 @@ class TestPrepare:
         }
 
         res = Prepare.range(**param)
-        LOGGER.error('{}'.format(res))
         assert isinstance(res, ttypes.Range)
         assert res.start_value == '200'
         assert res.end_value == '1000'
