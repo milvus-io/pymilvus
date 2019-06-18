@@ -60,15 +60,15 @@ def table_schema_factory():
     return Prepare.table_schema(**param)
 
 
-def row_record_factory(dimension):
-    vec = [random.random() + random.randint(0, 9) for _ in range(dimension)]
-    bin_vec = struct.pack(str(dimension) + "d", *vec)
+# def row_record_factory(dimension):
+#     vec = [random.random() + random.randint(0, 9) for _ in range(dimension)]
+#     bin_vec = struct.pack(str(dimension) + "d", *vec)
+#
+#     return Prepare.row_record(vector_data=bin_vec)
 
-    return Prepare.row_record(vector_data=bin_vec)
 
-
-def row_records_factory(dimension):
-    return [row_record_factory(dimension) for _ in range(20)]
+def records_factory(dimension):
+    return Prepare.records([[random.random() for _ in range(dimension)] for _ in range(20)])
 
 
 class TestConnection:
@@ -186,7 +186,7 @@ class TestVector:
 
         param = {
             'table_name': fake.table_name(),
-            'records': row_records_factory(256)
+            'records': records_factory(256)
         }
         res, ids = client.add_vectors(**param)
         assert res == Status.SUCCESS
@@ -194,7 +194,7 @@ class TestVector:
     def test_false_add_vector(self, client):
         param = {
             'table_name': fake.table_name(),
-            'records': row_records_factory(256)
+            'records': records_factory(256)
         }
         res, ids = client.add_vectors(**param)
         assert res != Status.SUCCESS
@@ -204,7 +204,7 @@ class TestVector:
         SearchVector.return_value = None, None
         param = {
             'table_name': fake.table_name(),
-            'query_records': row_records_factory(256),
+            'query_records': records_factory(256),
             'query_ranges': ranges_factory(),
             'top_k': random.randint(0, 10)
         }
@@ -214,7 +214,7 @@ class TestVector:
     def test_false_vector(self, client):
         param = {
             'table_name': fake.table_name(),
-            'query_records': row_records_factory(256),
+            'query_records': records_factory(256),
             'query_ranges': ranges_factory(),
             'top_k': random.randint(0, 10)
         }
@@ -290,7 +290,13 @@ class TestPrepare:
 
     def test_row_record(self):
         vec = [random.random() + random.randint(0, 9) for _ in range(256)]
-        bin_vec = struct.pack(str(256) + "d", *vec)
-        res = Prepare.row_record(bin_vec)
+        res = Prepare.row_record(vec)
         assert isinstance(res, ttypes.RowRecord)
-        assert isinstance(bin_vec, bytes)
+        assert isinstance(res.vector_data, bytes)
+
+    def test_records(self):
+        vecs = [[random.random() for _ in range(256)] for _ in range(20)]
+        res = Prepare.records(vecs)
+        assert isinstance(res, list)
+        assert isinstance(res[0], ttypes.RowRecord)
+        assert isinstance(res[0].vector_data, bytes)

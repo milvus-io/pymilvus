@@ -4,6 +4,10 @@
 
 ### New Feature
 
+- \#3
+    - transport protocol configurable by settings
+    - add_vector support non-binary array inputs
+
 ### Task
 
 - \#1 Build Repository

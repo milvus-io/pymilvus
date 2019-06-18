@@ -3,8 +3,8 @@ import random
 import struct
 from pprint import pprint
 
-_HOST = 'localhost'
-_PORT = '9090'
+_HOST = '192.168.1.101'
+_PORT = '33001'
 
 
 def main():
@@ -55,9 +55,7 @@ def main():
     #   01. Prepare data
     dim = 256  # Dimension of the vector
     # list of binary vectors
-    vectors = [Prepare.row_record(struct.pack(str(dim)+'d',
-                                              *[random.random()for _ in range(dim)]))
-               for _ in range(20)]
+    vectors = Prepare.records([[random.random()for _ in range(dim)] for _ in range(20)])
     #   02. Add vectors
     status, ids = milvus.add_vectors(table_name=table_name, records=vectors)
     print('# Add vector status: {}'.format(status))
@@ -71,14 +69,12 @@ def main():
     print('Waiting for 6s...')
     time.sleep(6)  # Wait for server persist vector data
 
-    q_records = [Prepare.row_record(struct.pack(str(dim) + 'd',
-                                                *[random.random() for _ in range(dim)]))
-                 for _ in range(5)]
+    q_records = Prepare.records([[random.random()for _ in range(dim)] for _ in range(2)])
+
     param = {
         'table_name': 'test01',
         'query_records': q_records,
         'top_k': 10,
-        # 'query_ranges':   # Optional
     }
     sta, results = milvus.search_vectors(**param)
     print('# Search vectors status: {}'.format(sta))

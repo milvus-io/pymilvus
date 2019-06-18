@@ -67,12 +67,9 @@ First Prepare `binary vectors` of 256-dimension.
 
 >>> dim = 256  # Dimension of the vector
 
-# Initialize 20 binary vectors of 256-dimension
->>> vectors = [Prepare.row_record(struct.pack(str(dim)+'d', *[random.random()for _ in range(dim)]))
-            for _ in range(20)]
-
-# This is example of creating vectors, you can use your own binary data as below
-# records = [Prepare.row_record(ONE_BINARY_ARRAY) for ONE_BINARY_ARRAY in YOU_OWN_BINARY_ARRAYS]
+# Initialize 20 vectors of 256-dimension
+>>> fake_vectors = [[random.random() for _ in range(dim)] for _ in range(20)]
+>>> vectors = Prepare.records(fake_vectors)  # This will transfer fake_vector to binary data
 ```
 
 Then add vectors into table `test01`
@@ -88,23 +85,19 @@ Status(code=0, message='Success')
 ---
 Search vectors
 
-First create 5 `binary vectors` of 256-dimension
 ```python
->>> q_records = [Prepare.row_record(struct.pack(str(dim) + 'd', *[random.random() for _ in range(dim)]))
-                 for _ in range(5)]
-                 
-# This is example of creating vectors, you can use your own binary data as below
-# records = [Prepare.row_record(ONE_BINARY_ARRAY) for ONE_BINARY_ARRAY in YOU_OWN_BINARY_ARRAYS]
+# prepare 5 vectors of 256-dimension
+>>> q_records = Prepare.records([random.random() for _ in range(dim)] for _ in range(5)]
 ```
 
-Then search vectors:
+Then get results
 ```python
 >>> status, results = milvus.search_vectors(table_name='test01', query_records=q_records, top_k=10)
 >>> print(status)
 Status(code=0, message='Success')
 >>> pprint(results) # Searched top_k vectors
 ```
----
+
 
 Disconnect with the server
 ```python
@@ -112,13 +105,15 @@ Disconnect with the server
 Status(code=0, message='Success')
 ```
 
-`There is a small example in examples/example.py, you can find more guide there.`
+---
+
+## Example python
+There is a small example in `examples/example.py`, you can find more guide there.
 
 Build docs
 ```$
 $ sphinx-build -b html doc/en/ doc/en/build
 ```
 
----
 
 If you encounter any problems or bugs, please add new issues
