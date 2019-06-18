@@ -1,8 +1,10 @@
-import logging.config
+import logging
+import sys
+import struct
 
 from thrift.transport import TSocket
-from thrift.transport import TTransport
-from thrift.protocol import TBinaryProtocol
+from thrift.transport import TTransport, TZlibTransport
+from thrift.protocol import TBinaryProtocol, TCompactProtocol, TJSONProtocol
 from thrift.Thrift import TException, TApplicationException
 
 from milvus.thrift import MilvusService
@@ -12,8 +14,6 @@ from milvus.client.Abstract import (
     TableSchema,
     Range,
     RowRecord,
-    QueryResult,
-    TopKQueryResult,
     IndexType
 )
 
@@ -23,11 +23,23 @@ from milvus.client.Exceptions import (
     DisconnectNotConnectedClientError,
     NotConnectError
 )
+from milvus.settings import DefaultConfig as config
+if sys.version_info[0] > 2:
+    from urllib.parse import urlparse
+else:
+    from urlparse import urlparse
+
 
 LOGGER = logging.getLogger(__name__)
 
 __version__ = '0.1.0'
-__NAME__ = 'Milvus Python SDK'
+__NAME__ = 'pymilvus'
+
+
+class Protocol:
+    JSON = 'JSON'
+    BINARY = 'BINARY'
+    COMPACT = 'COMPACT'
 
 
 class Prepare(object):
@@ -37,7 +49,7 @@ class Prepare(object):
                      table_name,
                      dimension,
                      index_type=IndexType.INVALIDE,
-                     store_raw_vector = False):
+                     store_raw_vector=False):
         """
         :type table_name: str
         :type dimension: int
@@ -50,7 +62,7 @@ class Prepare(object):
 
         :return: TableSchema object
         """
-        temp = TableSchema(table_name,dimension, index_type, store_raw_vector)
+        temp = TableSchema(table_name, dimension, index_type, store_raw_vector)
 
         return ttypes.TableSchema(table_name=temp.table_name,
                                   dimension=dimension,
@@ -75,14 +87,27 @@ class Prepare(object):
         """
         Transfer a float binary str to RowRecord and return
 
-        :type vector_data: bytearray or bytes
-        :param vector_data: (Required) binary vector to store
+        :type vector_data: list, list of float
+        :param vector_data: (Required) vector data to store
 
         :return: RowRecord object
 
         """
-        temp = RowRecord(vector_data)
+        vector = struct.pack(str(len(vector_data)) + 'd', *vector_data)
+        temp = RowRecord(vector)
         return ttypes.RowRecord(vector_data=temp.vector_data)
+
+    @classmethod
+    def records(cls, vectors):
+        """
+        Parser 2-dim array to list of RowRecords
+
+        :param vectors: 2-dim array, lists of vectors
+        :type vectors: list[list[float]]
+
+        :return: binary vectors
+        """
+        return [Prepare.row_record(vector) for vector in vectors]
 
 
 class Milvus(ConnectIntf):
@@ -98,7 +123,7 @@ class Milvus(ConnectIntf):
     def __repr__(self):
         return '{}'.format(self.status)
 
-    def connect(self, host='localhost', port='9090', uri=None):
+    def connect(self, host='localhost', port='9090', uri=''):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -106,24 +131,68 @@ class Milvus(ConnectIntf):
         :type  host: str
         :type  port: str
         :type  uri: str
-        :param host: (Required) host of the server
-        :param port: (Required) port of the server
-        :param uri: (Optional)
+        :param host: (Optional) host of the server
+        :param port: (Optional) port of the server
+        :param uri: (Optional) only support tcp proto, example:
+
+                `tcp://127.0.0.1:9090`
 
         :return: Status, indicate if connect is successful
         :rtype: Status
         """
-        # TODO URI
         if self.status and self.status == Status.SUCCESS:
             raise RepeatingConnectError("You have already connected!")
 
-        transport = TSocket.TSocket(host=host, port=port)
-        self._transport = TTransport.TBufferedTransport(transport)
-        protocol = TBinaryProtocol.TBinaryProtocol(transport)
+        transport = config.THRIFTCLIENT_TRANSPORT
+
+        config_uri = urlparse(transport)
+
+        _uri = urlparse(uri) if uri else config_uri
+
+        if _uri.scheme == "tcp":
+
+            host = host if host else _uri.hostname
+            port = port if port else (_uri.port or 9090)
+
+            self._transport = TSocket.TSocket(host, port)
+        else:
+            raise RuntimeError(
+                'Invalid configuration for THRIFTCLIENT_TRANSPORT: {transport}'.format(
+                    transport=config.THRIFTCLIENT_TRANSPORT
+                )
+            )
+
+        if config.THRIFTCLIENT_BUFFERED:
+            self._transport = TTransport.TBufferedTransport(self._transport)
+        if config.THRIFTCLIENT_ZLIB:
+            self._transport = TZlibTransport.TZlibTransport(self._transport)
+        if config.THRIFTCLIENT_FRAMED:
+            self._transport = TTransport.TFramedTransport(self._transport)
+
+        if config.THRIFTCLIENT_PROTOCOL == Protocol.BINARY:
+            protocol = TBinaryProtocol.TBinaryProtocol(self._transport)
+
+        elif config.THRIFTCLIENT_PROTOCOL == Protocol.COMPACT:
+            protocol = TCompactProtocol.TCompactProtocol(self._transport)
+
+        elif config.THRIFTCLIENT_PROTOCOL == Protocol.JSON:
+            protocol = TJSONProtocol.TJSONProtocol(self._transport)
+
+        else:
+            if uri:
+                raise RuntimeError(
+                    "Invalid param uri: {uri}".format(uri=uri)
+                )
+
+            raise RuntimeError(
+                "invalid configuration for THRIFTCLIENT_PROTOCOL: {protocol}"
+                    .format(protocol=config.THRIFTCLIENT_PROTOCOL)
+            )
+
         self._client = MilvusService.Client(protocol)
 
         try:
-            transport.open()
+            self._transport.open()
             self.status = Status(Status.SUCCESS, 'Connected')
             LOGGER.info('Connected!')
 
@@ -141,7 +210,7 @@ class Milvus(ConnectIntf):
         :return: if client is connected
         :rtype bool
         """
-        return self._client is not None
+        return self.status == Status.SUCCESS
 
     def disconnect(self):
         """
@@ -151,7 +220,7 @@ class Milvus(ConnectIntf):
         :rtype: Status
         """
 
-        if not self._transport:
+        if not self._transport and not self.connected:
             raise DisconnectNotConnectedClientError('Disconnect not connected client!')
 
         try:
@@ -180,7 +249,7 @@ class Milvus(ConnectIntf):
 
         try:
             self._client.CreateTable(param)
-        except (TApplicationException, ) as e:
+        except (TApplicationException, TException) as e:
             LOGGER.error('Unable to create table')
             return Status(Status.PERMISSION_DENIED, str(e))
         return Status(message='Table {} created!'.format(param.table_name))
@@ -215,7 +284,7 @@ class Milvus(ConnectIntf):
         :param table_name: table name been inserted
         :param records: list of vectors been inserted
 
-                `Please use Prepare.row_record generate records`
+                `Please use Prepare.records generate records`
 
         :returns:
             Status: indicate if vectors inserted successfully
@@ -237,16 +306,18 @@ class Milvus(ConnectIntf):
         """
         Query vectors in a table
 
-
-
-        :param query_ranges: Optional ranges for conditional search.
+        :param query_ranges: (Optional) ranges for conditional search.
             If not specified, search whole table
         :type  query_ranges: list[Range]
+
+                `Range can be generated by Prepare.range`
+
         :param table_name: table name been queried
         :type  table_name: str
         :param query_records: all vectors going to be queried
 
-                `Please use Prepare.query_record generate QueryRecord`
+                `Please use Prepare.records generate records`
+
         :type  query_records: list[RowRecord]
         :param top_k: int, how many similar vectors will be searched
         :type  top_k: int
@@ -255,8 +326,9 @@ class Milvus(ConnectIntf):
 
             Status:  indicate if query is successful
 
-            res: return when operation is successful
-        :rtype: (Status, list[TopKQueryResult])
+            res: 2-dim array, return when operation is successful
+
+        :rtype: (Status, list[(vector_id(int), score(float))])
         """
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
@@ -272,8 +344,7 @@ class Milvus(ConnectIntf):
             if top_k_query_results:
                 for top_k in top_k_query_results:
                     if top_k:
-                        res.append(TopKQueryResult([QueryResult(qr.id, qr.score)
-                                                for qr in top_k.query_result_arrays]))
+                        res.append([(qr.id, qr.score) for qr in top_k.query_result_arrays])
 
         except (TApplicationException, TException) as e:
             LOGGER.error('{}'.format(e))

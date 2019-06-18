@@ -18,7 +18,6 @@ from milvus.thrift import ttypes, MilvusService
 
 from thrift.transport.TSocket import TSocket
 from thrift.transport import TTransport
-from thrift.transport.TTransport import TTransportException
 
 LOGGER = logging.getLogger(__name__)
 
@@ -61,15 +60,8 @@ def table_schema_factory():
     return Prepare.table_schema(**param)
 
 
-def row_record_factory(dimension):
-    vec = [random.random() + random.randint(0, 9) for _ in range(dimension)]
-    bin_vec = struct.pack(str(dimension) + "d", *vec)
-
-    return Prepare.row_record(vector_data=bin_vec)
-
-
-def row_records_factory(dimension):
-    return [row_record_factory(dimension) for _ in range(20)]
+def records_factory(dimension):
+    return Prepare.records([[random.random() for _ in range(dimension)] for _ in range(20)])
 
 
 class TestConnection:
@@ -93,6 +85,24 @@ class TestConnection:
 
         cnn.connect(**self.param)
         assert cnn.status != Status.SUCCESS
+
+    @mock.patch.object(TSocket, 'open')
+    def test_uri(self, open):
+        open.return_value = None
+        cnn = Milvus()
+
+        cnn.connect(uri='tcp://127.0.0.1:9090')
+        assert cnn.status == Status.SUCCESS
+
+    @mock.patch.object(TSocket, 'open')
+    def test_uri_runtime_error(self, open):
+        open.return_value = None
+        cnn = Milvus()
+        with pytest.raises(RuntimeError):
+            cnn.connect(uri='http://127.0.0.1:9090')
+
+        cnn.connect()
+        assert cnn.status == Status.SUCCESS
 
     @mock.patch.object(TTransport.TBufferedTransport, 'close')
     @mock.patch.object(TSocket, 'open')
@@ -134,10 +144,9 @@ class TestTable:
 
     def test_false_create_table(self, client):
         param = table_schema_factory()
-        with pytest.raises(TTransportException):
-            res = client.create_table(param)
-            LOGGER.error('{}'.format(res))
-            assert res != Status.SUCCESS
+        res = client.create_table(param)
+        LOGGER.error('{}'.format(res))
+        assert res != Status.SUCCESS
 
     @mock.patch.object(MilvusService.Client, 'DeleteTable')
     def test_delete_table(self, DeleteTable, client):
@@ -170,7 +179,7 @@ class TestVector:
 
         param = {
             'table_name': fake.table_name(),
-            'records': row_records_factory(256)
+            'records': records_factory(256)
         }
         res, ids = client.add_vectors(**param)
         assert res == Status.SUCCESS
@@ -178,7 +187,7 @@ class TestVector:
     def test_false_add_vector(self, client):
         param = {
             'table_name': fake.table_name(),
-            'records': row_records_factory(256)
+            'records': records_factory(256)
         }
         res, ids = client.add_vectors(**param)
         assert res != Status.SUCCESS
@@ -188,7 +197,7 @@ class TestVector:
         SearchVector.return_value = None, None
         param = {
             'table_name': fake.table_name(),
-            'query_records': row_records_factory(256),
+            'query_records': records_factory(256),
             'query_ranges': ranges_factory(),
             'top_k': random.randint(0, 10)
         }
@@ -198,7 +207,7 @@ class TestVector:
     def test_false_vector(self, client):
         param = {
             'table_name': fake.table_name(),
-            'query_records': row_records_factory(256),
+            'query_records': records_factory(256),
             'query_ranges': ranges_factory(),
             'top_k': random.randint(0, 10)
         }
@@ -274,7 +283,13 @@ class TestPrepare:
 
     def test_row_record(self):
         vec = [random.random() + random.randint(0, 9) for _ in range(256)]
-        bin_vec = struct.pack(str(256) + "d", *vec)
-        res = Prepare.row_record(bin_vec)
+        res = Prepare.row_record(vec)
         assert isinstance(res, ttypes.RowRecord)
-        assert isinstance(bin_vec, bytes)
+        assert isinstance(res.vector_data, bytes)
+
+    def test_records(self):
+        vecs = [[random.random() for _ in range(256)] for _ in range(20)]
+        res = Prepare.records(vecs)
+        assert isinstance(res, list)
+        assert isinstance(res[0], ttypes.RowRecord)
+        assert isinstance(res[0].vector_data, bytes)
