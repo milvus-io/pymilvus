@@ -1,27 +1,27 @@
 
-sdk.client.Client module
+milvus.client.Client module
 ===============================
 
-sdk.client.Client.Milvus
+mlivus.client.Client module
 --------------------------------
 
-.. autoclass:: client.Client.Milvus
+.. automodule:: client.Client
     :members:
     :undoc-members:
     :show-inheritance:
 
-sdk.client.Clinet.Prepare
+milvus.client.Clinet.Prepare
 --------------------------------
 
-.. autoclass:: client.Client.Prepare
+.. autoclass:: milvus.client.Client.Prepare
     :members:
     :undoc-members:
     :show-inheritance:
 
-sdk.client.Status module
+milvus.client.Status module
 ======================================
 
-.. automodule:: client.Status
+.. automodule:: milvus.client.Status
     :members:
     :undoc-members:
     :show-inheritance:
