@@ -60,13 +60,6 @@ def table_schema_factory():
     return Prepare.table_schema(**param)
 
 
-# def row_record_factory(dimension):
-#     vec = [random.random() + random.randint(0, 9) for _ in range(dimension)]
-#     bin_vec = struct.pack(str(dimension) + "d", *vec)
-#
-#     return Prepare.row_record(vector_data=bin_vec)
-
-
 def records_factory(dimension):
     return Prepare.records([[random.random() for _ in range(dimension)] for _ in range(20)])
 
