@@ -1,2 +1,5 @@
-#-3
-a. Support non-bin list  in add_vector
+#-4
+a. Support numpy in add_vector
+b. Support outside config for transport and protocol
+c. Log message more understandable  >> OK
+d. Hide Prepare object

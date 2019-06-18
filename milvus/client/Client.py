@@ -12,6 +12,7 @@ from milvus.thrift import ttypes
 from milvus.client.Abstract import (
     ConnectIntf,
     TableSchema,
+    QueryResult,
     Range,
     RowRecord,
     IndexType
@@ -32,7 +33,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.0'
+__version__ = '0.1.2'
 __NAME__ = 'pymilvus'
 
 
@@ -194,7 +195,7 @@ class Milvus(ConnectIntf):
         try:
             self._transport.open()
             self.status = Status(Status.SUCCESS, 'Connected')
-            LOGGER.info('Connected!')
+            LOGGER.info('Connected to {}:{}'.format(host, port))
 
         except (TTransport.TTransportException, TException) as e:
             self.status = Status(Status.CONNECT_FAILED, message=str(e))
@@ -224,14 +225,13 @@ class Milvus(ConnectIntf):
             raise DisconnectNotConnectedClientError('Disconnect not connected client!')
 
         try:
-
+            LOGGER.info('Disconnecting from the server')
             self._transport.close()
-            LOGGER.info('Client Disconnected!')
             self.status = None
 
         except TException as e:
             return Status(Status.PERMISSION_DENIED, str(e))
-        return Status(Status.SUCCESS, 'Disconnected')
+        return Status(Status.SUCCESS, 'Disconnection successful!')
 
     def create_table(self, param):
         """Create table
@@ -250,7 +250,7 @@ class Milvus(ConnectIntf):
         try:
             self._client.CreateTable(param)
         except (TApplicationException, TException) as e:
-            LOGGER.error('Unable to create table')
+            LOGGER.error(str(e))
             return Status(Status.PERMISSION_DENIED, str(e))
         return Status(message='Table {} created!'.format(param.table_name))
 
@@ -270,7 +270,7 @@ class Milvus(ConnectIntf):
         try:
             self._client.DeleteTable(table_name)
         except (TApplicationException, TException) as e:
-            LOGGER.error('Unable to delete table {}'.format(table_name))
+            LOGGER.error(str(e))
             return Status(Status.PERMISSION_DENIED, str(e))
         return Status(message='Table {} deleted!'.format(table_name))
 
@@ -298,7 +298,7 @@ class Milvus(ConnectIntf):
         try:
             ids = self._client.AddVector(table_name=table_name, record_array=records)
         except (TApplicationException, TException) as e:
-            LOGGER.error('{}'.format(e))
+            LOGGER.error(str(e))
             return Status(Status.PERMISSION_DENIED, str(e)), None
         return Status(message='Vectors added successfully!'), ids
 
@@ -344,12 +344,13 @@ class Milvus(ConnectIntf):
             if top_k_query_results:
                 for top_k in top_k_query_results:
                     if top_k:
-                        res.append([(qr.id, qr.score) for qr in top_k.query_result_arrays])
+                        res.append([QueryResult(id=qr.id, score=qr.score)
+                                    for qr in top_k.query_result_arrays])
 
         except (TApplicationException, TException) as e:
-            LOGGER.error('{}'.format(e))
+            LOGGER.error(str(e))
             return Status(Status.PERMISSION_DENIED, str(e)), None
-        return Status(message='Success!'), res
+        return Status(message='Search vectors successfully!'), res
 
     def describe_table(self, table_name):
         """
@@ -370,9 +371,9 @@ class Milvus(ConnectIntf):
             temp = self._client.DescribeTable(table_name)
 
         except (TApplicationException, TException) as e:
-            LOGGER.error('{}'.format(e))
+            LOGGER.error(str(e))
             return Status(Status.PERMISSION_DENIED, str(e)), None
-        return Status(message='Success!'), temp
+        return Status(message='Describe table successfully!'), temp
 
     def show_tables(self):
         """
@@ -396,9 +397,9 @@ class Milvus(ConnectIntf):
                 tables = res
 
         except (TApplicationException, TException) as e:
-            LOGGER.error('{}'.format(e))
+            LOGGER.error(str(e))
             return Status(Status.PERMISSION_DENIED, str(e)), None
-        return Status(message='Success!'), tables
+        return Status(message='Show tables successfully!'), tables
 
     def get_table_row_count(self, table_name):
         """
@@ -419,9 +420,9 @@ class Milvus(ConnectIntf):
             count = self._client.GetTableRowCount(table_name)
 
         except (TApplicationException, TException) as e:
-            LOGGER.error('{}'.format(e))
+            LOGGER.error(str(e))
             return Status(Status.PERMISSION_DENIED, str(e)), None
-        return Status(message='Success'), count
+        return Status(message='Get table row counts successfully'), count
 
     def client_version(self):
         """
