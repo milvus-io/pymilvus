@@ -4,20 +4,18 @@ import mock
 import faker
 import random
 import sys
-
 from faker.providers import BaseProvider
-from milvus import Milvus, Prepare, IndexType, Status
+from thrift.transport.TSocket import TSocket
+from thrift.transport import TTransport
 
+sys.path.append('.')
+from milvus.client.Client import Milvus, Prepare, IndexType, Status
 from milvus.client.Exceptions import (
     RepeatingConnectError,
     DisconnectNotConnectedClientError)
 from milvus.thrift import ttypes, MilvusService
 
-from thrift.transport.TSocket import TSocket
-from thrift.transport import TTransport
-
 LOGGER = logging.getLogger(__name__)
-sys.path.append('.')
 
 
 class FakerProvider(BaseProvider):
@@ -91,6 +89,24 @@ class TestConnection:
 
         cnn.connect(uri='tcp://127.0.0.1:9090')
         assert cnn.status == Status.SUCCESS
+
+    def test_connect(self):
+        cnn = Milvus()
+        cnn.connect()
+        assert cnn.status == Status.CONNECT_FAILED
+
+        cnn.connect('127.0.0.2')
+        assert cnn.status == Status.CONNECT_FAILED
+
+        cnn.connect('127.0.0.1', '9999')
+        assert cnn.status == Status.CONNECT_FAILED
+
+        cnn.connect(port='9999')
+        assert cnn.status == Status.CONNECT_FAILED
+
+        cnn.connect(uri='tcp://127.0.0.1:9090')
+        assert cnn.status == Status.CONNECT_FAILED
+
 
     @mock.patch.object(TSocket, 'open')
     def test_uri_runtime_error(self, open):

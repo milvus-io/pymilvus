@@ -56,7 +56,6 @@ def main():
     dim = 256  # Dimension of the vector
     # list of binary vectors
     vectors = Prepare.records([[random.random()for _ in range(dim)] for _ in range(20)])
-    pprint(vectors)
     #   02. Add vectors
     status, ids = milvus.add_vectors(table_name=table_name, records=vectors)
     print('# Add vector status: {}'.format(status))

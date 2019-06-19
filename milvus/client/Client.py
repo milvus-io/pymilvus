@@ -124,7 +124,7 @@ class Milvus(ConnectIntf):
     def __repr__(self):
         return '{}'.format(self.status)
 
-    def connect(self, host='localhost', port='9090', uri=''):
+    def connect(self, host=None, port=None, uri=None):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -132,9 +132,9 @@ class Milvus(ConnectIntf):
         :type  host: str
         :type  port: str
         :type  uri: str
-        :param host: (Optional) host of the server
-        :param port: (Optional) port of the server
-        :param uri: (Optional) only support tcp proto, example:
+        :param host: (Optional) host of the server, default host is 127.0.0.1
+        :param port: (Optional) port of the server, default port is 9090
+        :param uri: (Optional) only support tcp proto now, default uri is
 
                 `tcp://127.0.0.1:9090`
 
@@ -144,24 +144,28 @@ class Milvus(ConnectIntf):
         if self.status and self.status == Status.SUCCESS:
             raise RepeatingConnectError("You have already connected!")
 
-        transport = config.THRIFTCLIENT_TRANSPORT
-
-        config_uri = urlparse(transport)
+        config_uri = urlparse(config.THRIFTCLIENT_TRANSPORT)
 
         _uri = urlparse(uri) if uri else config_uri
 
-        if _uri.scheme == "tcp":
-
-            host = host if host else _uri.hostname
-            port = port if port else (_uri.port or 9090)
-
-            self._transport = TSocket.TSocket(host, port)
-        else:
-            raise RuntimeError(
-                'Invalid configuration for THRIFTCLIENT_TRANSPORT: {transport}'.format(
-                    transport=config.THRIFTCLIENT_TRANSPORT
+        if not host:
+            if _uri.scheme == 'tcp':
+                host = _uri.hostname
+                port = _uri.port or 9090
+            else:
+                if uri:
+                    raise RuntimeError(
+                        'Invalid parameter uri: {}'.format(uri)
+                    )
+                raise RuntimeError(
+                    'Invalid configuration for THRIFTCLIENT_TRANSPORT: {transport}'.format(
+                        transport=config.THRIFTCLIENT_TRANSPORT)
                 )
-            )
+        else:
+            host = host
+            port = port or 9090
+
+        self._transport = TSocket.TSocket(host, port)
 
         if config.THRIFTCLIENT_BUFFERED:
             self._transport = TTransport.TBufferedTransport(self._transport)
@@ -180,11 +184,6 @@ class Milvus(ConnectIntf):
             protocol = TJSONProtocol.TJSONProtocol(self._transport)
 
         else:
-            if uri:
-                raise RuntimeError(
-                    "Invalid param uri: {uri}".format(uri=uri)
-                )
-
             raise RuntimeError(
                 "invalid configuration for THRIFTCLIENT_PROTOCOL: {protocol}"
                     .format(protocol=config.THRIFTCLIENT_PROTOCOL)
