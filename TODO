@@ -5,3 +5,5 @@ c. Log message more understandable  >> OK 20190618
 d. Hide Prepare object
 e. Search_vectors return value
 f. Status quick-check-success  >> OK 20190619
+g. [!!]Status code related to Thrift Exception >> OK 20190619
+h. [!!]Operations before connect will raise NotConnectError, Adding UNKNOWN Status >> OK 20190619

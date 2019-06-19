@@ -20,7 +20,7 @@ def main():
     print('# Connect Status: {}'.format(cnn_status))
 
     # Check if connected
-    is_connected = milvus.connected
+    is_connected = milvus.connected()
     print('# Is connected: {}'.format(is_connected))
 
     # Get server version

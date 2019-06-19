@@ -11,6 +11,7 @@ class Status(object):
     ILLEGAL_ARGUMENT = 4
     ILLEGAL_RANGE = 5
     ILLEGAL_DIMENSION = 6
+    UNKNOWN = 7
 
     def __init__(self, code=SUCCESS, message=None):
         self.code = code
@@ -32,5 +33,5 @@ class Status(object):
         return not (self == other)
 
     def OK(self):
-        return self == Status.SUCCESS
+        return self.code == Status.SUCCESS
 
