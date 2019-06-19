@@ -1,5 +1,7 @@
 #-4
 a. Support numpy in add_vector
 b. Support outside config for transport and protocol
-c. Log message more understandable  >> OK
+c. Log message more understandable  >> OK 20190618
 d. Hide Prepare object
+e. Search_vectors return value
+f. Status quick-check-success  >> OK 20190619

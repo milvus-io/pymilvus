@@ -31,3 +31,6 @@ class Status(object):
     def __ne__(self, other):
         return not (self == other)
 
+    def OK(self):
+        return self == Status.SUCCESS
+
