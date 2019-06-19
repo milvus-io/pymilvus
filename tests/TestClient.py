@@ -4,20 +4,19 @@ import mock
 import faker
 import random
 import sys
-
 from faker.providers import BaseProvider
-from milvus import Milvus, Prepare, IndexType, Status
+from thrift.transport.TSocket import TSocket
+from thrift.transport import TTransport
 
+sys.path.append('.')
+from milvus.client.Client import Milvus, Prepare, IndexType, Status
 from milvus.client.Exceptions import (
+    NotConnectError,
     RepeatingConnectError,
     DisconnectNotConnectedClientError)
 from milvus.thrift import ttypes, MilvusService
 
-from thrift.transport.TSocket import TSocket
-from thrift.transport import TTransport
-
 LOGGER = logging.getLogger(__name__)
-sys.path.append('.')
 
 
 class FakerProvider(BaseProvider):
@@ -71,7 +70,7 @@ class TestConnection:
         cnn = Milvus()
 
         cnn.connect(**self.param)
-        assert cnn.status == Status.SUCCESS
+        assert cnn.status.OK
         assert cnn.connected
 
         with pytest.raises(RepeatingConnectError):
@@ -80,9 +79,10 @@ class TestConnection:
 
     def test_false_connect(self):
         cnn = Milvus()
-
-        cnn.connect(**self.param)
-        assert cnn.status != Status.SUCCESS
+        with pytest.raises(TTransport.TTransportException):
+            cnn.connect(**self.param)
+            LOGGER.error(cnn.status)
+            assert not cnn.status.OK()
 
     @mock.patch.object(TSocket, 'open')
     def test_uri(self, open):
@@ -90,7 +90,23 @@ class TestConnection:
         cnn = Milvus()
 
         cnn.connect(uri='tcp://127.0.0.1:9090')
-        assert cnn.status == Status.SUCCESS
+        assert cnn.status.OK()
+
+    def test_connect(self):
+        cnn = Milvus()
+        with pytest.raises(TTransport.TTransportException):
+
+            cnn.connect('127.0.0.2')
+            assert not cnn.status.OK()
+
+            cnn.connect('127.0.0.1', '9999')
+            assert not cnn.status.OK()
+
+            cnn.connect(port='9999')
+            assert not cnn.status.OK()
+
+            cnn.connect(uri='tcp://127.0.0.1:9090')
+            assert not cnn.status.OK()
 
     @mock.patch.object(TSocket, 'open')
     def test_uri_runtime_error(self, open):
@@ -100,7 +116,7 @@ class TestConnection:
             cnn.connect(uri='http://127.0.0.1:9090')
 
         cnn.connect()
-        assert cnn.status == Status.SUCCESS
+        assert cnn.status.OK()
 
     @mock.patch.object(TTransport.TBufferedTransport, 'close')
     @mock.patch.object(TSocket, 'open')
@@ -111,11 +127,11 @@ class TestConnection:
         cnn = Milvus()
         cnn.connect(**self.param)
 
-        assert cnn.disconnect() == Status.SUCCESS
+        assert cnn.disconnect().OK()
 
     def test_disconnected_error(self):
         cnn = Milvus()
-        cnn.connect_status = Status(Status.PERMISSION_DENIED)
+        cnn.status = Status(Status.PERMISSION_DENIED)
         with pytest.raises(DisconnectNotConnectedClientError):
             cnn.disconnect()
 
@@ -138,24 +154,25 @@ class TestTable:
 
         param = table_schema_factory()
         res = client.create_table(param)
-        assert res == Status.SUCCESS
+        assert res.OK()
 
-    def test_false_create_table(self, client):
+    def test_create_table_connect_failed_status(self, client):
         param = table_schema_factory()
         res = client.create_table(param)
-        assert res != Status.SUCCESS
+        assert res == Status.CONNECT_FAILED
 
     @mock.patch.object(MilvusService.Client, 'DeleteTable')
     def test_delete_table(self, DeleteTable, client):
         DeleteTable.return_value = None
         table_name = 'fake_table_name'
         res = client.delete_table(table_name)
-        assert res == Status.SUCCESS
+        assert res.OK
 
     def test_false_delete_table(self, client):
         table_name = 'fake_table_name'
         res = client.delete_table(table_name)
-        assert res != Status.SUCCESS
+        LOGGER.info(res)
+        assert res == Status.CONNECT_FAILED
 
 
 class TestVector:
@@ -179,7 +196,8 @@ class TestVector:
             'records': records_factory(256)
         }
         res, ids = client.add_vectors(**param)
-        assert res == Status.SUCCESS
+        assert res.OK()
+        assert res.OK()
 
     def test_false_add_vector(self, client):
         param = {
@@ -187,7 +205,7 @@ class TestVector:
             'records': records_factory(256)
         }
         res, ids = client.add_vectors(**param)
-        assert res != Status.SUCCESS
+        assert res == Status.CONNECT_FAILED
 
     @mock.patch.object(MilvusService.Client, 'SearchVector')
     def test_search_vector(self, SearchVector, client):
@@ -199,7 +217,7 @@ class TestVector:
             'top_k': random.randint(0, 10)
         }
         res, results = client.search_vectors(**param)
-        assert res == Status.SUCCESS
+        assert res.OK()
 
     def test_false_vector(self, client):
         param = {
@@ -209,7 +227,7 @@ class TestVector:
             'top_k': random.randint(0, 10)
         }
         res, results = client.search_vectors(**param)
-        assert res != Status.SUCCESS
+        assert res == Status.CONNECT_FAILED
 
     @mock.patch.object(MilvusService.Client, 'DescribeTable')
     def test_describe_table(self, DescribeTable, client):
@@ -217,36 +235,36 @@ class TestVector:
 
         table_name = fake.table_name()
         res, table_schema = client.describe_table(table_name)
-        assert res == Status.SUCCESS
+        assert res.OK()
         assert isinstance(table_schema, ttypes.TableSchema)
 
     def test_false_decribe_table(self, client):
         table_name = fake.table_name()
         res, table_schema = client.describe_table(table_name)
-        assert res != Status.SUCCESS
+        assert not res.OK()
         assert not table_schema
 
     @mock.patch.object(MilvusService.Client, 'ShowTables')
     def test_show_tables(self, ShowTables, client):
         ShowTables.return_value = [fake.table_name() for _ in range(10)]
         res, tables = client.show_tables()
-        assert res == Status.SUCCESS
+        assert res.OK()
         assert isinstance(tables, list)
 
     def test_false_show_tables(self, client):
         res, tables = client.show_tables()
-        assert res != Status.SUCCESS
+        assert not res.OK()
         assert not tables
 
     @mock.patch.object(MilvusService.Client, 'GetTableRowCount')
     def test_get_table_row_count(self, GetTableRowCount, client):
         GetTableRowCount.return_value = 22, None
         res, count = client.get_table_row_count('fake_table')
-        assert res == Status.SUCCESS
+        assert res.OK()
 
     def test_false_get_table_row_count(self, client):
         res, count = client.get_table_row_count('fake_table')
-        assert res != Status.SUCCESS
+        assert not res.OK()
         assert not count
 
     def test_client_version(self, client):

@@ -124,7 +124,7 @@ class Milvus(ConnectIntf):
     def __repr__(self):
         return '{}'.format(self.status)
 
-    def connect(self, host='localhost', port='9090', uri=''):
+    def connect(self, host=None, port=None, uri=None):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -132,9 +132,9 @@ class Milvus(ConnectIntf):
         :type  host: str
         :type  port: str
         :type  uri: str
-        :param host: (Optional) host of the server
-        :param port: (Optional) port of the server
-        :param uri: (Optional) only support tcp proto, example:
+        :param host: (Optional) host of the server, default host is 127.0.0.1
+        :param port: (Optional) port of the server, default port is 9090
+        :param uri: (Optional) only support tcp proto now, default uri is
 
                 `tcp://127.0.0.1:9090`
 
@@ -144,24 +144,28 @@ class Milvus(ConnectIntf):
         if self.status and self.status == Status.SUCCESS:
             raise RepeatingConnectError("You have already connected!")
 
-        transport = config.THRIFTCLIENT_TRANSPORT
-
-        config_uri = urlparse(transport)
+        config_uri = urlparse(config.THRIFTCLIENT_TRANSPORT)
 
         _uri = urlparse(uri) if uri else config_uri
 
-        if _uri.scheme == "tcp":
-
-            host = host if host else _uri.hostname
-            port = port if port else (_uri.port or 9090)
-
-            self._transport = TSocket.TSocket(host, port)
-        else:
-            raise RuntimeError(
-                'Invalid configuration for THRIFTCLIENT_TRANSPORT: {transport}'.format(
-                    transport=config.THRIFTCLIENT_TRANSPORT
+        if not host:
+            if _uri.scheme == 'tcp':
+                host = _uri.hostname
+                port = _uri.port or 9090
+            else:
+                if uri:
+                    raise RuntimeError(
+                        'Invalid parameter uri: {}'.format(uri)
+                    )
+                raise RuntimeError(
+                    'Invalid configuration for THRIFTCLIENT_TRANSPORT: {transport}'.format(
+                        transport=config.THRIFTCLIENT_TRANSPORT)
                 )
-            )
+        else:
+            host = host
+            port = port or 9090
+
+        self._transport = TSocket.TSocket(host, port)
 
         if config.THRIFTCLIENT_BUFFERED:
             self._transport = TTransport.TBufferedTransport(self._transport)
@@ -180,11 +184,6 @@ class Milvus(ConnectIntf):
             protocol = TJSONProtocol.TJSONProtocol(self._transport)
 
         else:
-            if uri:
-                raise RuntimeError(
-                    "Invalid param uri: {uri}".format(uri=uri)
-                )
-
             raise RuntimeError(
                 "invalid configuration for THRIFTCLIENT_PROTOCOL: {protocol}"
                     .format(protocol=config.THRIFTCLIENT_PROTOCOL)
@@ -197,11 +196,11 @@ class Milvus(ConnectIntf):
             self.status = Status(Status.SUCCESS, 'Connected')
             LOGGER.info('Connected to {}:{}'.format(host, port))
 
-        except (TTransport.TTransportException, TException) as e:
-            self.status = Status(Status.CONNECT_FAILED, message=str(e))
-            LOGGER.error('logger.error: {}'.format(self.status))
-        finally:
-            return self.status
+        except TTransport.TTransportException as e:
+            self.status = Status(code=e.type, message=e.message)
+            LOGGER.error(e)
+            raise e
+        return self.status
 
     @property
     def connected(self):
@@ -211,7 +210,7 @@ class Milvus(ConnectIntf):
         :return: if client is connected
         :rtype bool
         """
-        return self.status == Status.SUCCESS
+        return self.status.OK
 
     def disconnect(self):
         """
@@ -221,7 +220,7 @@ class Milvus(ConnectIntf):
         :rtype: Status
         """
 
-        if not self._transport and not self.connected:
+        if not self._transport or not self.connected:
             raise DisconnectNotConnectedClientError('Disconnect not connected client!')
 
         try:
@@ -230,6 +229,7 @@ class Milvus(ConnectIntf):
             self.status = None
 
         except TException as e:
+            LOGGER.error(e)
             return Status(Status.PERMISSION_DENIED, str(e))
         return Status(Status.SUCCESS, 'Disconnection successful!')
 
@@ -247,12 +247,20 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
+        r_status = Status(Status.UNKNOWN, 'Unknown Status')
+
         try:
             self._client.CreateTable(param)
-        except (TApplicationException, TException) as e:
-            LOGGER.error(str(e))
-            return Status(Status.PERMISSION_DENIED, str(e))
-        return Status(message='Table {} created!'.format(param.table_name))
+            r_status = Status(message='Table {} created!'.format(param.table_name))
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            r_status = Status(Status.CONNECT_FAILED, e.message)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            r_status = Status(code=e.code, message=e.reason)
+        finally:
+            return r_status
 
     def delete_table(self, table_name):
         """
@@ -267,12 +275,20 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
+        r_status = Status(Status.UNKNOWN, 'Unknown Status')
+
         try:
             self._client.DeleteTable(table_name)
-        except (TApplicationException, TException) as e:
-            LOGGER.error(str(e))
-            return Status(Status.PERMISSION_DENIED, str(e))
-        return Status(message='Table {} deleted!'.format(table_name))
+            r_status = Status(message='Table {} deleted!'.format(table_name))
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            r_status = Status(Status.CONNECT_FAILED, e.message)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            r_status = Status(code=e.code, message=e.reason)
+        finally:
+            return r_status
 
     def add_vectors(self, table_name, records):
         """
@@ -295,12 +311,21 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
+        r_status = Status(Status.UNKNOWN, 'Unknown Status')
+        ids = []
+
         try:
             ids = self._client.AddVector(table_name=table_name, record_array=records)
-        except (TApplicationException, TException) as e:
-            LOGGER.error(str(e))
-            return Status(Status.PERMISSION_DENIED, str(e)), None
-        return Status(message='Vectors added successfully!'), ids
+            r_status = Status(message='Vectors added successfully!')
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            r_status = Status(Status.CONNECT_FAILED, e.message)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            r_status = Status(code=e.code, message=e.reason)
+        finally:
+            return r_status, ids
 
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         """
@@ -333,6 +358,7 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
+        r_status = Status(Status.UNKNOWN, 'Unknown Status')
         res = []
         try:
             top_k_query_results = self._client.SearchVector(
@@ -347,10 +373,16 @@ class Milvus(ConnectIntf):
                         res.append([QueryResult(id=qr.id, score=qr.score)
                                     for qr in top_k.query_result_arrays])
 
-        except (TApplicationException, TException) as e:
-            LOGGER.error(str(e))
-            return Status(Status.PERMISSION_DENIED, str(e)), None
-        return Status(message='Search vectors successfully!'), res
+            r_status = Status(message='Search Vectors successfully!')
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            r_status = Status(Status.CONNECT_FAILED, e.message)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            r_status = Status(code=e.code, message=e.reason)
+        finally:
+            return r_status, res
 
     def describe_table(self, table_name):
         """
@@ -367,13 +399,20 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
+        r_status = Status(Status.UNKNOWN, 'Unknown Status')
+        table = ''
         try:
-            temp = self._client.DescribeTable(table_name)
-
-        except (TApplicationException, TException) as e:
-            LOGGER.error(str(e))
-            return Status(Status.PERMISSION_DENIED, str(e)), None
-        return Status(message='Describe table successfully!'), temp
+            table = self._client.DescribeTable(table_name)
+            r_status = Status(message='Describe table successfully!')
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            r_status = Status(Status.CONNECT_FAILED, e.message)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            r_status = Status(code=e.code, message=e.reason)
+        finally:
+            return r_status, table
 
     def show_tables(self):
         """
@@ -390,16 +429,21 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        try:
-            res = self._client.ShowTables()
-            tables = []
-            if res:
-                tables = res
+        r_status = Status(Status.UNKNOWN, 'Unknown Status')
+        tables = []
 
-        except (TApplicationException, TException) as e:
-            LOGGER.error(str(e))
-            return Status(Status.PERMISSION_DENIED, str(e)), None
-        return Status(message='Show tables successfully!'), tables
+        try:
+            tables = self._client.ShowTables()
+            r_status = Status(message='Show tables successfully!')
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            r_status = Status(Status.CONNECT_FAILED, e.message)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            r_status = Status(code=e.code, message=e.reason)
+        finally:
+            return r_status, tables
 
     def get_table_row_count(self, table_name):
         """
@@ -416,13 +460,21 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
+        r_status = Status(Status.UNKNOWN, 'Unknown Status')
+        count = 0
+
         try:
             count = self._client.GetTableRowCount(table_name)
-
-        except (TApplicationException, TException) as e:
-            LOGGER.error(str(e))
-            return Status(Status.PERMISSION_DENIED, str(e)), None
-        return Status(message='Get table row counts successfully'), count
+            r_status = Status(message='Get table row counts successfully')
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            r_status = Status(Status.CONNECT_FAILED, e.message)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            r_status = Status(code=e.code, message=e.reason)
+        finally:
+            return r_status, count
 
     def client_version(self):
         """
