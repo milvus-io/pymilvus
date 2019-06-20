@@ -3,5 +3,3 @@ a. [!!] Support numpy in add_vector
 b. Support outside config for transport and protocol
 c. [!!] LOG Config
 d. Hide Prepare object
-e. Search_vectors return value >> CHECK 20190620
-f. Add new API, search vectors by file >> CHECK 20190620
