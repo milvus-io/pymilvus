@@ -85,21 +85,11 @@ class QueryResult(object):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
 
-class TopKQueryResult(object):
+class TopKQueryResult(list):
     """
-    TopK query results
-
-    :type  query_results: list[QueryResult]
-    :param query_results: TopK query results
-
+    TopK query results, list of QueryResult
     """
-    def __init__(self, query_results):
-        self.query_results = query_results
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+    pass
 
 
 def _abstract():

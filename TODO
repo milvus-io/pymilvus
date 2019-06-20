@@ -1,5 +1,7 @@
 #-7
-a. Support numpy in add_vector
+a. [!!] Support numpy in add_vector
 b. Support outside config for transport and protocol
+c. [!!] LOG Config
 d. Hide Prepare object
-e. Search_vectors return value
+e. Search_vectors return value >> CHECK 20190620
+

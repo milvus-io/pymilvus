@@ -13,6 +13,7 @@ from milvus.client.Abstract import (
     ConnectIntf,
     TableSchema,
     QueryResult,
+    TopKQueryResult,
     Range,
     RowRecord,
     IndexType
@@ -351,15 +352,15 @@ class Milvus(ConnectIntf):
 
             Status:  indicate if query is successful
 
-            res: 2-dim array, return when operation is successful
+            res: TopKQueryResult, return when operation is successful
 
-        :rtype: (Status, list[(vector_id(int), score(float))])
+        :rtype: (Status, TopKQueryResult[QueryResult])
         """
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
         r_status = Status(Status.UNKNOWN, 'Unknown Status')
-        res = []
+        res = TopKQueryResult()
         try:
             top_k_query_results = self._client.SearchVector(
                 table_name=table_name,
@@ -367,13 +368,9 @@ class Milvus(ConnectIntf):
                 query_range_array=query_ranges,
                 topk=top_k)
 
-            if top_k_query_results:
-                for top_k in top_k_query_results:
-                    if top_k:
-                        res.append([QueryResult(id=qr.id, score=qr.score)
-                                    for qr in top_k.query_result_arrays])
-
-            r_status = Status(message='Search Vectors successfully!')
+            for topk in top_k_query_results:
+                res.append([QueryResult(id=qr.id, score=qr.score) for qr in topk.query_result_arrays])
+            r_status = Status(Status.SUCCESS, message='Search Vectors successfully!')
         except TTransport.TTransportException as e:
             LOGGER.error(e)
             r_status = Status(Status.CONNECT_FAILED, e.message)

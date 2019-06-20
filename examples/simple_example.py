@@ -1,8 +1,8 @@
 from milvus import Milvus, Prepare, IndexType, Status
-import random, struct
+import random
 
 milvus = Milvus()
-table_name = 'table_'+str(random.randint(0,100))
+table_name = 'table_example'+str(random.randint(0,100))
 
 # Connect
 milvus.connect(host='localhost', port='33001')

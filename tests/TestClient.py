@@ -9,7 +9,7 @@ from thrift.transport.TSocket import TSocket
 from thrift.transport import TTransport
 
 sys.path.append('.')
-from milvus.client.Client import Milvus, Prepare, IndexType, Status
+from milvus.client.Client import Milvus, Prepare, IndexType, Status, TopKQueryResult
 from milvus.client.Exceptions import (
     NotConnectError,
     RepeatingConnectError,
@@ -189,7 +189,7 @@ class TestVector:
 
     @mock.patch.object(MilvusService.Client, 'AddVector')
     def test_add_vector(self, AddVector, client):
-        AddVector.return_value = None
+        AddVector.return_value = ['a','a']
 
         param = {
             'table_name': fake.table_name(),
@@ -197,7 +197,7 @@ class TestVector:
         }
         res, ids = client.add_vectors(**param)
         assert res.OK()
-        assert res.OK()
+        assert isinstance(ids, list)
 
     def test_false_add_vector(self, client):
         param = {
@@ -207,17 +207,17 @@ class TestVector:
         res, ids = client.add_vectors(**param)
         assert res == Status.CONNECT_FAILED
 
-    @mock.patch.object(MilvusService.Client, 'SearchVector')
-    def test_search_vector(self, SearchVector, client):
-        SearchVector.return_value = None, None
+    @mock.patch.object(Milvus, 'search_vectors')
+    def test_search_vector(self, search_vectors, client):
+        search_vectors.return_value = Status(), [[ttypes.QueryResult(111,111)]]
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
-            'query_ranges': ranges_factory(),
             'top_k': random.randint(0, 10)
         }
         res, results = client.search_vectors(**param)
         assert res.OK()
+        assert isinstance(results, (list, TopKQueryResult))
 
     def test_false_vector(self, client):
         param = {
