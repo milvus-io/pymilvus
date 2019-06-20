@@ -365,7 +365,7 @@ class Milvus(ConnectIntf):
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)
-            r_status = Status(code=e.code, message=e.reason), res
+            return Status(code=e.code, message=e.reason), res
 
     def search_vectors_in_files(self, table_name, file_ids, query_records, query_ranges, top_k):
         """
