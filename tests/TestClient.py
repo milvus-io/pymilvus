@@ -171,9 +171,10 @@ class TestTable:
 
     def test_false_delete_table(self, client):
         table_name = 'fake_table_name'
-        res = client.delete_table(table_name)
-        LOGGER.info(res)
-        assert res == Status.CONNECT_FAILED
+        with pytest.raises(NotConnectError):
+            res = client.delete_table(table_name)
+            LOGGER.info(res)
+            assert res == Status.CONNECT_FAILED
 
 
 class TestVector:
@@ -205,8 +206,9 @@ class TestVector:
             'table_name': fake.table_name(),
             'records': records_factory(256)
         }
-        res, ids = client.add_vectors(**param)
-        assert res == Status.CONNECT_FAILED
+        with pytest.raises(NotConnectError):
+            res, ids = client.add_vectors(**param)
+            assert res == Status.CONNECT_FAILED
 
     @mock.patch.object(Milvus, 'search_vectors')
     def test_search_vector(self, search_vectors, client):
@@ -227,8 +229,9 @@ class TestVector:
             'query_ranges': ranges_factory(),
             'top_k': random.randint(0, 10)
         }
-        res, results = client.search_vectors(**param)
-        assert res == Status.CONNECT_FAILED
+        with pytest.raises(NotConnectError):
+            res, results = client.search_vectors(**param)
+            assert res == Status.CONNECT_FAILED
 
     @mock.patch.object(Milvus, 'search_vectors_in_files')
     def test_search_in_files(self, search_vectors_in_files, client):
@@ -251,8 +254,9 @@ class TestVector:
             'file_ids': ['a'],
             'top_k': random.randint(0,10)
         }
-        sta, results = client.search_vectors_in_files(**param)
-        assert sta == Status.CONNECT_FAILED
+        with pytest.raises(NotConnectError):
+            sta, results = client.search_vectors_in_files(**param)
+            assert sta == Status.CONNECT_FAILED
 
     @mock.patch.object(MilvusService.Client, 'DescribeTable')
     def test_describe_table(self, DescribeTable, client):
@@ -265,9 +269,10 @@ class TestVector:
 
     def test_false_decribe_table(self, client):
         table_name = fake.table_name()
-        res, table_schema = client.describe_table(table_name)
-        assert not res.OK()
-        assert not table_schema
+        with pytest.raises(NotConnectError):
+            res, table_schema = client.describe_table(table_name)
+            assert not res.OK()
+            assert not table_schema
 
     @mock.patch.object(MilvusService.Client, 'ShowTables')
     def test_show_tables(self, ShowTables, client):
@@ -277,9 +282,10 @@ class TestVector:
         assert isinstance(tables, list)
 
     def test_false_show_tables(self, client):
-        res, tables = client.show_tables()
-        assert not res.OK()
-        assert not tables
+        with pytest.raises(NotConnectError):
+            res, tables = client.show_tables()
+            assert not res.OK()
+            assert not tables
 
     @mock.patch.object(MilvusService.Client, 'GetTableRowCount')
     def test_get_table_row_count(self, GetTableRowCount, client):
@@ -288,9 +294,10 @@ class TestVector:
         assert res.OK()
 
     def test_false_get_table_row_count(self, client):
-        res, count = client.get_table_row_count('fake_table')
-        assert not res.OK()
-        assert not count
+        with pytest.raises(NotConnectError):
+            res, count = client.get_table_row_count('fake_table')
+            assert not res.OK()
+            assert not count
 
     def test_client_version(self, client):
         res = client.client_version()
