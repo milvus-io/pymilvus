@@ -15,7 +15,7 @@ $ pip install pymilvus
 
 Upgrade to newest version
 ```$
-$ pip --upgrade pymilvus
+$ pip install --upgrade pymilvus
 ```
 ## Import
 
