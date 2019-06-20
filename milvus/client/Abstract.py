@@ -215,6 +215,33 @@ class ConnectIntf(object):
         """
         _abstract()
 
+    def search_vectors_in_files(self, table_name, file_ids, query_records, query_ranges, top_k):
+        """
+        Query vectors in a table, query vector in specified files
+        Should be implemented
+
+        :type  table_name: str
+        :param table_name: table name been queried
+
+        :type  file_ids: list[str]
+        :param file_ids: Specified files id array
+
+        :type  query_records: list[RowRecord]
+        :param query_records: all vectors going to be queried
+
+        :type  query_ranges: list[Range]
+        :param query_ranges: Optional ranges for conditional search.
+            If not specified, search whole table
+
+        :type  top_k: int
+        :param top_k: how many similar vectors will be searched
+
+        :returns:
+            Status:  indicate if query is successful
+            query_results: list[TopKQueryResult]
+        """
+        _abstract()
+
     def describe_table(self, table_name):
         """
         Show table information
