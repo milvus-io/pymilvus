@@ -1,5 +1,5 @@
-#-4
+#-7
 a. Support numpy in add_vector
 b. Support outside config for transport and protocol
-c. Log message more understandable  >> OK
 d. Hide Prepare object
+e. Search_vectors return value
