@@ -37,7 +37,7 @@ class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
         return self.format_col(message_str, level_name=record.levelname)
 
 
-LOG_LEVEL = 'ERROR'
+LOG_LEVEL = 'INFO'
 
 LOGGING = {
     'version': 1,

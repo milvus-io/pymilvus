@@ -19,8 +19,8 @@ def main():
     print('# Connect Status: {}'.format(cnn_status))
 
     # Check if connected
-    is_connected = milvus.connected()
-    print('# Is connected: {}'.format(is_connected))
+    # is_connected = milvus.connected
+    print('# Is connected: {}'.format(milvus.connected))
 
     # Get server version
     print('# Server version: {}'.format(milvus.server_version()))

@@ -158,8 +158,9 @@ class TestTable:
 
     def test_create_table_connect_failed_status(self, client):
         param = table_schema_factory()
-        res = client.create_table(param)
-        assert res == Status.CONNECT_FAILED
+        with pytest.raises(NotConnectError):
+            res = client.create_table(param)
+            assert res == Status.CONNECT_FAILED
 
     @mock.patch.object(MilvusService.Client, 'DeleteTable')
     def test_delete_table(self, DeleteTable, client):
@@ -228,6 +229,30 @@ class TestVector:
         }
         res, results = client.search_vectors(**param)
         assert res == Status.CONNECT_FAILED
+
+    @mock.patch.object(Milvus, 'search_vectors_in_files')
+    def test_search_in_files(self, search_vectors_in_files, client):
+        search_vectors_in_files.return_value = Status(),[[ttypes.QueryResult(00,0.23)]]
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            # 'query_ranges': ranges_factory(),
+            'file_ids': ['a'],
+            'top_k': random.randint(0,10)
+        }
+        sta, result = client.search_vectors_in_files(**param)
+        assert sta.OK()
+
+    def test_false_search_in_files(self, client):
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            'query_ranges': ranges_factory(),
+            'file_ids': ['a'],
+            'top_k': random.randint(0,10)
+        }
+        sta, results = client.search_vectors_in_files(**param)
+        assert sta == Status.CONNECT_FAILED
 
     @mock.patch.object(MilvusService.Client, 'DescribeTable')
     def test_describe_table(self, DescribeTable, client):
