@@ -89,6 +89,29 @@ class Iface(object):
         """
         pass
 
+    def SearchVectorInFiles(self, table_name, file_id_array, query_record_array, query_range_array, topk):
+        """
+        @brief Internal use query interface
+
+        This method is used to query vector in specified files.
+
+        @param file_id_array, specified files id array, queried.
+        @param query_record_array, all vector are going to be queried.
+        @param query_range_array, optional ranges for conditional search. If not specified, search whole table
+        @param topk, how many similarity vectors will be searched.
+
+        @return query result array.
+
+        Parameters:
+         - table_name
+         - file_id_array
+         - query_record_array
+         - query_range_array
+         - topk
+
+        """
+        pass
+
     def DescribeTable(self, table_name):
         """
         @brief Get table schema
@@ -329,6 +352,59 @@ class Client(Iface):
             raise result.e
         raise TApplicationException(TApplicationException.MISSING_RESULT, "SearchVector failed: unknown result")
 
+    def SearchVectorInFiles(self, table_name, file_id_array, query_record_array, query_range_array, topk):
+        """
+        @brief Internal use query interface
+
+        This method is used to query vector in specified files.
+
+        @param file_id_array, specified files id array, queried.
+        @param query_record_array, all vector are going to be queried.
+        @param query_range_array, optional ranges for conditional search. If not specified, search whole table
+        @param topk, how many similarity vectors will be searched.
+
+        @return query result array.
+
+        Parameters:
+         - table_name
+         - file_id_array
+         - query_record_array
+         - query_range_array
+         - topk
+
+        """
+        self.send_SearchVectorInFiles(table_name, file_id_array, query_record_array, query_range_array, topk)
+        return self.recv_SearchVectorInFiles()
+
+    def send_SearchVectorInFiles(self, table_name, file_id_array, query_record_array, query_range_array, topk):
+        self._oprot.writeMessageBegin('SearchVectorInFiles', TMessageType.CALL, self._seqid)
+        args = SearchVectorInFiles_args()
+        args.table_name = table_name
+        args.file_id_array = file_id_array
+        args.query_record_array = query_record_array
+        args.query_range_array = query_range_array
+        args.topk = topk
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_SearchVectorInFiles(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = SearchVectorInFiles_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        if result.success is not None:
+            return result.success
+        if result.e is not None:
+            raise result.e
+        raise TApplicationException(TApplicationException.MISSING_RESULT, "SearchVectorInFiles failed: unknown result")
+
     def DescribeTable(self, table_name):
         """
         @brief Get table schema
@@ -499,6 +575,7 @@ class Processor(Iface, TProcessor):
         self._processMap["DeleteTable"] = Processor.process_DeleteTable
         self._processMap["AddVector"] = Processor.process_AddVector
         self._processMap["SearchVector"] = Processor.process_SearchVector
+        self._processMap["SearchVectorInFiles"] = Processor.process_SearchVectorInFiles
         self._processMap["DescribeTable"] = Processor.process_DescribeTable
         self._processMap["GetTableRowCount"] = Processor.process_GetTableRowCount
         self._processMap["ShowTables"] = Processor.process_ShowTables
@@ -619,6 +696,32 @@ class Processor(Iface, TProcessor):
             msg_type = TMessageType.EXCEPTION
             result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
         oprot.writeMessageBegin("SearchVector", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
+    def process_SearchVectorInFiles(self, seqid, iprot, oprot):
+        args = SearchVectorInFiles_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = SearchVectorInFiles_result()
+        try:
+            result.success = self._handler.SearchVectorInFiles(args.table_name, args.file_id_array, args.query_record_array, args.query_range_array, args.topk)
+            msg_type = TMessageType.REPLY
+        except TTransport.TTransportException:
+            raise
+        except Exception as e:
+            msg_type = TMessageType.REPLY
+            result.e = e
+        except TApplicationException as ex:
+            logging.exception('TApplication exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = ex
+        except Exception:
+            logging.exception('Unexpected exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("SearchVectorInFiles", msg_type, seqid)
         result.write(oprot)
         oprot.writeMessageEnd()
         oprot.trans.flush()
@@ -1349,6 +1452,226 @@ SearchVector_result.thrift_spec = (
 )
 
 
+class SearchVectorInFiles_args(object):
+    """
+    Attributes:
+     - table_name
+     - file_id_array
+     - query_record_array
+     - query_range_array
+     - topk
+
+    """
+
+
+    def __init__(self, table_name=None, file_id_array=None, query_record_array=None, query_range_array=None, topk=None,):
+        self.table_name = table_name
+        self.file_id_array = file_id_array
+        self.query_record_array = query_record_array
+        self.query_range_array = query_range_array
+        self.topk = topk
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 2:
+                if ftype == TType.STRING:
+                    self.table_name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 3:
+                if ftype == TType.LIST:
+                    self.file_id_array = []
+                    (_etype45, _size42) = iprot.readListBegin()
+                    for _i46 in range(_size42):
+                        _elem47 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                        self.file_id_array.append(_elem47)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 4:
+                if ftype == TType.LIST:
+                    self.query_record_array = []
+                    (_etype51, _size48) = iprot.readListBegin()
+                    for _i52 in range(_size48):
+                        _elem53 = RowRecord()
+                        _elem53.read(iprot)
+                        self.query_record_array.append(_elem53)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 5:
+                if ftype == TType.LIST:
+                    self.query_range_array = []
+                    (_etype57, _size54) = iprot.readListBegin()
+                    for _i58 in range(_size54):
+                        _elem59 = Range()
+                        _elem59.read(iprot)
+                        self.query_range_array.append(_elem59)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 6:
+                if ftype == TType.I64:
+                    self.topk = iprot.readI64()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('SearchVectorInFiles_args')
+        if self.table_name is not None:
+            oprot.writeFieldBegin('table_name', TType.STRING, 2)
+            oprot.writeString(self.table_name.encode('utf-8') if sys.version_info[0] == 2 else self.table_name)
+            oprot.writeFieldEnd()
+        if self.file_id_array is not None:
+            oprot.writeFieldBegin('file_id_array', TType.LIST, 3)
+            oprot.writeListBegin(TType.STRING, len(self.file_id_array))
+            for iter60 in self.file_id_array:
+                oprot.writeString(iter60.encode('utf-8') if sys.version_info[0] == 2 else iter60)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        if self.query_record_array is not None:
+            oprot.writeFieldBegin('query_record_array', TType.LIST, 4)
+            oprot.writeListBegin(TType.STRUCT, len(self.query_record_array))
+            for iter61 in self.query_record_array:
+                iter61.write(oprot)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        if self.query_range_array is not None:
+            oprot.writeFieldBegin('query_range_array', TType.LIST, 5)
+            oprot.writeListBegin(TType.STRUCT, len(self.query_range_array))
+            for iter62 in self.query_range_array:
+                iter62.write(oprot)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        if self.topk is not None:
+            oprot.writeFieldBegin('topk', TType.I64, 6)
+            oprot.writeI64(self.topk)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(SearchVectorInFiles_args)
+SearchVectorInFiles_args.thrift_spec = (
+    None,  # 0
+    None,  # 1
+    (2, TType.STRING, 'table_name', 'UTF8', None, ),  # 2
+    (3, TType.LIST, 'file_id_array', (TType.STRING, 'UTF8', False), None, ),  # 3
+    (4, TType.LIST, 'query_record_array', (TType.STRUCT, [RowRecord, None], False), None, ),  # 4
+    (5, TType.LIST, 'query_range_array', (TType.STRUCT, [Range, None], False), None, ),  # 5
+    (6, TType.I64, 'topk', None, None, ),  # 6
+)
+
+
+class SearchVectorInFiles_result(object):
+    """
+    Attributes:
+     - success
+     - e
+
+    """
+
+
+    def __init__(self, success=None, e=None,):
+        self.success = success
+        self.e = e
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 0:
+                if ftype == TType.LIST:
+                    self.success = []
+                    (_etype66, _size63) = iprot.readListBegin()
+                    for _i67 in range(_size63):
+                        _elem68 = TopKQueryResult()
+                        _elem68.read(iprot)
+                        self.success.append(_elem68)
+                    iprot.readListEnd()
+                else:
+                    iprot.skip(ftype)
+            elif fid == 1:
+                if ftype == TType.STRUCT:
+                    self.e = Exception()
+                    self.e.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('SearchVectorInFiles_result')
+        if self.success is not None:
+            oprot.writeFieldBegin('success', TType.LIST, 0)
+            oprot.writeListBegin(TType.STRUCT, len(self.success))
+            for iter69 in self.success:
+                iter69.write(oprot)
+            oprot.writeListEnd()
+            oprot.writeFieldEnd()
+        if self.e is not None:
+            oprot.writeFieldBegin('e', TType.STRUCT, 1)
+            self.e.write(oprot)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(SearchVectorInFiles_result)
+SearchVectorInFiles_result.thrift_spec = (
+    (0, TType.LIST, 'success', (TType.STRUCT, [TopKQueryResult, None], False), None, ),  # 0
+    (1, TType.STRUCT, 'e', [Exception, None], None, ),  # 1
+)
+
+
 class DescribeTable_args(object):
     """
     Attributes:
@@ -1692,10 +2015,10 @@ class ShowTables_result(object):
             if fid == 0:
                 if ftype == TType.LIST:
                     self.success = []
-                    (_etype45, _size42) = iprot.readListBegin()
-                    for _i46 in range(_size42):
-                        _elem47 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
-                        self.success.append(_elem47)
+                    (_etype73, _size70) = iprot.readListBegin()
+                    for _i74 in range(_size70):
+                        _elem75 = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                        self.success.append(_elem75)
                     iprot.readListEnd()
                 else:
                     iprot.skip(ftype)
@@ -1718,8 +2041,8 @@ class ShowTables_result(object):
         if self.success is not None:
             oprot.writeFieldBegin('success', TType.LIST, 0)
             oprot.writeListBegin(TType.STRING, len(self.success))
-            for iter48 in self.success:
-                oprot.writeString(iter48.encode('utf-8') if sys.version_info[0] == 2 else iter48)
+            for iter76 in self.success:
+                oprot.writeString(iter76.encode('utf-8') if sys.version_info[0] == 2 else iter76)
             oprot.writeListEnd()
             oprot.writeFieldEnd()
         if self.e is not None:

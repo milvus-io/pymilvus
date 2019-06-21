@@ -1,6 +1,5 @@
 from milvus import Milvus, Prepare, IndexType, Status
 import random
-import struct
 from pprint import pprint
 
 _HOST = 'localhost'
@@ -20,8 +19,8 @@ def main():
     print('# Connect Status: {}'.format(cnn_status))
 
     # Check if connected
-    is_connected = milvus.connected()
-    print('# Is connected: {}'.format(is_connected))
+    # is_connected = milvus.connected
+    print('# Is connected: {}'.format(milvus.connected))
 
     # Get server version
     print('# Server version: {}'.format(milvus.server_version()))
@@ -49,7 +48,7 @@ def main():
 
     # Show tables and their description
     status, tables = milvus.show_tables()
-    print('# Show tables: {}'.format(tables))
+    pprint(tables)
 
     # Add vectors to table 'test01'
     #   01. Prepare data

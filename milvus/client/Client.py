@@ -13,6 +13,7 @@ from milvus.client.Abstract import (
     ConnectIntf,
     TableSchema,
     QueryResult,
+    TopKQueryResult,
     Range,
     RowRecord,
     IndexType
@@ -33,7 +34,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.3'
+__version__ = '0.1.4'
 __NAME__ = 'pymilvus'
 
 
@@ -210,7 +211,11 @@ class Milvus(ConnectIntf):
         :return: if client is connected
         :rtype bool
         """
-        return self.status.OK
+        if not self:
+            return False
+        elif self.status and self.status.OK:
+            return True
+        return False
 
     def disconnect(self):
         """
@@ -247,20 +252,15 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        r_status = Status(Status.UNKNOWN, 'Unknown Status')
-
         try:
             self._client.CreateTable(param)
-            r_status = Status(message='Table {} created!'.format(param.table_name))
+            return Status(message='Table {} created!'.format(param.table_name))
         except TTransport.TTransportException as e:
             LOGGER.error(e)
-            r_status = Status(Status.CONNECT_FAILED, e.message)
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)
-            r_status = Status(code=e.code, message=e.reason)
-        finally:
-            return r_status
+            return Status(code=e.code, message=e.reason)
 
     def delete_table(self, table_name):
         """
@@ -275,20 +275,15 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        r_status = Status(Status.UNKNOWN, 'Unknown Status')
-
         try:
             self._client.DeleteTable(table_name)
-            r_status = Status(message='Table {} deleted!'.format(table_name))
+            return Status(message='Table {} deleted!'.format(table_name))
         except TTransport.TTransportException as e:
             LOGGER.error(e)
-            r_status = Status(Status.CONNECT_FAILED, e.message)
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)
-            r_status = Status(code=e.code, message=e.reason)
-        finally:
-            return r_status
+            return Status(code=e.code, message=e.reason)
 
     def add_vectors(self, table_name, records):
         """
@@ -311,21 +306,17 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        r_status = Status(Status.UNKNOWN, 'Unknown Status')
         ids = []
 
         try:
             ids = self._client.AddVector(table_name=table_name, record_array=records)
-            r_status = Status(message='Vectors added successfully!')
+            return Status(message='Vectors added successfully!'), ids
         except TTransport.TTransportException as e:
             LOGGER.error(e)
-            r_status = Status(Status.CONNECT_FAILED, e.message)
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)
-            r_status = Status(code=e.code, message=e.reason)
-        finally:
-            return r_status, ids
+            return Status(code=e.code, message=e.reason), ids
 
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         """
@@ -351,15 +342,14 @@ class Milvus(ConnectIntf):
 
             Status:  indicate if query is successful
 
-            res: 2-dim array, return when operation is successful
+            res: TopKQueryResult, return when operation is successful
 
-        :rtype: (Status, list[(vector_id(int), score(float))])
+        :rtype: (Status, TopKQueryResult[QueryResult])
         """
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        r_status = Status(Status.UNKNOWN, 'Unknown Status')
-        res = []
+        res = TopKQueryResult()
         try:
             top_k_query_results = self._client.SearchVector(
                 table_name=table_name,
@@ -367,22 +357,65 @@ class Milvus(ConnectIntf):
                 query_range_array=query_ranges,
                 topk=top_k)
 
-            if top_k_query_results:
-                for top_k in top_k_query_results:
-                    if top_k:
-                        res.append([QueryResult(id=qr.id, score=qr.score)
-                                    for qr in top_k.query_result_arrays])
-
-            r_status = Status(message='Search Vectors successfully!')
+            for topk in top_k_query_results:
+                res.append([QueryResult(id=qr.id, score=qr.score) for qr in topk.query_result_arrays])
+            return Status(Status.SUCCESS, message='Search Vectors successfully!'), res
         except TTransport.TTransportException as e:
             LOGGER.error(e)
-            r_status = Status(Status.CONNECT_FAILED, e.message)
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)
-            r_status = Status(code=e.code, message=e.reason)
-        finally:
-            return r_status, res
+            return Status(code=e.code, message=e.reason), res
+
+    def search_vectors_in_files(self, table_name, file_ids, query_records, query_ranges, top_k):
+        """
+        Query vectors in a table, in specified files
+
+        :type  table_name: str
+        :param table_name: table name been queried
+
+        :type  file_ids: list[str]
+        :param file_ids: Specified files id array
+
+        :type  query_records: list[RowRecord]
+        :param query_records: all vectors going to be queried
+
+                `Please use Prepare.records generate records`
+
+        :type  query_ranges: list[Range]
+        :param query_ranges: Optional ranges for conditional search.
+            If not specified, search whole table
+
+                `Range can be generated by Prepare.range`
+
+        :type  top_k: int
+        :param top_k: how many similar vectors will be searched
+
+        :returns:
+            Status:  indicate if query is successful
+            query_results: list[TopKQueryResult]
+        :rtype: (Status, TopKQueryResult[QueryResult])
+        """
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
+        res = TopKQueryResult()
+        try:
+            top_k_query_results = self._client.SearchVectorInFiles(
+                table_name=table_name,
+                file_id_array=file_ids,
+                query_record_array=query_records,
+                query_range_array=query_ranges,
+                topk=top_k)
+
+            for topk in top_k_query_results:
+                res.append([QueryResult(id=qr.id, score=qr.score) for qr in topk.query_result_arrays])
+            return Status(Status.SUCCESS, message='Search vectors in files successfully!'), res
+        except TTransport.TTransportException as e:
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason), res
 
     def describe_table(self, table_name):
         """
@@ -399,20 +432,16 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        r_status = Status(Status.UNKNOWN, 'Unknown Status')
         table = ''
         try:
             table = self._client.DescribeTable(table_name)
-            r_status = Status(message='Describe table successfully!')
+            return Status(message='Describe table successfully!'), table
         except TTransport.TTransportException as e:
             LOGGER.error(e)
-            r_status = Status(Status.CONNECT_FAILED, e.message)
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)
-            r_status = Status(code=e.code, message=e.reason)
-        finally:
-            return r_status, table
+            return Status(code=e.code, message=e.reason), table
 
     def show_tables(self):
         """
@@ -429,21 +458,17 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        r_status = Status(Status.UNKNOWN, 'Unknown Status')
         tables = []
 
         try:
             tables = self._client.ShowTables()
-            r_status = Status(message='Show tables successfully!')
+            return Status(message='Show tables successfully!'), tables
         except TTransport.TTransportException as e:
             LOGGER.error(e)
-            r_status = Status(Status.CONNECT_FAILED, e.message)
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)
-            r_status = Status(code=e.code, message=e.reason)
-        finally:
-            return r_status, tables
+            return Status(code=e.code, message=e.reason), tables
 
     def get_table_row_count(self, table_name):
         """
@@ -460,21 +485,17 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        r_status = Status(Status.UNKNOWN, 'Unknown Status')
         count = 0
 
         try:
             count = self._client.GetTableRowCount(table_name)
-            r_status = Status(message='Get table row counts successfully')
+            return Status(message='Get table row counts successfully'), count
         except TTransport.TTransportException as e:
             LOGGER.error(e)
-            r_status = Status(Status.CONNECT_FAILED, e.message)
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)
-            r_status = Status(code=e.code, message=e.reason)
-        finally:
-            return r_status, count
+            return Status(code=e.code, message=e.reason), count
 
     def client_version(self):
         """
