@@ -236,7 +236,7 @@ class Milvus(ConnectIntf):
         except TException as e:
             LOGGER.error(e)
             return Status(Status.PERMISSION_DENIED, str(e))
-        return Status(Status.SUCCESS, 'Disconnection successful!')
+        return Status(Status.SUCCESS, 'Disconnect successfully!')
 
     def create_table(self, param):
         """Create table
