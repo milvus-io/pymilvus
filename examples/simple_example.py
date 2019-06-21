@@ -13,7 +13,7 @@ milvus.connect(host='localhost', port='33001')
 table_name = 'demo_table'
 
 # Create table: table name, vector dimension and index type
-milvus.create_table(Prepare.table_schema(table_name, dimension=256, index_type=IndexType.IDMAP))
+milvus.create_table(Prepare.table_schema(table_name, dimension=256, index_type=IndexType.FLAT))
 
 # Insert 20 256-dim-vectors into demo_table
 vectors = Prepare.records([[random.random()for _ in range(256)] for _ in range(20)])

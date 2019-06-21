@@ -3,7 +3,7 @@ from enum import IntEnum
 
 class IndexType(IntEnum):
     INVALIDE = 0
-    IDMAP = 1
+    FLAT = 1
     IVFLAT = 2
 
 

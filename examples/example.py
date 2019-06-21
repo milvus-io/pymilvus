@@ -19,7 +19,6 @@ def main():
     print('# Connect Status: {}'.format(cnn_status))
 
     # Check if connected
-    # is_connected = milvus.connected
     print('# Is connected: {}'.format(milvus.connected))
 
     # Print milvus server version
@@ -38,14 +37,14 @@ def main():
         param = {
             'table_name': table_name,
             'dimension': dimension,
-            'index_type': IndexType.IDMAP,
+            'index_type': IndexType.FLAT,
             'store_raw_vector': False
         }
 
         res_status = milvus.create_table(Prepare.table_schema(**param))
         print('# Create table status: {}'.format(res_status))
 
-    # Show tables and their description
+    # Show tables
     status, tables = milvus.show_tables()
     pprint(tables)
 
@@ -80,6 +79,10 @@ def main():
     status, result = milvus.get_table_row_count(table_name)
     print('# Status: {}'.format(status))
     print('# Count: {}'.format(result))
+
+    # Delete table `table01`
+    status = milvus.delete_table(table_name)
+    print('# Delete table status: {}'.format(status))
 
     # Disconnect
     status = milvus.disconnect()

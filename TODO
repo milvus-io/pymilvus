@@ -3,3 +3,4 @@ a. Support numpy in add_vector
 b. Support outside config for transport and protocol
 c. LOG Config
 d. Hide Prepare object
+e. Parse Range to time: (year-1900)*1000 + (month-1)*100 + day, [start, end)

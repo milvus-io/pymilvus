@@ -1,5 +1,7 @@
 ### Bug
-
+- \#12 ISSUE
+    - IndexType change
+    - fix param of search_vector_in_files ranges
 ### Improvement
 
 - \#10 Update examples
