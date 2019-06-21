@@ -2,7 +2,7 @@ from milvus import Milvus, Prepare, IndexType, Status
 import random, time
 from pprint import pprint
 
-_HOST = '192.168.1.101'
+_HOST = 'localhost'
 _PORT = '33001'
 
 
