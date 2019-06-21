@@ -34,7 +34,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.4'
+__version__ = '0.1.5'
 __NAME__ = 'pymilvus'
 
 
