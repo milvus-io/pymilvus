@@ -2,6 +2,8 @@
 
 ### Improvement
 
+- \#10 Update examples
+
 ### New Feature
 
 - \#3
