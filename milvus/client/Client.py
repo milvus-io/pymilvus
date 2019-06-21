@@ -367,7 +367,7 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=e.code, message=e.reason), res
 
-    def search_vectors_in_files(self, table_name, file_ids, query_records, query_ranges, top_k):
+    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         """
         Query vectors in a table, in specified files
 
