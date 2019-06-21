@@ -32,7 +32,7 @@ def main():
     print('# Describe table:{}'.format(table))
 
     # Create table
-    # Check if `test01` exists, if not, create a table test01
+    # Check if `table01` exists, if not, create a table `table01`
     dimension = 256
     if not table:
         param = {
