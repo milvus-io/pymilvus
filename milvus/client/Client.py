@@ -26,11 +26,11 @@ from milvus.client.Exceptions import (
     NotConnectError
 )
 from milvus.settings import DefaultConfig as config
+
 if sys.version_info[0] > 2:
     from urllib.parse import urlparse
 else:
     from urlparse import urlparse
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -442,6 +442,11 @@ class Milvus(ConnectIntf):
         except ttypes.Exception as e:
             LOGGER.error(e)
             return Status(code=e.code, message=e.reason), table
+
+    def has_table(self, table_name):
+        _, table = self.describe_table(table_name)
+
+        return table != ''
 
     def show_tables(self):
         """

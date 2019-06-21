@@ -9,8 +9,8 @@ import time
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
-_HOST = '127.0.0.1'
-_PORT = '19530'
+_HOST = '192.168.1.101'
+_PORT = '33001'
 
 def main():
     milvus = Milvus()
