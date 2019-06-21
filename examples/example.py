@@ -37,7 +37,7 @@ def main():
         param = {
             'table_name': table_name,
             'dimension': dimension,
-            'index_type': IndexType.IDMAP,
+            'index_type': IndexType.FLAT,
             'store_raw_vector': False
         }
 

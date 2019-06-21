@@ -51,7 +51,7 @@ def table_schema_factory():
     param = {
         'table_name': fake.table_name(),
         'dimension': random.randint(0, 999),
-        'index_type': IndexType.IDMAP,
+        'index_type': IndexType.FLAT,
         'store_raw_vector': False
     }
     return Prepare.table_schema(**param)
