@@ -4,8 +4,7 @@ import random
 milvus = Milvus()
 
 # Connect Milvus server, please change HOST and PORT to correct one
-milvus.connect(host='localhost', port='33001')
-
+milvus.connect(host='192.168.1.101', port='33001')
 
 # Table name is defined
 table_name = 'table_'+str(random.randint(0,100))
