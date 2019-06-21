@@ -1,58 +1,57 @@
-# This program demos how to connect Milvus server, create a table, insert 10 vectors, search vectors.
+# This program demos how to connect to Milvus vector database, 
+# create a vector table, 
+# insert 10 vectors, 
+# and execute a vector similarity search.
 
 from milvus import Milvus, Prepare, IndexType, Status
 import time
 
 
-# Milvus server ip address and port
-_HOST = '192.168.1.101'
-_PORT = '33001'
-
+# Milvus server IP address and port.
+# You may need to change _HOST and _PORT accordingly.
+_HOST = '127.0.0.1'
+_PORT = '19530'
 
 def main():
     milvus = Milvus()
 
-    # Print client version
-    print('# Client version: {}'.format(milvus.client_version()))
+    # Check Milvus client version
+    print('Client version: {}'.format(milvus.client_version()))
 
-    # Connect Milvus server
+    # Connect to Milvus server
     # You may need to change _HOST and _PORT accordingly
     param = {'host': _HOST, 'port': _PORT}
     status = milvus.connect(**param)
-    print('# {}'.format(status))
+    print('Connection status: {}'.format(status))
 
-    # Check if connected
-    print('# Is connected: {}'.format(milvus.connected))
+    # Check if connected 
+    print('Is connected: {}'.format(milvus.connected))
 
-    # Check Milvus server version
-    print('# Server version: {}'.format(milvus.server_version()))
-
-    # Describe demo_table
+    # Print Milvus server version
+    print('Server version: {}'.format(milvus.server_version()))
+    
+    # Create table demo_table if it dosen't exist.
     table_name = 'demo_table'
-    res_status, table = milvus.describe_table(table_name)
-    print('# Describe table status: {}'.format(res_status).format(table))
-
-
-    # Create demo_table
-    # Check if `demo_table` exists, if not, create a table `demo_table`
-    dimension = 16
-    if not table:
+    if not milvus.has_table(table_name):
         param = {
-            'table_name': table_name,
-            'dimension': dimension,
+            'table_name': '',
+            'dimension': 16,
             'index_type': IndexType.IDMAP,
             'store_raw_vector': False
         }
-
-        res_status = milvus.create_table(Prepare.table_schema(**param))
-        print('# Create table status: {}'.format(res_status))
+        
+        status = milvus.create_table(Prepare.table_schema(**param))
+        print('Create table status: {}'.format(status))
 
     # Show tables in Milvus server
-    status, tables = milvus.show_tables()
-    print(tables)
-    print('# {}'.format(status))
+    _, tables = milvus.show_tables()
+    print('List tables: {}'.format(tables))
+    
+    # Describe demo_table
+    _, table = milvus.describe_table(table_name)
+    print('Table information: {}'.format(table))
 
-    # Generate 10 vectors with 16 dimension
+    # create 10 vectors with 16 dimension
     vector_list = [
         [0.66, 0.01, 0.29, 0.64, 0.75, 0.94, 0.26, 0.79, 0.61, 0.11, 0.25, 0.50, 0.74, 0.37, 0.28, 0.63],
         [0.77, 0.65, 0.57, 0.68, 0.29, 0.93, 0.17, 0.15, 0.95, 0.09, 0.78, 0.37, 0.76, 0.21, 0.42, 0.15],
@@ -67,46 +66,46 @@ def main():
     ]
     vectors = Prepare.records(vector_list)
 
-    # Insert vectors into table 'demo_table'
+    # Insert vectors into demo_table
     status, ids = milvus.add_vectors(table_name=table_name, records=vectors)
-    print('# Insert vector status: {}'.format(status))
+    print('Insert vector status: {}'.format(status))
+    
+     # Get demo_table row count
+    status, result = milvus.get_table_row_count(table_name)
+    print('Table row count: {}'.format(result))
 
-    # Search vectors
-    # Milvus server will take 5s(default value, can be changed in server config) to persist vector data,
-    # so you have to wait for 6s.
-    print('# Waiting for 6s...')
+    # Wait for 6 secends, since Milvus server persist vector data every 5 seconds by default. 
+    # You can set data persist interval in Milvus config file.
+    print('Waiting for 6s...')
     time.sleep(6)
 
-    # Get demo_table row count
-    status, result = milvus.get_table_row_count(table_name)
-    print('# demo_table row count: {}'.format(result))
-
-    # Generate 1 vectors with 2 dimension
+    # Use the 3rd vector for similarity search
     query_list = [
         vector_list[3]
     ]
     query_vectors = Prepare.records(query_list)
 
-    # Search the vector in Milvus server and expect to get same vector as the result.
+    # execute vector similarity search
     param = {
         'table_name': table_name,
         'query_records': query_vectors,
         'top_k': 1,
     }
     status, results = milvus.search_vectors(**param)
-    print('# {}'.format(status))
+    print('Vector search status: {}'.format(status))
 
     if results[0][0].score == 100.0 or result[0][0].id == ids[3]:
-        print('# Query result is correct')
+        print('Query result is correct')
     else:
-        print('# Query result isn\'t correct')
+        print('Query result isn\'t correct')
 
-    # Delete table
-    milvus.delete_table(table_name)
+    # Delete demo_table
+    status = milvus.delete_table(table_name)
+    print('Delete table status: {}'.format(status))
 
-    # Disconnect
-    milvus.disconnect()
-
+    # Disconnect from Milvus
+    status = milvus.disconnect()
+    print('Disconnect status: {}'.format(status))
 
 if __name__ == '__main__':
     main()
