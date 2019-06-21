@@ -34,7 +34,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.5'
+__version__ = '0.1.6'
 __NAME__ = 'pymilvus'
 
 
@@ -195,7 +195,6 @@ class Milvus(ConnectIntf):
         try:
             self._transport.open()
             self.status = Status(Status.SUCCESS, 'Connected')
-            LOGGER.info('Connected to {}:{}'.format(host, port))
 
         except TTransport.TTransportException as e:
             self.status = Status(code=e.type, message=e.message)
@@ -229,14 +228,13 @@ class Milvus(ConnectIntf):
             raise DisconnectNotConnectedClientError('Disconnect not connected client!')
 
         try:
-            LOGGER.info('Disconnecting from the server')
             self._transport.close()
             self.status = None
 
         except TException as e:
             LOGGER.error(e)
             return Status(Status.PERMISSION_DENIED, str(e))
-        return Status(Status.SUCCESS, 'Disconnection successful!')
+        return Status(Status.SUCCESS, 'Disconnect successfully!')
 
     def create_table(self, param):
         """Create table
@@ -444,6 +442,17 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason), table
 
     def has_table(self, table_name):
+        """
+        Check table existence
+
+        :type  table_name: str
+        :param table_name: table_name
+
+        :returns:
+        :rtype: (bool)
+        """
+        # TODO this function need to refactor
+
         _, table = self.describe_table(table_name)
 
         return table != ''

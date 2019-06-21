@@ -9,47 +9,35 @@ import time
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
-_HOST = '192.168.1.101'
-_PORT = '33001'
+_HOST = '127.0.0.1'
+_PORT = '19530'
 
 def main():
     milvus = Milvus()
-
-    # Check Milvus client version
-    print('Client version: {}'.format(milvus.client_version()))
 
     # Connect to Milvus server
     # You may need to change _HOST and _PORT accordingly
     param = {'host': _HOST, 'port': _PORT}
     status = milvus.connect(**param)
-    print('Connection status: {}'.format(status))
 
-    # Check if connected 
-    print('Is connected: {}'.format(milvus.connected))
-
-    # Print Milvus server version
-    print('Server version: {}'.format(milvus.server_version()))
-    
     # Create table demo_table if it dosen't exist.
     table_name = 'demo_table'
+
     if not milvus.has_table(table_name):
         param = {
-            'table_name': '',
+            'table_name': table_name,
             'dimension': 16,
-            'index_type': IndexType.IDMAP,
+            'index_type': IndexType.FLAT,
             'store_raw_vector': False
         }
-        
-        status = milvus.create_table(Prepare.table_schema(**param))
-        print('Create table status: {}'.format(status))
+
+        milvus.create_table(Prepare.table_schema(**param))
 
     # Show tables in Milvus server
     _, tables = milvus.show_tables()
-    print('List tables: {}'.format(tables))
-    
+
     # Describe demo_table
     _, table = milvus.describe_table(table_name)
-    print('Table information: {}'.format(table))
 
     # create 10 vectors with 16 dimension
     vector_list = [
@@ -68,15 +56,12 @@ def main():
 
     # Insert vectors into demo_table
     status, ids = milvus.add_vectors(table_name=table_name, records=vectors)
-    print('Insert vector status: {}'.format(status))
-    
+
      # Get demo_table row count
     status, result = milvus.get_table_row_count(table_name)
-    print('Table row count: {}'.format(result))
 
     # Wait for 6 secends, since Milvus server persist vector data every 5 seconds by default. 
     # You can set data persist interval in Milvus config file.
-    print('Waiting for 6s...')
     time.sleep(6)
 
     # Use the 3rd vector for similarity search
@@ -92,7 +77,6 @@ def main():
         'top_k': 1,
     }
     status, results = milvus.search_vectors(**param)
-    print('Vector search status: {}'.format(status))
 
     if results[0][0].score == 100.0 or result[0][0].id == ids[3]:
         print('Query result is correct')
@@ -101,11 +85,9 @@ def main():
 
     # Delete demo_table
     status = milvus.delete_table(table_name)
-    print('Delete table status: {}'.format(status))
 
     # Disconnect from Milvus
     status = milvus.disconnect()
-    print('Disconnect status: {}'.format(status))
 
 if __name__ == '__main__':
     main()
