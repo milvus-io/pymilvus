@@ -22,6 +22,10 @@
 - \#8 ISSUE
     - Add new api: search_vectors_by_file
     - fix some bugs
+    
+- \#17 ISSUE
+    - Implement has_table interface
+    - fix spelling error, reformat as PEP8
 ### Task
 
 - \#1 Build Repository
