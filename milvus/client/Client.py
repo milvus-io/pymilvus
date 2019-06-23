@@ -448,14 +448,11 @@ class Milvus(ConnectIntf):
         :type  table_name: str
         :param table_name: table_name
 
-        :returns:
-        :rtype: (bool)
+        :returns: If table `table_name` exists
+        :rtype: bool
         """
-        # TODO this function need to refactor
-
-        _, table = self.describe_table(table_name)
-
-        return table != ''
+        _, tables = self.show_tables()
+        return table_name in tables
 
     def show_tables(self):
         """

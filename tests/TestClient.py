@@ -176,6 +176,15 @@ class TestTable:
             LOGGER.info(res)
             assert res == Status.CONNECT_FAILED
 
+    @mock.patch.object(MilvusService.Client, 'ShowTables')
+    def test_has_table(self, ShowTables, client):
+        table_name = fake.table_name()
+        ShowTables.return_value = [table_name]
+        assert client.has_table(table_name)
+
+        ShowTables.return_value = []
+        assert not client.has_table(table_name)
+
 
 class TestVector:
 
@@ -310,7 +319,7 @@ class TestPrepare:
         param = {
             'table_name': fake.table_name(),
             'dimension': random.randint(0, 999),
-            'index_type': IndexType.IDMAP,
+            'index_type': IndexType.FLAT,
             'store_raw_vector': False
         }
         res = Prepare.table_schema(**param)
