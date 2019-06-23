@@ -1,6 +1,7 @@
 import logging
 import sys
 import struct
+import datetime
 
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
@@ -23,7 +24,8 @@ from milvus.client.Status import Status
 from milvus.client.Exceptions import (
     RepeatingConnectError,
     DisconnectNotConnectedClientError,
-    NotConnectError
+    NotConnectError,
+    ParamError
 )
 from milvus.settings import DefaultConfig as config
 
@@ -71,18 +73,37 @@ class Prepare(object):
                                   index_type=index_type,
                                   store_raw_vector=store_raw_vector)
 
+    # @classmethod
+    # def range(cls, start, end):
+    #     """
+    #     :type start: str
+    #     :type end: str
+    #     :param start: (Required) range start
+    #     :param end: (Required) range end
+    #
+    #     :return: Range object
+    #     """
+    #     temp = Range(start=start, end=end)
+    #     return ttypes.Range(start_value=temp.start, end_value=temp.end)
+
     @classmethod
-    def range(cls, start, end):
+    def range(cls, start_date, end_date):
         """
-        :type start: str
-        :type end: str
-        :param start: (Required) range start
-        :param end: (Required) range end
+        Parser a date or datetime object to Range object
+        :param start_date: start date
+        :type  start_date: datetime or date
+        :param end_date: end date
+        :type  end_date: datetime or date
 
         :return: Range object
         """
-        temp = Range(start=start, end=end)
-        return ttypes.Range(start_value=temp.start, end_value=temp.end)
+        if not (isinstance(start_date, datetime.date) and isinstance(end_date, datetime.date)):
+            raise ParamError('start_date and end_date show be datetime.date object!')
+
+        start = (start_date.year - 1900)*10000 + (start_date.month - 1)*100 + start_date.day
+        end = (end_date.year - 1900)*10000 + (end_date.month - 1)*100 + end_date.day
+        return ttypes.Range(start_value=start, end_value=end)
+
 
     @classmethod
     def row_record(cls, vector_data):
