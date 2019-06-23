@@ -60,7 +60,7 @@ def main():
     # Get demo_table row count
     status, result = milvus.get_table_row_count(table_name)
 
-    # Wait for 6 secends, since Milvus server persist vector data every 5 seconds by default. 
+    # Wait for 6 seconds, since Milvus server persist vector data every 5 seconds by default.
     # You can set data persist interval in Milvus config file.
     time.sleep(6)
 
