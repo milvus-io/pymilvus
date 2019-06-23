@@ -6,11 +6,11 @@
 from milvus import Milvus, Prepare, IndexType, Status
 import time
 
-
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
 _PORT = '19530'
+
 
 def main():
     milvus = Milvus()
@@ -57,7 +57,7 @@ def main():
     # Insert vectors into demo_table
     status, ids = milvus.add_vectors(table_name=table_name, records=vectors)
 
-     # Get demo_table row count
+    # Get demo_table row count
     status, result = milvus.get_table_row_count(table_name)
 
     # Wait for 6 secends, since Milvus server persist vector data every 5 seconds by default. 
@@ -88,6 +88,7 @@ def main():
 
     # Disconnect from Milvus
     status = milvus.disconnect()
+
 
 if __name__ == '__main__':
     main()
