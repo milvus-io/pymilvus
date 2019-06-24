@@ -425,7 +425,7 @@ class Milvus(ConnectIntf):
         :type  table_name: str
         :param table_name: table name been queried
 
-        :type  file_ids: list[str]
+        :type  file_ids: list[str] or list[int]
         :param file_ids: Specified files id array
 
         :type  query_records: list[list[float]]
@@ -458,7 +458,7 @@ class Milvus(ConnectIntf):
                 raise ParamError('query_records param incorrect!')
 
         res = TopKQueryResult()
-
+        file_ids = [str(item) for item in file_ids if isinstance(item, int)]
         try:
             top_k_query_results = self._client.SearchVectorInFiles(
                 table_name=table_name,
