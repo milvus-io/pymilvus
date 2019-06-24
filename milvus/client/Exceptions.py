@@ -14,5 +14,5 @@ class RepeatingConnectError(ConnectError):
     pass
 
 
-class DisconnectNotConnectedClientError(ValueError):
+class DisconnectNotConnectedClientError(ConnectError):
     pass
