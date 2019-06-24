@@ -46,7 +46,7 @@ Add a new `table`
 
 First using `Prepare` to create param
 ```python
->>> param = Prepare.table_schema(table_name='test01', dimension=256, index_type=IndexType.IDMAP,
+>>> param = Prepare.table_schema(table_name='test01', dimension=256, index_type=IndexType.FLAT,
                                     store_raw_vector=False)
 ```
 Then create `table`

@@ -9,7 +9,7 @@ from thrift.transport.TSocket import TSocket
 from thrift.transport import TTransport
 
 sys.path.append('.')
-from milvus.client.Client import Milvus, Prepare, IndexType, Status, TopKQueryResult
+from milvus.client.Client import Milvus, IndexType, Status, TopKQueryResult, Prepare
 from milvus.client.Exceptions import (
     NotConnectError,
     RepeatingConnectError,
@@ -36,11 +36,9 @@ fake.add_provider(FakerProvider)
 
 
 def range_factory():
-    param = {
-        'start': str(random.randint(1, 10)),
-        'end': str(random.randint(11, 20)),
-    }
-    return Prepare.range(**param)
+    import datetime
+    param = (datetime.datetime.now(), datetime.datetime.now())
+    return param
 
 
 def ranges_factory():
@@ -54,11 +52,11 @@ def table_schema_factory():
         'index_type': IndexType.FLAT,
         'store_raw_vector': False
     }
-    return Prepare.table_schema(**param)
+    return param
 
 
 def records_factory(dimension):
-    return Prepare.records([[random.random() for _ in range(dimension)] for _ in range(20)])
+    return [[random.random() for _ in range(dimension)] for _ in range(20)]
 
 
 class TestConnection:
@@ -95,7 +93,6 @@ class TestConnection:
     def test_connect(self):
         cnn = Milvus()
         with pytest.raises(TTransport.TTransportException):
-
             cnn.connect('127.0.0.2')
             assert not cnn.status.OK()
 
@@ -200,7 +197,7 @@ class TestVector:
 
     @mock.patch.object(MilvusService.Client, 'AddVector')
     def test_add_vector(self, AddVector, client):
-        AddVector.return_value = ['a','a']
+        AddVector.return_value = ['a', 'a']
 
         param = {
             'table_name': fake.table_name(),
@@ -221,7 +218,7 @@ class TestVector:
 
     @mock.patch.object(Milvus, 'search_vectors')
     def test_search_vector(self, search_vectors, client):
-        search_vectors.return_value = Status(), [[ttypes.QueryResult(111,111)]]
+        search_vectors.return_value = Status(), [[ttypes.QueryResult(111, 111)]]
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
@@ -235,7 +232,6 @@ class TestVector:
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
-            'query_ranges': ranges_factory(),
             'top_k': random.randint(0, 10)
         }
         with pytest.raises(NotConnectError):
@@ -244,13 +240,12 @@ class TestVector:
 
     @mock.patch.object(Milvus, 'search_vectors_in_files')
     def test_search_in_files(self, search_vectors_in_files, client):
-        search_vectors_in_files.return_value = Status(),[[ttypes.QueryResult(00,0.23)]]
+        search_vectors_in_files.return_value = Status(), [[ttypes.QueryResult(00, 0.23)]]
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
-            # 'query_ranges': ranges_factory(),
             'file_ids': ['a'],
-            'top_k': random.randint(0,10)
+            'top_k': random.randint(0, 10)
         }
         sta, result = client.search_vectors_in_files(**param)
         assert sta.OK()
@@ -259,9 +254,8 @@ class TestVector:
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
-            'query_ranges': ranges_factory(),
             'file_ids': ['a'],
-            'top_k': random.randint(0,10)
+            'top_k': random.randint(0, 10)
         }
         with pytest.raises(NotConnectError):
             sta, results = client.search_vectors_in_files(**param)
@@ -269,7 +263,7 @@ class TestVector:
 
     @mock.patch.object(MilvusService.Client, 'DescribeTable')
     def test_describe_table(self, DescribeTable, client):
-        DescribeTable.return_value = table_schema_factory()
+        DescribeTable.return_value = ttypes.TableSchema(**table_schema_factory())
 
         table_name = fake.table_name()
         res, table_schema = client.describe_table(table_name)
@@ -326,15 +320,15 @@ class TestPrepare:
         assert isinstance(res, ttypes.TableSchema)
 
     def test_range(self):
-        param = {
-            'start': '200',
-            'end': '1000'
-        }
-
-        res = Prepare.range(**param)
+        param = range_factory()
+        res = Prepare.range(param[0], param[1])
         assert isinstance(res, ttypes.Range)
-        assert res.start_value == '200'
-        assert res.end_value == '1000'
+
+    def test_ranges(self):
+        param = ranges_factory()
+        res = Prepare.ranges(param)
+        assert isinstance(res, list)
+        assert isinstance(res[0], ttypes.Range)
 
     def test_row_record(self):
         vec = [random.random() + random.randint(0, 9) for _ in range(256)]
