@@ -36,7 +36,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.8'
+__version__ = '0.1.9'
 __NAME__ = 'pymilvus'
 
 
@@ -233,12 +233,12 @@ class Milvus(ConnectIntf):
         try:
             self._transport.open()
             self.status = Status(Status.SUCCESS, 'Connected')
+            return self.status
 
         except TTransport.TTransportException as e:
             self.status = Status(code=e.type, message=e.message)
             LOGGER.error(e)
-            raise e
-        return self.status
+            raise NotConnectError('Connection failed')
 
     @property
     def connected(self):
