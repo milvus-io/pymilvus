@@ -36,7 +36,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.7'
+__version__ = '0.1.8'
 __NAME__ = 'pymilvus'
 
 
@@ -46,6 +46,16 @@ class Protocol:
     COMPACT = 'COMPACT'
 
 
+def is_correct_date_str(param):
+    try:
+        datetime.datetime.strptime(param, '%Y-%m-%d')
+    except ValueError:
+        LOGGER.error('Incorrect data format, should be YYYY-MM-DD')
+        return False
+    return True
+
+
+# TODO _prepare
 class Prepare(object):
 
     @classmethod
@@ -76,23 +86,37 @@ class Prepare(object):
     @classmethod
     def range(cls, start_date, end_date):
         """
-        Parser a date or datetime object to Range object
+        Parser a 'yyyy-mm-dd' like str to Range object
+
+            `Range: [start_date, end_date)`
+
+            `start_date : '2019-05-25'`
+
         :param start_date: start date
-        :type  start_date: datetime or date
+        :type  start_date: str
         :param end_date: end date
-        :type  end_date: datetime or date
+        :type  end_date: str
 
         :return: Range object
         """
-        if not (isinstance(start_date, datetime.date) and isinstance(end_date, datetime.date)):
-            raise ParamError('start_date and end_date show be datetime.date object!')
-
-        start = (start_date.year - 1900)*10000 + (start_date.month - 1)*100 + start_date.day
-        end = (end_date.year - 1900)*10000 + (end_date.month - 1)*100 + end_date.day
-        return ttypes.Range(start_value=start, end_value=end)
+        if is_correct_date_str(start_date) and is_correct_date_str(end_date):
+            return ttypes.Range(start_value=start_date, end_value=end_date)
+        else:
+            raise ParamError('Range param start_date and end_date should be YYYY-MM-DD form')
 
     @classmethod
     def ranges(cls, ranges):
+        """
+        prepare query_ranges
+
+        :param ranges: prepare query_ranges
+        :type  ranges: [[str, str], (str,str)], iterable
+
+            `Example: [[start, end]], ((start, end), (start, end)), or
+                    [(start, end)]`
+
+        :return: list[Range]
+        """
         res = []
         for _range in ranges:
             res.append(Prepare.range(_range[0], _range[1]))
@@ -252,6 +276,7 @@ class Milvus(ConnectIntf):
 
     def create_table(self, param):
         """Create table
+        # TODO param dict
 
         :type  param: dict or TableSchema
         :param param: Provide table information to be created
@@ -357,15 +382,13 @@ class Milvus(ConnectIntf):
 
         :param query_ranges: (Optional) ranges for conditional search.
             If not specified, search whole table
-        :type  query_ranges: list[tuple(date, date)]
+        :type  query_ranges: list[(str, str)]
 
-                `example query_ranges:
-                    date_begin1 = datetime.date(2019,1,1),
-                    date_end1 = datetime.date(2019,1,1)
-                    date_begin2 = datetime.datetime.now()
-                    date_end2 = datetime.datetime.now()
+                `date` supports date-like-str, e.g. '2019-01-01'
 
-                    query_ranges = [(date_begin1, date_end1), (date_begin2, date_end2)]`
+                example query_ranges:
+
+                `query_ranges = [('2019-05-10', '2019-05-10'),(..., ...), ...]`
 
         :param table_name: table name been queried
         :type  table_name: str
@@ -397,7 +420,6 @@ class Milvus(ConnectIntf):
                 raise ParamError('query_records param incorrect!')
 
         if query_ranges:
-            # TODO type check
             query_ranges = Prepare.ranges(query_ranges)
 
         res = TopKQueryResult()
@@ -499,7 +521,10 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
-            LOGGER.error(e)
+            if e.code == 3:
+                LOGGER.info(e)
+            else:
+                LOGGER.error(e)
             return Status(code=e.code, message=e.reason), table
 
     def has_table(self, table_name):
@@ -591,7 +616,7 @@ class Milvus(ConnectIntf):
 
     def server_status(self, cmd=None):
         """
-        Provide server status
+        Provide server status. When cmd !='version', provide 'OK'
 
         :return: Server status
         :rtype : str
@@ -599,4 +624,8 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('You have to connect first')
 
-        return self._client.Ping(cmd)
+        result = 'OK'
+        if cmd and cmd == 'version':
+            result = self._client.Ping(cmd)
+
+        return result

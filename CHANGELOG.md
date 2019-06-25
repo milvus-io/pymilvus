@@ -29,6 +29,10 @@
 
 - \#19 ISSUE
     - Hide Prepare object and support old version
+    
+- \#21 ISSUE
+    - support search by range
+    - fix server_status return None bug
 ### Task
 
 - \#1 Build Repository
