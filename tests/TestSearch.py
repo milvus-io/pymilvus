@@ -34,10 +34,11 @@ def main():
 
     table_name = 'test_search'
     dimension = 256
-    param = {'start_date': '2019-06-24', 'end_date': '2019-06-25'}
+    # param = {'start_date': '2019-06-24', 'end_date': '2019-06-25'}
+    ranges = [['2019-06-25', '2019-06-25']]
 
     vectors = Prepare.records([[random.random()for _ in range(dimension)] for _ in range(1)])
-    ranges = [Prepare.range(**param)]
+    # ranges = [Prepare.range(**param)]
     LOGGER.info(ranges)
     param = {
         'table_name': table_name,

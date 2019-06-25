@@ -65,6 +65,12 @@ def records_factory(dimension):
     return [[random.random() for _ in range(dimension)] for _ in range(20)]
 
 
+def query_ranges_factory():
+    param = [('2019-06-25', '2019-06-25')]
+    return Prepare.ranges(param)
+
+
+
 class TestConnection:
     param = {'host': 'localhost', 'port': '5000'}
 
@@ -241,7 +247,7 @@ class TestVector:
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
             'top_k': random.randint(0, 10),
-            'query_ranges': ranges_factory()
+            'query_ranges': query_ranges_factory()
 
         }
         res, results = client.search_vectors(**param)
@@ -352,13 +358,13 @@ class TestPrepare:
         assert isinstance(res, ttypes.TableSchema)
 
     def test_range(self):
-        param = range_factory()
+        param = {'start_date':'2019-02-02','end_date':'2019-02-02'}
         res = Prepare.range(**param)
         assert isinstance(res, ttypes.Range)
 
     def test_ranges(self):
-        param = ranges_factory()
-        # res = Prepare.ranges(param)
+        param = [('2019-02-02','2019-02-02')]
+        res = Prepare.ranges(param)
         assert isinstance(res, list)
         assert isinstance(res[0], ttypes.Range)
 
