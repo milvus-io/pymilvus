@@ -1,6 +1,4 @@
 #-7
 a. Support numpy in add_vector
 c. LOG Config
-e. Parse Range to time
 g. search_in_files file_ids support int, using str(ids)
-h. remove server_status

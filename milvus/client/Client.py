@@ -114,7 +114,7 @@ class Prepare(object):
 
             `Example: [[start, end]], ((start, end), (start, end)), or
                     [(start, end)]`
-                    
+
         :return: list[Range]
         """
         res = []
