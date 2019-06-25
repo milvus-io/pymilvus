@@ -36,7 +36,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.8'
+__version__ = '0.1.9'
 __NAME__ = 'pymilvus'
 
 
@@ -233,12 +233,12 @@ class Milvus(ConnectIntf):
         try:
             self._transport.open()
             self.status = Status(Status.SUCCESS, 'Connected')
+            return self.status
 
         except TTransport.TTransportException as e:
             self.status = Status(code=e.type, message=e.message)
             LOGGER.error(e)
-            raise e
-        return self.status
+            raise NotConnectError('Connection failed')
 
     @property
     def connected(self):
@@ -612,7 +612,14 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('You have to connect first')
 
-        return self._client.Ping('version')
+        try:
+            return self._client.Ping('version')
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason)
 
     def server_status(self, cmd=None):
         """
@@ -626,6 +633,6 @@ class Milvus(ConnectIntf):
 
         result = 'OK'
         if cmd and cmd == 'version':
-            result = self._client.Ping(cmd)
+            result = self.server_version()
 
         return result

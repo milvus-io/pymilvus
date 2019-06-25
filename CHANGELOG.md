@@ -2,6 +2,8 @@
 - \#12 ISSUE
     - IndexType change
     - fix param of search_vector_in_files ranges
+- \#23 ISSUE
+    - fix not-connect raise wrong exception bug
 ### Improvement
 
 - \#10 Update examples
