@@ -598,7 +598,7 @@ class Milvus(ConnectIntf):
 
     def server_status(self, cmd=None):
         """
-        Provide server status
+        Provide server status. When cmd !='version', provide 'OK'
 
         :return: Server status
         :rtype : str
@@ -606,4 +606,8 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('You have to connect first')
 
-        return self._client.Ping(cmd)
+        result = 'OK'
+        if cmd and cmd == 'version':
+            result = self._client.Ping(cmd)
+
+        return result

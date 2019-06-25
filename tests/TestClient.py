@@ -326,6 +326,18 @@ class TestVector:
         res = client.client_version()
         assert isinstance(res, str)
 
+    @mock.patch.object(MilvusService.Client, 'Ping')
+    def test_server_status(self, Ping, client):
+        res = client.server_status()
+        assert res == 'OK'
+
+        res = client.server_status('abc')
+        assert res == 'OK'
+
+        Ping.return_value = '0.0.0'
+        res = client.server_status('version')
+        assert res == '0.0.0'
+
 
 class TestPrepare:
 
@@ -346,7 +358,7 @@ class TestPrepare:
 
     def test_ranges(self):
         param = ranges_factory()
-        res = Prepare.ranges(param)
+        # res = Prepare.ranges(param)
         assert isinstance(res, list)
         assert isinstance(res[0], ttypes.Range)
 
