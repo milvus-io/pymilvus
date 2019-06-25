@@ -3,6 +3,7 @@ import pytest
 import mock
 import faker
 import random
+import datetime
 import sys
 from faker.providers import BaseProvider
 from thrift.transport.TSocket import TSocket
@@ -36,9 +37,14 @@ fake.add_provider(FakerProvider)
 
 
 def range_factory():
-    import datetime
-    param = (datetime.datetime.now(), datetime.datetime.now())
-    return param
+    # import datetime
+    # param = (datetime.datetime.now(), datetime.datetime.now())
+    # return param
+    param = {
+        'start_date': '2019-06-25',
+        'end_date': '2019-06-25'
+    }
+    return Prepare.range(**param)
 
 
 def ranges_factory():
@@ -228,6 +234,20 @@ class TestVector:
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
 
+    @mock.patch.object(Milvus, 'search_vectors')
+    def test_search_vector_with_range(self, search_vectors, client):
+        search_vectors.return_value = Status(), [[ttypes.QueryResult(111, 111)]]
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            'top_k': random.randint(0, 10),
+            'query_ranges': ranges_factory()
+
+        }
+        res, results = client.search_vectors(**param)
+        assert res.OK()
+        assert isinstance(results, (list, TopKQueryResult))
+
     def test_false_vector(self, client):
         param = {
             'table_name': fake.table_name(),
@@ -321,7 +341,7 @@ class TestPrepare:
 
     def test_range(self):
         param = range_factory()
-        res = Prepare.range(param[0], param[1])
+        res = Prepare.range(**param)
         assert isinstance(res, ttypes.Range)
 
     def test_ranges(self):

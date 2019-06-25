@@ -1,8 +1,6 @@
 #-7
 a. Support numpy in add_vector
-b. Support outside config for transport and protocol
 c. LOG Config
-d. Hide Prepare object  >> CHECK 20190624
-e. Parse Range to time: (year-1900)*1000 + (month-1)*100 + day, [start, end)
-f. create_table param
+e. Parse Range to time
 g. search_in_files file_ids support int, using str(ids)
+h. remove server_status
