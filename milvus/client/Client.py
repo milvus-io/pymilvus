@@ -612,7 +612,14 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('You have to connect first')
 
-        return self._client.Ping('version')
+        try:
+            return self._client.Ping('version')
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason)
 
     def server_status(self, cmd=None):
         """
@@ -626,6 +633,6 @@ class Milvus(ConnectIntf):
 
         result = 'OK'
         if cmd and cmd == 'version':
-            result = self._client.Ping(cmd)
+            result = self.server_version()
 
         return result
