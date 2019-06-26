@@ -2,12 +2,15 @@
 - \#12 ISSUE
     - IndexType change
     - fix param of search_vector_in_files ranges
-- \#23 ISSUE
-    - fix not-connect raise wrong exception bug
+- \#23 ISSUE: fix not-connect raise wrong exception bug
+- \#25 ISSUE: *[M-112]* fix type of top_k not checked error
+- \#26 ISSUE: format of server_version's return value fixed
+- \#27 ISSUE: correct connect and disconnect logic    
 ### Improvement
 
 - \#10 Update examples
 - \#14 Update example
+- \#28 Update README with newest sdk
 
 ### New Feature
 
