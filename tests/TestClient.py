@@ -90,7 +90,7 @@ class TestConnection:
 
     def test_false_connect(self):
         cnn = Milvus()
-        with pytest.raises(TTransport.TTransportException):
+        with pytest.raises(NotConnectError):
             cnn.connect(**self.param)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
@@ -105,7 +105,7 @@ class TestConnection:
 
     def test_connect(self):
         cnn = Milvus()
-        with pytest.raises(TTransport.TTransportException):
+        with pytest.raises(NotConnectError):
             cnn.connect('127.0.0.2')
             assert not cnn.status.OK()
 
