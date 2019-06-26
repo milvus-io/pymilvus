@@ -1,7 +1,3 @@
 #-7
 a. Support numpy in add_vector
-c. LOG Config
 g. search_in_files file_ids support int, using str(ids)
-b. [!!]after disconnection, change connect_status
-d. [!!] server_version return value format wrong
-f. [!!] Edit delete_table and prepare in readme
