@@ -419,6 +419,9 @@ class Milvus(ConnectIntf):
             else:
                 raise ParamError('query_records param incorrect!')
 
+        if not isinstance(top_k, int):
+            raise ParamError('Param top_k should be integer!')
+
         if query_ranges:
             query_ranges = Prepare.ranges(query_ranges)
 
