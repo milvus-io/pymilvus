@@ -20,7 +20,7 @@ $ pip install --upgrade pymilvus
 ## Import
 
 ```python
-from milvus import Milvus, Prepare, IndexType, Status
+from milvus import Milvus, IndexType, Status
 ```
 
 ## Getting started
@@ -37,17 +37,16 @@ Once successfully connected, you can get the version of server
 
 ```python
 >>> milvus.server_version()
-0.0.0  # this is example version, the real version may vary
+(Status(code=0, message='Success'), 0.3.0)  # this is example version, the real version may vary
 ```
 ---
 
 Add a new `table`
 
 
-First using `Prepare` to create param
+First set param
 ```python
->>> param = Prepare.table_schema(table_name='test01', dimension=256, index_type=IndexType.FLAT,
-                                    store_raw_vector=False)
+>>> param = {'table_name'='test01', 'dimension'=256, 'index_type'=IndexType.FLAT, 'store_raw_vector'=False}
 ```
 Then create `table`
 ```python
@@ -65,7 +64,7 @@ Describe the table we just created
 
 Add vectors into table `test01`
 
-First Prepare `binary vectors` of 256-dimension.
+First create 20 vectors of 256-dimension.
 
 - Note that `random` and `pprint` we used here is for creating fake vectors data and pretty print, you may not need them in your project
 
@@ -77,7 +76,6 @@ First Prepare `binary vectors` of 256-dimension.
 
 # Initialize 20 vectors of 256-dimension
 >>> fake_vectors = [[random.random() for _ in range(dim)] for _ in range(20)]
->>> vectors = Prepare.records(fake_vectors)  # This will transfer fake_vector to binary data
 ```
 
 Then add vectors into table `test01`
@@ -94,8 +92,8 @@ Status(code=0, message='Success')
 Search vectors
 
 ```python
-# prepare 5 vectors of 256-dimension
->>> q_records = Prepare.records([random.random() for _ in range(dim)] for _ in range(5)]
+# create 5 vectors of 256-dimension
+>>> q_records = [[random.random() for _ in range(dim)] for _ in range(5)]
 ```
 
 Then get results
@@ -106,7 +104,13 @@ Status(code=0, message='Success')
 >>> pprint(results) # Searched top_k vectors
 ```
 
+---
+Delet the table we just created
 
+```python
+>>> milvus.delete_table(table_name='test01')
+Status(code=0, message='Success')
+```
 Disconnect with the server
 ```python
 >>> milvus.disconnect()
