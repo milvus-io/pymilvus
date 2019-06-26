@@ -269,9 +269,9 @@ class Milvus(ConnectIntf):
             self._transport.close()
             self.status = None
 
-        except TException as e:
+        except TTransport.TTransportException as e:
             LOGGER.error(e)
-            return Status(Status.PERMISSION_DENIED, str(e))
+            return Status(code=e.type, message=e.message)
         return Status(Status.SUCCESS, 'Disconnect successfully!')
 
     def create_table(self, param):
