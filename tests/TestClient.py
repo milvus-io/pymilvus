@@ -14,7 +14,8 @@ from milvus.client.Client import Milvus, IndexType, Status, TopKQueryResult, Pre
 from milvus.client.Exceptions import (
     NotConnectError,
     RepeatingConnectError,
-    DisconnectNotConnectedClientError)
+    DisconnectNotConnectedClientError,
+    ParamError)
 from milvus.thrift import ttypes, MilvusService
 
 LOGGER = logging.getLogger(__name__)
@@ -89,7 +90,7 @@ class TestConnection:
 
     def test_false_connect(self):
         cnn = Milvus()
-        with pytest.raises(TTransport.TTransportException):
+        with pytest.raises(NotConnectError):
             cnn.connect(**self.param)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
@@ -104,7 +105,7 @@ class TestConnection:
 
     def test_connect(self):
         cnn = Milvus()
-        with pytest.raises(TTransport.TTransportException):
+        with pytest.raises(NotConnectError):
             cnn.connect('127.0.0.2')
             assert not cnn.status.OK()
 
@@ -240,6 +241,7 @@ class TestVector:
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
 
+
     @mock.patch.object(Milvus, 'search_vectors')
     def test_search_vector_with_range(self, search_vectors, client):
         search_vectors.return_value = Status(), [[ttypes.QueryResult(111, 111)]]
@@ -263,6 +265,15 @@ class TestVector:
         with pytest.raises(NotConnectError):
             res, results = client.search_vectors(**param)
             assert res == Status.CONNECT_FAILED
+
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            'top_k': 'string'
+        }
+        with pytest.raises(ParamError):
+            res, results = client.search_vectors(**param)
+
 
     @mock.patch.object(Milvus, 'search_vectors_in_files')
     def test_search_in_files(self, search_vectors_in_files, client):
@@ -334,14 +345,17 @@ class TestVector:
 
     @mock.patch.object(MilvusService.Client, 'Ping')
     def test_server_status(self, Ping, client):
-        res = client.server_status()
+        status, res = client.server_status()
+        assert status.OK()
         assert res == 'OK'
 
-        res = client.server_status('abc')
+        status, res = client.server_status('abc')
+        assert status.OK()
         assert res == 'OK'
 
         Ping.return_value = '0.0.0'
-        res = client.server_status('version')
+        status, res = client.server_status('version')
+        assert status.OK()
         assert res == '0.0.0'
 
 

@@ -36,7 +36,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.9'
+__version__ = '0.1.10'
 __NAME__ = 'pymilvus'
 
 
@@ -269,9 +269,9 @@ class Milvus(ConnectIntf):
             self._transport.close()
             self.status = None
 
-        except TException as e:
+        except TTransport.TTransportException as e:
             LOGGER.error(e)
-            return Status(Status.PERMISSION_DENIED, str(e))
+            return Status(code=e.type, message=e.message)
         return Status(Status.SUCCESS, 'Disconnect successfully!')
 
     def create_table(self, param):
@@ -418,6 +418,9 @@ class Milvus(ConnectIntf):
                 query_records = Prepare.records(query_records)
             else:
                 raise ParamError('query_records param incorrect!')
+
+        if not isinstance(top_k, int):
+            raise ParamError('Param top_k should be integer!')
 
         if query_ranges:
             query_ranges = Prepare.ranges(query_ranges)
@@ -611,15 +614,16 @@ class Milvus(ConnectIntf):
         """
         if not self.connected:
             raise NotConnectError('You have to connect first')
-
+        server_version = ''
         try:
-            return self._client.Ping('version')
+            server_version = self._client.Ping('version')
+            return Status(message='Get version of server successfully'), server_version
         except TTransport.TTransportException as e:
             LOGGER.error(e)
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)
-            return Status(code=e.code, message=e.reason)
+            return Status(code=e.code, message=e.reason), server_version
 
     def server_status(self, cmd=None):
         """
@@ -632,7 +636,8 @@ class Milvus(ConnectIntf):
             raise NotConnectError('You have to connect first')
 
         result = 'OK'
+        status = Status(message='Get status of server successfully')
         if cmd and cmd == 'version':
-            result = self.server_version()
+            status, result = self.server_version()
 
-        return result
+        return status, result
