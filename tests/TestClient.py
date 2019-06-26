@@ -345,14 +345,17 @@ class TestVector:
 
     @mock.patch.object(MilvusService.Client, 'Ping')
     def test_server_status(self, Ping, client):
-        res = client.server_status()
+        status, res = client.server_status()
+        assert status.OK()
         assert res == 'OK'
 
-        res = client.server_status('abc')
+        status, res = client.server_status('abc')
+        assert status.OK()
         assert res == 'OK'
 
         Ping.return_value = '0.0.0'
-        res = client.server_status('version')
+        status, res = client.server_status('version')
+        assert status.OK()
         assert res == '0.0.0'
 
 
