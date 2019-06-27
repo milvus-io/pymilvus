@@ -1,3 +1,5 @@
 #-7
 a. Support numpy in add_vector
+b. add factories for test
+d. [!!] Update thrift and pymilvus
 g. search_in_files file_ids support int, using str(ids)

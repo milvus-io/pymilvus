@@ -6,7 +6,6 @@ import datetime
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
 from thrift.protocol import TBinaryProtocol, TCompactProtocol, TJSONProtocol
-from thrift.Thrift import TException, TApplicationException
 
 from milvus.thrift import MilvusService
 from milvus.thrift import ttypes
@@ -55,14 +54,19 @@ def is_correct_date_str(param):
     return True
 
 
-# TODO _prepare
+def _legal_dimension(dim):
+    if not isinstance(dim, int) or dim <=0 or dim > 10000:
+        return False
+    return True
+
+
 class Prepare(object):
 
     @classmethod
     def table_schema(cls,
                      table_name,
                      dimension,
-                     index_type=IndexType.INVALIDE,
+                     index_type=IndexType.INVALID,
                      store_raw_vector=False):
         """
         :type table_name: str
@@ -71,11 +75,15 @@ class Prepare(object):
         :type store_raw_vector: bool
         :param table_name: (Required) name of table
         :param dimension: (Required) dimension of the table
-        :param index_type: (Optional) index type, default = IndexType.INVALID
+        :param index_type: (Required) index type, default = IndexType.INVALID
         :param store_raw_vector: (Optional) default = False
 
         :return: TableSchema object
         """
+        if not isinstance(table_name, str) or not _legal_dimension(dimension) \
+                or not isinstance(index_type, IndexType) or not isinstance(store_raw_vector, bool):
+            raise ParamError('Param incorrect!')
+
         temp = TableSchema(table_name, dimension, index_type, store_raw_vector)
 
         return ttypes.TableSchema(table_name=temp.table_name,
@@ -419,8 +427,8 @@ class Milvus(ConnectIntf):
             else:
                 raise ParamError('query_records param incorrect!')
 
-        if not isinstance(top_k, int):
-            raise ParamError('Param top_k should be integer!')
+        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
+            raise ParamError('Param top_k should be integer between (0, 10000]!')
 
         if query_ranges:
             query_ranges = Prepare.ranges(query_ranges)
@@ -481,6 +489,9 @@ class Milvus(ConnectIntf):
                 query_records = Prepare.records(query_records)
             else:
                 raise ParamError('query_records param incorrect!')
+
+        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
+            raise ParamError('Param top_k should be integer between (0, 10000]!')
 
         res = TopKQueryResult()
         file_ids = [str(item) for item in file_ids if isinstance(item, int)]

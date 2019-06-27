@@ -2,7 +2,7 @@ from enum import IntEnum
 
 
 class IndexType(IntEnum):
-    INVALIDE = 0
+    INVALID = 0
     FLAT = 1
     IVFLAT = 2
 
@@ -28,7 +28,7 @@ class TableSchema(object):
     """
     def __init__(self, table_name,
                  dimension=0,
-                 index_type=IndexType.INVALIDE,
+                 index_type=IndexType.INVALID,
                  store_raw_vector=False):
         self.table_name = table_name
         self.index_type = index_type

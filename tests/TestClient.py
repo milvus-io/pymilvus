@@ -38,9 +38,6 @@ fake.add_provider(FakerProvider)
 
 
 def range_factory():
-    # import datetime
-    # param = (datetime.datetime.now(), datetime.datetime.now())
-    # return param
     param = {
         'start_date': '2019-06-25',
         'end_date': '2019-06-25'
@@ -69,7 +66,6 @@ def records_factory(dimension):
 def query_ranges_factory():
     param = [('2019-06-25', '2019-06-25')]
     return Prepare.ranges(param)
-
 
 
 class TestConnection:
@@ -166,6 +162,15 @@ class TestTable:
         res = client.create_table(param)
         assert res.OK()
 
+        param['index_type'] = 'string'
+        with pytest.raises(ParamError):
+            res = client.create_table(param)
+
+        param = table_schema_factory()
+        param['dimension'] = 'string'
+        with pytest.raises(ParamError):
+            res = client.create_table(param)
+
     def test_create_table_connect_failed_status(self, client):
         param = table_schema_factory()
         with pytest.raises(NotConnectError):
@@ -242,6 +247,7 @@ class TestVector:
         assert isinstance(results, (list, TopKQueryResult))
 
 
+
     @mock.patch.object(Milvus, 'search_vectors')
     def test_search_vector_with_range(self, search_vectors, client):
         search_vectors.return_value = Status(), [[ttypes.QueryResult(111, 111)]]
@@ -273,6 +279,15 @@ class TestVector:
         }
         with pytest.raises(ParamError):
             res, results = client.search_vectors(**param)
+
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            'top_k': 'string'
+        }
+        with pytest.raises(ParamError):
+            res, results = client.search_vectors(**param)
+
 
 
     @mock.patch.object(Milvus, 'search_vectors_in_files')
