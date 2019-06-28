@@ -259,7 +259,7 @@ class Milvus(ConnectIntf):
         """
         if not self:
             return False
-        elif self.status and self.status.OK:
+        elif self.status and self.status.OK():
             return True
         return False
 
