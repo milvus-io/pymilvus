@@ -25,6 +25,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('')
     print('Functions:')
     print('  void CreateTable(TableSchema param)')
+    print('  bool HasTable(string table_name)')
     print('  void DeleteTable(string table_name)')
     print('   AddVector(string table_name,  record_array)')
     print('   SearchVector(string table_name,  query_record_array,  query_range_array, i64 topk)')
@@ -117,6 +118,12 @@ if cmd == 'CreateTable':
         print('CreateTable requires 1 args')
         sys.exit(1)
     pp.pprint(client.CreateTable(eval(args[0]),))
+
+elif cmd == 'HasTable':
+    if len(args) != 1:
+        print('HasTable requires 1 args')
+        sys.exit(1)
+    pp.pprint(client.HasTable(args[0],))
 
 elif cmd == 'DeleteTable':
     if len(args) != 1:

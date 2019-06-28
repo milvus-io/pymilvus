@@ -6,7 +6,6 @@ import datetime
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
 from thrift.protocol import TBinaryProtocol, TCompactProtocol, TJSONProtocol
-from thrift.Thrift import TException, TApplicationException
 
 from milvus.thrift import MilvusService
 from milvus.thrift import ttypes
@@ -36,7 +35,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.10'
+__version__ = '0.1.11'
 __NAME__ = 'pymilvus'
 
 
@@ -55,14 +54,19 @@ def is_correct_date_str(param):
     return True
 
 
-# TODO _prepare
+def _legal_dimension(dim):
+    if not isinstance(dim, int) or dim <=0 or dim > 10000:
+        return False
+    return True
+
+
 class Prepare(object):
 
     @classmethod
     def table_schema(cls,
                      table_name,
                      dimension,
-                     index_type=IndexType.INVALIDE,
+                     index_type=IndexType.INVALID,
                      store_raw_vector=False):
         """
         :type table_name: str
@@ -71,11 +75,15 @@ class Prepare(object):
         :type store_raw_vector: bool
         :param table_name: (Required) name of table
         :param dimension: (Required) dimension of the table
-        :param index_type: (Optional) index type, default = IndexType.INVALID
+        :param index_type: (Required) index type, default = IndexType.INVALID
         :param store_raw_vector: (Optional) default = False
 
         :return: TableSchema object
         """
+        if not isinstance(table_name, str) or not _legal_dimension(dimension) \
+                or not isinstance(index_type, IndexType) or not isinstance(store_raw_vector, bool):
+            raise ParamError('Param incorrect!')
+
         temp = TableSchema(table_name, dimension, index_type, store_raw_vector)
 
         return ttypes.TableSchema(table_name=temp.table_name,
@@ -205,6 +213,7 @@ class Milvus(ConnectIntf):
             port = port or 9090
 
         self._transport = TSocket.TSocket(host, port)
+        self._transport.setTimeout(100)
 
         if config.THRIFTCLIENT_BUFFERED:
             self._transport = TTransport.TBufferedTransport(self._transport)
@@ -419,8 +428,8 @@ class Milvus(ConnectIntf):
             else:
                 raise ParamError('query_records param incorrect!')
 
-        if not isinstance(top_k, int):
-            raise ParamError('Param top_k should be integer!')
+        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
+            raise ParamError('Param top_k should be integer between (0, 10000]!')
 
         if query_ranges:
             query_ranges = Prepare.ranges(query_ranges)
@@ -482,6 +491,9 @@ class Milvus(ConnectIntf):
             else:
                 raise ParamError('query_records param incorrect!')
 
+        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
+            raise ParamError('Param top_k should be integer between (0, 10000]!')
+
         res = TopKQueryResult()
         file_ids = [str(item) for item in file_ids if isinstance(item, int)]
         try:
@@ -530,18 +542,50 @@ class Milvus(ConnectIntf):
                 LOGGER.error(e)
             return Status(code=e.code, message=e.reason), table
 
+    # def has_table(self, table_name):
+    #     """
+    #
+    #     This method is used to test table existence.
+    #     Should be implemented
+    #
+    #     :param table_name: table name is going to be tested.
+    #     :type table_name: str
+    #
+    #     :return:
+    #         has_table: bool, if given table_name exists
+    #
+    #     """
+    #     status, has_table = self._has_table(table_name)
+    #
+    #     if status.OK():
+    #         return has_table
+
     def has_table(self, table_name):
         """
-        Check table existence
 
-        :type  table_name: str
-        :param table_name: table_name
+        This method is used to test table existence.
 
-        :returns: If table `table_name` exists
-        :rtype: bool
+        :param table_name: table name is going to be tested.
+        :type table_name: str
+
+        :return:
+            has_table: bool, if given table_name exists
+
+
         """
-        _, tables = self.show_tables()
-        return table_name in tables
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
+        has_table = False
+
+        try:
+            has_table = self._client.HasTable(table_name)
+            return has_table
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            return NotConnectError('Please Connect to the server first!')
+        # except ttypes.Exception as e:
+            # LOGGER.error(e)
 
     def show_tables(self):
         """
@@ -601,8 +645,12 @@ class Milvus(ConnectIntf):
         """
         Provide client version
 
-        :return: Client version
-        :rtype: str
+        :return:
+            Status: indicate if operation is successful
+
+            str : Client version
+
+        :rtype: (Status, str)
         """
         return __version__
 
@@ -610,7 +658,12 @@ class Milvus(ConnectIntf):
         """
         Provide server version
 
-        :return: Server version
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
         """
         if not self.connected:
             raise NotConnectError('You have to connect first')
@@ -629,8 +682,12 @@ class Milvus(ConnectIntf):
         """
         Provide server status. When cmd !='version', provide 'OK'
 
-        :return: Server status
-        :rtype : str
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
         """
         if not self.connected:
             raise NotConnectError('You have to connect first')

@@ -2,7 +2,7 @@ from enum import IntEnum
 
 
 class IndexType(IntEnum):
-    INVALIDE = 0
+    INVALID = 0
     FLAT = 1
     IVFLAT = 2
 
@@ -28,7 +28,7 @@ class TableSchema(object):
     """
     def __init__(self, table_name,
                  dimension=0,
-                 index_type=IndexType.INVALIDE,
+                 index_type=IndexType.INVALID,
                  store_raw_vector=False):
         self.table_name = table_name
         self.index_type = index_type
@@ -149,6 +149,21 @@ class ConnectIntf(object):
         :param param: provide table information to be created
 
         :return: Status, indicate if connect is successful
+        """
+        _abstract()
+
+    def has_table(self, table_name):
+        """
+
+        This method is used to test table existence.
+        Should be implemented
+
+        :param table_name: table name is going to be tested.
+        :type table_name: str
+
+        :return:
+            has_table: bool, if given table_name exists
+
         """
         _abstract()
 

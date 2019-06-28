@@ -44,7 +44,7 @@ def main():
         'table_name': table_name,
         'query_records': vectors,
         'top_k': 5,
-        'query_ranges': ranges  # Not fully tested yet
+        # 'query_ranges': ranges
     }
     status, result = milvus.search_vectors(**param)
     if status.OK():
