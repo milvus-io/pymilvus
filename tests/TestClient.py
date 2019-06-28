@@ -191,13 +191,13 @@ class TestTable:
             LOGGER.info(res)
             assert res == Status.CONNECT_FAILED
 
-    @mock.patch.object(MilvusService.Client, 'ShowTables')
-    def test_has_table(self, ShowTables, client):
+    @mock.patch.object(MilvusService.Client, 'HasTable')
+    def test_has_table(self, HasTable, client):
+        HasTable.return_value = True
         table_name = fake.table_name()
-        ShowTables.return_value = [table_name]
         assert client.has_table(table_name)
 
-        ShowTables.return_value = []
+        HasTable.return_value = False
         assert not client.has_table(table_name)
 
 
