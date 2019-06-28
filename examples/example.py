@@ -31,7 +31,7 @@ def main():
             'store_raw_vector': False
         }
 
-        milvus.create_table(Prepare.table_schema(**param))
+        milvus.create_table(param)
 
     # Show tables in Milvus server
     _, tables = milvus.show_tables()
@@ -39,8 +39,8 @@ def main():
     # Describe demo_table
     _, table = milvus.describe_table(table_name)
 
-    # create 10 vectors with 16 dimension
-    vector_list = [
+    # 10 vectors with 16 dimension
+    vectors = [
         [0.66, 0.01, 0.29, 0.64, 0.75, 0.94, 0.26, 0.79, 0.61, 0.11, 0.25, 0.50, 0.74, 0.37, 0.28, 0.63],
         [0.77, 0.65, 0.57, 0.68, 0.29, 0.93, 0.17, 0.15, 0.95, 0.09, 0.78, 0.37, 0.76, 0.21, 0.42, 0.15],
         [0.61, 0.38, 0.32, 0.39, 0.54, 0.93, 0.09, 0.81, 0.52, 0.30, 0.20, 0.59, 0.15, 0.27, 0.04, 0.37],
@@ -52,7 +52,6 @@ def main():
         [0.11, 0.26, 0.44, 0.91, 0.89, 0.79, 0.98, 0.91, 0.09, 0.45, 0.07, 0.88, 0.71, 0.35, 0.97, 0.41],
         [0.17, 0.54, 0.61, 0.58, 0.25, 0.63, 0.65, 0.71, 0.26, 0.80, 0.28, 0.77, 0.69, 0.02, 0.63, 0.60],
     ]
-    vectors = Prepare.records(vector_list)
 
     # Insert vectors into demo_table
     status, ids = milvus.add_vectors(table_name=table_name, records=vectors)
@@ -65,10 +64,9 @@ def main():
     time.sleep(6)
 
     # Use the 3rd vector for similarity search
-    query_list = [
-        vector_list[3]
+    query_vectors = [
+        vectors[3]
     ]
-    query_vectors = Prepare.records(query_list)
 
     # execute vector similarity search
     param = {
