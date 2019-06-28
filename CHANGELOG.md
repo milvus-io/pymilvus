@@ -3,15 +3,19 @@
     - IndexType change
     - fix param of search_vector_in_files ranges
 - \#23 ISSUE: fix not-connect raise wrong exception bug
-- \#25 ISSUE: *[M-112]* fix type of top_k not checked error
+- \#25 ISSUE: **[M-112]** fix type of top_k not checked error
 - \#26 ISSUE: format of server_version's return value fixed
-- \#27 ISSUE: correct connect and disconnect logic    
+- \#27 ISSUE: correct connect and disconnect logic  
+- \#30 ISSUE: **[M-118]** IndexType param checked  
+- \#31 ISSUE: **[M-123]** create table param re-checked
+- \#32 ISSUE: top_k in search_vectors set ranges
+- \#35 ISSUE: **[M-132]** fix connected return value wrong error
 ### Improvement
 
 - \#10 Update examples
 - \#14 Update example
 - \#28 Update README with newest sdk
-
+- \#33 Update thrift has_table API
 ### New Feature
 
 - \#3

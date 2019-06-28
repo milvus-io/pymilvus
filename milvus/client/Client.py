@@ -35,7 +35,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.11'
+__version__ = '0.1.12'
 __NAME__ = 'pymilvus'
 
 
@@ -213,7 +213,7 @@ class Milvus(ConnectIntf):
             port = port or 9090
 
         self._transport = TSocket.TSocket(host, port)
-        self._transport.setTimeout(100)
+        self._transport.setTimeout(240)
 
         if config.THRIFTCLIENT_BUFFERED:
             self._transport = TTransport.TBufferedTransport(self._transport)
@@ -259,7 +259,7 @@ class Milvus(ConnectIntf):
         """
         if not self:
             return False
-        elif self.status and self.status.OK:
+        elif self.status and self.status.OK():
             return True
         return False
 
