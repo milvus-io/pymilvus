@@ -114,6 +114,12 @@ class TestConnection:
             cnn.connect(uri='tcp://127.0.0.1:9090')
             assert not cnn.status.OK()
 
+    def test_connect_timeout(self):
+        cnn = Milvus()
+        with pytest.raises(NotConnectError):
+            cnn.connect(host='123.0.0.2', port='19530')
+
+
     @mock.patch.object(TSocket, 'open')
     def test_uri_runtime_error(self, open):
         open.return_value = None

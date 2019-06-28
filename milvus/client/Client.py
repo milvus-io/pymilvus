@@ -213,6 +213,7 @@ class Milvus(ConnectIntf):
             port = port or 9090
 
         self._transport = TSocket.TSocket(host, port)
+        self._transport.setTimeout(100)
 
         if config.THRIFTCLIENT_BUFFERED:
             self._transport = TTransport.TBufferedTransport(self._transport)
@@ -644,8 +645,12 @@ class Milvus(ConnectIntf):
         """
         Provide client version
 
-        :return: Client version
-        :rtype: str
+        :return:
+            Status: indicate if operation is successful
+
+            str : Client version
+
+        :rtype: (Status, str)
         """
         return __version__
 
@@ -653,7 +658,12 @@ class Milvus(ConnectIntf):
         """
         Provide server version
 
-        :return: Server version
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
         """
         if not self.connected:
             raise NotConnectError('You have to connect first')
@@ -672,8 +682,12 @@ class Milvus(ConnectIntf):
         """
         Provide server status. When cmd !='version', provide 'OK'
 
-        :return: Server status
-        :rtype : str
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
         """
         if not self.connected:
             raise NotConnectError('You have to connect first')

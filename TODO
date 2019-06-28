@@ -2,6 +2,5 @@
 a. Support numpy in add_vector
 b. add factories for test
 c. [!!!] Abstract in last three should be correct
-d. [!!] Update thrift and pymilvus, update has_table
 e. [!!!] Connection set timeout
 g. search_in_files file_ids support int, using str(ids)
