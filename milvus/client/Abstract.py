@@ -152,6 +152,21 @@ class ConnectIntf(object):
         """
         _abstract()
 
+    def has_table(self, table_name):
+        """
+
+        This method is used to test table existence.
+        Should be implemented
+
+        :param table_name: table name is going to be tested.
+        :type table_name: str
+
+        :return:
+            has_table: bool, if given table_name exists
+
+        """
+        _abstract()
+
     def delete_table(self, table_name):
         """
         Delete table

@@ -541,18 +541,50 @@ class Milvus(ConnectIntf):
                 LOGGER.error(e)
             return Status(code=e.code, message=e.reason), table
 
+    # def has_table(self, table_name):
+    #     """
+    #
+    #     This method is used to test table existence.
+    #     Should be implemented
+    #
+    #     :param table_name: table name is going to be tested.
+    #     :type table_name: str
+    #
+    #     :return:
+    #         has_table: bool, if given table_name exists
+    #
+    #     """
+    #     status, has_table = self._has_table(table_name)
+    #
+    #     if status.OK():
+    #         return has_table
+
     def has_table(self, table_name):
         """
-        Check table existence
 
-        :type  table_name: str
-        :param table_name: table_name
+        This method is used to test table existence.
 
-        :returns: If table `table_name` exists
-        :rtype: bool
+        :param table_name: table name is going to be tested.
+        :type table_name: str
+
+        :return:
+            has_table: bool, if given table_name exists
+
+
         """
-        _, tables = self.show_tables()
-        return table_name in tables
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
+        has_table = False
+
+        try:
+            has_table = self._client.HasTable(table_name)
+            return has_table
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            return NotConnectError('Please Connect to the server first!')
+        # except ttypes.Exception as e:
+            # LOGGER.error(e)
 
     def show_tables(self):
         """
