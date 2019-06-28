@@ -213,7 +213,7 @@ class Milvus(ConnectIntf):
             port = port or 9090
 
         self._transport = TSocket.TSocket(host, port)
-        self._transport.setTimeout(100)
+        self._transport.setTimeout(240)
 
         if config.THRIFTCLIENT_BUFFERED:
             self._transport = TTransport.TBufferedTransport(self._transport)
