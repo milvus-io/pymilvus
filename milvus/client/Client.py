@@ -35,7 +35,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.12'
+__version__ = '0.1.13'
 __NAME__ = 'pymilvus'
 
 
@@ -171,7 +171,7 @@ class Milvus(ConnectIntf):
     def __repr__(self):
         return '{}'.format(self.status)
 
-    def connect(self, host=None, port=None, uri=None):
+    def connect(self, host=None, port=None, uri=None, timeout=10000):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -179,6 +179,8 @@ class Milvus(ConnectIntf):
         :type  host: str
         :type  port: str
         :type  uri: str
+        :type  timeout: int
+        :param timeout: (Optional) connection timeout, ms / 1000
         :param host: (Optional) host of the server, default host is 127.0.0.1
         :param port: (Optional) port of the server, default port is 9090
         :param uri: (Optional) only support tcp proto now, default uri is
@@ -213,7 +215,9 @@ class Milvus(ConnectIntf):
             port = port or 9090
 
         self._transport = TSocket.TSocket(host, port)
-        self._transport.setTimeout(240)
+
+        if timeout:
+            self._transport.setTimeout(int(timeout))
 
         if config.THRIFTCLIENT_BUFFERED:
             self._transport = TTransport.TBufferedTransport(self._transport)
