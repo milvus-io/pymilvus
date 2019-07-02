@@ -546,24 +546,6 @@ class Milvus(ConnectIntf):
                 LOGGER.error(e)
             return Status(code=e.code, message=e.reason), table
 
-    # def has_table(self, table_name):
-    #     """
-    #
-    #     This method is used to test table existence.
-    #     Should be implemented
-    #
-    #     :param table_name: table name is going to be tested.
-    #     :type table_name: str
-    #
-    #     :return:
-    #         has_table: bool, if given table_name exists
-    #
-    #     """
-    #     status, has_table = self._has_table(table_name)
-    #
-    #     if status.OK():
-    #         return has_table
-
     def has_table(self, table_name):
         """
 
