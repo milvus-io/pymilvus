@@ -390,14 +390,14 @@ class QueryResult(object):
 
     Attributes:
      - id
-     - score
+     - distance
 
     """
 
 
-    def __init__(self, id=None, score=None,):
+    def __init__(self, id=None, distance=None,):
         self.id = id
-        self.score = score
+        self.distance = distance
 
     def read(self, iprot):
         if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
@@ -415,7 +415,7 @@ class QueryResult(object):
                     iprot.skip(ftype)
             elif fid == 2:
                 if ftype == TType.DOUBLE:
-                    self.score = iprot.readDouble()
+                    self.distance = iprot.readDouble()
                 else:
                     iprot.skip(ftype)
             else:
@@ -432,9 +432,9 @@ class QueryResult(object):
             oprot.writeFieldBegin('id', TType.I64, 1)
             oprot.writeI64(self.id)
             oprot.writeFieldEnd()
-        if self.score is not None:
-            oprot.writeFieldBegin('score', TType.DOUBLE, 2)
-            oprot.writeDouble(self.score)
+        if self.distance is not None:
+            oprot.writeFieldBegin('distance', TType.DOUBLE, 2)
+            oprot.writeDouble(self.distance)
             oprot.writeFieldEnd()
         oprot.writeFieldStop()
         oprot.writeStructEnd()
@@ -549,7 +549,7 @@ all_structs.append(QueryResult)
 QueryResult.thrift_spec = (
     None,  # 0
     (1, TType.I64, 'id', None, None, ),  # 1
-    (2, TType.DOUBLE, 'score', None, None, ),  # 2
+    (2, TType.DOUBLE, 'distance', None, None, ),  # 2
 )
 all_structs.append(TopKQueryResult)
 TopKQueryResult.thrift_spec = (

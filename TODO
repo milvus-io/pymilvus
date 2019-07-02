@@ -2,9 +2,8 @@
 a. Support numpy in add_vector
 b. add factories for test
 c. [!!!] Abstract in last three should be correct
-g. search_in_files file_ids support int, using str(ids)
 f. sdk reconnect, disconnection can be caused by:
     * Transient problems with the network
     * Remote servive restarted
     * Heavy load on either the remote or the local machine causes a timeout
-
+d. sdk api should update to 0.3.1
