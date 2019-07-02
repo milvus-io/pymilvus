@@ -1,4 +1,24 @@
 from enum import IntEnum
+import datetime
+import struct
+
+from milvus.client.Exceptions import (
+    ParamError
+)
+
+
+def is_correct_date_str(param):
+    try:
+        datetime.datetime.strptime(param, '%Y-%m-%d')
+    except ValueError:
+        raise ParamError('Incorrect data format, should be YYYY-MM-DD')
+    return True
+
+
+def legal_dimension(dim):
+    if not isinstance(dim, int) or dim <= 0 or dim > 10000:
+        return False
+    return True
 
 
 class IndexType(IntEnum):
@@ -15,9 +35,9 @@ class TableSchema(object):
     :param table_name: (Required) name of table
 
     :type  index_type: IndexType
-    :param index_type: (Optional) index type, default = 0
+    :param index_type: (Required) index type, default = IndexType.INVALID
 
-        `IndexType`: 0-invalid, 1-idmap, 2-ivflat
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat
 
     :type  dimension: int64
     :param dimension: (Required) dimension of vector
@@ -26,14 +46,30 @@ class TableSchema(object):
     :param store_raw_vector: (Optional) default = False
 
     """
+
     def __init__(self, table_name,
                  dimension=0,
                  index_type=IndexType.INVALID,
                  store_raw_vector=False):
+
+        # TODO may raise UnicodeEncodeError
+        table_name = str(table_name) if not isinstance(table_name, str) else table_name
+        if not legal_dimension(dimension):
+            raise ParamError('Illegal dimension, effective range: (0 , 10000]')
+        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
+            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
+        if not isinstance(store_raw_vector, bool):
+            raise ParamError('Illegal store_raw_vector, should be bool')
+
         self.table_name = table_name
         self.index_type = index_type
         self.dimension = dimension
         self.store_raw_vector = store_raw_vector
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
 
 class Range(object):
@@ -47,6 +83,7 @@ class Range(object):
     :param end: Range end value
 
     """
+
     def __init__(self, start, end):
         self.start = start
         self.end = end
@@ -60,8 +97,13 @@ class RowRecord(object):
     :param vector_data: (Required) a vector
 
     """
+
     def __init__(self, vector_data):
-        self.vector_data = vector_data
+        if isinstance(vector_data, list) and len(vector_data) > 0 \
+                and isinstance(vector_data[0], float):
+            self.vector_data = struct.pack(str(len(vector_data)) + 'd', *vector_data)
+        else:
+            raise ParamError('Illegal vector! Vector should be non-empty list of float')
 
 
 class QueryResult(object):
@@ -75,9 +117,10 @@ class QueryResult(object):
     :param score: Vector similarity 0 <= score <= 100
 
     """
-    def __init__(self, id, score):
+
+    def __init__(self, id, distance):
         self.id = id
-        self.score = score
+        self.distance = distance
 
     def __repr__(self):
         L = ['%s=%r' % (key, value)
@@ -313,18 +356,3 @@ class ConnectIntf(object):
         :return: str, server status
         """
         _abstract()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-       

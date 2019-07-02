@@ -35,7 +35,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.13'
+__version__ = '0.1.14'
 __NAME__ = 'pymilvus'
 
 
@@ -54,42 +54,46 @@ def is_correct_date_str(param):
     return True
 
 
-def _legal_dimension(dim):
-    if not isinstance(dim, int) or dim <=0 or dim > 10000:
+def is_2_dim_array(array):
+    if not array or not isinstance(array, list):
         return False
+
+    elif isinstance(array, list):
+        if not array[:1]:
+            return False
+        elif not isinstance(array, list):
+            return False
     return True
 
 
 class Prepare(object):
 
     @classmethod
-    def table_schema(cls,
-                     table_name,
-                     dimension,
-                     index_type=IndexType.INVALID,
-                     store_raw_vector=False):
+    def table_schema(cls, param):
         """
-        :type table_name: str
-        :type dimension: int
-        :type index_type: IndexType
-        :type store_raw_vector: bool
-        :param table_name: (Required) name of table
-        :param dimension: (Required) dimension of the table
-        :param index_type: (Required) index type, default = IndexType.INVALID
-        :param store_raw_vector: (Optional) default = False
+        :type param: dict
+        :param param: (Required)
 
-        :return: TableSchema object
+            `example param={'table_name': 'name',
+                            'dimension': 16,
+                            'index_type': IndexType.FLAT,
+                            'store_raw_vector': False}`
+
+        :return: ttypes.TableSchema object
         """
-        if not isinstance(table_name, str) or not _legal_dimension(dimension) \
-                or not isinstance(index_type, IndexType) or not isinstance(store_raw_vector, bool):
-            raise ParamError('Param incorrect!')
+        if not isinstance(param, ttypes.TableSchema):
+            if isinstance(param, dict):
+                temp = TableSchema(**param)
 
-        temp = TableSchema(table_name, dimension, index_type, store_raw_vector)
+            else:
+                raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
+                    type(dict), type(param)
+                ))
 
         return ttypes.TableSchema(table_name=temp.table_name,
-                                  dimension=dimension,
-                                  index_type=index_type,
-                                  store_raw_vector=store_raw_vector)
+                                  dimension=temp.dimension,
+                                  index_type=temp.index_type,
+                                  store_raw_vector=temp.store_raw_vector)
 
     @classmethod
     def range(cls, start_date, end_date):
@@ -141,8 +145,8 @@ class Prepare(object):
         :return: RowRecord object
 
         """
-        vector = struct.pack(str(len(vector_data)) + 'd', *vector_data)
-        temp = RowRecord(vector)
+        # vector = struct.pack(str(len(vector_data)) + 'd', *vector_data)
+        temp = RowRecord(vector_data)
         return ttypes.RowRecord(vector_data=temp.vector_data)
 
     @classmethod
@@ -155,7 +159,10 @@ class Prepare(object):
 
         :return: binary vectors
         """
-        return [Prepare.row_record(vector) for vector in vectors]
+        if is_2_dim_array(vectors):
+            return [Prepare.row_record(vector) for vector in vectors]
+        else:
+            raise ParamError('Vectors should be 2-dim array!')
 
 
 class Milvus(ConnectIntf):
@@ -289,7 +296,6 @@ class Milvus(ConnectIntf):
 
     def create_table(self, param):
         """Create table
-        # TODO param dict
 
         :type  param: dict or TableSchema
         :param param: Provide table information to be created
@@ -307,11 +313,7 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        if not isinstance(param, ttypes.TableSchema):
-            if isinstance(param, dict):
-                param = Prepare.table_schema(**param)
-            else:
-                raise ParamError('Param incorrect!')
+        param = Prepare.table_schema(param)
 
         try:
             self._client.CreateTable(param)
@@ -351,7 +353,7 @@ class Milvus(ConnectIntf):
         Add vectors to table
 
         :type  table_name: str
-        :type  records: list[list[float]] or list[RowRecord]
+        :type  records: list[list[float]]
 
                 `example records: [[1.2345],[1.2345]]`
 
@@ -369,14 +371,7 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        if not isinstance(records[0], ttypes.RowRecord):
-            if not records or not records[:1]:
-                raise ParamError('Records empty!')
-            if isinstance(records, list) and isinstance(records[0], list):
-                records = Prepare.records(records)
-            else:
-                raise ParamError('Records param incorrect!')
-
+        records = Prepare.records(records)
         ids = []
 
         try:
@@ -447,7 +442,7 @@ class Milvus(ConnectIntf):
                 topk=top_k)
 
             for topk in top_k_query_results:
-                res.append([QueryResult(id=qr.id, score=qr.score) for qr in topk.query_result_arrays])
+                res.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topk.query_result_arrays])
             return Status(Status.SUCCESS, message='Search Vectors successfully!'), res
         except TTransport.TTransportException as e:
             LOGGER.error(e)
@@ -509,7 +504,7 @@ class Milvus(ConnectIntf):
                 topk=top_k)
 
             for topk in top_k_query_results:
-                res.append([QueryResult(id=qr.id, score=qr.score) for qr in topk.query_result_arrays])
+                res.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topk.query_result_arrays])
             return Status(Status.SUCCESS, message='Search vectors in files successfully!'), res
         except TTransport.TTransportException as e:
             raise NotConnectError('Please Connect to the server first')
@@ -546,24 +541,6 @@ class Milvus(ConnectIntf):
                 LOGGER.error(e)
             return Status(code=e.code, message=e.reason), table
 
-    # def has_table(self, table_name):
-    #     """
-    #
-    #     This method is used to test table existence.
-    #     Should be implemented
-    #
-    #     :param table_name: table name is going to be tested.
-    #     :type table_name: str
-    #
-    #     :return:
-    #         has_table: bool, if given table_name exists
-    #
-    #     """
-    #     status, has_table = self._has_table(table_name)
-    #
-    #     if status.OK():
-    #         return has_table
-
     def has_table(self, table_name):
         """
 
@@ -589,7 +566,7 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             return NotConnectError('Please Connect to the server first!')
         # except ttypes.Exception as e:
-            # LOGGER.error(e)
+        # LOGGER.error(e)
 
     def show_tables(self):
         """
