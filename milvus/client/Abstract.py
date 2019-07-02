@@ -1,4 +1,24 @@
 from enum import IntEnum
+import datetime
+
+
+from milvus.client.Exceptions import (
+        ParamError
+)
+
+
+def is_correct_date_str(param):
+    try:
+        datetime.datetime.strptime(param, '%Y-%m-%d')
+    except ValueError:
+        raise ParamError('Incorrect data format, should be YYYY-MM-DD')
+    return True
+ 
+ 
+def legal_dimension(dim):
+    if not isinstance(dim, int) or dim <= 0 or dim > 10000:
+        return False
+    return True
 
 
 class IndexType(IntEnum):
@@ -15,9 +35,9 @@ class TableSchema(object):
     :param table_name: (Required) name of table
 
     :type  index_type: IndexType
-    :param index_type: (Optional) index type, default = 0
+    :param index_type: (Required) index type, default = IndexType.INVALID
 
-        `IndexType`: 0-invalid, 1-idmap, 2-ivflat
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat
 
     :type  dimension: int64
     :param dimension: (Required) dimension of vector
@@ -30,10 +50,26 @@ class TableSchema(object):
                  dimension=0,
                  index_type=IndexType.INVALID,
                  store_raw_vector=False):
+        
+        # TODO may raise UnicodeEncodeError
+        table_name = str(table_name) if not isinstance(table_name, str) else table_name
+        if not legal_dimension(dimension):
+            raise ParamError('Illegal dimension, effective range: (0 , 10000]')
+        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
+            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
+        if not isinstance(store_raw_vector, bool):
+            raise ParamError('Illegal store_raw_vector, should be bool')
+
         self.table_name = table_name
         self.index_type = index_type
         self.dimension = dimension
         self.store_raw_vector = store_raw_vector
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
 
 
 class Range(object):

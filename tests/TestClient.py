@@ -183,6 +183,30 @@ class TestTable:
         with pytest.raises(ParamError):
             res = client.create_table(param)
 
+        param = '09998876565'
+        with pytest.raises(ParamError):
+            res = client.create_table(param)
+
+        param = table_schema_factory()
+        param['dimension'] = 0
+        with pytest.raises(ParamError):
+            res = client.create_table(param)
+
+        param = table_schema_factory()
+        param['dimension'] = 1000000
+        with pytest.raises(ParamError):
+            res = client.create_table(param)
+
+        param = table_schema_factory()
+        param['index_type'] = IndexType.INVALID
+        with pytest.raises(ParamError):
+            res = client.create_table(param)
+
+        param = table_schema_factory()
+        param['table_name'] = 1234456 
+        res = client.create_table(param)
+        assert res.OK()
+
     def test_create_table_connect_failed_status(self, client):
         param = table_schema_factory()
         with pytest.raises(NotConnectError):

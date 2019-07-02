@@ -54,42 +54,34 @@ def is_correct_date_str(param):
     return True
 
 
-def _legal_dimension(dim):
-    if not isinstance(dim, int) or dim <=0 or dim > 10000:
-        return False
-    return True
-
-
 class Prepare(object):
 
     @classmethod
-    def table_schema(cls,
-                     table_name,
-                     dimension,
-                     index_type=IndexType.INVALID,
-                     store_raw_vector=False):
+    def table_schema(cls, param):
         """
-        :type table_name: str
-        :type dimension: int
-        :type index_type: IndexType
-        :type store_raw_vector: bool
-        :param table_name: (Required) name of table
-        :param dimension: (Required) dimension of the table
-        :param index_type: (Required) index type, default = IndexType.INVALID
-        :param store_raw_vector: (Optional) default = False
+        :type param: dict
+        :param param: (Required)
 
-        :return: TableSchema object
+            `example param={'table_name': 'name',
+                            'dimension': 16,
+                            'index_type': IndexType.FLAT,
+                            'store_raw_vector': False}`
+
+        :return: ttypes.TableSchema object
         """
-        if not isinstance(table_name, str) or not _legal_dimension(dimension) \
-                or not isinstance(index_type, IndexType) or not isinstance(store_raw_vector, bool):
-            raise ParamError('Param incorrect!')
+        if not isinstance(param, ttypes.TableSchema):
+            if isinstance(param, dict):
+                temp = TableSchema(**param)
 
-        temp = TableSchema(table_name, dimension, index_type, store_raw_vector)
+            else:
+                raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
+                    type(dict), type(param)
+                ))
 
         return ttypes.TableSchema(table_name=temp.table_name,
-                                  dimension=dimension,
-                                  index_type=index_type,
-                                  store_raw_vector=store_raw_vector)
+                                  dimension=temp.dimension,
+                                  index_type=temp.index_type,
+                                  store_raw_vector=temp.store_raw_vector)
 
     @classmethod
     def range(cls, start_date, end_date):
@@ -307,11 +299,11 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        if not isinstance(param, ttypes.TableSchema):
-            if isinstance(param, dict):
-                param = Prepare.table_schema(**param)
-            else:
-                raise ParamError('Param incorrect!')
+        # if not isinstance(param, ttypes.TableSchema):
+        #    if isinstance(param, dict):
+        param = Prepare.table_schema(param)
+        #    else:
+        #        raise ParamError('Param incorrect!')
 
         try:
             self._client.CreateTable(param)
@@ -571,7 +563,7 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             return NotConnectError('Please Connect to the server first!')
         # except ttypes.Exception as e:
-            # LOGGER.error(e)
+        # LOGGER.error(e)
 
     def show_tables(self):
         """
