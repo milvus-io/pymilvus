@@ -447,7 +447,7 @@ class Milvus(ConnectIntf):
                 topk=top_k)
 
             for topk in top_k_query_results:
-                res.append([QueryResult(id=qr.id, score=qr.score) for qr in topk.query_result_arrays])
+                res.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topk.query_result_arrays])
             return Status(Status.SUCCESS, message='Search Vectors successfully!'), res
         except TTransport.TTransportException as e:
             LOGGER.error(e)
@@ -509,7 +509,7 @@ class Milvus(ConnectIntf):
                 topk=top_k)
 
             for topk in top_k_query_results:
-                res.append([QueryResult(id=qr.id, score=qr.score) for qr in topk.query_result_arrays])
+                res.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topk.query_result_arrays])
             return Status(Status.SUCCESS, message='Search vectors in files successfully!'), res
         except TTransport.TTransportException as e:
             raise NotConnectError('Please Connect to the server first')

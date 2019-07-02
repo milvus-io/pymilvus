@@ -75,9 +75,9 @@ class QueryResult(object):
     :param score: Vector similarity 0 <= score <= 100
 
     """
-    def __init__(self, id, score):
+    def __init__(self, id, distance):
         self.id = id
-        self.score = score
+        self.distance = distance
 
     def __repr__(self):
         L = ['%s=%r' % (key, value)
