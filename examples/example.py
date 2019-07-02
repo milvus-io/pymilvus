@@ -56,12 +56,12 @@ def main():
     # Insert vectors into demo_table
     status, ids = milvus.add_vectors(table_name=table_name, records=vectors)
 
-    # Get demo_table row count
-    status, result = milvus.get_table_row_count(table_name)
-
     # Wait for 6 seconds, since Milvus server persist vector data every 5 seconds by default.
     # You can set data persist interval in Milvus config file.
     time.sleep(6)
+    
+    # Get demo_table row count
+    status, result = milvus.get_table_row_count(table_name)
 
     # Use the 3rd vector for similarity search
     query_vectors = [
@@ -76,7 +76,7 @@ def main():
     }
     status, results = milvus.search_vectors(**param)
 
-    if results[0][0].score == 100.0 or result[0][0].id == ids[3]:
+    if results[0][0].distance == 100.0 or result[0][0].id == ids[3]:
         print('Query result is correct')
     else:
         print('Query result isn\'t correct')
