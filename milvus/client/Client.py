@@ -54,6 +54,18 @@ def is_correct_date_str(param):
     return True
 
 
+def is_2_dim_array(array):
+    if not array or not isinstance(array, list):
+        return False
+
+    elif isinstance(array, list):
+        if not array[:1]:
+            return False
+        elif not isinstance(array, list):
+            return False
+    return True
+
+
 class Prepare(object):
 
     @classmethod
@@ -133,8 +145,8 @@ class Prepare(object):
         :return: RowRecord object
 
         """
-        vector = struct.pack(str(len(vector_data)) + 'd', *vector_data)
-        temp = RowRecord(vector)
+        # vector = struct.pack(str(len(vector_data)) + 'd', *vector_data)
+        temp = RowRecord(vector_data)
         return ttypes.RowRecord(vector_data=temp.vector_data)
 
     @classmethod
@@ -147,7 +159,10 @@ class Prepare(object):
 
         :return: binary vectors
         """
-        return [Prepare.row_record(vector) for vector in vectors]
+        if is_2_dim_array(vectors):
+            return [Prepare.row_record(vector) for vector in vectors]
+        else:
+            raise ParamError('Vectors should be 2-dim array!')
 
 
 class Milvus(ConnectIntf):
@@ -281,7 +296,6 @@ class Milvus(ConnectIntf):
 
     def create_table(self, param):
         """Create table
-        # TODO param dict
 
         :type  param: dict or TableSchema
         :param param: Provide table information to be created
@@ -299,11 +313,7 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        # if not isinstance(param, ttypes.TableSchema):
-        #    if isinstance(param, dict):
         param = Prepare.table_schema(param)
-        #    else:
-        #        raise ParamError('Param incorrect!')
 
         try:
             self._client.CreateTable(param)
@@ -343,7 +353,7 @@ class Milvus(ConnectIntf):
         Add vectors to table
 
         :type  table_name: str
-        :type  records: list[list[float]] or list[RowRecord]
+        :type  records: list[list[float]]
 
                 `example records: [[1.2345],[1.2345]]`
 
@@ -361,14 +371,7 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        if not isinstance(records[0], ttypes.RowRecord):
-            if not records or not records[:1]:
-                raise ParamError('Records empty!')
-            if isinstance(records, list) and isinstance(records[0], list):
-                records = Prepare.records(records)
-            else:
-                raise ParamError('Records param incorrect!')
-
+        records = Prepare.records(records)
         ids = []
 
         try:

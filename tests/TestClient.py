@@ -261,6 +261,14 @@ class TestVector:
         assert res.OK()
         assert isinstance(ids, list)
 
+        param['records'] = [[]]
+        with pytest.raises(ParamError):
+            res, ids = client.add_vectors(**param)
+
+        param['records'] = [['string']]
+        with pytest.raises(ParamError):
+            res, ids = client.add_vectors(**param)
+
     def test_false_add_vector(self, client):
         param = {
             'table_name': fake.table_name(),
@@ -419,7 +427,7 @@ class TestPrepare:
             'index_type': IndexType.FLAT,
             'store_raw_vector': False
         }
-        res = Prepare.table_schema(**param)
+        res = Prepare.table_schema(param)
         assert isinstance(res, ttypes.TableSchema)
 
     def test_range(self):

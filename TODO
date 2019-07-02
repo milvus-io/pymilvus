@@ -1,5 +1,4 @@
 #-7
-a. Support numpy in add_vector
 b. add factories for test
 c. [!!!] Abstract in last three should be correct
 f. sdk reconnect, disconnection can be caused by:

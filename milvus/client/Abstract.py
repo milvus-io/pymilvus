@@ -1,9 +1,9 @@
 from enum import IntEnum
 import datetime
-
+import struct
 
 from milvus.client.Exceptions import (
-        ParamError
+    ParamError
 )
 
 
@@ -13,8 +13,8 @@ def is_correct_date_str(param):
     except ValueError:
         raise ParamError('Incorrect data format, should be YYYY-MM-DD')
     return True
- 
- 
+
+
 def legal_dimension(dim):
     if not isinstance(dim, int) or dim <= 0 or dim > 10000:
         return False
@@ -46,11 +46,12 @@ class TableSchema(object):
     :param store_raw_vector: (Optional) default = False
 
     """
+
     def __init__(self, table_name,
                  dimension=0,
                  index_type=IndexType.INVALID,
                  store_raw_vector=False):
-        
+
         # TODO may raise UnicodeEncodeError
         table_name = str(table_name) if not isinstance(table_name, str) else table_name
         if not legal_dimension(dimension):
@@ -71,7 +72,6 @@ class TableSchema(object):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
 
-
 class Range(object):
     """
     Range information
@@ -83,6 +83,7 @@ class Range(object):
     :param end: Range end value
 
     """
+
     def __init__(self, start, end):
         self.start = start
         self.end = end
@@ -96,8 +97,13 @@ class RowRecord(object):
     :param vector_data: (Required) a vector
 
     """
+
     def __init__(self, vector_data):
-        self.vector_data = vector_data
+        if isinstance(vector_data, list) and len(vector_data) > 0 \
+                and isinstance(vector_data[0], float):
+            self.vector_data = struct.pack(str(len(vector_data)) + 'd', *vector_data)
+        else:
+            raise ParamError('Illegal vector! Vector should be non-empty list of float')
 
 
 class QueryResult(object):
@@ -111,6 +117,7 @@ class QueryResult(object):
     :param score: Vector similarity 0 <= score <= 100
 
     """
+
     def __init__(self, id, distance):
         self.id = id
         self.distance = distance
@@ -349,18 +356,3 @@ class ConnectIntf(object):
         :return: str, server status
         """
         _abstract()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-       
