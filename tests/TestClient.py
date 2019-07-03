@@ -290,6 +290,10 @@ class TestVector:
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
 
+        param['query_ranges'] = [('false_date_format')]
+        with pytest.raises(ParamError):
+            res, results = client.search_vectors(**param)
+        
 
 
     @mock.patch.object(Milvus, 'search_vectors')

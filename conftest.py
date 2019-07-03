@@ -49,8 +49,7 @@ def table(request, connect):
 
     def teardown():
         status, table_names = connect.show_tables()
-        for table_name in table_names:
-            connect.delete_table(table_name)
+        connect.delete_table(table_name)
 
     request.addfinalizer(teardown)
 

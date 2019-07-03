@@ -21,6 +21,20 @@ def legal_dimension(dim):
     return True
 
 
+def parser_range_date(date):
+    if isinstance(date, datetime.date):
+        return date.shiftime('%Y-%m-%d')
+    elif isinstance(date, str):
+        if not is_correct_date_str:
+            raise ParamError('Date string should be YY-MM-DD format!')
+        else:
+            return date
+    else:
+        raise ParamError(
+            'Date should be YY-MM-DD format string or datetime.date, '
+            'or datetime.datetime object')
+
+
 class IndexType(IntEnum):
     INVALID = 0
     FLAT = 1
@@ -76,17 +90,23 @@ class Range(object):
     """
     Range information
 
-    :type  start: str
-    :param start: Range start value
+    :type  start_date: str, date or datetime
 
-    :type  end: str
-    :param end: Range end value
+        `str should be YY-MM-DD format, e.g. "2019-07-01"`
+
+    :param start_date: Range start date
+
+    :type  end_date: str, date or datetime
+
+        `str should be YY-MM-DD format, e.g. "2019-07-01"`
+
+    :param end_date: Range end date
 
     """
 
-    def __init__(self, start, end):
-        self.start = start
-        self.end = end
+    def __init__(self, start_date, end_date):
+        self.start_date = parser_range_date(start_date)
+        self.end_date = parser_range_date(end_date)
 
 
 class RowRecord(object):
