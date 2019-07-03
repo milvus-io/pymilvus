@@ -23,7 +23,7 @@ def legal_dimension(dim):
 
 def parser_range_date(date):
     if isinstance(date, datetime.date):
-        return date.shiftime('%Y-%m-%d')
+        return date.strftime('%Y-%m-%d')
     elif isinstance(date, str):
         if not is_correct_date_str:
             raise ParamError('Date string should be YY-MM-DD format!')

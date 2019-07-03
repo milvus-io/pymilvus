@@ -65,6 +65,11 @@ def is_2_dim_array(array):
             return False
     return True
 
+def int_or_str(item):
+    if isinstance(item, int):
+        return str(item)
+    else:
+        return item
 
 class Prepare(object):
 
@@ -505,7 +510,7 @@ class Milvus(ConnectIntf):
             raise ParamError('Param top_k should be integer between (0, 10000]!')
 
         res = TopKQueryResult()
-        file_ids = [str(item) for item in file_ids if isinstance(item, int)]
+        file_ids = list(map(int_or_str , file_ids))
         try:
             top_k_query_results = self._client.SearchVectorInFiles(
                 table_name=table_name,
