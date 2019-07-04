@@ -289,7 +289,7 @@ class TestVector:
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
 
-    @mock.patch.object(MilvusService, 'SearchVector')
+    @mock.patch.object(MilvusService.Client, 'SearchVector')
     def test_search_vector_with_range(self, SearchVector, client):
         SearchVector.return_value = [ttypes.TopKQueryResult([ttypes.QueryResult(111, 111)])]
         param = {
@@ -336,7 +336,7 @@ class TestVector:
         with pytest.raises(ParamError):
             res, results = client.search_vectors(**param)
 
-    @mock.patch.object(MilvusService, 'SearchVectorInFiles')
+    @mock.patch.object(MilvusService.Client, 'SearchVectorInFiles')
     def test_search_in_files(self, SearchVectorInFiles, client):
         SearchVectorInFiles.return_value = [ttypes.TopKQueryResult([ttypes.QueryResult(111, 111)])]
         param = {
