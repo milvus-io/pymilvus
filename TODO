@@ -9,3 +9,4 @@ d. dataclass 优化
     * Prepare.range
     * QueryResult
     * TopKQueryResult
+e. update example
