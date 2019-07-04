@@ -70,6 +70,9 @@ class Prepare(object):
                     type(dict), type(param)
                 ))
 
+        else:
+            return param
+
         return ttypes.TableSchema(table_name=temp.table_name,
                                   dimension=temp.dimension,
                                   index_type=temp.index_type,
