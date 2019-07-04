@@ -114,7 +114,10 @@ class Prepare(object):
         """
         res = []
         for _range in ranges:
-            res.append(Prepare.range(_range[0], _range[1]))
+            if not isinstance(_range, ttypes.Range):
+                res.append(Prepare.range(_range[0], _range[1]))
+            else:
+                res.append(_range)
         return res
 
     @classmethod
