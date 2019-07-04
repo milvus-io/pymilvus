@@ -1,6 +1,7 @@
 import logging
 import sys
 
+from milvus.client.Abstract import IndexType
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
 from thrift.protocol import TBinaryProtocol, TCompactProtocol, TJSONProtocol
