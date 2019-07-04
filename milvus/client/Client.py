@@ -1,7 +1,6 @@
 import logging
 import sys
 
-from milvus.client.Abstract import IndexType
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
 from thrift.protocol import TBinaryProtocol, TCompactProtocol, TJSONProtocol
@@ -15,6 +14,7 @@ from milvus.client.Abstract import (
     TopKQueryResult,
     Range,
     RowRecord,
+    IndexType
 )
 
 from milvus.client.Status import Status
