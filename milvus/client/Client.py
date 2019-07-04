@@ -36,7 +36,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.15'
+__version__ = '0.1.16'
 __NAME__ = 'pymilvus'
 
 
@@ -69,6 +69,9 @@ class Prepare(object):
                 raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
                     type(dict), type(param)
                 ))
+
+        else:
+            return param
 
         return ttypes.TableSchema(table_name=temp.table_name,
                                   dimension=temp.dimension,
@@ -111,7 +114,10 @@ class Prepare(object):
         """
         res = []
         for _range in ranges:
-            res.append(Prepare.range(_range[0], _range[1]))
+            if not isinstance(_range, ttypes.Range):
+                res.append(Prepare.range(_range[0], _range[1]))
+            else:
+                res.append(_range)
         return res
 
     @classmethod

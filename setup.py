@@ -7,7 +7,7 @@ README = (HERE / 'README.md').read_text()
 
 setuptools.setup(
     name="pymilvus",
-    version="0.1.15",
+    version="0.1.16",
     description="Python Sdk for Milvus",
     long_description=README,
     long_description_content_type='text/markdown',

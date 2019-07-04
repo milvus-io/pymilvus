@@ -202,7 +202,7 @@ class TestTable:
             res = client.create_table(param)
 
         param = table_schema_factory()
-        param['table_name'] = 1234456 
+        param['table_name'] = 1234456
         res = client.create_table(param)
         assert res.OK()
 
@@ -289,7 +289,7 @@ class TestVector:
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
 
-    @mock.patch.object(MilvusService, 'SearchVector')
+    @mock.patch.object(MilvusService.Client, 'SearchVector')
     def test_search_vector_with_range(self, SearchVector, client):
         SearchVector.return_value = [ttypes.TopKQueryResult([ttypes.QueryResult(111, 111)])]
         param = {
@@ -336,7 +336,7 @@ class TestVector:
         with pytest.raises(ParamError):
             res, results = client.search_vectors(**param)
 
-    @mock.patch.object(MilvusService, 'SearchVectorInFiles')
+    @mock.patch.object(MilvusService.Client, 'SearchVectorInFiles')
     def test_search_in_files(self, SearchVectorInFiles, client):
         SearchVectorInFiles.return_value = [ttypes.TopKQueryResult([ttypes.QueryResult(111, 111)])]
         param = {
@@ -432,13 +432,26 @@ class TestPrepare:
         res = Prepare.table_schema(param)
         assert isinstance(res, ttypes.TableSchema)
 
+    def test_double_schema(self):
+        param = {
+            'table_name': fake.table_name(),
+            'dimension': random.randint(0, 999),
+            'index_type': IndexType.FLAT,
+            'store_raw_vector': False
+        }
+        res = Prepare.table_schema(param)
+        a = Prepare.table_schema(res)
+        assert a == res
+        assert isinstance(a, ttypes.TableSchema)
+        assert isinstance(res, ttypes.TableSchema)
+
     def test_range(self):
-        param = {'start_date':'2019-02-02','end_date':'2019-02-02'}
+        param = {'start_date': '2019-02-02', 'end_date': '2019-02-02'}
         res = Prepare.range(**param)
         assert isinstance(res, ttypes.Range)
 
     def test_ranges(self):
-        param = [('2019-02-02','2019-02-02')]
+        param = [('2019-02-02', '2019-02-02')]
         res = Prepare.ranges(param)
         assert isinstance(res, list)
         assert isinstance(res[0], ttypes.Range)
@@ -446,6 +459,13 @@ class TestPrepare:
         param = ['false_date_format']
         with pytest.raises(ParamError):
             res = Prepare.ranges(param)
+
+    def test_repeating_range(self):
+        param = [('2019-02-02', '2019-02-02')]
+        res = Prepare.ranges(param)
+        a = Prepare.ranges(res)
+        assert isinstance(a[0], ttypes.Range)
+        assert a == res
 
     def test_row_record(self):
         vec = [random.random() + random.randint(0, 9) for _ in range(256)]
