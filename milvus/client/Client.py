@@ -1,7 +1,5 @@
 import logging
 import sys
-import struct
-import datetime
 
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
@@ -24,7 +22,6 @@ from milvus.client.Exceptions import (
     RepeatingConnectError,
     DisconnectNotConnectedClientError,
     NotConnectError,
-    ParamError
 )
 from milvus.settings import DefaultConfig as config
 from milvus.client.utils import *
@@ -472,19 +469,13 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        if not isinstance(query_records[0], ttypes.RowRecord):
-            if not query_records or not query_records[:1]:
-                raise ParamError('query_records empty!')
-            if isinstance(query_records, list) and isinstance(query_records[0], list):
-                query_records = Prepare.records(query_records)
-            else:
-                raise ParamError('query_records param incorrect!')
+        query_records = Prepare.records(query_records)
 
         if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
             raise ParamError('Param top_k should be integer between (0, 10000]!')
 
         res = TopKQueryResult()
-        file_ids = list(map(int_or_str , file_ids))
+        file_ids = list(map(int_or_str, file_ids))
         try:
             top_k_query_results = self._client.SearchVectorInFiles(
                 table_name=table_name,
