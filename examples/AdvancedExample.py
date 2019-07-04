@@ -39,7 +39,11 @@ def time_it(func):
 
 
 class ConnectionHandler(object):
-    """Handler connection with the server"""
+    """Handler connection with the server
+
+    reconnection and connection errors are properly handled
+
+    """
 
     def __init__(self, host, port):
         self.host = host
@@ -159,7 +163,8 @@ def add_vectors():
 @time_it
 @api.connect
 def search_vectors():
-    # Search by the 1st element in records
+
+    # Search 1 vector
     q_records = [[random.random() for _ in range(DIMENSION)]]
 
     param = {
@@ -167,6 +172,8 @@ def search_vectors():
         'query_records': q_records,
         'top_k': TOPK,
     }
+
+    # Search vector
     status, results = api.client.search_vectors(**param)
     if status.OK():
         LOGGER.info('Searching {} nearest vectors from table `{}` ... '.format(TOPK, TABLE_NAME))
