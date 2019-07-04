@@ -27,6 +27,7 @@ from milvus.client.Exceptions import (
     ParamError
 )
 from milvus.settings import DefaultConfig as config
+from milvus.client.utils import *
 
 if sys.version_info[0] > 2:
     from urllib.parse import urlparse
@@ -43,28 +44,6 @@ class Protocol:
     JSON = 'JSON'
     BINARY = 'BINARY'
     COMPACT = 'COMPACT'
-
-
-def is_correct_date_str(param):
-    try:
-        datetime.datetime.strptime(param, '%Y-%m-%d')
-    except ValueError:
-        LOGGER.error('Incorrect data format, should be YYYY-MM-DD')
-        return False
-    return True
-
-
-def is_legal_array(array):
-    if not array or not isinstance(array, list):
-        return False
-    return True
-
-
-def int_or_str(item):
-    if isinstance(item, int):
-        return str(item)
-    else:
-        return item
 
 
 class Prepare(object):
@@ -247,7 +226,7 @@ class Milvus(ConnectIntf):
         else:
             raise RuntimeError(
                 "invalid configuration for THRIFTCLIENT_PROTOCOL: {protocol}"
-                    .format(protocol=config.THRIFTCLIENT_PROTOCOL)
+                .format(protocol=config.THRIFTCLIENT_PROTOCOL)
             )
 
         self._client = MilvusService.Client(protocol)

@@ -1,38 +1,10 @@
 from enum import IntEnum
-import datetime
 import struct
+from .utils import *
 
 from milvus.client.Exceptions import (
     ParamError
 )
-
-
-def is_correct_date_str(param):
-    try:
-        datetime.datetime.strptime(param, '%Y-%m-%d')
-    except ValueError:
-        raise ParamError('Incorrect data format, should be YYYY-MM-DD')
-    return True
-
-
-def legal_dimension(dim):
-    if not isinstance(dim, int) or dim <= 0 or dim > 10000:
-        return False
-    return True
-
-
-def parser_range_date(date):
-    if isinstance(date, datetime.date):
-        return date.strftime('%Y-%m-%d')
-    elif isinstance(date, str):
-        if not is_correct_date_str:
-            raise ParamError('Date string should be YY-MM-DD format!')
-        else:
-            return date
-    else:
-        raise ParamError(
-            'Date should be YY-MM-DD format string or datetime.date, '
-            'or datetime.datetime object')
 
 
 class IndexType(IntEnum):
@@ -119,9 +91,7 @@ class RowRecord(object):
     """
 
     def __init__(self, vector_data):
-        if isinstance(vector_data, RowRecord):
-            self.vector_data = vector_data
-        elif isinstance(vector_data, list) and len(vector_data) > 0 \
+        if isinstance(vector_data, list) and len(vector_data) > 0 \
                 and isinstance(vector_data[0], float):
             self.vector_data = struct.pack(str(len(vector_data)) + 'd', *vector_data)
         else:

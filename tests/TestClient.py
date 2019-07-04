@@ -302,7 +302,7 @@ class TestVector:
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
-            'top_k': random.randint(0, 10),
+            'top_k': random.randint(1, 10),
             'query_ranges': query_ranges_factory()
 
         }
@@ -314,7 +314,7 @@ class TestVector:
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
-            'top_k': random.randint(0, 10)
+            'top_k': random.randint(1, 10)
         }
         with pytest.raises(NotConnectError):
             res, results = client.search_vectors(**param)
