@@ -87,7 +87,7 @@ class TestConnection:
     def test_false_connect(self):
         cnn = Milvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(**self.param)
+            cnn.connect(**self.param, timeout=100)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
 
@@ -102,29 +102,28 @@ class TestConnection:
     def test_connect(self):
         cnn = Milvus()
         with pytest.raises(NotConnectError):
-            cnn.connect('127.0.0.2')
+            cnn.connect('127.0.0.2', timeout=100)
             assert not cnn.status.OK()
 
-            cnn.connect('127.0.0.1', '9999')
+            cnn.connect('127.0.0.1', '9999', timeout=100)
             assert not cnn.status.OK()
 
-            cnn.connect(port='9999')
+            cnn.connect(port='9999', timeout=100)
             assert not cnn.status.OK()
 
-            cnn.connect(uri='tcp://127.0.0.1:9090')
+            cnn.connect(uri='tcp://127.0.0.1:9090', timeout=100)
             assert not cnn.status.OK()
 
     def test_connect_timeout(self):
         cnn = Milvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2', port='19530')
+            cnn.connect(host='123.0.0.2', port='19530', timeout=100)
 
     def test_connected(self):
         cnn = Milvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2')
+            cnn.connect(host='123.0.0.2', timeout=100)
         assert not cnn.connected
-
 
     @mock.patch.object(TSocket, 'open')
     def test_uri_runtime_error(self, open):
@@ -278,27 +277,21 @@ class TestVector:
             res, ids = client.add_vectors(**param)
             assert res == Status.CONNECT_FAILED
 
-    @mock.patch.object(Milvus, 'search_vectors')
-    def test_search_vector(self, search_vectors, client):
-        search_vectors.return_value = Status(), [[ttypes.QueryResult(111, 111)]]
+    @mock.patch.object(MilvusService.Client, 'SearchVector')
+    def test_search_vector(self, SearchVector, client):
+        SearchVector.return_value = [ttypes.TopKQueryResult([ttypes.QueryResult(111, 111)])]
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
-            'top_k': random.randint(0, 10)
+            'top_k': random.randint(1, 10)
         }
         res, results = client.search_vectors(**param)
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
 
-        param['query_ranges'] = [('false_date_format')]
-        with pytest.raises(ParamError):
-            res, results = client.search_vectors(**param)
-        
-
-
-    @mock.patch.object(Milvus, 'search_vectors')
-    def test_search_vector_with_range(self, search_vectors, client):
-        search_vectors.return_value = Status(), [[ttypes.QueryResult(111, 111)]]
+    @mock.patch.object(MilvusService, 'SearchVector')
+    def test_search_vector_with_range(self, SearchVector, client):
+        SearchVector.return_value = [ttypes.TopKQueryResult([ttypes.QueryResult(111, 111)])]
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
@@ -336,16 +329,21 @@ class TestVector:
         with pytest.raises(ParamError):
             res, results = client.search_vectors(**param)
 
+        param = {'table_name': fake.table_name(),
+                 'query_records': records_factory(256),
+                 'top_k': random.randint(1, 10),
+                 'query_ranges': ['false_date_format']}
+        with pytest.raises(ParamError):
+            res, results = client.search_vectors(**param)
 
-
-    @mock.patch.object(Milvus, 'search_vectors_in_files')
-    def test_search_in_files(self, search_vectors_in_files, client):
-        search_vectors_in_files.return_value = Status(), [[ttypes.QueryResult(00, 0.23)]]
+    @mock.patch.object(MilvusService, 'SearchVectorInFiles')
+    def test_search_in_files(self, SearchVectorInFiles, client):
+        SearchVectorInFiles.return_value = [ttypes.TopKQueryResult([ttypes.QueryResult(111, 111)])]
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
             'file_ids': ['a'],
-            'top_k': random.randint(0, 10)
+            'top_k': random.randint(1, 10)
         }
         sta, result = client.search_vectors_in_files(**param)
         assert sta.OK()
@@ -355,7 +353,7 @@ class TestVector:
             'table_name': fake.table_name(),
             'query_records': records_factory(256),
             'file_ids': ['a'],
-            'top_k': random.randint(0, 10)
+            'top_k': random.randint(1, 10)
         }
         with pytest.raises(NotConnectError):
             sta, results = client.search_vectors_in_files(**param)
@@ -444,6 +442,10 @@ class TestPrepare:
         res = Prepare.ranges(param)
         assert isinstance(res, list)
         assert isinstance(res[0], ttypes.Range)
+
+        param = [('false_date_format')]
+        with pytest.raises(ParamError):
+            res = Prepare.ranges(param)
 
     def test_row_record(self):
         vec = [random.random() + random.randint(0, 9) for _ in range(256)]

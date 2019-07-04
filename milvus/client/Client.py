@@ -402,13 +402,14 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        if not isinstance(query_records[0], ttypes.RowRecord):
-            if not query_records or not query_records[:1]:
-                raise ParamError('query_records empty!')
-            if isinstance(query_records, list) and isinstance(query_records[0], list):
-                query_records = Prepare.records(query_records)
-            else:
-                raise ParamError('query_records param incorrect!')
+        # if not isinstance(query_records[0], ttypes.RowRecord):
+        #     if not query_records or not query_records[:1]:
+        #         raise ParamError('query_records empty!')
+        #     if isinstance(query_records, list) and isinstance(query_records[0], list):
+        #         query_records = Prepare.records(query_records)
+        #     else:
+        #         raise ParamError('query_records param incorrect!')
+        query_records = Prepare.records(query_records)
 
         if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
             raise ParamError('Param top_k should be integer between (0, 10000]!')

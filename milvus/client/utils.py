@@ -33,7 +33,7 @@ def parser_range_date(date):
     if isinstance(date, datetime.date):
         return date.strftime('%Y-%m-%d')
     elif isinstance(date, str):
-        if not is_correct_date_str:
+        if not is_correct_date_str(date):
             raise ParamError('Date string should be YY-MM-DD format!')
         else:
             return date
