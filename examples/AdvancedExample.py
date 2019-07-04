@@ -16,7 +16,7 @@ LOGGER = logging.getLogger(__name__)
 
 logging.basicConfig(level=logging.DEBUG, format=LOG_FORMAT)
 
-_HOST = '127.0.0.1'
+_HOST = '126.1.2.3'
 _PORT = '19530'
 RETRY_TIMES = 3
 NORMAL_TIMES = 10
@@ -45,32 +45,45 @@ class ConnectionHandler(object):
             self._normal_times -= NORMAL_TIMES
         return self._retry_times <= RETRY_TIMES
 
+    def reconnect(self):
+        self._client.connect(self.host, self.port, timeout=1000)
+
     @contextmanager
     def connect_context(self):
-
-        try:
-            self._client = Milvus()
-            self._client.connect(_HOST, _PORT)
-        except Exception:
-            raise RuntimeError("Connection failed")
-        yield
-        self._client.disconnect()
+        while self.can_retry:
+            try:
+                self._client = Milvus()
+                self._client.connect(host=self.host, port=self.port, timeout=1000)
+            except NotConnectError:
+                self._retry_times += 1
+                if self.can_retry:
+                    LOGGER.warning('Reconnecting to {} .. {}'.
+                                   format(_HOST + ':' + _PORT, self._retry_times))
+                    continue
+                else:
+                    LOGGER.warning("Connection failed!")
+                    sys.exit(1)
+            yield
+            self._client.disconnect()
 
     def connect(self, func):
         @wraps(func)
         def inner(*args, **kwargs):
             with self.connect_context():
-                try:
+                while self.can_retry:
+                    try:
 
-                    return func(*args, **kwargs)
-                except ConnectError as e:
-                    LOGGER.error(e)
-                    self._retry_times += 1
-                    if self.can_retry:
-                        LOGGER.warning('Reconnecting to {} .. {}'.
-                                       format(_HOST + ':' + _PORT, self._retry_times))
-                    else:
-                        sys.exit(1)
+                        return func(*args, **kwargs)
+
+                    except NotConnectError as e:
+                        LOGGER.error(e)
+                        self._retry_times += 1
+                        if self.can_retry:
+                            LOGGER.warning('Reconnecting to {} .. {}'.
+                                           format(_HOST + ':' + _PORT, self._retry_times))
+                            self.reconnect()
+                        else:
+                            sys.exit(1)
 
         return inner
 
@@ -167,58 +180,8 @@ def time_it(func):
         return ret, end - start
     return inner
 
-import requests
-import time
-# from PIL import Image
-import tensorflow as tf
-
-from keras.applications.vgg16 import VGG16, preprocess_input
-from keras.preprocessing import image
-import numpy as np
-
-
-class VGG16ModelHandler:
-    NAME = 'VGG16'
-    DIMENSION = 512
-    DESCRIPTION = 'System builtin VGG16 model'
-
-    def __init__(self):
-        self.handler = VGG16(weights='imagenet',
-                             pooling='max',
-                             include_top=False)
-
-    # @property
-    # def meta(self):
-    #     return {
-    #         'model_id': self.NAME,
-    #         'dimension': self.DIMENSION,:
-    #         'description': self.DESCRIPTION
-    #     }
-
-    @property
-    def name(self):
-        return self.NAME
-
-    @property
-    def dimension(self):
-        return self.DIMENSION
-
-    @time_it
-    def predict(self, file):
-        LOGGER.error('xx')
-        img = image.load_img(file)
-        img.resize((224, 224))
-        ret = image.img_to_array(img)
-        ret = np.expand_dims(ret, axis=0)
-        ret = preprocess_input(ret)
-
-        return self.handler.predict(ret)[0]
-
 
 if __name__ == 'AdvancedExample':
-    # version()
-    # table()
-    # vectors()
-    vgg = VGG16ModelHandler()
-    vector = vgg.predict('examples/angelatu.jpg')
-    print(vectors)
+    version()
+    table()
+    vectors()
