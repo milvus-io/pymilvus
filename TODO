@@ -1,6 +1,5 @@
 #-7
 b. add factories for test
-c. [!!!] Abstract in last three should be correct
 f. sdk reconnect, disconnection can be caused by:
     * Transient problems with the network
     * Remote servive restarted

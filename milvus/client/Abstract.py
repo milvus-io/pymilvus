@@ -357,25 +357,40 @@ class ConnectIntf(object):
         Provide client version
         should be implemented
 
-        :return: str, client version
+        :return:
+            Status: indicate if operation is successful
+
+            str : Client version
+
+        :rtype: (Status, str)
         """
         _abstract()
+
 
     def server_version(self):
         """
         Provide server version
         should be implemented
 
-        :return: str, server version
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
         """
         _abstract()
 
     def server_status(self, cmd):
         """
-        Provide server status
+        Provide server status. When cmd !='version', provide 'OK'
         should be implemented
-        :type cmd, str
 
-        :return: str, server status
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
         """
         _abstract()
