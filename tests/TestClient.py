@@ -202,7 +202,7 @@ class TestTable:
             res = client.create_table(param)
 
         param = table_schema_factory()
-        param['table_name'] = 1234456 
+        param['table_name'] = 1234456
         res = client.create_table(param)
         assert res.OK()
 
@@ -446,12 +446,12 @@ class TestPrepare:
         assert isinstance(res, ttypes.TableSchema)
 
     def test_range(self):
-        param = {'start_date':'2019-02-02','end_date':'2019-02-02'}
+        param = {'start_date': '2019-02-02', 'end_date': '2019-02-02'}
         res = Prepare.range(**param)
         assert isinstance(res, ttypes.Range)
 
     def test_ranges(self):
-        param = [('2019-02-02','2019-02-02')]
+        param = [('2019-02-02', '2019-02-02')]
         res = Prepare.ranges(param)
         assert isinstance(res, list)
         assert isinstance(res[0], ttypes.Range)
@@ -461,7 +461,7 @@ class TestPrepare:
             res = Prepare.ranges(param)
 
     def test_repeating_range(self):
-        param = [('2019-02-02','2019-02-02')]
+        param = [('2019-02-02', '2019-02-02')]
         res = Prepare.ranges(param)
         a = Prepare.ranges(res)
         assert isinstance(a[0], ttypes.Range)
