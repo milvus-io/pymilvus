@@ -27,6 +27,7 @@ from milvus.client.Exceptions import (
     ParamError
 )
 from milvus.settings import DefaultConfig as config
+from milvus.client.utils import *
 
 if sys.version_info[0] > 2:
     from urllib.parse import urlparse
@@ -35,7 +36,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.14'
+__version__ = '0.1.15'
 __NAME__ = 'pymilvus'
 
 
@@ -43,27 +44,6 @@ class Protocol:
     JSON = 'JSON'
     BINARY = 'BINARY'
     COMPACT = 'COMPACT'
-
-
-def is_correct_date_str(param):
-    try:
-        datetime.datetime.strptime(param, '%Y-%m-%d')
-    except ValueError:
-        LOGGER.error('Incorrect data format, should be YYYY-MM-DD')
-        return False
-    return True
-
-
-def is_2_dim_array(array):
-    if not array or not isinstance(array, list):
-        return False
-
-    elif isinstance(array, list):
-        if not array[:1]:
-            return False
-        elif not isinstance(array, list):
-            return False
-    return True
 
 
 class Prepare(object):
@@ -98,23 +78,23 @@ class Prepare(object):
     @classmethod
     def range(cls, start_date, end_date):
         """
-        Parser a 'yyyy-mm-dd' like str to Range object
+        Parser a 'yyyy-mm-dd' like str or date/datetime object to Range object
 
             `Range: [start_date, end_date)`
 
             `start_date : '2019-05-25'`
 
         :param start_date: start date
-        :type  start_date: str
+        :type  start_date: str, date, datetime
         :param end_date: end date
-        :type  end_date: str
+        :type  end_date: str, date, datetime
 
         :return: Range object
         """
-        if is_correct_date_str(start_date) and is_correct_date_str(end_date):
-            return ttypes.Range(start_value=start_date, end_value=end_date)
-        else:
-            raise ParamError('Range param start_date and end_date should be YYYY-MM-DD form')
+        temp = Range(start_date, end_date)
+
+        return ttypes.Range(start_value=temp.start_date,
+                            end_value=temp.end_date)
 
     @classmethod
     def ranges(cls, ranges):
@@ -145,8 +125,8 @@ class Prepare(object):
         :return: RowRecord object
 
         """
-        # vector = struct.pack(str(len(vector_data)) + 'd', *vector_data)
-        temp = RowRecord(vector_data)
+        temp = vector_data if isinstance(vector_data, ttypes.RowRecord) \
+            else RowRecord(vector_data)
         return ttypes.RowRecord(vector_data=temp.vector_data)
 
     @classmethod
@@ -159,7 +139,7 @@ class Prepare(object):
 
         :return: binary vectors
         """
-        if is_2_dim_array(vectors):
+        if is_legal_array(vectors):
             return [Prepare.row_record(vector) for vector in vectors]
         else:
             raise ParamError('Vectors should be 2-dim array!')
@@ -245,7 +225,7 @@ class Milvus(ConnectIntf):
         else:
             raise RuntimeError(
                 "invalid configuration for THRIFTCLIENT_PROTOCOL: {protocol}"
-                    .format(protocol=config.THRIFTCLIENT_PROTOCOL)
+                .format(protocol=config.THRIFTCLIENT_PROTOCOL)
             )
 
         self._client = MilvusService.Client(protocol)
@@ -389,10 +369,13 @@ class Milvus(ConnectIntf):
         Query vectors in a table
 
         :param query_ranges: (Optional) ranges for conditional search.
-            If not specified, search whole table
-        :type  query_ranges: list[(str, str)]
+            If not specified, search in the whole table
+        :type  query_ranges: list[(date, date)]
 
-                `date` supports date-like-str, e.g. '2019-01-01'
+                `date` supports:
+                   a. date-like-str, e.g. '2019-01-01'
+                   b. datetime.date object, e.g. datetime.date(2019, 1, 1)
+                   c. datetime.datetime object, e.g. datetime.datetime.now()
 
                 example query_ranges:
 
@@ -411,7 +394,6 @@ class Milvus(ConnectIntf):
         :returns: (Status, res)
 
             Status:  indicate if query is successful
-
             res: TopKQueryResult, return when operation is successful
 
         :rtype: (Status, TopKQueryResult[QueryResult])
@@ -419,13 +401,7 @@ class Milvus(ConnectIntf):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        if not isinstance(query_records[0], ttypes.RowRecord):
-            if not query_records or not query_records[:1]:
-                raise ParamError('query_records empty!')
-            if isinstance(query_records, list) and isinstance(query_records[0], list):
-                query_records = Prepare.records(query_records)
-            else:
-                raise ParamError('query_records param incorrect!')
+        query_records = Prepare.records(query_records)
 
         if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
             raise ParamError('Param top_k should be integer between (0, 10000]!')
@@ -464,11 +440,19 @@ class Milvus(ConnectIntf):
         :type  query_records: list[list[float]]
         :param query_records: all vectors going to be queried
 
-        :type  query_ranges: list[Range]
         :param query_ranges: Optional ranges for conditional search.
-            If not specified, search whole table
+            If not specified, search in the whole table
 
-                `Range can be generated by Prepare.range`
+        :type  query_ranges: list[(date, date)]
+
+            `date` supports:
+               a. date-like-str, e.g. '2019-01-01'
+               b. datetime.date object, e.g. datetime.date(2019, 1, 1)
+               c. datetime.datetime object, e.g. datetime.datetime.now()
+
+            example `query_ranges`:
+
+                `query_ranges = [('2019-05-10', '2019-05-10'),(..., ...), ...]`
 
         :type  top_k: int
         :param top_k: how many similar vectors will be searched
@@ -476,12 +460,12 @@ class Milvus(ConnectIntf):
         :returns:
             Status:  indicate if query is successful
             query_results: list[TopKQueryResult]
+
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
-        # TODO query_ranges
         if not isinstance(query_records[0], ttypes.RowRecord):
             if not query_records or not query_records[:1]:
                 raise ParamError('query_records empty!')
@@ -494,7 +478,7 @@ class Milvus(ConnectIntf):
             raise ParamError('Param top_k should be integer between (0, 10000]!')
 
         res = TopKQueryResult()
-        file_ids = [str(item) for item in file_ids if isinstance(item, int)]
+        file_ids = list(map(int_or_str , file_ids))
         try:
             top_k_query_results = self._client.SearchVectorInFiles(
                 table_name=table_name,

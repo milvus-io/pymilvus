@@ -1,8 +1,10 @@
 #-7
 b. add factories for test
-c. [!!!] Abstract in last three should be correct
 f. sdk reconnect, disconnection can be caused by:
     * Transient problems with the network
     * Remote servive restarted
     * Heavy load on either the remote or the local machine causes a timeout
-d. data type 优化
+d. dataclass 优化
+    * QueryResult
+    * TopKQueryResult
+e. update example

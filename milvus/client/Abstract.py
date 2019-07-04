@@ -1,24 +1,10 @@
 from enum import IntEnum
-import datetime
 import struct
+from .utils import *
 
 from milvus.client.Exceptions import (
     ParamError
 )
-
-
-def is_correct_date_str(param):
-    try:
-        datetime.datetime.strptime(param, '%Y-%m-%d')
-    except ValueError:
-        raise ParamError('Incorrect data format, should be YYYY-MM-DD')
-    return True
-
-
-def legal_dimension(dim):
-    if not isinstance(dim, int) or dim <= 0 or dim > 10000:
-        return False
-    return True
 
 
 class IndexType(IntEnum):
@@ -55,7 +41,7 @@ class TableSchema(object):
         # TODO may raise UnicodeEncodeError
         table_name = str(table_name) if not isinstance(table_name, str) else table_name
         if not legal_dimension(dimension):
-            raise ParamError('Illegal dimension, effective range: (0 , 10000]')
+            raise ParamError('Illegal dimension, effective range: (0 , 16384]')
         if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
             raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
         if not isinstance(store_raw_vector, bool):
@@ -76,17 +62,23 @@ class Range(object):
     """
     Range information
 
-    :type  start: str
-    :param start: Range start value
+    :type  start_date: str, date or datetime
 
-    :type  end: str
-    :param end: Range end value
+        `str should be YY-MM-DD format, e.g. "2019-07-01"`
+
+    :param start_date: Range start date
+
+    :type  end_date: str, date or datetime
+
+        `str should be YY-MM-DD format, e.g. "2019-07-01"`
+
+    :param end_date: Range end date
 
     """
 
-    def __init__(self, start, end):
-        self.start = start
-        self.end = end
+    def __init__(self, start_date, end_date):
+        self.start_date = parser_range_date(start_date)
+        self.end_date = parser_range_date(end_date)
 
 
 class RowRecord(object):
@@ -103,7 +95,8 @@ class RowRecord(object):
                 and isinstance(vector_data[0], float):
             self.vector_data = struct.pack(str(len(vector_data)) + 'd', *vector_data)
         else:
-            raise ParamError('Illegal vector! Vector should be non-empty list of float')
+            raise ParamError('Illegal vector! Vector should be non-empty list of float.\n {}'
+                             .format(vector_data))
 
 
 class QueryResult(object):
@@ -113,8 +106,8 @@ class QueryResult(object):
     :type  id: int64
     :param id: id of the vector
 
-    :type  score: float
-    :param score: Vector similarity 0 <= score <= 100
+    :type  distance: float
+    :param distance: Vector similarity 0 <= distance <= 100
 
     """
 
@@ -334,25 +327,40 @@ class ConnectIntf(object):
         Provide client version
         should be implemented
 
-        :return: str, client version
+        :return:
+            Status: indicate if operation is successful
+
+            str : Client version
+
+        :rtype: (Status, str)
         """
         _abstract()
+
 
     def server_version(self):
         """
         Provide server version
         should be implemented
 
-        :return: str, server version
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
         """
         _abstract()
 
     def server_status(self, cmd):
         """
-        Provide server status
+        Provide server status. When cmd !='version', provide 'OK'
         should be implemented
-        :type cmd, str
 
-        :return: str, server status
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
         """
         _abstract()

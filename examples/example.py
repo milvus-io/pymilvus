@@ -73,10 +73,11 @@ def main():
         'table_name': table_name,
         'query_records': query_vectors,
         'top_k': 1,
+
     }
     status, results = milvus.search_vectors(**param)
 
-    if results[0][0].distance == 100.0 or results[0][0].id == ids[3]:
+    if results[0][0].distance== 100.0 or result[0][0].id == ids[3]:
         print('Query result is correct')
     else:
         print('Query result isn\'t correct')
