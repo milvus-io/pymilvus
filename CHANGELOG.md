@@ -1,4 +1,6 @@
 ### Bug
+---
+
 - \#12 ISSUE
     - IndexType change
     - fix param of search_vector_in_files ranges
@@ -15,15 +17,16 @@
     - Optimize some dataclass and add utils.py module
     - Fix type of tile_ids in search_in_files api transfer bug
     - Fix Prepare after Prepare will raise ParamError bug
+- \#43 ISSUE: fix prepare after prepare will raise exceptions bug
 ### Improvement
-
+---
 - \#10 Update examples
 - \#14 Update example
 - \#28 Update README with newest sdk
 - \#33 Update thrift has_table API
 - \#38 Update thrift score to distance
 ### New Feature
-
+---
 - \#3
     - transport protocol configurable by settings
     - add_vector support non-binary array inputs
@@ -49,7 +52,7 @@
     - support search by range
     - fix server_status return None bug
 ### Task
-
+---
 - \#1 Build Repository
 
 - \#2 Add CHANGELOG.md and LICENSE, update setup.py
