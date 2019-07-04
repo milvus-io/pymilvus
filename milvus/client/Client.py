@@ -54,22 +54,18 @@ def is_correct_date_str(param):
     return True
 
 
-def is_2_dim_array(array):
+def is_legal_array(array):
     if not array or not isinstance(array, list):
         return False
-
-    elif isinstance(array, list):
-        if not array[:1]:
-            return False
-        elif not isinstance(array, list):
-            return False
     return True
+
 
 def int_or_str(item):
     if isinstance(item, int):
         return str(item)
     else:
         return item
+
 
 class Prepare(object):
 
@@ -151,8 +147,8 @@ class Prepare(object):
         :return: RowRecord object
 
         """
-        # vector = struct.pack(str(len(vector_data)) + 'd', *vector_data)
-        temp = RowRecord(vector_data)
+        temp = vector_data if isinstance(vector_data, ttypes.RowRecord) \
+            else RowRecord(vector_data)
         return ttypes.RowRecord(vector_data=temp.vector_data)
 
     @classmethod
@@ -165,7 +161,7 @@ class Prepare(object):
 
         :return: binary vectors
         """
-        if is_2_dim_array(vectors):
+        if is_legal_array(vectors):
             return [Prepare.row_record(vector) for vector in vectors]
         else:
             raise ParamError('Vectors should be 2-dim array!')

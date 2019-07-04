@@ -457,3 +457,9 @@ class TestPrepare:
         assert isinstance(res, list)
         assert isinstance(res[0], ttypes.RowRecord)
         assert isinstance(res[0].vector_data, bytes)
+
+    def test_repeating_prepare(self):
+        vecs = [[random.random() for _ in range(256)] for _ in range(20)]
+        vecs = Prepare.records(vecs)
+        vecs = Prepare.records(vecs)
+        assert isinstance(vecs, list)

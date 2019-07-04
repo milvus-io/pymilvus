@@ -119,11 +119,14 @@ class RowRecord(object):
     """
 
     def __init__(self, vector_data):
-        if isinstance(vector_data, list) and len(vector_data) > 0 \
+        if isinstance(vector_data, RowRecord):
+            self.vector_data = vector_data
+        elif isinstance(vector_data, list) and len(vector_data) > 0 \
                 and isinstance(vector_data[0], float):
             self.vector_data = struct.pack(str(len(vector_data)) + 'd', *vector_data)
         else:
-            raise ParamError('Illegal vector! Vector should be non-empty list of float')
+            raise ParamError('Illegal vector! Vector should be non-empty list of float.\n {}'
+                             .format(vector_data))
 
 
 class QueryResult(object):
