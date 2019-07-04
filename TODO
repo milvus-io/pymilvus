@@ -8,3 +8,5 @@ d. dataclass 优化
     * QueryResult
     * TopKQueryResult
 e. update example
+1. ParamError import in Client
+2. Line 490 remove `as e`
