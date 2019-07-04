@@ -75,7 +75,6 @@ class Prepare(object):
                                   index_type=temp.index_type,
                                   store_raw_vector=temp.store_raw_vector)
 
-    # TODO test Range [start_date, end_date]
     @classmethod
     def range(cls, start_date, end_date):
         """

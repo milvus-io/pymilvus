@@ -443,7 +443,7 @@ class TestPrepare:
         assert isinstance(res, list)
         assert isinstance(res[0], ttypes.Range)
 
-        param = [('false_date_format')]
+        param = ['false_date_format']
         with pytest.raises(ParamError):
             res = Prepare.ranges(param)
 

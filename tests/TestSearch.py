@@ -66,7 +66,7 @@ def main():
 
     table_name = 'test_search'
     dimension = 256
-    ranges = [['2019-07-01', '2019-07-02']]
+    ranges = [['2019-07-01', datetime.datetime.now()]]
 
     vectors = Prepare.records([[random.random()for _ in range(dimension)] for _ in range(1)])
     LOGGER.info(ranges)

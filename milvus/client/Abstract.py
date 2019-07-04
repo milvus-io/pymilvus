@@ -106,8 +106,8 @@ class QueryResult(object):
     :type  id: int64
     :param id: id of the vector
 
-    :type  score: float
-    :param score: Vector similarity 0 <= score <= 100
+    :type  distance: float
+    :param distance: Vector similarity 0 <= score <= 100
 
     """
 
