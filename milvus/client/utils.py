@@ -24,7 +24,7 @@ def is_correct_date_str(param):
 
 
 def legal_dimension(dim):
-    if not isinstance(dim, int) or dim <= 0 or dim > 10000:
+    if not isinstance(dim, int) or dim <= 0 or dim > 16384:
         return False
     return True
 

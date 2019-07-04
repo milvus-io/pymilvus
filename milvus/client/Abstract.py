@@ -41,7 +41,7 @@ class TableSchema(object):
         # TODO may raise UnicodeEncodeError
         table_name = str(table_name) if not isinstance(table_name, str) else table_name
         if not legal_dimension(dimension):
-            raise ParamError('Illegal dimension, effective range: (0 , 10000]')
+            raise ParamError('Illegal dimension, effective range: (0 , 16384]')
         if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
             raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
         if not isinstance(store_raw_vector, bool):
