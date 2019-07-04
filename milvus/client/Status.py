@@ -5,13 +5,26 @@ class Status(object):
     :attribute message: str (optional) current status message
     """
     SUCCESS = 0
-    CONNECT_FAILED = 1
-    PERMISSION_DENIED = 2
-    TABLE_NOT_EXISTS = 3
-    ILLEGAL_ARGUMENT = 4
-    ILLEGAL_RANGE = 5
-    ILLEGAL_DIMENSION = 6
-    UNKNOWN = 7
+    UNEXPECTED_ERROR = 1
+    CONNECT_FAILED = 2
+    PERMISSION_DENIED = 3
+    TABLE_NOT_EXISTS = 4
+    ILLEGAL_ARGUMENT = 5
+    ILLEGAL_RANGE = 6
+    ILLEGAL_DIMENSION = 7
+    ILLEGAL_INDEX_TYPE = 8
+    ILLEGAL_TABLE_NAME = 9
+    ILLEGAL_TOPK = 10
+    ILLEGAL_ROWRECORD = 11
+    ILLEGAL_VECTOR_ID = 12
+    ILLEGAL_SEARCH_RESULT = 13
+    FILE_NOT_FOUND = 14
+    META_FAILED = 15
+    CACHE_FAILED = 16
+    CANNOT_CREATE_FOLDER = 17
+    CANNOT_CREATE_FILE = 18
+    CANNOT_DELETE_FOLDER = 19
+    CANNOT_DELETE_FILE = 20
 
     def __init__(self, code=SUCCESS, message=None):
         self.code = code
