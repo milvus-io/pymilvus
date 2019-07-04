@@ -10,12 +10,18 @@
 - \#31 ISSUE: **[M-123]** create table param re-checked
 - \#32 ISSUE: top_k in search_vectors set ranges
 - \#35 ISSUE: **[M-132]** fix connected return value wrong error
+- \#39 ISSUE: **[M-134]** removing not using code and comment
+- \#41 ISSUE
+    - Optimize some dataclass and add utils.py module
+    - Fix type of tile_ids in search_in_files api transfer bug
+    - Fix Prepare after Prepare will raise ParamError bug
 ### Improvement
 
 - \#10 Update examples
 - \#14 Update example
 - \#28 Update README with newest sdk
 - \#33 Update thrift has_table API
+- \#38 Update thrift score to distance
 ### New Feature
 
 - \#3

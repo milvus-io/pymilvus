@@ -5,7 +5,6 @@ f. sdk reconnect, disconnection can be caused by:
     * Remote servive restarted
     * Heavy load on either the remote or the local machine causes a timeout
 d. dataclass 优化
-    * Prepare.range
     * QueryResult
     * TopKQueryResult
 e. update example
