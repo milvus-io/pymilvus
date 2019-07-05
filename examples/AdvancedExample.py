@@ -30,16 +30,6 @@ def generate_vectors():
     return records
 
 
-# Decorator to calculate function running time
-def time_it(func):
-    def inner(*args, **kwargs):
-        start = time.time()
-        ret = func(*args, **kwargs)
-        end = time.time()
-        return ret, end - start
-    return inner
-
-
 class ConnectionHandler(object):
     """Handler connection with the server
 
@@ -160,7 +150,6 @@ def add_vectors(records):
         print(status.message)
 
 
-@time_it
 @api.connect
 def search_vectors(q_records):
 
@@ -174,7 +163,10 @@ def search_vectors(q_records):
     # Search vector
     status, results = api.client.search_vectors(**param)
     if status.OK():
-        print('Searching {} nearest vectors from table `{}` ... \n'.format(TOPK, TABLE_NAME))
+
+        print('Get a vector from table `{}`. '
+              'Searching its {} nearest vectors from table `{}` ... \n'.
+              format(TABLE_NAME, TOPK, TABLE_NAME))
         print(HEADER)
         print('-' * 28 + '+' + '-'*27)
         for result in results:
@@ -217,10 +209,7 @@ if __name__ == 'AdvancedExample':
     q_record = [records[0]]
 
     # Search vectors
-    _, b = search_vectors(q_record)
+    search_vectors(q_record)
 
     # Delete table
     delete_table()
-
-    # Print time of searching vectors
-    print('Time of search 1 vector of top{} in table `{}`: {}s'.format(TOPK, TABLE_NAME, b))
