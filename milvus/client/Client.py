@@ -4,7 +4,7 @@ import sys
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
 from thrift.protocol import TBinaryProtocol, TCompactProtocol, TJSONProtocol
-
+from multiprocessing import Lock
 from milvus.thrift import MilvusService
 from milvus.thrift import ttypes
 from milvus.client.Abstract import (
@@ -42,6 +42,21 @@ class Protocol:
     JSON = 'JSON'
     BINARY = 'BINARY'
     COMPACT = 'COMPACT'
+
+
+class ThreadSafeMixin:
+
+    def __init__(self):
+        self.mutex = Lock()
+
+    def create_table(self, param):
+        with self.mutex:
+            self._create_table(param)
+
+    def delete_table(self, param):
+        with self.mutex:
+            self
+
 
 
 class Prepare(object):
@@ -149,12 +164,13 @@ class Prepare(object):
             raise ParamError('Vectors should be 2-dim array!')
 
 
-class Milvus(ConnectIntf):
+class Milvus(ThreadSafeMixin, ConnectIntf):
     """
     The Milvus object is used to connect and communicate with the server
     """
 
     def __init__(self):
+        ThreadSafeMixin.__init__(self)
         self.status = None
         self._transport = None
         self._client = None
@@ -294,20 +310,7 @@ class Milvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
-        if not self.connected:
-            raise NotConnectError('Please Connect to the server first!')
-
-        param = Prepare.table_schema(param)
-
-        try:
-            self._client.CreateTable(param)
-            return Status(message='Table {} created!'.format(param.table_name))
-        except TTransport.TTransportException as e:
-            LOGGER.error(e)
-            raise NotConnectError('Please Connect to the server first')
-        except ttypes.Exception as e:
-            LOGGER.error(e)
-            return Status(code=e.code, message=e.reason)
+        return self._create_table(param)
 
     def delete_table(self, table_name):
         """
@@ -319,18 +322,7 @@ class Milvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
-        if not self.connected:
-            raise NotConnectError('Please Connect to the server first!')
-
-        try:
-            self._client.DeleteTable(table_name)
-            return Status(message='Table {} deleted!'.format(table_name))
-        except TTransport.TTransportException as e:
-            LOGGER.error(e)
-            raise NotConnectError('Please Connect to the server first')
-        except ttypes.Exception as e:
-            LOGGER.error(e)
-            return Status(code=e.code, message=e.reason)
+        return self._delete_table(table_name)
 
     def add_vectors(self, table_name, records):
         """
@@ -348,25 +340,10 @@ class Milvus(ConnectIntf):
 
         :returns:
             Status: indicate if vectors inserted successfully
-
             ids: list of id, after inserted every vector is given a id
         :rtype: (Status, list(str))
         """
-        if not self.connected:
-            raise NotConnectError('Please Connect to the server first!')
-
-        records = Prepare.records(records)
-        ids = []
-
-        try:
-            ids = self._client.AddVector(table_name=table_name, record_array=records)
-            return Status(message='Vectors added successfully!'), ids
-        except TTransport.TTransportException as e:
-            LOGGER.error(e)
-            raise NotConnectError('Please Connect to the server first')
-        except ttypes.Exception as e:
-            LOGGER.error(e)
-            return Status(code=e.code, message=e.reason), ids
+        return self._add_vectors(table_name, records)
 
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         """
@@ -402,39 +379,12 @@ class Milvus(ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
-        if not self.connected:
-            raise NotConnectError('Please Connect to the server first!')
-
-        query_records = Prepare.records(query_records)
-
-        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
-            raise ParamError('Param top_k should be integer between (0, 10000]!')
-
-        if query_ranges:
-            query_ranges = Prepare.ranges(query_ranges)
-
-        res = TopKQueryResult()
-        try:
-            top_k_query_results = self._client.SearchVector(
-                table_name=table_name,
-                query_record_array=query_records,
-                query_range_array=query_ranges,
-                topk=top_k)
-
-            for topk in top_k_query_results:
-                res.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topk.query_result_arrays])
-            return Status(Status.SUCCESS, message='Search Vectors successfully!'), res
-        except TTransport.TTransportException as e:
-            LOGGER.error(e)
-            raise NotConnectError('Please Connect to the server first')
-        except ttypes.Exception as e:
-            LOGGER.error(e)
-            return Status(code=e.code, message=e.reason), res
+        return self._search_vectors(table_name, top_k, query_records, query_ranges)
 
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         """
         Query vectors in a table, in specified files
-
+        
         :type  table_name: str
         :param table_name: table name been queried
 
@@ -467,6 +417,183 @@ class Milvus(ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
+        return self._search_vectors_in_files(table_name, file_ids, query_records, top_k, query_ranges)
+
+    def describe_table(self, table_name):
+        """
+        Show table information
+
+        :type  table_name: str
+        :param table_name: which table to be shown
+
+        :returns: (Status, table_schema)
+            Status: indicate if query is successful
+            table_schema: return when operation is successful
+        :rtype: (Status, TableSchema)
+        """
+        return self._describe_table(table_name)
+
+    def has_table(self, table_name):
+        """
+
+        This method is used to test table existence.
+
+        :param table_name: table name is going to be tested.
+        :type table_name: str
+
+        :return:
+            has_table: bool, if given table_name exists
+
+
+        """
+        return self._has_table(table_name)
+
+    def show_tables(self):
+        """
+        Show all tables in database
+
+        :return:
+            Status: indicate if this operation is successful
+
+            tables: list of table names, return when operation
+                    is successful
+        :rtype:
+            (Status, list[str])
+        """
+        return self._show_tables()
+
+    def get_table_row_count(self, table_name):
+        """
+        Get table row count
+
+        :type  table_name: str
+        :param table_name: target table name.
+
+        :returns:
+            Status: indicate if operation is successful
+
+            res: int, table row count
+        """
+        return self._get_table_row_count(table_name)
+
+    def client_version(self):
+        """
+        Provide client version
+
+        :return:
+            Status: indicate if operation is successful
+
+            str : Client version
+
+        :rtype: (Status, str)
+        """
+        return __version__
+
+    def server_version(self):
+        """
+        Provide server version
+
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
+        """
+        return self._server_version()
+
+    def server_status(self, cmd=None):
+        """
+        Provide server status. When cmd !='version', provide 'OK'
+
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
+        """
+        return self._server_status(cmd)
+
+
+    def _create_table(self, param):
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
+        param = Prepare.table_schema(param)
+
+        try:
+            self._client.CreateTable(param)
+            return Status(message='Table {} created!'.format(param.table_name))
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason)
+
+    def _delete_table(self, table_name):
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
+        try:
+            self._client.DeleteTable(table_name)
+            return Status(message='Table {} deleted!'.format(table_name))
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason)
+
+    def _add_vectors(self, table_name, records):
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
+        records = Prepare.records(records)
+        ids = []
+
+        try:
+            ids = self._client.AddVector(table_name=table_name, record_array=records)
+            return Status(message='Vectors added successfully!'), ids
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason), ids
+
+    def _search_vectors(self, table_name, top_k, query_records, query_ranges=None):
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
+        query_records = Prepare.records(query_records)
+
+        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
+            raise ParamError('Param top_k should be integer between (0, 10000]!')
+
+        if query_ranges:
+            query_ranges = Prepare.ranges(query_ranges)
+
+        res = TopKQueryResult()
+        try:
+            top_k_query_results = self._client.SearchVector(
+                table_name=table_name,
+                query_record_array=query_records,
+                query_range_array=query_ranges,
+                topk=top_k)
+
+            for topk in top_k_query_results:
+                res.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topk.query_result_arrays])
+            return Status(Status.SUCCESS, message='Search Vectors successfully!'), res
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason), res
+
+    def _search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
@@ -494,18 +621,7 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=e.code, message=e.reason), res
 
-    def describe_table(self, table_name):
-        """
-        Show table information
-
-        :type  table_name: str
-        :param table_name: which table to be shown
-
-        :returns: (Status, table_schema)
-            Status: indicate if query is successful
-            table_schema: return when operation is successful
-        :rtype: (Status, TableSchema)
-        """
+    def _describe_table(self, table_name):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
@@ -523,19 +639,7 @@ class Milvus(ConnectIntf):
                 LOGGER.error(e)
             return Status(code=e.code, message=e.reason), table
 
-    def has_table(self, table_name):
-        """
-
-        This method is used to test table existence.
-
-        :param table_name: table name is going to be tested.
-        :type table_name: str
-
-        :return:
-            has_table: bool, if given table_name exists
-
-
-        """
+    def _has_table(self, table_name):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
@@ -550,18 +654,7 @@ class Milvus(ConnectIntf):
         # except ttypes.Exception as e:
         # LOGGER.error(e)
 
-    def show_tables(self):
-        """
-        Show all tables in database
-
-        :return:
-            Status: indicate if this operation is successful
-
-            tables: list of table names, return when operation
-                    is successful
-        :rtype:
-            (Status, list[str])
-        """
+    def _show_tables(self):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
@@ -577,18 +670,7 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=e.code, message=e.reason), tables
 
-    def get_table_row_count(self, table_name):
-        """
-        Get table row count
-
-        :type  table_name: str
-        :param table_name: target table name.
-
-        :returns:
-            Status: indicate if operation is successful
-
-            res: int, table row count
-        """
+    def _get_table_row_count(self, table_name):
         if not self.connected:
             raise NotConnectError('Please Connect to the server first!')
 
@@ -604,30 +686,7 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=e.code, message=e.reason), count
 
-    def client_version(self):
-        """
-        Provide client version
-
-        :return:
-            Status: indicate if operation is successful
-
-            str : Client version
-
-        :rtype: (Status, str)
-        """
-        return __version__
-
-    def server_version(self):
-        """
-        Provide server version
-
-        :return:
-            Status: indicate if operation is successful
-
-            str : Server version
-
-        :rtype: (Status, str)
-        """
+    def _server_version(self):
         if not self.connected:
             raise NotConnectError('You have to connect first')
         server_version = ''
@@ -641,17 +700,7 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=e.code, message=e.reason), server_version
 
-    def server_status(self, cmd=None):
-        """
-        Provide server status. When cmd !='version', provide 'OK'
-
-        :return:
-            Status: indicate if operation is successful
-
-            str : Server version
-
-        :rtype: (Status, str)
-        """
+    def _server_status(self, cmd=None):
         if not self.connected:
             raise NotConnectError('You have to connect first')
 
