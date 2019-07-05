@@ -18,6 +18,7 @@ DIMENSION = 16
 NUMBER = 200000
 TOPK = 10
 TABLE_NAME = 'DEMO'
+
 HEADER = "            id              |       L2 distance        "
 FORMAT = "    {}     |    {}    "
 
@@ -64,9 +65,6 @@ class ConnectionHandler(object):
             self._normal_times -= NORMAL_TIMES
         return self._retry_times <= RETRY_TIMES
 
-    # def reconnect(self):
-    #     self._client.connect(self.host, self.port, timeout=10000)
-
     def _connect(self, timeout=1000):
         client = Milvus()
         client.connect(self.host, self.port, timeout=timeout)
@@ -77,21 +75,15 @@ class ConnectionHandler(object):
         def inner(*args, **kwargs):
             while self.can_retry:
                 try:
-                    # import pdb;pdb.set_trace()
-
                     return func(*args, **kwargs)
-
-                except NotConnectError as e:
-                    # LOGGER.error(e)
+                except NotConnectError:
                     self._retry_times += 1
                     if self.can_retry:
                         print('Reconnecting to {} .. {}'.
-                                       format(_HOST + ':' + _PORT, self._retry_times))
-                        # self._connect()
+                              format(_HOST + ':' + _PORT, self._retry_times))
                         continue
                     else:
                         sys.exit(1)
-
         return inner
 
 
@@ -115,8 +107,8 @@ def version():
 
 @api.connect
 def create_table():
-    # Create table 'demo_table' if it doesn't exist.
 
+    # Create table 'demo_table' if it doesn't exist.
     if not api.client.has_table(TABLE_NAME):
         print('Creating table `{}` ...\n'.format(TABLE_NAME))
         param = {
@@ -137,6 +129,7 @@ def create_table():
 
 @api.connect
 def describe_table():
+
     # Get schema of table demo_table
     status, schema = api.client.describe_table(TABLE_NAME)
     if status.OK():
@@ -194,6 +187,7 @@ def search_vectors(q_records):
 
 @api.connect
 def delete_table():
+
     # Delete table
     status = api.client.delete_table(TABLE_NAME)
     if status.OK():
