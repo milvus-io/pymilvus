@@ -7,4 +7,3 @@ f. sdk reconnect, disconnection can be caused by:
 d. dataclass 优化
     * QueryResult
     * TopKQueryResult
-e. update example

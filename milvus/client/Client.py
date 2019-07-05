@@ -22,6 +22,7 @@ from milvus.client.Exceptions import (
     RepeatingConnectError,
     DisconnectNotConnectedClientError,
     NotConnectError,
+    ParamError,
 )
 from milvus.settings import DefaultConfig as config
 from milvus.client.utils import *
@@ -487,7 +488,7 @@ class Milvus(ConnectIntf):
             for topk in top_k_query_results:
                 res.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topk.query_result_arrays])
             return Status(Status.SUCCESS, message='Search vectors in files successfully!'), res
-        except TTransport.TTransportException as e:
+        except TTransport.TTransportException:
             raise NotConnectError('Please Connect to the server first')
         except ttypes.Exception as e:
             LOGGER.error(e)

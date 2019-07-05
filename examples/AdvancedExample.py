@@ -6,16 +6,8 @@ from pprint import pprint
 import sys
 import time
 import random
-import logging
 
 __name__ = 'AdvancedExample'
-# logging format
-LOG_FORMAT = '%(message)s\n'
-LOGGER = logging.getLogger(__name__)
-
-logging.basicConfig(level=logging.DEBUG, format=LOG_FORMAT)
-# log_handler.setLevel(logging.DEBUG)
-
 
 _HOST = 'localhost'
 _PORT = '19530'
@@ -24,8 +16,18 @@ NORMAL_TIMES = 10
 
 DIMENSION = 16
 NUMBER = 200000
-TOPK = 1
+TOPK = 10
 TABLE_NAME = 'DEMO'
+
+HEADER = "            id              |       L2 distance        "
+FORMAT = "    {}     |    {}    "
+
+
+def generate_vectors():
+    # Generating 200000 vectors
+    print('Generating {} {}-dimension vectors ...\n'.format(NUMBER, DIMENSION))
+    records = [[random.random() for _ in range(DIMENSION)] for _ in range(NUMBER)]
+    return records
 
 
 # Decorator to calculate function running time
@@ -54,7 +56,7 @@ class ConnectionHandler(object):
 
     @property
     def client(self):
-        return self._client
+        return self._connect(10000)
 
     @property
     def can_retry(self):
@@ -63,32 +65,25 @@ class ConnectionHandler(object):
             self._normal_times -= NORMAL_TIMES
         return self._retry_times <= RETRY_TIMES
 
-    def reconnect(self):
-        self._client.connect(self.host, self.port, timeout=1000)
-
-    def _connect(self):
-        self._client = Milvus()
-        self._client.connect(host=self.host, port=self.port, timeout=1000)
+    def _connect(self, timeout=1000):
+        client = Milvus()
+        client.connect(self.host, self.port, timeout=timeout)
+        return client
 
     def connect(self, func):
         @wraps(func)
         def inner(*args, **kwargs):
-            self._connect()
             while self.can_retry:
                 try:
-
                     return func(*args, **kwargs)
-
-                except NotConnectError as e:
-                    LOGGER.error(e)
+                except NotConnectError:
                     self._retry_times += 1
                     if self.can_retry:
-                        LOGGER.warning('Reconnecting to {} .. {}'.
-                                       format(_HOST + ':' + _PORT, self._retry_times))
-                        self.reconnect()
+                        print('Reconnecting to {} .. {}'.
+                              format(_HOST + ':' + _PORT, self._retry_times))
+                        continue
                     else:
                         sys.exit(1)
-
         return inner
 
 
@@ -100,22 +95,22 @@ def version():
 
     # get client version
     version = api.client.client_version()
-    LOGGER.info('Client version: {}'.format(version))
+    print('Client version: {}\n'.format(version))
 
     # get server version
     status, version = api.client.server_version()
     if status.OK():
-        LOGGER.info('Server version: {}'.format(version))
+        print('Server version: {}\n'.format(version))
     else:
-        LOGGER.error(status.message)
+        print(status.message)
 
 
 @api.connect
 def create_table():
-    # Create table 'demo_table' if it doesn't exist.
 
+    # Create table 'demo_table' if it doesn't exist.
     if not api.client.has_table(TABLE_NAME):
-        LOGGER.info('Creating table `{}` ...'.format(TABLE_NAME))
+        print('Creating table `{}` ...\n'.format(TABLE_NAME))
         param = {
             'table_name': TABLE_NAME,
             'dimension': DIMENSION,
@@ -125,48 +120,51 @@ def create_table():
 
         status = api.client.create_table(param)
         if status.OK():
-            LOGGER.info('Table `{}` successfully created!'.format(TABLE_NAME))
+            print('Table `{}` successfully created!\n'.format(TABLE_NAME))
         else:
-            LOGGER.error(status.message)
+            print(status.message)
     else:
-        LOGGER.info('Table already existed!')
+        print('Table already existed!\n')
 
 
 @api.connect
 def describe_table():
+
     # Get schema of table demo_table
     status, schema = api.client.describe_table(TABLE_NAME)
     if status.OK():
-        LOGGER.info('Describing table `{}` ... :'.format(TABLE_NAME))
+        print('Describing table `{}` ... :\n'.format(TABLE_NAME))
         print('    {}'.format(schema), end='\n\n')
     else:
-        LOGGER.error(status.message)
+        print(status.message)
 
 
 @api.connect
-def add_vectors():
-
-    # Generating 200000 vectors
-    LOGGER.info('Generating {} {}-dimension vectors ...'.format(NUMBER, DIMENSION))
-    records = [[random.random() for _ in range(DIMENSION)] for _ in range(NUMBER)]
+def add_vectors(records):
 
     # Add vectors
     status, ids = api.client.add_vectors(table_name=TABLE_NAME, records=records)
     if status.OK():
-        LOGGER.info('Adding vectors to table `{}` ...'.format(TABLE_NAME))
+        print('Adding vectors to table `{}` ...\n'.format(TABLE_NAME))
 
     # Sleeping to wait for data persisting
-    LOGGER.info('Sleeping for 6s ... ')
+    print('Sleeping for 6s ... \n')
     time.sleep(6)
+
+    # Get table row counts
+    status, counts = api.client.get_table_row_count(TABLE_NAME)
+    if status.OK():
+        print('Getting table `{}`\'s row counts ...\n'.format(TABLE_NAME))
+        print('    Table row counts: {}\n'.format(counts))
+    else:
+        print(status.message)
 
 
 @time_it
 @api.connect
-def search_vectors():
+def search_vectors(q_records):
 
     # Search 1 vector
-    q_records = [[random.random() for _ in range(DIMENSION)]]
-
     param = {
         'table_name': TABLE_NAME,
         'query_records': q_records,
@@ -176,29 +174,26 @@ def search_vectors():
     # Search vector
     status, results = api.client.search_vectors(**param)
     if status.OK():
-        LOGGER.info('Searching {} nearest vectors from table `{}` ... '.format(TOPK, TABLE_NAME))
-        pprint(results)
-        print('\n')
+        print('Searching {} nearest vectors from table `{}` ... \n'.format(TOPK, TABLE_NAME))
+        print(HEADER)
+        print('-' * 28 + '+' + '-'*27)
+        for result in results:
+            for qr in result:
+                print(FORMAT.format(qr.id, qr.distance))
+        print('')
     else:
-        LOGGER.error(status.message)
-
-    # Get table row counts
-    status, counts = api.client.get_table_row_count(TABLE_NAME)
-    if status.OK():
-        LOGGER.info('Getting table `{}`\'s row counts ...'.format(TABLE_NAME))
-        LOGGER.info('    Table row counts: {}'.format(counts))
-    else:
-        LOGGER.error(status.message)
+        print(status.message)
 
 
 @api.connect
 def delete_table():
+
     # Delete table
     status = api.client.delete_table(TABLE_NAME)
     if status.OK():
-        LOGGER.info('Deleting table `{}` ... '.format(TABLE_NAME))
+        print('Deleting table `{}` ... \n'.format(TABLE_NAME))
     else:
-        LOGGER.error(status.message)
+        print(status.message)
 
 
 if __name__ == 'AdvancedExample':
@@ -212,14 +207,20 @@ if __name__ == 'AdvancedExample':
     # Describe table
     describe_table()
 
+    # Generate vectors
+    records = generate_vectors()
+
     # Add vectors
-    add_vectors()
+    add_vectors(records)
+
+    # Search by the first vector added
+    q_record = [records[0]]
 
     # Search vectors
-    _, b = search_vectors()
+    _, b = search_vectors(q_record)
 
     # Delete table
     delete_table()
 
     # Print time of searching vectors
-    LOGGER.info('Time of search 1 vector of top{} in table `{}`: {}s'.format(TOPK, TABLE_NAME, b))
+    print('Time of search 1 vector of top{} in table `{}`: {}s'.format(TOPK, TABLE_NAME, b))
