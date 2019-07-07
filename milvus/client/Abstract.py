@@ -39,6 +39,8 @@ class TableSchema(object):
                  store_raw_vector=False):
 
         # TODO may raise UnicodeEncodeError
+        if table_name is None:
+            raise ParamError('Table name can\'t be None')
         table_name = str(table_name) if not isinstance(table_name, str) else table_name
         if not legal_dimension(dimension):
             raise ParamError('Illegal dimension, effective range: (0 , 16384]')
