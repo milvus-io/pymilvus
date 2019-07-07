@@ -80,8 +80,8 @@ def main():
     if status.OK():
         pprint(result)
 
-    _, tables = milvus.show_tables()
-    print(tables)
+    # _, tables = milvus.show_tables()
+    # print(tables)
 
     # _, result = milvus.get_table_row_count(table_name)
     # print('# Count: {}'.format(result))

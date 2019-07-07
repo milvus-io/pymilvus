@@ -3,7 +3,6 @@ import pytest
 import mock
 import faker
 import random
-import datetime
 import sys
 from faker.providers import BaseProvider
 from thrift.transport.TSocket import TSocket
@@ -168,6 +167,11 @@ class TestTable:
     @mock.patch.object(MilvusService.Client, 'CreateTable')
     def test_create_table(self, CreateTable, client):
         CreateTable.return_value = None
+
+        param = table_schema_factory()
+        param['table_name'] = None
+        with pytest.raises(ParamError):
+            res = client.create_table(param)
 
         param = table_schema_factory()
         res = client.create_table(param)
@@ -406,6 +410,7 @@ class TestVector:
 
     @mock.patch.object(MilvusService.Client, 'Ping')
     def test_server_status(self, Ping, client):
+        Ping.return_value = '00'
         status, res = client.server_status()
         assert status.OK()
         assert res == 'OK'
