@@ -18,13 +18,16 @@
     - Fix type of tile_ids in search_in_files api transfer bug
     - Fix Prepare after Prepare will raise ParamError bug
 - \#43 ISSUE: fix prepare after prepare will raise exceptions bug
+- \#50 ISSUE: **[M-174]** fix table_name=None buf create table successfully bug
 ### Improvement
 ---
-- \#10 Update examples
-- \#14 Update example
-- \#28 Update README with newest sdk
-- \#33 Update thrift has_table API
-- \#38 Update thrift score to distance
+- \#10 ISSUE: Update examples
+- \#14 ISSUE: Update example
+- \#28 ISSUE: Update README with newest sdk
+- \#33 ISSUE: Update thrift has_table API
+- \#38 ISSUE: Update thrift score to distance
+- \#45, \#47 ISSUE:  Update AdvancedExample
+- \#51 ISSUE: Brute force thread_safe for sdk
 ### New Feature
 ---
 - \#3
