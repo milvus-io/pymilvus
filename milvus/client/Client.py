@@ -4,7 +4,7 @@ import sys
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
 from thrift.protocol import TBinaryProtocol, TCompactProtocol, TJSONProtocol
-from multiprocessing import Lock
+from threading import Lock
 from milvus.thrift import MilvusService
 from milvus.thrift import ttypes
 from milvus.client.Abstract import (
@@ -44,19 +44,18 @@ class Protocol:
     COMPACT = 'COMPACT'
 
 
-class ThreadSafeMixin:
+# class ThreadSafeMixin:
+#
+#     def __init__(self):
+#         self.mutex = Lock()
+#
+#     def create_table(self, param):
+#         with self.mutex:
+#             self._create_table(param)
 
-    def __init__(self):
-        self.mutex = Lock()
-
-    def create_table(self, param):
-        with self.mutex:
-            self._create_table(param)
-
-    def delete_table(self, param):
-        with self.mutex:
-            self
-
+    # def delete_table(self, param):
+        # with self.mutex:
+            # self
 
 
 class Prepare(object):
@@ -164,16 +163,16 @@ class Prepare(object):
             raise ParamError('Vectors should be 2-dim array!')
 
 
-class Milvus(ThreadSafeMixin, ConnectIntf):
+class Milvus(ConnectIntf):
     """
     The Milvus object is used to connect and communicate with the server
     """
 
     def __init__(self):
-        ThreadSafeMixin.__init__(self)
         self.status = None
         self._transport = None
         self._client = None
+        self.mutex = Lock()
 
     def __repr__(self):
         return '{}'.format(self.status)
@@ -310,7 +309,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
-        return self._create_table(param)
+        with self.mutex:
+            return self._create_table(param)
 
     def delete_table(self, table_name):
         """
@@ -322,7 +322,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
-        return self._delete_table(table_name)
+        with self.mutex:
+            return self._delete_table(table_name)
 
     def add_vectors(self, table_name, records):
         """
@@ -343,7 +344,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
             ids: list of id, after inserted every vector is given a id
         :rtype: (Status, list(str))
         """
-        return self._add_vectors(table_name, records)
+        with self.mutex:
+            return self._add_vectors(table_name, records)
 
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         """
@@ -379,7 +381,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
-        return self._search_vectors(table_name, top_k, query_records, query_ranges)
+        with self.mutex:
+            return self._search_vectors(table_name, top_k, query_records, query_ranges)
 
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         """
@@ -417,7 +420,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
-        return self._search_vectors_in_files(table_name, file_ids, query_records, top_k, query_ranges)
+        with self.mutex:
+            return self._search_vectors_in_files(table_name, file_ids, query_records, top_k, query_ranges)
 
     def describe_table(self, table_name):
         """
@@ -431,7 +435,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
             table_schema: return when operation is successful
         :rtype: (Status, TableSchema)
         """
-        return self._describe_table(table_name)
+        with self.mutex:
+            return self._describe_table(table_name)
 
     def has_table(self, table_name):
         """
@@ -446,7 +451,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
 
 
         """
-        return self._has_table(table_name)
+        with self.mutex:
+            return self._has_table(table_name)
 
     def show_tables(self):
         """
@@ -460,7 +466,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
         :rtype:
             (Status, list[str])
         """
-        return self._show_tables()
+        with self.mutex:
+            return self._show_tables()
 
     def get_table_row_count(self, table_name):
         """
@@ -474,7 +481,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
 
             res: int, table row count
         """
-        return self._get_table_row_count(table_name)
+        with self.mutex:
+            return self._get_table_row_count(table_name)
 
     def client_version(self):
         """
@@ -500,7 +508,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self._server_version()
+        with self.mutex:
+            return self._server_version()
 
     def server_status(self, cmd=None):
         """
@@ -513,8 +522,8 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self._server_status(cmd)
-
+        with self.mutex:
+            return self._server_status(cmd)
 
     def _create_table(self, param):
         if not self.connected:
@@ -707,6 +716,6 @@ class Milvus(ThreadSafeMixin, ConnectIntf):
         result = 'OK'
         status = Status(message='Get status of server successfully')
         if cmd and cmd == 'version':
-            status, result = self.server_version()
+            status, result = self._server_version()
 
         return status, result
