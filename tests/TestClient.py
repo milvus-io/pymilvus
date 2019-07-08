@@ -79,9 +79,10 @@ class TestConnection:
         assert cnn.status.OK
         assert cnn.connected
 
-        with pytest.raises(RepeatingConnectError):
-            cnn.connect(**self.param)
-            cnn.connect()
+        _ = cnn.connect(**self.param)
+        status = cnn.connect()
+        assert status == Status.CONNECT_FAILED
+
 
     def test_false_connect(self):
         cnn = Milvus()
@@ -95,13 +96,13 @@ class TestConnection:
         open.return_value = None
         cnn = Milvus()
 
-        cnn.connect(uri='tcp://127.0.0.1:9090')
+        cnn.connect(uri='tcp://127.0.0.1:19530')
         assert cnn.status.OK()
 
     def test_connect(self):
         cnn = Milvus()
         with pytest.raises(NotConnectError):
-            cnn.connect('127.0.0.2', timeout=100)
+            cnn.connect('126.0.0.2', timeout=100)
             assert not cnn.status.OK()
 
             cnn.connect('127.0.0.1', '9999', timeout=100)
@@ -110,7 +111,7 @@ class TestConnection:
             cnn.connect(port='9999', timeout=100)
             assert not cnn.status.OK()
 
-            cnn.connect(uri='tcp://127.0.0.1:9090', timeout=100)
+            cnn.connect(uri='cp://127.0.0.1:19530', timeout=100)
             assert not cnn.status.OK()
 
     def test_connect_timeout(self):
@@ -129,7 +130,7 @@ class TestConnection:
         open.return_value = None
         cnn = Milvus()
         with pytest.raises(RuntimeError):
-            cnn.connect(uri='http://127.0.0.1:9090')
+            cnn.connect(uri='http://127.0.0.1:19530')
 
         cnn.connect()
         assert cnn.status.OK()
