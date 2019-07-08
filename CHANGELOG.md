@@ -19,6 +19,7 @@
     - Fix Prepare after Prepare will raise ParamError bug
 - \#43 ISSUE: fix prepare after prepare will raise exceptions bug
 - \#50 ISSUE: **[M-174]** fix table_name=None buf create table successfully bug
+- \#53 ISSUE: **[MS-165 ~ MS-170]** fixed default ip and port wrong bug
 ### Improvement
 ---
 - \#10 ISSUE: Update examples
