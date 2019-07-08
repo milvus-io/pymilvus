@@ -44,20 +44,6 @@ class Protocol:
     COMPACT = 'COMPACT'
 
 
-# class ThreadSafeMixin:
-#
-#     def __init__(self):
-#         self.mutex = Lock()
-#
-#     def create_table(self, param):
-#         with self.mutex:
-#             self._create_table(param)
-
-    # def delete_table(self, param):
-        # with self.mutex:
-            # self
-
-
 class Prepare(object):
 
     @classmethod
@@ -188,16 +174,16 @@ class Milvus(ConnectIntf):
         :type  timeout: int
         :param timeout: (Optional) connection timeout, ms / 1000
         :param host: (Optional) host of the server, default host is 127.0.0.1
-        :param port: (Optional) port of the server, default port is 9090
+        :param port: (Optional) port of the server, default port is 19530
         :param uri: (Optional) only support tcp proto now, default uri is
 
-                `tcp://127.0.0.1:9090`
+                `tcp://127.0.0.1:19530`
 
         :return: Status, indicate if connect is successful
         :rtype: Status
         """
         if self.status and self.status == Status.SUCCESS:
-            raise RepeatingConnectError("You have already connected!")
+            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
 
         config_uri = urlparse(config.THRIFTCLIENT_TRANSPORT)
 
@@ -206,7 +192,7 @@ class Milvus(ConnectIntf):
         if not host:
             if _uri.scheme == 'tcp':
                 host = _uri.hostname
-                port = _uri.port or 9090
+                port = _uri.port or 19530
             else:
                 if uri:
                     raise RuntimeError(
@@ -218,7 +204,7 @@ class Milvus(ConnectIntf):
                 )
         else:
             host = host
-            port = port or 9090
+            port = port or 19530
 
         self._transport = TSocket.TSocket(host, port)
 

@@ -8,8 +8,8 @@ import logging
 from factorys import *
 LOGGER = logging.getLogger(__name__)
 
-_HOST = 'localhost'
-_PORT = '19530'
+#_HOST = 'localhost'
+#_PORT = '19530'
 
 dim = 256
 table_id = 'test_search'
@@ -44,7 +44,7 @@ class TestSearch:
 
 def main():
     milvus = Milvus()
-    milvus.connect(host=_HOST, port=_PORT)
+    milvus.connect()
     #
     # table_name = 'test_search_in_file'
     # dimension = 256
