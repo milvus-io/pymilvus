@@ -1,5 +1,4 @@
 # This program demos how to create a Milvus table, insert 20 vectors and get the table row count.
-
 from milvus import Milvus, Prepare, IndexType, Status
 import random, time
 
@@ -10,7 +9,7 @@ milvus = Milvus()
 milvus.connect(host='localhost', port='19530')
 
 # Table name is defined
-table_name = 'demo_table'
+table_name = 'demo_table_02'
 
 # Create table: table name, vector dimension and index type
 if not milvus.has_table(table_name):

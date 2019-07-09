@@ -34,7 +34,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.20'
+__version__ = '0.1.21'
 __NAME__ = 'pymilvus'
 
 
@@ -157,31 +157,14 @@ class Milvus(ConnectIntf):
     def __init__(self):
         self.status = None
         self._transport = None
+        self._tt = None
         self._client = None
         self.mutex = Lock()
 
     def __repr__(self):
         return '{}'.format(self.status)
 
-    def connect(self, host=None, port=None, uri=None, timeout=None):
-        """
-        Connect method should be called before any operations.
-        Server will be connected after connect return OK
-
-        :type  host: str
-        :type  port: str
-        :type  uri: str
-        :param host: (Optional) host of the server, default host is 127.0.0.1
-        :param port: (Optional) port of the server, default port is 19530
-        :param uri: (Optional) only support tcp proto now, default uri is
-
-                `tcp://127.0.0.1:19530`
-
-        :return: Status, indicate if connect is successful
-        :rtype: Status
-        """
-        if self.status and self.status == Status.SUCCESS:
-            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
+    def set_client(self, host=None, port=None, uri=None):
 
         config_uri = urlparse(config.THRIFTCLIENT_TRANSPORT)
 
@@ -207,20 +190,20 @@ class Milvus(ConnectIntf):
         self._transport = TSocket.TSocket(host, port)
 
         if config.THRIFTCLIENT_BUFFERED:
-            self._transport = TTransport.TBufferedTransport(self._transport)
+            self._tt = TTransport.TBufferedTransport(self._transport)
         if config.THRIFTCLIENT_ZLIB:
-            self._transport = TZlibTransport.TZlibTransport(self._transport)
+            self._tt = TZlibTransport.TZlibTransport(self._transport)
         if config.THRIFTCLIENT_FRAMED:
-            self._transport = TTransport.TFramedTransport(self._transport)
+            self._tt = TTransport.TFramedTransport(self._transport)
 
         if config.THRIFTCLIENT_PROTOCOL == Protocol.BINARY:
-            protocol = TBinaryProtocol.TBinaryProtocol(self._transport)
+            protocol = TBinaryProtocol.TBinaryProtocol(self._tt)
 
         elif config.THRIFTCLIENT_PROTOCOL == Protocol.COMPACT:
-            protocol = TCompactProtocol.TCompactProtocol(self._transport)
+            protocol = TCompactProtocol.TCompactProtocol(self._tt)
 
         elif config.THRIFTCLIENT_PROTOCOL == Protocol.JSON:
-            protocol = TJSONProtocol.TJSONProtocol(self._transport)
+            protocol = TJSONProtocol.TJSONProtocol(self._tt)
 
         else:
             raise RuntimeError(
@@ -230,9 +213,38 @@ class Milvus(ConnectIntf):
 
         self._client = MilvusService.Client(protocol)
 
+
+    def connect(self, host=None, port=None, uri=None, timeout=3000):
+        """
+        Connect method should be called before any operations.
+        Server will be connected after connect return OK
+
+        :type  host: str
+        :type  port: str
+        :type  uri: str
+        :type  timeout: str
+        :param host: (Optional) host of the server, default host is 127.0.0.1
+        :param port: (Optional) port of the server, default port is 19530
+        :param uri: (Optional) only support tcp proto now, default uri is
+
+                `tcp://127.0.0.1:19530`
+
+        :param timeout: (Optional) connectiong timeout, default timeout is 3s
+
+        :return: Status, indicate if connect is successful
+        :rtype: Status
+        """
+        if self.status and self.status == Status.SUCCESS:
+            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
+
+        if self._client is None:
+            self.set_client(host, port, uri)
+
         try:
-            self._transport.open()
+            self._transport.setTimeout(timeout)
+            self._tt.open()
             self.status = Status(Status.SUCCESS, 'Connected')
+            self._transport.setTimeout(None)
             return self.status
 
         except TTransport.TTransportException as e:

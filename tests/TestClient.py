@@ -456,6 +456,10 @@ class TestPrepare:
         res = Prepare.range(**param)
         assert isinstance(res, ttypes.Range)
 
+        param['start_date'] = '2019-09-02'
+        with pytest.raises(ParamError):
+            res = Prepare.range(**param)
+
     def test_ranges(self):
         param = [('2019-02-02', '2019-02-02')]
         res = Prepare.ranges(param)

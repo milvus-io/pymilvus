@@ -79,8 +79,14 @@ class Range(object):
     """
 
     def __init__(self, start_date, end_date):
-        self.start_date = parser_range_date(start_date)
-        self.end_date = parser_range_date(end_date)
+        start_date = parser_range_date(start_date)
+        end_date = parser_range_date(end_date)
+        if is_legal_date_range(start_date, end_date):
+            self.start_date = start_date
+            self.end_date = end_date
+        else:
+            raise ParamError("The start-date should be smaller"
+                             " than or equal to end-date!")
 
 
 class RowRecord(object):

@@ -2,7 +2,6 @@
 # create a vector table, 
 # insert 10 vectors, 
 # and execute a vector similarity search.
-
 from milvus import Milvus, Prepare, IndexType, Status
 import time
 
@@ -21,7 +20,7 @@ def main():
     status = milvus.connect(**param)
 
     # Create table demo_table if it dosen't exist.
-    table_name = 'demo_table'
+    table_name = 'demo_table_01'
 
     if not milvus.has_table(table_name):
         param = {
