@@ -8,7 +8,7 @@ from pprint import pprint
 
 def main():
     milvus = Milvus()
-    milvus.connect()
+    milvus.connect("192.1.2.222")
 
     table_name = 'test_timeout'
     dimension = 512
