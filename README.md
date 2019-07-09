@@ -4,9 +4,8 @@ Using Milvus python sdk for Milvus
 
 Download
 ---
-Pymilvus only supports `python >= 3.4`, is fully tested under 3.4, 3.5, 3.6.
+Pymilvus only supports `python >= 3.4`, is fully tested under 3.4, 3.5, 3.6, 3.7.
 
-Python 3.7 can work, but not fully tested yet.
 
 Pymilvus can be downloaded using `pip`. If no use, try `pip3`
 ```$
