@@ -318,6 +318,20 @@ class Milvus(ConnectIntf):
         with self.mutex:
             return self._delete_table(table_name)
 
+    def build_index(self, table_name):
+        """
+        Build index by table name
+
+        This method is used to build index by table in sync mode.
+
+        :param table_name: table is going to be built index.
+        :type  table_name: str
+
+        :return: Status, indicate if operation is successful
+        """
+        with self.mutex:
+            return self._build_index(table_name)
+
     def add_vectors(self, table_name, records):
         """
         Add vectors to table
@@ -541,6 +555,20 @@ class Milvus(ConnectIntf):
         try:
             self._client.DeleteTable(table_name)
             return Status(message='Table {} deleted!'.format(table_name))
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason)
+
+    def _build_index(self, table_name):
+        if not self.connected:
+            raise NotConnectError('Please Connect to the server first!')
+
+        try:
+            self._client.BuildIndex(table_name)
+            return Status(message='Success!'.format(table_name))
         except TTransport.TTransportException as e:
             LOGGER.error(e)
             raise NotConnectError('Please Connect to the server first')
