@@ -34,7 +34,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.19'
+__version__ = '0.1.20'
 __NAME__ = 'pymilvus'
 
 
@@ -163,7 +163,7 @@ class Milvus(ConnectIntf):
     def __repr__(self):
         return '{}'.format(self.status)
 
-    def connect(self, host=None, port=None, uri=None):
+    def connect(self, host=None, port=None, uri=None, timeout=None):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
