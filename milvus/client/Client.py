@@ -164,28 +164,7 @@ class Milvus(ConnectIntf):
     def __repr__(self):
         return '{}'.format(self.status)
 
-    def connect(self, host=None, port=None, uri=None, timeout=20000):
-        """
-        Connect method should be called before any operations.
-        Server will be connected after connect return OK
-
-        :type  host: str
-        :type  port: str
-        :type  uri: str
-        :type  timeout: str
-        :param host: (Optional) host of the server, default host is 127.0.0.1
-        :param port: (Optional) port of the server, default port is 19530
-        :param uri: (Optional) only support tcp proto now, default uri is
-
-                `tcp://127.0.0.1:19530`
-
-        :param timeout: (Optional) connectiong timeout
-
-        :return: Status, indicate if connect is successful
-        :rtype: Status
-        """
-        if self.status and self.status == Status.SUCCESS:
-            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
+    def set_client(self, host=None, port=None, uri=None):
 
         config_uri = urlparse(config.THRIFTCLIENT_TRANSPORT)
 
@@ -209,7 +188,6 @@ class Milvus(ConnectIntf):
             port = port or 19530
 
         self._transport = TSocket.TSocket(host, port)
-        self._transport.setTimeout(timeout)
 
         if config.THRIFTCLIENT_BUFFERED:
             self._tt = TTransport.TBufferedTransport(self._transport)
@@ -235,7 +213,35 @@ class Milvus(ConnectIntf):
 
         self._client = MilvusService.Client(protocol)
 
+
+    def connect(self, host=None, port=None, uri=None, timeout=3000):
+        """
+        Connect method should be called before any operations.
+        Server will be connected after connect return OK
+
+        :type  host: str
+        :type  port: str
+        :type  uri: str
+        :type  timeout: str
+        :param host: (Optional) host of the server, default host is 127.0.0.1
+        :param port: (Optional) port of the server, default port is 19530
+        :param uri: (Optional) only support tcp proto now, default uri is
+
+                `tcp://127.0.0.1:19530`
+
+        :param timeout: (Optional) connectiong timeout, default timeout is 3s
+
+        :return: Status, indicate if connect is successful
+        :rtype: Status
+        """
+        if self.status and self.status == Status.SUCCESS:
+            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
+
+        if self._client is None:
+            self.set_client(host, port, uri)
+
         try:
+            self._transport.setTimeout(timeout)
             self._tt.open()
             self.status = Status(Status.SUCCESS, 'Connected')
             self._transport.setTimeout(None)
