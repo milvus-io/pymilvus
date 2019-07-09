@@ -27,6 +27,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('  void CreateTable(TableSchema param)')
     print('  bool HasTable(string table_name)')
     print('  void DeleteTable(string table_name)')
+    print('  void BuildIndex(string table_name)')
     print('   AddVector(string table_name,  record_array)')
     print('   SearchVector(string table_name,  query_record_array,  query_range_array, i64 topk)')
     print('   SearchVectorInFiles(string table_name,  file_id_array,  query_record_array,  query_range_array, i64 topk)')
@@ -130,6 +131,12 @@ elif cmd == 'DeleteTable':
         print('DeleteTable requires 1 args')
         sys.exit(1)
     pp.pprint(client.DeleteTable(args[0],))
+
+elif cmd == 'BuildIndex':
+    if len(args) != 1:
+        print('BuildIndex requires 1 args')
+        sys.exit(1)
+    pp.pprint(client.BuildIndex(args[0],))
 
 elif cmd == 'AddVector':
     if len(args) != 2:

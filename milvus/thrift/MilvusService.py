@@ -64,6 +64,21 @@ class Iface(object):
         """
         pass
 
+    def BuildIndex(self, table_name):
+        """
+        @brief Build index by table method
+
+        This method is used to build index by table in sync mode.
+
+        @param table_name, table is going to be built index.
+
+
+        Parameters:
+         - table_name
+
+        """
+        pass
+
     def AddVector(self, table_name, record_array):
         """
         @brief Add vector array to table
@@ -306,6 +321,45 @@ class Client(Iface):
             iprot.readMessageEnd()
             raise x
         result = DeleteTable_result()
+        result.read(iprot)
+        iprot.readMessageEnd()
+        if result.e is not None:
+            raise result.e
+        return
+
+    def BuildIndex(self, table_name):
+        """
+        @brief Build index by table method
+
+        This method is used to build index by table in sync mode.
+
+        @param table_name, table is going to be built index.
+
+
+        Parameters:
+         - table_name
+
+        """
+        self.send_BuildIndex(table_name)
+        self.recv_BuildIndex()
+
+    def send_BuildIndex(self, table_name):
+        self._oprot.writeMessageBegin('BuildIndex', TMessageType.CALL, self._seqid)
+        args = BuildIndex_args()
+        args.table_name = table_name
+        args.write(self._oprot)
+        self._oprot.writeMessageEnd()
+        self._oprot.trans.flush()
+
+    def recv_BuildIndex(self):
+        iprot = self._iprot
+        (fname, mtype, rseqid) = iprot.readMessageBegin()
+        if mtype == TMessageType.EXCEPTION:
+            x = TApplicationException()
+            x.read(iprot)
+            iprot.readMessageEnd()
+            raise x
+        result = BuildIndex_result()
         result.read(iprot)
         iprot.readMessageEnd()
         if result.e is not None:
@@ -630,6 +684,7 @@ class Processor(Iface, TProcessor):
         self._processMap["CreateTable"] = Processor.process_CreateTable
         self._processMap["HasTable"] = Processor.process_HasTable
         self._processMap["DeleteTable"] = Processor.process_DeleteTable
+        self._processMap["BuildIndex"] = Processor.process_BuildIndex
         self._processMap["AddVector"] = Processor.process_AddVector
         self._processMap["SearchVector"] = Processor.process_SearchVector
         self._processMap["SearchVectorInFiles"] = Processor.process_SearchVectorInFiles
@@ -727,6 +782,32 @@ class Processor(Iface, TProcessor):
             msg_type = TMessageType.EXCEPTION
             result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
         oprot.writeMessageBegin("DeleteTable", msg_type, seqid)
+        result.write(oprot)
+        oprot.writeMessageEnd()
+        oprot.trans.flush()
+
+    def process_BuildIndex(self, seqid, iprot, oprot):
+        args = BuildIndex_args()
+        args.read(iprot)
+        iprot.readMessageEnd()
+        result = BuildIndex_result()
+        try:
+            self._handler.BuildIndex(args.table_name)
+            msg_type = TMessageType.REPLY
+        except TTransport.TTransportException:
+            raise
+        except Exception as e:
+            msg_type = TMessageType.REPLY
+            result.e = e
+        except TApplicationException as ex:
+            logging.exception('TApplication exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = ex
+        except Exception:
+            logging.exception('Unexpected exception in handler')
+            msg_type = TMessageType.EXCEPTION
+            result = TApplicationException(TApplicationException.INTERNAL_ERROR, 'Internal error')
+        oprot.writeMessageBegin("BuildIndex", msg_type, seqid)
         result.write(oprot)
         oprot.writeMessageEnd()
         oprot.trans.flush()
@@ -1301,6 +1382,132 @@ class DeleteTable_result(object):
         return not (self == other)
 all_structs.append(DeleteTable_result)
 DeleteTable_result.thrift_spec = (
+    None,  # 0
+    (1, TType.STRUCT, 'e', [Exception, None], None, ),  # 1
+)
+
+
+class BuildIndex_args(object):
+    """
+    Attributes:
+     - table_name
+
+    """
+
+
+    def __init__(self, table_name=None,):
+        self.table_name = table_name
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 2:
+                if ftype == TType.STRING:
+                    self.table_name = iprot.readString().decode('utf-8') if sys.version_info[0] == 2 else iprot.readString()
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('BuildIndex_args')
+        if self.table_name is not None:
+            oprot.writeFieldBegin('table_name', TType.STRING, 2)
+            oprot.writeString(self.table_name.encode('utf-8') if sys.version_info[0] == 2 else self.table_name)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(BuildIndex_args)
+BuildIndex_args.thrift_spec = (
+    None,  # 0
+    None,  # 1
+    (2, TType.STRING, 'table_name', 'UTF8', None, ),  # 2
+)
+
+
+class BuildIndex_result(object):
+    """
+    Attributes:
+     - e
+
+    """
+
+
+    def __init__(self, e=None,):
+        self.e = e
+
+    def read(self, iprot):
+        if iprot._fast_decode is not None and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None:
+            iprot._fast_decode(self, iprot, [self.__class__, self.thrift_spec])
+            return
+        iprot.readStructBegin()
+        while True:
+            (fname, ftype, fid) = iprot.readFieldBegin()
+            if ftype == TType.STOP:
+                break
+            if fid == 1:
+                if ftype == TType.STRUCT:
+                    self.e = Exception()
+                    self.e.read(iprot)
+                else:
+                    iprot.skip(ftype)
+            else:
+                iprot.skip(ftype)
+            iprot.readFieldEnd()
+        iprot.readStructEnd()
+
+    def write(self, oprot):
+        if oprot._fast_encode is not None and self.thrift_spec is not None:
+            oprot.trans.write(oprot._fast_encode(self, [self.__class__, self.thrift_spec]))
+            return
+        oprot.writeStructBegin('BuildIndex_result')
+        if self.e is not None:
+            oprot.writeFieldBegin('e', TType.STRUCT, 1)
+            self.e.write(oprot)
+            oprot.writeFieldEnd()
+        oprot.writeFieldStop()
+        oprot.writeStructEnd()
+
+    def validate(self):
+        return
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not (self == other)
+all_structs.append(BuildIndex_result)
+BuildIndex_result.thrift_spec = (
     None,  # 0
     (1, TType.STRUCT, 'e', [Exception, None], None, ),  # 1
 )
