@@ -157,13 +157,14 @@ class Milvus(ConnectIntf):
     def __init__(self):
         self.status = None
         self._transport = None
+        self._tt = None
         self._client = None
         self.mutex = Lock()
 
     def __repr__(self):
         return '{}'.format(self.status)
 
-    def connect(self, host=None, port=None, uri=None, timeout=None):
+    def connect(self, host=None, port=None, uri=None, timeout=20000):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -171,11 +172,14 @@ class Milvus(ConnectIntf):
         :type  host: str
         :type  port: str
         :type  uri: str
+        :type  timeout: str
         :param host: (Optional) host of the server, default host is 127.0.0.1
         :param port: (Optional) port of the server, default port is 19530
         :param uri: (Optional) only support tcp proto now, default uri is
 
                 `tcp://127.0.0.1:19530`
+
+        :param timeout: (Optional) connectiong timeout
 
         :return: Status, indicate if connect is successful
         :rtype: Status
@@ -205,22 +209,23 @@ class Milvus(ConnectIntf):
             port = port or 19530
 
         self._transport = TSocket.TSocket(host, port)
+        self._transport.setTimeout(timeout)
 
         if config.THRIFTCLIENT_BUFFERED:
-            self._transport = TTransport.TBufferedTransport(self._transport)
+            self._tt = TTransport.TBufferedTransport(self._transport)
         if config.THRIFTCLIENT_ZLIB:
-            self._transport = TZlibTransport.TZlibTransport(self._transport)
+            self._tt = TZlibTransport.TZlibTransport(self._transport)
         if config.THRIFTCLIENT_FRAMED:
-            self._transport = TTransport.TFramedTransport(self._transport)
+            self._tt = TTransport.TFramedTransport(self._transport)
 
         if config.THRIFTCLIENT_PROTOCOL == Protocol.BINARY:
-            protocol = TBinaryProtocol.TBinaryProtocol(self._transport)
+            protocol = TBinaryProtocol.TBinaryProtocol(self._tt)
 
         elif config.THRIFTCLIENT_PROTOCOL == Protocol.COMPACT:
-            protocol = TCompactProtocol.TCompactProtocol(self._transport)
+            protocol = TCompactProtocol.TCompactProtocol(self._tt)
 
         elif config.THRIFTCLIENT_PROTOCOL == Protocol.JSON:
-            protocol = TJSONProtocol.TJSONProtocol(self._transport)
+            protocol = TJSONProtocol.TJSONProtocol(self._tt)
 
         else:
             raise RuntimeError(
@@ -231,8 +236,9 @@ class Milvus(ConnectIntf):
         self._client = MilvusService.Client(protocol)
 
         try:
-            self._transport.open()
+            self._tt.open()
             self.status = Status(Status.SUCCESS, 'Connected')
+            self._transport.setTimeout(None)
             return self.status
 
         except TTransport.TTransportException as e:
