@@ -20,6 +20,8 @@
 - \#43 ISSUE: fix prepare after prepare will raise exceptions bug
 - \#50 ISSUE: **[M-174]** fix table_name=None buf create table successfully bug
 - \#53 ISSUE: **[MS-165 ~ MS-170]** fixed default ip and port wrong bug
+- \#59 ISSUE: **[MS-182]** fix query ranges param not control bug
+- \#60 ISSUE: **[MS-185]** fix connection no timeout bug 
 ### Improvement
 ---
 - \#10 ISSUE: Update examples
