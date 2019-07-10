@@ -24,7 +24,7 @@ $ pip install pymilvus
 $ pip install --upgrade pymilvus
 ```
 
-## Import
+### Import
 
 ```python
 from milvus import Milvus, IndexType, Status
