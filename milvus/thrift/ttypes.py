@@ -38,6 +38,7 @@ class ErrorCode(object):
     CANNOT_CREATE_FILE = 18
     CANNOT_DELETE_FOLDER = 19
     CANNOT_DELETE_FILE = 20
+    BUILD_INDEX_ERROR = 21
 
     _VALUES_TO_NAMES = {
         0: "SUCCESS",
@@ -61,6 +62,7 @@ class ErrorCode(object):
         18: "CANNOT_CREATE_FILE",
         19: "CANNOT_DELETE_FOLDER",
         20: "CANNOT_DELETE_FILE",
+        21: "BUILD_INDEX_ERROR",
     }
 
     _NAMES_TO_VALUES = {
@@ -85,6 +87,7 @@ class ErrorCode(object):
         "CANNOT_CREATE_FILE": 18,
         "CANNOT_DELETE_FOLDER": 19,
         "CANNOT_DELETE_FILE": 20,
+        "BUILD_INDEX_ERROR": 21,
     }
 
 

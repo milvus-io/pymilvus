@@ -211,6 +211,19 @@ class ConnectIntf(object):
         """
         _abstract()
 
+    def build_index(self, table_name):
+        """
+        Build index by table name
+
+        This method is used to build index by table in sync mode.
+
+        :param table_name: table is going to be built index.
+        :type  table_name: str
+
+        :return: Status, indicate if operation is successful
+        """
+        _abstract()
+
     def delete_table(self, table_name):
         """
         Delete table
