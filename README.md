@@ -47,14 +47,14 @@ Once successfully connected, you can get the version of server
 (Status(code=0, message='Success'), 0.3.0)  # this is example version, the real version may vary
 ```
 
-### Add a `table`
+### Add a table
 
 
 1. Set parameters.
 ```python
 >>> param = {'table_name'='test01', 'dimension'=256, 'index_type'=IndexType.FLAT, 'store_raw_vector'=False}
 ```
-2. Create a `table`.
+2. Create a table.
 ```python
 >>> milvus.create_table(param)
 Status(message='Table test01 created!', code=0)
