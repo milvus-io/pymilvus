@@ -11,6 +11,7 @@ class IndexType(IntEnum):
     INVALID = 0
     FLAT = 1
     IVFLAT = 2
+    IVF_SQ8 = 3
 
 
 class TableSchema(object):
