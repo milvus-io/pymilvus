@@ -77,7 +77,7 @@ def main():
     }
     status, results = milvus.search_vectors(**param)
 
-    if results[0][0].score== 100.0 or result[0][0].id == ids[3]:
+    if results[0][0].score== 100.0 or results[0][0].id == ids[3]:
         print('Query result is correct')
     else:
         print('Query result isn\'t correct')
