@@ -48,7 +48,7 @@ Add a new `table`
 
 First set param
 ```python
->>> param = {'table_name'='test01', 'dimension'=256, 'index_type'=IndexType.FLAT, 'store_raw_vector'=False}
+>>> param = {'table_name':'test01', 'dimension':256, 'index_type':IndexType.FLAT, 'store_raw_vector':False}
 ```
 Then create `table`
 ```python
