@@ -68,7 +68,7 @@ def query_ranges_factory():
 
 
 class TestConnection:
-    param = {'host': 'localhost', 'port': '5000'}
+    param = {'host': 'localhost', 'port': '9898'}
 
     @mock.patch.object(TSocket, 'open')
     def test_true_connect(self, open):
@@ -208,6 +208,11 @@ class TestTable:
 
         param = table_schema_factory()
         param['table_name'] = 1234456
+        res = client.create_table(param)
+        assert res.OK()
+
+        param = table_schema_factory()
+        param['index_type'] = IndexType.IVF_SQ8
         res = client.create_table(param)
         assert res.OK()
 
