@@ -1,3 +1,6 @@
+[![version](https://img.shields.io/pypi/v/pymilvus.svg?color=blue)](https://pypi.org/project/pymilvus/)
+[![license](https://img.shields.io/hexpm/l/plug.svg?color=green)](https://github.com/milvus-io/pymilvus/blob/master/LICENSE)
+
 # Milvus Python SDK
 
 Using Milvus python sdk for Milvus
@@ -45,7 +48,7 @@ Add a new `table`
 
 First set param
 ```python
->>> param = {'table_name'='test01', 'dimension'=256, 'index_type'=IndexType.FLAT, 'store_raw_vector'=False}
+>>> param = {'table_name':'test01', 'dimension':256, 'index_type':IndexType.FLAT, 'store_raw_vector':False}
 ```
 Then create `table`
 ```python
