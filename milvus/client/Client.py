@@ -260,11 +260,16 @@ class Milvus(ConnectIntf):
         :return: if client is connected
         :rtype bool
         """
-        if not self:
+        #if not self:
+        #    return False
+        #elif self.status and self.status.OK():
+        #    return True
+        #return False
+
+        if not self._tt.isOpen():
             return False
-        elif self.status and self.status.OK():
-            return True
-        return False
+        return True
+
 
     def disconnect(self):
         """
@@ -274,11 +279,11 @@ class Milvus(ConnectIntf):
         :rtype: Status
         """
 
-        if not self._transport or not self.connected:
+        if not self.connected:
             raise DisconnectNotConnectedClientError('Disconnect not connected client!')
 
         try:
-            self._transport.close()
+            self._tt.close()
             self.status = None
 
         except TTransport.TTransportException as e:
