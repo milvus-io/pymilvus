@@ -9,7 +9,7 @@ import time
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
-_PORT = '19530'
+_PORT = '19531'
 
 
 def main():
@@ -19,6 +19,7 @@ def main():
     # You may need to change _HOST and _PORT accordingly
     param = {'host': _HOST, 'port': _PORT}
     status = milvus.connect(**param)
+    print('Connect to {}:{}\n'.format(_HOST, _PORT))
 
     # Create table demo_table if it dosen't exist.
     table_name = 'demo_table'
@@ -32,12 +33,15 @@ def main():
         }
 
         milvus.create_table(param)
+        print('Creating table {}\n'.format(table_name))
 
     # Show tables in Milvus server
     _, tables = milvus.show_tables()
+    print('Showing tables: {}\n'.format(tables))
 
     # Describe demo_table
     _, table = milvus.describe_table(table_name)
+    print('Describing table {}: {}\n'.format(table_name, table))
 
     # 10 vectors with 16 dimension
     vectors = [
@@ -55,13 +59,17 @@ def main():
 
     # Insert vectors into demo_table
     status, ids = milvus.add_vectors(table_name=table_name, records=vectors)
+    print('Adding vectors into table {}\n'.format(table_name))
+    time.sleep(1)
 
     # Get demo_table row count
     status, result = milvus.get_table_row_count(table_name)
+    print('Row counts of table {}: {}\n'.format(table_name, result))
 
     # Wait for 6 seconds, since Milvus server persist vector data every 5 seconds by default.
     # You can set data persist interval in Milvus config file.
     time.sleep(6)
+    print('Waiting for 6s ...\n')
 
     # Use the 3rd vector for similarity search
     query_vectors = [
@@ -75,17 +83,21 @@ def main():
         'top_k': 1,
     }
     status, results = milvus.search_vectors(**param)
-
+    print('Searching vectors in table {} by the 3rd vector we just added ...\n'.format(table_name))
+    
+    print('Compareing result with the 3rd vector ... \n')
     if results[0][0].score == 100.0 or result[0][0].id == ids[3]:
-        print('Query result is correct')
+        print('Query result is correct\n')
     else:
-        print('Query result isn\'t correct')
+        print('Query result isn\'t correct\n')
 
     # Delete demo_table
     status = milvus.delete_table(table_name)
+    print('Deleting table {} ...\n'.format(table_name))
 
     # Disconnect from Milvus
     status = milvus.disconnect()
+    print('Disconnecting with the server ...\n')
 
 
 if __name__ == '__main__':
