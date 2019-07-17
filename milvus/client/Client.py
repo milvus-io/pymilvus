@@ -229,7 +229,7 @@ class Milvus(ConnectIntf):
 
                 `tcp://127.0.0.1:19530`
 
-        :param timeout: (Optional) connectiong timeout, default timeout is 3s
+        :param timeout: (Optional) connection timeout, default timeout is 3s
 
         :return: Status, indicate if connect is successful
         :rtype: Status
@@ -260,16 +260,10 @@ class Milvus(ConnectIntf):
         :return: if client is connected
         :rtype bool
         """
-        #if not self:
-        #    return False
-        #elif self.status and self.status.OK():
-        #    return True
-        #return False
 
         if not self._tt.isOpen():
             return False
         return True
-
 
     def disconnect(self):
         """
