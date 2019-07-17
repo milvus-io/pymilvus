@@ -598,8 +598,8 @@ class Milvus(ConnectIntf):
 
         query_records = Prepare.records(query_records)
 
-        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
-            raise ParamError('Param top_k should be integer between (0, 10000]!')
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ParamError('Param top_k should be larger than 0!')
 
         if query_ranges:
             query_ranges = Prepare.ranges(query_ranges)
@@ -628,8 +628,8 @@ class Milvus(ConnectIntf):
 
         query_records = Prepare.records(query_records)
 
-        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
-            raise ParamError('Param top_k should be integer between (0, 10000]!')
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ParamError('Param top_k should be larger than 0!')
 
         res = TopKQueryResult()
         file_ids = list(map(int_or_str, file_ids))
