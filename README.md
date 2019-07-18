@@ -1,10 +1,10 @@
+
+# Milvus Python SDK -- pymilvus
+
 [![version](https://img.shields.io/pypi/v/pymilvus.svg?color=blue)](https://pypi.org/project/pymilvus/)
 [![license](https://img.shields.io/hexpm/l/plug.svg?color=green)](https://github.com/milvus-io/pymilvus/blob/master/LICENSE)
 
-# Milvus Python SDK
-
 Using Milvus python sdk for Milvus
-
 Download
 ---
 Pymilvus only supports `python >= 3.4`, is fully tested under 3.4, 3.5, 3.6, 3.7.
@@ -18,6 +18,7 @@ If you are using `milvus-0.3.0`, last version that supports `milvus-0.3.0` is `0
 ```$
 $ pip install pymilvus==0.1.13
 ```
+<span style="color:red">**[Note]** It's NOT recommended to upgrade to higher version if you are still using `milvus-0.3.0`</span>
 
 If you want to upgrade `pymilvus` to newest version
 ```$
