@@ -1,5 +1,6 @@
 import logging
 import sys
+import struct
 
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
@@ -386,7 +387,7 @@ class Milvus(ConnectIntf):
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
         with self.mutex:
-            return self._search_vectors(table_name, top_k, query_records, query_ranges)
+            return self._search_vectors_bin(table_name, top_k, query_records, query_ranges)
 
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         """
@@ -589,6 +590,48 @@ class Milvus(ConnectIntf):
         except ttypes.Exception as e:
             LOGGER.error(e)
             return Status(code=e.code, message=e.reason), ids
+
+    def _search_vectors_bin(self, table_name, top_k, query_records, query_ranges=None):
+        if not self.connected():
+            raise NotConnectError('Please Connect to the server first!')
+
+        query_records = Prepare.records(query_records)
+
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ParamError('Param top_k should be larger than 0!')
+
+        if query_ranges:
+            query_ranges = Prepare.ranges(query_ranges)
+
+        res = TopKQueryResult()
+        try:
+            results = self._client.SearchVector2(
+                table_name=table_name,
+                query_record_array=query_records,
+                query_range_array=query_ranges,
+                topk=top_k)
+
+            # deserialize bin array
+            for topks in results:
+                ids = topks.id_array
+                distances = topks.distance_array
+
+                ids = struct.unpack(str(top_k) + 'l', ids)
+                distances = struct.unpack(str(top_k) + 'd', distances)
+
+                qr = [QueryResult(ids[i], distances[i]) for i in range(top_k)]
+                assert len(qr) == top_k
+
+                res.append(qr)
+            return Status(Status.SUCCESS, message='Search Vectors successfully!'), res
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason), res
+
+
 
     def _search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         if not self.connected():
