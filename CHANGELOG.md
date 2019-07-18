@@ -22,6 +22,7 @@
 - \#53 ISSUE: **[MS-165 ~ MS-170]** fixed default ip and port wrong bug
 - \#59 ISSUE: **[MS-182]** fix query ranges param not control bug
 - \#60 ISSUE: **[MS-185]** fix connection no timeout bug 
+- \#69 ISSUE: **[MS-243]** fixed
 ### Improvement
 ---
 - \#10 ISSUE: Update examples
@@ -31,6 +32,7 @@
 - \#38 ISSUE: Update thrift score to distance
 - \#45, \#47 ISSUE:  Update AdvancedExample
 - \#51 ISSUE: Brute force thread_safe for sdk
+- \#71 ISSUE: Update thrift api, search vectors results are binaries
 ### New Feature
 ---
 - \#3
@@ -62,3 +64,4 @@
 - \#1 Build Repository
 
 - \#2 Add CHANGELOG.md and LICENSE, update setup.py
+- \#70 ISSUE: **[MS-246]** **[MS-247]**, update README and examples

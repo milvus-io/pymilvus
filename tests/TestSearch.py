@@ -7,7 +7,7 @@ from pprint import pprint
 import logging
 from factorys import *
 LOGGER = logging.getLogger(__name__)
-
+from temp import gen_vectors
 #_HOST = 'localhost'
 #_PORT = '19530'
 
@@ -44,7 +44,7 @@ class TestSearch:
 
 def main():
     milvus = Milvus()
-    milvus.connect()
+    milvus.connect(host='localhost', port='19530')
     #
     # table_name = 'test_search_in_file'
     # dimension = 256
@@ -74,7 +74,7 @@ def main():
         'table_name': table_name,
         'query_records': vectors,
         'top_k': 5,
-        'query_ranges': ranges
+        #'query_ranges': ranges
     }
     status, result = milvus.search_vectors(**param)
     if status.OK():

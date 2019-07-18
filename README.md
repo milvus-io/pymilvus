@@ -1,10 +1,10 @@
+
+# Milvus Python SDK -- pymilvus
+
 [![version](https://img.shields.io/pypi/v/pymilvus.svg?color=blue)](https://pypi.org/project/pymilvus/)
 [![license](https://img.shields.io/hexpm/l/plug.svg?color=green)](https://github.com/milvus-io/pymilvus/blob/master/LICENSE)
 
-# Milvus Python SDK
-
 Using Milvus python sdk for Milvus
-
 Download
 ---
 Pymilvus only supports `python >= 3.4`, is fully tested under 3.4, 3.5, 3.6, 3.7.
@@ -14,8 +14,13 @@ Pymilvus can be downloaded using `pip`. If no use, try `pip3`
 ```$
 $ pip install pymilvus
 ```
+If you are using `milvus-0.3.0`, last version that supports `milvus-0.3.0` is `0.1.13`, you can download by:
+```$
+$ pip install pymilvus==0.1.13
+```
+<span style="color:red">**[Note]** It's NOT recommended to upgrade to higher version if you are still using `milvus-0.3.0`</span>
 
-Upgrade to newest version
+If you want to upgrade `pymilvus` to newest version
 ```$
 $ pip install --upgrade pymilvus
 ```
@@ -39,7 +44,7 @@ Once successfully connected, you can get the version of server
 
 ```python
 >>> milvus.server_version()
-(Status(code=0, message='Success'), 0.3.0)  # this is example version, the real version may vary
+(Status(code=0, message='Success'), 0.3.1)  # this is example version, the real version may vary
 ```
 ---
 
@@ -50,7 +55,7 @@ First set param
 ```python
 >>> param = {'table_name':'test01', 'dimension':256, 'index_type':IndexType.FLAT, 'store_raw_vector':False}
 ```
-Then create `table`
+Then `create table`
 ```python
 >>> milvus.create_table(param)
 Status(message='Table test01 created!', code=0)
@@ -130,4 +135,4 @@ $ sphinx-build -b html doc/en/ doc/en/build
 ```
 
 
-If you encounter any problems or bugs, please add new issues
+If you encounter any problems or bugs, please open new issues

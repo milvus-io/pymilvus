@@ -1,5 +1,6 @@
 import logging
 import sys
+import struct
 
 from thrift.transport import TSocket
 from thrift.transport import TTransport, TZlibTransport
@@ -34,7 +35,7 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 
-__version__ = '0.1.23'
+__version__ = '0.1.24'
 __NAME__ = 'pymilvus'
 
 
@@ -161,8 +162,8 @@ class Milvus(ConnectIntf):
         self._client = None
         self.mutex = Lock()
 
-    def __repr__(self):
-        return '{}'.format(self.status)
+    def __str__(self):
+        return '<Milvus: {}>'.format(self.status)
 
     def set_client(self, host=None, port=None, uri=None):
 
@@ -229,7 +230,7 @@ class Milvus(ConnectIntf):
 
                 `tcp://127.0.0.1:19530`
 
-        :param timeout: (Optional) connectiong timeout, default timeout is 3s
+        :param timeout: (Optional) connection timeout, default timeout is 3s
 
         :return: Status, indicate if connect is successful
         :rtype: Status
@@ -252,7 +253,6 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             raise NotConnectError('Connection failed')
 
-    @property
     def connected(self):
         """
         Check if client is connected to the server
@@ -260,11 +260,9 @@ class Milvus(ConnectIntf):
         :return: if client is connected
         :rtype bool
         """
-        if not self:
+        if self._tt is None or not self._tt.isOpen():
             return False
-        elif self.status and self.status.OK():
-            return True
-        return False
+        return True
 
     def disconnect(self):
         """
@@ -274,11 +272,11 @@ class Milvus(ConnectIntf):
         :rtype: Status
         """
 
-        if not self._transport or not self.connected:
+        if not self.connected():
             raise DisconnectNotConnectedClientError('Disconnect not connected client!')
 
         try:
-            self._transport.close()
+            self._tt.close()
             self.status = None
 
         except TTransport.TTransportException as e:
@@ -389,7 +387,7 @@ class Milvus(ConnectIntf):
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
         with self.mutex:
-            return self._search_vectors(table_name, top_k, query_records, query_ranges)
+            return self._search_vectors_bin(table_name, top_k, query_records, query_ranges)
 
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         """
@@ -533,7 +531,7 @@ class Milvus(ConnectIntf):
             return self._server_status(cmd)
 
     def _create_table(self, param):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         param = Prepare.table_schema(param)
@@ -549,7 +547,7 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason)
 
     def _delete_table(self, table_name):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         try:
@@ -563,7 +561,7 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason)
 
     def _build_index(self, table_name):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         try:
@@ -577,7 +575,7 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason)
 
     def _add_vectors(self, table_name, records):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         records = Prepare.records(records)
@@ -593,14 +591,58 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=e.code, message=e.reason), ids
 
-    def _search_vectors(self, table_name, top_k, query_records, query_ranges=None):
-        if not self.connected:
+    def _search_vectors_bin(self, table_name, top_k, query_records, query_ranges=None):
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         query_records = Prepare.records(query_records)
 
-        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
-            raise ParamError('Param top_k should be integer between (0, 10000]!')
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ParamError('Param top_k should be larger than 0!')
+
+        if query_ranges:
+            query_ranges = Prepare.ranges(query_ranges)
+
+        res = TopKQueryResult()
+        try:
+            results = self._client.SearchVector2(
+                table_name=table_name,
+                query_record_array=query_records,
+                query_range_array=query_ranges,
+                topk=top_k)
+
+            # deserialize bin array
+            for topks in results:
+                ids = topks.id_array
+                distances = topks.distance_array
+                count = len(ids) // 8
+                assert count == len(distances) // 8
+
+                ids = struct.unpack(str(count) + 'l', ids)
+                distances = struct.unpack(str(count) + 'd', distances)
+
+                qr = [QueryResult(ids[i], distances[i]) for i in range(count)]
+                assert len(qr) == count
+
+                res.append(qr)
+            return Status(Status.SUCCESS, message='Search Vectors successfully!'), res
+        except TTransport.TTransportException as e:
+            LOGGER.error(e)
+            raise NotConnectError('Please Connect to the server first')
+        except ttypes.Exception as e:
+            LOGGER.error(e)
+            return Status(code=e.code, message=e.reason), res
+
+
+
+    def _search_vectors(self, table_name, top_k, query_records, query_ranges=None):
+        if not self.connected():
+            raise NotConnectError('Please Connect to the server first!')
+
+        query_records = Prepare.records(query_records)
+
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ParamError('Param top_k should be larger than 0!')
 
         if query_ranges:
             query_ranges = Prepare.ranges(query_ranges)
@@ -624,13 +666,13 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason), res
 
     def _search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         query_records = Prepare.records(query_records)
 
-        if not isinstance(top_k, int) or top_k <= 0 or top_k > 10000:
-            raise ParamError('Param top_k should be integer between (0, 10000]!')
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ParamError('Param top_k should be larger than 0!')
 
         res = TopKQueryResult()
         file_ids = list(map(int_or_str, file_ids))
@@ -652,7 +694,7 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason), res
 
     def _describe_table(self, table_name):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         table = ''
@@ -670,7 +712,7 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason), table
 
     def _has_table(self, table_name):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         has_table = False
@@ -685,7 +727,7 @@ class Milvus(ConnectIntf):
         # LOGGER.error(e)
 
     def _show_tables(self):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         tables = []
@@ -701,7 +743,7 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason), tables
 
     def _get_table_row_count(self, table_name):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
 
         count = 0
@@ -717,7 +759,7 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason), count
 
     def _server_version(self):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('You have to connect first')
         server_version = ''
         try:
@@ -731,7 +773,7 @@ class Milvus(ConnectIntf):
             return Status(code=e.code, message=e.reason), server_version
 
     def _server_status(self, cmd=None):
-        if not self.connected:
+        if not self.connected():
             raise NotConnectError('You have to connect first')
 
         result = 'OK'
