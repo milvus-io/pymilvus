@@ -3,6 +3,7 @@ import pytest
 import mock
 import faker
 import random
+import struct
 import sys
 from faker.providers import BaseProvider
 from thrift.transport.TSocket import TSocket
@@ -18,6 +19,20 @@ from milvus.client.Exceptions import (
 from milvus.thrift import ttypes, MilvusService
 
 LOGGER = logging.getLogger(__name__)
+
+
+def gen_one_binary(topk):
+    ids = [random.randrange(10000000, 99999999) for _ in range(topk)]
+    distances = [random.random() for _ in range(topk)]
+    return ttypes.TopKQueryBinResult(struct.pack(str(topk) + 'l', *ids), struct.pack(str(topk) + 'd', *distances))
+
+
+def gen_nq_binaries(nq, topk):
+    return [gen_one_binary(topk) for _ in range(nq)]
+
+
+def fake_query_bin_result(nq, topk):
+    return gen_nq_binaries(nq, topk)
 
 
 class FakerProvider(BaseProvider):
@@ -301,28 +316,32 @@ class TestVector:
             assert res == Status.CONNECT_FAILED
 
     @mock.patch.object(Milvus, 'connected')
-    @mock.patch.object(MilvusService.Client, 'SearchVector')
-    def test_search_vector(self, SearchVector, connected, client):
-        SearchVector.return_value = [ttypes.TopKQueryResult([ttypes.QueryResult(111, 111)])]
+    @mock.patch.object(MilvusService.Client, 'SearchVector2')
+    def test_search_vector(self, SearchVector2, connected, client):
+        topk = random.randint(1, 10)
+        query_records = records_factory(256)
+        SearchVector2.return_value = fake_query_bin_result(1, topk)
         connected.return_value = True
         param = {
             'table_name': fake.table_name(),
-            'query_records': records_factory(256),
-            'top_k': random.randint(1, 10)
+            'query_records': query_records,
+            'top_k': topk
         }
         res, results = client.search_vectors(**param)
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
 
     @mock.patch.object(Milvus, 'connected')
-    @mock.patch.object(MilvusService.Client, 'SearchVector')
-    def test_search_vector_with_range(self, SearchVector, connected, client):
-        SearchVector.return_value = [ttypes.TopKQueryResult([ttypes.QueryResult(111, 111)])]
+    @mock.patch.object(MilvusService.Client, 'SearchVector2')
+    def test_search_vector_with_range(self, SearchVector2, connected, client):
+        topk = random.randint(1, 10)
+        query_records = records_factory(256)
+        SearchVector2.return_value = fake_query_bin_result(1, topk)
         connected.return_value = True
         param = {
             'table_name': fake.table_name(),
-            'query_records': records_factory(256),
-            'top_k': random.randint(1, 10),
+            'query_records': query_records,
+            'top_k': topk,
             'query_ranges': query_ranges_factory()
 
         }
