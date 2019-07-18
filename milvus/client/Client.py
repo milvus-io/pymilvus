@@ -615,12 +615,14 @@ class Milvus(ConnectIntf):
             for topks in results:
                 ids = topks.id_array
                 distances = topks.distance_array
+                count = len(ids) // 8
+                assert count == len(distances) // 8
 
-                ids = struct.unpack(str(top_k) + 'l', ids)
-                distances = struct.unpack(str(top_k) + 'd', distances)
+                ids = struct.unpack(str(count) + 'l', ids)
+                distances = struct.unpack(str(count) + 'd', distances)
 
-                qr = [QueryResult(ids[i], distances[i]) for i in range(top_k)]
-                assert len(qr) == top_k
+                qr = [QueryResult(ids[i], distances[i]) for i in range(count)]
+                assert len(qr) == count
 
                 res.append(qr)
             return Status(Status.SUCCESS, message='Search Vectors successfully!'), res
