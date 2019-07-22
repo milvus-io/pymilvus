@@ -11,10 +11,12 @@ def main():
     NUM = 10000
     DIM = 256
 
-    if sys.argv[1:2] == '-n':
-        NUM = int(sys.argv[2:])
-    if sys.argv[3:4] == '-d':
-        DIM = int(sys.argv[4:])
+    if len(sys.argv) <=3:
+        if sys.argv[1] == '-n':
+            NUM = int(sys.argv[2])
+    elif len(sys.argv) <= 5:
+        if sys.argv[3] == '-d':
+            DIM = int(sys.argv[4])
 
 
     table_name = 'TEST'
