@@ -18,15 +18,15 @@ _sym_db = _symbol_database.Default()
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='status.proto',
-  package='milvus',
+  package='milvus.grpc',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x0cstatus.proto\x12\x06milvus\"?\n\x06Status\x12%\n\nerror_code\x18\x01 \x01(\x0e\x32\x11.milvus.ErrorCode\x12\x0e\n\x06reason\x18\x02 \x01(\t*\xec\x03\n\tErrorCode\x12\x0b\n\x07SUCCESS\x10\x00\x12\x14\n\x10UNEXPECTED_ERROR\x10\x01\x12\x12\n\x0e\x43ONNECT_FAILED\x10\x02\x12\x15\n\x11PERMISSION_DENIED\x10\x03\x12\x14\n\x10TABLE_NOT_EXISTS\x10\x04\x12\x14\n\x10ILLEGAL_ARGUMENT\x10\x05\x12\x11\n\rILLEGAL_RANGE\x10\x06\x12\x15\n\x11ILLEGAL_DIMENSION\x10\x07\x12\x16\n\x12ILLEGAL_INDEX_TYPE\x10\x08\x12\x16\n\x12ILLEGAL_TABLE_NAME\x10\t\x12\x10\n\x0cILLEGAL_TOPK\x10\n\x12\x15\n\x11ILLEGAL_ROWRECORD\x10\x0b\x12\x15\n\x11ILLEGAL_VECTOR_ID\x10\x0c\x12\x19\n\x15ILLEGAL_SEARCH_RESULT\x10\r\x12\x12\n\x0e\x46ILE_NOT_FOUND\x10\x0e\x12\x0f\n\x0bMETA_FAILED\x10\x0f\x12\x10\n\x0c\x43\x41\x43HE_FAILED\x10\x10\x12\x18\n\x14\x43\x41NNOT_CREATE_FOLDER\x10\x11\x12\x16\n\x12\x43\x41NNOT_CREATE_FILE\x10\x12\x12\x18\n\x14\x43\x41NNOT_DELETE_FOLDER\x10\x13\x12\x16\n\x12\x43\x41NNOT_DELETE_FILE\x10\x14\x12\x15\n\x11\x42UILD_INDEX_ERROR\x10\x15\x62\x06proto3')
+  serialized_pb=_b('\n\x0cstatus.proto\x12\x0bmilvus.grpc\"D\n\x06Status\x12*\n\nerror_code\x18\x01 \x01(\x0e\x32\x16.milvus.grpc.ErrorCode\x12\x0e\n\x06reason\x18\x02 \x01(\t*\xec\x03\n\tErrorCode\x12\x0b\n\x07SUCCESS\x10\x00\x12\x14\n\x10UNEXPECTED_ERROR\x10\x01\x12\x12\n\x0e\x43ONNECT_FAILED\x10\x02\x12\x15\n\x11PERMISSION_DENIED\x10\x03\x12\x14\n\x10TABLE_NOT_EXISTS\x10\x04\x12\x14\n\x10ILLEGAL_ARGUMENT\x10\x05\x12\x11\n\rILLEGAL_RANGE\x10\x06\x12\x15\n\x11ILLEGAL_DIMENSION\x10\x07\x12\x16\n\x12ILLEGAL_INDEX_TYPE\x10\x08\x12\x16\n\x12ILLEGAL_TABLE_NAME\x10\t\x12\x10\n\x0cILLEGAL_TOPK\x10\n\x12\x15\n\x11ILLEGAL_ROWRECORD\x10\x0b\x12\x15\n\x11ILLEGAL_VECTOR_ID\x10\x0c\x12\x19\n\x15ILLEGAL_SEARCH_RESULT\x10\r\x12\x12\n\x0e\x46ILE_NOT_FOUND\x10\x0e\x12\x0f\n\x0bMETA_FAILED\x10\x0f\x12\x10\n\x0c\x43\x41\x43HE_FAILED\x10\x10\x12\x18\n\x14\x43\x41NNOT_CREATE_FOLDER\x10\x11\x12\x16\n\x12\x43\x41NNOT_CREATE_FILE\x10\x12\x12\x18\n\x14\x43\x41NNOT_DELETE_FOLDER\x10\x13\x12\x16\n\x12\x43\x41NNOT_DELETE_FILE\x10\x14\x12\x15\n\x11\x42UILD_INDEX_ERROR\x10\x15\x62\x06proto3')
 )
 
 _ERRORCODE = _descriptor.EnumDescriptor(
   name='ErrorCode',
-  full_name='milvus.ErrorCode',
+  full_name='milvus.grpc.ErrorCode',
   filename=None,
   file=DESCRIPTOR,
   values=[
@@ -121,8 +121,8 @@ _ERRORCODE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=90,
-  serialized_end=582,
+  serialized_start=100,
+  serialized_end=592,
 )
 _sym_db.RegisterEnumDescriptor(_ERRORCODE)
 
@@ -154,20 +154,20 @@ BUILD_INDEX_ERROR = 21
 
 _STATUS = _descriptor.Descriptor(
   name='Status',
-  full_name='milvus.Status',
+  full_name='milvus.grpc.Status',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='error_code', full_name='milvus.Status.error_code', index=0,
+      name='error_code', full_name='milvus.grpc.Status.error_code', index=0,
       number=1, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='reason', full_name='milvus.Status.reason', index=1,
+      name='reason', full_name='milvus.grpc.Status.reason', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -185,8 +185,8 @@ _STATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=24,
-  serialized_end=87,
+  serialized_start=29,
+  serialized_end=97,
 )
 
 _STATUS.fields_by_name['error_code'].enum_type = _ERRORCODE
@@ -197,7 +197,7 @@ _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 Status = _reflection.GeneratedProtocolMessageType('Status', (_message.Message,), {
   'DESCRIPTOR' : _STATUS,
   '__module__' : 'status_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.Status)
+  # @@protoc_insertion_point(class_scope:milvus.grpc.Status)
   })
 _sym_db.RegisterMessage(Status)
 

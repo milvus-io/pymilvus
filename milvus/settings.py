@@ -9,6 +9,8 @@ class DefaultConfig:
     THRIFTCLIENT_ZLIB = False
     THRIFTCLIENT_FRAMED = False
 
+    GRPC_URI = 'tcp://127.0.0.1:19530'
+
 
 # logging
 COLORS = {
