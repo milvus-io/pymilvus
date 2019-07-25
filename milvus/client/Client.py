@@ -700,6 +700,9 @@ class Milvus(ConnectIntf):
         table = ''
         try:
             table = self._client.DescribeTable(table_name)
+            table = TableSchema(table_name=table.table_name, dimension=table.dimension,
+                                index_type=IndexType(table.index_type), store_raw_vector=table.store_raw_vector
+                    )
             return Status(message='Describe table successfully!'), table
         except TTransport.TTransportException as e:
             LOGGER.error(e)

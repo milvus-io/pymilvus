@@ -10,6 +10,7 @@ from thrift.transport.TSocket import TSocket
 from thrift.transport import TTransport
 
 sys.path.append('.')
+from milvus.client.Abstract import TableSchema
 from milvus.client.Client import Milvus, IndexType, Status, TopKQueryResult, Prepare
 from milvus.client.Exceptions import (
     NotConnectError,
@@ -419,7 +420,7 @@ class TestVector:
         table_name = fake.table_name()
         res, table_schema = client.describe_table(table_name)
         assert res.OK()
-        assert isinstance(table_schema, ttypes.TableSchema)
+        assert isinstance(table_schema, TableSchema)
 
     def test_false_decribe_table(self, client):
         table_name = fake.table_name()

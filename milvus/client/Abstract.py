@@ -6,12 +6,26 @@ from milvus.client.Exceptions import (
     ParamError
 )
 
+_code_to_name = {
+        '0': 'INVALID',
+        '1': 'FLAT',
+        '2': 'IVFLAT',
+        '3': 'IVF_SQ8'
+        }
+
 
 class IndexType(IntEnum):
     INVALID = 0
     FLAT = 1
     IVFLAT = 2
     IVF_SQ8 = 3
+
+    def __repr__(self):
+
+        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+
+    def __str__(self):
+        return self._name_
 
 
 class TableSchema(object):
@@ -24,7 +38,7 @@ class TableSchema(object):
     :type  index_type: IndexType
     :param index_type: (Required) index type, default = IndexType.INVALID
 
-        `IndexType`: 0-invalid, 1-flat, 2-ivflat
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8
 
     :type  dimension: int64
     :param dimension: (Required) dimension of vector
