@@ -6,13 +6,6 @@ from milvus.client.Exceptions import (
     ParamError
 )
 
-_code_to_name = {
-        '0': 'INVALID',
-        '1': 'FLAT',
-        '2': 'IVFLAT',
-        '3': 'IVF_SQ8'
-        }
-
 
 class IndexType(IntEnum):
     INVALID = 0
