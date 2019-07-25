@@ -33,6 +33,8 @@
 - \#45, \#47 ISSUE:  Update AdvancedExample
 - \#51 ISSUE: Brute force thread_safe for sdk
 - \#71 ISSUE: Update thrift api, search vectors results are binaries
+- \#73 ISSUE: Change table schema print format
+- \#74 ISSUE: Add a new attribute server_address
 ### New Feature
 ---
 - \#3

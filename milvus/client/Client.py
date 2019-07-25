@@ -160,6 +160,7 @@ class Milvus(ConnectIntf):
         self._transport = None
         self._tt = None
         self._client = None
+        self.server_address = None
         self.mutex = Lock()
 
     def __str__(self):
@@ -189,6 +190,7 @@ class Milvus(ConnectIntf):
             port = port or 19530
 
         self._transport = TSocket.TSocket(host, port)
+        self.server_address = str(host) + ':' + str(port)
 
         if config.THRIFTCLIENT_BUFFERED:
             self._tt = TTransport.TBufferedTransport(self._transport)

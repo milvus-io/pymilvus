@@ -94,6 +94,7 @@ class TestConnection:
         cnn = Milvus()
 
         cnn.connect(**self.param)
+        assert cnn.server_address == 'localhost:9898'
         assert cnn.status.OK
 
         _ = cnn.connect(**self.param)
