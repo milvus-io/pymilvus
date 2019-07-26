@@ -246,18 +246,23 @@ class GrpcMilvus(ConnectIntf):
 
         self._channel = grpc.insecure_channel(self._uri)
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        self.status = Status(message='Successfully connected!')
         
         
     def connected(self):
         # TODO
         #self._channel.subscribe(on_connectivity_change, try_to_connect=True)
+        if not self._stub or not self.status or not self.status.OK():
+            return False
+        else:
+            return True
 
-
-        pass
 
     def disconnect(self):
+        if not self.connected():
+            raise DisconnectNotConnectedClientError('Please connect to the server first!')
         self._channel.close()
-        pass
+        self.status = None
 
     def create_table(self, param):
         """Create table
@@ -275,6 +280,9 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         table_schema = Prepare.table_schema(param)
         status = self._stub.CreateTable(table_schema)
         if status.error_code == 0:
@@ -295,6 +303,9 @@ class GrpcMilvus(ConnectIntf):
             bool, if given table_name exists
 
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         table_name = Prepare.table_name(table_name)
 
         reply = self._stub.HasTable(table_name)
@@ -311,6 +322,9 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         table_name = Prepare.table_name(table_name)
         status = self._stub.DropTable(table_name)
 
@@ -330,6 +344,9 @@ class GrpcMilvus(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         table_name = Prepare.table_name(table_name)
         status = self._stub.BuildIndex(table_name)
         if status.error_code == 0:
@@ -356,6 +373,9 @@ class GrpcMilvus(ConnectIntf):
             ids: list of id, after inserted every vector is given a id
         :rtype: (Status, list(int))
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         insert_infos = Prepare.insert_infos(table_name, records)
         
         vertor_ids = self._stub.InsertVector(insert_infos)
@@ -399,6 +419,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         infos = Prepare.search_vector_infos(
                 table_name, query_records, query_ranges, top_k
         )
@@ -412,8 +435,6 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Search vectors successfully!'), results
 
-
-    # TODO
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         """
         Query vectors in a table, in specified files
@@ -450,6 +471,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         infos = Prepare.search_vector_in_files_infos(
                 table_name, query_records, top_k, file_ids
         )
@@ -476,6 +500,9 @@ class GrpcMilvus(ConnectIntf):
             table_schema: return when operation is successful
         :rtype: (Status, TableSchema)
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         table_name = Prepare.table_name(table_name)
 
         ts = self._stub.DescribeTable(table_name)
@@ -507,6 +534,9 @@ class GrpcMilvus(ConnectIntf):
         :rtype:
             (Status, list[str])
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         # TODO how to status errors
         cmd  = grpc_types.Command(cmd='balala')
         try:
@@ -527,6 +557,9 @@ class GrpcMilvus(ConnectIntf):
 
             res: int, table row count
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         table_name = Prepare.table_name(table_name)
 
         trc = self._stub.GetTableRowCount(table_name)
@@ -560,6 +593,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         cmd  = grpc_types.Command(cmd='version')
         ss = self._stub.Ping(cmd)
         if ss.status.error_code == 0:
@@ -578,6 +614,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         if not cmd:
             cmd = 'OK'
         elif cmd == 'version':

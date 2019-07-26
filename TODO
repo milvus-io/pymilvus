@@ -1,8 +1,10 @@
-b. add factories for test
-f. sdk reconnect, disconnection can be caused by:
-    * Transient problems with the network
-    * Remote service restarted
-    * Heavy load on either the remote or the local machine causes a timeout
-d. dataclass 优化
+a. dataclass 优化
     * QueryResult
     * TopKQueryResult
+b. GRPC
+	* catch grpcError
+	* unittest
+	* channel.subscribe, connected
+	* Version
+	* Default Client
+		- Client.Milvus -> Client.ThriftMilvus
