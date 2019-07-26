@@ -5,6 +5,7 @@ __version__ = '0.1.25'
 
 
 import grpc
+import logging
 
 from .Abstract import (
     ConnectIntf,
@@ -15,12 +16,16 @@ from .Abstract import (
     QueryResult,
     TopKQueryResult
 )
+from .utils import *
 from .Status import Status
 from .Exceptions import *
 from milvus.settings import DefaultConfig as config
 
 from milvus.grpc_gen import milvus_pb2_grpc, status_pb2_grpc, status_pb2
 from milvus.grpc_gen import milvus_pb2 as grpc_types 
+from urllib.parse import urlparse
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Prepare(object):
@@ -28,7 +33,7 @@ class Prepare(object):
     @classmethod
     def table_name(cls, table_name):
         if not isinstance(table_name, grpc_types.TableName):
-            status = grpc_types.status__pb2.Status(error_code=0, reason='')
+            status = status_pb2.Status(error_code=0, reason='Client')
             return grpc_types.TableName(status=status, table_name=table_name)
         else:
             return table_name
@@ -121,7 +126,7 @@ class Prepare(object):
 
         """
         temp = vector_data if isinstance(vector_data, grpc_types.RowRecord) \
-            else grpc_types.RowRecord().vector_data.extend(vector_data)
+            else grpc_types.RowRecord(vector_data=vector_data)
         return temp
 
     @classmethod
@@ -142,19 +147,20 @@ class Prepare(object):
     @classmethod
     def insert_infos(cls, table_name, vectors):
 
+        table_name = Prepare.table_name(table_name)
+
         records = Prepare.records(vectors)
 
-        return grpc_types.SearchVectorInfos(
-                table_name=table_name,
+        return grpc_types.InsertInfos(
+                table_name=table_name.table_name,
                 row_record_array=records
         )
 
     @classmethod
     def search_vector_infos(cls, table_name, query_records, query_ranges, topk):
         query_records = Prepare.records(query_records)
-        query_ranges = Prepare.ranges(query_ranges)
+        query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
 
-        # TODO test query range default None
         return grpc_types.SearchVectorInfos(
                 table_name=table_name,
                 query_record_array=query_records,
@@ -162,12 +168,25 @@ class Prepare(object):
                 topk=topk
         )
 
+    @classmethod
+    def search_vector_in_files_infos(cls, table_name, query_records, topk, ids):
+        search_infos = Preare.search_vector_infos(table_name, query_records, None, topk)
+        return grpc_types.SearchVectorInFilesInfos(
+                    file_id_array=ids,
+                    search_vector_infos=search_infos
+        )
+
+
+def on_connectivity_change(value):
+    print("Connection changed: %s" % value)
+    return
 
 class GrpcMilvus(ConnectIntf):
     def __init__(self):
         self._channel = None
         self._stub = None
         self._uri = None
+        self._server_address = None
         self.status = None
 
     def __str__(self):
@@ -196,7 +215,8 @@ class GrpcMilvus(ConnectIntf):
             host = host
             port = port or '19530'
 
-        self._uri = host + ':' + port
+        self._uri = str(host) + ':' + str(port)
+        self._server_address = self._uri
 
 
 
@@ -224,14 +244,19 @@ class GrpcMilvus(ConnectIntf):
         if self._uri is None:
             self.set_uri(host, port, uri)
 
-        self.channel = grpc.insecure_channel(target)
-        self.stub = milvus_pb2_grpc.MilvusServiceStub(self.channel)
+        self._channel = grpc.insecure_channel(self._uri)
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
         
         
     def connected(self):
+        # TODO
+        #self._channel.subscribe(on_connectivity_change, try_to_connect=True)
+
+
         pass
 
     def disconnect(self):
+        self._channel.close()
         pass
 
     def create_table(self, param):
@@ -251,10 +276,12 @@ class GrpcMilvus(ConnectIntf):
         :rtype: Status
         """
         table_schema = Prepare.table_schema(param)
-        # TODO status and exceptions
         status = self._stub.CreateTable(table_schema)
         if status.error_code == 0:
             return Status(message='Create table successfully!')
+        else:
+            LOGGER.error(status)
+            return Status(code=status.error_code, message=status.reason)
 
     def has_table(self, table_name):
         """
@@ -269,10 +296,10 @@ class GrpcMilvus(ConnectIntf):
 
         """
         table_name = Prepare.table_name(table_name)
+
         reply = self._stub.HasTable(table_name)
         if reply.status.error_code == 0:
             return reply.bool_reply
-        pass
 
     def delete_table(self, table_name):
         """
@@ -286,9 +313,11 @@ class GrpcMilvus(ConnectIntf):
         """
         table_name = Prepare.table_name(table_name)
         status = self._stub.DropTable(table_name)
+
         if status.error_code == 0:
             return Status(message='Delete table successfully!')
-        pass
+        else:
+            return Status(code=status.error_code, message=status.reason)
 
     def build_index(self, table_name):
         """
@@ -305,7 +334,8 @@ class GrpcMilvus(ConnectIntf):
         status = self._stub.BuildIndex(table_name)
         if status.error_code == 0:
             return Status(message='Build index successfully!')
-        pass
+        else:
+            return Status(code=status.error_code, message=status.reason)
 
     def add_vectors(self, table_name, records):
         """
@@ -324,15 +354,16 @@ class GrpcMilvus(ConnectIntf):
         :returns:
             Status: indicate if vectors inserted successfully
             ids: list of id, after inserted every vector is given a id
-        :rtype: (Status, list(str))
+        :rtype: (Status, list(int))
         """
         insert_infos = Prepare.insert_infos(table_name, records)
         
         vertor_ids = self._stub.InsertVector(insert_infos)
         if vertor_ids.status.error_code == 0:
-            return vertor_ids.vertor_id_array
+            return Status(message='Add vectors successfully!'), vertor_ids.vector_id_array
+        else:
+            return Status(code=vector_ids.status.code, message=vector_ids.status.reason)
 
-        pass
 
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         """
@@ -370,12 +401,17 @@ class GrpcMilvus(ConnectIntf):
         """
         infos = Prepare.search_vector_infos(
                 table_name, query_records, query_ranges, top_k
-                )
+        )
 
-        #result = self._stub.SearchVector(infos)
+        results = TopKQueryResult()
+        for topks in self._stub.SearchVector(infos):
+            if topks.status.error_code == 0:
+                results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topks.query_result_arrays])
+            else:
+                return Status(code=topks.status.error_code, message=topks.status.reason), []
 
-        # TODO
-        for k in range self._stub.SearchVector(infos):
+        return Status(message='Search vectors successfully!'), results
+
 
     # TODO
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
@@ -414,7 +450,19 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
-        pass
+        infos = Prepare.search_vector_in_files_infos(
+                table_name, query_records, top_k, file_ids
+        )
+
+        results = TopKQueryResult()
+        for topks in self._stub.SearchVectorInFiles(infos):
+            if topks.status.error_code == 0:
+                results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topks.query_result_arrays])
+            else:
+                return Status(code=topks.status.error_code, message=topks.status.reason), []
+
+        return Status(message='Search vectors successfully!'), results
+
 
     def describe_table(self, table_name):
         """
@@ -428,8 +476,24 @@ class GrpcMilvus(ConnectIntf):
             table_schema: return when operation is successful
         :rtype: (Status, TableSchema)
         """
-        pass
+        table_name = Prepare.table_name(table_name)
 
+        ts = self._stub.DescribeTable(table_name)
+
+        if ts.table_name.status.error_code == 0:
+
+            table = TableSchema(
+                table_name=ts.table_name.table_name,
+                dimension=ts.dimension,
+                index_type=IndexType(ts.index_type),
+                store_raw_vector=ts.store_raw_vector
+            )
+
+            return Status(message='Describe table successfully!'), table
+        else:
+            LOGGER.error(ts.table_name.status)
+            return Status(code=ts.table_name.status.error_code,
+                          message=ts.table_name.status.reason), None
 
     def show_tables(self):
         """
@@ -443,7 +507,13 @@ class GrpcMilvus(ConnectIntf):
         :rtype:
             (Status, list[str])
         """
-        pass
+        # TODO how to status errors
+        cmd  = grpc_types.Command(cmd='balala')
+        try:
+            results = [table.table_name for table in self._stub.ShowTables(cmd)]    
+            return Status(message='Show tables successfully!'), results
+        except Exception as e:
+            return Status(Status.UNEXPECTED_ERROR, message='An unexpected error happens'), None
 
     def get_table_row_count(self, table_name):
         """
@@ -457,7 +527,14 @@ class GrpcMilvus(ConnectIntf):
 
             res: int, table row count
         """
-        pass
+        table_name = Prepare.table_name(table_name)
+
+        trc = self._stub.GetTableRowCount(table_name)
+        if trc.status.error_code == 0:
+            return Status(message='Get table row count successfully!'), trc.table_row_count
+        else:
+            return Status(code=trc.status.error_code, message=trc.status.reason), None
+
 
     def client_version(self):
         """
@@ -483,7 +560,12 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        pass
+        cmd  = grpc_types.Command(cmd='version')
+        ss = self._stub.Ping(cmd)
+        if ss.status.error_code == 0:
+            return Status(message='Success!'), ss.info
+        else:
+            return Status(code=ss.status.error_code, message=ss.status.reason), None
 
     def server_status(self, cmd=None):
         """
@@ -496,5 +578,15 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        pass
-
+        if not cmd:
+            cmd = 'OK'
+        elif cmd == 'version':
+            status, version = self.server_version()
+            return status, version
+        
+        cmd = grpc_types.Command(cmd)
+        ss = self._stub.Ping(cmd)
+        if ss.status.error_code == 0:
+            return Status(message='Success!'), ss.info
+        else:
+            return Status(code=ss.status.error_code, message=ss.status.reason), None
