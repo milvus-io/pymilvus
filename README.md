@@ -64,7 +64,7 @@ Status(message='Table test01 created!', code=0)
 Describe the table we just created
 ```python
 >>> milvus.describe_table('test01')
-(Status(code=0, message='Success!'), TableSchema(table_name='test01',dimension=256, index_type=1, store_raw_vector=False))
+(Status(code=0, message='Success!'), TableSchema(table_name='test01',dimension=256, index_type=<IndexType: FLAT>, store_raw_vector=False))
 ```
 
 ---
