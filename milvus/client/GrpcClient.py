@@ -186,13 +186,13 @@ class GrpcMilvus(ConnectIntf):
         self._channel = None
         self._stub = None
         self._uri = None
-        self._server_address = None
+        self.server_address = None
         self.status = None
 
     def __str__(self):
         return '<Milvus: {}>'.format(self.status)
 
-    def set_uri(self, host=None, port=None, uri=None):
+    def set_channel(self, host=None, port=None, uri=None):
 
         config_uri = urlparse(config.GRPC_URI)
 
@@ -216,7 +216,8 @@ class GrpcMilvus(ConnectIntf):
             port = port or '19530'
 
         self._uri = str(host) + ':' + str(port)
-        self._server_address = self._uri
+        self.server_address = self._uri
+        self._channel = grpc.insecure_channel(self._uri)
 
 
 
@@ -241,28 +242,52 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if connect is successful
         :rtype: Status
         """
-        if self._uri is None:
-            self.set_uri(host, port, uri)
+        if self._channel is None:
+            self.set_channel(host, port, uri)
 
-        self._channel = grpc.insecure_channel(self._uri)
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
-        self.status = Status(message='Successfully connected!')
+        elif self.connected():
+            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
+
+        try:
+            grpc.channel_ready_future(self._channel).result(timeout=timeout//1000)
+        except grpc.FutureTimeoutError as e:
+            raise NotConnectError('Fail connecting to server on {}'.format(self._uri))
+        else:
+            self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+            self.status = Status(message='Successfully connected!')
+            return self.status
         
         
     def connected(self):
-        # TODO
         #self._channel.subscribe(on_connectivity_change, try_to_connect=True)
-        if not self._stub or not self.status or not self.status.OK():
+        if not self._stub or not self.status or not self._channel:
+            return False
+
+        try:
+            grpc.channel_ready_future(self._channel).result(timeout=2)
+        except grpc.FutureTimeoutError:
             return False
         else:
             return True
 
 
     def disconnect(self):
+        """Disconnect with the server and distroy the channel
+
+        """
         if not self.connected():
             raise DisconnectNotConnectedClientError('Please connect to the server first!')
-        self._channel.close()
+        try:
+            self._channel.close()
+        except Exception as e:
+            LOGGER.error(e)
+            return Status(code=Status.CONNECT_FAILED, message='Disconnection failed')
+
         self.status = None
+        self._channel = None
+        self._stub = None
+
+        return Status(message='Disconnect successfully')
 
     def create_table(self, param):
         """Create table

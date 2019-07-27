@@ -1,12 +1,91 @@
 import logging
 import time
-from milvus.client.GrpcClient import Prepare, GrpcMilvus
+from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
 from milvus.client.Abstract import IndexType
 from factorys import *
 
 LOGGER = logging.getLogger(__name__)
 
 dim = 16
+
+class TestConnection:
+    param = {'host': 'localhost', 'port': '19530'}
+
+    def test_true_connect(self):
+        cnn = GrpcMilvus()
+
+        cnn.connect(**self.param)
+        assert cnn.status.OK
+        assert cnn.connected()
+
+        # Repeating connect
+        _ = cnn.connect(**self.param)
+        status = cnn.connect()
+        assert status == Status.CONNECT_FAILED
+
+
+    def test_false_connect(self):
+        cnn = GrpcMilvus()
+        with pytest.raises(NotConnectError):
+            cnn.connect(uri='tcp://127.0.0.1:7987', timeout=100)
+            LOGGER.error(cnn.status)
+            assert not cnn.status.OK()
+
+    def test_uri(self):
+        cnn = GrpcMilvus()
+        cnn.connect(uri='tcp://127.0.0.1:19530')
+        assert cnn.status.OK()
+
+    def test_connect(self):
+        cnn = GrpcMilvus()
+        with pytest.raises(NotConnectError):
+            cnn.connect('126.0.0.2', timeout=100)
+            assert not cnn.status.OK()
+
+            cnn.connect('127.0.0.1', '9999', timeout=100)
+            assert not cnn.status.OK()
+
+            cnn.connect(port='9999', timeout=100)
+            assert not cnn.status.OK()
+
+            cnn.connect(uri='cp://127.0.0.1:19530', timeout=1000)
+            assert not cnn.status.OK()
+
+    def test_connect_timeout(self):
+        cnn = GrpcMilvus()
+        with pytest.raises(NotConnectError):
+            cnn.connect(host='123.0.0.2', port='19530', timeout=1000)
+
+    def test_connected(self):
+        cnn = GrpcMilvus()
+        with pytest.raises(NotConnectError):
+            cnn.connect(host='123.0.0.2', timeout=1000)
+        assert not cnn.connected()
+
+    def test_uri_runtime_error(self):
+        cnn = GrpcMilvus()
+        with pytest.raises(RuntimeError):
+            cnn.connect(uri='http://127.0.0.1:19530')
+
+        cnn.connect()
+        assert cnn.status.OK()
+
+    def test_disconnected(self):
+
+        cnn = GrpcMilvus()
+        cnn.connect(**self.param)
+
+        assert cnn.disconnect().OK()
+        assert not cnn.connected()
+
+        cnn.connect(**self.param)
+        assert cnn.connected()
+
+    def test_disconnected_error(self):
+        cnn = GrpcMilvus()
+        with pytest.raises(DisconnectNotConnectedClientError):
+            cnn.disconnect()
+
 
 class TestPing:
 
@@ -75,6 +154,85 @@ class TestHasTable:
         flag = gcon.has_table(param['table_name'])
         assert flag
 
+
+class TestTable:
+    def test_create_table(self, gcon):
+
+        param = table_schema_factory()
+        param['table_name'] = None
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        res = gcon.create_table(param)
+        assert res.OK()
+
+        param['index_type'] = 'string'
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['dimension'] = 'string'
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = '09998876565'
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['dimension'] = 0
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['dimension'] = 1000000
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['index_type'] = IndexType.INVALID
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['table_name'] = 1234456
+        res = gcon.create_table(param)
+        assert not res.OK()
+
+        param = table_schema_factory()
+        param['index_type'] = IndexType.IVF_SQ8
+        res = gcon.create_table(param)
+        assert res.OK()
+
+    # TODO
+    def test_create_table_connect_failed_status(self):
+        g = GrpcMilvus()
+        g.connect(uri='tcp://127.0.0.1:20202')
+        param = table_schema_factory()
+        with pytest.raises(Exception):
+            res = g.create_table(param)
+            LOGGER.error(g._server_address)
+            assert res == Status.CONNECT_FAILED
+
+    def test_delete_table(self, gcon, gtable):
+        res = gcon.delete_table(gtable)
+        assert res.OK
+        assert not gcon.has_table(gtable)
+
+    def test_false_delete_table(self, gcon):
+        table_name = 'fake_table_name'
+        res = gcon.delete_table(table_name)
+        assert not res.OK()
+
+    def test_has_table(self, gcon, gtable):
+
+        table_name = fake.table_name()
+        result = gcon.has_table(table_name)
+        assert not result
+
+        result = gcon.has_table(gtable)
+        assert result
 
 class TestAddVectors:
     

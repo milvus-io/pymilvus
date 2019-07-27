@@ -2,9 +2,11 @@ a. dataclass 优化
     * QueryResult
     * TopKQueryResult
 b. GRPC
-	* catch grpcError
-	* unittest
-	* channel.subscribe, connected
-	* Version
-	* Default Client
-		- Client.Milvus -> Client.ThriftMilvus
+   ** catch grpcError
+   ** unittest
+    * channel.subscribe
+   ** connected		>> CHECKED	
+   ** timeout per call, will raise a grpc.RpcError with status code DEADLINE_EXCEEDED
+    * Version
+    * Default Client
+        - Client.Milvus -> Client.ThriftMilvus
