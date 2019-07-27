@@ -113,7 +113,7 @@ class Prepare(object):
                 res.append(_range)
         return res
 
-    # TODO
+    # TODO param handlers
     @classmethod
     def row_record(cls, vector_data):
         """
@@ -125,8 +125,11 @@ class Prepare(object):
         :return: RowRecord object
 
         """
-        temp = vector_data if isinstance(vector_data, grpc_types.RowRecord) \
-            else grpc_types.RowRecord(vector_data=vector_data)
+        try:
+            temp = vector_data if isinstance(vector_data, grpc_types.RowRecord) \
+                else grpc_types.RowRecord(vector_data=vector_data)
+        except TypeError as e:
+            raise ParamError(str(e))
         return temp
 
     @classmethod
@@ -182,6 +185,7 @@ def on_connectivity_change(value):
     return
 
 class GrpcMilvus(ConnectIntf):
+    # TODO self._channel.subscribe(on_connectivity_change, try_to_connect=True)
     def __init__(self):
         self._channel = None
         self._stub = None
@@ -220,8 +224,6 @@ class GrpcMilvus(ConnectIntf):
         self._channel = grpc.insecure_channel(self._uri)
 
 
-
-    # TODO timeout, connected, disconnected
     def connect(self, host=None, port=None, uri=None, timeout=3000):
         """
         Connect method should be called before any operations.
@@ -259,7 +261,12 @@ class GrpcMilvus(ConnectIntf):
         
         
     def connected(self):
-        #self._channel.subscribe(on_connectivity_change, try_to_connect=True)
+        """
+        Check if client is connected to the server
+
+        :return: if client is connected
+        :rtype bool
+        """
         if not self._stub or not self.status or not self._channel:
             return False
 
@@ -272,11 +279,20 @@ class GrpcMilvus(ConnectIntf):
 
 
     def disconnect(self):
-        """Disconnect with the server and distroy the channel
-
         """
+        Disconnect with the server and distroy the channel
+
+        :return: Status, indicate if disconnect is successful
+        :rtype: Status
+        """
+        # After closeing, a exception stack trace is printed from a background thread and
+        # no exception is thrown in the main thread, issue is under test and not done yet
+        # checkout https://github.com/grpc/grpc/issues/18995
+        # Also checkout Properly Specify Channel.close Behavior in Python:
+        # https://github.com/grpc/grpc/issues/19235
         if not self.connected():
             raise DisconnectNotConnectedClientError('Please connect to the server first!')
+
         try:
             self._channel.close()
         except Exception as e:
@@ -403,11 +419,12 @@ class GrpcMilvus(ConnectIntf):
 
         insert_infos = Prepare.insert_infos(table_name, records)
         
-        vertor_ids = self._stub.InsertVector(insert_infos)
-        if vertor_ids.status.error_code == 0:
-            return Status(message='Add vectors successfully!'), vertor_ids.vector_id_array
+        vector_ids = self._stub.InsertVector(insert_infos)
+        if vector_ids.status.error_code == 0:
+            ids = list(vector_ids.vector_id_array)
+            return Status(message='Add vectors successfully!'), ids
         else:
-            return Status(code=vector_ids.status.code, message=vector_ids.status.reason)
+            return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
 
 
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):

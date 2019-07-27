@@ -125,8 +125,8 @@ def table_schema_factory():
     return param
 
 
-def records_factory(dimension):
-    return [[random.random() for _ in range(dimension)] for _ in range(20)]
+def records_factory(dimension, nq):
+    return [[random.random() for _ in range(dimension)] for _ in range(nq)]
 
 
 def query_ranges_factory():

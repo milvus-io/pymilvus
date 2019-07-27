@@ -7,6 +7,7 @@ from factorys import *
 LOGGER = logging.getLogger(__name__)
 
 dim = 16
+nq = 20
 
 class TestConnection:
     param = {'host': 'localhost', 'port': '19530'}
@@ -87,6 +88,275 @@ class TestConnection:
             cnn.disconnect()
 
 
+class TestTable:
+
+    def test_create_table(self, gcon):
+
+        param = table_schema_factory()
+        param['table_name'] = None
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        res = gcon.create_table(param)
+        assert res.OK()
+        assert gcon.has_table(param['table_name'])
+
+        param['index_type'] = 'string'
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['dimension'] = 'string'
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = '09998876565'
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['dimension'] = 0
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['dimension'] = 1000000
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['index_type'] = IndexType.INVALID
+        with pytest.raises(ParamError):
+            res = gcon.create_table(param)
+
+        param = table_schema_factory()
+        param['table_name'] = 1234456
+        res = gcon.create_table(param)
+        LOGGER.error(res)
+        assert not res.OK()
+
+        param = table_schema_factory()
+        param['index_type'] = IndexType.IVF_SQ8
+        res = gcon.create_table(param)
+        assert res.OK()
+
+    def test_delete_table(self, gcon):
+        table_name = 'fake_table_name'
+        res = gcon.delete_table(table_name)
+        assert res.OK
+
+    def test_false_delete_table(self, gcon):
+        table_name = 'fake_table_name'
+        res = gcon.delete_table(table_name)
+        assert not res.OK()
+
+    def test_has_table(self, gcon, gtable):
+
+        table_name = fake.table_name()
+        result = gcon.has_table(table_name)
+        assert not result
+
+        result = gcon.has_table(gtable)
+        assert result
+
+
+class TestVector:
+
+    def test_add_vector(self, gcon, gtable):
+
+        param = {
+            'table_name': gtable,
+            'records': records_factory(dim, nq)
+        }
+        res, ids = gcon.add_vectors(**param)
+        assert res.OK()
+        assert isinstance(ids, list)
+        assert len(ids) == 1
+
+        param['records'] = [['string']]
+        with pytest.raises(ParamError):
+            res, ids = gcon.add_vectors(**param)
+
+    def test_add_vector_with_no_right_dimention(self, gcon, gtable):
+        param = {
+            'table_name': gtable,
+            'records': records_factory(dim + 1, nq)
+        }
+
+        res, ids = gcon.add_vectors(**param)
+        assert not res.OK()
+
+    @pytest.mark.skip('Not fixed')
+    def test_add_vector_records_empty_list(self, gcon, gtable):
+        # TODO empty list handling
+        param = {
+            'table_name': gtable,
+            'records': records_factory(dim)
+        }
+        
+        param['records'] = [[]]
+        with pytest.raises(ParamError):
+            res, ids = gcon.add_vectors(**param)
+
+
+
+    def test_false_add_vector(self, gcon):
+        param = {
+            'table_name': fake.table_name(),
+            'records': records_factory(256)
+        }
+        with pytest.raises(NotConnectError):
+            res, ids = gcon.add_vectors(**param)
+            assert res == Status.CONNECT_FAILED
+
+    def test_search_vector(self, gcon):
+        topk = random.randint(1, 10)
+        query_records = records_factory(256)
+        connected.return_value = True
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': query_records,
+            'top_k': topk
+        }
+        res, results = gcon.search_vectors(**param)
+        assert res.OK()
+        assert isinstance(results, (list, TopKQueryResult))
+
+    def test_search_vector_with_range(self, gcon):
+        topk = random.randint(1, 10)
+        query_records = records_factory(256)
+        connected.return_value = True
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': query_records,
+            'top_k': topk,
+            'query_ranges': query_ranges_factory()
+
+        }
+        res, results = gcon.search_vectors(**param)
+        assert res.OK()
+        assert isinstance(results, (list, TopKQueryResult))
+
+    def test_false_vector(self, gcon):
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            'top_k': random.randint(1, 10)
+        }
+        with pytest.raises(NotConnectError):
+            res, results = gcon.search_vectors(**param)
+            assert res == Status.CONNECT_FAILED
+
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            'top_k': 'string'
+        }
+        with pytest.raises(ParamError):
+            res, results = gcon.search_vectors(**param)
+
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            'top_k': 'string'
+        }
+        with pytest.raises(ParamError):
+            res, results = gcon.search_vectors(**param)
+
+        param = {'table_name': fake.table_name(),
+                 'query_records': records_factory(256),
+                 'top_k': random.randint(1, 10),
+                 'query_ranges': ['false_date_format']}
+        with pytest.raises(ParamError):
+            res, results = gcon.search_vectors(**param)
+
+    def test_search_in_files(self, gcon):
+
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            'file_ids': ['a'],
+            'top_k': random.randint(1, 10)
+        }
+        sta, result = gcon.search_vectors_in_files(**param)
+        assert sta.OK()
+
+    def test_false_search_in_files(self, gcon):
+        param = {
+            'table_name': fake.table_name(),
+            'query_records': records_factory(256),
+            'file_ids': ['a'],
+            'top_k': random.randint(1, 10)
+        }
+        with pytest.raises(NotConnectError):
+            sta, results = gcon.search_vectors_in_files(**param)
+            assert sta == Status.CONNECT_FAILED
+
+    def test_describe_table(self, gcon):
+
+        table_name = fake.table_name()
+        res, table_schema = gcon.describe_table(table_name)
+        assert res.OK()
+        assert isinstance(table_schema, TableSchema)
+
+    def test_false_decribe_table(self, gcon):
+        table_name = fake.table_name()
+        with pytest.raises(NotConnectError):
+            res, table_schema = gcon.describe_table(table_name)
+            assert not res.OK()
+            assert not table_schema
+
+    def test_show_tables(self, gcon):
+        res, tables = gcon.show_tables()
+        assert res.OK()
+        assert isinstance(tables, list)
+
+    def test_false_show_tables(self, gcon):
+        with pytest.raises(NotConnectError):
+            res, tables = gcon.show_tables()
+            assert not res.OK()
+            assert not tables
+
+    def test_get_table_row_count(self, gcon):
+        res, count = gcon.get_table_row_count('fake_table')
+        assert res.OK()
+
+    def test_false_get_table_row_count(self, gcon):
+        with pytest.raises(NotConnectError):
+            res, count = gcon.get_table_row_count('fake_table')
+            assert not res.OK()
+            assert not count
+
+    def test_client_version(self, gcon):
+        res = gcon.client_version()
+        assert isinstance(res, str)
+
+    def test_server_status(self, gcon):
+        status, res = gcon.server_status()
+        assert status.OK()
+        assert res == 'OK'
+
+        status, res = gcon.server_status('abc')
+        assert status.OK()
+        assert res == 'OK'
+
+        status, res = gcon.server_status('version')
+        assert status.OK()
+        assert res == '0.0.0'
+
+
+class TestPrepare:
+
+    def test_table_schema(self):
+        param = {
+            'table_name': fake.table_name(),
+            'dimension': random.randint(0, 999),
+            'index_type': IndexType.FLAT,
+            'store_raw_vector': False
+        }
+        res = Prepare.table_schema(param)
+        assert isinstance(res, ttypes.TableSchema)
 class TestPing:
 
     def test_ping_server_version(self):
@@ -154,85 +424,6 @@ class TestHasTable:
         flag = gcon.has_table(param['table_name'])
         assert flag
 
-
-class TestTable:
-    def test_create_table(self, gcon):
-
-        param = table_schema_factory()
-        param['table_name'] = None
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
-        res = gcon.create_table(param)
-        assert res.OK()
-
-        param['index_type'] = 'string'
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
-        param['dimension'] = 'string'
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = '09998876565'
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
-        param['dimension'] = 0
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
-        param['dimension'] = 1000000
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
-        param['index_type'] = IndexType.INVALID
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
-        param['table_name'] = 1234456
-        res = gcon.create_table(param)
-        assert not res.OK()
-
-        param = table_schema_factory()
-        param['index_type'] = IndexType.IVF_SQ8
-        res = gcon.create_table(param)
-        assert res.OK()
-
-    # TODO
-    def test_create_table_connect_failed_status(self):
-        g = GrpcMilvus()
-        g.connect(uri='tcp://127.0.0.1:20202')
-        param = table_schema_factory()
-        with pytest.raises(Exception):
-            res = g.create_table(param)
-            LOGGER.error(g._server_address)
-            assert res == Status.CONNECT_FAILED
-
-    def test_delete_table(self, gcon, gtable):
-        res = gcon.delete_table(gtable)
-        assert res.OK
-        assert not gcon.has_table(gtable)
-
-    def test_false_delete_table(self, gcon):
-        table_name = 'fake_table_name'
-        res = gcon.delete_table(table_name)
-        assert not res.OK()
-
-    def test_has_table(self, gcon, gtable):
-
-        table_name = fake.table_name()
-        result = gcon.has_table(table_name)
-        assert not result
-
-        result = gcon.has_table(gtable)
-        assert result
 
 class TestAddVectors:
     
