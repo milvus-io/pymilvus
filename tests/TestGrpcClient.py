@@ -172,7 +172,7 @@ class TestVector:
         res, ids = gcon.add_vectors(**param)
         assert res.OK()
         assert isinstance(ids, list)
-        assert len(ids) == 1
+        assert len(ids) == nq
 
         param['records'] = [['string']]
         with pytest.raises(ParamError):
@@ -187,48 +187,70 @@ class TestVector:
         res, ids = gcon.add_vectors(**param)
         assert not res.OK()
 
-    @pytest.mark.skip('Not fixed')
     def test_add_vector_records_empty_list(self, gcon, gtable):
-        # TODO empty list handling
         param = {
             'table_name': gtable,
-            'records': records_factory(dim)
+            'records': records_factory(dim, nq)
         }
         
         param['records'] = [[]]
-        with pytest.raises(ParamError):
-            res, ids = gcon.add_vectors(**param)
-
+        res, ids = gcon.add_vectors(**param)
+        assert not res.OK()
 
 
     def test_false_add_vector(self, gcon):
         param = {
             'table_name': fake.table_name(),
-            'records': records_factory(256)
+            'records': records_factory(dim, nq)
         }
-        with pytest.raises(NotConnectError):
-            res, ids = gcon.add_vectors(**param)
-            assert res == Status.CONNECT_FAILED
+        res, ids = gcon.add_vectors(**param)
+        assert not res.OK()
 
-    def test_search_vector(self, gcon):
+
+class TestSearch:
+
+    def test_search_vector_normal(self, gcon, gvector):
         topk = random.randint(1, 10)
-        query_records = records_factory(256)
-        connected.return_value = True
+        query_records = records_factory(dim, nq)
         param = {
-            'table_name': fake.table_name(),
+            'table_name': gvector,
             'query_records': query_records,
             'top_k': topk
         }
         res, results = gcon.search_vectors(**param)
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
+        assert len(results) == nq
+        assert len(results[0]) == topk
 
-    def test_search_vector_with_range(self, gcon):
+    def test_search_vector_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
-        query_records = records_factory(256)
-        connected.return_value = True
+        query_records = records_factory(dim + 1, nq)
         param = {
-            'table_name': fake.table_name(),
+            'table_name': gvector ,
+            'query_records': query_records,
+            'top_k': topk
+        }
+        res, results = gcon.search_vectors(**param)
+        assert not res.OK()
+
+    def test_search_vector_wrong_table_name(self, gcon, gvector):
+        topk = random.randint(1, 10)
+        query_records = records_factory(dim, nq)
+        param = {
+            'table_name': gvector + 'wrong',
+            'query_records': query_records,
+            'top_k': topk
+        }
+        res, results = gcon.search_vectors(**param)
+        assert res == Status.ILLEGAL_ARGUMENT
+        assert not res.OK()
+
+    def test_search_vector_with_range(self, gcon, gvector):
+        topk = random.randint(1, 10)
+        query_records = records_factory(dim, nq)
+        param = {
+            'table_name': gvector,
             'query_records': query_records,
             'top_k': topk,
             'query_ranges': query_ranges_factory()
@@ -237,20 +259,14 @@ class TestVector:
         res, results = gcon.search_vectors(**param)
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
+        assert len(results) == nq
+        assert len(results[0]) == topk
 
     def test_false_vector(self, gcon):
-        param = {
-            'table_name': fake.table_name(),
-            'query_records': records_factory(256),
-            'top_k': random.randint(1, 10)
-        }
-        with pytest.raises(NotConnectError):
-            res, results = gcon.search_vectors(**param)
-            assert res == Status.CONNECT_FAILED
 
         param = {
             'table_name': fake.table_name(),
-            'query_records': records_factory(256),
+            'query_records': records_factory(dim, nq),
             'top_k': 'string'
         }
         with pytest.raises(ParamError):
@@ -258,75 +274,68 @@ class TestVector:
 
         param = {
             'table_name': fake.table_name(),
-            'query_records': records_factory(256),
+            'query_records': records_factory(dim, nq),
             'top_k': 'string'
         }
         with pytest.raises(ParamError):
             res, results = gcon.search_vectors(**param)
 
         param = {'table_name': fake.table_name(),
-                 'query_records': records_factory(256),
+                 'query_records': records_factory(dim, nq),
                  'top_k': random.randint(1, 10),
                  'query_ranges': ['false_date_format']}
         with pytest.raises(ParamError):
             res, results = gcon.search_vectors(**param)
 
-    def test_search_in_files(self, gcon):
+    def test_search_in_files(self, gcon, gvector):
 
         param = {
-            'table_name': fake.table_name(),
-            'query_records': records_factory(256),
-            'file_ids': ['a'],
+            'table_name': gvector,
+            'query_records': records_factory(dim, nq),
+            'file_ids': ['1'],
             'top_k': random.randint(1, 10)
         }
         sta, result = gcon.search_vectors_in_files(**param)
         assert sta.OK()
 
-    def test_false_search_in_files(self, gcon):
+    @pytest.mark.skip('Not fixed')
+    def test_search_in_files_wrong_file_ids(self, gcon, gvector):
         param = {
-            'table_name': fake.table_name(),
-            'query_records': records_factory(256),
-            'file_ids': ['a'],
+            'table_name': gvector,
+            'query_records': records_factory(dim, nq),
+            'file_ids': ['3333'],
             'top_k': random.randint(1, 10)
         }
-        with pytest.raises(NotConnectError):
-            sta, results = gcon.search_vectors_in_files(**param)
-            assert sta == Status.CONNECT_FAILED
+        sta, results = gcon.search_vectors_in_files(**param)
+        assert not sta.OK()
 
-    def test_describe_table(self, gcon):
 
-        table_name = fake.table_name()
-        res, table_schema = gcon.describe_table(table_name)
+    # TODO search in files wrong dim, wrong dimention name
+    def test_describe_table(self, gcon, gtable):
+
+        res, table_schema = gcon.describe_table(gtable)
         assert res.OK()
         assert isinstance(table_schema, TableSchema)
 
     def test_false_decribe_table(self, gcon):
         table_name = fake.table_name()
-        with pytest.raises(NotConnectError):
-            res, table_schema = gcon.describe_table(table_name)
-            assert not res.OK()
-            assert not table_schema
+        res, table_schema = gcon.describe_table(table_name)
+        assert not res.OK()
+        assert not table_schema
 
-    def test_show_tables(self, gcon):
+    def test_show_tables(self, gcon, gtable):
         res, tables = gcon.show_tables()
         assert res.OK()
-        assert isinstance(tables, list)
+        assert len(tables) == 1
 
-    def test_false_show_tables(self, gcon):
-        with pytest.raises(NotConnectError):
-            res, tables = gcon.show_tables()
-            assert not res.OK()
-            assert not tables
-
-    def test_get_table_row_count(self, gcon):
-        res, count = gcon.get_table_row_count('fake_table')
+    def test_get_table_row_count(self, gcon, gvector):
+        res, count = gcon.get_table_row_count(gvector)
         assert res.OK()
+        assert count == 1000
 
     def test_false_get_table_row_count(self, gcon):
-        with pytest.raises(NotConnectError):
-            res, count = gcon.get_table_row_count('fake_table')
-            assert not res.OK()
-            assert not count
+        res, count = gcon.get_table_row_count('fake_table')
+        assert not res.OK()
 
     def test_client_version(self, gcon):
         res = gcon.client_version()
@@ -343,7 +352,6 @@ class TestVector:
 
         status, res = gcon.server_status('version')
         assert status.OK()
-        assert res == '0.0.0'
 
 
 class TestPrepare:
@@ -428,7 +436,7 @@ class TestHasTable:
 class TestAddVectors:
     
     def test_add_vectors_normal(self, gcon, gtable):
-        vectors = records_factory(dim)
+        vectors = records_factory(dim, nq)
         status, ids = gcon.add_vectors(gtable, vectors)
 
         assert status.OK()
@@ -443,7 +451,7 @@ class TestAddVectors:
 
 class TestSearchVectors:
     def test_search_vectors_normal_1_with_ranges(self, gcon, gtable):
-        vectors = records_factory(dim)
+        vectors = records_factory(dim, nq)
         status, ids = gcon.add_vectors(gtable, vectors)
         
         ranges = ranges_factory()

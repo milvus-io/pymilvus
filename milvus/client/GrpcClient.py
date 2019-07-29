@@ -173,7 +173,7 @@ class Prepare(object):
 
     @classmethod
     def search_vector_in_files_infos(cls, table_name, query_records, topk, ids):
-        search_infos = Preare.search_vector_infos(table_name, query_records, None, topk)
+        search_infos = Prepare.search_vector_infos(table_name, query_records, None, topk)
         return grpc_types.SearchVectorInFilesInfos(
                     file_id_array=ids,
                     search_vector_infos=search_infos
@@ -464,16 +464,24 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ParamError('Param top_k should be larger than 0!')
+
         infos = Prepare.search_vector_infos(
                 table_name, query_records, query_ranges, top_k
         )
 
         results = TopKQueryResult()
-        for topks in self._stub.SearchVector(infos):
-            if topks.status.error_code == 0:
+        try:
+            for topks in self._stub.SearchVector(infos):
                 results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topks.query_result_arrays])
-            else:
-                return Status(code=topks.status.error_code, message=topks.status.reason), []
+        except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
+                status = Status(code=Status.ILLEGAL_ARGUMENT, message=e.details())
+
+            return status, []
+
+
 
         return Status(message='Search vectors successfully!'), results
 
@@ -493,16 +501,6 @@ class GrpcMilvus(ConnectIntf):
         :param query_ranges: Optional ranges for conditional search.
             If not specified, search in the whole table
 
-        :type  query_ranges: list[(date, date)]
-
-            `date` supports:
-               a. date-like-str, e.g. '2019-01-01'
-               b. datetime.date object, e.g. datetime.date(2019, 1, 1)
-               c. datetime.datetime object, e.g. datetime.datetime.now()
-
-            example `query_ranges`:
-
-                `query_ranges = [('2019-05-10', '2019-05-10'),(..., ...), ...]`
 
         :type  top_k: int
         :param top_k: how many similar vectors will be searched
@@ -515,6 +513,11 @@ class GrpcMilvus(ConnectIntf):
         """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
+
+        if not isinstance(top_k, int) or top_k <= 0:
+            raise ParamError('Param top_k should be larger than 0!')
+
+        file_ids = list(map(int_or_str, file_ids))
 
         infos = Prepare.search_vector_in_files_infos(
                 table_name, query_records, top_k, file_ids

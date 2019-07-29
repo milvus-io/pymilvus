@@ -88,8 +88,21 @@ def gtable(request, gcon):
 
     def teardown():
         status, table_names = gcon.show_tables()
-        gcon.delete_table(table_name)
+        for table_name in table_names:
+            gcon.delete_table(table_name)
 
     request.addfinalizer(teardown)
 
     return table_name
+
+
+@pytest.fixture(scope='function')
+def gvector(request, gcon, gtable):
+    dim = getattr(request.module, 'dim')
+
+    records = records_factory(dim, 1000)
+
+    gcon.add_vectors(gtable, records)
+    time.sleep(3)
+
+    return gtable
