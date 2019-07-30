@@ -182,10 +182,11 @@ class Prepare(object):
 
 def on_connectivity_change(value):
     print("Connection changed: %s" % value)
+    if value != grpc.ChannelConnectivity.READY:
+        LOGGER.warning("Connection changed: %s" % value)
     return
 
 class GrpcMilvus(ConnectIntf):
-    # TODO self._channel.subscribe(on_connectivity_change, try_to_connect=True)
     def __init__(self):
         self._channel = None
         self._stub = None
@@ -222,6 +223,7 @@ class GrpcMilvus(ConnectIntf):
         self._uri = str(host) + ':' + str(port)
         self.server_address = self._uri
         self._channel = grpc.insecure_channel(self._uri)
+        self._channel.subscribe(on_connectivity_change, try_to_connect=True)
 
 
     def connect(self, host=None, port=None, uri=None, timeout=3000):
@@ -239,7 +241,7 @@ class GrpcMilvus(ConnectIntf):
 
                 `tcp://127.0.0.1:19530`
 
-        :param timeout: (Optional) connection timeout, default timeout is 3s
+        :param timeout: (Optional) connection timeout, default timeout is 3000ms
 
         :return: Status, indicate if connect is successful
         :rtype: Status
@@ -305,7 +307,7 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Disconnect successfully')
 
-    def create_table(self, param):
+    def create_table(self, param, timeout=None):
         """Create table
 
         :type  param: dict or TableSchema
@@ -325,12 +327,17 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         table_schema = Prepare.table_schema(param)
-        status = self._stub.CreateTable(table_schema)
-        if status.error_code == 0:
-            return Status(message='Create table successfully!')
-        else:
-            LOGGER.error(status)
-            return Status(code=status.error_code, message=status.reason)
+        try:
+            status = self._stub.CreateTable(table_schema)
+            if status.error_code == 0:
+                return Status(message='Create table successfully!')
+            else:
+                LOGGER.error(status)
+                return Status(code=status.error_code, message=status.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error')
+
 
     def has_table(self, table_name):
         """
@@ -349,9 +356,13 @@ class GrpcMilvus(ConnectIntf):
 
         table_name = Prepare.table_name(table_name)
 
-        reply = self._stub.HasTable(table_name)
-        if reply.status.error_code == 0:
-            return reply.bool_reply
+        try:
+            reply = self._stub.HasTable(table_name)
+            if reply.status.error_code == 0:
+                return reply.bool_reply
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return False
 
     def delete_table(self, table_name):
         """
@@ -369,10 +380,14 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
         status = self._stub.DropTable(table_name)
 
-        if status.error_code == 0:
-            return Status(message='Delete table successfully!')
-        else:
-            return Status(code=status.error_code, message=status.reason)
+        try:
+            if status.error_code == 0:
+                return Status(message='Delete table successfully!')
+            else:
+                return Status(code=status.error_code, message=status.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error')
 
     def build_index(self, table_name):
         """
@@ -388,12 +403,16 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        table_name = Prepare.table_name(table_name)
-        status = self._stub.BuildIndex(table_name)
-        if status.error_code == 0:
-            return Status(message='Build index successfully!')
-        else:
-            return Status(code=status.error_code, message=status.reason)
+        try:
+            table_name = Prepare.table_name(table_name)
+            status = self._stub.BuildIndex(table_name)
+            if status.error_code == 0:
+                return Status(message='Build index successfully!')
+            else:
+                return Status(code=status.error_code, message=status.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error')
 
     def add_vectors(self, table_name, records):
         """
@@ -419,12 +438,16 @@ class GrpcMilvus(ConnectIntf):
 
         insert_infos = Prepare.insert_infos(table_name, records)
         
-        vector_ids = self._stub.InsertVector(insert_infos)
-        if vector_ids.status.error_code == 0:
-            ids = list(vector_ids.vector_id_array)
-            return Status(message='Add vectors successfully!'), ids
-        else:
-            return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
+        try:
+            vector_ids = self._stub.InsertVector(insert_infos)
+            if vector_ids.status.error_code == 0:
+                ids = list(vector_ids.vector_id_array)
+                return Status(message='Add vectors successfully!'), ids
+            else:
+                return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error'), []
 
 
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
@@ -478,6 +501,8 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
                 status = Status(code=Status.ILLEGAL_ARGUMENT, message=e.details())
+            else:
+                status = Status(code=e.code(), message='grpc transport error')
 
             return status, []
 
@@ -524,13 +549,21 @@ class GrpcMilvus(ConnectIntf):
         )
 
         results = TopKQueryResult()
-        for topks in self._stub.SearchVectorInFiles(infos):
-            if topks.status.error_code == 0:
-                results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topks.query_result_arrays])
-            else:
-                return Status(code=topks.status.error_code, message=topks.status.reason), []
+        try:
+            for topks in self._stub.SearchVectorInFiles(infos):
+                if topks.status.error_code == 0:
+                    results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topks.query_result_arrays])
+                else:
+                    return Status(code=topks.status.error_code, message=topks.status.reason), []
 
-        return Status(message='Search vectors successfully!'), results
+            return Status(message='Search vectors successfully!'), results
+        except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
+                status = Status(code=Status.ILLEGAL_ARGUMENT, message=e.details())
+            else:
+                status = Status(code=e.code(), message='grpc transport error')
+
+            return status, []
 
 
     def describe_table(self, table_name):
@@ -549,23 +582,28 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         table_name = Prepare.table_name(table_name)
+        
+        try:
+            ts = self._stub.DescribeTable(table_name)
 
-        ts = self._stub.DescribeTable(table_name)
+            if ts.table_name.status.error_code == 0:
 
-        if ts.table_name.status.error_code == 0:
+                table = TableSchema(
+                    table_name=ts.table_name.table_name,
+                    dimension=ts.dimension,
+                    index_type=IndexType(ts.index_type),
+                    store_raw_vector=ts.store_raw_vector
+                )
 
-            table = TableSchema(
-                table_name=ts.table_name.table_name,
-                dimension=ts.dimension,
-                index_type=IndexType(ts.index_type),
-                store_raw_vector=ts.store_raw_vector
-            )
-
-            return Status(message='Describe table successfully!'), table
-        else:
-            LOGGER.error(ts.table_name.status)
-            return Status(code=ts.table_name.status.error_code,
-                          message=ts.table_name.status.reason), None
+                return Status(message='Describe table successfully!'), table
+            else:
+                LOGGER.error(ts.table_name.status)
+                return Status(code=ts.table_name.status.error_code,
+                              message=ts.table_name.status.reason), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error'), None
+        
 
     def show_tables(self):
         """
@@ -587,8 +625,9 @@ class GrpcMilvus(ConnectIntf):
         try:
             results = [table.table_name for table in self._stub.ShowTables(cmd)]    
             return Status(message='Show tables successfully!'), results
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message='An unexpected error happens'), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error'), []
 
     def get_table_row_count(self, table_name):
         """
@@ -607,11 +646,15 @@ class GrpcMilvus(ConnectIntf):
 
         table_name = Prepare.table_name(table_name)
 
-        trc = self._stub.GetTableRowCount(table_name)
-        if trc.status.error_code == 0:
-            return Status(message='Get table row count successfully!'), trc.table_row_count
-        else:
-            return Status(code=trc.status.error_code, message=trc.status.reason), None
+        try:
+            trc = self._stub.GetTableRowCount(table_name)
+            if trc.status.error_code == 0:
+                return Status(message='Get table row count successfully!'), trc.table_row_count
+            else:
+                return Status(code=trc.status.error_code, message=trc.status.reason), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error'), []
 
 
     def client_version(self):
@@ -642,11 +685,15 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         cmd  = grpc_types.Command(cmd='version')
-        ss = self._stub.Ping(cmd)
-        if ss.status.error_code == 0:
-            return Status(message='Success!'), ss.info
-        else:
-            return Status(code=ss.status.error_code, message=ss.status.reason), None
+        try:
+            ss = self._stub.Ping(cmd)
+            if ss.status.error_code == 0:
+                return Status(message='Success!'), ss.info
+            else:
+                return Status(code=ss.status.error_code, message=ss.status.reason), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error'), None
 
     def server_status(self, cmd=None):
         """
@@ -668,9 +715,13 @@ class GrpcMilvus(ConnectIntf):
             status, version = self.server_version()
             return status, version
         
-        cmd = grpc_types.Command(cmd)
-        ss = self._stub.Ping(cmd)
-        if ss.status.error_code == 0:
-            return Status(message='Success!'), ss.info
-        else:
-            return Status(code=ss.status.error_code, message=ss.status.reason), None
+        try:
+            cmd = grpc_types.Command(cmd=cmd)
+            ss = self._stub.Ping(cmd)
+            if ss.status.error_code == 0:
+                return Status(message='Success!'), ss.info
+            else:
+                return Status(code=ss.status.error_code, message=ss.status.reason), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error'), None

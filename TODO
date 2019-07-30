@@ -3,8 +3,8 @@ a. dataclass 优化
     * TopKQueryResult
 b. GRPC
    ** catch grpcError
-   ** unittest
-    * channel.subscribe
+   ** unittest  >> CHECKED
+    * channel.subscribe  >> CHECKED
    ** connected		>> CHECKED	
    ** timeout per call, will raise a grpc.RpcError with status code DEADLINE_EXCEEDED
     * Version

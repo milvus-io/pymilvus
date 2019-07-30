@@ -1,7 +1,8 @@
 import logging
 import time
+from multiprocessing import Process
 from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
-from milvus.client.Abstract import IndexType
+from milvus.client.Abstract import IndexType, TableSchema
 from factorys import *
 
 LOGGER = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class TestConnection:
     def test_false_connect(self):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(uri='tcp://127.0.0.1:7987', timeout=100)
+            cnn.connect(uri='tcp://127.0.0.1:7987', timeout=1)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
 
@@ -40,27 +41,27 @@ class TestConnection:
     def test_connect(self):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect('126.0.0.2', timeout=100)
+            cnn.connect('126.0.0.2', timeout=2)
             assert not cnn.status.OK()
 
-            cnn.connect('127.0.0.1', '9999', timeout=100)
+            cnn.connect('127.0.0.1', '9999', timeout=2)
             assert not cnn.status.OK()
 
-            cnn.connect(port='9999', timeout=100)
+            cnn.connect(port='9999', timeout=2)
             assert not cnn.status.OK()
 
-            cnn.connect(uri='cp://127.0.0.1:19530', timeout=1000)
+            cnn.connect(uri='cp://127.0.0.1:19530', timeout=2)
             assert not cnn.status.OK()
 
     def test_connect_timeout(self):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2', port='19530', timeout=1000)
+            cnn.connect(host='123.0.0.2', port='19530', timeout=2)
 
     def test_connected(self):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2', timeout=1000)
+            cnn.connect(host='123.0.0.2', timeout=1)
         assert not cnn.connected()
 
     def test_uri_runtime_error(self):
@@ -206,9 +207,44 @@ class TestVector:
         res, ids = gcon.add_vectors(**param)
         assert not res.OK()
 
+    @pytest.mark.skip('Not Complete')
+    @pytest.mark.timeout(20)
+    def test_add_vector_with_multiprocessing(self, gtable):
+        '''
+        target: test add vectors, with multi processes
+        method: 10 processed add vectors concurrently
+        expected: status ok and result length is equal to the length off added vectors
+        '''
+        vectors = gen_single_vector(dim)
+        process_num = 1
+        loop_num = 10
+        processes = []
+        # with dependent connection
+        def add(vector):
+            milvus = GrpcMilvus()
+            milvus.connect()
+            i = 0
+            while i < loop_num:
+                status, ids = milvus.add_vectors(gtable, vector)
+                i = i + 1
+
+        for i in range(process_num):
+            milvus = GrpcMilvus()
+            milvus.connect()
+            p = Process(target=add, args=(vectors,))
+            processes.append(p)
+            p.start()
+        for p in processes:
+            p.join()
+
+
+
+        time.sleep(3)
+        status, count = milvus.get_table_row_count(table)
+        assert count == process_num * loop_num
+
 
 class TestSearch:
-
     def test_search_vector_normal(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
@@ -344,11 +380,9 @@ class TestSearch:
     def test_server_status(self, gcon):
         status, res = gcon.server_status()
         assert status.OK()
-        assert res == 'OK'
 
         status, res = gcon.server_status('abc')
         assert status.OK()
-        assert res == 'OK'
 
         status, res = gcon.server_status('version')
         assert status.OK()
