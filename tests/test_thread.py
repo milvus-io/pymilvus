@@ -1,7 +1,8 @@
 import sys
 sys.path.append('.')
-from milvus import Milvus, IndexType
+from milvus import Milvus, IndexType, Prepare
 from milvus.client.GrpcClient import GrpcMilvus as gMilvus
+from milvus.client.GrpcClient import Prepare as gPrepare
 from pprint import pprint
 import concurrent.futures
 import threading
@@ -12,11 +13,11 @@ from factorys import time_it
 
 dimension = 512
 number = 100000
-pool_size = 100
+pool_size = 10
 table_pool_size = 1000
 step = number//pool_size
 
-vectors = [[random.random()for _ in range(dimension)] for _ in range(number)]
+vectors = [[random.random()for _ in range(dimension)] for _ in range(number//10)]
 table_name = 'multi_task'
 
 start_count = 0
@@ -35,6 +36,7 @@ gmilvus.create_table({
     'index_type': IndexType.FLAT,
     'store_raw_vector': False
     })
+ginsert = gPrepare.insert_infos(table_name, vectors)
 
 milvus = Milvus()
 milvus.connect(uri='tcp://127.0.0.1:19531')
@@ -51,29 +53,65 @@ param = {
 
 milvus.create_table(param)
 
+tvector = Prepare.records(vectors)
+
+@time_it
 def add_vector_task(milvus, vector):
     global count
     global start_count
     start_count += 1
     print('start....................{}'.format(start_count))
     status, ids = milvus.add_vectors(table_name=table_name, records=vector)
-    assert len(ids) == 10000
     count += 1
     print("end...............{}".format(count))
+
+@time_it
+def grpc_add_vector_without_prepare_task(milvus, insertinfo):
+    global count
+    global start_count
+    start_count += 1
+    print('start....................{}'.format(start_count))
+    milvus._stub.InsertVector(insertinfo)
+    count += 1
+    print("end...............{}".format(count))
+
+@time_it
+def thrift_add_vector_without_prepare_task(milvus, vector):
+    global count
+    global start_count
+    start_count += 1
+    print('start....................{}'.format(start_count))
+    milvus._client.AddVector(table_name, vector)
+    count += 1
+    print("end...............{}".format(count))
+
+@time_it
+def thrift_thread_pool_add_vector_without_prepare():
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as executor:
+        for x in range(pool_size):
+            executor.submit(thrift_add_vector_without_prepare_task, milvus, tvector)
+
+@time_it
+def grpc_thread_pool_add_vector_without_prepare():
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as executor:
+        for x in range(pool_size):
+            executor.submit(grpc_add_vector_without_prepare_task, gmilvus, ginsert)
 
 @time_it
 def thrift_thread_pool_add_vector():
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as executor:
-        for x in range(0, number, step):
-            executor.submit(add_vector_task, milvus, vectors[x:x+step])
+        for x in range(pool_size):
+            executor.submit(add_vector_task, milvus, vectors)
 
 @time_it
 def grpc_thread_pool_add_vector():
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as executor:
-        for x in range(0, number, step):
-            executor.submit(add_vector_task, gmilvus, vectors[x:x+step])
+        for x in range(pool_size):
+            executor.submit(add_vector_task, gmilvus, vectors)
 
 
 def add_table_task(milvus):
@@ -106,15 +144,17 @@ def thread_pool_add_table():
 
 
 if __name__ == '__main__':
-    thrift_thread_pool_add_vector()
-    grpc_thread_pool_add_vector()
+    #thrift_thread_pool_add_vector()
+    #grpc_thread_pool_add_vector()
+
+    #thrift_thread_pool_add_vector_without_prepare()
+    grpc_thread_pool_add_vector_without_prepare()
 
     time.sleep(10)
 
-    _, tcount = milvus.get_table_row_count(table_name)
+    #_, tcount = milvus.get_table_row_count(table_name)
     _, gcount = gmilvus.get_table_row_count(table_name)
-    assert tcount == number
-    assert gcount == number
-    #thread_pool_add_table()
-    print(tcount)
+    #assert tcount == number * 2
+    #assert gcount == number * 2
+    #print(tcount)
     print(gcount)
