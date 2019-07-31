@@ -181,9 +181,8 @@ class Prepare(object):
 
 
 def on_connectivity_change(value):
-    print("Connection changed: %s" % value)
     if value != grpc.ChannelConnectivity.READY:
-        LOGGER.warning("Connection changed: %s" % value)
+        LOGGER.info("Connection changed: %s" % value)
     return
 
 class GrpcMilvus(ConnectIntf):

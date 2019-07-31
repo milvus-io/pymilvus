@@ -6,6 +6,7 @@ import time, datetime
 import random
 import struct
 import sys
+from functools import wraps
 sys.path.append('.')
 # Third party imports
 import numpy as np
@@ -132,4 +133,17 @@ def records_factory(dimension, nq):
 def query_ranges_factory():
     param = [('2019-06-25', '2100-1-25')]
     return gPrepare.ranges(param)
+
+
+def time_it(func):
+    @wraps(func)
+    def inner(*args, **kwrgs):
+        pref = time.perf_counter()
+        result = func(*args, **kwrgs)
+        delt = time.perf_counter() - pref
+        print(f"[{func.__name__}][{delt:.4}s]")
+        return result
+    return inner
+        
+
 
