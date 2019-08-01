@@ -6,6 +6,7 @@ __version__ = '0.1.25'
 
 import grpc
 import logging
+import concurrent.futures
 
 from .Abstract import (
     ConnectIntf,
@@ -142,6 +143,7 @@ class Prepare(object):
 
         :return: binary vectors
         """
+        print('Start ...')
         if is_legal_array(vectors):
             return [Prepare.row_record(vector) for vector in vectors]
         else:
@@ -158,6 +160,7 @@ class Prepare(object):
                 table_name=table_name.table_name,
                 row_record_array=records
         )
+
 
     @classmethod
     def search_vector_infos(cls, table_name, query_records, query_ranges, topk):

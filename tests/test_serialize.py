@@ -2,6 +2,7 @@ import sys
 sys.path.append('.')
 import struct
 import random
+from milvus.client.GrpcClient import Prepare
 from milvus.client.Abstract import QueryResult, TopKQueryResult
 from pprint import pprint
 from functools import wraps
@@ -11,22 +12,21 @@ import time
 # TOPK=10000, nq=1000 deserialize costs 6.7s
 TOPK = 10000
 nq = 1000
-
+DIM = 512
+NUM = 100000
 
 def time_it(func):
     @wraps(func)
     def inner(*args, **kwargs):
-        print(f"Start...")
         start = time.perf_counter()
 
         a = func(*args, **kwargs)
 
         dur = time.perf_counter() - start
-        print(f"{func.__name__} costs {dur}")
+        print(f"[{func.__name__}]: {dur}")
 
-        return a
+        return dur
     return inner
-
 
 
 def gen_one_binary(topk):
@@ -57,7 +57,35 @@ def deserialize(nums, nq, topk):
     return a
 
 
-if __name__ == '__main__':
+def de_topk_query_result():
+    '''Test serialize TopKQueryResult'''
     g = gen_nq_binaries(nq, TOPK)
     result = deserialize(g, nq, TOPK)
     pprint(result[1][1])
+
+
+def gen_arrays(number, dimension):
+    '''gen vectors for given dimension and number'''
+    return [[random.random() for _ in range(dimension) ] for _ in range(number)]
+
+@time_it
+def serialize_insert_infos_one_thread(arrays):
+    a = Prepare.insert_infos('table_name', arrays)
+
+
+def run_one_thread(number):
+    arrays = gen_arrays(number, DIM)
+    a = serialize_insert_infos_one_thread(arrays)
+    return a
+
+def run_one_thread_multi_times():
+    result = []
+    for number in range(100000, 1000000, 100000):
+        print(f"Number: {number}")
+        costs = run_one_thread(number)
+        result.append((number, costs))
+    print(result)
+
+
+if __name__ == '__main__':
+    run_one_thread(NUM)
