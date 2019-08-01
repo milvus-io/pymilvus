@@ -13,11 +13,11 @@ from factorys import time_it
 
 dimension = 512
 number = 100000
-pool_size = 10
+pool_size = 12
 table_pool_size = 1000
 step = number//pool_size
 
-vectors = [[random.random()for _ in range(dimension)] for _ in range(number//10)]
+vectors = [[random.random()for _ in range(dimension)] for _ in range(step)]
 table_name = 'multi_task'
 
 start_count = 0
@@ -55,7 +55,7 @@ milvus.create_table(param)
 
 tvector = Prepare.records(vectors)
 
-@time_it
+#@time_it
 def add_vector_task(milvus, vector):
     global count
     global start_count
@@ -65,7 +65,7 @@ def add_vector_task(milvus, vector):
     count += 1
     print("end...............{}".format(count))
 
-@time_it
+#@time_it
 def grpc_add_vector_without_prepare_task(milvus, insertinfo):
     global count
     global start_count
@@ -75,7 +75,7 @@ def grpc_add_vector_without_prepare_task(milvus, insertinfo):
     count += 1
     print("end...............{}".format(count))
 
-@time_it
+#@time_it
 def thrift_add_vector_without_prepare_task(milvus, vector):
     global count
     global start_count
@@ -144,17 +144,16 @@ def thread_pool_add_table():
 
 
 if __name__ == '__main__':
-    #thrift_thread_pool_add_vector()
-    #grpc_thread_pool_add_vector()
+    thrift_thread_pool_add_vector()
+    grpc_thread_pool_add_vector()
 
-    #thrift_thread_pool_add_vector_without_prepare()
+    thrift_thread_pool_add_vector_without_prepare()
     grpc_thread_pool_add_vector_without_prepare()
 
-    time.sleep(10)
 
     #_, tcount = milvus.get_table_row_count(table_name)
-    _, gcount = gmilvus.get_table_row_count(table_name)
+    #_, gcount = gmilvus.get_table_row_count(table_name)
     #assert tcount == number * 2
     #assert gcount == number * 2
     #print(tcount)
-    print(gcount)
+    #print(gcount)

@@ -19,28 +19,31 @@ def thrift_time_without_prepare():
     mi = Milvus()
     mi.connect(uri='tcp://localhost:19531')
     
-    if mi.has_table(table_name) or (mi.describe_table(table_name)[1].dimension != DIM):
+    if mi.has_table(table_name):
         mi.delete_table(table_name)
         time.sleep(2)
 
-        mi.create_table({
-            'table_name': table_name,
-            'dimension': DIM,
-            'index_type': IndexType.FLAT,
-            'store_raw_vector': False
-            })
+    mi.create_table({
+        'table_name': table_name,
+        'dimension': DIM,
+        'index_type': IndexType.FLAT,
+        'store_raw_vector': False
+        })
 
     vectors = gen_vectors(num=NUM, dim=DIM)
 
+    before = time.perf_counter()
     records = Prepare.records(vectors)
+    delt = time.perf_counter() - before
 
 
-    thrift_add_vectors(mi, table_name, records)
+    thrift_add_vectors_without_prepare(mi, table_name, records)
 
     time.sleep(5)
 
     _, n = mi.get_table_row_count(table_name)
     print(f"[thrift] add {NUM} vectors successfully, total: {n}")
+    print(f"thrift serializing costs {delt}")
 
     mi.disconnect()
 
@@ -49,16 +52,16 @@ def thrift_time():
     mi = Milvus()
     mi.connect(uri='tcp://localhost:19531')
     
-    if mi.has_table(table_name) or (mi.describe_table(table_name)[1].dimension != DIM):
+    if mi.has_table(table_name):
         mi.delete_table(table_name)
         time.sleep(2)
 
-        mi.create_table({
-            'table_name': table_name,
-            'dimension': DIM,
-            'index_type': IndexType.FLAT,
-            'store_raw_vector': False
-            })
+    mi.create_table({
+        'table_name': table_name,
+        'dimension': DIM,
+        'index_type': IndexType.FLAT,
+        'store_raw_vector': False
+        })
 
     vectors = gen_vectors(num=NUM, dim=DIM)
 
@@ -76,27 +79,30 @@ def grpc_time_without_prepare():
     mi = gMilvus()
     mi.connect()
     
-    if mi.has_table(table_name) or (mi.describe_table(table_name)[1].dimension != DIM):
+    if mi.has_table(table_name):
         mi.delete_table(table_name)
         time.sleep(2)
 
-        mi.create_table({
-            'table_name': table_name,
-            'dimension': DIM,
-            'index_type': IndexType.FLAT,
-            'store_raw_vector': False
-            })
+    mi.create_table({
+        'table_name': table_name,
+        'dimension': DIM,
+        'index_type': IndexType.FLAT,
+        'store_raw_vector': False
+        })
 
     vectors = gen_vectors(num=NUM, dim=DIM)
 
+    before = time.perf_counter()
     insertinfo = gPrepare.insert_infos(table_name, vectors)
+    delt = time.perf_counter() - before
 
-    grpc_add_vectors(mi, insertinfo)
+    grpc_add_vectors_without_prepare(mi, insertinfo)
 
     time.sleep(5)
 
     _, n = mi.get_table_row_count(table_name)
     print(f"[grpc] add {NUM} vectors successfully, total: {n}")
+    print(f"gRPC Serializing costs: {delt}")
 
     mi.disconnect()
 
@@ -104,16 +110,16 @@ def grpc_time():
     mi = gMilvus()
     mi.connect()
     
-    if mi.has_table(table_name) or (mi.describe_table(table_name)[1].dimension != DIM):
+    if mi.has_table(table_name):
         mi.delete_table(table_name)
         time.sleep(2)
 
-        mi.create_table({
-            'table_name': table_name,
-            'dimension': DIM,
-            'index_type': IndexType.FLAT,
-            'store_raw_vector': False
-            })
+    mi.create_table({
+        'table_name': table_name,
+        'dimension': DIM,
+        'index_type': IndexType.FLAT,
+        'store_raw_vector': False
+        })
 
     vectors = gen_vectors(num=NUM, dim=DIM)
 
@@ -143,8 +149,8 @@ def gen(milvus, table_name, vectors):
 
 
 if __name__ == "__main__":
-    thrift_time()
+    #thrift_time()
     grpc_time()
     
-    thrift_time_without_prepare()
+    #thrift_time_without_prepare()
     grpc_time_without_prepare()
