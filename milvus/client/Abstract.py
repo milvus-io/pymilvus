@@ -136,12 +136,28 @@ class QueryResult(object):
              for key, value in self.__dict__.items()]
         return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
-
 class TopKQueryResult(list):
     """
     TopK query results, list of QueryResult
     """
-    pass
+
+    def __repr__(self):
+
+        if self.__len__() > 10:
+            middle = ''
+            for topk in self[:3]:
+                middle = middle + " [ %s" % ",\n   ".join(map(str,topk[:3]))
+                middle += ",\n   ..."
+                middle += "\n   %s ]\n\n" % str(topk[-1])
+
+            spaces = """        ......
+        ......"""
+
+            ahead =  "[\n%s%s\n]" % (middle, spaces)
+            return ahead
+        else:
+            return "[\n%s\n]" % ",\n".join(map(str, self))
+            
 
 
 def _abstract():
