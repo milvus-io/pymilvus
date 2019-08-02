@@ -1,11 +1,17 @@
 import datetime
 from .Exceptions import ParamError
+from milvus.thrift import ttypes
 
 
 def is_legal_array(array):
     if not array or not isinstance(array, list):
         return False
     elif len(array) <=0 or not isinstance(array[0], float):
+        return False
+    return True
+
+def is_legal_arrays(array):
+    if not array or not isinstance(array, list):
         return False
     return True
 

@@ -144,7 +144,7 @@ class Prepare(object):
 
         :return: binary vectors
         """
-        if is_legal_array(vectors):
+        if is_legal_arrays(vectors):
             return [Prepare.row_record(vector) for vector in vectors]
         else:
             raise ParamError('Vectors should be 2-dim array!')
