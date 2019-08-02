@@ -151,16 +151,17 @@ class Prepare(object):
 
     @classmethod
     def insert_infos(cls, table_name, vectors):
+        infos = grpc_types.InsertInfos()
 
-        table_name = Prepare.table_name(table_name)
+        infos.table_name = table_name
 
-        records = Prepare.records(vectors)
+        for vector in vectors:
+            if is_legal_array(vector):
+                infos.row_record_array.add(vector_data=vector)
+            else:
+                raise ParamError('Vectors should be 2-dim array!')
 
-        return grpc_types.InsertInfos(
-                table_name=table_name.table_name,
-                row_record_array=records
-        )
-
+        return infos
 
     @classmethod
     def search_vector_infos(cls, table_name, query_records, query_ranges, topk):

@@ -44,8 +44,8 @@ def thrift_time_without_prepare():
     _, n = mi.get_table_row_count(table_name)
     print(f"[thrift] add {NUM} vectors successfully, total: {n}")
     print(f"thrift serializing costs {delt}")
-
     mi.disconnect()
+
 
 def thrift_time():
 
@@ -104,7 +104,6 @@ def grpc_time_without_prepare():
     print(f"[grpc] add {NUM} vectors successfully, total: {n}")
     print(f"gRPC Serializing costs: {delt}")
 
-    mi.disconnect()
 
 def grpc_time():
     mi = gMilvus()
@@ -131,7 +130,6 @@ def grpc_time():
     _, n = mi.get_table_row_count(table_name)
     print(f"[grpc] add {NUM} vectors successfully, total: {n}")
 
-    mi.disconnect()
 
 @time_it
 def thrift_add_vectors_without_prepare(milvus, table_name, vectors):
@@ -149,8 +147,8 @@ def gen(milvus, table_name, vectors):
 
 
 if __name__ == "__main__":
-    #thrift_time()
+    thrift_time()
     grpc_time()
     
-    #thrift_time_without_prepare()
+    thrift_time_without_prepare()
     grpc_time_without_prepare()
