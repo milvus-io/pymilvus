@@ -195,8 +195,8 @@ class TestVector:
         }
         
         param['records'] = [[]]
-        res, ids = gcon.add_vectors(**param)
-        assert not res.OK()
+        with pytest.raises(Exception):
+            res, ids = gcon.add_vectors(**param)
 
 
     def test_false_add_vector(self, gcon):

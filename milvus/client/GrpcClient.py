@@ -114,41 +114,7 @@ class Prepare(object):
                 res.append(_range)
         return res
 
-    # TODO param handlers
-    @classmethod
-    def row_record(cls, vector_data):
-        """
-        Transfer a float binary str to RowRecord and return
-
-        :type vector_data: list, list of float
-        :param vector_data: (Required) vector data to store
-
-        :return: RowRecord object
-
-        """
-        try:
-            temp = vector_data if isinstance(vector_data, grpc_types.RowRecord) \
-                else grpc_types.RowRecord(vector_data=vector_data)
-        except TypeError as e:
-            raise ParamError(str(e))
-        return temp
-
-    @classmethod
-    def records(cls, vectors):
-        """
-        Parser 2-dim array to list of RowRecords
-
-        :param vectors: 2-dim array, lists of vectors
-        :type vectors: list[list[float]]
-
-        :return: binary vectors
-        """
-        print('Start ...')
-        if is_legal_array(vectors):
-            return [Prepare.row_record(vector) for vector in vectors]
-        else:
-            raise ParamError('Vectors should be 2-dim array!')
-
+    # TODO Prepare after Prepare
     @classmethod
     def insert_infos(cls, table_name, vectors):
         infos = grpc_types.InsertInfos()
@@ -163,17 +129,23 @@ class Prepare(object):
 
         return infos
 
+    # TODO Prepare after Prepare
     @classmethod
     def search_vector_infos(cls, table_name, query_records, query_ranges, topk):
-        query_records = Prepare.records(query_records)
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
-
-        return grpc_types.SearchVectorInfos(
+        search_infos = grpc_types.SearchVectorInfos(
                 table_name=table_name,
-                query_record_array=query_records,
                 query_range_array=query_ranges,
                 topk=topk
-        )
+                )
+
+        for vector in query_records:
+            if is_legal_array(vector):
+                search_infos.query_record_array.add(vector_data=vector)
+            else:
+                raise ParamError('Vectors should be 2-dim array!')
+
+        return search_infos
 
     @classmethod
     def search_vector_in_files_infos(cls, table_name, query_records, topk, ids):
