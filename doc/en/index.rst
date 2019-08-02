@@ -5,8 +5,9 @@
 
 .. raw:: html
 
-  <div style="font-size:80px;font-family:Arial;font-weight:bold;">
-    <i class="fa fa-check-square" style="color:green;padding-right:5px;"></i>
+  <div style="font-size:80px;font-family:Arial;font-weight:bold;background: #00BFFF;color:white">
+    <img src="https://milvus.io/img/logo-banner.png" width=80px height=80px vspace=5 hspace=5 align=right>
+    </img>
     PyMilvus
   </div>
 
