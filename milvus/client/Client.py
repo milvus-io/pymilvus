@@ -633,8 +633,6 @@ class Milvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=e.code, message=e.reason), res
 
-
-
     def _search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         if not self.connected():
             raise NotConnectError('Please Connect to the server first!')
