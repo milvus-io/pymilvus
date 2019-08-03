@@ -12,6 +12,7 @@ class IndexType(IntEnum):
     FLAT = 1
     IVFLAT = 2
     IVF_SQ8 = 3
+    MIX_SNG = 4
 
 
 class TableSchema(object):
