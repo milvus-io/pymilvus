@@ -156,11 +156,6 @@ class Prepare(object):
         )
 
 
-def on_connectivity_change(value):
-    if value != grpc.ChannelConnectivity.READY:
-        LOGGER.info("Connection changed: %s" % value)
-    return
-
 class GrpcMilvus(ConnectIntf):
     def __init__(self):
         self._channel = None
@@ -198,7 +193,6 @@ class GrpcMilvus(ConnectIntf):
         self._uri = str(host) + ':' + str(port)
         self.server_address = self._uri
         self._channel = grpc.insecure_channel(self._uri)
-        self._channel.subscribe(on_connectivity_change, try_to_connect=True)
 
 
     def connect(self, host=None, port=None, uri=None, timeout=3000):
@@ -271,7 +265,8 @@ class GrpcMilvus(ConnectIntf):
             raise DisconnectNotConnectedClientError('Please connect to the server first!')
 
         try:
-            self._channel.close()
+            del self._channel
+            #self._channel.close()
         except Exception as e:
             LOGGER.error(e)
             return Status(code=Status.CONNECT_FAILED, message='Disconnection failed')

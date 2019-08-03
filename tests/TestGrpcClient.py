@@ -1,6 +1,6 @@
 import logging
 import time
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
 from milvus.client.Abstract import IndexType, TableSchema
 from factorys import *
@@ -207,7 +207,7 @@ class TestVector:
         res, ids = gcon.add_vectors(**param)
         assert not res.OK()
 
-    @pytest.mark.skip('Not Complete')
+    #@pytest.mark.skip('Not Complete')
     @pytest.mark.timeout(20)
     def test_add_vector_with_multiprocessing(self, gtable):
         '''
@@ -216,32 +216,41 @@ class TestVector:
         expected: status ok and result length is equal to the length off added vectors
         '''
         vectors = gen_single_vector(dim)
-        process_num = 1
-        loop_num = 10
+        q = Queue()
+        process_num = 5
         processes = []
         # with dependent connection
-        def add(vector):
+        def _add(q):
+            loop_num = 10
+            vector = q.get()
+            print(vector)
             milvus = GrpcMilvus()
             milvus.connect()
-            i = 0
-            while i < loop_num:
-                status, ids = milvus.add_vectors(gtable, vector)
-                i = i + 1
+
+            status, ids = milvus.add_vectors(gtable, vector)
+            assert status.OK()
+            milvus.disconnect()
 
         for i in range(process_num):
-            milvus = GrpcMilvus()
-            milvus.connect()
-            p = Process(target=add, args=(vectors,))
+            q.put(vectors)
+            p = Process(target=_add, args=(q,))
             processes.append(p)
             p.start()
         for p in processes:
             p.join()
 
+        def check(table):
+            milvus = GrpcMilvus()
+            milvus.connect()
 
+            status, count = milvus.get_table_row_count(gtable)
+            assert count == process_num * 10
+            milvus.disconnect()
 
         time.sleep(3)
-        status, count = milvus.get_table_row_count(table)
-        assert count == process_num * loop_num
+        check_count = Process(target=check, args=(gtable,))
+        check_count.start()
+        check_count.join()
 
 
 class TestSearch:
@@ -406,7 +415,7 @@ class TestPing:
         milvus.connect()
 
         _, version = milvus.server_version()
-        assert version == '0.3.1'
+        assert version == '0.4.0'
 
 
 class TestCreateTable:
@@ -442,6 +451,7 @@ class TestDescribTable:
 class TestShowTables:
     def test_show_tables_normal(self, gcon):
         status, tables = gcon.show_tables()
+        LOGGER.error(tables)
         assert status.OK()
 
 
