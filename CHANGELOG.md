@@ -59,6 +59,10 @@
 - \#21 ISSUE
     - support search by range
     - fix server_status return None bug
+    
+- \#79 ISSUE
+    - add new indextype MIN_NSG
+    - fix indextype name bug
 ### Task
 ---
 - \#1 Build Repository
