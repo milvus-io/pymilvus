@@ -29,7 +29,8 @@ param = {'table_name': table_name,
 
 def timer(func):
     """
-    record time when function execute
+    record time when function execute.
+    this function is a decorator
 
     :param func:
     :return:
@@ -88,7 +89,7 @@ def multi_conn(_table_name, proce_num):
 
         global vectors_list, process_value_list
         index = process_value_list.index(proce_num)
-        print(f"index = {index}, ready to insert {len(vectors_list[index])} vectors")
+        print(f"PID = {os.getpid()}, ready to insert {len(vectors_list[index])} vectors")
         status, _ = milvus.add_vectors(_table_name, vectors_list[index])
 
         milvus.disconnect()
@@ -102,8 +103,6 @@ def multi_conn(_table_name, proce_num):
     for p in process_list:
         p.join()
 
-    return True
-
 
 def validate_insert(_table_name):
     milvus = GrpcMilvus()
@@ -111,17 +110,22 @@ def validate_insert(_table_name):
 
     status, count = milvus.get_table_row_count(_table_name)
 
-    assert count == vector_num, f"Error: insert check not pass: " \
+    assert count == vector_num, f"Error: validate insert not pass: " \
                                 f"{vector_num} expected but {count} instead!"
+
+    milvus.disconnect()
 
 
 def run_multi_proce(_table_name):
     for np in process_value_list:
         create_table(table_name)
         multi_conn(table_name, np)
+
+        # sleep 3 seconds to wait for vectors inserted Preservation
+        time.sleep(3)
+
         validate_insert(table_name)
 
 
 if __name__ == '__main__':
     run_multi_proce(table_name)
-

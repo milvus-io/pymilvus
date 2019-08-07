@@ -593,7 +593,7 @@ class GrpcMilvus(ConnectIntf):
         # TODO how to status errors
         cmd  = grpc_types.Command(cmd='balala')
         try:
-            results = [table.table_name for table in self._stub.ShowTables(cmd)]    
+            results = [table.table_name for table in self._stub.ShowTables(cmd)]
             return Status(message='Show tables successfully!'), results
         except grpc.RpcError as e:
             LOGGER.error(e)
