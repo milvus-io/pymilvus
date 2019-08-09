@@ -152,6 +152,15 @@ class TestTable:
         res = gcon.delete_table(table_name)
         assert not res.OK()
 
+    def test_repeat_add_table(self, gcon):
+        param = table_schema_factory()
+
+        res = gcon.create_table(param)
+
+        res = gcon.create_table(param)
+        LOGGER.error(res)
+        assert not res.OK()
+
     def test_has_table(self, gcon, gtable):
 
         table_name = fake.table_name()
@@ -160,6 +169,9 @@ class TestTable:
 
         result = gcon.has_table(gtable)
         assert result
+
+        with pytest.raises(Exception):
+            result = gcon.has_table(1111)
 
 
 class TestVector:
