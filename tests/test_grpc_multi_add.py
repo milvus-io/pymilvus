@@ -4,10 +4,10 @@ from multiprocessing import Process
 import sys
 from functools import wraps
 
-from factorys import *
 
 sys.path.append(".")
 from milvus.client.GrpcClient import GrpcMilvus
+from factorys import *
 
 table_name = 'test_test'
 dim = 512
