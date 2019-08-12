@@ -1,12 +1,10 @@
 import time
 import os
 from multiprocessing import Process
-import sys
 from functools import wraps
 
 from factorys import *
 
-sys.path.append(".")
 from milvus.client.GrpcClient import GrpcMilvus
 
 table_name = 'test_test'
@@ -41,7 +39,7 @@ def timer(func):
         result = func(*argc, **argv)
         t1 = time.time()
 
-        print(f'run function {func.__name__}== use {argc[1]} processes cost {t1 - t0} s')
+        print(f'\nrun function {func.__name__}: use {argc[1]} processes cost {t1 - t0} s')
 
         return result
 
@@ -89,7 +87,7 @@ def multi_conn(_table_name, proce_num):
 
         global vectors_list, process_value_list
         index = process_value_list.index(proce_num)
-        print(f"PID = {os.getpid()}, ready to insert {len(vectors_list[index])} vectors")
+        print(f"\rPID = {os.getpid()}, ready to insert {len(vectors_list[index])} vectors", end="")
         status, _ = milvus.add_vectors(_table_name, vectors_list[index])
 
         milvus.disconnect()

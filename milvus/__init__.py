@@ -1,5 +1,6 @@
-from .client.Client import Milvus, Prepare, Status, IndexType
-from .client.GrpcClient import GrpcMilvus
+from .client.GrpcClient import GrpcMilvus as Milvus, Prepare, Status, IndexType
+from .grpc_gen import milvus_pb2, milvus_pb2_grpc, status_pb2, status_pb2_grpc
+
 
 __all__ = ['Milvus', 'Prepare', 'Status', 'IndexType', '__version__']
 

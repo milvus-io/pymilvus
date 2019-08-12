@@ -1,18 +1,21 @@
 import sys
 from time import sleep
+
 sys.path.append('.')
 from milvus import Milvus, Prepare
-import random, datetime
 from pprint import pprint
 import logging
 from factorys import *
+
 LOGGER = logging.getLogger(__name__)
-from temp import gen_vectors
-#_HOST = 'localhost'
-#_PORT = '19530'
 
 dim = 256
 table_id = 'test_search'
+
+
+def ramdom_vectors(_num, _dim):
+    # generate vectors randomly
+    return [[random.random() for _ in range(_dim)] for _ in range(_num)]
 
 
 class SearchOpt:
@@ -68,13 +71,13 @@ def main():
     dimension = 256
     ranges = [['2019-07-01', datetime.datetime.now()]]
 
-    vectors = Prepare.records([[random.random()for _ in range(dimension)] for _ in range(1)])
+    vectors = ramdom_vectors(1, dimension)
     LOGGER.info(ranges)
     param = {
         'table_name': table_name,
         'query_records': vectors,
         'top_k': 5,
-        #'query_ranges': ranges
+        # 'query_ranges': ranges
     }
     status, result = milvus.search_vectors(**param)
     if status.OK():
@@ -86,6 +89,7 @@ def main():
     # _, result = milvus.get_table_row_count(table_name)
     # print('# Count: {}'.format(result))
     milvus.disconnect()
+
 
 if __name__ == '__main__':
     main()

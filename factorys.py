@@ -7,30 +7,20 @@ import random
 import struct
 import sys
 from functools import wraps
+
 sys.path.append('.')
 # Third party imports
 import numpy as np
-import pytest
-import mock
 import faker
 from faker.providers import BaseProvider
-from thrift.transport.TSocket import TSocket
-from thrift.transport import TTransport
 
 # local application imports
-# thrift
-from milvus.client.Client import Milvus, Prepare
-from milvus.client.Abstract import IndexType, QueryResult, TopKQueryResult
-from milvus.client.Exceptions import (
-    NotConnectError,
-    RepeatingConnectError,
-    DisconnectNotConnectedClientError,
-    ParamError)
-from milvus.thrift import ttypes, MilvusService
+from milvus.client.Abstract import IndexType
 
 # grpc
 from milvus.client.GrpcClient import GrpcMilvus
 from milvus.client.GrpcClient import Prepare as gPrepare
+from milvus.grpc_gen import milvus_pb2
 
 
 def gen_vectors(num, dim):
@@ -56,12 +46,12 @@ def get_current_day():
 
 
 def get_last_day(day):
-    tmp = datetime.datetime.now()-datetime.timedelta(days=day)
+    tmp = datetime.datetime.now() - datetime.timedelta(days=day)
     return tmp.strftime('%Y-%m-%d')
 
 
 def get_next_day(day):
-    tmp = datetime.datetime.now()+datetime.timedelta(days=day)
+    tmp = datetime.datetime.now() + datetime.timedelta(days=day)
     return tmp.strftime('%Y-%m-%d')
 
 
@@ -72,12 +62,10 @@ def gen_long_str(num):
         string += char
 
 
-
-
 def gen_one_binary(topk):
     ids = [random.randrange(10000000, 99999999) for _ in range(topk)]
     distances = [random.random() for _ in range(topk)]
-    return ttypes.TopKQueryBinResult(struct.pack(str(topk) + 'l', *ids), struct.pack(str(topk) + 'd', *distances))
+    return milvus_pb2.TopKQueryResult(struct.pack(str(topk) + 'l', *ids), struct.pack(str(topk) + 'd', *distances))
 
 
 def gen_nq_binaries(nq, topk):
@@ -143,7 +131,5 @@ def time_it(func):
         delt = time.perf_counter() - pref
         print(f"[{func.__name__}][{delt:.4}s]")
         return result
+
     return inner
-        
-
-

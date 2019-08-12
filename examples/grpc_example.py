@@ -1,8 +1,8 @@
 import random
 import time
-from milvus import GrpcMilvus, Status, IndexType
+from milvus import Milvus, Status, IndexType
 
-dim = 512
+_DIM = 512
 nb = 100000  # number of vector dataset
 nq = 10  # number of query vector
 table_name = 'example'
@@ -13,20 +13,20 @@ server_config = {
     "port": '19530',
 }
 
-milvus = GrpcMilvus()
+milvus = Milvus()
 milvus.connect(**server_config)
 
 
 def ramdom_vectors(num):
 
     # generate vectors randomly
-    return [[random.random() for _ in range(dim)] for _ in range(num)]
+    return [[random.random() for _ in range(_DIM)] for _ in range(num)]
 
 
 def create_table():
     param = {
         'table_name': table_name,
-        'dimension': dim,
+        'dimension': _DIM,
         'index_type': IndexType.FLAT,
         'store_raw_vector': False
     }

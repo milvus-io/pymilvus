@@ -3,7 +3,6 @@ This is a client for milvus of gRPC
 """
 __version__ = '0.1.25'
 
-
 import grpc
 import logging
 import concurrent.futures
@@ -20,10 +19,10 @@ from .Abstract import (
 from .utils import *
 from .Status import Status
 from .Exceptions import *
-from milvus.settings import DefaultConfig as config
+from ..settings import DefaultConfig as config
 
-from milvus.grpc_gen import milvus_pb2_grpc, status_pb2_grpc, status_pb2
-from milvus.grpc_gen import milvus_pb2 as grpc_types 
+from ..grpc_gen import milvus_pb2_grpc, status_pb2
+from ..grpc_gen import milvus_pb2 as grpc_types
 from urllib.parse import urlparse
 
 LOGGER = logging.getLogger(__name__)
@@ -38,7 +37,6 @@ class Prepare(object):
             return grpc_types.TableName(status=status, table_name=table_name)
         else:
             return table_name
-
 
     @classmethod
     def table_schema(cls, param):
@@ -134,10 +132,10 @@ class Prepare(object):
     def search_vector_infos(cls, table_name, query_records, query_ranges, topk):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
         search_infos = grpc_types.SearchVectorInfos(
-                table_name=table_name,
-                query_range_array=query_ranges,
-                topk=topk
-                )
+            table_name=table_name,
+            query_range_array=query_ranges,
+            topk=topk
+        )
 
         for vector in query_records:
             if is_legal_array(vector):
@@ -151,8 +149,8 @@ class Prepare(object):
     def search_vector_in_files_infos(cls, table_name, query_records, topk, ids):
         search_infos = Prepare.search_vector_infos(table_name, query_records, None, topk)
         return grpc_types.SearchVectorInFilesInfos(
-                    file_id_array=ids,
-                    search_vector_infos=search_infos
+            file_id_array=ids,
+            search_vector_infos=search_infos
         )
 
 
@@ -194,7 +192,6 @@ class GrpcMilvus(ConnectIntf):
         self.server_address = self._uri
         self._channel = grpc.insecure_channel(self._uri)
 
-
     def connect(self, host=None, port=None, uri=None, timeout=3000):
         """
         Connect method should be called before any operations.
@@ -222,15 +219,14 @@ class GrpcMilvus(ConnectIntf):
             return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
 
         try:
-            grpc.channel_ready_future(self._channel).result(timeout=timeout//1000)
+            grpc.channel_ready_future(self._channel).result(timeout=timeout // 1000)
         except grpc.FutureTimeoutError as e:
             raise NotConnectError('Fail connecting to server on {}'.format(self._uri))
         else:
             self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
             self.status = Status(message='Successfully connected!')
             return self.status
-        
-        
+
     def connected(self):
         """
         Check if client is connected to the server
@@ -247,7 +243,6 @@ class GrpcMilvus(ConnectIntf):
             return False
         else:
             return True
-
 
     def disconnect(self):
         """
@@ -266,7 +261,7 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             del self._channel
-            #self._channel.close()
+            # self._channel.close()
         except Exception as e:
             LOGGER.error(e)
             return Status(code=Status.CONNECT_FAILED, message='Disconnection failed')
@@ -277,9 +272,10 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Disconnect successfully')
 
-    def create_table(self, param, timeout=None):
+    def create_table(self, param, timeout=None, *args, **kwargs):
         """Create table
 
+        :param timeout:
         :type  param: dict or TableSchema
         :param param: Provide table information to be created
 
@@ -295,8 +291,14 @@ class GrpcMilvus(ConnectIntf):
         """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
+        if kwargs.get('flag', False):
+            if isinstance(param, grpc_types.TableSchema):
+                table_schema = param
+            else:
+                return Status(code=Status.ILLEGAL_ARGUMENT, message='param is not type of TableSchema')
+        else:
+            table_schema = Prepare.table_schema(param)
 
-        table_schema = Prepare.table_schema(param)
         try:
             status = self._stub.CreateTable(table_schema)
             if status.error_code == 0:
@@ -308,8 +310,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-
-    def has_table(self, table_name):
+    def has_table(self, table_name, *args, **kwargs):
         """
 
         This method is used to test table existence.
@@ -324,7 +325,8 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        table_name = Prepare.table_name(table_name)
+        if not kwargs.get('flag', False):
+            table_name = Prepare.table_name(table_name)
 
         try:
             reply = self._stub.HasTable(table_name)
@@ -334,7 +336,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return False
 
-    def delete_table(self, table_name):
+    def delete_table(self, table_name, *args, **kwargs):
         """
         Delete table with table_name
 
@@ -347,10 +349,11 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        table_name = Prepare.table_name(table_name)
-        status = self._stub.DropTable(table_name)
+        if not kwargs.get('flag', False):
+            table_name = Prepare.table_name(table_name)
 
         try:
+            status = self._stub.DropTable(table_name)
             if status.error_code == 0:
                 return Status(message='Delete table successfully!')
             else:
@@ -359,7 +362,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def build_index(self, table_name):
+    def build_index(self, table_name, *args, **kwargs):
         """
         Build index by table name
 
@@ -373,6 +376,9 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
+        if not kwargs.get('flag', False):
+            table_name = Prepare.table_name(table_name)
+
         try:
             table_name = Prepare.table_name(table_name)
             status = self._stub.BuildIndex(table_name)
@@ -384,7 +390,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def add_vectors(self, table_name, records):
+    def add_vectors(self, table_name, records, *args, **kwargs):
         """
         Add vectors to table
 
@@ -406,8 +412,15 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        insert_infos = Prepare.insert_infos(table_name, records)
-        
+        if kwargs.get('flag', False):
+            insert_infos = kwargs.get('param', None)
+            if not insert_infos:
+                raise ParamError('param miss! please offer key "param"')
+            if not isinstance(insert_infos, grpc_types.InsertInfos):
+                raise ParamError('Please offer a correct param type')
+        else:
+            insert_infos = Prepare.insert_infos(table_name, records)
+
         try:
             vector_ids = self._stub.InsertVector(insert_infos)
             if vector_ids.status.error_code == 0:
@@ -418,7 +431,6 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
-
 
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         """
@@ -461,7 +473,7 @@ class GrpcMilvus(ConnectIntf):
             raise ParamError('Param top_k should be larger than 0!')
 
         infos = Prepare.search_vector_infos(
-                table_name, query_records, query_ranges, top_k
+            table_name, query_records, query_ranges, top_k
         )
 
         results = TopKQueryResult()
@@ -476,14 +488,12 @@ class GrpcMilvus(ConnectIntf):
 
             return status, []
 
-
-
         return Status(message='Search vectors successfully!'), results
 
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         """
         Query vectors in a table, in specified files
-        
+
         :type  table_name: str
         :param table_name: table name been queried
 
@@ -515,7 +525,7 @@ class GrpcMilvus(ConnectIntf):
         file_ids = list(map(int_or_str, file_ids))
 
         infos = Prepare.search_vector_in_files_infos(
-                table_name, query_records, top_k, file_ids
+            table_name, query_records, top_k, file_ids
         )
 
         results = TopKQueryResult()
@@ -535,7 +545,6 @@ class GrpcMilvus(ConnectIntf):
 
             return status, []
 
-
     def describe_table(self, table_name):
         """
         Show table information
@@ -552,7 +561,7 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         table_name = Prepare.table_name(table_name)
-        
+
         try:
             ts = self._stub.DescribeTable(table_name)
 
@@ -573,7 +582,6 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
-        
 
     def show_tables(self):
         """
@@ -591,7 +599,7 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         # TODO how to status errors
-        cmd  = grpc_types.Command(cmd='balala')
+        cmd = grpc_types.Command(cmd='balala')
         try:
             results = [table.table_name for table in self._stub.ShowTables(cmd)]
             return Status(message='Show tables successfully!'), results
@@ -626,7 +634,6 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
 
-
     def client_version(self):
         """
         Provide client version
@@ -654,7 +661,7 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        cmd  = grpc_types.Command(cmd='version')
+        cmd = grpc_types.Command(cmd='version')
         try:
             ss = self._stub.Ping(cmd)
             if ss.status.error_code == 0:
@@ -665,7 +672,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
 
-    def server_status(self, cmd=None):
+    def server_status(self, cmd=None, *args, **kwargs):
         """
         Provide server status. When cmd !='version', provide 'OK'
 
@@ -679,14 +686,20 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        if not cmd:
-            cmd = 'OK'
-        elif cmd == 'version':
-            status, version = self.server_version()
-            return status, version
-        
-        try:
+        if kwargs.get('flag', False):
+            if not isinstance(cmd, grpc_types.Command):
+                return Status(code=Status.ILLEGAL_ARGUMENT, message='param is not type of Command')
+            if not cmd:
+                cmd = grpc_types.Command('OK')
+        else:
+            if not cmd:
+                cmd = 'OK'
+            elif cmd == 'version':
+                status, version = self.server_version()
+                return status, version
             cmd = grpc_types.Command(cmd=cmd)
+
+        try:
             ss = self._stub.Ping(cmd)
             if ss.status.error_code == 0:
                 return Status(message='Success!'), ss.info

@@ -3,12 +3,10 @@ import time
 sys.path.append('.')
 from milvus import Milvus, IndexType
 import random
-from pprint import pprint
 
 
 def main():
     milvus = Milvus()
-    #milvus.connect("192.1.2.222")
     milvus.connect()
 
     table_name = 'test_timeout'

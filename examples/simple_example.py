@@ -1,6 +1,8 @@
 # This program demos how to create a Milvus table, insert 20 vectors and get the table row count.
 from milvus import Milvus, Prepare, IndexType, Status
-import random, time
+
+import random
+import time
 
 milvus = Milvus()
 

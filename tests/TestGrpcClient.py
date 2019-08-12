@@ -3,12 +3,14 @@ import time
 from multiprocessing import Process, Queue
 from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
 from milvus.client.Abstract import IndexType, TableSchema
+from milvus.grpc_gen import milvus_pb2
 from factorys import *
 
 LOGGER = logging.getLogger(__name__)
 
 dim = 16
 nq = 20
+
 
 class TestConnection:
     param = {'host': 'localhost', 'port': '19530'}
@@ -24,7 +26,6 @@ class TestConnection:
         _ = cnn.connect(**self.param)
         status = cnn.connect()
         assert status == Status.CONNECT_FAILED
-
 
     def test_false_connect(self):
         cnn = GrpcMilvus()
@@ -73,7 +74,6 @@ class TestConnection:
         assert cnn.status.OK()
 
     def test_disconnected(self):
-
         cnn = GrpcMilvus()
         cnn.connect(**self.param)
 
@@ -92,7 +92,6 @@ class TestConnection:
 class TestTable:
 
     def test_create_table(self, gcon):
-
         param = table_schema_factory()
         param['table_name'] = None
         with pytest.raises(ParamError):
@@ -153,7 +152,6 @@ class TestTable:
         assert not res.OK()
 
     def test_has_table(self, gcon, gtable):
-
         table_name = fake.table_name()
         result = gcon.has_table(table_name)
         assert not result
@@ -193,11 +191,10 @@ class TestVector:
             'table_name': gtable,
             'records': records_factory(dim, nq)
         }
-        
+
         param['records'] = [[]]
         with pytest.raises(Exception):
             res, ids = gcon.add_vectors(**param)
-
 
     def test_false_add_vector(self, gcon):
         param = {
@@ -207,7 +204,7 @@ class TestVector:
         res, ids = gcon.add_vectors(**param)
         assert not res.OK()
 
-    #@pytest.mark.skip('Not Complete')
+    # @pytest.mark.skip('Not Complete')
     @pytest.mark.timeout(20)
     def test_add_vector_with_multiprocessing(self, gtable):
         '''
@@ -219,6 +216,7 @@ class TestVector:
         q = Queue()
         process_num = 5
         processes = []
+
         # with dependent connection
         def _add(q):
             loop_num = 10
@@ -272,7 +270,7 @@ class TestSearch:
         topk = random.randint(1, 10)
         query_records = records_factory(dim + 1, nq)
         param = {
-            'table_name': gvector ,
+            'table_name': gvector,
             'query_records': query_records,
             'top_k': topk
         }
@@ -308,7 +306,6 @@ class TestSearch:
         assert len(results[0]) == topk
 
     def test_false_vector(self, gcon):
-
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(dim, nq),
@@ -333,7 +330,6 @@ class TestSearch:
             res, results = gcon.search_vectors(**param)
 
     def test_search_in_files(self, gcon, gvector):
-
         param = {
             'table_name': gvector,
             'query_records': records_factory(dim, nq),
@@ -354,10 +350,8 @@ class TestSearch:
         sta, results = gcon.search_vectors_in_files(**param)
         assert not sta.OK()
 
-
     # TODO search in files wrong dim, wrong dimention name
     def test_describe_table(self, gcon, gtable):
-
         res, table_schema = gcon.describe_table(gtable)
         assert res.OK()
         assert isinstance(table_schema, TableSchema)
@@ -407,7 +401,9 @@ class TestPrepare:
             'store_raw_vector': False
         }
         res = Prepare.table_schema(param)
-        assert isinstance(res, ttypes.TableSchema)
+        assert isinstance(res, milvus_pb2.TableSchema)
+
+
 class TestPing:
 
     def test_ping_server_version(self):
@@ -419,7 +415,7 @@ class TestPing:
 
 
 class TestCreateTable:
-    
+
     def test_create_table_normal(self, gcon):
         param = table_schema_factory()
 
@@ -432,7 +428,7 @@ class TestCreateTable:
         status = gcon.create_table(param)
         LOGGER.error(status)
         assert not status.OK()
-        
+
 
 class TestDescribTable:
 
@@ -461,7 +457,6 @@ class TestDeleteTable:
         s = gcon.create_table(param)
         _, tables = gcon.show_tables()
         assert param['table_name'] in tables
-        
 
         status = gcon.delete_table(param['table_name'])
         _, tables = gcon.show_tables()
@@ -478,7 +473,7 @@ class TestHasTable:
 
 
 class TestAddVectors:
-    
+
     def test_add_vectors_normal(self, gcon, gtable):
         vectors = records_factory(dim, nq)
         status, ids = gcon.add_vectors(gtable, vectors)
@@ -487,7 +482,7 @@ class TestAddVectors:
         assert len(ids) == 20
 
         time.sleep(2)
-        
+
         status, count = gcon.get_table_row_count(gtable)
         assert status.OK()
         assert count == 20
@@ -497,7 +492,7 @@ class TestSearchVectors:
     def test_search_vectors_normal_1_with_ranges(self, gcon, gtable):
         vectors = records_factory(dim, nq)
         status, ids = gcon.add_vectors(gtable, vectors)
-        
+
         ranges = ranges_factory()
         time.sleep(2)
 
@@ -507,4 +502,3 @@ class TestSearchVectors:
         assert status.OK()
         assert len(result) == 1
         assert len(result[0]) == 1
-
