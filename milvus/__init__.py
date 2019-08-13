@@ -6,5 +6,5 @@ from .client.Status import Status
 
 __all__ = ['Milvus', 'Prepare', 'Status', 'IndexType', '__version__']
 
-__version__ = '0.1.25'
+__version__ = '0.2.0'
 

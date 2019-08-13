@@ -1,11 +1,10 @@
 """
 This is a client for milvus of gRPC
 """
-__version__ = '0.1.25'
+__version__ = '0.2.0'
 
 import grpc
 import logging
-import concurrent.futures
 
 from .Abstract import (
     ConnectIntf,
