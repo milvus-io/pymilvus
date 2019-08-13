@@ -1,8 +1,8 @@
 # STL imports
 import random
 import string
-import struct
-import time, datetime
+import time
+import datetime
 import random
 import struct
 import sys
@@ -18,7 +18,6 @@ from faker.providers import BaseProvider
 from milvus.client.Abstract import IndexType
 
 # grpc
-from milvus.client.GrpcClient import GrpcMilvus
 from milvus.client.GrpcClient import Prepare as gPrepare
 from milvus.grpc_gen import milvus_pb2
 

@@ -3,12 +3,6 @@ import logging.config
 
 class DefaultConfig:
 
-    THRIFTCLIENT_TRANSPORT = 'tcp://127.0.0.1:19530'
-    THRIFTCLIENT_PROTOCOL = 'BINARY'
-    THRIFTCLIENT_BUFFERED = True
-    THRIFTCLIENT_ZLIB = False
-    THRIFTCLIENT_FRAMED = False
-
     GRPC_URI = 'tcp://127.0.0.1:19530'
 
 
