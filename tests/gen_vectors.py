@@ -1,82 +1,17 @@
-import time
 import sys
 sys.path.append('.')
 
-from milvus import Milvus, IndexType, Prepare
-from milvus.client.GrpcClient import GrpcMilvus as gMilvus
-from milvus.client.GrpcClient import Prepare as gPrepare
+from milvus import Milvus
 from factorys import *
 
 
 NUM = 100000
 DIM = 512
-
-
 table_name = 'TEST'
 
-def thrift_time_without_prepare():
-
-    mi = Milvus()
-    mi.connect(uri='tcp://localhost:19531')
-    
-    if mi.has_table(table_name):
-        mi.delete_table(table_name)
-        time.sleep(2)
-
-    mi.create_table({
-        'table_name': table_name,
-        'dimension': DIM,
-        'index_type': IndexType.FLAT,
-        'store_raw_vector': False
-        })
-
-    vectors = gen_vectors(num=NUM, dim=DIM)
-
-    before = time.perf_counter()
-    records = Prepare.records(vectors)
-    delt = time.perf_counter() - before
-
-
-    thrift_add_vectors_without_prepare(mi, table_name, records)
-
-    time.sleep(5)
-
-    _, n = mi.get_table_row_count(table_name)
-    print(f"[thrift] add {NUM} vectors successfully, total: {n}")
-    print(f"thrift serializing costs {delt}")
-    mi.disconnect()
-
-
-def thrift_time():
-
-    mi = Milvus()
-    mi.connect(uri='tcp://localhost:19531')
-    
-    if mi.has_table(table_name):
-        mi.delete_table(table_name)
-        time.sleep(2)
-
-    mi.create_table({
-        'table_name': table_name,
-        'dimension': DIM,
-        'index_type': IndexType.FLAT,
-        'store_raw_vector': False
-        })
-
-    vectors = gen_vectors(num=NUM, dim=DIM)
-
-
-    gen(mi, table_name, vectors)
-
-    time.sleep(5)
-
-    _, n = mi.get_table_row_count(table_name)
-    print(f"[thrift] add {NUM} vectors successfully, total: {n}")
-
-    mi.disconnect()
 
 def grpc_time_without_prepare():
-    mi = gMilvus()
+    mi = Milvus()
     mi.connect()
     
     if mi.has_table(table_name):
@@ -106,7 +41,7 @@ def grpc_time_without_prepare():
 
 
 def grpc_time():
-    mi = gMilvus()
+    mi = Milvus()
     mi.connect()
     
     if mi.has_table(table_name):
@@ -122,7 +57,6 @@ def grpc_time():
 
     vectors = gen_vectors(num=NUM, dim=DIM)
 
-
     gen(mi, table_name, vectors)
 
     time.sleep(5)
@@ -132,12 +66,9 @@ def grpc_time():
 
 
 @time_it
-def thrift_add_vectors_without_prepare(milvus, table_name, vectors):
-    ids = milvus._client.AddVector(table_name, vectors)
-
-@time_it
 def grpc_add_vectors_without_prepare(milvus, insertinfo):
     ids = milvus._stub.InsertVector(insertinfo)
+
 
 @time_it
 def gen(milvus, table_name, vectors):
@@ -145,10 +76,6 @@ def gen(milvus, table_name, vectors):
     assert status.OK()
 
 
-
 if __name__ == "__main__":
-    thrift_time()
     grpc_time()
-    
-    thrift_time_without_prepare()
     grpc_time_without_prepare()

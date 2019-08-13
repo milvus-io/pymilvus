@@ -14,8 +14,8 @@ def main():
     if milvus.has_table(table_name):
         milvus.delete_table(table_name)
 
-    print(f"sleep 5 s")
-    time.sleep(5)
+    print(f"sleep 1 s")
+    time.sleep(1)
 
     if not milvus.has_table(table_name):
         param = {

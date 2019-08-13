@@ -13,7 +13,7 @@ dim = 256
 table_id = 'test_search'
 
 
-def ramdom_vectors(_num, _dim):
+def random_vectors(_num, _dim):
     # generate vectors randomly
     return [[random.random() for _ in range(_dim)] for _ in range(_num)]
 
@@ -71,7 +71,7 @@ def main():
     dimension = 256
     ranges = [['2019-07-01', datetime.datetime.now()]]
 
-    vectors = ramdom_vectors(1, dimension)
+    vectors = random_vectors(1, dimension)
     LOGGER.info(ranges)
     param = {
         'table_name': table_name,
