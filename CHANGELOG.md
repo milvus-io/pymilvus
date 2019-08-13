@@ -65,6 +65,11 @@
     
 - \#76 ISSUE
     - replace thrift with grpc
+
+- \#79 ISSUE
+    - add new indextype MIN_NSG
+    - fix indextype name bug
+
 ### Task
 ---
 - \#1 Build Repository
