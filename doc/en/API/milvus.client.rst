@@ -1,27 +1,72 @@
 
-milvus.client.Client module
+Module milvus
 ===============================
 
-mlivus.client.Client module
+Milvus
 --------------------------------
 
-.. automodule:: client.Client
+.. autoclass:: milvus.client.GrpcClient.GrpcMilvus
     :members:
     :undoc-members:
     :show-inheritance:
 
-milvus.client.Clinet.Prepare
+Prepare
 --------------------------------
 
-.. autoclass:: milvus.client.Client.Prepare
+.. autoclass:: milvus.Prepare
     :members:
     :undoc-members:
     :show-inheritance:
 
-milvus.client.Status module
+Module Status
 ======================================
 
-.. automodule:: milvus.client.Status
+.. autoclass:: milvus.Status
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Module milvus.client.Abstract
+======================================
+
+DataClass IndexType
+-------------------------------------
+.. autoclass:: milvus.IndexType
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+DataClass TableSchema
+------------------------------------
+.. autoclass:: milvus.client.Abstract.TableSchema
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+DataClass Range
+------------------------------------
+.. autoclass:: milvus.client.Abstract.Range
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+DataClass RowRecord
+------------------------------------
+.. autoclass:: milvus.client.Abstract.RowRecord
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+DataClass QueryResult
+------------------------------------
+.. autoclass:: milvus.client.Abstract.QueryResult
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+DataClass TopKQueryResult
+------------------------------------
+.. autoclass:: milvus.client.Abstract.TopKQueryResult
     :members:
     :undoc-members:
     :show-inheritance:

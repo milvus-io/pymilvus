@@ -14,7 +14,7 @@ import os
 import sys
 sys.path.insert(0, os.path.join(
     # os.path.dirname(os.path.abspath(__file__)),
-    os.path.join('..', '../milvus')
+    os.path.join('.')
 ))
 
 
@@ -25,7 +25,7 @@ copyright = '2019, Zilliz'
 author = 'YangXuan'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.1'
+release = '0.1.25'
 
 
 # -- General configuration ---------------------------------------------------

@@ -1,18 +1,21 @@
 import sys
 from time import sleep
+
 sys.path.append('.')
 from milvus import Milvus, Prepare
-import random, datetime
 from pprint import pprint
 import logging
 from factorys import *
-LOGGER = logging.getLogger(__name__)
 
-_HOST = 'localhost'
-_PORT = '19530'
+LOGGER = logging.getLogger(__name__)
 
 dim = 256
 table_id = 'test_search'
+
+
+def random_vectors(_num, _dim):
+    # generate vectors randomly
+    return [[random.random() for _ in range(_dim)] for _ in range(_num)]
 
 
 class SearchOpt:
@@ -44,7 +47,7 @@ class TestSearch:
 
 def main():
     milvus = Milvus()
-    milvus.connect(host=_HOST, port=_PORT)
+    milvus.connect(host='localhost', port='19530')
     #
     # table_name = 'test_search_in_file'
     # dimension = 256
@@ -68,24 +71,25 @@ def main():
     dimension = 256
     ranges = [['2019-07-01', datetime.datetime.now()]]
 
-    vectors = Prepare.records([[random.random()for _ in range(dimension)] for _ in range(1)])
+    vectors = random_vectors(1, dimension)
     LOGGER.info(ranges)
     param = {
         'table_name': table_name,
         'query_records': vectors,
         'top_k': 5,
-        'query_ranges': ranges
+        # 'query_ranges': ranges
     }
     status, result = milvus.search_vectors(**param)
     if status.OK():
         pprint(result)
 
-    _, tables = milvus.show_tables()
-    print(tables)
+    # _, tables = milvus.show_tables()
+    # print(tables)
 
     # _, result = milvus.get_table_row_count(table_name)
     # print('# Count: {}'.format(result))
     milvus.disconnect()
+
 
 if __name__ == '__main__':
     main()

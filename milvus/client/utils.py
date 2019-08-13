@@ -5,6 +5,14 @@ from .Exceptions import ParamError
 def is_legal_array(array):
     if not array or not isinstance(array, list):
         return False
+    elif len(array) <= 0 or not isinstance(array[0], float):
+        return False
+    return True
+
+
+def is_legal_arrays(array):
+    if not array or not isinstance(array, list):
+        return False
     return True
 
 
@@ -41,3 +49,12 @@ def parser_range_date(date):
         raise ParamError(
             'Date should be YY-MM-DD format string or datetime.date, '
             'or datetime.datetime object')
+
+
+def is_legal_date_range(start, end):
+    start_date = datetime.datetime.strptime(start, "%Y-%m-%d")
+    end_date = datetime.datetime.strptime(end, "%Y-%m-%d")
+    if (end_date - start_date).days < 0:
+        return False
+    else:
+        return True

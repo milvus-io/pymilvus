@@ -2,7 +2,7 @@
 import pytest
 
 # local application imports
-from factorys import gen_unique_str
+from factorys import *
 from milvus import Milvus, IndexType
 
 
@@ -22,6 +22,24 @@ def connect(request):
         try:
             milvus.disconnect()
         except:
+            pass
+
+    request.addfinalizer(fin)
+    return milvus
+
+
+@pytest.fixture(scope="module")
+def gcon(request):
+    ip = request.config.getoption("--ip")
+    port = request.config.getoption("--port")
+    milvus = Milvus()
+    milvus.connect(host=ip, port=port)
+
+    def fin():
+        try:
+            milvus.disconnect()
+        except Exception as e:
+            print(e)
             pass
 
     request.addfinalizer(fin)
@@ -54,3 +72,36 @@ def table(request, connect):
     request.addfinalizer(teardown)
 
     return table_name
+
+
+@pytest.fixture(scope="function")
+def gtable(request, gcon):
+    table_name = fake.table_name()
+    dim = getattr(request.module, "dim")
+
+    param = {'table_name': table_name,
+             'dimension': dim,
+             'index_type': IndexType.FLAT,
+             'store_raw_vector': False}
+    gcon.create_table(param)
+
+    def teardown():
+        status, table_names = gcon.show_tables()
+        for name in table_names:
+            gcon.delete_table(name)
+
+    request.addfinalizer(teardown)
+
+    return table_name
+
+
+@pytest.fixture(scope='function')
+def gvector(request, gcon, gtable):
+    dim = getattr(request.module, 'dim')
+
+    records = records_factory(dim, 1000)
+
+    gcon.add_vectors(gtable, records)
+    time.sleep(3)
+
+    return gtable
