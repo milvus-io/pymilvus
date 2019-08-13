@@ -18,13 +18,24 @@
     - Fix type of tile_ids in search_in_files api transfer bug
     - Fix Prepare after Prepare will raise ParamError bug
 - \#43 ISSUE: fix prepare after prepare will raise exceptions bug
+- \#50 ISSUE: **[M-174]** fix table_name=None buf create table successfully bug
+- \#53 ISSUE: **[MS-165 ~ MS-170]** fixed default ip and port wrong bug
+- \#59 ISSUE: **[MS-182]** fix query ranges param not control bug
+- \#60 ISSUE: **[MS-185]** fix connection no timeout bug 
+- \#69 ISSUE: **[MS-243]** fixed
 ### Improvement
 ---
-- \#10 Update examples
-- \#14 Update example
-- \#28 Update README with newest sdk
-- \#33 Update thrift has_table API
-- \#38 Update thrift score to distance
+- \#10 ISSUE: Update examples
+- \#14 ISSUE: Update example
+- \#28 ISSUE: Update README with newest sdk
+- \#33 ISSUE: Update thrift has_table API
+- \#38 ISSUE: Update thrift score to distance
+- \#45, \#47 ISSUE:  Update AdvancedExample
+- \#51 ISSUE: Brute force thread_safe for sdk
+- \#71 ISSUE: Update thrift api, search vectors results are binaries
+- \#73 ISSUE: Change table schema print format
+- \#74 ISSUE: Add a new attribute server_address
+- \#77 ISSUE: print out TopKResult more friendly
 ### New Feature
 ---
 - \#3
@@ -51,8 +62,17 @@
 - \#21 ISSUE
     - support search by range
     - fix server_status return None bug
+    
+- \#76 ISSUE
+    - replace thrift with grpc
+
+- \#79 ISSUE
+    - add new indextype MIN_NSG
+    - fix indextype name bug
+
 ### Task
 ---
 - \#1 Build Repository
 
 - \#2 Add CHANGELOG.md and LICENSE, update setup.py
+- \#70 ISSUE: **[MS-246]** **[MS-247]**, update README and examples

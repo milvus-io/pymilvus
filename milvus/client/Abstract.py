@@ -11,6 +11,14 @@ class IndexType(IntEnum):
     INVALID = 0
     FLAT = 1
     IVFLAT = 2
+    IVF_SQ8 = 3
+    MIX_NSG = 4
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+
+    def __str__(self):
+        return self._name_
 
 
 class TableSchema(object):
@@ -23,7 +31,7 @@ class TableSchema(object):
     :type  index_type: IndexType
     :param index_type: (Required) index type, default = IndexType.INVALID
 
-        `IndexType`: 0-invalid, 1-flat, 2-ivflat
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8
 
     :type  dimension: int64
     :param dimension: (Required) dimension of vector
@@ -39,6 +47,8 @@ class TableSchema(object):
                  store_raw_vector=False):
 
         # TODO may raise UnicodeEncodeError
+        if table_name is None:
+            raise ParamError('Table name can\'t be None')
         table_name = str(table_name) if not isinstance(table_name, str) else table_name
         if not legal_dimension(dimension):
             raise ParamError('Illegal dimension, effective range: (0 , 16384]')
@@ -77,8 +87,14 @@ class Range(object):
     """
 
     def __init__(self, start_date, end_date):
-        self.start_date = parser_range_date(start_date)
-        self.end_date = parser_range_date(end_date)
+        start_date = parser_range_date(start_date)
+        end_date = parser_range_date(end_date)
+        if is_legal_date_range(start_date, end_date):
+            self.start_date = start_date
+            self.end_date = end_date
+        else:
+            raise ParamError("The start-date should be smaller"
+                             " than or equal to end-date!")
 
 
 class RowRecord(object):
@@ -125,7 +141,23 @@ class TopKQueryResult(list):
     """
     TopK query results, list of QueryResult
     """
-    pass
+
+    def __repr__(self):
+
+        if self.__len__() > 10:
+            middle = ''
+            for topk in self[:3]:
+                middle = middle + " [ %s" % ",\n   ".join(map(str, topk[:3]))
+                middle += ",\n   ..."
+                middle += "\n   %s ]\n\n" % str(topk[-1])
+
+            spaces = """        ......
+        ......"""
+
+            ahead = "[\n%s%s\n]" % (middle, spaces)
+            return ahead
+        else:
+            return "[\n%s\n]" % ",\n".join(map(str, self))
 
 
 def _abstract():
@@ -200,6 +232,19 @@ class ConnectIntf(object):
         :return:
             has_table: bool, if given table_name exists
 
+        """
+        _abstract()
+
+    def build_index(self, table_name):
+        """
+        Build index by table name
+
+        This method is used to build index by table in sync mode.
+
+        :param table_name: table is going to be built index.
+        :type  table_name: str
+
+        :return: Status, indicate if operation is successful
         """
         _abstract()
 
@@ -335,7 +380,6 @@ class ConnectIntf(object):
         :rtype: (Status, str)
         """
         _abstract()
-
 
     def server_version(self):
         """

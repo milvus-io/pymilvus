@@ -2,8 +2,7 @@
 # create a vector table, 
 # insert 10 vectors, 
 # and execute a vector similarity search.
-
-from milvus import Milvus, Prepare, IndexType, Status
+from milvus import Milvus, IndexType
 import time
 
 # Milvus server IP address and port.
@@ -21,7 +20,7 @@ def main():
     status = milvus.connect(**param)
 
     # Create table demo_table if it dosen't exist.
-    table_name = 'demo_table'
+    table_name = 'demo_table_01'
 
     if not milvus.has_table(table_name):
         param = {
@@ -59,7 +58,7 @@ def main():
     # Wait for 6 seconds, since Milvus server persist vector data every 5 seconds by default.
     # You can set data persist interval in Milvus config file.
     time.sleep(6)
-    
+
     # Get demo_table row count
     status, result = milvus.get_table_row_count(table_name)
 
@@ -77,7 +76,7 @@ def main():
     }
     status, results = milvus.search_vectors(**param)
 
-    if results[0][0].score== 100.0 or results[0][0].id == ids[3]:
+    if results[0][0].distance == 0.0 or results[0][0].id == ids[3]:
         print('Query result is correct')
     else:
         print('Query result isn\'t correct')
