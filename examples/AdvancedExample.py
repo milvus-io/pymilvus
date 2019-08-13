@@ -1,7 +1,7 @@
+import sys
 from milvus import Milvus, IndexType
 from milvus.client.Exceptions import *
 from functools import wraps
-import sys
 import time
 import random
 

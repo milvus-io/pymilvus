@@ -1,6 +1,7 @@
 import random
 import time
-from milvus import Milvus, Status, IndexType
+
+from milvus import Milvus, IndexType
 
 _DIM = 512
 nb = 100000  # number of vector dataset
@@ -17,7 +18,7 @@ milvus = Milvus()
 milvus.connect(**server_config)
 
 
-def ramdom_vectors(num):
+def random_vectors(num):
 
     # generate vectors randomly
     return [[random.random() for _ in range(_DIM)] for _ in range(num)]
@@ -44,7 +45,7 @@ def delete_table():
     if status.OK():
         print("table {} delete successfully!".format(table_name))
     else:
-        print("table {} delet failed: {}".format(table_name, status.message))
+        print("table {} delete failed: {}".format(table_name, status.message))
 
 
 def describe_table():
@@ -78,30 +79,30 @@ def insert_vectors(_vectors):
 
     status, count = milvus.get_table_row_count(table_name)
     if status.OK() and count == len(_vectors):
-        print("insert vectors into table `{}` succesfully!".format(table_name))
+        print("insert vectors into table `{}` successfully!".format(table_name))
 
 
-def search_vectors(query_vectors):
+def search_vectors(_query_vectors):
     """
     search vectors and display results
 
-    :param query_vectors:
+    :param _query_vectors:
     :return: None
     """
 
-    status, results = milvus.search_vectors(table_name=table_name, query_records=query_vectors, top_k=top_K)
+    status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K)
     if status.OK():
         print("Search successfully!")
         for result_record in results:
             print(result_record)
     else:
-        print("serach failed: {}".format(status.message))
+        print("search failed: {}".format(status.message))
 
 
 if __name__ == '__main__':
 
     # generate dataset vectors
-    vectors = ramdom_vectors(nb)
+    vectors = random_vectors(nb)
 
     create_table()
 
@@ -109,7 +110,7 @@ if __name__ == '__main__':
 
     insert_vectors(vectors)
 
-    query_vectors = ramdom_vectors(nq)
+    query_vectors = random_vectors(nq)
 
     search_vectors(query_vectors)
 

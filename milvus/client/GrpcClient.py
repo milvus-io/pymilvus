@@ -200,7 +200,7 @@ class GrpcMilvus(ConnectIntf):
         :type  host: str
         :type  port: str
         :type  uri: str
-        :type  timeout: str
+        :type  timeout: int
         :param host: (Optional) host of the server, default host is 127.0.0.1
         :param port: (Optional) port of the server, default port is 19530
         :param uri: (Optional) only support tcp proto now, default uri is
