@@ -3,11 +3,9 @@ import pytest
 import sys
 
 sys.path.append('.')
-from multiprocessing import Process, Queue
 from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
 from milvus.client.Abstract import IndexType, TableSchema, TopKQueryResult
 from milvus.client.Exceptions import *
-from milvus.grpc_gen import milvus_pb2
 from factorys import *
 
 LOGGER = logging.getLogger(__name__)
