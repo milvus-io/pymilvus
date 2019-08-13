@@ -389,6 +389,13 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
+    def create_index(self):
+        """
+        #TODO: this function refer to CreateIndex(IndexParam)
+        :return:
+        """
+        pass
+
     def add_vectors(self, table_name, records, *args, **kwargs):
         """
         Add vectors to table
