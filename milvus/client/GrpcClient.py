@@ -24,6 +24,8 @@ from ..grpc_gen import milvus_pb2_grpc, status_pb2
 from ..grpc_gen import milvus_pb2 as grpc_types
 from urllib.parse import urlparse
 
+from .annotation import deprecated, compatible, incomplete
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -111,26 +113,49 @@ class Prepare(object):
                 res.append(_range)
         return res
 
-    # TODO Prepare after Prepare
-    @classmethod
-    def insert_infos(cls, table_name, vectors):
-        infos = grpc_types.InsertInfos()
+    # TODO: update grpc type from InsertInfos to InsertParam
 
-        infos.table_name = table_name
+    @classmethod
+    def insert_param(cls, table_name, vectors):
+        _param = grpc_types.InsertParam()
+        _param.table_name = table_name
 
         for vector in vectors:
             if is_legal_array(vector):
-                infos.row_record_array.add(vector_data=vector)
+                _param.row_record_array.add(vector_data=vector)
             else:
                 raise ParamError('Vectors should be 2-dim array!')
 
-        return infos
+        return _param
 
-    # TODO Prepare after Prepare
     @classmethod
-    def search_vector_infos(cls, table_name, query_records, query_ranges, topk):
+    def index(cls, index_type, nlist, index_file_size):
+        return grpc_types.IndexParam(index_type=index_type, nlist=nlist, index_file_size=index_file_size)
+
+    @classmethod
+    def index_param(cls, table_name, index_param):
+        _table_name = Prepare.table_name(table_name)
+        if not isinstance(index_param, dict):
+            raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
+                type(dict), type(index_param)
+            ))
+        _index = Prepare.index(**index_param)
+
+        return grpc_types.IndexParam(table_name=_table_name, index=_index)
+
+    @classmethod
+    def vector_ids(cls, ids):
+        _status = status_pb2.Status(error_code=0, reason="OK")
+
+        if not is_legal_array(ids):
+            raise ParamError('Ids must be a list')
+
+        return grpc_types.VectorIds(status=_status, vector_id_array=ids)
+
+    @classmethod
+    def search_param(cls, table_name, query_records, query_ranges, topk):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
-        search_infos = grpc_types.SearchVectorInfos(
+        search_param = grpc_types.SearchParam(
             table_name=table_name,
             query_range_array=query_ranges,
             topk=topk
@@ -138,18 +163,33 @@ class Prepare(object):
 
         for vector in query_records:
             if is_legal_array(vector):
-                search_infos.query_record_array.add(vector_data=vector)
+                search_param.query_record_array.add(vector_data=vector)
             else:
                 raise ParamError('Vectors should be 2-dim array!')
 
-        return search_infos
+        return search_param
+
+    # TODO： @Deprecated
+    @classmethod
+    @deprecated
+    def search_vector_in_files_infos(cls, table_name, query_records, topk, ids):
+        return Prepare.search_vector_in_files_param(table_name, query_records, topk, ids)
+        # search_infos = Prepare.search_vector_infos(table_name, query_records, None, topk)
+        # return grpc_types.SearchVectorInFilesInfos(
+        #     file_id_array=ids,
+        #     search_vector_infos=search_infos
+        # )
 
     @classmethod
-    def search_vector_in_files_infos(cls, table_name, query_records, topk, ids):
-        search_infos = Prepare.search_vector_infos(table_name, query_records, None, topk)
-        return grpc_types.SearchVectorInFilesInfos(
+    def search_vector_in_files_param(cls, table_name, query_records, query_ranges, topk, ids):
+        _search_param = Prepare.search_param(table_name, query_records, query_ranges, topk)
+
+        if not isinstance(ids, list):
+            raise ParamError('Ids must be a list')
+
+        return grpc_types.SearchInFilesParam(
             file_id_array=ids,
-            search_vector_infos=search_infos
+            search_param=_search_param
         )
 
 
@@ -361,8 +401,10 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
+    @compatible
     def build_index(self, table_name, *args, **kwargs):
         """
+        TODO: this interface is resorved with compacitity down
         Build index by table name
 
         This method is used to build index by table in sync mode.
@@ -380,6 +422,7 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             table_name = Prepare.table_name(table_name)
+            # TODO: BuildIndex() has been abandoned
             status = self._stub.BuildIndex(table_name)
             if status.error_code == 0:
                 return Status(message='Build index successfully!')
@@ -389,13 +432,21 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def create_index(self):
+    def create_index(self, table_name, index_param):
         """
         #TODO: this function refer to CreateIndex(IndexParam)
         :return:
         """
-        pass
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
 
+        _idnex_param = Prepare.index_param(table_name, index_param)
+
+        _status = self._stub.CreateIndex(_idnex_param)
+
+        return Status(code=_status.error_code, message=_status.reason)
+
+    @compatible
     def add_vectors(self, table_name, records, *args, **kwargs):
         """
         Add vectors to table
@@ -419,16 +470,16 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         if kwargs.get('flag', False):
-            insert_infos = kwargs.get('param', None)
-            if not insert_infos:
+            insert_param = kwargs.get('param', None)
+            if not insert_param:
                 raise ParamError('param miss! please offer key "param"')
-            if not isinstance(insert_infos, grpc_types.InsertInfos):
+            if not isinstance(insert_param, grpc_types.InsertParam):
                 raise ParamError('Please offer a correct param type')
         else:
-            insert_infos = Prepare.insert_infos(table_name, records)
+            insert_param = Prepare.insert_param(table_name, records)
 
         try:
-            vector_ids = self._stub.InsertVector(insert_infos)
+            vector_ids = self._stub.Insert(insert_param)
             if vector_ids.status.error_code == 0:
                 ids = list(vector_ids.vector_id_array)
                 return Status(message='Add vectors successfully!'), ids
@@ -438,6 +489,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
 
+    @compatible
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         """
         Query vectors in a table
@@ -478,13 +530,13 @@ class GrpcMilvus(ConnectIntf):
         if not isinstance(top_k, int) or top_k <= 0:
             raise ParamError('Param top_k should be larger than 0!')
 
-        infos = Prepare.search_vector_infos(
+        infos = Prepare.search_param(
             table_name, query_records, query_ranges, top_k
         )
 
         results = TopKQueryResult()
         try:
-            for topks in self._stub.SearchVector(infos):
+            for topks in self._stub.Search(infos):
                 results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topks.query_result_arrays])
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
@@ -496,6 +548,7 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Search vectors successfully!'), results
 
+    @compatible
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         """
         Query vectors in a table, in specified files
@@ -530,13 +583,13 @@ class GrpcMilvus(ConnectIntf):
 
         file_ids = list(map(int_or_str, file_ids))
 
-        infos = Prepare.search_vector_in_files_infos(
-            table_name, query_records, top_k, file_ids
+        infos = Prepare.search_vector_in_files_param(
+            table_name, query_records, query_ranges, top_k, file_ids
         )
 
         results = TopKQueryResult()
         try:
-            for topks in self._stub.SearchVectorInFiles(infos):
+            for topks in self._stub.SearchInFiles(infos):
                 if topks.status.error_code == 0:
                     results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topks.query_result_arrays])
                 else:
@@ -613,6 +666,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
 
+    @compatible
     def get_table_row_count(self, table_name):
         """
         Get table row count
@@ -631,7 +685,7 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            trc = self._stub.GetTableRowCount(table_name)
+            trc = self._stub.CountTable(table_name)
             if trc.status.error_code == 0:
                 return Status(message='Get table row count successfully!'), trc.table_row_count
             else:
@@ -653,6 +707,7 @@ class GrpcMilvus(ConnectIntf):
         """
         return __version__
 
+    @compatible
     def server_version(self):
         """
         Provide server version
@@ -669,15 +724,16 @@ class GrpcMilvus(ConnectIntf):
 
         cmd = grpc_types.Command(cmd='version')
         try:
-            ss = self._stub.Ping(cmd)
+            ss = self._stub.Cmd(cmd)
             if ss.status.error_code == 0:
-                return Status(message='Success!'), ss.info
+                return Status(message='Success!'), ss.string_reply
             else:
                 return Status(code=ss.status.error_code, message=ss.status.reason), None
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
 
+    @compatible
     def server_status(self, cmd=None, *args, **kwargs):
         """
         Provide server status. When cmd !='version', provide 'OK'
@@ -706,11 +762,31 @@ class GrpcMilvus(ConnectIntf):
             cmd = grpc_types.Command(cmd=cmd)
 
         try:
-            ss = self._stub.Ping(cmd)
+            ss = self._stub.Cmd(cmd)
             if ss.status.error_code == 0:
-                return Status(message='Success!'), ss.info
+                return Status(message='Success!'), ss.string_reply
             else:
                 return Status(code=ss.status.error_code, message=ss.status.reason), None
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
+
+    @incomplete
+    def delete_table_by_range(self, start_time=None, end_time=None):
+        return Status(message="Incompleted, success default")
+        pass
+
+    @incomplete
+    def preload_table(self, table_name):
+        return Status(message="Incompleted, success default")
+        pass
+
+    @incomplete
+    def describe_index(self, table_name):
+        # return Status(message="Incompleted, success default")
+        pass
+
+    @incomplete
+    def drop_index(self, table_name):
+        return Status(message="Incompleted, success default")
+        pass
