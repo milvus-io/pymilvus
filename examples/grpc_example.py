@@ -3,7 +3,7 @@ import time
 from milvus import Milvus, IndexType
 
 _DIM = 512
-nb = 100000  # number of vector dataset
+nb = 500000  # number of vector dataset
 nq = 10  # number of query vector
 table_name = 'example'
 top_K = 1
@@ -27,7 +27,7 @@ def create_table():
     param = {
         'table_name': table_name,
         'dimension': _DIM,
-        'index_type': IndexType.FLAT,
+        'index_type': IndexType.IVFLAT,
         'store_raw_vector': False
     }
 
@@ -81,6 +81,13 @@ def insert_vectors(_vectors):
         print("insert vectors into table `{}` successfully!".format(table_name))
 
 
+def build_index():
+    status = milvus.build_index(table_name)
+
+    if not status.OK():
+        print("build index failed: {}".format(status.message))
+
+
 def search_vectors(_query_vectors):
     """
     search vectors and display results
@@ -106,6 +113,11 @@ if __name__ == '__main__':
     describe_table()
 
     insert_vectors(vectors)
+
+    # wait for inserted vectors persisting
+    time.sleep(10)
+
+    build_index()
 
     query_vectors = random_vectors(nq)
 

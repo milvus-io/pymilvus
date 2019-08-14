@@ -11,7 +11,7 @@ from factorys import *
 LOGGER = logging.getLogger(__name__)
 
 dim = 16
-nq = 20
+nq = 200000
 
 
 class TestConnection:
@@ -443,13 +443,13 @@ class TestAddVectors:
         status, ids = gcon.add_vectors(gtable, vectors)
 
         assert status.OK()
-        assert len(ids) == 20
+        assert len(ids) == 200000
 
         time.sleep(2)
 
         status, count = gcon.get_table_row_count(gtable)
         assert status.OK()
-        assert count == 20
+        assert count == 200000
 
 
 class TestSearchVectors:
@@ -466,3 +466,10 @@ class TestSearchVectors:
         assert status.OK()
         assert len(result) == 1
         assert len(result[0]) == 1
+
+
+class TestBuildIndex:
+    def test_build_index(self, gcon, gtable):
+        status = gcon.build_index(gtable)
+
+        assert status.OK()

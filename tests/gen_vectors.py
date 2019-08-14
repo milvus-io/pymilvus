@@ -67,7 +67,7 @@ def grpc_time():
 
 @time_it
 def grpc_add_vectors_without_prepare(milvus, insertinfo):
-    ids = milvus.add_vectors(None, None, flag=True, param=insertinfo)
+    ids = milvus.add_vectors(None, None, insert_param=insertinfo)
 
 
 @time_it
