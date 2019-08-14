@@ -24,8 +24,6 @@ from ..grpc_gen import milvus_pb2_grpc, status_pb2
 from ..grpc_gen import milvus_pb2 as grpc_types
 from urllib.parse import urlparse
 
-from .annotation import deprecated, compatible, incomplete
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -113,8 +111,6 @@ class Prepare(object):
                 res.append(_range)
         return res
 
-    # TODO: update grpc type from InsertInfos to InsertParam
-
     @classmethod
     def insert_param(cls, table_name, vectors):
         _param = grpc_types.InsertParam()
@@ -168,17 +164,6 @@ class Prepare(object):
                 raise ParamError('Vectors should be 2-dim array!')
 
         return search_param
-
-    # TODO： @Deprecated
-    @classmethod
-    @deprecated
-    def search_vector_in_files_infos(cls, table_name, query_records, topk, ids):
-        return Prepare.search_vector_in_files_param(table_name, query_records, topk, ids)
-        # search_infos = Prepare.search_vector_infos(table_name, query_records, None, topk)
-        # return grpc_types.SearchVectorInFilesInfos(
-        #     file_id_array=ids,
-        #     search_vector_infos=search_infos
-        # )
 
     @classmethod
     def search_vector_in_files_param(cls, table_name, query_records, query_ranges, topk, ids):
@@ -401,7 +386,6 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    @compatible
     def build_index(self, table_name, *args, **kwargs):
         """
         TODO: this interface is resorved with compacitity down
@@ -446,7 +430,6 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(code=_status.error_code, message=_status.reason)
 
-    @compatible
     def add_vectors(self, table_name, records, *args, **kwargs):
         """
         Add vectors to table
@@ -489,7 +472,6 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
 
-    @compatible
     def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
         """
         Query vectors in a table
@@ -548,7 +530,6 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Search vectors successfully!'), results
 
-    @compatible
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
         """
         Query vectors in a table, in specified files
@@ -666,7 +647,6 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
 
-    @compatible
     def get_table_row_count(self, table_name):
         """
         Get table row count
@@ -707,7 +687,6 @@ class GrpcMilvus(ConnectIntf):
         """
         return __version__
 
-    @compatible
     def server_version(self):
         """
         Provide server version
@@ -733,7 +712,6 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
 
-    @compatible
     def server_status(self, cmd=None, *args, **kwargs):
         """
         Provide server status. When cmd !='version', provide 'OK'
@@ -771,22 +749,22 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
 
-    @incomplete
     def delete_table_by_range(self, start_time=None, end_time=None):
         return Status(message="Incompleted, success default")
+        # TODO: waiting for completing
         pass
 
-    @incomplete
     def preload_table(self, table_name):
         return Status(message="Incompleted, success default")
+        # TODO: waiting for completing
         pass
 
-    @incomplete
     def describe_index(self, table_name):
         # return Status(message="Incompleted, success default")
+        # TODO: waiting for completing
         pass
 
-    @incomplete
     def drop_index(self, table_name):
         return Status(message="Incompleted, success default")
+        # TODO: waiting for completing
         pass
