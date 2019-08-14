@@ -118,8 +118,8 @@ def records_factory(dimension, nq):
 
 
 def query_ranges_factory():
-    param = [('2019-06-25', '2100-1-25')]
-    return gPrepare.ranges(param)
+    param = [('2019-06-25', '2020-1-25')]
+    return param
 
 
 def time_it(func):

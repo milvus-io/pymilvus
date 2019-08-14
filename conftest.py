@@ -61,7 +61,7 @@ def table(request, connect):
     dim = getattr(request.module, "dim", "128")
     param = {'table_name': table_name,
              'dimension': dim,
-             'index_type': IndexType.FLAT,
+             'index_type': IndexType.IVFLAT,
              'store_raw_vector': False}
     connect.create_table(param)
 

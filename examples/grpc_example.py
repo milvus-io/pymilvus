@@ -1,10 +1,17 @@
 import random
 import time
+<<<<<<< HEAD
 
 from milvus import Milvus, IndexType
 
 _DIM = 512
 nb = 100000  # number of vector dataset
+=======
+from milvus import Milvus, IndexType
+
+_DIM = 512
+nb = 500000  # number of vector dataset
+>>>>>>> develop-grpc
 nq = 10  # number of query vector
 table_name = 'example'
 top_K = 1
@@ -28,7 +35,11 @@ def create_table():
     param = {
         'table_name': table_name,
         'dimension': _DIM,
+<<<<<<< HEAD
         'index_type': IndexType.FLAT,
+=======
+        'index_type': IndexType.IVFLAT,
+>>>>>>> develop-grpc
         'store_raw_vector': False
     }
 
@@ -82,6 +93,16 @@ def insert_vectors(_vectors):
         print("insert vectors into table `{}` successfully!".format(table_name))
 
 
+<<<<<<< HEAD
+=======
+def build_index():
+    status = milvus.build_index(table_name)
+
+    if not status.OK():
+        print("build index failed: {}".format(status.message))
+
+
+>>>>>>> develop-grpc
 def search_vectors(_query_vectors):
     """
     search vectors and display results
@@ -93,8 +114,11 @@ def search_vectors(_query_vectors):
     status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K)
     if status.OK():
         print("Search successfully!")
+<<<<<<< HEAD
         for result_record in results:
             print(result_record)
+=======
+>>>>>>> develop-grpc
     else:
         print("search failed: {}".format(status.message))
 
@@ -110,6 +134,14 @@ if __name__ == '__main__':
 
     insert_vectors(vectors)
 
+<<<<<<< HEAD
+=======
+    # wait for inserted vectors persisting
+    time.sleep(10)
+
+    build_index()
+
+>>>>>>> develop-grpc
     query_vectors = random_vectors(nq)
 
     search_vectors(query_vectors)

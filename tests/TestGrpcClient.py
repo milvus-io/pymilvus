@@ -3,17 +3,17 @@ import pytest
 import sys
 
 sys.path.append('.')
-from multiprocessing import Process, Queue
+
 from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
 from milvus.client.Abstract import IndexType, TableSchema, TopKQueryResult
 from milvus.client.Exceptions import *
-from milvus.grpc_gen import milvus_pb2
+
 from factorys import *
 
 LOGGER = logging.getLogger(__name__)
 
 dim = 16
-nq = 20
+nq = 200000
 
 
 class TestConnection:
@@ -179,7 +179,6 @@ class TestTable:
 class TestVector:
 
     def test_add_vector(self, gcon, gtable):
-
         param = {
             'table_name': gtable,
             'records': records_factory(dim, nq)
@@ -260,8 +259,8 @@ class TestSearch:
         query_records = records_factory(dim, nq)
         param = {
             'table_name': gvector,
-            'query_records': query_records,
             'top_k': topk,
+            'query_records': query_records,
             'query_ranges': query_ranges_factory()
 
         }
@@ -445,13 +444,14 @@ class TestAddVectors:
         status, ids = gcon.add_vectors(gtable, vectors)
 
         assert status.OK()
-        assert len(ids) == 20
+        assert len(ids) == 200000
 
         time.sleep(2)
 
         status, count = gcon.get_table_row_count(gtable)
         assert status.OK()
-        assert count == 20
+
+        assert count == 200000
 
 
 class TestSearchVectors:
@@ -468,3 +468,10 @@ class TestSearchVectors:
         assert status.OK()
         assert len(result) == 1
         assert len(result[0]) == 1
+
+
+class TestBuildIndex:
+    def test_build_index(self, gcon, gtable):
+        status = gcon.build_index(gtable)
+
+        assert status.OK()
