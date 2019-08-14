@@ -1,17 +1,10 @@
 import random
 import time
-<<<<<<< HEAD
 
-from milvus import Milvus, IndexType
-
-_DIM = 512
-nb = 100000  # number of vector dataset
-=======
 from milvus import Milvus, IndexType
 
 _DIM = 512
 nb = 500000  # number of vector dataset
->>>>>>> develop-grpc
 nq = 10  # number of query vector
 table_name = 'example'
 top_K = 1
@@ -26,7 +19,6 @@ milvus.connect(**server_config)
 
 
 def random_vectors(num):
-
     # generate vectors randomly
     return [[random.random() for _ in range(_DIM)] for _ in range(num)]
 
@@ -35,13 +27,13 @@ def create_table():
     param = {
         'table_name': table_name,
         'dimension': _DIM,
-<<<<<<< HEAD
-        'index_type': IndexType.FLAT,
-=======
         'index_type': IndexType.IVFLAT,
->>>>>>> develop-grpc
         'store_raw_vector': False
     }
+
+    if milvus.has_table(param['table_name']):
+        milvus.delete_table(param['table_name'])
+        time.sleep(5)
 
     status = milvus.create_table(param)
 
@@ -93,8 +85,6 @@ def insert_vectors(_vectors):
         print("insert vectors into table `{}` successfully!".format(table_name))
 
 
-<<<<<<< HEAD
-=======
 def build_index():
     status = milvus.build_index(table_name)
 
@@ -102,7 +92,6 @@ def build_index():
         print("build index failed: {}".format(status.message))
 
 
->>>>>>> develop-grpc
 def search_vectors(_query_vectors):
     """
     search vectors and display results
@@ -114,17 +103,11 @@ def search_vectors(_query_vectors):
     status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K)
     if status.OK():
         print("Search successfully!")
-<<<<<<< HEAD
-        for result_record in results:
-            print(result_record)
-=======
->>>>>>> develop-grpc
     else:
         print("search failed: {}".format(status.message))
 
 
 if __name__ == '__main__':
-
     # generate dataset vectors
     vectors = random_vectors(nb)
 
@@ -134,14 +117,13 @@ if __name__ == '__main__':
 
     insert_vectors(vectors)
 
-<<<<<<< HEAD
-=======
     # wait for inserted vectors persisting
     time.sleep(10)
 
+    print("Start build index ...... ")
     build_index()
+    time.sleep(10)
 
->>>>>>> develop-grpc
     query_vectors = random_vectors(nq)
 
     search_vectors(query_vectors)

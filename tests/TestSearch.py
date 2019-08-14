@@ -48,24 +48,6 @@ class TestSearch:
 def main():
     milvus = Milvus()
     milvus.connect(host='localhost', port='19530')
-    #
-    # table_name = 'test_search_in_file'
-    # dimension = 256
-
-    # vectors = Prepare.records([[random.random()for _ in range(dimension)] for _ in range(20)])
-    # param = {
-    #     'table_name': table_name,
-    #     'file_ids': ['1'],
-    #     'query_records': vectors,
-    #     'top_k': 5,
-    #     # 'query_ranges': []  # Not fully tested yet
-    # }
-    # status, result = milvus.search_vectors_in_files(**param)
-    # if status.OK():
-    #     pprint(result)
-    #
-    # _, result = milvus.get_table_row_count(table_name)
-    # print('# Count: {}'.format(result))
 
     table_name = 'test_search'
     dimension = 256

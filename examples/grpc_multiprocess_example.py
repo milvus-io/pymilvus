@@ -1,12 +1,7 @@
 import os
 from multiprocessing import Process
-<<<<<<< HEAD
 
 from factorys import *
-
-=======
-from factorys import *
->>>>>>> develop-grpc
 from milvus import Milvus
 
 table_name = 'test_test'
@@ -31,20 +26,15 @@ def create_table(_table_name):
         print(f"Table {_table_name} found, now going to delete it")
         status = milvus.delete_table(_table_name)
         assert status.OK(), f"delete table {_table_name} failed"
-<<<<<<< HEAD
 
-        # wait for table deleted
-        time.sleep(5)
-=======
-        time.sleep(5)
+    time.sleep(5)
 
-        if milvus.has_table(_table_name):
-            raise Exception("Delete table error")
+    if milvus.has_table(_table_name):
+        raise Exception("Delete table error")
 
-        print("delete table {} successfully!".format(_table_name))
+    print("delete table {} successfully!".format(_table_name))
 
-        # wait for table deleted
->>>>>>> develop-grpc
+    # wait for table deleted
 
     milvus.create_table(param)
 
@@ -90,11 +80,7 @@ def multi_conn(_table_name, proce_num):
 
 
 def validate_insert(_table_name):
-<<<<<<< HEAD
-    milvus = GrpcMilvus()
-=======
     milvus = Milvus()
->>>>>>> develop-grpc
     milvus.connect(host="localhost", port="19530")
 
     status, count = milvus.get_table_row_count(_table_name)
@@ -105,29 +91,15 @@ def validate_insert(_table_name):
     milvus.disconnect()
 
 
-<<<<<<< HEAD
-def run_multi_proce(_table_name):
-    create_table(table_name)
-    multi_conn(table_name, process_num)
-=======
-def run_multi_proce(_table_name, _process_num):
+def run_multi_process(_table_name, _process_num):
     create_table(_table_name)
     multi_conn(_table_name, _process_num)
->>>>>>> develop-grpc
 
     # sleep 3 seconds to wait for vectors inserted Preservation
     time.sleep(3)
 
-<<<<<<< HEAD
-    validate_insert(table_name)
-
-
-if __name__ == '__main__':
-    run_multi_proce(table_name)
-=======
     validate_insert(_table_name)
 
 
 if __name__ == '__main__':
-    run_multi_proce(table_name, process_num)
->>>>>>> develop-grpc
+    run_multi_process(table_name, process_num)
