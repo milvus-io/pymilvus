@@ -11,7 +11,7 @@ dim = 512
 
 vector_num = 100000
 
-process_value_list = [1, 2, 5, 10, 20, 50]
+process_value_list = [1, 2, 5, 10, 20]
 
 vectors_list = []
 
@@ -82,23 +82,23 @@ def multi_conn(_table_name, proce_num):
     return True
 
 
-def check_insert(_table_name, proce_num):
+def check_insert(_table_name):
     milvus = Milvus()
     milvus.connect(host="localhost", port="19530")
 
     status, count = milvus.get_table_row_count(_table_name)
 
     assert count == vector_num, f"Error: insert check not pass: " \
-                                f"{proce_num * vector_num} expected but {count} instead!"
+                                f"{ vector_num} expected but {count} instead!"
     print(f'')
 
 
 def run_multi_process(_table_name):
     for np in process_value_list:
-        create_table(table_name)
-        multi_conn(table_name, np)
+        create_table(_table_name)
+        multi_conn(_table_name, np)
         time.sleep(1)
-        check_insert(table_name, np)
+        check_insert(_table_name)
         time.sleep(1)
 
 

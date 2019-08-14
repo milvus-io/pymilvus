@@ -29,7 +29,7 @@ def main():
 
     vectors = [[random.random()for _ in range(dimension)] for _ in range(100000)]
 
-    for index in range(500):
+    for index in range(5):
         start = time.time()
         _, ids = milvus.add_vectors(table_name=table_name, records=vectors)
         if len(ids) == 100000:

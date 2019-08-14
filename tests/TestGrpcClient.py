@@ -258,8 +258,8 @@ class TestSearch:
         query_records = records_factory(dim, nq)
         param = {
             'table_name': gvector,
-            'query_records': query_records,
             'top_k': topk,
+            'query_records': query_records,
             'query_ranges': query_ranges_factory()
 
         }

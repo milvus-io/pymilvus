@@ -1,6 +1,5 @@
 import random
 import time
-
 from milvus import Milvus, IndexType
 
 _DIM = 512
@@ -93,8 +92,6 @@ def search_vectors(_query_vectors):
     status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K)
     if status.OK():
         print("Search successfully!")
-        for result_record in results:
-            print(result_record)
     else:
         print("search failed: {}".format(status.message))
 
