@@ -70,6 +70,9 @@
     - add new indextype MIN_NSG
     - fix indextype name bug
 
+- \#81 ISSUE
+    - remove all thrift 
+    - update interface and interface param
 ### Task
 ---
 - \#1 Build Repository
