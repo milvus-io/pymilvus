@@ -22,7 +22,8 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax='proto3',
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x0cmilvus.proto\x12\x0bmilvus.grpc\x1a\x0cstatus.proto\"D\n\tTableName\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\"z\n\x0bTableSchema\x12*\n\ntable_name\x18\x01 \x01(\x0b\x32\x16.milvus.grpc.TableName\x12\x12\n\nindex_type\x18\x02 \x01(\x05\x12\x11\n\tdimension\x18\x03 \x01(\x03\x12\x18\n\x10store_raw_vector\x18\x04 \x01(\x08\"/\n\x05Range\x12\x13\n\x0bstart_value\x18\x01 \x01(\t\x12\x11\n\tend_value\x18\x02 \x01(\t\" \n\tRowRecord\x12\x13\n\x0bvector_data\x18\x01 \x03(\x02\"S\n\x0bInsertParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x30\n\x10row_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\"I\n\tVectorIds\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0fvector_id_array\x18\x02 \x03(\x03\"\x92\x01\n\x0bSearchParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x32\n\x12query_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12-\n\x11query_range_array\x18\x03 \x03(\x0b\x32\x12.milvus.grpc.Range\x12\x0c\n\x04topk\x18\x04 \x01(\x03\"[\n\x12SearchInFilesParam\x12\x15\n\rfile_id_array\x18\x01 \x03(\t\x12.\n\x0csearch_param\x18\x02 \x01(\x0b\x32\x18.milvus.grpc.SearchParam\"+\n\x0bQueryResult\x12\n\n\x02id\x18\x01 \x01(\x03\x12\x10\n\x08\x64istance\x18\x02 \x01(\x01\"m\n\x0fTopKQueryResult\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x35\n\x13query_result_arrays\x18\x02 \x03(\x0b\x32\x18.milvus.grpc.QueryResult\"H\n\x0bStringReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x14\n\x0cstring_reply\x18\x02 \x01(\t\"D\n\tBoolReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\nbool_reply\x18\x02 \x01(\x08\"M\n\rTableRowCount\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0ftable_row_count\x18\x02 \x01(\x03\"\x16\n\x07\x43ommand\x12\x0b\n\x03\x63md\x18\x01 \x01(\t\"C\n\x05Index\x12\x12\n\nindex_type\x18\x01 \x01(\x05\x12\r\n\x05nlist\x18\x02 \x01(\x03\x12\x17\n\x0findex_file_size\x18\x03 \x01(\x05\"[\n\nIndexParam\x12*\n\ntable_name\x18\x01 \x01(\x0b\x32\x16.milvus.grpc.TableName\x12!\n\x05index\x18\x02 \x01(\x0b\x32\x12.milvus.grpc.Index\"K\n\x12\x44\x65leteByRangeParam\x12!\n\x05range\x18\x01 \x01(\x0b\x32\x12.milvus.grpc.Range\x12\x12\n\ntable_name\x18\x02 \x01(\t2\xea\x07\n\rMilvusService\x12>\n\x0b\x43reateTable\x12\x18.milvus.grpc.TableSchema\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x08HasTable\x12\x16.milvus.grpc.TableName\x1a\x16.milvus.grpc.BoolReply\"\x00\x12:\n\tDropTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0b\x43reateIndex\x12\x17.milvus.grpc.IndexParam\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x06Insert\x12\x18.milvus.grpc.InsertParam\x1a\x16.milvus.grpc.VectorIds\"\x00\x12\x44\n\x06Search\x12\x18.milvus.grpc.SearchParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x30\x01\x12R\n\rSearchInFiles\x12\x1f.milvus.grpc.SearchInFilesParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x30\x01\x12\x43\n\rDescribeTable\x12\x16.milvus.grpc.TableName\x1a\x18.milvus.grpc.TableSchema\"\x00\x12\x42\n\nCountTable\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.TableRowCount\"\x00\x12>\n\nShowTables\x12\x14.milvus.grpc.Command\x1a\x16.milvus.grpc.TableName\"\x00\x30\x01\x12\x37\n\x03\x43md\x12\x14.milvus.grpc.Command\x1a\x18.milvus.grpc.StringReply\"\x00\x12G\n\rDeleteByRange\x12\x1f.milvus.grpc.DeleteByRangeParam\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0cPreloadTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x42\n\rDescribeIndex\x12\x16.milvus.grpc.TableName\x1a\x17.milvus.grpc.IndexParam\"\x00\x12:\n\tDropIndex\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x62\x06proto3'),
+        '\n\x0cmilvus.proto\x12\x0bmilvus.grpc\x1a\x0cstatus.proto\"D\n\tTableName\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\"z\n\x0bTableSchema\x12*\n\ntable_name\x18\x01 \x01(\x0b\x32\x16.milvus.grpc.TableName\x12\x12\n\nindex_type\x18\x02 \x01(\x05\x12\x11\n\tdimension\x18\x03 \x01(\x03\x12\x18\n\x10store_raw_vector\x18\x04 \x01(\x08\"/\n\x05Range\x12\x13\n\x0bstart_value\x18\x01 \x01(\t\x12\x11\n\tend_value\x18\x02 \x01(\t\" \n\tRowRecord\x12\x13\n\x0bvector_data\x18\x01 \x03(\x02\"i\n\x0bInsertParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x30\n\x10row_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12\x14\n\x0crow_id_array\x18\x03 \x03(\x03\"I\n\tVectorIds\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0fvector_id_array\x18\x02 \x03(\x03\"\xa2\x01\n\x0bSearchParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x32\n\x12query_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12-\n\x11query_range_array\x18\x03 \x03(\x0b\x32\x12.milvus.grpc.Range\x12\x0c\n\x04topk\x18\x04 \x01(\x03\x12\x0e\n\x06nprobe\x18\x05 \x01(\x03\"[\n\x12SearchInFilesParam\x12\x15\n\rfile_id_array\x18\x01 \x03(\t\x12.\n\x0csearch_param\x18\x02 \x01(\x0b\x32\x18.milvus.grpc.SearchParam\"+\n\x0bQueryResult\x12\n\n\x02id\x18\x01 \x01(\x03\x12\x10\n\x08\x64istance\x18\x02 \x01(\x01\"m\n\x0fTopKQueryResult\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x35\n\x13query_result_arrays\x18\x02 \x03(\x0b\x32\x18.milvus.grpc.QueryResult\"H\n\x0bStringReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x14\n\x0cstring_reply\x18\x02 \x01(\t\"D\n\tBoolReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\nbool_reply\x18\x02 \x01(\x08\"M\n\rTableRowCount\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0ftable_row_count\x18\x02 \x01(\x03\"\x16\n\x07\x43ommand\x12\x0b\n\x03\x63md\x18\x01 \x01(\t\"X\n\x05Index\x12\x12\n\nindex_type\x18\x01 \x01(\x05\x12\r\n\x05nlist\x18\x02 \x01(\x03\x12\x17\n\x0findex_file_size\x18\x03 \x01(\x05\x12\x13\n\x0bmetric_type\x18\x04 \x01(\x05\"[\n\nIndexParam\x12*\n\ntable_name\x18\x01 \x01(\x0b\x32\x16.milvus.grpc.TableName\x12!\n\x05index\x18\x02 \x01(\x0b\x32\x12.milvus.grpc.Index\"K\n\x12\x44\x65leteByRangeParam\x12!\n\x05range\x18\x01 \x01(\x0b\x32\x12.milvus.grpc.Range\x12\x12\n\ntable_name\x18\x02 \x01(\t2\xea\x07\n\rMilvusService\x12>\n\x0b\x43reateTable\x12\x18.milvus.grpc.TableSchema\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x08HasTable\x12\x16.milvus.grpc.TableName\x1a\x16.milvus.grpc.BoolReply\"\x00\x12:\n\tDropTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0b\x43reateIndex\x12\x17.milvus.grpc.IndexParam\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x06Insert\x12\x18.milvus.grpc.InsertParam\x1a\x16.milvus.grpc.VectorIds\"\x00\x12\x44\n\x06Search\x12\x18.milvus.grpc.SearchParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x30\x01\x12R\n\rSearchInFiles\x12\x1f.milvus.grpc.SearchInFilesParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x30\x01\x12\x43\n\rDescribeTable\x12\x16.milvus.grpc.TableName\x1a\x18.milvus.grpc.TableSchema\"\x00\x12\x42\n\nCountTable\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.TableRowCount\"\x00\x12>\n\nShowTables\x12\x14.milvus.grpc.Command\x1a\x16.milvus.grpc.TableName\"\x00\x30\x01\x12\x37\n\x03\x43md\x12\x14.milvus.grpc.Command\x1a\x18.milvus.grpc.StringReply\"\x00\x12G\n\rDeleteByRange\x12\x1f.milvus.grpc.DeleteByRangeParam\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0cPreloadTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x42\n\rDescribeIndex\x12\x16.milvus.grpc.TableName\x1a\x17.milvus.grpc.IndexParam\"\x00\x12:\n\tDropIndex\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x62\x06proto3')
+    ,
     dependencies=[status__pb2.DESCRIPTOR, ])
 
 _TABLENAME = _descriptor.Descriptor(
@@ -201,6 +202,13 @@ _INSERTPARAM = _descriptor.Descriptor(
             message_type=None, enum_type=None, containing_type=None,
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='row_id_array', full_name='milvus.grpc.InsertParam.row_id_array', index=2,
+            number=3, type=3, cpp_type=2, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
     ],
     extensions=[
     ],
@@ -214,7 +222,7 @@ _INSERTPARAM = _descriptor.Descriptor(
     oneofs=[
     ],
     serialized_start=320,
-    serialized_end=403,
+    serialized_end=425,
 )
 
 _VECTORIDS = _descriptor.Descriptor(
@@ -250,8 +258,8 @@ _VECTORIDS = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=405,
-    serialized_end=478,
+    serialized_start=427,
+    serialized_end=500,
 )
 
 _SEARCHPARAM = _descriptor.Descriptor(
@@ -289,6 +297,13 @@ _SEARCHPARAM = _descriptor.Descriptor(
             message_type=None, enum_type=None, containing_type=None,
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='nprobe', full_name='milvus.grpc.SearchParam.nprobe', index=4,
+            number=5, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
     ],
     extensions=[
     ],
@@ -301,8 +316,8 @@ _SEARCHPARAM = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=481,
-    serialized_end=627,
+    serialized_start=503,
+    serialized_end=665,
 )
 
 _SEARCHINFILESPARAM = _descriptor.Descriptor(
@@ -338,8 +353,8 @@ _SEARCHINFILESPARAM = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=629,
-    serialized_end=720,
+    serialized_start=667,
+    serialized_end=758,
 )
 
 _QUERYRESULT = _descriptor.Descriptor(
@@ -375,8 +390,8 @@ _QUERYRESULT = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=722,
-    serialized_end=765,
+    serialized_start=760,
+    serialized_end=803,
 )
 
 _TOPKQUERYRESULT = _descriptor.Descriptor(
@@ -412,8 +427,8 @@ _TOPKQUERYRESULT = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=767,
-    serialized_end=876,
+    serialized_start=805,
+    serialized_end=914,
 )
 
 _STRINGREPLY = _descriptor.Descriptor(
@@ -449,8 +464,8 @@ _STRINGREPLY = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=878,
-    serialized_end=950,
+    serialized_start=916,
+    serialized_end=988,
 )
 
 _BOOLREPLY = _descriptor.Descriptor(
@@ -486,8 +501,8 @@ _BOOLREPLY = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=952,
-    serialized_end=1020,
+    serialized_start=990,
+    serialized_end=1058,
 )
 
 _TABLEROWCOUNT = _descriptor.Descriptor(
@@ -523,8 +538,8 @@ _TABLEROWCOUNT = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=1022,
-    serialized_end=1099,
+    serialized_start=1060,
+    serialized_end=1137,
 )
 
 _COMMAND = _descriptor.Descriptor(
@@ -553,8 +568,8 @@ _COMMAND = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=1101,
-    serialized_end=1123,
+    serialized_start=1139,
+    serialized_end=1161,
 )
 
 _INDEX = _descriptor.Descriptor(
@@ -585,6 +600,13 @@ _INDEX = _descriptor.Descriptor(
             message_type=None, enum_type=None, containing_type=None,
             is_extension=False, extension_scope=None,
             serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='metric_type', full_name='milvus.grpc.Index.metric_type', index=3,
+            number=4, type=5, cpp_type=1, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
     ],
     extensions=[
     ],
@@ -597,8 +619,8 @@ _INDEX = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=1125,
-    serialized_end=1192,
+    serialized_start=1163,
+    serialized_end=1251,
 )
 
 _INDEXPARAM = _descriptor.Descriptor(
@@ -634,8 +656,8 @@ _INDEXPARAM = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=1194,
-    serialized_end=1285,
+    serialized_start=1253,
+    serialized_end=1344,
 )
 
 _DELETEBYRANGEPARAM = _descriptor.Descriptor(
@@ -671,8 +693,8 @@ _DELETEBYRANGEPARAM = _descriptor.Descriptor(
     extension_ranges=[],
     oneofs=[
     ],
-    serialized_start=1287,
-    serialized_end=1362,
+    serialized_start=1346,
+    serialized_end=1421,
 )
 
 _TABLENAME.fields_by_name['status'].message_type = status__pb2._STATUS
@@ -707,7 +729,6 @@ DESCRIPTOR.message_types_by_name['Command'] = _COMMAND
 DESCRIPTOR.message_types_by_name['Index'] = _INDEX
 DESCRIPTOR.message_types_by_name['IndexParam'] = _INDEXPARAM
 DESCRIPTOR.message_types_by_name['DeleteByRangeParam'] = _DELETEBYRANGEPARAM
-
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 TableName = _reflection.GeneratedProtocolMessageType('TableName', (_message.Message,), {
@@ -835,8 +856,8 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
     file=DESCRIPTOR,
     index=0,
     serialized_options=None,
-    serialized_start=1365,
-    serialized_end=2367,
+    serialized_start=1424,
+    serialized_end=2426,
     methods=[
         _descriptor.MethodDescriptor(
             name='CreateTable',
