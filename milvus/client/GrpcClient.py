@@ -421,7 +421,8 @@ class GrpcMilvus(ConnectIntf):
         :type index_param: dict
             `example param={'index_type': IndexType.FLAT,
                             'nlist': 16384,
-                            'index_file_size': 1024}`
+                            'index_file_size': 1024,
+                            'metric_type': }`
             index_param can be None
 
         :return: Status, indicate if operation is successful
@@ -454,6 +455,9 @@ class GrpcMilvus(ConnectIntf):
 
         if not insert_param:
             insert_param = Prepare.insert_param(table_name, records)
+        else:
+            if not isinstance(insert_param, grpc_types.InsertParam):
+                raise ParamError("The value of key 'insert_param' must be type of milvus_pb2.InsertParam")
 
         try:
             vector_ids = self._stub.Insert(insert_param)
@@ -707,7 +711,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
 
-    def server_status(self, cmd=None, *args, **kwargs):
+    def server_status(self, cmd=None):
         """
         Provide server status. When cmd !='version', provide 'OK'
 
@@ -721,17 +725,9 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        if kwargs.get('flag', False):
-            if not isinstance(cmd, grpc_types.Command):
-                return Status(code=Status.ILLEGAL_ARGUMENT, message='param is not type of Command')
-            if not cmd:
-                cmd = grpc_types.Command('OK')
+        if not cmd or cmd != "version":
+            cmd = grpc_types.Command(cmd='OK')
         else:
-            if not cmd:
-                cmd = 'OK'
-            elif cmd == 'version':
-                status, version = self.server_version()
-                return status, version
             cmd = grpc_types.Command(cmd=cmd)
 
         try:
@@ -743,6 +739,9 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
+
+    def command(self, cmd):
+        pass
 
     def delete_table_by_range(self, start_time=None, end_time=None):
         # return Status(message="Incompleted, success default")
