@@ -124,8 +124,9 @@ class Prepare(object):
         return _param
 
     @classmethod
-    def index(cls, index_type, nlist, index_file_size):
-        return grpc_types.IndexParam(index_type=index_type, nlist=nlist, index_file_size=index_file_size)
+    def index(cls, index_type, nlist, index_file_size, metric_type):
+        return grpc_types.Index(index_type=index_type, nlist=nlist, index_file_size=index_file_size,
+                                metric_type=metric_type)
 
     @classmethod
     def index_param(cls, table_name, index_param):
