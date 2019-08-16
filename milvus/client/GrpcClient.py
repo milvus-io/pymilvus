@@ -741,13 +741,40 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
 
-    def delete_table_by_range(self, start_time=None, end_time=None):
+    def delete_vectors_by_range(self, start_time=None, end_time=None):
+        """
+        Delete vectors by range
+
+        :param start_time:
+        :param end_time:
+        :return:
+        """
+
         pass
 
     def preload_table(self, table_name):
+        """
+        Load table to cache in advance
+
+        :type table_name: str
+        :param table_name: table to preload
+
+        :returns:
+            Status:  indicate if query is successful
+        """
         pass
 
     def describe_index(self, table_name):
+        """
+        Show index information of designated table
+
+        :type table_name: str
+        :param table_name: table name been queried
+
+        :returns:
+            Status:  indicate if query is successful
+            
+        """
         pass
 
     def drop_index(self, table_name):
