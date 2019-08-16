@@ -31,7 +31,7 @@ class TableSchema(object):
     :type  index_type: IndexType
     :param index_type: (Required) index type, default = IndexType.INVALID
 
-        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
 
     :type  dimension: int64
     :param dimension: (Required) dimension of vector

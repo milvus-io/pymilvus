@@ -22,10 +22,10 @@ sys.path.insert(0, os.path.join(
 
 project = 'pymilvus'
 copyright = '2019, Zilliz'
-author = 'YangXuan'
+author = 'Yinghao.Zou'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.25'
+release = '0.2.0 '
 
 
 # -- General configuration ---------------------------------------------------

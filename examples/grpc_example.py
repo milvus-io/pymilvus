@@ -1,17 +1,19 @@
 import random
 import time
 
+import sys
+sys.path.append(".")
 from milvus import Milvus, IndexType
 
 _DIM = 512
-nb = 500000  # number of vector dataset
+nb = 1000000  # number of vector dataset
 nq = 10  # number of query vector
-table_name = 'example'
+table_name = 'examples'
 top_K = 1
 
 server_config = {
     "host": 'localhost',
-    "port": '19530',
+    "port": '19531',
 }
 
 milvus = Milvus()
@@ -118,11 +120,11 @@ if __name__ == '__main__':
     insert_vectors(vectors)
 
     # wait for inserted vectors persisting
-    time.sleep(10)
+    time.sleep(60)
 
     print("Start build index ...... ")
     build_index()
-    time.sleep(10)
+    time.sleep(60)
 
     query_vectors = random_vectors(nq)
 
