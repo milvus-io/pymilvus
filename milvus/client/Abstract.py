@@ -412,3 +412,52 @@ class ConnectIntf(object):
         :rtype: (Status, str)
         """
         _abstract()
+
+    def delete_table_by_range(self, start_time, end_time):
+        """
+
+        :param start_time:
+        :param end_time:
+        :return:
+        """
+
+        _abstract()
+
+    def preload_table(self, table_name):
+        """
+        load table to cache in advance
+        should be implemented
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+        """
+
+        _abstract()
+
+    def describe_index(self, table_name):
+        """
+        Show index information
+        should be implemented
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+        """
+
+        _abstract()
+
+    def drop_index(self, table_name):
+        """
+        Show index information
+        should be implemented
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+        """
+
+        _abstract()
