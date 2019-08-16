@@ -739,26 +739,3 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
-
-    def command(self, cmd):
-        pass
-
-    def delete_vectors_by_range(self, start_time=None, end_time=None):
-        # return Status(message="Incompleted, success default")
-        # TODO: waiting for completing
-        pass
-
-    def preload_table(self, table_name):
-        # return Status(message="Incompleted, success default")
-        # TODO: waiting for completing
-        pass
-
-    def describe_index(self, table_name):
-        # return Status(message="Incompleted, success default")
-        # TODO: waiting for completing
-        pass
-
-    def drop_index(self, table_name):
-        # return Status(message="Incompleted, success default")
-        # TODO: waiting for completing
-        pass

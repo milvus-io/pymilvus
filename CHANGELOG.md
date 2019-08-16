@@ -23,6 +23,7 @@
 - \#59 ISSUE: **[MS-182]** fix query ranges param not control bug
 - \#60 ISSUE: **[MS-185]** fix connection no timeout bug 
 - \#69 ISSUE: **[MS-243]** fixed
+- \#83 ISSUE: fix celery server create table error
 ### Improvement
 ---
 - \#10 ISSUE: Update examples
