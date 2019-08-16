@@ -743,7 +743,7 @@ class GrpcMilvus(ConnectIntf):
     def command(self, cmd):
         pass
 
-    def delete_table_by_range(self, start_time=None, end_time=None):
+    def delete_vectors_by_range(self, start_time=None, end_time=None):
         # return Status(message="Incompleted, success default")
         # TODO: waiting for completing
         pass
