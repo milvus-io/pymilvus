@@ -5,7 +5,7 @@ Module milvus
 Milvus
 --------------------------------
 
-.. autoclass:: milvus.client.GrpcClient.GrpcMilvus
+.. autoclass:: milvus.Milvus
     :members:
     :undoc-members:
     :show-inheritance:
@@ -67,6 +67,30 @@ DataClass QueryResult
 DataClass TopKQueryResult
 ------------------------------------
 .. autoclass:: milvus.client.Abstract.TopKQueryResult
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+DataClass IndexParam
+------------------------------------
+.. autoclass:: milvus.client.Abstract.IndexParam
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Module Exceptions
+======================================
+
+ParamError
+------------------------------------
+.. autoclass:: milvus.client.Exceptions.ParamError
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+ConnectError
+------------------------------------
+.. autoclass:: milvus.client.Exceptions.ConnectError
     :members:
     :undoc-members:
     :show-inheritance:

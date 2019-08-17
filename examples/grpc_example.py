@@ -6,9 +6,10 @@ sys.path.append(".")
 from milvus import Milvus, IndexType
 
 _DIM = 512
-nb = 1000000  # number of vector dataset
+# nb = 1000000  # number of vector dataset
+nb = 500000  # number of vector dataset
 nq = 10  # number of query vector
-table_name = 'examples'
+table_name = 'examples_2'
 top_K = 1
 
 server_config = {

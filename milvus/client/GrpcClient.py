@@ -125,6 +125,15 @@ class Prepare(object):
 
     @classmethod
     def index(cls, index_type, nlist, index_file_size, metric_type):
+        """
+
+        :type index_type: IndexType
+        :param index_type: index type
+        :param nlist:
+        :param index_file_size:
+        :param metric_type:
+        :return:
+        """
         return grpc_types.Index(index_type=index_type, nlist=nlist, index_file_size=index_file_size,
                                 metric_type=metric_type)
 
@@ -741,16 +750,28 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
 
-    def delete_vectors_by_range(self, start_time=None, end_time=None):
+    def delete_vectors_by_range(self, table_name, start_time=None, end_time=None):
         """
         Delete vectors by range
 
+        :param table_name:
+
         :param start_time:
+
         :param end_time:
+
         :return:
         """
 
-        pass
+        _range = Prepare.range(start_time, end_time)
+        _param = grpc_types.DeleteByRangeParam(range=_range, table_name=table_name)
+
+        try:
+            status = self._stub.DeleteByRange(_param)
+            return Status(code=status.error_code, message=status.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error')
 
     def preload_table(self, table_name):
         """
@@ -762,7 +783,10 @@ class GrpcMilvus(ConnectIntf):
         :returns:
             Status:  indicate if query is successful
         """
-        pass
+        table_name = Prepare.table_name(table_name)
+        status = self._stub.PreloadTable(table_name)
+
+        return Status(code=status.error_code, message=status.reason)
 
     def describe_index(self, table_name):
         """
@@ -773,9 +797,38 @@ class GrpcMilvus(ConnectIntf):
 
         :returns:
             Status:  indicate if query is successful
+            IndexSchema:
             
         """
-        pass
+        table_name = Prepare.table_name(table_name)
+
+        try:
+            index_param = self._stub.DescribeIndex(table_name)
+
+            status = index_param.table_name.status
+
+            if status.error_code == 0:
+                index_schema = {
+                    "table_name": index_param.table_name.table_name,
+                    "index_type": index_param.index_type,
+                    "dimension": index_param.dimension,
+                    "store_raw_vector": index_param.store_raw_vector
+                }
+
+                return Status(message="Successfully"), index_schema
+            else:
+                return Status(code=status.error_code, message=status.reason), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error{}'.format(e.details())), None
 
     def drop_index(self, table_name):
-        pass
+
+        table_name = Prepare.table_name(table_name)
+
+        try:
+            status = self._stub.DropIndex(table_name)
+            return Status(code=status.error_code, message=status.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error{}'.format(e.details()))

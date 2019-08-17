@@ -164,6 +164,51 @@ class TopKQueryResult(list):
             return "[\n%s\n]" % ",\n".join(map(str, self))
 
 
+class IndexParam(object):
+    """
+    Index Param
+
+    :type  table_name: str
+    :param table_name: (Required) name of table
+
+    :type  index_type: IndexType
+    :param index_type: (Required) index type, default = IndexType.INVALID
+
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
+
+    :type  nlist: int64
+    :param nlist: (Required) num of cell
+
+    :type  index_file_size: int32
+    :param index_file_size: file size of index
+
+    :type  metric_type: int32
+    :param metric_type: ???
+    """
+
+    def __init__(self, table_name, index_type, nlist, index_file_size, metric_type):
+
+        if table_name is None:
+            raise ParamError('Table name can\'t be None')
+        table_name = str(table_name) if not isinstance(table_name, str) else table_name
+
+        if isinstance(index_type, int):
+            index_type = IndexType(index_type)
+        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
+            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
+
+        self._table_name = table_name
+        self._index_type = index_type
+        self._nlist = nlist
+        self._index_file_size = index_file_size
+        self._metric_type = metric_type
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+
 def _abstract():
     raise NotImplementedError('You need to override this function')
 
@@ -413,7 +458,7 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def delete_table_by_range(self, start_time, end_time):
+    def delete_vectors_by_range(self, start_time, end_time):
         """
 
         :param start_time:
