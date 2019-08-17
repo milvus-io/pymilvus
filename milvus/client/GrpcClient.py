@@ -784,9 +784,12 @@ class GrpcMilvus(ConnectIntf):
             Status:  indicate if query is successful
         """
         table_name = Prepare.table_name(table_name)
-        status = self._stub.PreloadTable(table_name)
 
-        return Status(code=status.error_code, message=status.reason)
+        try:
+            status = self._stub.PreloadTable(table_name)
+            return Status(code=status.error_code, message=status.reason)
+        except grpc.RpcError as e:
+            return Status(code=e.code(), message='grpc transport error')
 
     def describe_index(self, table_name):
         """
