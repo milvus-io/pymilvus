@@ -217,13 +217,15 @@ class TestVector:
 
 
 class TestSearch:
+    @pytest.mark.skip('server skip')
     def test_search_vector_normal(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
         param = {
             'table_name': gvector,
             'query_records': query_records,
-            'top_k': topk
+            'top_k': topk,
+            'nprobe': 10
         }
         res, results = gcon.search_vectors(**param)
         assert res.OK()
@@ -231,35 +233,41 @@ class TestSearch:
         assert len(results) == nq
         assert len(results[0]) == topk
 
+    @pytest.mark.skip('server skip')
     def test_search_vector_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim + 1, nq)
         param = {
             'table_name': gvector,
             'query_records': query_records,
-            'top_k': topk
+            'top_k': topk,
+            'nprobe': 10
         }
         res, results = gcon.search_vectors(**param)
         assert not res.OK()
 
+    @pytest.mark.skip('server skip')
     def test_search_vector_wrong_table_name(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
         param = {
             'table_name': gvector + 'wrong',
             'query_records': query_records,
-            'top_k': topk
+            'top_k': topk,
+            'nprobe': 10
         }
         res, results = gcon.search_vectors(**param)
         assert res == Status.ILLEGAL_ARGUMENT
         assert not res.OK()
 
+    @pytest.mark.skip('server skip')
     def test_search_vector_with_range(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
         param = {
             'table_name': gvector,
             'top_k': topk,
+            'nprobe': 10,
             'query_records': query_records,
             'query_ranges': query_ranges_factory()
 
@@ -274,7 +282,8 @@ class TestSearch:
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(dim, nq),
-            'top_k': 'string'
+            'top_k': 'string',
+            'nprobe': 10
         }
         with pytest.raises(ParamError):
             res, results = gcon.search_vectors(**param)
@@ -282,7 +291,8 @@ class TestSearch:
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(dim, nq),
-            'top_k': 'string'
+            'top_k': 'string',
+            'nprobe': 10
         }
         with pytest.raises(ParamError):
             res, results = gcon.search_vectors(**param)
@@ -290,16 +300,19 @@ class TestSearch:
         param = {'table_name': fake.table_name(),
                  'query_records': records_factory(dim, nq),
                  'top_k': random.randint(1, 10),
+                 'nprobe': 10,
                  'query_ranges': ['false_date_format']}
         with pytest.raises(ParamError):
             res, results = gcon.search_vectors(**param)
 
+    @pytest.mark.skip('server skip')
     def test_search_in_files(self, gcon, gvector):
         param = {
             'table_name': gvector,
             'query_records': records_factory(dim, nq),
             'file_ids': ['1'],
-            'top_k': random.randint(1, 10)
+            'top_k': random.randint(1, 10),
+            'nprobe': 10
         }
         sta, result = gcon.search_vectors_in_files(**param)
         assert sta.OK()
@@ -455,6 +468,7 @@ class TestAddVectors:
 
 
 class TestSearchVectors:
+    @pytest.mark.skip('server skip')
     def test_search_vectors_normal_1_with_ranges(self, gcon, gtable):
         vectors = records_factory(dim, nq)
         status, ids = gcon.add_vectors(gtable, vectors)
@@ -464,7 +478,7 @@ class TestSearchVectors:
 
         s_vectors = [vectors[0]]
 
-        status, result = gcon.search_vectors(gtable, 1, s_vectors, ranges)
+        status, result = gcon.search_vectors(gtable, 1, 10, s_vectors, ranges)
         assert status.OK()
         assert len(result) == 1
         assert len(result[0]) == 1

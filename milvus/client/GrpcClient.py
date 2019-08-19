@@ -163,12 +163,13 @@ class Prepare(object):
         return grpc_types.VectorIds(status=_status, vector_id_array=ids)
 
     @classmethod
-    def search_param(cls, table_name, query_records, query_ranges, topk):
+    def search_param(cls, table_name, query_records, query_ranges, topk, nprobe):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
         search_param = grpc_types.SearchParam(
             table_name=table_name,
             query_range_array=query_ranges,
-            topk=topk
+            topk=topk,
+            nprobe=nprobe
         )
 
         for vector in query_records:
@@ -180,8 +181,8 @@ class Prepare(object):
         return search_param
 
     @classmethod
-    def search_vector_in_files_param(cls, table_name, query_records, query_ranges, topk, ids):
-        _search_param = Prepare.search_param(table_name, query_records, query_ranges, topk)
+    def search_vector_in_files_param(cls, table_name, query_records, query_ranges, topk, nprobe, ids):
+        _search_param = Prepare.search_param(table_name, query_records, query_ranges, topk, nprobe)
 
         if not isinstance(ids, list):
             raise ParamError('Ids must be a list')
@@ -402,7 +403,7 @@ class GrpcMilvus(ConnectIntf):
 
         This method is used to build index by table in sync mode.
 
-        :param table_name: table is going to be built index.
+        :param table_name: table used to build index.
         :type  table_name: str
 
         :return: Status, indicate if operation is successful
@@ -425,7 +426,7 @@ class GrpcMilvus(ConnectIntf):
 
     def create_index(self, table_name, index_param):
         """
-        :param table_name: table going to be built index.
+        :param table_name: table used to build index.
         :type table_name: str
         :param index_param: index params
         :type index_param: dict
@@ -442,6 +443,13 @@ class GrpcMilvus(ConnectIntf):
     def add_vectors(self, table_name, records, *args, **kwargs):
         """
         Add vectors to table
+
+        This function allows to pass in arguments which is type of `milvus_ob2.InsertParam`
+        to avoid serializing and deserializing repeatedly, as follows:
+
+            `obj.add_vectors(None, None, insert_param=param)`
+
+        `obj` is a milvus object, param is an object which is type of `milvus_ob2.InsertParam`
 
         :type  table_name: str
         :type  records: list[list[float]]
@@ -481,7 +489,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
 
-    def search_vectors(self, table_name, top_k, query_records, query_ranges=None):
+    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None):
         """
         Query vectors in a table
 
@@ -507,6 +515,8 @@ class GrpcMilvus(ConnectIntf):
         :type  query_records: list[list[float]] or list[RowRecord]
         :param top_k: int, how many similar vectors will be searched
         :type  top_k: int
+        :param nprobe: cell num of probing
+        :type nprobe: int
 
         :returns: (Status, res)
 
@@ -522,7 +532,7 @@ class GrpcMilvus(ConnectIntf):
             raise ParamError('Param top_k should be larger than 0!')
 
         infos = Prepare.search_param(
-            table_name, query_records, query_ranges, top_k
+            table_name, query_records, query_ranges, top_k, nprobe
         )
 
         results = TopKQueryResult()
@@ -539,10 +549,11 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Search vectors successfully!'), results
 
-    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, query_ranges=None):
+    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, nprobe, query_ranges=None):
         """
         Query vectors in a table, in specified files
 
+        :param nprobe:
         :type  table_name: str
         :param table_name: table name been queried
 
@@ -574,7 +585,7 @@ class GrpcMilvus(ConnectIntf):
         file_ids = list(map(int_or_str, file_ids))
 
         infos = Prepare.search_vector_in_files_param(
-            table_name, query_records, query_ranges, top_k, file_ids
+            table_name, query_records, query_ranges, top_k, nprobe, file_ids
         )
 
         results = TopKQueryResult()
