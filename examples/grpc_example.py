@@ -8,7 +8,6 @@ sys.path.append(".")
 from milvus import Milvus, IndexType
 
 _DIM = 512
-# nb = 1000000  # number of vector dataset
 nb = 10000  # number of vector dataset
 nq = 10  # number of query vector
 table_name = 'examples_2'
@@ -23,26 +22,11 @@ milvus = Milvus()
 milvus.connect(**server_config)
 
 
-def timer(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        t0 = time.time()
-        result = func(*args, **kwargs)
-        t1 = time.time()
-        print("[{}]: cost {:.3f} s".format(func.__name__, t1 - t0))
-
-        return result
-
-    return wrapper
-
-
-@timer
 def random_vectors(num):
     # generate vectors randomly
     return [[random.random() for _ in range(_DIM)] for _ in range(num)]
 
 
-@timer
 def create_table():
     param = {
         'table_name': table_name,
@@ -64,7 +48,6 @@ def create_table():
         print("create table {} failed: {}".format(table_name, status.message))
 
 
-@timer
 def delete_table():
     status = milvus.delete_table(table_name)
     if status.OK():
@@ -73,7 +56,6 @@ def delete_table():
         print("table {} delete failed: {}".format(table_name, status.message))
 
 
-@timer
 def describe_table():
     """
     Get schema of table
@@ -88,7 +70,6 @@ def describe_table():
         print(status.message)
 
 
-@timer
 def insert_vectors(_vectors):
     """
     insert vectors to milvus server
@@ -109,7 +90,6 @@ def insert_vectors(_vectors):
         print("insert vectors into table `{}` successfully!".format(table_name))
 
 
-@timer
 def build_index():
     status = milvus.build_index(table_name)
 
@@ -117,7 +97,6 @@ def build_index():
         print("build index failed: {}".format(status.message))
 
 
-@timer
 def search_vectors(_query_vectors):
     """
     search vectors and display results
@@ -139,19 +118,19 @@ if __name__ == '__main__':
 
     create_table()
 
-    # describe_table()
-    #
-    # insert_vectors(vectors)
-    #
-    # # wait for inserted vectors persisting
-    # time.sleep(60)
-    #
-    # print("Start build index ...... ")
-    # build_index()
-    # time.sleep(6)
-    #
-    # query_vectors = random_vectors(nq)
-    #
-    # search_vectors(query_vectors)
+    describe_table()
+
+    insert_vectors(vectors)
+
+    # wait for inserted vectors persisting
+    time.sleep(60)
+
+    print("Start build index ...... ")
+    build_index()
+    time.sleep(6)
+
+    query_vectors = random_vectors(nq)
+
+    search_vectors(query_vectors)
 
     delete_table()
