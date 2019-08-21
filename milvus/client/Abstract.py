@@ -21,6 +21,17 @@ class IndexType(IntEnum):
         return self._name_
 
 
+class MetricType(IntEnum):
+    L2 = 0
+    INNER = 1
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+
+    def __str__(self):
+        return self._name_
+
+
 class TableSchema(object):
     """
     Table Schema

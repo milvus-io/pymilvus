@@ -9,6 +9,7 @@ import logging
 from .Abstract import (
     ConnectIntf,
     IndexType,
+    MetricType,
     TableSchema,
     Range,
     RowRecord,
@@ -112,7 +113,7 @@ class Prepare(object):
         return res
 
     @classmethod
-    def insert_param(cls, table_name, vectors):
+    def insert_param(cls, table_name, vectors, ids=None):
         _param = grpc_types.InsertParam(table_name=table_name)
 
         for vector in vectors:
@@ -120,6 +121,13 @@ class Prepare(object):
                 _param.row_record_array.add(vector_data=vector)
             else:
                 raise ParamError('Vectors should be 2-dim array!')
+
+        if ids is not None:
+            if len(vectors) != len(ids):
+                raise ParamError("Param `{0}` and `{1}` not match".format('vectors', 'ids'))
+
+            for _id in ids:
+                _param.row_id_array.add(_id)
 
         return _param
 
@@ -131,9 +139,21 @@ class Prepare(object):
         :param index_type: index type
         :param nlist:
         :param index_file_size:
+
+        :type  metric_type: MetricType
         :param metric_type:
+
         :return:
         """
+
+        index_type = IndexType(index_type) if isinstance(index_type, int) else index_type
+        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
+            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
+
+        metric_type = MetricType(metric_type) if isinstance(metric_type, int) else metric_type
+        if not isinstance(metric_type, MetricType):
+            raise ParamError('Illegal metric_type, should be MetricType')
+
         return grpc_types.Index(index_type=index_type, nlist=nlist, index_file_size=index_file_size,
                                 metric_type=metric_type)
 
@@ -445,7 +465,7 @@ class GrpcMilvus(ConnectIntf):
         """
         pass
 
-    def add_vectors(self, table_name, records, *args, **kwargs):
+    def add_vectors(self, table_name, records, ids=None, *args, **kwargs):
         """
         Add vectors to table
 
@@ -477,7 +497,7 @@ class GrpcMilvus(ConnectIntf):
         insert_param = kwargs.get('insert_param', None)
 
         if not insert_param:
-            insert_param = Prepare.insert_param(table_name, records)
+            insert_param = Prepare.insert_param(table_name, records, ids)
         else:
             if not isinstance(insert_param, grpc_types.InsertParam):
                 raise ParamError("The value of key 'insert_param' must be type of milvus_pb2.InsertParam")
@@ -494,7 +514,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
 
-    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None):
+    def search_vectors(self, table_name, top_k, query_records, nprobe=16, query_ranges=None):
         """
         Query vectors in a table
 
@@ -554,11 +574,13 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Search vectors successfully!'), results
 
-    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, nprobe, query_ranges=None):
+    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, query_ranges=None):
         """
         Query vectors in a table, in specified files
 
+        :type  nprobe: int
         :param nprobe:
+
         :type  table_name: str
         :param table_name: table name been queried
 
