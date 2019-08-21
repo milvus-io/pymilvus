@@ -337,9 +337,14 @@ class GrpcMilvus(ConnectIntf):
         table_schema = Prepare.table_schema(param)
 
         try:
+            # future = self._stub.CreateTable.future(table_schema)
+            # status = future.result(timeout=0.00000003)
             status = self._stub.CreateTable(table_schema)
             if status.error_code == 0:
                 return Status(message='Create table successfully!')
+            elif status.error_code == status_pb2.META_FAILED:
+                LOGGER.error("Table {} already exists".format(param['table_name']))
+                return Status(code=status.error_code, message=status.reason)
             else:
                 LOGGER.error(status)
                 return Status(code=status.error_code, message=status.reason)
