@@ -35,17 +35,29 @@ def test_uri_connect():
     milvus.disconnect()
 
 
-def test_error_uri_connect():
+def test_uri_not_host_connect():
     uri = 'tcp://:19530'
     # import pdb;pdb.set_trace()
 
     milvus = Milvus()
 
-    try:
-        status = milvus.connect(uri=uri)
-    except NotConnectError as e:
-        return
-    assert False, "Error excepted, but passed"
+    # try:
+    status = milvus.connect(uri=uri)
+    # except NotConnectError as e:
+    #     return
+    assert status.OK(), ""
+
+
+def test_uri_not_port_connect():
+    uri = 'tcp://localhost:'
+
+    milvus = Milvus()
+
+    # try:
+    status = milvus.connect(uri=uri)
+    # except NotConnectError as e:
+    #     return
+    assert status.OK(), ""
 
 
 def test_port_connect():

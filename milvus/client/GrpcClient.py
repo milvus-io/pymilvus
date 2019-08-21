@@ -212,7 +212,7 @@ class GrpcMilvus(ConnectIntf):
 
         if not host:
             if _uri.scheme == 'tcp':
-                host = _uri.hostname
+                host = _uri.hostname or 'localhost'
                 port = _uri.port or '19530'
             else:
                 if uri:
