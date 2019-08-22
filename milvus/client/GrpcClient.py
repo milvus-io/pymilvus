@@ -14,7 +14,8 @@ from .Abstract import (
     Range,
     RowRecord,
     QueryResult,
-    TopKQueryResult
+    TopKQueryResult,
+    IndexParam
 )
 from .utils import *
 from .Status import Status
@@ -54,7 +55,13 @@ class Prepare(object):
         if not isinstance(param, grpc_types.TableSchema):
             if isinstance(param, dict):
 
-                temp = TableSchema(**param)
+                # TODO: for backward compatibility
+                _param = {
+                    'table_name': param['table_name'],
+                    'dimension': param['dimension']
+                }
+
+                temp = TableSchema(**_param)
 
             else:
                 raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
@@ -66,16 +73,14 @@ class Prepare(object):
 
         table_name = Prepare.table_name(temp.table_name)
         return grpc_types.TableSchema(table_name=table_name,
-                                      index_type=temp.index_type,
-                                      dimension=temp.dimension,
-                                      store_raw_vector=temp.store_raw_vector)
+                                      dimension=temp.dimension)
 
     @classmethod
     def range(cls, start_date, end_date):
         """
         Parser a 'yyyy-mm-dd' like str or date/datetime object to Range object
 
-            `Range: [start_date, end_date)`
+            `Range: (start_date, end_date]`
 
             `start_date : '2019-05-25'`
 
@@ -339,9 +344,7 @@ class GrpcMilvus(ConnectIntf):
         :param param: Provide table information to be created
 
                 `example param={'table_name': 'name',
-                                'dimension': 16,
-                                'index_type': IndexType.FLAT,
-                                'store_raw_vector': False}`
+                                'dimension': 16}`
 
                 `OR using Prepare.table_schema to create param`
 
@@ -476,14 +479,17 @@ class GrpcMilvus(ConnectIntf):
 
         `obj` is a milvus object, param is an object which is type of `milvus_ob2.InsertParam`
 
+        :param ids:
+
         :type  table_name: str
+        :param table_name: table name been inserted
+
         :type  records: list[list[float]]
 
                 `example records: [[1.2345],[1.2345]]`
 
                 `OR using Prepare.records`
 
-        :param table_name: table name been inserted
         :param records: list of vectors been inserted
 
         :returns:
@@ -514,7 +520,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
 
-    def search_vectors(self, table_name, top_k, query_records, nprobe=16, query_ranges=None):
+    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None):
         """
         Query vectors in a table
 
@@ -656,9 +662,7 @@ class GrpcMilvus(ConnectIntf):
 
                 table = TableSchema(
                     table_name=ts.table_name.table_name,
-                    dimension=ts.dimension,
-                    index_type=IndexType(ts.index_type),
-                    store_raw_vector=ts.store_raw_vector
+                    dimension=ts.dimension
                 )
 
                 return Status(message='Describe table successfully!'), table
@@ -788,20 +792,20 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
 
-    def delete_vectors_by_range(self, table_name, start_time=None, end_time=None):
+    def delete_vectors_by_range(self, table_name, start_date=None, end_date=None):
         """
         Delete vectors by range
 
         :param table_name:
 
-        :param start_time:
+        :param start_date:
 
-        :param end_time:
+        :param end_date:
 
         :return:
         """
 
-        _range = Prepare.range(start_time, end_time)
+        _range = Prepare.range(start_date, end_date)
         _param = grpc_types.DeleteByRangeParam(range=_range, table_name=table_name)
 
         try:
@@ -851,12 +855,13 @@ class GrpcMilvus(ConnectIntf):
             if status.error_code == 0:
                 index_schema = {
                     "table_name": index_param.table_name.table_name,
-                    "index_type": index_param.index_type,
-                    "dimension": index_param.dimension,
-                    "store_raw_vector": index_param.store_raw_vector
+                    "index_type": index_param.index.index_type,
+                    "nlist": index_param.index.nlist,
+                    "index_file_size": index_param.index.index_file_size,
+                    "metric_type": index_param.index.metric_type
                 }
 
-                return Status(message="Successfully"), index_schema
+                return Status(message="Successfully"), IndexParam(**index_schema)
             else:
                 return Status(code=status.error_code, message=status.reason), None
         except grpc.RpcError as e:

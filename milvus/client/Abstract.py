@@ -22,8 +22,8 @@ class IndexType(IntEnum):
 
 
 class MetricType(IntEnum):
-    L2 = 0
-    INNER = 1
+    L2 = 1
+    IP = 2
 
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self._name_)
@@ -39,23 +39,15 @@ class TableSchema(object):
     :type  table_name: str
     :param table_name: (Required) name of table
 
-    :type  index_type: IndexType
-    :param index_type: (Required) index type, default = IndexType.INVALID
-
         `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
 
     :type  dimension: int64
     :param dimension: (Required) dimension of vector
 
-    :type  store_raw_vector: bool
-    :param store_raw_vector: (Optional) default = False
-
     """
 
     def __init__(self, table_name,
-                 dimension=0,
-                 index_type=IndexType.INVALID,
-                 store_raw_vector=False):
+                 dimension=0):
 
         # TODO may raise UnicodeEncodeError
         if table_name is None:
@@ -64,18 +56,8 @@ class TableSchema(object):
         if not legal_dimension(dimension):
             raise ParamError('Illegal dimension, effective range: (0 , 16384]')
 
-        if isinstance(index_type, int):
-            index_type = IndexType(index_type)
-        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
-            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
-
-        if not isinstance(store_raw_vector, bool):
-            raise ParamError('Illegal store_raw_vector, should be bool')
-
         self.table_name = table_name
-        self.index_type = index_type
         self.dimension = dimension
-        self.store_raw_vector = store_raw_vector
 
     def __repr__(self):
         L = ['%s=%r' % (key, value)
@@ -207,6 +189,11 @@ class IndexParam(object):
             index_type = IndexType(index_type)
         if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
             raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
+
+        if isinstance(metric_type, int):
+            metric_type = MetricType(metric_type)
+        if not isinstance(metric_type, MetricType):
+            raise ParamError('Illegal metric_type, should be MetricType')
 
         self._table_name = table_name
         self._index_type = index_type

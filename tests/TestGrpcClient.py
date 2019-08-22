@@ -13,7 +13,8 @@ from factorys import *
 LOGGER = logging.getLogger(__name__)
 
 dim = 16
-nq = 200000
+nb = 200000
+nq = 100
 
 
 class TestConnection:
@@ -106,10 +107,6 @@ class TestTable:
         assert res.OK()
         assert gcon.has_table(param['table_name'])
 
-        param['index_type'] = 'string'
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
         param = table_schema_factory()
         param['dimension'] = 'string'
         with pytest.raises(ParamError):
@@ -130,20 +127,10 @@ class TestTable:
             res = gcon.create_table(param)
 
         param = table_schema_factory()
-        param['index_type'] = IndexType.INVALID
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
         param['table_name'] = 1234456
         res = gcon.create_table(param)
         LOGGER.error(res)
         assert not res.OK()
-
-        param = table_schema_factory()
-        param['index_type'] = IndexType.IVF_SQ8
-        res = gcon.create_table(param)
-        assert res.OK()
 
     def test_delete_table(self, gcon):
         table_name = 'fake_table_name'
@@ -217,7 +204,7 @@ class TestVector:
 
 
 class TestSearch:
-    @pytest.mark.skip('server skip')
+    # @pytest.mark.skip('server skip')
     def test_search_vector_normal(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
@@ -233,7 +220,7 @@ class TestSearch:
         assert len(results) == nq
         assert len(results[0]) == topk
 
-    @pytest.mark.skip('server skip')
+    # @pytest.mark.skip('server skip')
     def test_search_vector_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim + 1, nq)
@@ -246,7 +233,7 @@ class TestSearch:
         res, results = gcon.search_vectors(**param)
         assert not res.OK()
 
-    @pytest.mark.skip('server skip')
+    # @pytest.mark.skip('server skip')
     def test_search_vector_wrong_table_name(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
@@ -260,7 +247,7 @@ class TestSearch:
         assert res == Status.ILLEGAL_ARGUMENT
         assert not res.OK()
 
-    @pytest.mark.skip('server skip')
+    # @pytest.mark.skip('server skip')
     def test_search_vector_with_range(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
@@ -305,7 +292,7 @@ class TestSearch:
         with pytest.raises(ParamError):
             res, results = gcon.search_vectors(**param)
 
-    @pytest.mark.skip('server skip')
+    # @pytest.mark.skip('server skip')
     def test_search_in_files(self, gcon, gvector):
         param = {
             'table_name': gvector,
@@ -467,25 +454,87 @@ class TestAddVectors:
         assert count == 200000
 
 
-class TestSearchVectors:
-    @pytest.mark.skip('server skip')
-    def test_search_vectors_normal_1_with_ranges(self, gcon, gtable):
+class TestIndex:
+
+    def test_describe_index(self, gcon, gtable):
         vectors = records_factory(dim, nq)
         status, ids = gcon.add_vectors(gtable, vectors)
 
-        ranges = ranges_factory()
-        time.sleep(2)
-
-        s_vectors = [vectors[0]]
-
-        status, result = gcon.search_vectors(gtable, 1, 10, s_vectors, ranges)
         assert status.OK()
-        assert len(result) == 1
-        assert len(result[0]) == 1
+        assert len(ids) == 200000
 
+        time.sleep(6)
 
-class TestBuildIndex:
-    def test_build_index(self, gcon, gtable):
-        status = gcon.build_index(gtable)
+        status, index_schema = gcon.describe_index(gtable)
 
         assert status.OK()
+        print("\n{}\n".format(index_schema))
+
+    def test_drop_index(self, gcon, gtable):
+        vectors = records_factory(dim, nq)
+        status, ids = gcon.add_vectors(gtable, vectors)
+
+        assert status.OK()
+        assert len(ids) == 200000
+
+        time.sleep(6)
+
+        status = gcon.drop_index(gtable)
+        assert status.OK()
+
+        time.sleep(10)
+
+        status, count = gcon.get_table_row_count(gtable)
+        assert status.OK()
+
+        assert count <= 0
+
+
+class TestDeleteVectors:
+    def test_delete_range(self, gcon, gtable):
+        vectors = records_factory(dim, nb)
+        status, ids = gcon.add_vectors(gtable, vectors)
+
+        assert status.OK()
+        assert len(ids) == nb
+
+        time.sleep(7)
+
+        _range = {
+            'start_date': get_last_day(1),
+            'end_date': get_current_day()
+        }
+
+        query_vectors = records_factory(dim, nq)
+        status, results = gcon.search_vectors(gtable, top_k=1, nprobe=16, query_vectors=query_vectors,
+                                              query_ranges=_range)
+        assert status.OK()
+        assert len(results) > 0
+
+        status = gcon.delete_vectors_by_range(gtable, **_range)
+        assert status.OK()
+
+        gcon.search_vectors()
+
+    class TestSearchVectors:
+        # @pytest.mark.skip('server skip')
+        def test_search_vectors_normal_1_with_ranges(self, gcon, gtable):
+            vectors = records_factory(dim, nq)
+            status, ids = gcon.add_vectors(gtable, vectors)
+
+            ranges = ranges_factory()
+            time.sleep(2)
+
+            s_vectors = [vectors[0]]
+
+            status, result = gcon.search_vectors(gtable, 1, 10, s_vectors, ranges)
+            assert status.OK()
+            assert len(result) == 1
+            assert len(result[0]) == 1
+
+    @pytest.mark.skip("build index bug")
+    class TestBuildIndex:
+        def test_build_index(self, gcon, gtable):
+            status = gcon.build_index(gtable)
+
+            assert status.OK()
