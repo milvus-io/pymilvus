@@ -21,6 +21,17 @@ class IndexType(IntEnum):
         return self._name_
 
 
+class MetricType(IntEnum):
+    L2 = 1
+    IP = 2
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+
+    def __str__(self):
+        return self._name_
+
+
 class TableSchema(object):
     """
     Table Schema
@@ -28,23 +39,15 @@ class TableSchema(object):
     :type  table_name: str
     :param table_name: (Required) name of table
 
-    :type  index_type: IndexType
-    :param index_type: (Required) index type, default = IndexType.INVALID
-
-        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
 
     :type  dimension: int64
     :param dimension: (Required) dimension of vector
 
-    :type  store_raw_vector: bool
-    :param store_raw_vector: (Optional) default = False
-
     """
 
     def __init__(self, table_name,
-                 dimension=0,
-                 index_type=IndexType.INVALID,
-                 store_raw_vector=False):
+                 dimension=0):
 
         # TODO may raise UnicodeEncodeError
         if table_name is None:
@@ -53,18 +56,8 @@ class TableSchema(object):
         if not legal_dimension(dimension):
             raise ParamError('Illegal dimension, effective range: (0 , 16384]')
 
-        if isinstance(index_type, int):
-            index_type = IndexType(index_type)
-        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
-            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
-
-        if not isinstance(store_raw_vector, bool):
-            raise ParamError('Illegal store_raw_vector, should be bool')
-
         self.table_name = table_name
-        self.index_type = index_type
         self.dimension = dimension
-        self.store_raw_vector = store_raw_vector
 
     def __repr__(self):
         L = ['%s=%r' % (key, value)
@@ -162,6 +155,56 @@ class TopKQueryResult(list):
             return ahead
         else:
             return "[\n%s\n]" % ",\n".join(map(str, self))
+
+
+class IndexParam(object):
+    """
+    Index Param
+
+    :type  table_name: str
+    :param table_name: (Required) name of table
+
+    :type  index_type: IndexType
+    :param index_type: (Required) index type, default = IndexType.INVALID
+
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
+
+    :type  nlist: int64
+    :param nlist: (Required) num of cell
+
+    :type  index_file_size: int32
+    :param index_file_size: file size of index
+
+    :type  metric_type: int32
+    :param metric_type: ???
+    """
+
+    def __init__(self, table_name, index_type, nlist, index_file_size, metric_type):
+
+        if table_name is None:
+            raise ParamError('Table name can\'t be None')
+        table_name = str(table_name) if not isinstance(table_name, str) else table_name
+
+        if isinstance(index_type, int):
+            index_type = IndexType(index_type)
+        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
+            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
+
+        if isinstance(metric_type, int):
+            metric_type = MetricType(metric_type)
+        if not isinstance(metric_type, MetricType):
+            raise ParamError('Illegal metric_type, should be MetricType')
+
+        self._table_name = table_name
+        self._index_type = index_type
+        self._nlist = nlist
+        self._index_file_size = index_file_size
+        self._metric_type = metric_type
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
 
 def _abstract():
@@ -411,4 +454,53 @@ class ConnectIntf(object):
 
         :rtype: (Status, str)
         """
+        _abstract()
+
+    def delete_vectors_by_range(self, start_time, end_time):
+        """
+
+        :param start_time:
+        :param end_time:
+        :return:
+        """
+
+        _abstract()
+
+    def preload_table(self, table_name):
+        """
+        load table to cache in advance
+        should be implemented
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+        """
+
+        _abstract()
+
+    def describe_index(self, table_name):
+        """
+        Show index information
+        should be implemented
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+        """
+
+        _abstract()
+
+    def drop_index(self, table_name):
+        """
+        Show index information
+        should be implemented
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+        """
+
         _abstract()
