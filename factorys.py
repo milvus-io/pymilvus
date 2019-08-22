@@ -100,7 +100,7 @@ def range_factory():
 
 
 def ranges_factory():
-    return [range_factory() for _ in range(5)]
+    return [range_factory() for _ in range(1)]
 
 
 def table_schema_factory():

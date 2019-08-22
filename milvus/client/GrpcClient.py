@@ -190,6 +190,7 @@ class Prepare(object):
     @classmethod
     def search_param(cls, table_name, query_records, query_ranges, topk, nprobe):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
+
         search_param = grpc_types.SearchParam(
             table_name=table_name,
             query_range_array=query_ranges,
@@ -796,10 +797,13 @@ class GrpcMilvus(ConnectIntf):
         """
         Delete vectors by range
 
+        :type  table_name: str
         :param table_name:
 
+        :type  start_date: str
         :param start_date:
 
+        :type  end_date:
         :param end_date:
 
         :return:
