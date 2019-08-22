@@ -332,10 +332,18 @@ class TestSearch:
         assert res.OK()
         assert len(tables) == 1
 
-    def test_get_table_row_count(self, gcon, gvector):
+    def test_get_table_row_count(self, gcon, gvector, gtable):
         res, count = gcon.get_table_row_count(gvector)
         assert res.OK()
         assert count == 1000
+        # vectors = records_factory(dim, nq)
+        # status, ids = gcon.add_vectors(gtable, vectors)
+        #
+        # assert status.OK()
+        # assert len(ids) == nq
+        #
+        # res, count = gcon.get_table_row_count(gvector)
+        # assert count == len(ids)
 
     def test_false_get_table_row_count(self, gcon):
         res, count = gcon.get_table_row_count('fake_table')
@@ -444,14 +452,14 @@ class TestAddVectors:
         status, ids = gcon.add_vectors(gtable, vectors)
 
         assert status.OK()
-        assert len(ids) == 200000
+        assert len(ids) == nq
 
         time.sleep(2)
 
         status, count = gcon.get_table_row_count(gtable)
         assert status.OK()
 
-        assert count == 200000
+        assert count == nq
 
 
 class TestIndex:
@@ -487,7 +495,7 @@ class TestIndex:
 
         status, count = gcon.get_table_row_count(gtable)
         assert status.OK()
-        # assert count <= 0
+        assert count <= 0
 
 
 class TestDeleteVectors:
@@ -504,7 +512,7 @@ class TestDeleteVectors:
         #     'start_date': get_last_day(1),
         #     'end_date': get_current_day()
         # }
-        # _ranges = [[get_last_day(1), get_current_day()]]
+        # _ranges = [[get_last_day(1), get_next_day(1)]]
         _ranges = ranges_factory()
 
         query_vectors = records_factory(dim, nq)
@@ -529,7 +537,8 @@ class TestSearchVectors:
         vectors = records_factory(dim, nq)
         status, ids = gcon.add_vectors(gtable, vectors)
 
-        ranges = ranges_factory()
+        # ranges = ranges_factory()
+        ranges = [['2019-06-25', '2019-10-10']]
         time.sleep(2)
 
         s_vectors = [vectors[0]]
