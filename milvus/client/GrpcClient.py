@@ -453,12 +453,12 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def create_index(self, table_name, index_param):
+    def create_index(self, table_name, index):
         """
         :param table_name: table used to build index.
         :type table_name: str
-        :param index_param: index params
-        :type index_param: dict
+        :param index: index params
+        :type index: dict
             `example param={'index_type': IndexType.FLAT,
                             'nlist': 16384,
                             'index_file_size': 1024,
@@ -467,7 +467,20 @@ class GrpcMilvus(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
-        pass
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        index_param = Prepare.index_param(table_name, index)
+
+        try:
+            status = self._stub.CreateIndex(index_param)
+            if status.error_code == 0:
+                return Status(message='Build index successfully!')
+            else:
+                return Status(code=status.error_code, message=status.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error')
 
     def add_vectors(self, table_name, records, ids=None, *args, **kwargs):
         """
