@@ -1,3 +1,4 @@
+import pytest
 import sys
 
 sys.path.append(".")
@@ -6,18 +7,19 @@ from milvus import Milvus
 from milvus.client.Exceptions import *
 
 
-def test_host_port_connect():
+def test_host_port_connect(args):
     milvus = Milvus()
 
-    args = {'host': 'localhost', 'port': 19530}
+    _args = {'host': args['ip'], 'port': args['port']}
 
-    status = milvus.connect(**args)
+    status = milvus.connect(**_args)
     assert status.OK()
 
     milvus.disconnect()
 
 
-def test__connect():
+@pytest.mark.skip("host support only")
+def test_default_connect():
     milvus = Milvus()
 
     status = milvus.connect()
@@ -26,8 +28,8 @@ def test__connect():
     milvus.disconnect()
 
 
-def test_uri_connect():
-    uri = 'tcp://127.0.0.1:19530'
+def test_uri_connect(args):
+    uri = 'tcp://{}:{}'.format(args['ip'], args['port'])
     milvus = Milvus()
     status = milvus.connect(uri=uri)
     assert status.OK()
@@ -35,10 +37,9 @@ def test_uri_connect():
     milvus.disconnect()
 
 
+@pytest.mark.skip("host support only")
 def test_uri_not_host_connect():
     uri = 'tcp://:19530'
-    # import pdb;pdb.set_trace()
-
     milvus = Milvus()
 
     # try:
@@ -48,6 +49,7 @@ def test_uri_not_host_connect():
     assert status.OK(), ""
 
 
+@pytest.mark.skip("may failed in server")
 def test_uri_not_port_connect():
     uri = 'tcp://localhost:'
 
@@ -60,6 +62,7 @@ def test_uri_not_port_connect():
     assert status.OK(), ""
 
 
+@pytest.mark.skip("host support only")
 def test_port_connect():
     port = "19530"
 

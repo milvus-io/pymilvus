@@ -5,7 +5,7 @@ import sys
 sys.path.append('.')
 
 from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
-from milvus.client.Abstract import IndexType, TableSchema, TopKQueryResult
+from milvus.client.Abstract import IndexType, TableSchema, TopKQueryResult, MetricType
 from milvus.client.Exceptions import *
 
 from factorys import *
@@ -15,6 +15,19 @@ LOGGER = logging.getLogger(__name__)
 dim = 16
 nb = 200000
 nq = 100
+
+
+def timer(func):
+    @wraps(func)
+    def inner(*args, **kwargs):
+        t0 = time.time()
+        result = func(*args, **kwargs)
+        t1 = time.time()
+        print("[{}] Cost {:.3f} s!".format(func.__name__, t1 - t0))
+
+        return result
+
+    return inner
 
 
 class TestConnection:
@@ -478,24 +491,22 @@ class TestIndex:
         assert status.OK()
         print("\n{}\n".format(index_schema))
 
-    @pytest.mark.skip("count table bug, waiting for fixing")
+    # @pytest.mark.skip("count table bug, waiting for fixing")
     def test_drop_index(self, gcon, gtable):
-        vectors = records_factory(dim, nq)
+        vectors = records_factory(dim, nb)
         status, ids = gcon.add_vectors(gtable, vectors)
 
         assert status.OK()
-        assert len(ids) == nq
+        assert len(ids) == nb
 
         time.sleep(6)
 
-        status = gcon.drop_index(gtable)
-        assert status.OK()
-
-        time.sleep(10)
-
         status, count = gcon.get_table_row_count(gtable)
         assert status.OK()
-        assert count <= 0
+        assert count == nb
+
+        status = gcon.drop_index(gtable)
+        assert status.OK()
 
 
 class TestDeleteVectors:
@@ -508,11 +519,6 @@ class TestDeleteVectors:
 
         time.sleep(4)
 
-        # _range = {
-        #     'start_date': get_last_day(1),
-        #     'end_date': get_current_day()
-        # }
-        # _ranges = [[get_last_day(1), get_next_day(1)]]
         _ranges = ranges_factory()
 
         query_vectors = records_factory(dim, nq)
@@ -526,16 +532,15 @@ class TestDeleteVectors:
 
         status, results = gcon.search_vectors(gtable, top_k=1, nprobe=16, query_records=query_vectors,
                                               query_ranges=_ranges)
-
         assert status.OK()
-        # assert len(results) <= 0
 
 
 class TestSearchVectors:
-    # @pytest.mark.skip('server skip')
     def test_search_vectors_normal_1_with_ranges(self, gcon, gtable):
         vectors = records_factory(dim, nq)
         status, ids = gcon.add_vectors(gtable, vectors)
+
+        assert status.OK()
 
         # ranges = ranges_factory()
         ranges = [['2019-06-25', '2019-10-10']]
@@ -549,9 +554,45 @@ class TestSearchVectors:
         assert len(result[0]) == 1
 
 
-@pytest.mark.skip("build index bug")
+# @pytest.mark.skip("build index bug")
 class TestBuildIndex:
+    @timer
     def test_build_index(self, gcon, gtable):
-        status = gcon.build_index(gtable)
 
+        _D = 512
+
+        _table = {
+            'table_name': gtable,
+            'dimension': _D
+        }
+
+        _Nb = 200000
+
+        vectors = [[random.random() for _ in range(_D)] for _ in range(_Nb)]
+
+        if gcon.has_table(gtable):
+            gcon.delete_table(gtable)
+            time.sleep(5)
+
+        print("Create table ... ")
+        status = gcon.create_table(_table)
+        assert status.OK()
+
+        print("Add vectors ... ")
+        status = gcon.add_vectors(gtable, vectors)
+        assert status.OK()
+        time.sleep(30)
+
+        _index = {
+            'index_type': IndexType.FLAT,
+            'nlist': 4096,
+            'index_file_size': 1024,
+            'metric_type': MetricType.L2
+        }
+
+        print("Create index ... ")
+        status = gcon.create_index(gtable, _index)
+        assert status.OK()
+
+        status = gcon.delete_table(gtable)
         assert status.OK()
