@@ -58,7 +58,8 @@ class Prepare(object):
                 # TODO: for backward compatibility
                 _param = {
                     'table_name': param['table_name'],
-                    'dimension': param['dimension']
+                    'dimension': param['dimension'],
+                    'index_file_size': param['index_file_size']
                 }
 
                 temp = TableSchema(**_param)
@@ -345,7 +346,8 @@ class GrpcMilvus(ConnectIntf):
         :param param: Provide table information to be created
 
                 `example param={'table_name': 'name',
-                                'dimension': 16}`
+                                'dimension': 16,
+                                'index_file_size': 1024}`
 
                 `OR using Prepare.table_schema to create param`
 
@@ -426,33 +428,6 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def build_index(self, table_name):
-        """
-        Build index by table name
-
-        This method is used to build index by table in sync mode.
-
-        :param table_name: table used to build index.
-        :type  table_name: str
-
-        :return: Status, indicate if operation is successful
-        """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        index_param = Prepare.index_param(table_name, None)
-
-        try:
-            status = self._stub.CreateIndex(index_param)
-
-            if status.error_code == 0:
-                return Status(message='Build index successfully!')
-            else:
-                return Status(code=status.error_code, message=status.reason)
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error')
-
     def create_index(self, table_name, index):
         """
         :param table_name: table used to build index.
@@ -461,14 +436,16 @@ class GrpcMilvus(ConnectIntf):
         :type index: dict
             `example param={'index_type': IndexType.FLAT,
                             'nlist': 16384,
-                            'index_file_size': 1024,
-                            'metric_type': }`
+                            'metric_type': MetricType.L2}`
             index_param can be None
 
         :return: Status, indicate if operation is successful
         """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
+
+        if not isinstance(index, dict):
+            raise TypeError("param `index` should be a dictionary")
 
         index_param = Prepare.index_param(table_name, index)
 

@@ -383,8 +383,7 @@ class TestPrepare:
         param = {
             'table_name': fake.table_name(),
             'dimension': random.randint(0, 999),
-            'index_type': IndexType.FLAT,
-            'store_raw_vector': False
+            'index_file_size': 1024
         }
         res = Prepare.table_schema(param)
         assert isinstance(res, milvus_pb2.TableSchema)
@@ -586,7 +585,6 @@ class TestBuildIndex:
         _index = {
             'index_type': IndexType.FLAT,
             'nlist': 4096,
-            'index_file_size': 1024,
             'metric_type': MetricType.L2
         }
 

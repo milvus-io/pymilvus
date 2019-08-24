@@ -44,10 +44,12 @@ class TableSchema(object):
     :type  dimension: int64
     :param dimension: (Required) dimension of vector
 
+    :type  index_file_size:
+    :param index_file_size:
+
     """
 
-    def __init__(self, table_name,
-                 dimension=0):
+    def __init__(self, table_name, dimension, index_file_size):
 
         # TODO may raise UnicodeEncodeError
         if table_name is None:
@@ -58,6 +60,7 @@ class TableSchema(object):
 
         self.table_name = table_name
         self.dimension = dimension
+        self.index_file_size = index_file_size
 
     def __repr__(self):
         L = ['%s=%r' % (key, value)
@@ -172,14 +175,11 @@ class IndexParam(object):
     :type  nlist: int64
     :param nlist: (Required) num of cell
 
-    :type  index_file_size: int32
-    :param index_file_size: file size of index
-
     :type  metric_type: int32
     :param metric_type: ???
     """
 
-    def __init__(self, table_name, index_type, nlist, index_file_size, metric_type):
+    def __init__(self, table_name, index_type, nlist, metric_type):
 
         if table_name is None:
             raise ParamError('Table name can\'t be None')
@@ -198,7 +198,6 @@ class IndexParam(object):
         self._table_name = table_name
         self._index_type = index_type
         self._nlist = nlist
-        self._index_file_size = index_file_size
         self._metric_type = metric_type
 
     def __repr__(self):
