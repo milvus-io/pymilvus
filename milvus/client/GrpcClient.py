@@ -258,7 +258,7 @@ class GrpcMilvus(ConnectIntf):
         self.server_address = self._uri
         self._channel = grpc.insecure_channel(self._uri)
 
-    def connect(self, host=None, port=None, uri=None, timeout=3000):
+    def connect(self, host=None, port=None, uri=None, timeout=3):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -285,7 +285,7 @@ class GrpcMilvus(ConnectIntf):
             return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
 
         try:
-            grpc.channel_ready_future(self._channel).result(timeout=timeout // 1000)
+            grpc.channel_ready_future(self._channel).result(timeout=timeout)
         except grpc.FutureTimeoutError as e:
             raise NotConnectError('Fail connecting to server on {}'.format(self._uri))
         else:
@@ -338,10 +338,9 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Disconnect successfully')
 
-    def create_table(self, param, timeout=None):
+    def create_table(self, param, timeout=10):
         """Create table
 
-        :param timeout:
         :type  param: dict or TableSchema
         :param param: Provide table information to be created
 
@@ -350,6 +349,9 @@ class GrpcMilvus(ConnectIntf):
                                 'index_file_size': 1024}`
 
                 `OR using Prepare.table_schema to create param`
+
+        :type  timeout:
+        :param timeout:
 
         :return: Status, indicate if operation is successful
         :rtype: Status
@@ -363,9 +365,8 @@ class GrpcMilvus(ConnectIntf):
         table_schema = Prepare.table_schema(param)
 
         try:
-            # future = self._stub.CreateTable.future(table_schema)
-            # status = future.result(timeout=0.00000003)
-            status = self._stub.CreateTable(table_schema)
+            # status = self._stub.CreateTable(table_schema)
+            status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
             if status.error_code == 0:
                 return Status(message='Create table successfully!')
             elif status.error_code == status_pb2.META_FAILED:
@@ -374,6 +375,9 @@ class GrpcMilvus(ConnectIntf):
             else:
                 LOGGER.error(status)
                 return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
