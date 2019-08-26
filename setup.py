@@ -6,13 +6,13 @@ HERE = pathlib.Path(__file__).parent
 README = (HERE / 'README.md').read_text()
 
 setuptools.setup(
-    name="pymilvus",
-    version="0.2.0",
+    name="pymilvus-test",
+    version="0.2.1",
 
-    description="Python Sdk for Milvus",
+    description="Python Sdk for Milvus; Alpha version",
     long_description=README,
     long_description_content_type='text/markdown',
-    url='https://github.com/milvus-io/pymilvus',
+    url='https://github.com/BossZou/pymilvus',
     license="Apache-2.0",
     packages=["milvus.client", 'milvus.grpc_gen', 'milvus'],
     include_package_data=True,
