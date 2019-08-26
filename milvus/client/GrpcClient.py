@@ -74,7 +74,8 @@ class Prepare(object):
 
         table_name = Prepare.table_name(temp.table_name)
         return grpc_types.TableSchema(table_name=table_name,
-                                      dimension=temp.dimension)
+                                      dimension=temp.dimension,
+                                      index_file_size=temp.index_file_size)
 
     @classmethod
     def range(cls, start_date, end_date):
@@ -138,7 +139,7 @@ class Prepare(object):
         return _param
 
     @classmethod
-    def index(cls, index_type, nlist, index_file_size, metric_type):
+    def index(cls, index_type, nlist, metric_type):
         """
 
         :type index_type: IndexType
@@ -160,8 +161,7 @@ class Prepare(object):
         if not isinstance(metric_type, MetricType):
             raise ParamError('Illegal metric_type, should be MetricType')
 
-        return grpc_types.Index(index_type=index_type, nlist=nlist, index_file_size=index_file_size,
-                                metric_type=metric_type)
+        return grpc_types.Index(index_type=index_type, nlist=nlist, metric_type=metric_type)
 
     @classmethod
     def index_param(cls, table_name, index_param):
@@ -653,7 +653,8 @@ class GrpcMilvus(ConnectIntf):
 
                 table = TableSchema(
                     table_name=ts.table_name.table_name,
-                    dimension=ts.dimension
+                    dimension=ts.dimension,
+                    index_file_size=ts.index_file_size
                 )
 
                 return Status(message='Describe table successfully!'), table
@@ -783,6 +784,18 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), None
 
+    def cmd(self, cmd):
+        cmd = grpc_types.Command(cmd=cmd)
+        try:
+            ss = self._stub.Cmd(cmd)
+            if ss.status.error_code == 0:
+                return Status(message='Success!'), ss.string_reply
+            else:
+                return Status(code=ss.status.error_code, message=ss.status.reason), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='grpc transport error'), None
+
     def delete_vectors_by_range(self, table_name, start_date=None, end_date=None):
         """
         Delete vectors by range
@@ -851,7 +864,6 @@ class GrpcMilvus(ConnectIntf):
                     "table_name": index_param.table_name.table_name,
                     "index_type": index_param.index.index_type,
                     "nlist": index_param.index.nlist,
-                    "index_file_size": index_param.index.index_file_size,
                     "metric_type": index_param.index.metric_type
                 }
 

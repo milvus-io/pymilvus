@@ -107,8 +107,7 @@ def table_schema_factory():
     param = {
         'table_name': fake.table_name(),
         'dimension': random.randint(1, 999),
-        'index_type': IndexType.FLAT,
-        'store_raw_vector': False
+        'index_file_size': 1024
     }
     return param
 

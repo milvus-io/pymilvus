@@ -37,7 +37,8 @@ def test_grpc_run(gcon):
 
     table_param = {
         'table_name': table_name,
-        'dimension': dimension
+        'dimension': dimension,
+        'index_file_size': 1024
     }
 
     gmilvus.create_table(table_param)

@@ -2,10 +2,13 @@ import random
 import time
 from functools import wraps
 
-from milvus import Milvus, IndexType
+import sys
+
+sys.path.append(".")
+from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
-nb = 10000  # number of vector dataset
+nb = 400000  # number of vector dataset
 nq = 10  # number of query vector
 table_name = 'examples_grpc'
 top_K = 1
@@ -42,8 +45,7 @@ def create_table():
     param = {
         'table_name': table_name,
         'dimension': _DIM,
-        'index_type': IndexType.IVFLAT,
-        'store_raw_vector': False
+        'index_file_size': 1024
     }
 
     if milvus.has_table(param['table_name']):
@@ -145,14 +147,23 @@ if __name__ == '__main__':
     insert_vectors(vectors)
 
     # wait for inserted vectors persisting
-    time.sleep(10)
+    time.sleep(20)
 
     milvus.preload_table(table_name)
 
+    _index = {
+        'index_type': IndexType.IVFLAT,
+        'nlist': 4096,
+        'metric_type': MetricType.L2
+    }
+    milvus.create_index(table_name, _index)
     # build_index()
-    # time.sleep(6)
+    time.sleep(6)
 
-    milvus.describe_index(table_name)
+    milvus.describe_table(table_name)
+
+    status, index = milvus.describe_index(table_name)
+    print(index)
 
     query_vectors = random_vectors(nq)
 
@@ -160,5 +171,8 @@ if __name__ == '__main__':
 
     # delete index
     status = milvus.drop_index(table_name=table_name)
+
+    # delete table
+    time.sleep(10)
 
     delete_table()

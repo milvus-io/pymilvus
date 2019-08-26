@@ -440,6 +440,8 @@ class TestDeleteTable:
     def test_delete_table_normal(self, gcon):
         param = table_schema_factory()
         s = gcon.create_table(param)
+        assert s.OK()
+        time.sleep(5)
         _, tables = gcon.show_tables()
         assert param['table_name'] in tables
 
@@ -452,6 +454,7 @@ class TestHasTable:
     def test_has_table(self, gcon):
         param = table_schema_factory()
         s = gcon.create_table(param)
+        assert s.OK()
 
         flag = gcon.has_table(param['table_name'])
         assert flag
@@ -477,13 +480,22 @@ class TestAddVectors:
 class TestIndex:
 
     def test_describe_index(self, gcon, gtable):
-        vectors = records_factory(dim, nq)
+        vectors = records_factory(dim, nb)
         status, ids = gcon.add_vectors(gtable, vectors)
 
         assert status.OK()
-        assert len(ids) == nq
+        assert len(ids) == nb
 
         time.sleep(6)
+
+        _index = {
+            'index_type': IndexType.IVFLAT,
+            'nlist': 4096,
+            'metric_type': MetricType.L2
+        }
+
+        gcon.create_index(gtable, _index)
+        time.sleep(10)
 
         status, index_schema = gcon.describe_index(gtable)
 
@@ -553,7 +565,7 @@ class TestSearchVectors:
         assert len(result[0]) == 1
 
 
-# @pytest.mark.skip("build index bug")
+@pytest.mark.skip("build index bug")
 class TestBuildIndex:
     @timer
     def test_build_index(self, gcon, gtable):
@@ -562,7 +574,8 @@ class TestBuildIndex:
 
         _table = {
             'table_name': gtable,
-            'dimension': _D
+            'dimension': _D,
+            'index_file_size': 1024
         }
 
         _Nb = 200000

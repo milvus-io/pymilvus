@@ -81,8 +81,8 @@ def gtable(request, gcon):
 
     param = {'table_name': table_name,
              'dimension': dim,
-             'index_type': IndexType.FLAT,
-             'store_raw_vector': False}
+             'index_file_size': 1024
+             }
     gcon.create_table(param)
 
     def teardown():
