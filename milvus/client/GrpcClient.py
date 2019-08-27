@@ -346,7 +346,8 @@ class GrpcMilvus(ConnectIntf):
 
                 `example param={'table_name': 'name',
                                 'dimension': 16,
-                                'index_file_size': 1024}`
+                                'index_file_size': 1024 (optional)
+                                }`
 
                 `OR using Prepare.table_schema to create param`
 
@@ -361,6 +362,9 @@ class GrpcMilvus(ConnectIntf):
 
         if not isinstance(param, dict):
             raise ParamError("param is invalid! It should be a type of dict")
+
+        if 'index_file_size' not in param:
+            param['index_file_size'] = 1024
 
         table_schema = Prepare.table_schema(param)
 
@@ -432,21 +436,30 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def create_index(self, table_name, index):
+    def create_index(self, table_name, index=None):
         """
         :param table_name: table used to build index.
         :type table_name: str
         :param index: index params
         :type index: dict
-            `example param={'index_type': IndexType.FLAT,
+
+            index_param can be None
+
+            `example (default) param={'index_type': IndexType.FLAT,
                             'nlist': 16384,
                             'metric_type': MetricType.L2}`
-            index_param can be None
 
         :return: Status, indicate if operation is successful
         """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
+
+        if index is None:
+            index = {
+                'index_type': IndexType.FLAT,
+                'nlist': 16384,
+                'metric_type': MetricType.L2
+            }
 
         if not isinstance(index, dict):
             raise TypeError("param `index` should be a dictionary")
@@ -745,19 +758,7 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        cmd = grpc_types.Command(cmd='version')
-        try:
-            ss = self._stub.Cmd(cmd)
-            if ss.status.error_code == 0:
-                return Status(message='Success!'), ss.string_reply
-            else:
-                return Status(code=ss.status.error_code, message=ss.status.reason), None
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error'), None
+        return self.cmd(cmd='version')
 
     def server_status(self, cmd=None):
         """
@@ -770,25 +771,16 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
+        return self.cmd(cmd='OK')
+
+    def cmd(self, cmd):
+
+        if not isinstance(cmd, str):
+            raise TypeError("arg should be str")
+
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        if not cmd or cmd != "version":
-            cmd = grpc_types.Command(cmd='OK')
-        else:
-            cmd = grpc_types.Command(cmd=cmd)
-
-        try:
-            ss = self._stub.Cmd(cmd)
-            if ss.status.error_code == 0:
-                return Status(message='Success!'), ss.string_reply
-            else:
-                return Status(code=ss.status.error_code, message=ss.status.reason), None
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error'), None
-
-    def cmd(self, cmd):
         cmd = grpc_types.Command(cmd=cmd)
         try:
             ss = self._stub.Cmd(cmd)
