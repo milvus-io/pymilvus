@@ -258,7 +258,7 @@ class GrpcMilvus(ConnectIntf):
         self.server_address = self._uri
         self._channel = grpc.insecure_channel(self._uri)
 
-    def connect(self, host=None, port=None, uri=None, timeout=3):
+    def connect(self, host=None, port=None, uri=None, timeout=5):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -386,7 +386,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def has_table(self, table_name):
+    def has_table(self, table_name, timeout=10):
         """
 
         This method is used to test table existence.
@@ -404,14 +404,14 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            reply = self._stub.HasTable(table_name)
+            reply = self._stub.HasTable.future(table_name).result(timeout=timeout)
             if reply.status.error_code == 0:
                 return reply.bool_reply
         except grpc.RpcError as e:
             LOGGER.error(e)
             return False
 
-    def delete_table(self, table_name):
+    def delete_table(self, table_name, timeout=20):
         """
         Delete table with table_name
 
@@ -427,7 +427,7 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            status = self._stub.DropTable(table_name)
+            status = self._stub.DropTable.future(table_name).result(timeout=timeout)
             if status.error_code == 0:
                 return Status(message='Delete table successfully!')
             else:
@@ -436,7 +436,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def create_index(self, table_name, index=None):
+    def create_index(self, table_name, index=None, timeout=1800):
         """
         :param table_name: table used to build index.
         :type table_name: str
@@ -467,7 +467,7 @@ class GrpcMilvus(ConnectIntf):
         index_param = Prepare.index_param(table_name, index)
 
         try:
-            status = self._stub.CreateIndex(index_param)
+            status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
             if status.error_code == 0:
                 return Status(message='Build index successfully!')
             else:
@@ -476,7 +476,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def add_vectors(self, table_name, records, ids=None, *args, **kwargs):
+    def add_vectors(self, table_name, records, ids=None, timeout=180, *args, **kwargs):
         """
         Add vectors to table
 
@@ -517,7 +517,7 @@ class GrpcMilvus(ConnectIntf):
                 raise ParamError("The value of key 'insert_param' must be type of milvus_pb2.InsertParam")
 
         try:
-            vector_ids = self._stub.Insert(insert_param)
+            vector_ids = self._stub.Insert.future(insert_param).result(timeout=timeout)
 
             if vector_ids.status.error_code == 0:
                 ids = list(vector_ids.vector_id_array)
@@ -646,7 +646,7 @@ class GrpcMilvus(ConnectIntf):
 
             return status, []
 
-    def describe_table(self, table_name):
+    def describe_table(self, table_name, timeout=10):
         """
         Show table information
 
@@ -664,7 +664,7 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            ts = self._stub.DescribeTable(table_name)
+            ts = self._stub.DescribeTable.future(table_name).result(timeout=timeout)
 
             if ts.table_name.status.error_code == 0:
 
@@ -707,7 +707,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
 
-    def get_table_row_count(self, table_name):
+    def get_table_row_count(self, table_name, timeout=10):
         """
         Get table row count
 
@@ -725,7 +725,7 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            trc = self._stub.CountTable(table_name)
+            trc = self._stub.CountTable.future(table_name).result(timeout=timeout)
             if trc.status.error_code == 0:
                 return Status(message='Get table row count successfully!'), trc.table_row_count
             else:
@@ -747,7 +747,7 @@ class GrpcMilvus(ConnectIntf):
         """
         return __version__
 
-    def server_version(self):
+    def server_version(self, timeout=10):
         """
         Provide server version
 
@@ -758,9 +758,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self.cmd(cmd='version')
+        return self.cmd(cmd='version', timeout=timeout)
 
-    def server_status(self, cmd=None):
+    def server_status(self, cmd=None, timeout=10):
         """
         Provide server status. When cmd !='version', provide 'OK'
 
@@ -771,9 +771,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self.cmd(cmd='OK')
+        return self.cmd(cmd='OK', timeout=timeout)
 
-    def cmd(self, cmd):
+    def cmd(self, cmd, timeout=10):
 
         if not isinstance(cmd, str):
             raise TypeError("arg should be str")
@@ -783,7 +783,7 @@ class GrpcMilvus(ConnectIntf):
 
         cmd = grpc_types.Command(cmd=cmd)
         try:
-            ss = self._stub.Cmd(cmd)
+            ss = self._stub.Cmd.future(cmd).result(timeout=timeout)
             if ss.status.error_code == 0:
                 return Status(message='Success!'), ss.string_reply
             else:
@@ -836,7 +836,7 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             return Status(code=e.code(), message='grpc transport error')
 
-    def describe_index(self, table_name):
+    def describe_index(self, table_name, timeout=10):
         """
         Show index information of designated table
 
@@ -851,7 +851,7 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            index_param = self._stub.DescribeIndex(table_name)
+            index_param = self._stub.DescribeIndex.future(table_name).result(timeout=timeout)
 
             status = index_param.table_name.status
 
@@ -870,12 +870,12 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error{}'.format(e.details())), None
 
-    def drop_index(self, table_name):
+    def drop_index(self, table_name, timeout=10):
 
         table_name = Prepare.table_name(table_name)
 
         try:
-            status = self._stub.DropIndex(table_name)
+            status = self._stub.DropIndex.future(table_name).result(timeout=timeout)
             return Status(code=status.error_code, message=status.reason)
         except grpc.RpcError as e:
             LOGGER.error(e)
