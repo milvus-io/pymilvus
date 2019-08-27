@@ -200,6 +200,11 @@ class IndexParam(object):
         self._nlist = nlist
         self._metric_type = metric_type
 
+    def __str__(self):
+        L = ['%s=%r' % (key.lstrip('_'), value)
+             for key, value in self.__dict__.items()]
+        return '(%s)' % (', '.join(L))
+
     def __repr__(self):
         L = ['%s=%r' % (key, value)
              for key, value in self.__dict__.items()]

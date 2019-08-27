@@ -145,6 +145,17 @@ class TestTable:
         LOGGER.error(res)
         assert not res.OK()
 
+    def test_create_table_default(self, gcon):
+        _param = {
+            'table_name': 'name',
+            'dimension': 16
+        }
+
+        _status = gcon.create_table(_param)
+        assert _status.OK()
+        time.sleep(1)
+        gcon.delete_table(_param['table_name'])
+
     def test_delete_table(self, gcon):
         table_name = 'fake_table_name'
         res = gcon.delete_table(table_name)
