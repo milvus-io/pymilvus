@@ -229,7 +229,9 @@ class GrpcMilvus(ConnectIntf):
         self.status = None
 
     def __str__(self):
-        return '<Milvus: {}>'.format(self.status)
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items() if not key.startswith('_')]
+        return '<Milvus: {}>'.format(', '.join(L))
 
     def set_channel(self, host=None, port=None, uri=None):
 
