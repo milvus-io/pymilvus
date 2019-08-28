@@ -74,6 +74,10 @@
 - \#81 ISSUE
     - remove all thrift 
     - update interface and interface param
+ 
+- \#82
+    - add timeout option
+    - add default param in tableschema and indexparam
 ### Task
 ---
 - \#1 Build Repository
