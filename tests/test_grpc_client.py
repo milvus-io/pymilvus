@@ -321,12 +321,19 @@ class TestSearch:
         param = {
             'table_name': gvector,
             'query_records': records_factory(dim, nq),
-            'file_ids': ['1'],
+            'file_ids': ['0'],
             'top_k': random.randint(1, 10),
             'nprobe': 10
         }
-        sta, result = gcon.search_vectors_in_files(**param)
-        assert sta.OK()
+
+        for id in range(50):
+            param['file_ids'].clear()
+            param['file_ids'].append(str(id))
+            sta, result = gcon.search_vectors_in_files(**param)
+            if sta.OK():
+                return
+
+        assert False
 
     @pytest.mark.skip('Not fixed')
     def test_search_in_files_wrong_file_ids(self, gcon, gvector):

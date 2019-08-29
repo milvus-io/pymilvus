@@ -693,6 +693,8 @@ class GrpcMilvus(ConnectIntf):
             table_schema: return when operation is successful
         :rtype: (Status, TableSchema)
         """
+        check_pass_param_none(table_name=table_name)
+
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -754,6 +756,8 @@ class GrpcMilvus(ConnectIntf):
 
             res: int, table row count
         """
+        check_pass_param_none(table_name=table_name)
+
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -842,6 +846,7 @@ class GrpcMilvus(ConnectIntf):
 
         :return:
         """
+        check_pass_param_none(table_name=table_name)
 
         _range = Prepare.range(start_date, end_date)
         _param = grpc_types.DeleteByRangeParam(range=_range, table_name=table_name)
@@ -863,6 +868,8 @@ class GrpcMilvus(ConnectIntf):
         :returns:
             Status:  indicate if query is successful
         """
+        check_pass_param_none(table_name=table_name)
+
         table_name = Prepare.table_name(table_name)
 
         try:
@@ -883,6 +890,8 @@ class GrpcMilvus(ConnectIntf):
             IndexSchema:
             
         """
+        check_pass_param_none(table_name=table_name)
+
         table_name = Prepare.table_name(table_name)
 
         try:
@@ -906,6 +915,8 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='grpc transport error{}'.format(e.details())), None
 
     def drop_index(self, table_name, timeout=10):
+
+        check_pass_param_none(table_name=table_name)
 
         table_name = Prepare.table_name(table_name)
 

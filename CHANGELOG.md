@@ -24,6 +24,12 @@
 - \#60 ISSUE: **[MS-185]** fix connection no timeout bug 
 - \#69 ISSUE: **[MS-243]** fixed
 - \#83 ISSUE: fix celery server create table error
+- \#   ISSUE: 
+    - **[MS-424]** IndexParam str more friendly
+    - **[MS-433]** fix wrong passing param bug
+    - **[MS-438]** fix add vectors with ids bug
+    - **[MS-439]** fix search result unpack bug on windows
+ 
 ### Improvement
 ---
 - \#10 ISSUE: Update examples
