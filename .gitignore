@@ -12,3 +12,4 @@ doc/en/build/
 temp/
 *.swp
 .coverage
+htmlcov/

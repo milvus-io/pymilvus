@@ -121,7 +121,13 @@ class Prepare(object):
 
     @classmethod
     def insert_param(cls, table_name, vectors, ids=None):
-        _param = grpc_types.InsertParam(table_name=table_name)
+
+        if ids is None:
+            _param = grpc_types.InsertParam(table_name=table_name)
+        else:
+            if len(vectors) != len(ids):
+                raise ValueError("length of vectors not match ids's")
+            _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids)
 
         for vector in vectors:
             if is_legal_array(vector):
@@ -129,12 +135,12 @@ class Prepare(object):
             else:
                 raise ParamError('Vectors should be 2-dim array!')
 
-        if ids is not None:
-            if len(vectors) != len(ids):
-                raise ParamError("Param `{0}` and `{1}` not match".format('vectors', 'ids'))
-
-            for _id in ids:
-                _param.row_id_array.add(_id)
+        # if ids is not None:
+        #     if len(vectors) != len(ids):
+        #         raise ParamError("Param `{0}` and `{1}` not match".format('vectors', 'ids'))
+        #
+        #     for _id in ids:
+        #         _param.row_id_array.add(_id)
 
         return _param
 
@@ -359,11 +365,16 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
         if not isinstance(param, dict):
             raise ParamError("param is invalid! It should be a type of dict")
+
+        try:
+            check_pass_param_none(param=param, table_name=param['table_name'], dimension=param['dimension'])
+        except KeyError as e:
+            raise ParamError("`param` should contain key `{}`".format(e.args[0]))
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
 
         if 'index_file_size' not in param:
             param['index_file_size'] = 1024
@@ -371,7 +382,6 @@ class GrpcMilvus(ConnectIntf):
         table_schema = Prepare.table_schema(param)
 
         try:
-            # status = self._stub.CreateTable(table_schema)
             status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
             if status.error_code == 0:
                 return Status(message='Create table successfully!')
@@ -400,6 +410,8 @@ class GrpcMilvus(ConnectIntf):
             bool, if given table_name exists
 
         """
+        check_pass_param_none(table_name=table_name)
+
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -409,6 +421,9 @@ class GrpcMilvus(ConnectIntf):
             reply = self._stub.HasTable.future(table_name).result(timeout=timeout)
             if reply.status.error_code == 0:
                 return reply.bool_reply
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return False
         except grpc.RpcError as e:
             LOGGER.error(e)
             return False
@@ -423,6 +438,8 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
+        check_pass_param_none(table_name=table_name)
+
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -453,6 +470,15 @@ class GrpcMilvus(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
+        if index is None:
+            check_pass_param_none(table_name=table_name)
+        else:
+            try:
+                check_pass_param_none(table_name=table_name, index_type=index['index_type'], nlist=index['index_type'],
+                                      metric_type=index['metric_type'])
+            except KeyError as e:
+                raise ParamError("Param `{}` is not allowed to be None".format(e.args[0]))
+
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -507,6 +533,8 @@ class GrpcMilvus(ConnectIntf):
             ids: list of id, after inserted every vector is given a id
         :rtype: (Status, list(int))
         """
+        check_pass_param_none(table_name=table_name, records=records)
+
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -566,6 +594,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
+
+        check_pass_param_none(table_name=table_name, top_k=top_k, nprobe=nprobe)
+
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -619,6 +650,8 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
+        check_pass_param_none(table_name=table_name, file_ids=file_ids, query_records=query_records, top_k=top_k)
+
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 

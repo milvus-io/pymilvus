@@ -58,3 +58,12 @@ def is_legal_date_range(start, end):
         return False
     else:
         return True
+
+
+def check_pass_param_none(*args, **kwargs):
+    if kwargs is None:
+        raise ParamError("Param should not be None")
+
+    for item in kwargs.items():
+        if item[1] is None:
+            raise ParamError("Param `{}` must not be None".format(item[0]))
