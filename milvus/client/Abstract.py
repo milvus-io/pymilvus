@@ -97,24 +97,6 @@ class Range(object):
                              " than or equal to end-date!")
 
 
-class RowRecord(object):
-    """
-    Record inserted
-
-    :type  vector_data: binary str
-    :param vector_data: (Required) a vector
-
-    """
-
-    def __init__(self, vector_data):
-        if isinstance(vector_data, list) and len(vector_data) > 0 \
-                and isinstance(vector_data[0], float):
-            self.vector_data = struct.pack(str(len(vector_data)) + 'd', *vector_data)
-        else:
-            raise ParamError('Illegal vector! Vector should be non-empty list of float.\n {}'
-                             .format(vector_data))
-
-
 class QueryResult(object):
     """
     Query result

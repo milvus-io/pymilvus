@@ -335,7 +335,6 @@ class TestSearch:
 
         assert False
 
-    @pytest.mark.skip('Not fixed')
     def test_search_in_files_wrong_file_ids(self, gcon, gvector):
         param = {
             'table_name': gvector,
