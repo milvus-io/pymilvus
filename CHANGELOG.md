@@ -29,6 +29,8 @@
     - **[MS-433]** fix wrong passing param bug
     - **[MS-438]** fix add vectors with ids bug
     - **[MS-439]** fix search result unpack bug on windows
+    - **[MS-452]** fix build index timeout bug
+    - **[MS-444]** fix timeout bug
  
 ### Improvement
 ---

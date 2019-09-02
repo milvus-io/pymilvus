@@ -12,7 +12,6 @@ from .Abstract import (
     MetricType,
     TableSchema,
     Range,
-    RowRecord,
     QueryResult,
     TopKQueryResult,
     IndexParam
@@ -393,7 +392,7 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport timeout')
+            return Status(Status.UNEXPECTED_ERROR, message='request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
@@ -451,11 +450,14 @@ class GrpcMilvus(ConnectIntf):
                 return Status(message='Delete table successfully!')
             else:
                 return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='grpc transport timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
 
-    def create_index(self, table_name, index=None, timeout=1800):
+    def create_index(self, table_name, index=None, timeout=-1):
         """
         :param table_name: table used to build index.
         :type table_name: str
@@ -467,6 +469,13 @@ class GrpcMilvus(ConnectIntf):
             `example (default) param={'index_type': IndexType.FLAT,
                             'nlist': 16384,
                             'metric_type': MetricType.L2}`
+
+        :param timeout: grpc request timeout.
+
+            if `timeout` = -1, method invoke a synchronous call, waiting util grpc response
+            else method invoke a asynchronous call, timeout work here
+
+        :type  timeout: int
 
         :return: Status, indicate if operation is successful
         """
@@ -495,11 +504,19 @@ class GrpcMilvus(ConnectIntf):
         index_param = Prepare.index_param(table_name, index)
 
         try:
-            status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
+            if timeout == -1:
+                status = self._stub.CreateTable(index_param)
+            elif timeout < 0:
+                raise ValueError("Param `timeout` should be a positive number")
+            else:
+                status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
             if status.error_code == 0:
                 return Status(message='Build index successfully!')
             else:
                 return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error')
@@ -557,6 +574,9 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error'), []
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(code=Status.UNEXPECTED_ERROR, message="request timeout"), []
 
     def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None):
         """
@@ -910,6 +930,9 @@ class GrpcMilvus(ConnectIntf):
                 return Status(message="Successfully"), IndexParam(**index_schema)
             else:
                 return Status(code=status.error_code, message=status.reason), None
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(code=Status.UNEXPECTED_ERROR, message='grpc request timeout'), None
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error{}'.format(e.details())), None
@@ -923,6 +946,9 @@ class GrpcMilvus(ConnectIntf):
         try:
             status = self._stub.DropIndex.future(table_name).result(timeout=timeout)
             return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='grpc request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='grpc transport error{}'.format(e.details()))
