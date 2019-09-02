@@ -1,7 +1,7 @@
 """
 This is a client for milvus of gRPC
 """
-__version__ = '0.2.3'
+__version__ = '0.2.4'
 
 import grpc
 import logging
