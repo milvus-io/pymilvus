@@ -505,7 +505,7 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             if timeout == -1:
-                status = self._stub.CreateTable(index_param)
+                status = self._stub.CreateIndex(index_param)
             elif timeout < 0:
                 raise ValueError("Param `timeout` should be a positive number")
             else:

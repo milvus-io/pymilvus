@@ -102,8 +102,7 @@ def create_table():
         param = {
             'table_name': TABLE_NAME,
             'dimension': DIMENSION,
-            'index_type': IndexType.FLAT,
-            'store_raw_vector': False
+            'index_type': IndexType.FLAT
         }
 
         status = api.client.create_table(param)
@@ -156,6 +155,7 @@ def search_vectors(q_records):
         'table_name': TABLE_NAME,
         'query_records': q_records,
         'top_k': TOPK,
+        'nprobe': 16
     }
 
     # Search vector
