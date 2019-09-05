@@ -1,7 +1,6 @@
 """
 This is a client for milvus of gRPC
 """
-__version__ = '0.2.7'
 
 import grpc
 import logging
@@ -24,6 +23,10 @@ from ..settings import DefaultConfig as config
 from ..grpc_gen import milvus_pb2_grpc, status_pb2
 from ..grpc_gen import milvus_pb2 as grpc_types
 from urllib.parse import urlparse
+
+from .. import __version__ as version
+
+__version__ = version
 
 LOGGER = logging.getLogger(__name__)
 
