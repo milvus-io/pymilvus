@@ -1,13 +1,18 @@
 import pathlib
 import setuptools
+import io
+import re
 
 HERE = pathlib.Path(__file__).parent
 
 README = (HERE / 'README.md').read_text()
 
+with io.open("milvus/__init__.py", "rt", encoding="utf8") as f:
+    version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
+
 setuptools.setup(
     name="pymilvus-test",
-    version="0.2.7",
+    version=version,
 
     description="Python Sdk for Milvus; Alpha version",
     long_description=README,
