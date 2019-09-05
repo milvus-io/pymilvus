@@ -507,7 +507,7 @@ class GrpcMilvus(ConnectIntf):
             if timeout == -1:
                 status = self._stub.CreateIndex(index_param)
             elif timeout < 0:
-                raise ValueError("Param `timeout` should be a positive number")
+                raise ValueError("Param `timeout` should be a positive number or -1")
             else:
                 status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
             if status.error_code == 0:
@@ -629,8 +629,17 @@ class GrpcMilvus(ConnectIntf):
 
         results = TopKQueryResult()
         try:
-            for topks in self._stub.Search(infos):
-                results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topks.query_result_arrays])
+            response = self._stub.Search(infos)
+            if response.status.error_code != 0:
+                return Status(code=response.status.error_code, message='grpc transport error'), []
+
+            topk_query_result = response.topk_query_result
+            # result_arrays = list(topk_query_result)
+            # query_result = []
+            results.append(
+                [QueryResult(id=list(qr.query_result_arrays)[0].id, distance=list(qr.query_result_arrays)[0].distance)]
+                for qr in topk_query_result)
+
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
                 status = Status(code=Status.ILLEGAL_ARGUMENT, message=e.details())
@@ -686,11 +695,12 @@ class GrpcMilvus(ConnectIntf):
 
         results = TopKQueryResult()
         try:
-            for topks in self._stub.SearchInFiles(infos):
-                if topks.status.error_code == 0:
-                    results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in topks.query_result_arrays])
-                else:
-                    return Status(code=topks.status.error_code, message=topks.status.reason), []
+            response = self._stub.Search(infos)
+            if response.status.error_code != 0:
+                return Status(code=response.status.error_code, message='grpc transport error'), []
+
+            topk_query_result = response.topk_query_result
+            results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in list(topk_query_result)])
 
             return Status(message='Search vectors successfully!'), results
         except grpc.RpcError as e:

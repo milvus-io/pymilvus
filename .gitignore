@@ -13,3 +13,4 @@ temp/
 *.swp
 .coverage
 htmlcov/
+debug/

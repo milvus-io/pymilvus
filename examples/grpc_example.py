@@ -8,10 +8,10 @@ sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
-nb = 400000  # number of vector dataset
-nq = 10  # number of query vector
+nb = 100000  # number of vector dataset
+nq = 1000  # number of query vector
 table_name = 'examples_grpc'
-top_K = 1
+top_K = 10
 
 server_config = {
     "host": 'localhost',
@@ -19,7 +19,8 @@ server_config = {
 }
 
 milvus = Milvus()
-milvus.connect(**server_config)
+# milvus.connect(**server_config)
+milvus.connect()
 
 
 def timer(func):
@@ -98,9 +99,6 @@ def insert_vectors(_vectors):
     if not status.OK():
         print("insert failed: {}".format(status.message))
 
-    # sleep 6 seconds to wait data persisting
-    time.sleep(6)
-
     status, count = milvus.get_table_row_count(table_name)
     # if status.OK() and count == len(_vectors):
     if status.OK():
@@ -121,6 +119,7 @@ def build_index():
         raise RuntimeError("Build index failed")
 
 
+@timer
 def search_vectors(_query_vectors):
     """
     search vectors and display results
@@ -147,7 +146,7 @@ if __name__ == '__main__':
     insert_vectors(vectors)
 
     # wait for inserted vectors persisting
-    time.sleep(20)
+    time.sleep(2)
 
     milvus.preload_table(table_name)
 
@@ -158,7 +157,7 @@ if __name__ == '__main__':
     }
     milvus.create_index(table_name, _index)
     # build_index()
-    time.sleep(6)
+    time.sleep(2)
 
     milvus.describe_table(table_name)
 
@@ -173,6 +172,6 @@ if __name__ == '__main__':
     status = milvus.drop_index(table_name=table_name)
 
     # delete table
-    time.sleep(10)
+    time.sleep(5)
 
     delete_table()
