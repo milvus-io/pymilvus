@@ -3,11 +3,13 @@ import pytest
 
 # local application imports
 from factorys import *
-from milvus import Milvus, IndexType
+from milvus import Milvus, IndexType, MetricType
+
+host = "192.168.1.134"
 
 
 def pytest_addoption(parser):
-    parser.addoption("--ip", action="store", default="localhost")
+    parser.addoption("--ip", action="store", default=host)
     parser.addoption("--port", action="store", default=19530)
 
 
@@ -62,7 +64,8 @@ def table(request, connect):
     param = {'table_name': table_name,
              'dimension': dim,
              'index_type': IndexType.IVFLAT,
-             'store_raw_vector': False}
+             'metric_type': MetricType.L2
+             }
     connect.create_table(param)
 
     def teardown():
@@ -81,7 +84,8 @@ def gtable(request, gcon):
 
     param = {'table_name': table_name,
              'dimension': dim,
-             'index_file_size': 1024
+             'index_file_size': 1024,
+             'metric_type': MetricType.L2
              }
     gcon.create_table(param)
 
@@ -99,7 +103,7 @@ def gtable(request, gcon):
 def gvector(request, gcon, gtable):
     dim = getattr(request.module, 'dim')
 
-    records = records_factory(dim, 1000)
+    records = records_factory(dim, 10000)
 
     gcon.add_vectors(gtable, records)
     time.sleep(3)

@@ -2,13 +2,13 @@ import random
 import time
 from functools import wraps
 
-# import sys
-#
-# sys.path.append(".")
+import sys
+
+sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
-nb = 10000  # number of vector dataset
+nb = 5000  # number of vector dataset
 nq = 1000  # number of query vector
 table_name = 'examples_grpc'
 top_K = 10
@@ -46,12 +46,13 @@ def create_table():
     param = {
         'table_name': table_name,
         'dimension': _DIM,
-        'index_file_size': 1024
+        'index_file_size': 1024,
+        'metric_type': MetricType.L2
     }
 
     if milvus.has_table(param['table_name']):
         milvus.delete_table(param['table_name'])
-        time.sleep(5)
+        time.sleep(2)
 
     print("Create table: {}".format(param))
     status = milvus.create_table(param)
@@ -76,7 +77,7 @@ def describe_table():
 
     :return: None
     """
-    status, schema = milvus.describe_table(table_name)
+    status, schema = milvus.describe_table(table_name, timeout=1000)
     if status.OK():
         print('Describing table `{}` ... :\n'.format(table_name))
         print('    {}'.format(schema), end='\n\n')
@@ -133,10 +134,9 @@ def search_vectors(_query_vectors):
         file_ids = [str(i)]
         status, results = milvus.search_vectors_in_files(table_name=table_name, file_ids=file_ids,
                                                          query_records=_query_vectors, top_k=top_K, nprobe=16)
-    if status.OK():
-        print("Search successfully!")
-    else:
-        print("search failed: {}".format(status.message))
+        if status.OK():
+            print("")
+            return
 
 
 if __name__ == '__main__':
@@ -157,7 +157,6 @@ if __name__ == '__main__':
     _index = {
         'index_type': IndexType.IVFLAT,
         'nlist': 4096,
-        'metric_type': MetricType.L2
     }
     milvus.create_index(table_name, _index)
     # build_index()

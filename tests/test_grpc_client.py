@@ -30,6 +30,7 @@ def timer(func):
     return inner
 
 
+@pytest.mark.skip("host may be not localhost")
 class TestConnection:
     param = {'host': 'localhost', 'port': '19530'}
 
@@ -148,7 +149,8 @@ class TestTable:
     def test_create_table_default(self, gcon):
         _param = {
             'table_name': 'name',
-            'dimension': 16
+            'dimension': 16,
+            'metric_type': MetricType.L2
         }
 
         _status = gcon.create_table(_param)
@@ -321,15 +323,14 @@ class TestSearch:
         param = {
             'table_name': gvector,
             'query_records': records_factory(dim, nq),
-            'file_ids': ['0'],
+            'file_ids': [],
             'top_k': random.randint(1, 10),
-            'nprobe': 10
+            'nprobe': 16
         }
 
-        for id in range(50):
+        for id in range(300):
             param['file_ids'].clear()
             param['file_ids'].append(str(id))
-            # import pdb; pdb.set_trace()
             sta, result = gcon.search_vectors_in_files(**param)
             if sta.OK():
                 return
@@ -366,7 +367,7 @@ class TestSearch:
     def test_get_table_row_count(self, gcon, gvector, gtable):
         res, count = gcon.get_table_row_count(gvector)
         assert res.OK()
-        assert count == 1000
+        assert count == 10000
         # vectors = records_factory(dim, nq)
         # status, ids = gcon.add_vectors(gtable, vectors)
         #
@@ -401,7 +402,8 @@ class TestPrepare:
         param = {
             'table_name': fake.table_name(),
             'dimension': random.randint(0, 999),
-            'index_file_size': 1024
+            'index_file_size': 1024,
+            'metric_type':MetricType.L2
         }
         res = Prepare.table_schema(param)
         assert isinstance(res, milvus_pb2.TableSchema)
@@ -508,8 +510,7 @@ class TestIndex:
 
         _index = {
             'index_type': IndexType.IVFLAT,
-            'nlist': 4096,
-            'metric_type': MetricType.L2
+            'nlist': 4096
         }
 
         gcon.create_index(gtable, _index)
@@ -533,6 +534,15 @@ class TestIndex:
         status, count = gcon.get_table_row_count(gtable)
         assert status.OK()
         assert count == nb
+
+        _index = {
+            'index_type': IndexType.IVFLAT,
+            'nlist': 16384
+        }
+
+        status = gcon.create_index(gtable, _index)
+
+        time.sleep(1)
 
         status = gcon.drop_index(gtable)
         assert status.OK()

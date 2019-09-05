@@ -1,7 +1,7 @@
 """
 This is a client for milvus of gRPC
 """
-__version__ = '0.2.6'
+__version__ = '0.2.7'
 
 import grpc
 import logging
@@ -58,7 +58,8 @@ class Prepare(object):
                 _param = {
                     'table_name': param['table_name'],
                     'dimension': param['dimension'],
-                    'index_file_size': param['index_file_size']
+                    'index_file_size': param['index_file_size'],
+                    'metric_type': param['metric_type']
                 }
 
                 temp = TableSchema(**_param)
@@ -74,7 +75,8 @@ class Prepare(object):
         table_name = Prepare.table_name(temp.table_name)
         return grpc_types.TableSchema(table_name=table_name,
                                       dimension=temp.dimension,
-                                      index_file_size=temp.index_file_size)
+                                      index_file_size=temp.index_file_size,
+                                      metric_type=temp.metric_type)
 
     @classmethod
     def range(cls, start_date, end_date):
@@ -144,7 +146,7 @@ class Prepare(object):
         return _param
 
     @classmethod
-    def index(cls, index_type, nlist, metric_type):
+    def index(cls, index_type, nlist):
         """
 
         :type index_type: IndexType
@@ -162,11 +164,7 @@ class Prepare(object):
         if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
             raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
 
-        metric_type = MetricType(metric_type) if isinstance(metric_type, int) else metric_type
-        if not isinstance(metric_type, MetricType):
-            raise ParamError('Illegal metric_type, should be MetricType')
-
-        return grpc_types.Index(index_type=index_type, nlist=nlist, metric_type=metric_type)
+        return grpc_types.Index(index_type=index_type, nlist=nlist)
 
     @classmethod
     def index_param(cls, table_name, index_param):
@@ -358,6 +356,9 @@ class GrpcMilvus(ConnectIntf):
 
                 `OR using Prepare.table_schema to create param`
 
+        :type  metric_type:
+        :param metric_type:
+
         :type  timeout:
         :param timeout:
 
@@ -368,7 +369,8 @@ class GrpcMilvus(ConnectIntf):
             raise ParamError("param is invalid! It should be a type of dict")
 
         try:
-            check_pass_param_none(param=param, table_name=param['table_name'], dimension=param['dimension'])
+            check_pass_param_none(param=param, table_name=param['table_name'], dimension=param['dimension'],
+                                  metric_type=param['metric_type'])
         except KeyError as e:
             raise ParamError("`param` should contain key `{}`".format(e.args[0]))
 
@@ -467,8 +469,7 @@ class GrpcMilvus(ConnectIntf):
             index_param can be None
 
             `example (default) param={'index_type': IndexType.FLAT,
-                            'nlist': 16384,
-                            'metric_type': MetricType.L2}`
+                            'nlist': 16384}`
 
         :param timeout: grpc request timeout.
 
@@ -483,8 +484,7 @@ class GrpcMilvus(ConnectIntf):
             check_pass_param_none(table_name=table_name)
         else:
             try:
-                check_pass_param_none(table_name=table_name, index_type=index['index_type'], nlist=index['index_type'],
-                                      metric_type=index['metric_type'])
+                check_pass_param_none(table_name=table_name, index_type=index['index_type'], nlist=index['nlist'])
             except KeyError as e:
                 raise ParamError("Param `{}` is not allowed to be None".format(e.args[0]))
 
@@ -494,8 +494,7 @@ class GrpcMilvus(ConnectIntf):
         if index is None:
             index = {
                 'index_type': IndexType.FLAT,
-                'nlist': 16384,
-                'metric_type': MetricType.L2
+                'nlist': 16384
             }
 
         if not isinstance(index, dict):
@@ -736,7 +735,8 @@ class GrpcMilvus(ConnectIntf):
                 table = TableSchema(
                     table_name=ts.table_name.table_name,
                     dimension=ts.dimension,
-                    index_file_size=ts.index_file_size
+                    index_file_size=ts.index_file_size,
+                    metric_type=ts.metric_type
                 )
 
                 return Status(message='Describe table successfully!'), table
@@ -931,8 +931,7 @@ class GrpcMilvus(ConnectIntf):
                 index_schema = {
                     "table_name": index_param.table_name.table_name,
                     "index_type": index_param.index.index_type,
-                    "nlist": index_param.index.nlist,
-                    "metric_type": index_param.index.metric_type
+                    "nlist": index_param.index.nlist
                 }
 
                 return Status(message="Successfully"), IndexParam(**index_schema)

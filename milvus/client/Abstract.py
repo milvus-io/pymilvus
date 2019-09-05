@@ -47,9 +47,12 @@ class TableSchema(object):
     :type  index_file_size:
     :param index_file_size:
 
+    :type  metric_type:
+    :param metric_type:
+
     """
 
-    def __init__(self, table_name, dimension, index_file_size):
+    def __init__(self, table_name, dimension, index_file_size, metric_type):
 
         # TODO may raise UnicodeEncodeError
         if table_name is None:
@@ -57,10 +60,15 @@ class TableSchema(object):
         table_name = str(table_name) if not isinstance(table_name, str) else table_name
         if not legal_dimension(dimension):
             raise ParamError('Illegal dimension, effective range: (0 , 16384]')
+        if isinstance(metric_type, int):
+            metric_type = MetricType(metric_type)
+        if not isinstance(metric_type, MetricType):
+            raise ParamError('Illegal metric_type, should be MetricType')
 
         self.table_name = table_name
         self.dimension = dimension
         self.index_file_size = index_file_size
+        self.metric_type = metric_type
 
     def __repr__(self):
         L = ['%s=%r' % (key, value)
@@ -161,7 +169,7 @@ class IndexParam(object):
     :param metric_type: ???
     """
 
-    def __init__(self, table_name, index_type, nlist, metric_type):
+    def __init__(self, table_name, index_type, nlist):
 
         if table_name is None:
             raise ParamError('Table name can\'t be None')
@@ -172,15 +180,9 @@ class IndexParam(object):
         if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
             raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
 
-        if isinstance(metric_type, int):
-            metric_type = MetricType(metric_type)
-        if not isinstance(metric_type, MetricType):
-            raise ParamError('Illegal metric_type, should be MetricType')
-
         self._table_name = table_name
         self._index_type = index_type
         self._nlist = nlist
-        self._metric_type = metric_type
 
     def __str__(self):
         L = ['%s=%r' % (key.lstrip('_'), value)
