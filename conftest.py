@@ -5,7 +5,7 @@ import pytest
 from factorys import *
 from milvus import Milvus, IndexType, MetricType
 
-host = "192.168.1.134"
+host = "127.0.0.1"
 
 
 def pytest_addoption(parser):
