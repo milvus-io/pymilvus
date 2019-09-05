@@ -1,7 +1,7 @@
 """
 This is a client for milvus of gRPC
 """
-__version__ = '0.2.5'
+__version__ = '0.2.6'
 
 import grpc
 import logging
@@ -633,12 +633,9 @@ class GrpcMilvus(ConnectIntf):
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message='grpc transport error'), []
 
-            topk_query_result = response.topk_query_result
-            # result_arrays = list(topk_query_result)
-            # query_result = []
-            results.append(
-                [QueryResult(id=list(qr.query_result_arrays)[0].id, distance=list(qr.query_result_arrays)[0].distance)]
-                for qr in topk_query_result)
+            for topk_query_result in list(response.topk_query_result):
+                results.append(
+                    [QueryResult(id=qr.id, distance=qr.distance) for qr in list(topk_query_result.query_result_arrays)])
 
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
@@ -695,12 +692,13 @@ class GrpcMilvus(ConnectIntf):
 
         results = TopKQueryResult()
         try:
-            response = self._stub.Search(infos)
+            response = self._stub.SearchInFiles(infos)
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message='grpc transport error'), []
 
-            topk_query_result = response.topk_query_result
-            results.append([QueryResult(id=qr.id, distance=qr.distance) for qr in list(topk_query_result)])
+            for topk_query_result in list(response.topk_query_result):
+                results.append(
+                    [QueryResult(id=qr.id, distance=qr.distance) for qr in list(topk_query_result.query_result_arrays)])
 
             return Status(message='Search vectors successfully!'), results
         except grpc.RpcError as e:

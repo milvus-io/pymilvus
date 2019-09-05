@@ -2,13 +2,13 @@ import random
 import time
 from functools import wraps
 
-import sys
-
-sys.path.append(".")
+# import sys
+#
+# sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
-nb = 100000  # number of vector dataset
+nb = 10000  # number of vector dataset
 nq = 1000  # number of query vector
 table_name = 'examples_grpc'
 top_K = 10
@@ -128,7 +128,11 @@ def search_vectors(_query_vectors):
     :return: None
     """
 
-    status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K, nprobe=16)
+    # status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K, nprobe=16)
+    for i in range(50):
+        file_ids = [str(i)]
+        status, results = milvus.search_vectors_in_files(table_name=table_name, file_ids=file_ids,
+                                                         query_records=_query_vectors, top_k=top_K, nprobe=16)
     if status.OK():
         print("Search successfully!")
     else:

@@ -329,6 +329,7 @@ class TestSearch:
         for id in range(50):
             param['file_ids'].clear()
             param['file_ids'].append(str(id))
+            # import pdb; pdb.set_trace()
             sta, result = gcon.search_vectors_in_files(**param)
             if sta.OK():
                 return
