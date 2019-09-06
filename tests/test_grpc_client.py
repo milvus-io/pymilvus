@@ -593,45 +593,21 @@ class TestSearchVectors:
         assert len(result[0]) == 1
 
 
-@pytest.mark.skip("build index bug")
 class TestBuildIndex:
     @timer
-    def test_build_index(self, gcon, gtable):
+    def test_build_index(self, gcon, gvector):
 
-        _D = 512
+        _D = 128
 
-        _table = {
-            'table_name': gtable,
-            'dimension': _D,
-            'index_file_size': 1024
-        }
-
-        _Nb = 200000
-
-        vectors = [[random.random() for _ in range(_D)] for _ in range(_Nb)]
-
-        if gcon.has_table(gtable):
-            gcon.delete_table(gtable)
-            time.sleep(5)
-
-        print("Create table ... ")
-        status = gcon.create_table(_table)
-        assert status.OK()
-
-        print("Add vectors ... ")
-        status = gcon.add_vectors(gtable, vectors)
-        assert status.OK()
         time.sleep(30)
 
         _index = {
-            'index_type': IndexType.FLAT,
+            'index_type': IndexType.IVFLAT,
             'nlist': 4096,
             'metric_type': MetricType.L2
         }
 
         print("Create index ... ")
-        status = gcon.create_index(gtable, _index)
+        status = gcon.create_index(gvector, _index)
         assert status.OK()
 
-        status = gcon.delete_table(gtable)
-        assert status.OK()

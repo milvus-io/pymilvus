@@ -8,7 +8,7 @@ sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
-nb = 5000  # number of vector dataset
+nb = 50000  # number of vector dataset
 nq = 1000  # number of query vector
 table_name = 'examples_grpc'
 top_K = 10
@@ -45,9 +45,7 @@ def random_vectors(num):
 def create_table():
     param = {
         'table_name': table_name,
-        'dimension': _DIM,
-        'index_file_size': 1024,
-        'metric_type': MetricType.L2
+        'dimension': _DIM
     }
 
     if milvus.has_table(param['table_name']):
@@ -132,8 +130,10 @@ def search_vectors(_query_vectors):
     # status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K, nprobe=16)
     for i in range(50):
         file_ids = [str(i)]
-        status, results = milvus.search_vectors_in_files(table_name=table_name, file_ids=file_ids,
-                                                         query_records=_query_vectors, top_k=top_K, nprobe=16)
+        # status, results = milvus.search_vectors_in_files(table_name=table_name, file_ids=file_ids,
+        #                                                  query_records=_query_vectors, top_k=top_K, nprobe=16)
+        status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K,
+                                                nprobe=16)
         if status.OK():
             print("")
             return
@@ -157,6 +157,7 @@ if __name__ == '__main__':
     _index = {
         'index_type': IndexType.IVFLAT,
         'nlist': 4096,
+        'metric_type': MetricType.L2
     }
     milvus.create_index(table_name, _index)
     # build_index()
@@ -175,6 +176,6 @@ if __name__ == '__main__':
     status = milvus.drop_index(table_name=table_name)
 
     # delete table
-    time.sleep(5)
+    time.sleep(3)
 
     delete_table()

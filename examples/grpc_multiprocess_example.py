@@ -1,6 +1,8 @@
 import os
 from multiprocessing import Process
 
+import sys
+sys.path.append(".")
 from factorys import *
 from milvus import Milvus
 

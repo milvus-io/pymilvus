@@ -7,7 +7,7 @@ HERE = pathlib.Path(__file__).parent
 
 README = (HERE / 'README.md').read_text()
 
-with io.open("milvus/__init__.py", "rt", encoding="utf8") as f:
+with io.open("milvus/client/__init__.py", "rt", encoding="utf8") as f:
     version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
 
 setuptools.setup(

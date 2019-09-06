@@ -1,4 +1,5 @@
 import sys
+sys.path.append(".")
 from milvus import Milvus, IndexType
 from milvus.client.Exceptions import *
 from functools import wraps

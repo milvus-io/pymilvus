@@ -2,8 +2,6 @@
 This is a client for milvus of gRPC
 """
 
-__version__ = "0.2.9"
-
 import grpc
 import logging
 
@@ -26,9 +24,8 @@ from ..grpc_gen import milvus_pb2_grpc, status_pb2
 from ..grpc_gen import milvus_pb2 as grpc_types
 from urllib.parse import urlparse
 
-
 LOGGER = logging.getLogger(__name__)
-
+from . import __version__
 
 class Prepare(object):
 
@@ -48,8 +45,8 @@ class Prepare(object):
 
             `example param={'table_name': 'name',
                             'dimension': 16,
-                            'index_type': IndexType.FLAT,
-                            'store_raw_vector': False}`
+                            'index_type': IndexType.FLAT
+                            }`
 
         :return: ttypes.TableSchema object
         """
@@ -353,7 +350,8 @@ class GrpcMilvus(ConnectIntf):
 
                 `example param={'table_name': 'name',
                                 'dimension': 16,
-                                'index_file_size': 1024 (optional)
+                                'index_file_size': 1024 (default)，
+                                'metric_type': Metric_type.L2 (default)
                                 }`
 
                 `OR using Prepare.table_schema to create param`
@@ -370,6 +368,11 @@ class GrpcMilvus(ConnectIntf):
         if not isinstance(param, dict):
             raise ParamError("param is invalid! It should be a type of dict")
 
+        if 'index_file_size' not in param:
+            param['index_file_size'] = 1024
+        if 'metric_type' not in param:
+            param['metric_type'] = MetricType.L2
+
         try:
             check_pass_param_none(param=param, table_name=param['table_name'], dimension=param['dimension'],
                                   metric_type=param['metric_type'])
@@ -378,9 +381,6 @@ class GrpcMilvus(ConnectIntf):
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
-
-        if 'index_file_size' not in param:
-            param['index_file_size'] = 1024
 
         table_schema = Prepare.table_schema(param)
 
@@ -483,17 +483,6 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         """
         if index is None:
-            check_pass_param_none(table_name=table_name)
-        else:
-            try:
-                check_pass_param_none(table_name=table_name, index_type=index['index_type'], nlist=index['nlist'])
-            except KeyError as e:
-                raise ParamError("Param `{}` is not allowed to be None".format(e.args[0]))
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        if index is None:
             index = {
                 'index_type': IndexType.FLAT,
                 'nlist': 16384
@@ -502,8 +491,20 @@ class GrpcMilvus(ConnectIntf):
         if not isinstance(index, dict):
             raise TypeError("param `index` should be a dictionary")
 
-        index_param = Prepare.index_param(table_name, index)
+        try:
+            check_pass_param_none(table_name=table_name, index_type=index['index_type'], nlist=index['nlist'])
+        except KeyError as e:
+            raise ParamError("Param `{}` is not allowed to be None".format(e.args[0]))
 
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        index = {
+            'index_type': index['index_type'],
+            'nlist': index['nlist']
+        }
+
+        index_param = Prepare.index_param(table_name, index)
         try:
             if timeout == -1:
                 status = self._stub.CreateIndex(index_param)

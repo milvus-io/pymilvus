@@ -2,6 +2,8 @@
 # create a vector table, 
 # insert 10 vectors, 
 # and execute a vector similarity search.
+import sys
+sys.path.append(".")
 from milvus import Milvus, IndexType
 import time
 
@@ -72,6 +74,7 @@ def main():
         'table_name': table_name,
         'query_records': query_vectors,
         'top_k': 1,
+        'nprobe': 16
 
     }
     status, results = milvus.search_vectors(**param)
