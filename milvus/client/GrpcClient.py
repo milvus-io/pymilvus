@@ -1,22 +1,21 @@
 """
 This is a client for milvus of gRPC
 """
-
+import time
 import grpc
 import logging
 
 from .Abstract import (
     ConnectIntf,
-    IndexType,
-    MetricType,
     TableSchema,
     Range,
     QueryResult,
     TopKQueryResult,
     IndexParam
 )
+
+from .types import IndexType, MetricType, Status
 from .utils import *
-from .Status import Status
 from .Exceptions import *
 from ..settings import DefaultConfig as config
 
@@ -27,15 +26,16 @@ from urllib.parse import urlparse
 LOGGER = logging.getLogger(__name__)
 from . import __version__
 
+
 class Prepare(object):
 
     @classmethod
     def table_name(cls, table_name):
-        if not isinstance(table_name, grpc_types.TableName):
-            status = status_pb2.Status(error_code=0, reason='Client')
-            return grpc_types.TableName(status=status, table_name=table_name)
-        else:
-            return table_name
+
+        check_pass_param(table_name=table_name)
+
+        status = status_pb2.Status(error_code=0, reason='Client')
+        return grpc_types.TableName(status=status, table_name=table_name)
 
     @classmethod
     def table_schema(cls, param):
@@ -50,32 +50,33 @@ class Prepare(object):
 
         :return: ttypes.TableSchema object
         """
-        if not isinstance(param, grpc_types.TableSchema):
-            if isinstance(param, dict):
-
-                # TODO: for backward compatibility
-                _param = {
-                    'table_name': param['table_name'],
-                    'dimension': param['dimension'],
-                    'index_file_size': param['index_file_size'],
-                    'metric_type': param['metric_type']
-                }
-
-                temp = TableSchema(**_param)
-
-            else:
-                raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
-                    type(dict), type(param)
-                ))
-
-        else:
+        if isinstance(param, grpc_types.TableSchema):
             return param
 
-        table_name = Prepare.table_name(temp.table_name)
+        if not isinstance(param, dict):
+            raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
+                type(dict), type(param)
+            ))
+
+        if 'index_file_size' not in param:
+            param['index_file_size'] = 1024
+        if 'metric_type' not in param:
+            param['metric_type'] = MetricType.L2
+
+        _param = {
+            'table_name': param['table_name'],
+            'dimension': param['dimension'],
+            'index_file_size': param['index_file_size'],
+            'metric_type': param['metric_type']
+        }
+
+        check_pass_param(**_param)
+
+        table_name = Prepare.table_name(_param["table_name"])
         return grpc_types.TableSchema(table_name=table_name,
-                                      dimension=temp.dimension,
-                                      index_file_size=temp.index_file_size,
-                                      metric_type=temp.metric_type)
+                                      dimension=_param["dimension"],
+                                      index_file_size=_param["index_file_size"],
+                                      metric_type=_param["metric_type"])
 
     @classmethod
     def range(cls, start_date, end_date):
@@ -122,11 +123,15 @@ class Prepare(object):
     @classmethod
     def insert_param(cls, table_name, vectors, ids=None):
 
+        check_pass_param(table_name=table_name)
+
         if ids is None:
             _param = grpc_types.InsertParam(table_name=table_name)
         else:
             if len(vectors) != len(ids):
                 raise ValueError("length of vectors not match ids's")
+            if isinstance(ids[0], int):
+                raise ValueError("ids should be a int list")
             _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids)
 
         for vector in vectors:
@@ -134,13 +139,6 @@ class Prepare(object):
                 _param.row_record_array.add(vector_data=vector)
             else:
                 raise ParamError('Vectors should be 2-dim array!')
-
-        # if ids is not None:
-        #     if len(vectors) != len(ids):
-        #         raise ParamError("Param `{0}` and `{1}` not match".format('vectors', 'ids'))
-        #
-        #     for _id in ids:
-        #         _param.row_id_array.add(_id)
 
         return _param
 
@@ -150,33 +148,27 @@ class Prepare(object):
 
         :type index_type: IndexType
         :param index_type: index type
-        :param nlist:
-        :param index_file_size:
 
-        :type  metric_type: MetricType
-        :param metric_type:
+        :type  nlist:
+        :param nlist:
 
         :return:
         """
-
-        index_type = IndexType(index_type) if isinstance(index_type, int) else index_type
-        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
-            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
+        check_pass_param(index_type=index_type, nlist=nlist)
 
         return grpc_types.Index(index_type=index_type, nlist=nlist)
 
     @classmethod
     def index_param(cls, table_name, index_param):
 
-        _table_name = Prepare.table_name(table_name)
-
-        if index_param is None:
-            return grpc_types.IndexParam(table_name=_table_name)
-
         if not isinstance(index_param, dict):
             raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
                 type(dict), type(index_param)
             ))
+
+        check_pass_param(table_name=table_name, **index_param)
+
+        _table_name = Prepare.table_name(table_name)
         _index = Prepare.index(**index_param)
 
         return grpc_types.IndexParam(table_name=_table_name, index=_index)
@@ -193,6 +185,8 @@ class Prepare(object):
     @classmethod
     def search_param(cls, table_name, query_records, query_ranges, topk, nprobe):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
+
+        check_pass_param(table_name=table_name, topk=topk, nprobe=nprobe)
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
@@ -213,13 +207,27 @@ class Prepare(object):
     def search_vector_in_files_param(cls, table_name, query_records, query_ranges, topk, nprobe, ids):
         _search_param = Prepare.search_param(table_name, query_records, query_ranges, topk, nprobe)
 
-        if not isinstance(ids, list):
-            raise ParamError('Ids must be a list')
+        check_pass_param(ids=ids)
 
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,
             search_param=_search_param
         )
+
+    @classmethod
+    def cmd(cls, cmd):
+        check_pass_param(cmd=cmd)
+
+        return grpc_types.Command(cmd=cmd)
+
+    @classmethod
+    def delete_param(cls, table_name, start_date, end_date):
+
+        range = Prepare.range(start_date, end_date)
+
+        check_pass_param(table_name=table_name)
+
+        return grpc_types.DeleteByRangeParam(range=range, table_name=table_name)
 
 
 class GrpcMilvus(ConnectIntf):
@@ -365,22 +373,17 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         if not isinstance(param, dict):
-            raise ParamError("param is invalid! It should be a type of dict")
+            raise ParamError("`param` should be a dict")
 
         if 'index_file_size' not in param:
             param['index_file_size'] = 1024
         if 'metric_type' not in param:
             param['metric_type'] = MetricType.L2
-
-        try:
-            check_pass_param_none(param=param, table_name=param['table_name'], dimension=param['dimension'],
-                                  metric_type=param['metric_type'])
-        except KeyError as e:
-            raise ParamError("`param` should contain key `{}`".format(e.args[0]))
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
 
         table_schema = Prepare.table_schema(param)
 
@@ -413,8 +416,6 @@ class GrpcMilvus(ConnectIntf):
             bool, if given table_name exists
 
         """
-        check_pass_param_none(table_name=table_name)
-
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -441,7 +442,6 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
-        check_pass_param_none(table_name=table_name)
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
@@ -487,22 +487,16 @@ class GrpcMilvus(ConnectIntf):
                 'index_type': IndexType.FLAT,
                 'nlist': 16384
             }
-
-        if not isinstance(index, dict):
+        elif not isinstance(index, dict):
             raise TypeError("param `index` should be a dictionary")
-
-        try:
-            check_pass_param_none(table_name=table_name, index_type=index['index_type'], nlist=index['nlist'])
-        except KeyError as e:
-            raise ParamError("Param `{}` is not allowed to be None".format(e.args[0]))
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
 
         index = {
             'index_type': index['index_type'],
             'nlist': index['nlist']
         }
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
 
         index_param = Prepare.index_param(table_name, index)
         try:
@@ -552,7 +546,6 @@ class GrpcMilvus(ConnectIntf):
             ids: list of id, after inserted every vector is given a id
         :rtype: (Status, list(int))
         """
-        check_pass_param_none(table_name=table_name, records=records)
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
@@ -580,7 +573,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=Status.UNEXPECTED_ERROR, message="request timeout"), []
 
-    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None):
+    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None, time_start=0):
         """
         Query vectors in a table
 
@@ -617,19 +610,15 @@ class GrpcMilvus(ConnectIntf):
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
 
-        check_pass_param_none(table_name=table_name, top_k=top_k, nprobe=nprobe)
-
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
-
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ParamError('Param top_k should be larger than 0!')
 
         infos = Prepare.search_param(
             table_name, query_records, query_ranges, top_k, nprobe
         )
 
         results = TopKQueryResult()
+
         try:
             response = self._stub.Search(infos)
             if response.status.error_code != 0:
@@ -678,13 +667,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, TopKQueryResult[QueryResult])
         """
-        check_pass_param_none(table_name=table_name, file_ids=file_ids, query_records=query_records, top_k=top_k)
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
-
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ParamError('Param top_k should be larger than 0!')
 
         file_ids = list(map(int_or_str, file_ids))
 
@@ -723,7 +708,6 @@ class GrpcMilvus(ConnectIntf):
             table_schema: return when operation is successful
         :rtype: (Status, TableSchema)
         """
-        check_pass_param_none(table_name=table_name)
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
@@ -767,7 +751,7 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         # TODO how to status errors
-        cmd = grpc_types.Command(cmd='balala')
+        cmd = Prepare.cmd('balala')
         try:
             results = [table.table_name for table in self._stub.ShowTables(cmd)]
             return Status(message='Show tables successfully!'), results
@@ -787,7 +771,6 @@ class GrpcMilvus(ConnectIntf):
 
             res: int, table row count
         """
-        check_pass_param_none(table_name=table_name)
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
@@ -830,9 +813,9 @@ class GrpcMilvus(ConnectIntf):
         """
         return self.cmd(cmd='version', timeout=timeout)
 
-    def server_status(self, cmd=None, timeout=10):
+    def server_status(self, timeout=10):
         """
-        Provide server status. When cmd !='version', provide 'OK'
+        Provide server status
 
         :return:
             Status: indicate if operation is successful
@@ -845,13 +828,10 @@ class GrpcMilvus(ConnectIntf):
 
     def cmd(self, cmd, timeout=10):
 
-        if not isinstance(cmd, str):
-            raise TypeError("arg should be str")
-
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        cmd = grpc_types.Command(cmd=cmd)
+        cmd = Prepare.cmd(cmd)
         try:
             ss = self._stub.Cmd.future(cmd).result(timeout=timeout)
             if ss.status.error_code == 0:
@@ -877,13 +857,10 @@ class GrpcMilvus(ConnectIntf):
 
         :return:
         """
-        check_pass_param_none(table_name=table_name)
-
-        _range = Prepare.range(start_date, end_date)
-        _param = grpc_types.DeleteByRangeParam(range=_range, table_name=table_name)
+        delete_range = Prepare.delete_param(table_name, start_date, end_date)
 
         try:
-            status = self._stub.DeleteByRange(_param)
+            status = self._stub.DeleteByRange(delete_range)
             return Status(code=status.error_code, message=status.reason)
         except grpc.RpcError as e:
             LOGGER.error(e)
@@ -899,8 +876,6 @@ class GrpcMilvus(ConnectIntf):
         :returns:
             Status:  indicate if query is successful
         """
-        check_pass_param_none(table_name=table_name)
-
         table_name = Prepare.table_name(table_name)
 
         try:
@@ -921,8 +896,6 @@ class GrpcMilvus(ConnectIntf):
             IndexSchema:
             
         """
-        check_pass_param_none(table_name=table_name)
-
         table_name = Prepare.table_name(table_name)
 
         try:
@@ -931,13 +904,10 @@ class GrpcMilvus(ConnectIntf):
             status = index_param.table_name.status
 
             if status.error_code == 0:
-                index_schema = {
-                    "table_name": index_param.table_name.table_name,
-                    "index_type": index_param.index.index_type,
-                    "nlist": index_param.index.nlist
-                }
-
-                return Status(message="Successfully"), IndexParam(**index_schema)
+                return Status(message="Successfully"), \
+                       IndexParam(index_param.table_name.table_name,
+                                  index_param.index.index_type,
+                                  index_param.index.nlist)
             else:
                 return Status(code=status.error_code, message=status.reason), None
         except grpc.FutureTimeoutError as e:
@@ -948,8 +918,6 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='grpc transport error{}'.format(e.details())), None
 
     def drop_index(self, table_name, timeout=10):
-
-        check_pass_param_none(table_name=table_name)
 
         table_name = Prepare.table_name(table_name)
 

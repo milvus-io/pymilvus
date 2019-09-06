@@ -1,5 +1,6 @@
 import datetime
 from .Exceptions import ParamError
+from .types import MetricType, IndexType
 
 
 def is_legal_array(array):
@@ -31,10 +32,52 @@ def is_correct_date_str(param):
     return True
 
 
-def legal_dimension(dim):
-    if not isinstance(dim, int) or dim <= 0 or dim > 16384:
-        return False
+def is_legal_dimension(dim):
+    return False if not isinstance(dim, int) or dim <= 0 or dim > 16384 else True
+
+
+def is_legal_index_size(index_size):
+    return False if not isinstance(index_size, int) or index_size <= 0 or index_size > 4096 else True
+
+
+def is_legal_metric_type(metric_type):
+    if isinstance(metric_type, int):
+        try:
+            _metric_type = MetricType(metric_type)
+        except Exception:
+            return False
+
     return True
+
+
+def is_legal_index_type(index_type):
+    if isinstance(index_type, int):
+        try:
+            _index_type = IndexType(index_type)
+        except Exception:
+            return False
+
+    return True
+
+
+def is_legal_table_name(table_name):
+    return False if not isinstance(table_name, str) else True
+
+
+def is_legal_nlist(nlist):
+    return False if not isinstance(nlist, int) or nlist <= 0 else True
+
+
+def is_legal_topk(topk):
+    return False if not isinstance(topk, int) or topk <= 0 or topk > 2048 else True
+
+
+def is_legal_ids(ids):
+    return False if not isinstance(ids, list) or isinstance(ids[0], int) else True
+
+
+def is_legal_nprobe(nprobe):
+    return False if not isinstance(nprobe, int) or nprobe <= 0 else True
 
 
 def parser_range_date(date):
@@ -60,10 +103,33 @@ def is_legal_date_range(start, end):
         return True
 
 
-def check_pass_param_none(*args, **kwargs):
+def _raise_param_error(param_name):
+    raise ParamError("{} is illegal".format(param_name))
+
+
+def check_pass_param(*args, **kwargs):
     if kwargs is None:
         raise ParamError("Param should not be None")
 
-    for item in kwargs.items():
-        if item[1] is None:
-            raise ParamError("Param `{}` must not be None".format(item[0]))
+    for key, value in kwargs.items():
+        if key == "table_name":
+            if not is_legal_table_name(value):
+                _raise_param_error(key)
+        elif key == "dimension":
+            if not is_legal_dimension(value):
+                _raise_param_error(key)
+        elif key == "index_file_size":
+            if not is_legal_index_size(value):
+                _raise_param_error(key)
+        elif key == "metric_type":
+            if not is_legal_metric_type(value):
+                _raise_param_error(key)
+        elif key in ("topk", "top_k"):
+            if not is_legal_topk(value):
+                _raise_param_error(key)
+        elif key == "ids":
+            if not is_legal_ids(value):
+                _raise_param_error(key)
+        elif key == ("nprobe",):
+            if not is_legal_nprobe(value):
+                _raise_param_error(key)

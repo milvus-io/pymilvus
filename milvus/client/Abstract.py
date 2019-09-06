@@ -1,35 +1,11 @@
 from enum import IntEnum
-import struct
 from .utils import *
 
 from milvus.client.Exceptions import (
     ParamError
 )
 
-
-class IndexType(IntEnum):
-    INVALID = 0
-    FLAT = 1
-    IVFLAT = 2
-    IVF_SQ8 = 3
-    MIX_NSG = 4
-
-    def __repr__(self):
-        return "<{}: {}>".format(self.__class__.__name__, self._name_)
-
-    def __str__(self):
-        return self._name_
-
-
-class MetricType(IntEnum):
-    L2 = 1
-    IP = 2
-
-    def __repr__(self):
-        return "<{}: {}>".format(self.__class__.__name__, self._name_)
-
-    def __str__(self):
-        return self._name_
+from .types import MetricType, IndexType
 
 
 class TableSchema(object):
@@ -58,7 +34,7 @@ class TableSchema(object):
         if table_name is None:
             raise ParamError('Table name can\'t be None')
         table_name = str(table_name) if not isinstance(table_name, str) else table_name
-        if not legal_dimension(dimension):
+        if not is_legal_dimension(dimension):
             raise ParamError('Illegal dimension, effective range: (0 , 16384]')
         if isinstance(metric_type, int):
             metric_type = MetricType(metric_type)

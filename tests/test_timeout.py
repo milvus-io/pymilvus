@@ -28,7 +28,7 @@ class TestTimeout(object):
         assert status.code == status.UNEXPECTED_ERROR
 
     def test_has_table_timeout(self, gcon, gtable):
-        flag = gcon.has_table(gtable, timeout=0.00000001)
+        flag = gcon.has_table(gtable, timeout=0.00000000001)
         assert not flag
 
     def test_delete_table_timeout(self, gcon, gtable):

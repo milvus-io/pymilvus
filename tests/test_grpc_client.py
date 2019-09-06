@@ -16,6 +16,9 @@ dim = 16
 nb = 200000
 nq = 100
 
+_HOST = "localhost"
+_PORT = 19530
+
 
 def timer(func):
     @wraps(func)
@@ -30,9 +33,9 @@ def timer(func):
     return inner
 
 
-@pytest.mark.skip("host may be not localhost")
+@pytest.mark.skipif(_HOST not in ("localhost", "127.0.0.1"), reason="Test case in suit for remote server")
 class TestConnection:
-    param = {'host': 'localhost', 'port': '19530'}
+    param = {'host': _HOST, 'port': str(_PORT)}
 
     def test_true_connect(self):
         cnn = GrpcMilvus()
@@ -138,19 +141,17 @@ class TestTable:
         param = table_schema_factory()
         param['dimension'] = 1000000
         with pytest.raises(ParamError):
-            res = gcon.create_table(param)
+            gcon.create_table(param)
 
         param = table_schema_factory()
         param['table_name'] = 1234456
-        res = gcon.create_table(param)
-        LOGGER.error(res)
-        assert not res.OK()
+        with pytest.raises(ParamError):
+            gcon.create_table(param)
 
     def test_create_table_default(self, gcon):
         _param = {
             'table_name': 'name',
             'dimension': 16,
-            'metric_type': MetricType.L2
         }
 
         _status = gcon.create_table(_param)
@@ -403,7 +404,7 @@ class TestPrepare:
             'table_name': fake.table_name(),
             'dimension': random.randint(0, 999),
             'index_file_size': 1024,
-            'metric_type':MetricType.L2
+            'metric_type': MetricType.L2
         }
         res = Prepare.table_schema(param)
         assert isinstance(res, milvus_pb2.TableSchema)
@@ -581,7 +582,6 @@ class TestSearchVectors:
 
         assert status.OK()
 
-        # ranges = ranges_factory()
         ranges = [['2019-06-25', '2019-10-10']]
         time.sleep(2)
 
@@ -596,7 +596,6 @@ class TestSearchVectors:
 class TestBuildIndex:
     @timer
     def test_build_index(self, gcon, gvector):
-
         _D = 128
 
         time.sleep(30)
@@ -610,4 +609,3 @@ class TestBuildIndex:
         print("Create index ... ")
         status = gcon.create_index(gvector, _index)
         assert status.OK()
-

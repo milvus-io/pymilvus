@@ -1,3 +1,6 @@
+from enum import IntEnum
+
+
 class Status(object):
     """
     :attribute code: int (optional) default as ok
@@ -48,3 +51,27 @@ class Status(object):
     def OK(self):
         return self.code == Status.SUCCESS
 
+
+class IndexType(IntEnum):
+    INVALID = 0
+    FLAT = 1
+    IVFLAT = 2
+    IVF_SQ8 = 3
+    MIX_NSG = 4
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+
+    def __str__(self):
+        return self._name_
+
+
+class MetricType(IntEnum):
+    L2 = 1
+    IP = 2
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+
+    def __str__(self):
+        return self._name_
