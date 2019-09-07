@@ -136,11 +136,6 @@ class TestTable:
         param = table_schema_factory()
         param['dimension'] = 0
         with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
-        param['dimension'] = 1000000
-        with pytest.raises(ParamError):
             gcon.create_table(param)
 
         param = table_schema_factory()
@@ -348,7 +343,6 @@ class TestSearch:
         sta, results = gcon.search_vectors_in_files(**param)
         assert not sta.OK()
 
-    # TODO search in files wrong dim, wrong dimension name
     def test_describe_table(self, gcon, gtable):
         res, table_schema = gcon.describe_table(gtable)
         assert res.OK()
