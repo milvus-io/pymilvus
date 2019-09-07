@@ -1,4 +1,5 @@
 import sys
+import copy
 
 sys.path.append('.')
 
@@ -13,11 +14,11 @@ import random
 
 def test_create_table_param(gcon):
     _PARAM = {
-        "table_name": "table_name_123",
+        "table_name": "table_name_{}".format(str(random.randint(0, 10000))),
         "dimension": 128
     }
 
-    table_param = _PARAM
+    table_param = copy.deepcopy(_PARAM)
 
     status = gcon.create_table(table_param)
     assert status.OK()
@@ -29,17 +30,23 @@ def test_create_table_param(gcon):
     with pytest.raises(ParamError):
         gcon.create_table(table_param)
 
-    table_param = _PARAM
-    table_param["dimension"] = 16385
+    # TODO: validate max value in server
+    # table_param = copy.deepcopy(_PARAM)
+    # table_param["dimension"] = 16385
+    # with pytest.raises(ParamError):
+    #     gcon.create_table(table_param)
+
+    table_param = copy.deepcopy(_PARAM)
+    table_param["dimension"] = 'eesfst'
     with pytest.raises(ParamError):
         gcon.create_table(table_param)
 
-    table_param = _PARAM
+    table_param = copy.deepcopy(_PARAM)
     table_param["index_file_size"] = -1
     with pytest.raises(ParamError):
         gcon.create_table(table_param)
 
-    table_param = _PARAM
+    table_param = copy.deepcopy(_PARAM)
     table_param["metric_type"] = 0
     with pytest.raises(ParamError):
         gcon.create_table(table_param)
