@@ -17,7 +17,7 @@ class TestTimeout(object):
     def test_connect_timeout(self):
         client = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            client.connect(timeout=0.0001)
+            client.connect(timeout=0.0000000000001)
 
     def test_create_table_timeout(self, gcon, gtable):
 
@@ -32,12 +32,12 @@ class TestTimeout(object):
         assert not flag
 
     def test_delete_table_timeout(self, gcon, gtable):
-        status = gcon.delete_table(gtable, timeout=0.0001)
+        status = gcon.delete_table(gtable, timeout=0.00000000001)
         assert not status.OK()
         assert status.code == Status.UNEXPECTED_ERROR
 
     def test_create_index_timeout(self, gcon, gtable):
-        status = gcon.create_index(gtable, timeout=0.0001)
+        status = gcon.create_index(gtable, timeout=0.0000000001)
         assert not status.OK()
         assert status.code == Status.UNEXPECTED_ERROR
 
@@ -48,12 +48,12 @@ class TestTimeout(object):
         assert status.code == Status.UNEXPECTED_ERROR
 
     def test_describe_table_timeout(self, gcon, gtable):
-        status, _ = gcon.describe_index(table_name=gtable, timeout=0.0001)
+        status, _ = gcon.describe_index(table_name=gtable, timeout=0.00000001)
 
         assert not status.OK()
         assert status.code == Status.UNEXPECTED_ERROR
 
     def test_drop_index_timeout(self, gcon, gtable):
-        status = gcon.drop_index(gtable, timeout=0.0001)
+        status = gcon.drop_index(gtable, timeout=0.00000001)
         assert not status.OK()
         assert status.code == Status.UNEXPECTED_ERROR

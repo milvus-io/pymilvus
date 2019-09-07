@@ -491,8 +491,8 @@ class GrpcMilvus(ConnectIntf):
             raise TypeError("param `index` should be a dictionary")
 
         index = {
-            'index_type': index['index_type'],
-            'nlist': index['nlist']
+            'index_type': index['index_type'] if 'index_type' in index else IndexType.FLAT,
+            'nlist': index['nlist'] if 'nlist' in index else 16384
         }
 
         if not self.connected():
@@ -573,7 +573,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=Status.UNEXPECTED_ERROR, message="request timeout"), []
 
-    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None, time_start=0):
+    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None):
         """
         Query vectors in a table
 

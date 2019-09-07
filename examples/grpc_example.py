@@ -127,7 +127,7 @@ def search_vectors(_query_vectors):
     :return: None
     """
     status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K,
-                                            nprobe=16, time_start=time.time())
+                                            nprobe=16)
 
 
 if __name__ == '__main__':

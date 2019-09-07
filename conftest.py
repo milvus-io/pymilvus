@@ -80,7 +80,7 @@ def table(request, connect):
 @pytest.fixture(scope="function")
 def gtable(request, gcon):
     table_name = fake.table_name()
-    dim = getattr(request.module, "dim")
+    dim = getattr(request.module, "dim", 128)
 
     param = {'table_name': table_name,
              'dimension': dim,
@@ -101,7 +101,7 @@ def gtable(request, gcon):
 
 @pytest.fixture(scope='function')
 def gvector(request, gcon, gtable):
-    dim = getattr(request.module, 'dim')
+    dim = getattr(request.module, 'dim', 128)
 
     records = records_factory(dim, 10000)
 

@@ -61,7 +61,7 @@ def is_legal_index_type(index_type):
 
 
 def is_legal_table_name(table_name):
-    return False if not isinstance(table_name, str) else True
+    return False if not isinstance(table_name, str) or len(table_name) == 0 else True
 
 
 def is_legal_nlist(nlist):
@@ -69,7 +69,7 @@ def is_legal_nlist(nlist):
 
 
 def is_legal_topk(topk):
-    return False if not isinstance(topk, int) or topk <= 0 or topk > 2048 else True
+    return False if not isinstance(topk, int) or topk <= 0 or topk > 4096 else True
 
 
 def is_legal_ids(ids):
@@ -78,6 +78,10 @@ def is_legal_ids(ids):
 
 def is_legal_nprobe(nprobe):
     return False if not isinstance(nprobe, int) or nprobe <= 0 else True
+
+
+def is_legal_cmd(cmd):
+    return False if not isinstance(cmd, str) or len(cmd) == 0 else True
 
 
 def parser_range_date(date):
@@ -112,7 +116,7 @@ def check_pass_param(*args, **kwargs):
         raise ParamError("Param should not be None")
 
     for key, value in kwargs.items():
-        if key == "table_name":
+        if key in ("table_name",):
             if not is_legal_table_name(value):
                 _raise_param_error(key)
         elif key == "dimension":
@@ -130,6 +134,9 @@ def check_pass_param(*args, **kwargs):
         elif key == "ids":
             if not is_legal_ids(value):
                 _raise_param_error(key)
-        elif key == ("nprobe",):
+        elif key in ("nprobe",):
             if not is_legal_nprobe(value):
+                _raise_param_error(key)
+        elif key in ("cmd",):
+            if not is_legal_cmd(value):
                 _raise_param_error(key)

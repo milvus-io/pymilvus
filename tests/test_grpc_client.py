@@ -390,10 +390,10 @@ class TestSearch:
         status, res = gcon.server_status()
         assert status.OK()
 
-        status, res = gcon.server_status('abc')
+        status, res = gcon.server_status()
         assert status.OK()
 
-        status, res = gcon.server_status('version')
+        status, res = gcon.server_status()
         assert status.OK()
 
 
@@ -609,3 +609,28 @@ class TestBuildIndex:
         print("Create index ... ")
         status = gcon.create_index(gvector, _index)
         assert status.OK()
+
+
+class TestCmd:
+
+    def test_client_version(self, gcon):
+        try:
+            import milvus
+            assert gcon.client_version() == milvus.__version__
+        except ImportError:
+            assert False, "Import error"
+
+    def test_server_version(self, gcon):
+        _, version = gcon.server_version()
+        assert version in ("0.4.0",)
+
+    def test_server_status(self, gcon):
+        _, status = gcon.server_status()
+        assert status in ("OK", "ok")
+
+    def test_cmd(self, gcon):
+        _, info = gcon.cmd("version")
+        assert info in ("0.4.0",)
+
+        _, info = gcon.cmd("OK")
+        assert info in ("OK", "ok")

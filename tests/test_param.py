@@ -8,6 +8,7 @@ from milvus.client.Exceptions import *
 
 import pytest
 import time
+import random
 
 
 def test_create_table_param(gcon):
@@ -44,5 +45,71 @@ def test_create_table_param(gcon):
         gcon.create_table(table_param)
 
 
-def test_create_index_param():
-    pass
+def test_has_table_param(gcon):
+    table_name = "test_has_table_param"
+    flag = gcon.has_table(table_name)
+    assert not flag
+
+    table_name = 124
+    with pytest.raises(ParamError):
+        gcon.has_table(table_name)
+
+
+def test_delete_table_param(gcon):
+    table_name = "test_delete_table_param"
+    flag = gcon.has_table(table_name)
+    assert not flag
+
+    table_name = 124
+    with pytest.raises(ParamError):
+        gcon.has_table(table_name)
+
+
+def test_create_index_param(gcon, gvector):
+    status = gcon.create_index(gvector, None)
+    assert status.OK()
+
+    index = {
+        'index_type': 0,
+        'nlist': 16384
+    }
+
+    with pytest.raises(ParamError):
+        gcon.create_index(index)
+
+    index = {
+        'index_type': IndexType.FLAT,
+        'nlist': 99999
+    }
+
+    with pytest.raises(ParamError):
+        gcon.create_index(index)
+
+
+def test_add_vectors_param(gcon, gtable):
+    table_name = ""
+
+    vectors = [[random.random() for _ in range(128)] for _ in range(10000)]
+    with pytest.raises(ParamError):
+        gcon.add_vectors(table_name, vectors)
+
+    ids = [1, 2, 3]
+    with pytest.raises(ParamError):
+        gcon.add_vectors(table_name, vectors, ids)
+
+
+def test_search_param(gcon, gvector):
+    query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
+    with pytest.raises(ParamError):
+        gcon.search_vectors(gvector, top_k=0, nprobe=16, query_records=query_vectors)
+
+    with pytest.raises(ParamError):
+        gcon.search_vectors(gvector, top_k=5000, nprobe=16, query_records=query_vectors)
+
+    with pytest.raises(ParamError):
+        gcon.search_vectors(gvector, top_k=1, nprobe=0, query_records=query_vectors)
+
+    # TODO: nprobe is a limit of max value
+    # with pytest.raises(ParamError):
+    #     gcon.search_vectors(gvector, top_k=1, nprobe=20000, query_records=query_vectors)
+
