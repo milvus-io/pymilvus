@@ -73,7 +73,7 @@ def is_legal_topk(topk):
 
 
 def is_legal_ids(ids):
-    return False if not isinstance(ids, list) or isinstance(ids[0], int) else True
+    return False if not isinstance(ids, list) or not isinstance(ids[0], int) else True
 
 
 def is_legal_nprobe(nprobe):
@@ -131,7 +131,7 @@ def check_pass_param(*args, **kwargs):
         elif key in ("topk", "top_k"):
             if not is_legal_topk(value):
                 _raise_param_error(key)
-        elif key == "ids":
+        elif key in ("ids",):
             if not is_legal_ids(value):
                 _raise_param_error(key)
         elif key in ("nprobe",):

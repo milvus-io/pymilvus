@@ -12,8 +12,8 @@ from factorys import *
 
 LOGGER = logging.getLogger(__name__)
 
-dim = 16
-nb = 200000
+dim = 128
+nb = 2000
 nq = 100
 
 _HOST = "localhost"
@@ -324,20 +324,21 @@ class TestSearch:
             'nprobe': 16
         }
 
-        for id in range(300):
+        for id in range(600):
             param['file_ids'].clear()
             param['file_ids'].append(str(id))
             sta, result = gcon.search_vectors_in_files(**param)
             if sta.OK():
                 return
 
+        print("search in file failed")
         assert False
 
     def test_search_in_files_wrong_file_ids(self, gcon, gvector):
         param = {
             'table_name': gvector,
             'query_records': records_factory(dim, nq),
-            'file_ids': ['3333'],
+            'file_ids': ['3388833'],
             'top_k': random.randint(1, 10)
         }
         sta, results = gcon.search_vectors_in_files(**param)
@@ -363,14 +364,6 @@ class TestSearch:
         res, count = gcon.get_table_row_count(gvector)
         assert res.OK()
         assert count == 10000
-        # vectors = records_factory(dim, nq)
-        # status, ids = gcon.add_vectors(gtable, vectors)
-        #
-        # assert status.OK()
-        # assert len(ids) == nq
-        #
-        # res, count = gcon.get_table_row_count(gvector)
-        # assert count == len(ids)
 
     def test_false_get_table_row_count(self, gcon):
         res, count = gcon.get_table_row_count('fake_table')
@@ -490,6 +483,21 @@ class TestAddVectors:
         assert status.OK()
 
         assert count == nq
+
+    def test_add_vectors_ids(self, gcon, gtable):
+        vectors = records_factory(dim, nb)
+        ids = [i for i in range(nb)]
+
+        status, vectors_ids = gcon.add_vectors(gtable, vectors, ids)
+        assert status.OK()
+        assert len(ids) == len(vectors_ids)
+
+        time.sleep(5)
+
+        status, count = gcon.get_table_row_count(gtable)
+        assert status.OK()
+
+        assert count == nb
 
 
 class TestIndex:

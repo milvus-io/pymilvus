@@ -57,6 +57,3 @@ def test_grpc_run(gcon):
     _, gcount = gmilvus.get_table_row_count(table_name)
     print(gcount)
 
-
-# if __name__ == '__main__':
-#     grpc_run()

@@ -128,10 +128,7 @@ class Prepare(object):
         if ids is None:
             _param = grpc_types.InsertParam(table_name=table_name)
         else:
-            if len(vectors) != len(ids):
-                raise ValueError("length of vectors not match ids's")
-            if isinstance(ids[0], int):
-                raise ValueError("ids should be a int list")
+            check_pass_param(ids=ids)
             _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids)
 
         for vector in vectors:
@@ -207,7 +204,7 @@ class Prepare(object):
     def search_vector_in_files_param(cls, table_name, query_records, query_ranges, topk, nprobe, ids):
         _search_param = Prepare.search_param(table_name, query_records, query_ranges, topk, nprobe)
 
-        check_pass_param(ids=ids)
+        # check_pass_param(ids=ids)
 
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,
@@ -624,9 +621,20 @@ class GrpcMilvus(ConnectIntf):
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message='grpc transport error'), []
 
+            t0 = time.time()
             for topk_query_result in list(response.topk_query_result):
                 results.append(
                     [QueryResult(id=qr.id, distance=qr.distance) for qr in list(topk_query_result.query_result_arrays)])
+
+            results.clear()
+
+            t1 = time.time()
+            for topk_query_result in response.topk_query_result:
+                results.append([QueryResult(id=result.id, distance=result.distance) for result in
+                                topk_query_result.query_result_arrays])
+            t2 = time.time()
+
+            print("\n\t[1]: {:.4f} s\n\t[2]: {:.4f} s".format(t1 - t0, t2 - t1))
 
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
@@ -637,6 +645,30 @@ class GrpcMilvus(ConnectIntf):
             return status, []
 
         return Status(message='Search vectors successfully!'), results
+
+    def search_vectors_grpc(self, table_name, top_k, nprobe, query_records, query_ranges=None):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        infos = Prepare.search_param(
+            table_name, query_records, query_ranges, top_k, nprobe
+        )
+
+        results = TopKQueryResult()
+
+        try:
+            response = self._stub.Search(infos)
+            if response.status.error_code != 0:
+                return Status(code=response.status.error_code, message='grpc transport error'), []
+        except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
+                status = Status(code=Status.ILLEGAL_ARGUMENT, message=e.details())
+            else:
+                status = Status(code=e.code(), message='grpc transport error')
+
+            return status, []
+
+        return Status(message='Search vectors successfully!'), response
 
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, query_ranges=None):
         """

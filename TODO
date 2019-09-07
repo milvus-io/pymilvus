@@ -5,3 +5,6 @@ b. GRPC
    ** timeout per call, will raise a grpc.RpcError with status code DEADLINE_EXCEEDED
 c. Protoc
     * SearchParam changed
+
+d. security
+    * check file_ids param in search_files

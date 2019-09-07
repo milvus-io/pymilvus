@@ -31,7 +31,9 @@
     - **[MS-439]** fix search result unpack bug on windows
     - **[MS-452]** fix build index timeout bug
     - **[MS-444]** fix timeout bug
- 
+    - **[MS-469]** add index_file_size min value check
+    - **[MS-512]** fix ids error
+     
 ### Improvement
 ---
 - \#10 ISSUE: Update examples

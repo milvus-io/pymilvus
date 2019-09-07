@@ -10,7 +10,7 @@ from milvus import Milvus, IndexType, MetricType
 _DIM = 512
 nb = 500000  # number of vector dataset
 nq = 1000  # number of query vector
-table_name = 'examples_grpc'
+table_name = 'examples_grpc001'
 top_K = 1000
 
 server_config = {
@@ -128,10 +128,13 @@ def search_vectors(_query_vectors):
     """
     status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K,
                                             nprobe=16)
+    if not status.OK():
+        print("search failed. {}".format(status))
 
 
-if __name__ == '__main__':
+def run():
     # generate dataset vectors
+    # import pdb;pdb.set_trace()
     vectors = random_vectors(nb)
 
     create_table()
@@ -150,8 +153,9 @@ if __name__ == '__main__':
         'nlist': 4096,
         'metric_type': MetricType.L2
     }
+
+    print("starting create index ... ")
     milvus.create_index(table_name, _index)
-    # build_index()
     time.sleep(2)
 
     milvus.describe_table(table_name)
@@ -167,6 +171,12 @@ if __name__ == '__main__':
     status = milvus.drop_index(table_name=table_name)
 
     # delete table
-    time.sleep(3)
+    time.sleep(5)
 
     delete_table()
+
+
+if __name__ == '__main__':
+    for _ in range(10):
+        run()
+        time.sleep(2)
