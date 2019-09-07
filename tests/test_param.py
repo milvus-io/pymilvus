@@ -78,10 +78,9 @@ def test_create_index_param(gcon, gvector):
         gcon.create_index(index)
 
     index = {
-        'index_type': IndexType.FLAT,
-        'nlist': 99999
+        'index_type': 1,
+        'nlist': 0
     }
-
     with pytest.raises(ParamError):
         gcon.create_index(index)
 
@@ -103,13 +102,13 @@ def test_search_param(gcon, gvector):
     with pytest.raises(ParamError):
         gcon.search_vectors(gvector, top_k=0, nprobe=16, query_records=query_vectors)
 
-    with pytest.raises(ParamError):
-        gcon.search_vectors(gvector, top_k=5000, nprobe=16, query_records=query_vectors)
+    # TODO: top_k is not a limit of max value
+    # with pytest.raises(ParamError):
+    #     gcon.search_vectors(gvector, top_k=5000, nprobe=16, query_records=query_vectors)
 
     with pytest.raises(ParamError):
         gcon.search_vectors(gvector, top_k=1, nprobe=0, query_records=query_vectors)
 
-    # TODO: nprobe is a limit of max value
+    # TODO: nprobe is not  a limit of max value
     # with pytest.raises(ParamError):
     #     gcon.search_vectors(gvector, top_k=1, nprobe=20000, query_records=query_vectors)
-

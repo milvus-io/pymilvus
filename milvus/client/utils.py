@@ -33,11 +33,11 @@ def is_correct_date_str(param):
 
 
 def is_legal_dimension(dim):
-    return False if not isinstance(dim, int) or dim <= 0 or dim > 16384 else True
+    return False if not isinstance(dim, int) or dim <= 0 else True
 
 
 def is_legal_index_size(index_size):
-    return False if not isinstance(index_size, int) or index_size <= 0 or index_size > 4096 else True
+    return False if not isinstance(index_size, int) or index_size <= 0 else True
 
 
 def is_legal_metric_type(metric_type):
@@ -69,7 +69,7 @@ def is_legal_nlist(nlist):
 
 
 def is_legal_topk(topk):
-    return False if not isinstance(topk, int) or topk <= 0 or topk > 4096 else True
+    return False if not isinstance(topk, int) or topk <= 0 else True
 
 
 def is_legal_ids(ids):
