@@ -4,6 +4,7 @@ This is a client for milvus of gRPC
 import time
 import grpc
 import logging
+from grpc._cython import cygrpc
 
 from .Abstract import (
     ConnectIntf,
@@ -14,7 +15,7 @@ from .Abstract import (
     IndexParam
 )
 
-from .types import IndexType, MetricType, Status
+from .types import IndexType, Status
 from .utils import *
 from .Exceptions import *
 from ..settings import DefaultConfig as config
@@ -129,6 +130,10 @@ class Prepare(object):
             _param = grpc_types.InsertParam(table_name=table_name)
         else:
             check_pass_param(ids=ids)
+
+            if len(vectors) != len(ids):
+                raise ParamError("length of vectors do not match that of ids")
+
             _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids)
 
         for vector in vectors:
@@ -265,7 +270,9 @@ class GrpcMilvus(ConnectIntf):
 
         self._uri = str(host) + ':' + str(port)
         self.server_address = self._uri
-        self._channel = grpc.insecure_channel(self._uri)
+        self._channel = grpc.insecure_channel(self._uri,
+                                              options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
+                                                       (cygrpc.ChannelArgKey.max_receive_message_length, -1)])
 
     def connect(self, host=None, port=None, uri=None, timeout=5):
         """
@@ -388,18 +395,15 @@ class GrpcMilvus(ConnectIntf):
             status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
             if status.error_code == 0:
                 return Status(message='Create table successfully!')
-            elif status.error_code == status_pb2.META_FAILED:
-                LOGGER.error("Table {} already exists".format(param['table_name']))
-                return Status(code=status.error_code, message=status.reason)
             else:
                 LOGGER.error(status)
                 return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='request timeout')
+            return Status(Status.TIMEOUT, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error')
+            return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
     def has_table(self, table_name, timeout=10):
         """
@@ -453,10 +457,10 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='grpc transport timeout')
+            return Status(Status.TIMEOUT, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error')
+            return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
     def create_index(self, table_name, index=None, timeout=-1):
         """
@@ -509,10 +513,10 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='')
+            return Status(Status.TIMEOUT, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error')
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     def add_vectors(self, table_name, records, ids=None, timeout=180, *args, **kwargs):
         """
@@ -553,7 +557,7 @@ class GrpcMilvus(ConnectIntf):
             insert_param = Prepare.insert_param(table_name, records, ids)
         else:
             if not isinstance(insert_param, grpc_types.InsertParam):
-                raise ParamError("The value of key 'insert_param' must be type of milvus_pb2.InsertParam")
+                raise ParamError("The value of key 'insert_param' is invalid")
 
         try:
             vector_ids = self._stub.Insert.future(insert_param).result(timeout=timeout)
@@ -565,10 +569,10 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error'), []
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(code=Status.UNEXPECTED_ERROR, message="request timeout"), []
+            return Status(code=Status.TIMEOUT, message="Request timeout"), []
 
     def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None):
         """
@@ -619,17 +623,15 @@ class GrpcMilvus(ConnectIntf):
         try:
             response = self._stub.Search(infos)
             if response.status.error_code != 0:
-                return Status(code=response.status.error_code, message='grpc transport error'), []
+                return Status(code=response.status.error_code, message=response.status.reason), []
 
             for topk_query_result in response.topk_query_result:
                 results.append([QueryResult(id=result.id, distance=result.distance) for result in
                                 topk_query_result.query_result_arrays])
 
         except grpc.RpcError as e:
-            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
-                status = Status(code=Status.ILLEGAL_ARGUMENT, message=e.details())
-            else:
-                status = Status(code=e.code(), message='grpc transport error')
+            LOGGER.error(e)
+            status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
 
             return status, []
 
@@ -678,7 +680,7 @@ class GrpcMilvus(ConnectIntf):
         try:
             response = self._stub.SearchInFiles(infos)
             if response.status.error_code != 0:
-                return Status(code=response.status.error_code, message='grpc transport error'), []
+                return Status(code=response.status.error_code, message=response.status.reason), []
 
             for topk_query_result in response.topk_query_result:
                 results.append([QueryResult(id=result.id, distance=result.distance) for result in
@@ -686,10 +688,8 @@ class GrpcMilvus(ConnectIntf):
 
             return Status(message='Search vectors successfully!'), results
         except grpc.RpcError as e:
-            if e.code() == grpc.StatusCode.INVALID_ARGUMENT:
-                status = Status(code=Status.ILLEGAL_ARGUMENT, message=e.details())
-            else:
-                status = Status(code=e.code(), message='grpc transport error')
+            LOGGER.error(e)
+            status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
 
             return status, []
 
@@ -728,9 +728,12 @@ class GrpcMilvus(ConnectIntf):
                 LOGGER.error(ts.table_name.status)
                 return Status(code=ts.table_name.status.error_code,
                               message=ts.table_name.status.reason), None
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.TIMEOUT, message='Request timeout'), []
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error'), None
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
     def show_tables(self):
         """
@@ -753,9 +756,9 @@ class GrpcMilvus(ConnectIntf):
             return Status(message='Show tables successfully!'), results
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error'), []
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
-    def get_table_row_count(self, table_name, timeout=10):
+    def get_table_row_count(self, table_name, timeout=30):
         """
         Get table row count
 
@@ -776,12 +779,15 @@ class GrpcMilvus(ConnectIntf):
         try:
             trc = self._stub.CountTable.future(table_name).result(timeout=timeout)
             if trc.status.error_code == 0:
-                return Status(message='Get table row count successfully!'), trc.table_row_count
+                return Status(message='Success!'), trc.table_row_count
             else:
                 return Status(code=trc.status.error_code, message=trc.status.reason), None
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.TIMEOUT, message='Request timeout'), []
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error'), []
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
     def client_version(self):
         """
@@ -792,7 +798,7 @@ class GrpcMilvus(ConnectIntf):
 
             str : Client version
 
-        :rtype: (Status, str)
+        :rtype: (str)
         """
         return __version__
 
@@ -834,11 +840,14 @@ class GrpcMilvus(ConnectIntf):
                 return Status(message='Success!'), ss.string_reply
             else:
                 return Status(code=ss.status.error_code, message=ss.status.reason), None
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.TIMEOUT, message='Request timeout'), None
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error'), None
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
-    def delete_vectors_by_range(self, table_name, start_date=None, end_date=None):
+    def delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
         """
         Delete vectors by range
 
@@ -851,18 +860,21 @@ class GrpcMilvus(ConnectIntf):
         :type  end_date:
         :param end_date:
 
-        :return:
+        :return: Status
         """
         delete_range = Prepare.delete_param(table_name, start_date, end_date)
 
         try:
-            status = self._stub.DeleteByRange(delete_range)
+            status = self._stub.DeleteByRange.future(delete_range).result(timeout=timeout)
             return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.TIMEOUT, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error')
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def preload_table(self, table_name):
+    def preload_table(self, table_name, timeout=300):
         """
         Load table to cache in advance
 
@@ -870,15 +882,18 @@ class GrpcMilvus(ConnectIntf):
         :param table_name: table to preload
 
         :returns:
-            Status:  indicate if query is successful
+            Status:  indicate if invoke is successful
         """
         table_name = Prepare.table_name(table_name)
 
         try:
-            status = self._stub.PreloadTable(table_name)
+            status = self._stub.PreloadTable.future(table_name).result(timeout=timeout)
             return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.TIMEOUT, message='Request timeout')
         except grpc.RpcError as e:
-            return Status(code=e.code(), message='grpc transport error')
+            return Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
 
     def describe_index(self, table_name, timeout=10):
         """
@@ -908,21 +923,20 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=status.error_code, message=status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(code=Status.UNEXPECTED_ERROR, message='grpc request timeout'), None
+            return Status(code=Status.TIMEOUT, message='Request timeout'), None
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error{}'.format(e.details())), None
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
     def drop_index(self, table_name, timeout=10):
 
         table_name = Prepare.table_name(table_name)
-
         try:
             status = self._stub.DropIndex.future(table_name).result(timeout=timeout)
             return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='grpc request timeout')
+            return Status(Status.TIMEOUT, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='grpc transport error{}'.format(e.details()))
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))

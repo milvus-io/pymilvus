@@ -82,26 +82,47 @@ def test_create_index_param(gcon, gvector):
     }
 
     with pytest.raises(ParamError):
-        gcon.create_index(index)
+        gcon.create_index(gvector, index)
+
+    index = {
+        'index_type': 1,
+        'nlist': -1
+    }
+    with pytest.raises(ParamError):
+        gcon.create_index(gvector, index)
+
+    index = {
+        'index_type': -1,
+        'nlist': 4096
+    }
+    with pytest.raises(ParamError):
+        gcon.create_index(gvector, index)
+
+    index = {
+        'index_type': 100,
+        'nlist': 16384
+    }
+    with pytest.raises(ParamError):
+        gcon.create_index(gvector, index)
 
     index = {
         'index_type': 1,
         'nlist': 0
     }
     with pytest.raises(ParamError):
-        gcon.create_index(index)
+        gcon.create_index(gvector, index)
 
 
 def test_add_vectors_param(gcon, gtable):
     table_name = ""
 
-    vectors = [[random.random() for _ in range(128)] for _ in range(10000)]
+    vectors = [[random.random() for _ in range(128)] for _ in range(1000)]
     with pytest.raises(ParamError):
         gcon.add_vectors(table_name, vectors)
 
     ids = [1, 2, 3]
     with pytest.raises(ParamError):
-        gcon.add_vectors(table_name, vectors, ids)
+        gcon.add_vectors(gtable, vectors, ids)
 
 
 def test_search_param(gcon, gvector):

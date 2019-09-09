@@ -8,10 +8,10 @@ sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
-nb = 500000  # number of vector dataset
-nq = 1000  # number of query vector
+nb = 1000000  # number of vector dataset
+nq = 2000  # number of query vector
 table_name = 'examples_grpc001'
-top_K = 1000
+top_K = 2000
 
 server_config = {
     "host": 'localhost',
@@ -19,7 +19,6 @@ server_config = {
 }
 
 milvus = Milvus()
-# milvus.connect(**server_config)
 milvus.connect()
 
 
@@ -99,7 +98,6 @@ def insert_vectors(_vectors):
         print("insert failed: {}".format(status.message))
 
     status, count = milvus.get_table_row_count(table_name)
-    # if status.OK() and count == len(_vectors):
     if status.OK():
         print("insert vectors into table `{}` successfully!".format(table_name))
     else:
@@ -134,7 +132,6 @@ def search_vectors(_query_vectors):
 
 def run():
     # generate dataset vectors
-    # import pdb;pdb.set_trace()
     vectors = random_vectors(nb)
 
     create_table()
@@ -177,6 +174,6 @@ def run():
 
 
 if __name__ == '__main__':
-    for _ in range(10):
+    for _ in range(1):
         run()
         time.sleep(2)

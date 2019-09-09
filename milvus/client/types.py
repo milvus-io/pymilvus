@@ -28,6 +28,7 @@ class Status(object):
     CANNOT_CREATE_FILE = 18
     CANNOT_DELETE_FOLDER = 19
     CANNOT_DELETE_FILE = 20
+    TIMEOUT = 21
 
     def __init__(self, code=SUCCESS, message=None):
         self.code = code
