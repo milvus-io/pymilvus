@@ -33,7 +33,9 @@
     - **[MS-444]** fix timeout bug
     - **[MS-469]** add index_file_size min value check
     - **[MS-512]** fix ids error
-     
+    - **[MS-521]** fix ids check error
+    - **[MS-521]** fix index_param check error
+    
 ### Improvement
 ---
 - \#10 ISSUE: Update examples
