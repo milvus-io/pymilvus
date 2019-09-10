@@ -813,7 +813,7 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self.cmd(cmd='version', timeout=timeout)
+        return self._cmd(cmd='version', timeout=timeout)
 
     def server_status(self, timeout=10):
         """
@@ -826,9 +826,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self.cmd(cmd='OK', timeout=timeout)
+        return self._cmd(cmd='OK', timeout=timeout)
 
-    def cmd(self, cmd, timeout=10):
+    def _cmd(self, cmd, timeout=10):
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
