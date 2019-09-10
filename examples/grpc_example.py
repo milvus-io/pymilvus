@@ -8,10 +8,10 @@ sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
-nb = 1000000  # number of vector dataset
-nq = 2000  # number of query vector
+nb = 500000  # number of vector dataset
+nq = 1000  # number of query vector
 table_name = 'examples_grpc001'
-top_K = 2000
+top_K = 1000
 
 server_config = {
     "host": 'localhost',
@@ -47,9 +47,9 @@ def create_table():
         'dimension': _DIM
     }
 
-    if milvus.has_table(param['table_name']):
-        milvus.delete_table(param['table_name'])
-        time.sleep(2)
+    # if milvus.has_table(param['table_name']):
+    #     milvus.delete_table(param['table_name'])
+    #     time.sleep(2)
 
     print("Create table: {}".format(param))
     status = milvus.create_table(param)
@@ -79,7 +79,7 @@ def describe_table():
         print('Describing table `{}` ... :\n'.format(table_name))
         print('    {}'.format(schema), end='\n\n')
     else:
-        print(status.message)
+        print("describe table failed: {}".format(status.message))
 
 
 @timer
@@ -128,22 +128,24 @@ def search_vectors(_query_vectors):
                                             nprobe=16)
     if not status.OK():
         print("search failed. {}".format(status))
+    else:
+        print('serach successfully!')
 
 
 def run():
     # generate dataset vectors
-    vectors = random_vectors(nb)
+    # vectors = random_vectors(nb)
 
-    create_table()
+    # create_table()
+    #
+    # describe_table()
 
-    describe_table()
-
-    insert_vectors(vectors)
+    # insert_vectors(vectors)
 
     # wait for inserted vectors persisting
-    time.sleep(2)
+    # time.sleep(2)
 
-    milvus.preload_table(table_name)
+    # milvus.preload_table(table_name)
 
     _index = {
         'index_type': IndexType.IVFLAT,

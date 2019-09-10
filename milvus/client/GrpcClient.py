@@ -11,6 +11,7 @@ from .Abstract import (
     TableSchema,
     Range,
     QueryResult,
+    QueryResultL,
     TopKQueryResult,
     IndexParam
 )
@@ -625,9 +626,31 @@ class GrpcMilvus(ConnectIntf):
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message=response.status.reason), []
 
+            t0 = time.time()
             for topk_query_result in response.topk_query_result:
                 results.append([QueryResult(id=result.id, distance=result.distance) for result in
                                 topk_query_result.query_result_arrays])
+
+            t1 = time.time()
+
+            # results2 = []
+            # for topk_query_result in response.topk_query_result:
+            #     rt = Result()
+            #     for result in topk_query_result.query_result_arrays:
+            #         rt.ids.append(result.id)
+            #         rt.distances.append(result.distance)
+            #     results2.append(rt)
+
+            results3 = TopKQueryResult()
+            for topk_query_result in response.topk_query_result:
+                query_result = QueryResultL()
+                for result in topk_query_result.query_result_arrays:
+                    query_result.append(result.id, result.distance)
+                results3.append(query_result)
+
+            t2 = time.time()
+
+            print("[1]: {:.4f}\n[2]: {:.4f}".format(t1 - t0, t2 - t1))
 
         except grpc.RpcError as e:
             LOGGER.error(e)

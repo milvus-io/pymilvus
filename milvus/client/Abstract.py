@@ -103,6 +103,70 @@ class QueryResult(object):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
 
+class Result(object):
+    def __init__(self, id, distance):
+        self.id = id
+        self.distance = distance
+
+    def __repr__(self):
+        L = ['%s=%r' % (key, value)
+             for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+
+class QueryResultL(object):
+    """
+    Query result
+
+    :type  id: int64
+    :param id: id of the vector
+
+    :type  distance: float
+    :param distance: Vector similarity 0 <= distance <= 100
+
+    """
+
+    def __init__(self):
+        self._ids = []
+        self._distances = []
+
+    def append(self, id, distance):
+        self._ids.append(id)
+        self._distances.append(distance)
+
+    def id_at(self, index):
+        return self._ids[index]
+
+    def distance_at(self, index):
+        return self._distances[index]
+
+    def __getitem__(self, item):
+        # return self._ids[item], self._distances[item]
+        return Result(self._ids[item], self._distances[item])
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        for _id, _distance in zip(self._ids, self._distances):
+            yield _id, _distance
+
+    def __contains__(self, item):
+        """
+
+        :param item:
+        :return:
+        """
+        return item in self._ids
+
+    def __str__(self):
+        ids_str = "[{} ... {}]".format(','.join(self._ids[0:min(3, len(self._ids) - 1)]), self._ids[-1])
+        distances_str = "[{} ... {}]".format(','.join(self._distances[0:min(3, len(self._distances) - 1)]),
+                                             self._distances[-1])
+
+        return "QueryResult({},\n            {})".format(ids_str, distances_str)
+
+
 class TopKQueryResult(list):
     """
     TopK query results, list of QueryResult
@@ -124,6 +188,26 @@ class TopKQueryResult(list):
             return ahead
         else:
             return "[\n%s\n]" % ",\n".join(map(str, self))
+
+
+class TopKQueryResultRaw(object):
+    def __init__(self, response):
+        self._response = response
+
+    @property
+    def raw(self):
+        return self._response
+
+    def __getitem__(self, item):
+        return [QueryResult(result.id, result.distance) for result in
+                self._response.topk_query_result[item].query_result_arrays]
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        for i in range(len(self._response.topk_query_result)):
+            yield self.__getitem__(i)
 
 
 class IndexParam(object):
