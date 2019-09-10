@@ -8,10 +8,10 @@ sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
-nb = 500000  # number of vector dataset
-nq = 1000  # number of query vector
+nb = 50000  # number of vector dataset
+nq = 10  # number of query vector
 table_name = 'examples_grpc001'
-top_K = 1000
+top_K = 10
 
 server_config = {
     "host": 'localhost',
@@ -128,18 +128,20 @@ def search_vectors(_query_vectors):
                                             nprobe=16)
     if not status.OK():
         print("search failed. {}".format(status))
+        return status, None
     else:
         print('serach successfully!')
+        return status, results
 
 
 def run():
     # generate dataset vectors
     # vectors = random_vectors(nb)
-
+    #
     # create_table()
     #
     # describe_table()
-
+    #
     # insert_vectors(vectors)
 
     # wait for inserted vectors persisting
@@ -164,15 +166,22 @@ def run():
 
     query_vectors = random_vectors(nq)
 
-    search_vectors(query_vectors)
+    status, results = search_vectors(query_vectors)
+
+    print(results[0])
+    print(results[0][0])
+    print("[id:{}, distance:{}]".format(results[0][0].id, results[0][0].distance))
+
+    for result in results:
+        print("--- {}".format(result[0]))
 
     # delete index
-    status = milvus.drop_index(table_name=table_name)
-
-    # delete table
-    time.sleep(5)
-
-    delete_table()
+    # status = milvus.drop_index(table_name=table_name)
+    #
+    # # delete table
+    # time.sleep(5)
+    #
+    # delete_table()
 
 
 if __name__ == '__main__':

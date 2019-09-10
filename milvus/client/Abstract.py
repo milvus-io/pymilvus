@@ -167,6 +167,25 @@ class QueryResultL(object):
         return "QueryResult({},\n            {})".format(ids_str, distances_str)
 
 
+# class RawResult(object):
+#
+class QueryRawResult(object):
+    def __init__(self, raw_source):
+        self._raw = raw_source
+
+    def __len__(self):
+        return len(self._raw)
+
+    def __getitem__(self, item):
+        result = self._raw[item]
+
+        return QueryResult(id=result.id, distance=result.distance)
+
+    def __iter__(self):
+        for i in range(self.__len__()):
+            yield self.__getitem__(i)
+
+
 class TopKQueryResult(list):
     """
     TopK query results, list of QueryResult
@@ -190,7 +209,7 @@ class TopKQueryResult(list):
             return "[\n%s\n]" % ",\n".join(map(str, self))
 
 
-class TopKQueryResultRaw(object):
+class TopKQueryRawResult(object):
     def __init__(self, response):
         self._response = response
 
@@ -198,16 +217,30 @@ class TopKQueryResultRaw(object):
     def raw(self):
         return self._response
 
+    @property
+    def shape(self):
+        row = self.__len__()
+
+        if row == 0:
+            column = 0
+        else:
+            column = len(self._response.topk_query_result[0].query_result_arrays)
+
+        return row, column
+
+    def __len__(self):
+        return len(self._response.topk_query_result)
+
     def __getitem__(self, item):
-        return [QueryResult(result.id, result.distance) for result in
-                self._response.topk_query_result[item].query_result_arrays]
+        return QueryRawResult(self._response.topk_query_result[item].query_result_arrays)
 
     def __iter__(self):
+        for i in range(self.__len__()):
+            yield self.__getitem__(i)
         return self
 
-    def __next__(self):
-        for i in range(len(self._response.topk_query_result)):
-            yield self.__getitem__(i)
+    def __setslice__(self, i, j, sequence):
+        pass
 
 
 class IndexParam(object):
