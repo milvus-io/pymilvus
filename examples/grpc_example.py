@@ -8,7 +8,7 @@ sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
-nb = 1000000  # number of vector dataset
+nb = 100000  # number of vector dataset
 nq = 2000  # number of query vector
 table_name = 'examples_grpc001'
 top_K = 2000

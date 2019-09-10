@@ -653,8 +653,8 @@ class TestCmd:
         assert status in ("OK", "ok")
 
     def test_cmd(self, gcon):
-        _, info = gcon.cmd("version")
+        _, info = gcon._cmd("version")
         assert info in ("0.4.0",)
 
-        _, info = gcon.cmd("OK")
+        _, info = gcon._cmd("OK")
         assert info in ("OK", "ok")

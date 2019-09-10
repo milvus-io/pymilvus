@@ -637,7 +637,7 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Search vectors successfully!'), results
 
-    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, query_ranges=None):
+    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, query_ranges=None, **kwargs):
         """
         Query vectors in a table, in specified files
 
@@ -676,9 +676,15 @@ class GrpcMilvus(ConnectIntf):
             table_name, query_records, query_ranges, top_k, nprobe, file_ids
         )
 
+        lazy = kwargs.get("lazy", False)
+
         results = TopKQueryResult()
         try:
             response = self._stub.SearchInFiles(infos)
+
+            if lazy is True:
+                return response
+
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message=response.status.reason), []
 
