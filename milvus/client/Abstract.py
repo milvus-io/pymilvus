@@ -177,6 +177,14 @@ class QueryRawResult(object):
         return len(self._raw)
 
     def __getitem__(self, item):
+
+        if isinstance(item, slice):
+            start = 0 if not item.start else item.start
+            step = 1 if not item.step else item.step
+            stop = self.__len__() + item.stop if item.stop < 0 else item.stop
+
+            return [QueryResult(id=self._raw[i].id, distance=self._raw[i].distance) for i in range(start, stop, step)]
+
         result = self._raw[item]
 
         return QueryResult(id=result.id, distance=result.distance)

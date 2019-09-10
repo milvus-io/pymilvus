@@ -134,21 +134,17 @@ def search_vectors(_query_vectors):
         return status, results
 
 
-def run():
-    # generate dataset vectors
-    # vectors = random_vectors(nb)
-    #
-    # create_table()
-    #
-    # describe_table()
-    #
-    # insert_vectors(vectors)
+def create_add():
+    vectors = random_vectors(nb)
 
-    # wait for inserted vectors persisting
-    # time.sleep(2)
+    create_table()
 
-    # milvus.preload_table(table_name)
+    describe_table()
 
+    insert_vectors(vectors)
+
+
+def create_index():
     _index = {
         'index_type': IndexType.IVFLAT,
         'nlist': 4096,
@@ -159,32 +155,26 @@ def run():
     milvus.create_index(table_name, _index)
     time.sleep(2)
 
-    milvus.describe_table(table_name)
 
-    status, index = milvus.describe_index(table_name)
-    print(index)
-
+def search():
     query_vectors = random_vectors(nq)
 
     status, results = search_vectors(query_vectors)
 
-    print(results[0])
-    print(results[0][0])
-    print("[id:{}, distance:{}]".format(results[0][0].id, results[0][0].distance))
+    # print(results[0])
+    # print(results[0][0])
+    # print("[id:{}, distance:{}]".format(results[0][0].id, results[0][0].distance))
+
+    result0 = results[0]
+    out = result0[:-1]
 
     for result in results:
         print("--- {}".format(result[0]))
 
-    # delete index
-    # status = milvus.drop_index(table_name=table_name)
-    #
-    # # delete table
-    # time.sleep(5)
-    #
-    # delete_table()
-
 
 if __name__ == '__main__':
     for _ in range(1):
-        run()
+        # create_add()
+        create_index()
+        search()
         time.sleep(2)
