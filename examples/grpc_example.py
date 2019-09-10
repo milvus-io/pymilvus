@@ -11,7 +11,7 @@ _DIM = 512
 nb = 100000  # number of vector dataset
 nq = 2000  # number of query vector
 table_name = 'examples_grpc001'
-top_K = 2000
+top_K = 10
 
 server_config = {
     "host": 'localhost',
@@ -47,9 +47,9 @@ def create_table():
         'dimension': _DIM
     }
 
-    if milvus.has_table(param['table_name']):
-        milvus.delete_table(param['table_name'])
-        time.sleep(2)
+    # if milvus.has_table(param['table_name']):
+    #     milvus.delete_table(param['table_name'])
+    #     time.sleep(2)
 
     print("Create table: {}".format(param))
     status = milvus.create_table(param)
@@ -79,7 +79,7 @@ def describe_table():
         print('Describing table `{}` ... :\n'.format(table_name))
         print('    {}'.format(schema), end='\n\n')
     else:
-        print(status.message)
+        print("describe table failed: {}".format(status.message))
 
 
 @timer
@@ -128,10 +128,13 @@ def search_vectors(_query_vectors):
                                             nprobe=16)
     if not status.OK():
         print("search failed. {}".format(status))
+        return status, None
+    else:
+        print('serach successfully!')
+        return status, results
 
 
-def run():
-    # generate dataset vectors
+def create_add():
     vectors = random_vectors(nb)
 
     create_table()
@@ -140,11 +143,8 @@ def run():
 
     insert_vectors(vectors)
 
-    # wait for inserted vectors persisting
-    time.sleep(2)
 
-    milvus.preload_table(table_name)
-
+def create_index():
     _index = {
         'index_type': IndexType.IVFLAT,
         'nlist': 4096,
@@ -155,25 +155,27 @@ def run():
     milvus.create_index(table_name, _index)
     time.sleep(2)
 
-    milvus.describe_table(table_name)
 
-    status, index = milvus.describe_index(table_name)
-    print(index)
-
+def search():
     query_vectors = random_vectors(nq)
 
-    search_vectors(query_vectors)
+    status, results = search_vectors(query_vectors)
 
-    # delete index
-    status = milvus.drop_index(table_name=table_name)
+    print(results[0])
+    print(results[0][0])
+    print("[id:{}, distance:{}]".format(results[0][0].id, results[0][0].distance))
 
-    # delete table
-    time.sleep(5)
+    result0 = results[0]
+    out = result0[:-1]
+    print(out)
 
-    delete_table()
+    for result in results:
+        print("--- {}".format(result[0]))
 
 
 if __name__ == '__main__':
     for _ in range(1):
-        run()
+        # create_add()
+        create_index()
+        search()
         time.sleep(2)

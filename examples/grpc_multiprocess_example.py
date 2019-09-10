@@ -27,7 +27,7 @@ def create_table(_table_name):
     if milvus.has_table(_table_name):
         print(f"Table {_table_name} found, now going to delete it")
         status = milvus.delete_table(_table_name)
-        assert status.OK(), f"delete table {_table_name} failed"
+        assert status.OK(), "delete table {} failed".format(_table_name)
 
     time.sleep(5)
 
@@ -38,7 +38,9 @@ def create_table(_table_name):
 
     # wait for table deleted
 
-    milvus.create_table(param)
+    status = milvus.create_table(param)
+    if not status.OK():
+        print("Create table {} failed".format(_table_name))
 
     # in main process, milvus must be closed before subprocess start
     milvus.disconnect()
