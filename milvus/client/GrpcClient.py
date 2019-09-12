@@ -5,6 +5,7 @@ import time
 import grpc
 import logging
 from grpc._cython import cygrpc
+import socket
 
 from .Abstract import (
     ConnectIntf,
@@ -12,7 +13,6 @@ from .Abstract import (
     Range,
     QueryResult,
     TopKQueryResult,
-    TopKQueryRawResult,
     IndexParam
 )
 
@@ -239,34 +239,46 @@ class GrpcMilvus(ConnectIntf):
 
     def set_channel(self, host=None, port=None, uri=None):
 
-        config_uri = urlparse(config.GRPC_URI)
-
-        _uri = urlparse(uri) if uri else config_uri
-
         if not host:
-            if _uri.scheme == 'tcp':
-                host = _uri.hostname or 'localhost'
-                port = _uri.port or '19530'
-            else:
-                if uri:
-                    raise RuntimeError(
-                        'Invalid parameter uri: {}'.format(uri)
-                    )
-                raise RuntimeError(
-                    'Invalid configuration for GRPC_URI: {}'.format(
-                        config.GRPC_URI)
-                )
-        else:
-            host = host
-            port = port or '19530'
+            config_uri = urlparse(config.GRPC_URI)
+            _uri = urlparse(uri) if uri else config_uri
 
-        self._uri = str(host) + ':' + str(port)
+            if not host:
+                if _uri.scheme == 'tcp':
+                    try:
+                        _host = _uri.hostname
+                        if _host != 'localhost':
+                            socket.inet_aton(_host)
+                    except Exception:
+                        raise ParamError("host `{}` is not invalid".format(host))
+                    try:
+                        _port = _uri.port
+                    except Exception:
+                        raise ParamError("port `{}` is not invalid".format(port))
+                else:
+                    raise ParamError('Invalid parameter uri: {}'.format(uri))
+        else:
+            try:
+                _host = host
+                if _host != 'localhost':
+                    socket.inet_aton(_host)
+            except Exception:
+                raise ParamError("host `{}` is not invalid".format(host))
+            try:
+                _port = int(port)
+            except Exception:
+                raise ParamError("port `{}` is not invalid".format(port))
+
+        if _host.isdigit():
+            raise ParamError("host `{}` is not invalid".format(_host))
+
+        self._uri = str(_host) + ':' + str(_port)
         self.server_address = self._uri
         self._channel = grpc.insecure_channel(self._uri,
                                               options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                                                        (cygrpc.ChannelArgKey.max_receive_message_length, -1)])
 
-    def connect(self, host=None, port=None, uri=None, timeout=5):
+    def connect(self, host=None, port=None, uri=None, timeout=3):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -701,7 +713,7 @@ class GrpcMilvus(ConnectIntf):
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message=response.status.reason), []
 
-            results = TopKQueryRawResult(response)
+            results = TopKQueryResult(response)
 
             return Status(message='Search vectors successfully!'), results
         except grpc.RpcError as e:

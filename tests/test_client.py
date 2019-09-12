@@ -33,7 +33,7 @@ def timer(func):
     return inner
 
 
-@pytest.mark.skipif(_HOST not in ("localhost", "127.0.0.1"), reason="Test case in suit for remote server")
+@pytest.mark.skip
 class TestConnection:
     param = {'host': _HOST, 'port': str(_PORT)}
 
@@ -71,7 +71,7 @@ class TestConnection:
     def test_connect(self):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect('126.0.0.2', timeout=2)
+            cnn.connect('126.0.0.2', port="9999", timeout=2)
             assert not cnn.status.OK()
 
             cnn.connect('127.0.0.1', '9999', timeout=2)
@@ -88,19 +88,34 @@ class TestConnection:
         with pytest.raises(NotConnectError):
             cnn.connect(host='123.0.0.2', port='19530', timeout=2)
 
-    def test_connected(self):
+    def test_wrong_connected(self):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2', timeout=1)
+            cnn.connect(host='123.0.0.2', port="123", timeout=1)
         assert not cnn.connected()
 
-    def test_uri_runtime_error(self):
+    def test_uri_error(self):
         cnn = GrpcMilvus()
-        with pytest.raises(RuntimeError):
+        with pytest.raises(Exception):
             cnn.connect(uri='http://127.0.0.1:19530')
 
-        cnn.connect()
-        assert cnn.status.OK()
+        with pytest.raises(Exception):
+            cnn.connect(uri='tcp://127.0.a.1:9999')
+
+        with pytest.raises(Exception):
+            cnn.connect(uri='tcp://127.0.0.1:aaa')
+
+        with pytest.raises(Exception):
+            cnn.connect(host="1234", port="1")
+
+        with pytest.raises(Exception):
+            cnn.connect(host="aaa", port="1")
+
+        with pytest.raises(Exception):
+            cnn.connect(host="192.168.1.101", port="a")
+
+        with pytest.raises(Exception):
+            cnn.connect(host="localhost")
 
     def test_disconnected(self):
         cnn = GrpcMilvus()
@@ -749,13 +764,6 @@ class TestBuildIndex:
         print("Create index ... ")
         status = gcon.create_index(gvector, _index)
         assert status.OK()
-
-    @pytest.mark.skip("waiting fixing bug")
-    def test_create_index_exception(self, gcon, gvector):
-        _index = {
-            'index_type': IndexType.IVFLAT,
-            'nlist': 999999999
-        }
 
         status = gcon.create_index(gvector, _index)
         assert not status.OK()

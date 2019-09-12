@@ -1,213 +1,168 @@
-import sys
-sys.path.append(".")
-from milvus import Milvus, IndexType
-from milvus.client.Exceptions import *
-from functools import wraps
-import time
 import random
+import time
+from functools import wraps
 
-__name__ = 'AdvancedExample'
+import sys
+from milvus import Milvus, IndexType, MetricType
 
-_HOST = 'localhost'
-_PORT = '19530'
-RETRY_TIMES = 3
-NORMAL_TIMES = 10
+_DIM = 512
+nb = 500000  # number of vector dataset
+nq = 2000  # number of query vector
+table_name = 'examples_milvus'
+top_K = 1000
 
-DIMENSION = 16
-NUMBER = 200000
-TOPK = 10
-TABLE_NAME = 'DEMO'
+server_config = {
+    "host": 'localhost',
+    "port": '19530',
+}
 
-HEADER = "            id              |       L2 distance        "
-FORMAT = "    {}     |    {}    "
-
-
-def generate_vectors():
-    # Generating 200000 vectors
-    print('Generating {} {}-dimension vectors ...\n'.format(NUMBER, DIMENSION))
-    records = [[random.random() for _ in range(DIMENSION)] for _ in range(NUMBER)]
-    return records
+milvus = Milvus()
+milvus.connect()
 
 
-class ConnectionHandler(object):
-    """Handler connection with the server
-
-    reconnection and connection errors are properly handled
-
-    """
-
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
-        self._retry_times = 0
-        self._normal_times = 0
-        self._client = None
-
-    @property
-    def client(self):
-        return self._connect(10000)
-
-    @property
-    def can_retry(self):
-        if self._normal_times >= NORMAL_TIMES:
-            self._retry_times = self._retry_times - 1 if self._retry_times > 0 else 0
-            self._normal_times -= NORMAL_TIMES
-        return self._retry_times <= RETRY_TIMES
-
-    def _connect(self, timeout=1000):
-        client = Milvus()
-        client.connect(self.host, self.port, timeout=timeout)
-        return client
-
-    def connect(self, func):
-        @wraps(func)
-        def inner(*args, **kwargs):
-            while self.can_retry:
-                try:
-                    return func(*args, **kwargs)
-                except NotConnectError:
-                    self._retry_times += 1
-                    if self.can_retry:
-                        print('Reconnecting to {} .. {}'.
-                              format(_HOST + ':' + _PORT, self._retry_times))
-                        continue
-                    else:
-                        sys.exit(1)
-        return inner
+def random_vectors(num):
+    # generate vectors randomly
+    return [[random.random() for _ in range(_DIM)] for _ in range(num)]
 
 
-api = ConnectionHandler(host=_HOST, port=_PORT)
-
-
-@api.connect
-def version():
-
-    # get client version
-    version = api.client.client_version()
-    print('Client version: {}\n'.format(version))
-
-    # get server version
-    status, version = api.client.server_version()
-    if status.OK():
-        print('Server version: {}\n'.format(version))
-    else:
-        print(status.message)
-
-
-@api.connect
 def create_table():
-
-    # Create table 'demo_table' if it doesn't exist.
-    if not api.client.has_table(TABLE_NAME):
-        print('Creating table `{}` ...\n'.format(TABLE_NAME))
-        param = {
-            'table_name': TABLE_NAME,
-            'dimension': DIMENSION
-        }
-
-        status = api.client.create_table(param)
-        if status.OK():
-            print('Table `{}` successfully created!\n'.format(TABLE_NAME))
-        else:
-            print(status.message)
-    else:
-        print('Table already existed!\n')
-
-
-@api.connect
-def describe_table():
-
-    # Get schema of table demo_table
-    status, schema = api.client.describe_table(TABLE_NAME)
-    if status.OK():
-        print('Describing table `{}` ... :\n'.format(TABLE_NAME))
-        print('    {}'.format(schema), end='\n\n')
-    else:
-        print(status.message)
-
-
-@api.connect
-def add_vectors(records):
-
-    # Add vectors
-    status, ids = api.client.add_vectors(table_name=TABLE_NAME, records=records)
-    if status.OK():
-        print('Adding vectors to table `{}` ...\n'.format(TABLE_NAME))
-
-    # Sleeping to wait for data persisting
-    print('Sleeping for 6s ... \n')
-    time.sleep(6)
-
-    # Get table row counts
-    status, counts = api.client.get_table_row_count(TABLE_NAME)
-    if status.OK():
-        print('Getting table `{}`\'s row counts ...\n'.format(TABLE_NAME))
-        print('    Table row counts: {}\n'.format(counts))
-    else:
-        print(status.message)
-
-
-@api.connect
-def search_vectors(q_records):
-
-    # Search 1 vector
     param = {
-        'table_name': TABLE_NAME,
-        'query_records': q_records,
-        'top_k': TOPK,
-        'nprobe': 16
+        'table_name': table_name,
+        'dimension': _DIM
     }
 
-    # Search vector
-    status, results = api.client.search_vectors(**param)
+    if milvus.has_table(param['table_name']):
+        milvus.delete_table(param['table_name'])
+        time.sleep(2)
+
+    print("Create table: {}".format(param))
+    status = milvus.create_table(param)
+
     if status.OK():
-
-        print('Get a vector from table `{}`. '
-              'Searching its {} nearest vectors from table `{}` ... \n'.
-              format(TABLE_NAME, TOPK, TABLE_NAME))
-        print(HEADER)
-        print('-' * 28 + '+' + '-'*27)
-        for result in results:
-            for qr in result:
-                print(FORMAT.format(qr.id, qr.distance))
-        print('')
+        print("create table {} successfully!".format(table_name))
     else:
-        print(status.message)
+        print("create table {} failed: {}".format(table_name, status.message))
 
 
-@api.connect
 def delete_table():
-
-    # Delete table
-    status = api.client.delete_table(TABLE_NAME)
+    status = milvus.delete_table(table_name)
     if status.OK():
-        print('Deleting table `{}` ... \n'.format(TABLE_NAME))
+        print("table {} delete successfully!".format(table_name))
     else:
-        print(status.message)
+        print("table {} delete failed: {}".format(table_name, status.message))
 
 
-if __name__ == 'AdvancedExample':
+def describe_table():
+    """
+    Get schema of table
 
-    # Get version of client and server
-    version()
+    :return: None
+    """
+    status, schema = milvus.describe_table(table_name, timeout=1000)
+    if status.OK():
+        print('Describing table `{}` ... :\n'.format(table_name))
+        print('    {}'.format(schema), end='\n\n')
+    else:
+        print("describe table failed: {}".format(status.message))
 
-    # Create table
+
+def insert_vectors(_vectors):
+    """
+    insert vectors to milvus server
+
+    :param _vectors: list of vector to insert
+    :return: None
+    """
+    print("Starting insert vectors ... ")
+
+    status, ids = milvus.add_vectors(table_name=table_name, records=_vectors)
+
+    if not status.OK():
+        print("insert failed: {}".format(status.message))
+
+    status, count = milvus.get_table_row_count(table_name)
+    if status.OK():
+        print("insert vectors into table `{}` successfully!".format(table_name))
+    else:
+        raise RuntimeError("Insert error")
+
+
+def build_index():
+    print("Start build index ...... ")
+
+    index = {
+        "index_type": IndexType.IVFLAT,
+        "nlist": 4096
+    }
+
+    status = milvus.create_index(table_name, index)
+
+    if not status.OK():
+        print("build index failed: {}".format(status.message))
+    else:
+        raise RuntimeError("Build index failed")
+
+
+def search_vectors(_query_vectors):
+    """
+    search vectors and display results
+
+    :param _query_vectors:
+    :return: None
+    """
+    status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K,
+                                            nprobe=16)
+    if not status.OK():
+        print("search failed. {}".format(status))
+    else:
+        print('serach successfully!')
+        print("\nresult:\n{}".format(results))
+
+
+def create_index():
+    _index = {
+        'index_type': IndexType.IVFLAT,
+        'nlist': 4096,
+        'metric_type': MetricType.L2
+    }
+
+    print("starting create index ... ")
+    milvus.create_index(table_name, _index)
+    time.sleep(2)
+
+
+def run():
+    vectors = random_vectors(nb)
+
     create_table()
 
-    # Describe table
     describe_table()
 
-    # Generate vectors
-    records = generate_vectors()
+    insert_vectors(vectors)
 
-    # Add vectors
-    add_vectors(records)
+    # wait for data persisting
+    time.sleep(2)
 
-    # Search by the first vector added
-    q_record = [records[0]]
+    # create index
+    create_index()
 
-    # Search vectors
-    search_vectors(q_record)
+    milvus.describe_table(table_name)
 
-    # Delete table
+    status, index = milvus.describe_index(table_name)
+    print(index)
+
+    query_vectors = random_vectors(nq)
+
+    search_vectors(query_vectors)
+
+    # delete index
+    milvus.drop_index(table_name=table_name)
+
+    time.sleep(3)
+
+    # delete table
     delete_table()
+
+
+if __name__ == '__main__':
+    run()

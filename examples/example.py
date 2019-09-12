@@ -2,8 +2,6 @@
 # create a vector table, 
 # insert 10 vectors, 
 # and execute a vector similarity search.
-import sys
-sys.path.append(".")
 from milvus import Milvus, IndexType
 import time
 

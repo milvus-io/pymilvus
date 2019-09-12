@@ -1,6 +1,4 @@
 # This program demos how to create a Milvus table, insert 20 vectors and get the table row count.
-import sys
-sys.path.append(".")
 from milvus import Milvus, IndexType
 
 import random

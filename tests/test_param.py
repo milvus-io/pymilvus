@@ -30,12 +30,6 @@ def test_create_table_param(gcon):
     with pytest.raises(ParamError):
         gcon.create_table(table_param)
 
-    # TODO: validate max value in server
-    # table_param = copy.deepcopy(_PARAM)
-    # table_param["dimension"] = 16385
-    # with pytest.raises(ParamError):
-    #     gcon.create_table(table_param)
-
     table_param = copy.deepcopy(_PARAM)
     table_param["dimension"] = 'eesfst'
     with pytest.raises(ParamError):
@@ -130,13 +124,5 @@ def test_search_param(gcon, gvector):
     with pytest.raises(ParamError):
         gcon.search_vectors(gvector, top_k=0, nprobe=16, query_records=query_vectors)
 
-    # TODO: top_k is not a limit of max value
-    # with pytest.raises(ParamError):
-    #     gcon.search_vectors(gvector, top_k=5000, nprobe=16, query_records=query_vectors)
-
     with pytest.raises(ParamError):
         gcon.search_vectors(gvector, top_k=1, nprobe=0, query_records=query_vectors)
-
-    # TODO: nprobe is not  a limit of max value
-    # with pytest.raises(ParamError):
-    #     gcon.search_vectors(gvector, top_k=1, nprobe=20000, query_records=query_vectors)

@@ -1,8 +1,6 @@
 import os
 from multiprocessing import Process
 
-import sys
-sys.path.append(".")
 from factorys import *
 from milvus import Milvus
 
@@ -17,8 +15,8 @@ vectors = [[random.random() for _ in range(dim)] for _ in range(vector_num)]
 
 param = {'table_name': table_name,
          'dimension': dim,
-         'index_type': IndexType.FLAT,
-         'store_raw_vector': False}
+         'index_file_size': 1024,
+         'metric_type': MetricType.L2}
 
 
 def create_table(_table_name):
