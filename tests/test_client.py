@@ -20,19 +20,6 @@ _HOST = "localhost"
 _PORT = 19530
 
 
-def timer(func):
-    @wraps(func)
-    def inner(*args, **kwargs):
-        t0 = time.time()
-        result = func(*args, **kwargs)
-        t1 = time.time()
-        print("[{}] Cost {:.3f} s!".format(func.__name__, t1 - t0))
-
-        return result
-
-    return inner
-
-
 @pytest.mark.skip
 class TestConnection:
     param = {'host': _HOST, 'port': str(_PORT)}
@@ -48,6 +35,12 @@ class TestConnection:
         _ = cnn.connect(**self.param)
         status = cnn.connect()
         assert status == Status.CONNECT_FAILED
+
+    def test_ip_connect(self):
+        cnn = GrpcMilvus()
+        cnn.connect("localhost")
+        assert cnn.status.OK
+        assert cnn.connected()
 
     def test_false_connect(self):
         cnn = GrpcMilvus()
@@ -113,9 +106,6 @@ class TestConnection:
 
         with pytest.raises(Exception):
             cnn.connect(host="192.168.1.101", port="a")
-
-        with pytest.raises(Exception):
-            cnn.connect(host="localhost")
 
     def test_disconnected(self):
         cnn = GrpcMilvus()
@@ -749,7 +739,6 @@ class TestSearchVectors:
 
 
 class TestBuildIndex:
-    @timer
     def test_build_index(self, gcon, gvector):
         _D = 128
 
@@ -757,16 +746,12 @@ class TestBuildIndex:
 
         _index = {
             'index_type': IndexType.IVFLAT,
-            'nlist': 4096,
-            'metric_type': MetricType.L2
+            'nlist': 4096
         }
 
         print("Create index ... ")
         status = gcon.create_index(gvector, _index)
         assert status.OK()
-
-        status = gcon.create_index(gvector, _index)
-        assert not status.OK()
 
     def test_create_index_wrong_index(self, gcon, gvector):
         _index = "23523423"

@@ -239,6 +239,13 @@ class GrpcMilvus(ConnectIntf):
 
     def set_channel(self, host=None, port=None, uri=None):
 
+        if host is not None:
+            port = port or "19530"
+        elif port is not None:
+            raise ParamError("Param is not complete. Please invoke as follow:\n"
+                             "\t(host = ${HOST}, port = ${PORT})\n"
+                             "\t(uri = ${URI})\n")
+
         if not host:
             config_uri = urlparse(config.GRPC_URI)
             _uri = urlparse(uri) if uri else config_uri
@@ -310,7 +317,7 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Fail connecting to server on {}'.format(self._uri))
         else:
             self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
-            self.status = Status(message='Successfully connected!')
+            self.status = Status(message='Successfully connected! {}'.format(self._uri))
             return self.status
 
     def connected(self):
@@ -396,7 +403,7 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.TIMEOUT, message='Request timeout')
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
@@ -453,7 +460,7 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.TIMEOUT, message='Request timeout')
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
@@ -509,7 +516,7 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.TIMEOUT, message='Request timeout')
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
@@ -568,7 +575,7 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(code=Status.TIMEOUT, message="Request timeout"), []
+            return Status(code=Status.UNEXPECTED_ERROR, message="Request timeout"), []
 
     def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None):
         """
@@ -759,7 +766,7 @@ class GrpcMilvus(ConnectIntf):
                               message=ts.table_name.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.TIMEOUT, message='Request timeout'), []
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
@@ -813,7 +820,7 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=trc.status.error_code, message=trc.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.TIMEOUT, message='Request timeout'), []
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
@@ -871,7 +878,7 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=ss.status.error_code, message=ss.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.TIMEOUT, message='Request timeout'), None
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
@@ -902,7 +909,7 @@ class GrpcMilvus(ConnectIntf):
             return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.TIMEOUT, message='Request timeout')
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
@@ -927,7 +934,7 @@ class GrpcMilvus(ConnectIntf):
             return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.TIMEOUT, message='Request timeout')
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             return Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
 
@@ -962,7 +969,7 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=status.error_code, message=status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(code=Status.TIMEOUT, message='Request timeout'), None
+            return Status(code=Status.UNEXPECTED_ERROR, message='Request timeout'), None
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
@@ -978,7 +985,7 @@ class GrpcMilvus(ConnectIntf):
             return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.TIMEOUT, message='Request timeout')
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))

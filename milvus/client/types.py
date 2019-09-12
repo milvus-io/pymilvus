@@ -28,7 +28,10 @@ class Status(object):
     CANNOT_CREATE_FILE = 18
     CANNOT_DELETE_FOLDER = 19
     CANNOT_DELETE_FILE = 20
-    TIMEOUT = 21
+    BUILD_INDEX_ERROR = 21
+    ILLEGAL_NLIST = 22
+    ILLEGAL_METRIC_TYPE = 23
+    OUT_OF_MEMORY = 24
 
     def __init__(self, code=SUCCESS, message="Success"):
         self.code = code

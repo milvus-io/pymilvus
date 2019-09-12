@@ -25,14 +25,12 @@ class TestTimeout(object):
         }
         status = gcon.create_table(param, timeout=self.TIMEOUT)
         assert not status.OK()
-        assert status.code == status.TIMEOUT
 
     def test_add_vectors_timeout(self, gcon, gtable):
         vectors = [[random.random() for _ in range(128)] for _ in range(1000)]
 
         status, _ = gcon.add_vectors(table_name=gtable, records=vectors, timeout=self.TIMEOUT)
         assert not status.OK()
-        assert status.code == status.TIMEOUT
 
     def test_has_table_timeout(self, gcon, gtable):
         flag = gcon.has_table(gtable, timeout=self.TIMEOUT)
@@ -45,35 +43,29 @@ class TestTimeout(object):
     def test_delete_table_timeout(self, gcon, gtable):
         status = gcon.delete_table(gtable, timeout=self.TIMEOUT)
         assert not status.OK()
-        assert status.code == Status.TIMEOUT
 
     def test_create_index_timeout(self, gcon, gtable):
         status = gcon.create_index(gtable, timeout=self.TIMEOUT)
         assert not status.OK()
-        assert status.code == Status.TIMEOUT
 
     def test_add_vector_timeout(self, gcon, gtable):
         vectors = [[random.random() for _ in range(dim)] for _ in range(2)]
         status, _ = gcon.add_vectors(table_name=gtable, records=vectors, ids=None, timeout=self.TIMEOUT)
         assert not status.OK()
-        assert status.code == Status.TIMEOUT
 
     def test_describe_table_timeout(self, gcon, gtable):
         status, _ = gcon.describe_index(table_name=gtable, timeout=self.TIMEOUT)
 
         assert not status.OK()
-        assert status.code == Status.TIMEOUT
 
     def test_get_table_row_count_timeout(self, gcon, gtable):
         status, _ = gcon.get_table_row_count(gtable, timeout=self.TIMEOUT)
 
         assert not status.OK()
-        assert status.code == Status.TIMEOUT
 
     def test_drop_index_timeout(self, gcon, gtable):
         status = gcon.drop_index(gtable, timeout=self.TIMEOUT)
         assert not status.OK()
-        assert status.code == Status.TIMEOUT
 
     def test_delete_by_range(self, gcon, gvector):
         status = gcon.delete_vectors_by_range(gvector, "2019-05-01", "2019-12-31", timeout=self.TIMEOUT)
@@ -82,9 +74,7 @@ class TestTimeout(object):
     def test_preload_table(self, gcon, gvector):
         status = gcon.preload_table(gvector, timeout=self.TIMEOUT)
         assert not status.OK()
-        assert status.code == Status.TIMEOUT
 
     def test_cmd_timeout(self, gcon):
         status, _ = gcon._cmd("666", timeout=self.TIMEOUT)
         assert not status.OK()
-        assert status.code == Status.TIMEOUT
