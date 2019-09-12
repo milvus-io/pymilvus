@@ -12,7 +12,6 @@ from .Abstract import (
     Range,
     QueryResult,
     TopKQueryRawResult,
-    TopKQueryResult,
     IndexParam
 )
 
@@ -702,7 +701,7 @@ class GrpcMilvus(ConnectIntf):
 
         lazy = kwargs.get("lazy", False)
 
-        results = TopKQueryResult()
+        # results = TopKQueryResult()
         try:
             response = self._stub.SearchInFiles(infos)
 
@@ -712,9 +711,11 @@ class GrpcMilvus(ConnectIntf):
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message=response.status.reason), []
 
-            for topk_query_result in response.topk_query_result:
-                results.append([QueryResult(id=result.id, distance=result.distance) for result in
-                                topk_query_result.query_result_arrays])
+            # for topk_query_result in response.topk_query_result:
+            #     results.append([QueryResult(id=result.id, distance=result.distance) for result in
+            #                     topk_query_result.query_result_arrays])
+
+            results = TopKQueryRawResult(response)
 
             return Status(message='Search vectors successfully!'), results
         except grpc.RpcError as e:

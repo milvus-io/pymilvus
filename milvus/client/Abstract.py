@@ -90,7 +90,7 @@ class QueryResult(object):
 
     :type  distance: float
     :param distance: Vector similarity 0 <= distance <= 100
-
+q
     """
 
     def __init__(self, id, distance):
@@ -103,68 +103,68 @@ class QueryResult(object):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
 
-class Result(object):
-    def __init__(self, id, distance):
-        self.id = id
-        self.distance = distance
+# class Result(object):
+#     def __init__(self, id, distance):
+#         self.id = id
+#         self.distance = distance
+#
+#     def __repr__(self):
+#         L = ['%s=%r' % (key, value)
+#              for key, value in self.__dict__.items()]
+#         return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
-
-class QueryResultL(object):
-    """
-    Query result
-
-    :type  id: int64
-    :param id: id of the vector
-
-    :type  distance: float
-    :param distance: Vector similarity 0 <= distance <= 100
-
-    """
-
-    def __init__(self):
-        self._ids = []
-        self._distances = []
-
-    def append(self, id, distance):
-        self._ids.append(id)
-        self._distances.append(distance)
-
-    def id_at(self, index):
-        return self._ids[index]
-
-    def distance_at(self, index):
-        return self._distances[index]
-
-    def __getitem__(self, item):
-        # return self._ids[item], self._distances[item]
-        return Result(self._ids[item], self._distances[item])
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        for _id, _distance in zip(self._ids, self._distances):
-            yield _id, _distance
-
-    def __contains__(self, item):
-        """
-
-        :param item:
-        :return:
-        """
-        return item in self._ids
-
-    def __str__(self):
-        ids_str = "[{} ... {}]".format(','.join(self._ids[0:min(3, len(self._ids) - 1)]), self._ids[-1])
-        distances_str = "[{} ... {}]".format(','.join(self._distances[0:min(3, len(self._distances) - 1)]),
-                                             self._distances[-1])
-
-        return "QueryResult({},\n            {})".format(ids_str, distances_str)
+# class QueryResultL(object):
+#     """
+#     Query result
+#
+#     :type  id: int64
+#     :param id: id of the vector
+#
+#     :type  distance: float
+#     :param distance: Vector similarity 0 <= distance <= 100
+#
+#     """
+#
+#     def __init__(self):
+#         self._ids = []
+#         self._distances = []
+#
+#     def append(self, id, distance):
+#         self._ids.append(id)
+#         self._distances.append(distance)
+#
+#     def id_at(self, index):
+#         return self._ids[index]
+#
+#     def distance_at(self, index):
+#         return self._distances[index]
+#
+#     def __getitem__(self, item):
+#         # return self._ids[item], self._distances[item]
+#         return Result(self._ids[item], self._distances[item])
+#
+#     def __iter__(self):
+#         return self
+#
+#     def __next__(self):
+#         for _id, _distance in zip(self._ids, self._distances):
+#             yield _id, _distance
+#
+#     def __contains__(self, item):
+#         """
+#
+#         :param item:
+#         :return:
+#         """
+#         return item in self._ids
+#
+#     def __str__(self):
+#         ids_str = "[{} ... {}]".format(','.join(self._ids[0:min(3, len(self._ids) - 1)]), self._ids[-1])
+#         distances_str = "[{} ... {}]".format(','.join(self._distances[0:min(3, len(self._distances) - 1)]),
+#                                              self._distances[-1])
+#
+#         return "QueryResult({},\n            {})".format(ids_str, distances_str)
 
 
 # class RawResult(object):
@@ -172,9 +172,11 @@ class QueryResultL(object):
 class QueryRawResult(object):
     def __init__(self, raw_source):
         self._raw = raw_source
+        self._result_list = []
+        self._len = len(self._raw)
 
     def __len__(self):
-        return len(self._raw)
+        return self._len
 
     def __getitem__(self, item):
 
@@ -183,15 +185,40 @@ class QueryRawResult(object):
             step = 1 if not item.step else item.step
             stop = self.__len__() + item.stop if item.stop < 0 else item.stop
 
+            if stop < len(self._result_list):
+                return [self._result_list[i] for i in range(start, stop, step)]
+
             return [QueryResult(id=self._raw[i].id, distance=self._raw[i].distance) for i in range(start, stop, step)]
 
-        result = self._raw[item]
+        if item < len(self._result_list):
+            return self._result_list[item]
 
+        result = self._raw[item]
         return QueryResult(id=result.id, distance=result.distance)
 
     def __iter__(self):
         for i in range(self.__len__()):
             yield self.__getitem__(i)
+
+    def __str__(self):
+        if self._result_list is None or len(self._result_list) == 0:
+            print("\nstart generate list\n")
+            self._result_list.extend(
+                [QueryResult(id=self._raw[i].id, distance=self._raw[i].distance) for i in range(self._len)])
+        else:
+            print("\nstart generate list\n")
+            len_left = self._len - len(self._result_list)
+            self._result_list.extend(
+                [QueryResult(id=self._raw[i].id, distance=self._raw[i].distance) for i in
+                 range(self._len - len_left, self._len)])
+
+        if self._len > 5:
+            str_left = ",".join(map(str, self._result_list[:3]))
+            str_out = "[{} ... {}]".format(str_left, self._result_list[-1])
+        else:
+            str_out = "[{}]".format(",".join(map(str, self._result_list)))
+
+        return str_out
 
 
 class TopKQueryResult(list):
@@ -220,6 +247,7 @@ class TopKQueryResult(list):
 class TopKQueryRawResult(object):
     def __init__(self, response):
         self._response = response
+        self._raw_result = []
 
     @property
     def raw(self):
@@ -240,15 +268,24 @@ class TopKQueryRawResult(object):
         return len(self._response.topk_query_result)
 
     def __getitem__(self, item):
+        print("\nTopK index item\n")
         return QueryRawResult(self._response.topk_query_result[item].query_result_arrays)
 
     def __iter__(self):
         for i in range(self.__len__()):
+            print("\nTopK iter item\n")
             yield self.__getitem__(i)
         return self
 
-    def __setslice__(self, i, j, sequence):
-        pass
+    def __str__(self):
+        print("\nTopK str\n")
+        if self.shape[0] > 5:
+            str_left = "\n,".join(map(str, self[:3]))
+            str_out = "[\n{}\n ... \n{}\n]".format(str_left, self[-1])
+        else:
+            str_out = "[{}]".format(",".join(map(str, self)))
+
+        return str_out
 
 
 class IndexParam(object):

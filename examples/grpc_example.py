@@ -161,11 +161,14 @@ def search():
 
     status, results = search_vectors(query_vectors)
 
-    print(results[0])
-    print(results[0][0])
-    print("[id:{}, distance:{}]".format(results[0][0].id, results[0][0].distance))
+    # import pdb;pdb.set_trace()
+
+    # print(results[0])
+    # print(results[0][0])
+    # print("[id:{}, distance:{}]".format(results[0][0].id, results[0][0].distance))
 
     result0 = results[0]
+    print(result0)
     out = result0[:-1]
     print(out)
 
@@ -174,7 +177,7 @@ def search():
 
 
 if __name__ == '__main__':
-    for _ in range(1):
+    for _ in range(3):
         # create_add()
         create_index()
         search()
