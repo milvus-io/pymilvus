@@ -111,20 +111,20 @@ You can also specify vectors id
 ```
 Get vectors num
 ```python
->>> client.get_table_row_count('test01')
+>>> milvus.get_table_row_count('test01')
 (Status(code=0, message='Success!'), 20)
 ```
 ---
 Load vectors into memory
 ```python
->>> client.preload_table('test01')
+>>> milvus.preload_table('test01')
 Status(code=0, message='')
 ```
 ---
 Create index
 ```python
 >>> index_param = {'index_type': IndexType.IVFLAT, 'nlist': 16384}
->>> client.create_index('test01', index_param)
+>>> milvus.create_index('test01', index_param)
 Status(code=0, message='Build index successfully!')
 ```
 Then show index information
@@ -157,14 +157,14 @@ Status(code=0, message='Search vectors successfully!')
 ---
 Drop index
 ```python
->>> client.drop_index('test01')
+>>> milvus.drop_index('test01')
 Status(code=0, message='')
 ```
 ---
 Delete vectors by date range
 >>> 
 ```python
->>> client.delete_vectors_by_range('test01', '2019-06-01', '2020-01-01')
+>>> milvus.delete_vectors_by_range('test01', '2019-06-01', '2020-01-01')
 Status(code=0, message='')
 ```
 ---

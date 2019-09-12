@@ -2,7 +2,7 @@
 # create a vector table, 
 # insert 10 vectors, 
 # and execute a vector similarity search.
-from milvus import Milvus, IndexType
+from milvus import Milvus, IndexType, MetricType
 import time
 
 # Milvus server IP address and port.
@@ -26,8 +26,8 @@ def main():
         param = {
             'table_name': table_name,
             'dimension': 16,
-            'index_type': IndexType.FLAT,
-            'store_raw_vector': False
+            'index_file_size': 1024,
+            'metric_type': MetricType.L2
         }
 
         milvus.create_table(param)

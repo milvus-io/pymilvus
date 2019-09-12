@@ -11,13 +11,13 @@ with io.open("milvus/client/__init__.py", "rt", encoding="utf8") as f:
     version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
 
 setuptools.setup(
-    name="pymilvus-test",
+    name="pymilvus",
     version=version,
 
-    description="Python Sdk for Milvus; Alpha version",
+    description="Python Sdk for Milvus",
     long_description=README,
     long_description_content_type='text/markdown',
-    url='https://github.com/BossZou/pymilvus',
+    url='https://github.com/milvus-io/pymilvus',
     license="Apache-2.0",
     packages=["milvus.client", 'milvus.grpc_gen', 'milvus'],
     include_package_data=True,

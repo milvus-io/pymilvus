@@ -24,7 +24,7 @@
 - \#60 ISSUE: **[MS-185]** fix connection no timeout bug 
 - \#69 ISSUE: **[MS-243]** fixed
 - \#83 ISSUE: fix celery server create table error
-- \#   ISSUE: 
+- \#   ISSUE:  
     - **[MS-424]** IndexParam str more friendly
     - **[MS-433]** fix wrong passing param bug
     - **[MS-438]** fix add vectors with ids bug
@@ -34,7 +34,7 @@
     - **[MS-469]** add index_file_size min value check
     - **[MS-512]** fix ids error
     - **[MS-521]** fix ids check error
-    - **[MS-521]** fix index_param check error
+    - **[MS-522]** fix index_param check error
     
 ### Improvement
 ---
