@@ -24,6 +24,18 @@
 - \#60 ISSUE: **[MS-185]** fix connection no timeout bug 
 - \#69 ISSUE: **[MS-243]** fixed
 - \#83 ISSUE: fix celery server create table error
+- \#   ISSUE: 
+    - **[MS-424]** IndexParam str more friendly
+    - **[MS-433]** fix wrong passing param bug
+    - **[MS-438]** fix add vectors with ids bug
+    - **[MS-439]** fix search result unpack bug on windows
+    - **[MS-452]** fix build index timeout bug
+    - **[MS-444]** fix timeout bug
+    - **[MS-469]** add index_file_size min value check
+    - **[MS-512]** fix ids error
+    - **[MS-521]** fix ids check error
+    - **[MS-521]** fix index_param check error
+    
 ### Improvement
 ---
 - \#10 ISSUE: Update examples
@@ -74,6 +86,10 @@
 - \#81 ISSUE
     - remove all thrift 
     - update interface and interface param
+ 
+- \#82
+    - add timeout option
+    - add default param in tableschema and indexparam
 ### Task
 ---
 - \#1 Build Repository

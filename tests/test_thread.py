@@ -4,8 +4,6 @@ import time
 import concurrent.futures
 
 sys.path.append('.')
-from milvus import IndexType
-from milvus.client.GrpcClient import GrpcMilvus as gMilvus
 from factorys import time_it
 
 dimension = 512
@@ -13,9 +11,11 @@ number = 100000
 table_name = 'multi_task'
 
 
-# @time_it
 def add_vector_task(milvus, vector):
     status, ids = milvus.add_vectors(table_name=table_name, records=vector)
+
+    assert status.OK(), "add vectors failed"
+    assert len(ids) == len(vector)
 
 
 @time_it
@@ -25,9 +25,11 @@ def grpc_thread_pool_add_vector(milvus, pool_size, vectors):
             executor.submit(add_vector_task, milvus, vectors)
 
 
-def grpc_run():
-    gmilvus = gMilvus()
-    gmilvus.connect()
+def test_grpc_run(gcon):
+    gmilvus = gcon
+
+    if gmilvus is None:
+        assert False, "Error occurred: connect failure"
 
     if gmilvus.has_table(table_name):
         gmilvus.delete_table(table_name)
@@ -36,8 +38,8 @@ def grpc_run():
     table_param = {
         'table_name': table_name,
         'dimension': dimension,
-        'index_type': IndexType.FLAT,
-        'store_raw_vector': False
+        'index_file_size': 1024,
+        'metric_type': 1
     }
 
     gmilvus.create_table(table_param)
@@ -55,6 +57,3 @@ def grpc_run():
     _, gcount = gmilvus.get_table_row_count(table_name)
     print(gcount)
 
-
-if __name__ == '__main__':
-    grpc_run()

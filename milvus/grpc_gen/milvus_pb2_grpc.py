@@ -40,15 +40,15 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.InsertParam.SerializeToString,
             response_deserializer=milvus__pb2.VectorIds.FromString,
         )
-        self.Search = channel.unary_stream(
+        self.Search = channel.unary_unary(
             '/milvus.grpc.MilvusService/Search',
             request_serializer=milvus__pb2.SearchParam.SerializeToString,
-            response_deserializer=milvus__pb2.TopKQueryResult.FromString,
+            response_deserializer=milvus__pb2.TopKQueryResultList.FromString,
         )
-        self.SearchInFiles = channel.unary_stream(
+        self.SearchInFiles = channel.unary_unary(
             '/milvus.grpc.MilvusService/SearchInFiles',
             request_serializer=milvus__pb2.SearchInFilesParam.SerializeToString,
-            response_deserializer=milvus__pb2.TopKQueryResult.FromString,
+            response_deserializer=milvus__pb2.TopKQueryResultList.FromString,
         )
         self.DescribeTable = channel.unary_unary(
             '/milvus.grpc.MilvusService/DescribeTable',
@@ -326,15 +326,15 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.InsertParam.FromString,
             response_serializer=milvus__pb2.VectorIds.SerializeToString,
         ),
-        'Search': grpc.unary_stream_rpc_method_handler(
+        'Search': grpc.unary_unary_rpc_method_handler(
             servicer.Search,
             request_deserializer=milvus__pb2.SearchParam.FromString,
-            response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
+            response_serializer=milvus__pb2.TopKQueryResultList.SerializeToString,
         ),
-        'SearchInFiles': grpc.unary_stream_rpc_method_handler(
+        'SearchInFiles': grpc.unary_unary_rpc_method_handler(
             servicer.SearchInFiles,
             request_deserializer=milvus__pb2.SearchInFilesParam.FromString,
-            response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
+            response_serializer=milvus__pb2.TopKQueryResultList.SerializeToString,
         ),
         'DescribeTable': grpc.unary_unary_rpc_method_handler(
             servicer.DescribeTable,

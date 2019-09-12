@@ -1,3 +1,6 @@
+from enum import IntEnum
+
+
 class Status(object):
     """
     :attribute code: int (optional) default as ok
@@ -25,8 +28,12 @@ class Status(object):
     CANNOT_CREATE_FILE = 18
     CANNOT_DELETE_FOLDER = 19
     CANNOT_DELETE_FILE = 20
+    BUILD_INDEX_ERROR = 21
+    ILLEGAL_NLIST = 22
+    ILLEGAL_METRIC_TYPE = 23
+    OUT_OF_MEMORY = 24
 
-    def __init__(self, code=SUCCESS, message=None):
+    def __init__(self, code=SUCCESS, message="Success"):
         self.code = code
         self.message = message
 
@@ -48,3 +55,27 @@ class Status(object):
     def OK(self):
         return self.code == Status.SUCCESS
 
+
+class IndexType(IntEnum):
+    INVALID = 0
+    FLAT = 1
+    IVFLAT = 2
+    IVF_SQ8 = 3
+    MIX_NSG = 4
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+
+    def __str__(self):
+        return self._name_
+
+
+class MetricType(IntEnum):
+    L2 = 1
+    IP = 2
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+
+    def __str__(self):
+        return self._name_

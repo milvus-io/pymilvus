@@ -15,7 +15,7 @@ import faker
 from faker.providers import BaseProvider
 
 # local application imports
-from milvus.client.Abstract import IndexType
+from milvus.client.Abstract import IndexType, MetricType
 
 # grpc
 from milvus.client.GrpcClient import Prepare as gPrepare
@@ -78,7 +78,7 @@ def fake_query_bin_result(nq, topk):
 class FakerProvider(BaseProvider):
 
     def table_name(self):
-        return 'table_name' + str(random.randint(1000, 9999))
+        return 'table_names' + str(random.randint(1000, 9999))
 
     def name(self):
         return 'name' + str(random.randint(1000, 9999))
@@ -107,8 +107,8 @@ def table_schema_factory():
     param = {
         'table_name': fake.table_name(),
         'dimension': random.randint(1, 999),
-        'index_type': IndexType.FLAT,
-        'store_raw_vector': False
+        'index_file_size': 1024,
+        'metric_type': MetricType.L2
     }
     return param
 

@@ -72,6 +72,7 @@ def main():
         'table_name': table_name,
         'query_records': query_vectors,
         'top_k': 1,
+        'nprobe': 16
 
     }
     status, results = milvus.search_vectors(**param)
