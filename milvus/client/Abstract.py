@@ -221,19 +221,56 @@ class QueryRawResult(object):
         return str_out
 
 
-class TopKQueryResult(list):
+class TopKQueryResult(object):
     """
     TopK query results, list of QueryResult
     """
 
+    def __init__(self, raw_source):
+        self._raw = raw_source
+        self._array = self._create_array(self._raw)
+
+    def _create_array(self, raw):
+
+        array = []
+        for topk_result in raw.topk_query_result:
+            topk_result_list = []
+            topk_result_list.extend(topk_result.query_result_arrays)
+            array.append(topk_result_list)
+
+        return array
+
+    @property
+    def shape(self):
+        row = len(self._array)
+
+        if row == 0:
+            column = 0
+        else:
+            column = len(self._array[0])
+
+        return row, column
+
+    def __getitem__(self, item):
+        return self._array.__getitem__(item)
+
+    def __iter__(self):
+        return self._array.__iter__()
+
+    def __len__(self):
+        return self._array.__len__()
+
     def __repr__(self):
+
+        lam = lambda x: "(id:{}, distance:{})".format(x.id, x.distance)
 
         if self.__len__() > 10:
             middle = ''
+
             for topk in self[:3]:
-                middle = middle + " [ %s" % ",\n   ".join(map(str, topk[:3]))
+                middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
                 middle += ",\n   ..."
-                middle += "\n   %s ]\n\n" % str(topk[-1])
+                middle += "\n   %s ]\n\n" % lam(topk[-1])
 
             spaces = """        ......
         ......"""
@@ -241,7 +278,11 @@ class TopKQueryResult(list):
             ahead = "[\n%s%s\n]" % (middle, spaces)
             return ahead
         else:
-            return "[\n%s\n]" % ",\n".join(map(str, self))
+            str_out_list = []
+            for i in range(self.__len__()):
+                str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
+
+            return "[\n%s\n]" % ",\n".join(str_out_list)
 
 
 class TopKQueryRawResult(object):

@@ -11,6 +11,7 @@ from .Abstract import (
     TableSchema,
     Range,
     QueryResult,
+    TopKQueryResult,
     TopKQueryRawResult,
     IndexParam
 )
@@ -651,7 +652,13 @@ class GrpcMilvus(ConnectIntf):
             #
             # print("[1]: {:.4f}\n[2]: {:.4f}".format(t1 - t0, t2 - t1))
 
-            results = TopKQueryRawResult(response)
+            # results = TopKQueryRawResult(response)
+            t0 = time.time()
+            results = TopKQueryResult(response)
+            t1 = time.time()
+
+            print("\ntime cost {} s. shape: {}\n".format(t1 - t0, results.shape))
+            print(results)
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))

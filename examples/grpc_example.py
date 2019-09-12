@@ -11,7 +11,7 @@ _DIM = 512
 nb = 100000  # number of vector dataset
 nq = 2000  # number of query vector
 table_name = 'examples_grpc001'
-top_K = 10
+top_K = 1000
 
 server_config = {
     "host": 'localhost',
@@ -159,6 +159,8 @@ def create_index():
 def search():
     query_vectors = random_vectors(nq)
 
+    # import pdb;
+    # pdb.set_trace()
     status, results = search_vectors(query_vectors)
 
     # import pdb;pdb.set_trace()
@@ -167,17 +169,17 @@ def search():
     # print(results[0][0])
     # print("[id:{}, distance:{}]".format(results[0][0].id, results[0][0].distance))
 
-    result0 = results[0]
-    print(result0)
-    out = result0[:-1]
-    print(out)
+    # result0 = results[0]
+    # print(result0)
+    # out = result0[:-1]
+    # print(out)
 
     for result in results:
         print("--- {}".format(result[0]))
 
 
 if __name__ == '__main__':
-    for _ in range(3):
+    for _ in range(1):
         # create_add()
         create_index()
         search()
