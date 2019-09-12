@@ -1,18 +1,10 @@
-from enum import IntEnum
-import struct
 from .utils import *
 
 from milvus.client.Exceptions import (
     ParamError
 )
 
-
-class IndexType(IntEnum):
-    INVALID = 0
-    FLAT = 1
-    IVFLAT = 2
-    IVF_SQ8 = 3
-    MIX_NSG = 4
+from .types import MetricType, IndexType
 
 
 class TableSchema(object):
@@ -22,39 +14,38 @@ class TableSchema(object):
     :type  table_name: str
     :param table_name: (Required) name of table
 
-    :type  index_type: IndexType
-    :param index_type: (Required) index type, default = IndexType.INVALID
-
-        `IndexType`: 0-invalid, 1-flat, 2-ivflat
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
 
     :type  dimension: int64
     :param dimension: (Required) dimension of vector
 
-    :type  store_raw_vector: bool
-    :param store_raw_vector: (Optional) default = False
+    :type  index_file_size: int64
+    :param index_file_size: (Optional) max size of files which store index
+
+    :type  metric_type: MetricType
+    :param metric_type: (Optional) vectors metric type
+
+        `MetricType`: 1-L2, 2-IP
 
     """
 
-    def __init__(self, table_name,
-                 dimension=0,
-                 index_type=IndexType.INVALID,
-                 store_raw_vector=False):
+    def __init__(self, table_name, dimension, index_file_size, metric_type):
 
         # TODO may raise UnicodeEncodeError
         if table_name is None:
             raise ParamError('Table name can\'t be None')
         table_name = str(table_name) if not isinstance(table_name, str) else table_name
-        if not legal_dimension(dimension):
+        if not is_legal_dimension(dimension):
             raise ParamError('Illegal dimension, effective range: (0 , 16384]')
-        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
-            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
-        if not isinstance(store_raw_vector, bool):
-            raise ParamError('Illegal store_raw_vector, should be bool')
+        if isinstance(metric_type, int):
+            metric_type = MetricType(metric_type)
+        if not isinstance(metric_type, MetricType):
+            raise ParamError('Illegal metric_type, should be MetricType')
 
         self.table_name = table_name
-        self.index_type = index_type
         self.dimension = dimension
-        self.store_raw_vector = store_raw_vector
+        self.index_file_size = index_file_size
+        self.metric_type = metric_type
 
     def __repr__(self):
         L = ['%s=%r' % (key, value)
@@ -91,51 +82,111 @@ class Range(object):
                              " than or equal to end-date!")
 
 
-class RowRecord(object):
+class TopKQueryResult(object):
     """
-    Record inserted
-
-    :type  vector_data: binary str
-    :param vector_data: (Required) a vector
-
+    TopK query results, 2-D array of query result
     """
 
-    def __init__(self, vector_data):
-        if isinstance(vector_data, list) and len(vector_data) > 0 \
-                and isinstance(vector_data[0], float):
-            self.vector_data = struct.pack(str(len(vector_data)) + 'd', *vector_data)
+    def __init__(self, raw_source):
+        self._raw = raw_source
+        self._array = self._create_array(self._raw)
+
+    def _create_array(self, raw):
+
+        array = []
+        for topk_result in raw.topk_query_result:
+            topk_result_list = []
+            topk_result_list.extend(topk_result.query_result_arrays)
+            array.append(topk_result_list)
+
+        return array
+
+    @property
+    def shape(self):
+        row = len(self._array)
+
+        if row == 0:
+            column = 0
         else:
-            raise ParamError('Illegal vector! Vector should be non-empty list of float.\n {}'
-                             .format(vector_data))
+            column = len(self._array[0])
+
+        return row, column
+
+    def __getitem__(self, item):
+        return self._array.__getitem__(item)
+
+    def __iter__(self):
+        return self._array.__iter__()
+
+    def __len__(self):
+        return self._array.__len__()
+
+    def __repr__(self):
+
+        lam = lambda x: "(id:{}, distance:{})".format(x.id, x.distance)
+
+        if self.__len__() > 10:
+            middle = ''
+
+            for topk in self[:3]:
+                middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
+                middle += ",\n   ..."
+                middle += "\n   %s ]\n\n" % lam(topk[-1])
+
+            spaces = """        ......
+        ......"""
+
+            ahead = "[\n%s%s\n]" % (middle, spaces)
+            return ahead
+        else:
+            str_out_list = []
+            for i in range(self.__len__()):
+                str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
+
+            return "[\n%s\n]" % ",\n".join(str_out_list)
 
 
-class QueryResult(object):
+class IndexParam(object):
     """
-    Query result
+    Index Param
 
-    :type  id: int64
-    :param id: id of the vector
+    :type  table_name: str
+    :param table_name: (Required) name of table
 
-    :type  distance: float
-    :param distance: Vector similarity 0 <= distance <= 100
+    :type  index_type: IndexType
+    :param index_type: (Required) index type, default = IndexType.INVALID
+
+        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
+
+    :type  nlist: int64
+    :param nlist: (Required) num of cell
 
     """
 
-    def __init__(self, id, distance):
-        self.id = id
-        self.distance = distance
+    def __init__(self, table_name, index_type, nlist):
+
+        if table_name is None:
+            raise ParamError('Table name can\'t be None')
+        table_name = str(table_name) if not isinstance(table_name, str) else table_name
+
+        if isinstance(index_type, int):
+            index_type = IndexType(index_type)
+        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
+            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
+
+        self._table_name = table_name
+        self._index_type = index_type
+        self._nlist = nlist
+
+    def __str__(self):
+        L = ['%s=%r' % (key.lstrip('_'), value)
+             for key, value in self.__dict__.items()]
+        return '(%s)' % (', '.join(L))
 
     def __repr__(self):
         L = ['%s=%r' % (key, value)
              for key, value in self.__dict__.items()]
         return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-
-class TopKQueryResult(list):
-    """
-    TopK query results, list of QueryResult
-    """
-    pass
 
 
 def _abstract():
@@ -210,19 +261,6 @@ class ConnectIntf(object):
         :return:
             has_table: bool, if given table_name exists
 
-        """
-        _abstract()
-
-    def build_index(self, table_name):
-        """
-        Build index by table name
-
-        This method is used to build index by table in sync mode.
-
-        :param table_name: table is going to be built index.
-        :type  table_name: str
-
-        :return: Status, indicate if operation is successful
         """
         _abstract()
 
@@ -345,6 +383,29 @@ class ConnectIntf(object):
         """
         _abstract()
 
+    def create_index(self, table_name, index):
+        """
+        Create specified index in a table
+        should be implemented
+
+        :type  table_name: str
+        :param table_name: table name
+
+         :type index: dict
+        :param index: index information dict
+
+            example: index = {
+                "index_type": IndexType.FLAT,
+                "nlist": 18384
+            }
+
+        :return:
+            Status: indicate if this operation is successful
+
+        :rtype: Status
+        """
+        _abstract()
+
     def client_version(self):
         """
         Provide client version
@@ -358,7 +419,6 @@ class ConnectIntf(object):
         :rtype: (Status, str)
         """
         _abstract()
-
 
     def server_version(self):
         """
@@ -374,7 +434,7 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def server_status(self, cmd):
+    def server_status(self):
         """
         Provide server status. When cmd !='version', provide 'OK'
         should be implemented
@@ -386,4 +446,73 @@ class ConnectIntf(object):
 
         :rtype: (Status, str)
         """
+        _abstract()
+
+    def delete_vectors_by_range(self, table_name, start_time, end_time):
+        """
+        delete vector by date range. The data range contains start_time but not end_time
+        should be implemented
+
+        :param table_name: table name
+        :type  table_name: str
+
+        :param start_time: range start time
+        :type  start_time: str, date, datetime
+
+        :param end_time: range end time(not contains in range)
+        :type  end_time: str, date, datetime
+
+        :return:
+        """
+
+        _abstract()
+
+    def preload_table(self, table_name):
+        """
+        load table to cache in advance
+        should be implemented
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+            Status: indicate if operation is successful
+
+        ：:rtype: Status
+        """
+
+        _abstract()
+
+    def describe_index(self, table_name):
+        """
+        Show index information
+        should be implemented
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+            Status: indicate if operation is successful
+
+            TableSchema: table detail information
+
+        :rtype: (Status, TableSchema)
+        """
+
+        _abstract()
+
+    def drop_index(self, table_name):
+        """
+        Show index information
+        should be implemented
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+            Status: indicate if operation is successful
+
+        ：:rtype: Status
+        """
+
         _abstract()
