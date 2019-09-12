@@ -12,6 +12,7 @@ from .Abstract import (
     Range,
     QueryResult,
     TopKQueryResult,
+    TopKQueryRawResult,
     IndexParam
 )
 
@@ -601,17 +602,46 @@ class GrpcMilvus(ConnectIntf):
             table_name, query_records, query_ranges, top_k, nprobe
         )
 
-        results = TopKQueryResult()
+        # results = TopKQueryResult()
 
         try:
             response = self._stub.Search(infos)
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message=response.status.reason), []
 
-            for topk_query_result in response.topk_query_result:
-                results.append([QueryResult(id=result.id, distance=result.distance) for result in
-                                topk_query_result.query_result_arrays])
+            # t0 = time.time()
+            # for topk_query_result in response.topk_query_result:
+            #     results.append([QueryResult(id=result.id, distance=result.distance) for result in
+            #                     topk_query_result.query_result_arrays])
+            #
+            # t1 = time.time()
 
+            # results2 = []
+            # for topk_query_result in response.topk_query_result:
+            #     rt = Result()
+            #     for result in topk_query_result.query_result_arrays:
+            #         rt.ids.append(result.id)
+            #         rt.distances.append(result.distance)
+            #     results2.append(rt)
+
+            # results3 = TopKQueryResult()
+            # for topk_query_result in response.topk_query_result:
+            #     query_result = QueryResultL()
+            #     for result in topk_query_result.query_result_arrays:
+            #         query_result.append(result.id, result.distance)
+            #     results3.append(query_result)
+            #
+            # t2 = time.time()
+            #
+            # print("[1]: {:.4f}\n[2]: {:.4f}".format(t1 - t0, t2 - t1))
+
+            # results = TopKQueryRawResult(response)
+            t0 = time.time()
+            results = TopKQueryResult(response)
+            t1 = time.time()
+
+            print("\ntime cost {} s. shape: {}\n".format(t1 - t0, results.shape))
+            print(results)
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
@@ -662,7 +692,6 @@ class GrpcMilvus(ConnectIntf):
 
         lazy = kwargs.get("lazy", False)
 
-        results = TopKQueryResult()
         try:
             response = self._stub.SearchInFiles(infos)
 
@@ -672,9 +701,7 @@ class GrpcMilvus(ConnectIntf):
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message=response.status.reason), []
 
-            for topk_query_result in response.topk_query_result:
-                results.append([QueryResult(id=result.id, distance=result.distance) for result in
-                                topk_query_result.query_result_arrays])
+            results = TopKQueryRawResult(response)
 
             return Status(message='Search vectors successfully!'), results
         except grpc.RpcError as e:
