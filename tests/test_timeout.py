@@ -36,10 +36,6 @@ class TestTimeout(object):
         flag = gcon.has_table(gtable, timeout=self.TIMEOUT)
         assert not flag
 
-    def test_describe_table_timeout(self, gcon, gtable):
-        flag = gcon.describe_table(gtable, timeout=self.TIMEOUT)
-        assert not flag
-
     def test_delete_table_timeout(self, gcon, gtable):
         status = gcon.delete_table(gtable, timeout=self.TIMEOUT)
         assert not status.OK()

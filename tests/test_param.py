@@ -2,9 +2,6 @@ import sys
 import copy
 
 sys.path.append('.')
-
-from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
-from milvus.client.Abstract import IndexType, TableSchema, TopKQueryResult, MetricType
 from milvus.client.Exceptions import *
 
 import pytest

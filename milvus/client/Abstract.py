@@ -1,4 +1,3 @@
-from enum import IntEnum
 from .utils import *
 
 from milvus.client.Exceptions import (
@@ -20,11 +19,13 @@ class TableSchema(object):
     :type  dimension: int64
     :param dimension: (Required) dimension of vector
 
-    :type  index_file_size:
-    :param index_file_size:
+    :type  index_file_size: int64
+    :param index_file_size: (Optional) max size of files which store index
 
-    :type  metric_type:
-    :param metric_type:
+    :type  metric_type: MetricType
+    :param metric_type: (Optional) vectors metric type
+
+        `MetricType`: 1-L2, 2-IP
 
     """
 
@@ -81,31 +82,9 @@ class Range(object):
                              " than or equal to end-date!")
 
 
-class QueryResult(object):
-    """
-    Query result
-
-    :type  id: int64
-    :param id: id of the vector
-
-    :type  distance: float
-    :param distance: Vector similarity 0 <= distance <= 100
-q
-    """
-
-    def __init__(self, id, distance):
-        self.id = id
-        self.distance = distance
-
-    def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
-
-
 class TopKQueryResult(object):
     """
-    TopK query results, list of QueryResult
+    TopK query results, 2-D array of query result
     """
 
     def __init__(self, raw_source):
@@ -182,8 +161,6 @@ class IndexParam(object):
     :type  nlist: int64
     :param nlist: (Required) num of cell
 
-    :type  metric_type: int32
-    :param metric_type: ???
     """
 
     def __init__(self, table_name, index_type, nlist):
@@ -407,6 +384,26 @@ class ConnectIntf(object):
         _abstract()
 
     def create_index(self, table_name, index):
+        """
+        Create specified index in a table
+        should be implemented
+
+        :type  table_name: str
+        :param table_name: table name
+
+         :type index: dict
+        :param index: index information dict
+
+            example: index = {
+                "index_type": IndexType.FLAT,
+                "nlist": 18384
+            }
+
+        :return:
+            Status: indicate if this operation is successful
+
+        :rtype: Status
+        """
         _abstract()
 
     def client_version(self):
@@ -451,11 +448,20 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def delete_vectors_by_range(self, start_time, end_time):
+    def delete_vectors_by_range(self, table_name, start_time, end_time):
         """
+        delete vector by date range. The data range contains start_time but not end_time
+        should be implemented
 
-        :param start_time:
-        :param end_time:
+        :param table_name: table name
+        :type  table_name: str
+
+        :param start_time: range start time
+        :type  start_time: str, date, datetime
+
+        :param end_time: range end time(not contains in range)
+        :type  end_time: str, date, datetime
+
         :return:
         """
 
@@ -470,6 +476,9 @@ class ConnectIntf(object):
         :type table_name: str
 
         :return:
+            Status: indicate if operation is successful
+
+        ：:rtype: Status
         """
 
         _abstract()
@@ -483,6 +492,11 @@ class ConnectIntf(object):
         :type table_name: str
 
         :return:
+            Status: indicate if operation is successful
+
+            TableSchema: table detail information
+
+        :rtype: (Status, TableSchema)
         """
 
         _abstract()
@@ -496,6 +510,9 @@ class ConnectIntf(object):
         :type table_name: str
 
         :return:
+            Status: indicate if operation is successful
+
+        ：:rtype: Status
         """
 
         _abstract()

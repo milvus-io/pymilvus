@@ -1,7 +1,6 @@
 """
 This is a client for milvus of gRPC
 """
-import time
 import grpc
 import logging
 from grpc._cython import cygrpc
@@ -11,7 +10,6 @@ from .Abstract import (
     ConnectIntf,
     TableSchema,
     Range,
-    QueryResult,
     TopKQueryResult,
     IndexParam
 )
@@ -379,11 +377,8 @@ class GrpcMilvus(ConnectIntf):
 
                 `OR using Prepare.table_schema to create param`
 
-        :type  metric_type:
-        :param metric_type:
-
-        :type  timeout:
-        :param timeout:
+        :param timeout: timeout, The unit is seconds
+        :type  timeout: double
 
         :return: Status, indicate if operation is successful
         :rtype: Status
@@ -416,8 +411,7 @@ class GrpcMilvus(ConnectIntf):
         :param table_name: table name is going to be tested.
         :type table_name: str
 
-        :return:
-            bool, if given table_name exists
+        :return: bool if given table_name exists
 
         """
         if not self.connected():
@@ -621,46 +615,13 @@ class GrpcMilvus(ConnectIntf):
             table_name, query_records, query_ranges, top_k, nprobe
         )
 
-        # results = TopKQueryResult()
-
         try:
             response = self._stub.Search(infos)
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message=response.status.reason), []
 
-            # t0 = time.time()
-            # for topk_query_result in response.topk_query_result:
-            #     results.append([QueryResult(id=result.id, distance=result.distance) for result in
-            #                     topk_query_result.query_result_arrays])
-            #
-            # t1 = time.time()
-
-            # results2 = []
-            # for topk_query_result in response.topk_query_result:
-            #     rt = Result()
-            #     for result in topk_query_result.query_result_arrays:
-            #         rt.ids.append(result.id)
-            #         rt.distances.append(result.distance)
-            #     results2.append(rt)
-
-            # results3 = TopKQueryResult()
-            # for topk_query_result in response.topk_query_result:
-            #     query_result = QueryResultL()
-            #     for result in topk_query_result.query_result_arrays:
-            #         query_result.append(result.id, result.distance)
-            #     results3.append(query_result)
-            #
-            # t2 = time.time()
-            #
-            # print("[1]: {:.4f}\n[2]: {:.4f}".format(t1 - t0, t2 - t1))
-
-            # results = TopKQueryRawResult(response)
-            t0 = time.time()
             results = TopKQueryResult(response)
-            t1 = time.time()
 
-            print("\ntime cost {} s. shape: {}\n".format(t1 - t0, results.shape))
-            print(results)
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
@@ -885,18 +846,20 @@ class GrpcMilvus(ConnectIntf):
 
     def delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
         """
-        Delete vectors by range
+        Delete vectors by range. The data range contains start_time but not end_time
+        should be implemented
 
         :type  table_name: str
-        :param table_name:
+        :param table_name: str, date, datetime
 
-        :type  start_date: str
+        :type  start_date: str, date, datetime
         :param start_date:
 
-        :type  end_date:
+        :type  end_date: str, date, datetime
         :param end_date:
 
-        :return: Status
+        :return:
+            Status:  indicate if invoke is successful
         """
 
         if not self.connected():
@@ -975,6 +938,17 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
     def drop_index(self, table_name, timeout=10):
+        """
+        drop index from index file
+
+        :param table_name: target table name.
+        :type table_name: str
+
+        :return:
+            Status: indicate if operation is successful
+
+        ：:rtype: Status
+        """
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')

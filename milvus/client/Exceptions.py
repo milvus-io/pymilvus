@@ -13,6 +13,9 @@ class ConnectError(ValueError):
 
 
 class NotConnectError(ConnectError):
+    """
+    Disconnect error
+    """
     pass
 
 

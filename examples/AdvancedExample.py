@@ -1,8 +1,6 @@
 import random
 import time
-from functools import wraps
 
-import sys
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 512
@@ -151,6 +149,7 @@ def run():
     status, index = milvus.describe_index(table_name)
     print(index)
 
+    # generate query vectors
     query_vectors = random_vectors(nq)
 
     search_vectors(query_vectors)
