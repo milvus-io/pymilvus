@@ -11,12 +11,6 @@ def is_legal_array(array):
     return True
 
 
-def is_legal_arrays(array):
-    if not array or not isinstance(array, list):
-        return False
-    return True
-
-
 def int_or_str(item):
     if isinstance(item, int):
         return str(item)

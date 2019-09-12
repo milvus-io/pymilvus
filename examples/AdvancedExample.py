@@ -102,8 +102,7 @@ def create_table():
         print('Creating table `{}` ...\n'.format(TABLE_NAME))
         param = {
             'table_name': TABLE_NAME,
-            'dimension': DIMENSION,
-            'index_type': IndexType.FLAT
+            'dimension': DIMENSION
         }
 
         status = api.client.create_table(param)

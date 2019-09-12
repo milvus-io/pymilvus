@@ -30,7 +30,7 @@ class Status(object):
     CANNOT_DELETE_FILE = 20
     TIMEOUT = 21
 
-    def __init__(self, code=SUCCESS, message=None):
+    def __init__(self, code=SUCCESS, message="Success"):
         self.code = code
         self.message = message
 

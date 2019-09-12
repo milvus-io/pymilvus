@@ -18,7 +18,16 @@ class TestTimeout(object):
         with pytest.raises(NotConnectError):
             client.connect(timeout=0.0000000000001)
 
-    def test_create_table_timeout(self, gcon, gtable):
+    def test_create_table_timeout(self, gcon):
+        param = {
+            "table_name": "pymilvus",
+            "dimension": 128
+        }
+        status = gcon.create_table(param, timeout=0.0000001)
+        assert not status.OK()
+        assert status.code == status.TIMEOUT
+
+    def test_add_vectors_timeout(self, gcon, gtable):
         vectors = [[random.random() for _ in range(128)] for _ in range(1000)]
 
         status, _ = gcon.add_vectors(table_name=gtable, records=vectors, timeout=0.0000001)
@@ -27,6 +36,10 @@ class TestTimeout(object):
 
     def test_has_table_timeout(self, gcon, gtable):
         flag = gcon.has_table(gtable, timeout=0.00000000001)
+        assert not flag
+
+    def test_describe_table_timeout(self, gcon, gtable):
+        flag = gcon.describe_table(gtable, timeout=0.00000000001)
         assert not flag
 
     def test_delete_table_timeout(self, gcon, gtable):
@@ -51,8 +64,14 @@ class TestTimeout(object):
         assert not status.OK()
         assert status.code == Status.TIMEOUT
 
+    def test_get_table_row_count_timeout(self, gcon, gtable):
+        status, _ = gcon.get_table_row_count(gtable, timeout=0.000000000001)
+
+        assert not status.OK()
+        assert status.code == Status.TIMEOUT
+
     def test_drop_index_timeout(self, gcon, gtable):
-        status = gcon.drop_index(gtable, timeout=0.00000001)
+        status = gcon.drop_index(gtable, timeout=0.000000000001)
         assert not status.OK()
         assert status.code == Status.TIMEOUT
 
@@ -61,6 +80,11 @@ class TestTimeout(object):
         assert not status.OK()
 
     def test_preload_table(self, gcon, gvector):
-        status = gcon.preload_table(gvector, timeout=0.000001)
+        status = gcon.preload_table(gvector, timeout=0.00000000001)
+        assert not status.OK()
+        assert status.code == Status.TIMEOUT
+
+    def test_cmd_timeout(self, gcon):
+        status, _ = gcon._cmd("666", timeout=0.00000000000001)
         assert not status.OK()
         assert status.code == Status.TIMEOUT

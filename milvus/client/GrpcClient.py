@@ -176,15 +176,6 @@ class Prepare(object):
         return grpc_types.IndexParam(table_name=_table_name, index=_index)
 
     @classmethod
-    def vector_ids(cls, ids):
-        _status = status_pb2.Status(error_code=0, reason="OK")
-
-        if not is_legal_array(ids):
-            raise ParamError('Ids must be a list')
-
-        return grpc_types.VectorIds(status=_status, vector_id_array=ids)
-
-    @classmethod
     def search_param(cls, table_name, query_records, query_ranges, topk, nprobe):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
 
@@ -381,14 +372,6 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        if not isinstance(param, dict):
-            raise ParamError("`param` should be a dict")
-
-        if 'index_file_size' not in param:
-            param['index_file_size'] = 1024
-        if 'metric_type' not in param:
-            param['metric_type'] = MetricType.L2
-
         table_schema = Prepare.table_schema(param)
 
         try:
@@ -489,7 +472,7 @@ class GrpcMilvus(ConnectIntf):
                 'nlist': 16384
             }
         elif not isinstance(index, dict):
-            raise TypeError("param `index` should be a dictionary")
+            raise ParamError("param `index` should be a dictionary")
 
         index = {
             'index_type': index['index_type'] if 'index_type' in index else IndexType.FLAT,
@@ -504,7 +487,7 @@ class GrpcMilvus(ConnectIntf):
             if timeout == -1:
                 status = self._stub.CreateIndex(index_param)
             elif timeout < 0:
-                raise ValueError("Param `timeout` should be a positive number or -1")
+                raise ParamError("Param `timeout` should be a positive number or -1")
             else:
                 status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
             if status.error_code == 0:
@@ -637,7 +620,8 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Search vectors successfully!'), results
 
-    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, query_ranges=None):
+    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, query_ranges=None,
+                                **kwargs):
         """
         Query vectors in a table, in specified files
 
@@ -676,9 +660,15 @@ class GrpcMilvus(ConnectIntf):
             table_name, query_records, query_ranges, top_k, nprobe, file_ids
         )
 
+        lazy = kwargs.get("lazy", False)
+
         results = TopKQueryResult()
         try:
             response = self._stub.SearchInFiles(infos)
+
+            if lazy is True:
+                return response
+
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code, message=response.status.reason), []
 
@@ -813,7 +803,7 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self.cmd(cmd='version', timeout=timeout)
+        return self._cmd(cmd='version', timeout=timeout)
 
     def server_status(self, timeout=10):
         """
@@ -826,9 +816,9 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self.cmd(cmd='OK', timeout=timeout)
+        return self._cmd(cmd='OK', timeout=timeout)
 
-    def cmd(self, cmd, timeout=10):
+    def _cmd(self, cmd, timeout=10):
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
@@ -862,6 +852,10 @@ class GrpcMilvus(ConnectIntf):
 
         :return: Status
         """
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         delete_range = Prepare.delete_param(table_name, start_date, end_date)
 
         try:
@@ -884,6 +878,9 @@ class GrpcMilvus(ConnectIntf):
         :returns:
             Status:  indicate if invoke is successful
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         table_name = Prepare.table_name(table_name)
 
         try:
@@ -907,6 +904,9 @@ class GrpcMilvus(ConnectIntf):
             IndexSchema:
             
         """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
         table_name = Prepare.table_name(table_name)
 
         try:
@@ -929,6 +929,9 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
     def drop_index(self, table_name, timeout=10):
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
 
         table_name = Prepare.table_name(table_name)
         try:

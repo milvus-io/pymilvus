@@ -56,6 +56,13 @@ class TestConnection:
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
 
+    def test_connected(self, gcon):
+        assert gcon.connected()
+
+    def test_non_connected(self):
+        cnn = GrpcMilvus()
+        assert not cnn.connected()
+
     def test_uri(self):
         cnn = GrpcMilvus()
         cnn.connect(uri='tcp://127.0.0.1:19530')
@@ -110,10 +117,59 @@ class TestConnection:
         with pytest.raises(DisconnectNotConnectedClientError):
             cnn.disconnect()
 
+    def test_not_connect(self):
+        client = GrpcMilvus()
+
+        with pytest.raises(NotConnectError):
+            client.create_table({})
+
+        with pytest.raises(NotConnectError):
+            client.has_table("a")
+
+        with pytest.raises(NotConnectError):
+            client.describe_table("a")
+
+        with pytest.raises(NotConnectError):
+            client.delete_table("a")
+
+        with pytest.raises(NotConnectError):
+            client.create_index("a")
+
+        with pytest.raises(NotConnectError):
+            client.add_vectors("a", [], None)
+
+        with pytest.raises(NotConnectError):
+            client.get_table_row_count("a")
+
+        with pytest.raises(NotConnectError):
+            client.show_tables()
+
+        with pytest.raises(NotConnectError):
+            client.search_vectors("a", 1, 2, [])
+
+        with pytest.raises(NotConnectError):
+            client.search_vectors_in_files("a", [], [], 2, 1)
+
+        with pytest.raises(NotConnectError):
+            client._cmd("")
+
+        with pytest.raises(NotConnectError):
+            client.delete_vectors_by_range("Afd", "2010-01-01", "2020-12-31")
+
+        with pytest.raises(NotConnectError):
+            client.preload_table("a")
+
+        with pytest.raises(NotConnectError):
+            client.describe_index("a")
+
+        with pytest.raises(NotConnectError):
+            client.drop_index("")
+
 
 class TestTable:
 
     def test_create_table(self, gcon):
+        print(str(gcon))
         param = table_schema_factory()
         param['table_name'] = None
         with pytest.raises(ParamError):
@@ -154,6 +210,18 @@ class TestTable:
         time.sleep(1)
         gcon.delete_table(_param['table_name'])
 
+    def test_create_table_exception(self, gcon):
+        # mock_create_table.side_effect = grpc.RpcError
+
+        param = {
+            'table_name': 'test_151314',
+            'dimension': 128,
+            'index_file_size': 999999
+        }
+
+        status = gcon.create_table(param)
+        assert not status.OK()
+
     def test_delete_table(self, gcon):
         table_name = 'fake_table_name'
         res = gcon.delete_table(table_name)
@@ -163,6 +231,12 @@ class TestTable:
         table_name = 'fake_table_name'
         res = gcon.delete_table(table_name)
         assert not res.OK()
+
+    def test_delete_table_exception(self, gcon):
+        table_name = "^&&&2323523**"
+
+        status = gcon.delete_table(table_name)
+        assert not status.OK()
 
     def test_repeat_add_table(self, gcon):
         param = table_schema_factory()
@@ -183,6 +257,12 @@ class TestTable:
 
         with pytest.raises(Exception):
             result = gcon.has_table(1111)
+
+    def test_has_table_exception(self, gcon):
+        table_name = "^&&&2323523**"
+
+        ok = gcon.has_table(table_name)
+        assert not ok
 
 
 class TestVector:
@@ -246,6 +326,20 @@ class TestVector:
         res, ids = gcon.add_vectors(**param)
         assert not res.OK()
 
+    def test_add_vectors_wrong_table_name(self, gcon):
+        table_name = "&*^%&&dvfdgd(()"
+
+        vectors = records_factory(dim, nq)
+
+        status, _ = gcon.add_vectors(table_name, vectors)
+        assert not status.OK()
+
+    def test_add_vectors_wrong_insert_param(self, gcon, gvector):
+        vectors = records_factory(dim, nq)
+
+        with pytest.raises(ParamError):
+            gcon.add_vectors(gvector, vectors, insert_param="w353453")
+
 
 class TestSearch:
     def test_search_vector_normal(self, gcon, gvector):
@@ -262,6 +356,7 @@ class TestSearch:
         assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
+        print(results)
 
     def test_search_vector_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
@@ -345,6 +440,8 @@ class TestSearch:
             param['file_ids'].append(str(id))
             sta, result = gcon.search_vectors_in_files(**param)
             if sta.OK():
+                param['lazy'] = True
+                results = gcon.search_vectors_in_files(**param)
                 return
 
         print("search in file failed")
@@ -431,6 +528,17 @@ class TestCreateTable:
         status = gcon.create_table(param)
         assert status.OK()
 
+    def test_create_table_default(self, gcon):
+        param = {
+            'table_name': 'zilliz_test',
+            'dimension': 128
+        }
+
+        status = gcon.create_table(param)
+        assert status.OK()
+
+        gcon.delete_table('zilliz_test')
+
     def test_create_table_name_wrong(self, gcon):
         param = table_schema_factory()
         param['table_name'] = '.....'
@@ -500,6 +608,8 @@ class TestAddVectors:
 
         assert count == nq
 
+        gcon.preload_table(gtable)
+
     def test_add_vectors_ids(self, gcon, gtable):
         vectors = records_factory(dim, nb)
         ids = [i for i in range(nb)]
@@ -546,6 +656,12 @@ class TestIndex:
 
         assert status.OK()
         print("\n{}\n".format(index_schema))
+
+    def test_describe_index_wrong_table_name(self, gcon):
+        table_name = "%&%&"
+        status, _ = gcon.describe_index(table_name)
+
+        assert not status.OK()
 
     def test_drop_index(self, gcon, gtable):
         vectors = records_factory(dim, nb)
@@ -634,6 +750,40 @@ class TestBuildIndex:
         status = gcon.create_index(gvector, _index)
         assert status.OK()
 
+    @pytest.mark.skip("waiting fixing bug")
+    def test_create_index_exception(self, gcon, gvector):
+        _index = {
+            'index_type': IndexType.IVFLAT,
+            'nlist': 999999999
+        }
+
+        status = gcon.create_index(gvector, _index)
+        assert not status.OK()
+
+    def test_create_index_wrong_index(self, gcon, gvector):
+        _index = "23523423"
+
+        with pytest.raises(ParamError):
+            gcon.create_index(gvector, _index)
+
+    def test_create_index_wrong_timeout(self, gcon, gvector):
+        _index = {
+            'index_type': IndexType.IVFLAT,
+            'nlist': 4096
+        }
+
+        with pytest.raises(ParamError):
+            gcon.create_index(gvector, timeout=-90)
+
+    def test_create_index_wrong_table_name(self, gcon, gvector):
+        _index = {
+            'index_type': IndexType.IVFLAT,
+            'nlist': 4096
+        }
+
+        status = gcon.create_index("*^&*^dtedge", timeout=-1)
+        assert not status.OK()
+
 
 class TestCmd:
 
@@ -653,8 +803,8 @@ class TestCmd:
         assert status in ("OK", "ok")
 
     def test_cmd(self, gcon):
-        _, info = gcon.cmd("version")
+        _, info = gcon._cmd("version")
         assert info in ("0.4.0",)
 
-        _, info = gcon.cmd("OK")
+        _, info = gcon._cmd("OK")
         assert info in ("OK", "ok")
