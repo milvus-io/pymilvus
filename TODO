@@ -1,10 +1,10 @@
-#-7
-b. add factories for test
-f. sdk reconnect, disconnection can be caused by:
-    * Transient problems with the network
-    * Remote servive restarted
-    * Heavy load on either the remote or the local machine causes a timeout
-d. dataclass 优化
+a. dataclass 优化
     * QueryResult
-    * TopKQueryResult
-e. update example
+b. GRPC
+    * channel.subscribe  >> CHECKED
+   ** timeout per call, will raise a grpc.RpcError with status code DEADLINE_EXCEEDED
+c. Protoc
+    * SearchParam changed
+
+d. security
+    * check file_ids param in search_files

@@ -5,8 +5,13 @@ doc/en/build/
 *.egg
 *.egg-info
 **/__pycache__/
-**/__pycache__/
 /build/
 .remember
 .env
 temp/
+*.swp
+.coverage
+htmlcov/
+debug/
+milvus/client/wrapper.py
+

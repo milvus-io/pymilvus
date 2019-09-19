@@ -2,12 +2,14 @@
 import pytest
 
 # local application imports
-from factorys import gen_unique_str
-from milvus import Milvus, IndexType
+from factorys import *
+from milvus import Milvus, IndexType, MetricType
+
+host = "127.0.0.1"
 
 
 def pytest_addoption(parser):
-    parser.addoption("--ip", action="store", default="localhost")
+    parser.addoption("--ip", action="store", default=host)
     parser.addoption("--port", action="store", default=19530)
 
 
@@ -29,6 +31,24 @@ def connect(request):
 
 
 @pytest.fixture(scope="module")
+def gcon(request):
+    ip = request.config.getoption("--ip")
+    port = request.config.getoption("--port")
+    milvus = Milvus()
+    milvus.connect(host=ip, port=port)
+
+    def fin():
+        try:
+            milvus.disconnect()
+        except Exception as e:
+            print(e)
+            pass
+
+    request.addfinalizer(fin)
+    return milvus
+
+
+@pytest.fixture(scope="module")
 def args(request):
     ip = request.config.getoption("--ip")
     port = request.config.getoption("--port")
@@ -43,8 +63,9 @@ def table(request, connect):
     dim = getattr(request.module, "dim", "128")
     param = {'table_name': table_name,
              'dimension': dim,
-             'index_type': IndexType.FLAT,
-             'store_raw_vector': False}
+             'index_type': IndexType.IVFLAT,
+             'metric_type': MetricType.L2
+             }
     connect.create_table(param)
 
     def teardown():
@@ -54,3 +75,37 @@ def table(request, connect):
     request.addfinalizer(teardown)
 
     return table_name
+
+
+@pytest.fixture(scope="function")
+def gtable(request, gcon):
+    table_name = fake.table_name()
+    dim = getattr(request.module, "dim", 128)
+
+    param = {'table_name': table_name,
+             'dimension': dim,
+             'index_file_size': 1024,
+             'metric_type': MetricType.L2
+             }
+    gcon.create_table(param)
+
+    def teardown():
+        status, table_names = gcon.show_tables()
+        for name in table_names:
+            gcon.delete_table(name)
+
+    request.addfinalizer(teardown)
+
+    return table_name
+
+
+@pytest.fixture(scope='function')
+def gvector(request, gcon, gtable):
+    dim = getattr(request.module, 'dim', 128)
+
+    records = records_factory(dim, 10000)
+
+    gcon.add_vectors(gtable, records)
+    time.sleep(3)
+
+    return gtable
