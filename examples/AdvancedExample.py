@@ -3,11 +3,11 @@ import time
 
 from milvus import Milvus, IndexType, MetricType
 
-_DIM = 512
-nb = 500000  # number of vector dataset
-nq = 2000  # number of query vector
+_DIM = 128
+nb = 100000  # number of vector dataset
+nq = 10  # number of query vector
 table_name = 'examples_milvus'
-top_K = 1000
+top_K = 10
 
 server_config = {
     "host": 'localhost',

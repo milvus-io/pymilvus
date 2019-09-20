@@ -66,31 +66,32 @@ class TestConnection:
         cnn.connect(uri='tcp://127.0.0.1:19530')
         assert cnn.status.OK()
 
+    @pytest.mark.repeat(5)
     def test_connect(self):
-        cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
+            cnn = GrpcMilvus()
             cnn.connect('126.0.0.2', port="9999", timeout=2)
-            assert not cnn.status.OK()
+            # assert not cnn.status.OK()
 
-            cnn.connect('127.0.0.1', '9999', timeout=2)
-            assert not cnn.status.OK()
-
-            cnn.connect(port='9999', timeout=2)
-            assert not cnn.status.OK()
-
-            cnn.connect(uri='cp://127.0.0.1:19530', timeout=2)
-            assert not cnn.status.OK()
-
-    def test_connect_timeout(self):
-        cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2', port='19530', timeout=2)
+            cnn = GrpcMilvus()
+            cnn.connect('127.0.0.1', '9999', timeout=2)
+            # assert not cnn.status.OK()
+
+        with pytest.raises(ParamError):
+            cnn = GrpcMilvus()
+            cnn.connect(port='9999', timeout=2)
+            # assert not cnn.status.OK()
+
+        with pytest.raises(ParamError):
+            cnn = GrpcMilvus()
+            cnn.connect(uri='cp://127.0.0.1:19530', timeout=2)
+            # assert not cnn.status.OK()
 
     def test_wrong_connected(self):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2', port="123", timeout=1)
-        assert not cnn.connected()
+            cnn.connect(host='123.0.0.2', port="123", timeout=2)
 
     def test_uri_error(self):
         cnn = GrpcMilvus()
@@ -174,6 +175,10 @@ class TestConnection:
 
         with pytest.raises(NotConnectError):
             client.drop_index("")
+
+    def test_set_channel(self):
+        cnn = GrpcMilvus()
+        cnn.set_channel(host="www.baidu.com", port="19530")
 
 
 class TestTable:
@@ -527,7 +532,7 @@ class TestPing:
         milvus.connect()
 
         _, version = milvus.server_version()
-        assert version == '0.4.0'
+        assert version in ("0.4.0", "0.5.0")
 
 
 class TestCreateTable:
@@ -794,7 +799,7 @@ class TestCmd:
 
     def test_server_version(self, gcon):
         _, version = gcon.server_version()
-        assert version in ("0.4.0",)
+        assert version in ("0.4.0", "0.5.0")
 
     def test_server_status(self, gcon):
         _, status = gcon.server_status()
@@ -802,7 +807,7 @@ class TestCmd:
 
     def test_cmd(self, gcon):
         _, info = gcon._cmd("version")
-        assert info in ("0.4.0",)
+        assert info in ("0.4.0", "0.5.0")
 
         _, info = gcon._cmd("OK")
         assert info in ("OK", "ok")

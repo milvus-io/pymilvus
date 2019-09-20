@@ -3,6 +3,29 @@ from .Exceptions import ParamError
 from .types import MetricType, IndexType
 
 
+def is_legal_host(host):
+    if not isinstance(host, str):
+        return False
+
+    return True
+
+
+def is_legal_port(port):
+    if isinstance(port, str):
+        try:
+            _port = int(port)
+        except Exception:
+            return False
+
+    if isinstance(port, int):
+        _port = port
+
+    if _port <= 0 or _port > 65535:
+        return False
+
+    return True
+
+
 def is_legal_array(array):
     if not array or not isinstance(array, list):
         return False
