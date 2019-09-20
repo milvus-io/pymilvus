@@ -122,6 +122,10 @@ class TopKQueryResult(object):
         return self._array.__len__()
 
     def __repr__(self):
+        """
+
+        :return:
+        """
 
         lam = lambda x: "(id:{}, distance:{})".format(x.id, x.distance)
 
