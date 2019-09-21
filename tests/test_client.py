@@ -66,7 +66,6 @@ class TestConnection:
         cnn.connect(uri='tcp://127.0.0.1:19530')
         assert cnn.status.OK()
 
-    @pytest.mark.repeat(5)
     def test_connect(self):
         with pytest.raises(NotConnectError):
             cnn = GrpcMilvus()
