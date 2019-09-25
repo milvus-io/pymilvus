@@ -238,44 +238,29 @@ class GrpcMilvus(ConnectIntf):
     def set_channel(self, host=None, port=None, uri=None):
 
         if host is not None:
-            port = port or "19530"
-        elif port is not None:
+            _port = port or "19530"
+            _host = host
+        elif port is None:
+            try:
+                config_uri = urlparse(config.GRPC_URI)
+                _uri = urlparse(uri) if uri else config_uri
+
+                if _uri.scheme != 'tcp':
+                    raise ParamError(
+                        'Invalid parameter uri: `{}`. Scheme `{}` is not supported'.format(_uri, _uri.scheme))
+
+                _host = _uri.hostname
+                _port = _uri.port
+
+            except Exception:
+                raise ParamError("`{}` is illegal".format(uri or config_uri))
+        else:
             raise ParamError("Param is not complete. Please invoke as follow:\n"
                              "\t(host = ${HOST}, port = ${PORT})\n"
                              "\t(uri = ${URI})\n")
 
-        if not host:
-            config_uri = urlparse(config.GRPC_URI)
-            _uri = urlparse(uri) if uri else config_uri
-
-            if not host:
-                if _uri.scheme == 'tcp':
-                    try:
-                        _host = _uri.hostname
-                        if _host != 'localhost':
-                            socket.inet_aton(_host)
-                    except Exception:
-                        raise ParamError("host `{}` is not invalid".format(host))
-                    try:
-                        _port = _uri.port
-                    except Exception:
-                        raise ParamError("port `{}` is not invalid".format(port))
-                else:
-                    raise ParamError('Invalid parameter uri: {}'.format(uri))
-        else:
-            try:
-                _host = host
-                if _host != 'localhost':
-                    socket.inet_aton(_host)
-            except Exception:
-                raise ParamError("host `{}` is not invalid".format(host))
-            try:
-                _port = int(port)
-            except Exception:
-                raise ParamError("port `{}` is not invalid".format(port))
-
-        if _host.isdigit():
-            raise ParamError("host `{}` is not invalid".format(_host))
+        if not is_legal_host(_host) or not is_legal_port(_port):
+            raise ParamError("host or port is illegal")
 
         self._uri = str(_host) + ':' + str(_port)
         self.server_address = self._uri
@@ -311,8 +296,10 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
-        except grpc.FutureTimeoutError as e:
+        except grpc.FutureTimeoutError:
             raise NotConnectError('Fail connecting to server on {}'.format(self._uri))
+        except grpc.RpcError:
+            raise NotConnectError("Connect error")
         else:
             self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
             self.status = Status(message='Successfully connected! {}'.format(self._uri))

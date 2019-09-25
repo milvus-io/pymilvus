@@ -35,6 +35,7 @@
     - **[MS-512]** fix ids error
     - **[MS-521]** fix ids check error
     - **[MS-522]** fix index_param check error
+- \#88 ISSUE: fix bug connecting failed in celery cluster
     
 ### Improvement
 ---
