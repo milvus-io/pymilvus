@@ -253,7 +253,7 @@ class GrpcMilvus(ConnectIntf):
                 _port = _uri.port
 
             except Exception:
-                raise ParamError("`{}` is illegal".format(uri or config_uri))
+                raise ParamError("`{}` is illegal".format(uri))
         else:
             raise ParamError("Param is not complete. Please invoke as follow:\n"
                              "\t(host = ${HOST}, port = ${PORT})\n"
