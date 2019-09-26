@@ -16,7 +16,7 @@ dim = 128
 nb = 2000
 nq = 100
 
-_HOST = "localhost"
+_HOST = "127.0.0.1"
 _PORT = 19530
 
 
@@ -528,7 +528,7 @@ class TestPing:
 
     def test_ping_server_version(self):
         milvus = GrpcMilvus()
-        milvus.connect()
+        milvus.connect(host=_HOST, port=str(_PORT))
 
         _, version = milvus.server_version()
         assert version in ("0.4.0", "0.5.0")
@@ -656,7 +656,7 @@ class TestIndex:
         assert status.OK()
         assert len(ids) == nb
 
-        time.sleep(6)
+        time.sleep(3)
 
         _index = {
             'index_type': IndexType.IVFLAT,
@@ -664,7 +664,7 @@ class TestIndex:
         }
 
         gcon.create_index(gtable, _index)
-        time.sleep(10)
+        time.sleep(5)
 
         status, index_schema = gcon.describe_index(gtable)
 

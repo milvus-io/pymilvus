@@ -33,9 +33,7 @@ class Prepare(object):
     def table_name(cls, table_name):
 
         check_pass_param(table_name=table_name)
-
-        status = status_pb2.Status(error_code=0, reason='Client')
-        return grpc_types.TableName(status=status, table_name=table_name)
+        return grpc_types.TableName(table_name=table_name)
 
     @classmethod
     def table_schema(cls, param):
@@ -72,8 +70,8 @@ class Prepare(object):
 
         check_pass_param(**_param)
 
-        table_name = Prepare.table_name(_param["table_name"])
-        return grpc_types.TableSchema(table_name=table_name,
+        return grpc_types.TableSchema(status=status_pb2.Status(error_code=0, reason='Client'),
+                                      table_name=_param["table_name"],
                                       dimension=_param["dimension"],
                                       index_file_size=_param["index_file_size"],
                                       metric_type=_param["metric_type"])
@@ -169,10 +167,11 @@ class Prepare(object):
 
         check_pass_param(table_name=table_name, **index_param)
 
-        _table_name = Prepare.table_name(table_name)
         _index = Prepare.index(**index_param)
 
-        return grpc_types.IndexParam(table_name=_table_name, index=_index)
+        return grpc_types.IndexParam(status=status_pb2.Status(error_code=0, reason='Client'),
+                                     table_name=table_name,
+                                     index=_index)
 
     @classmethod
     def search_param(cls, table_name, query_records, query_ranges, topk, nprobe):
@@ -223,6 +222,7 @@ class Prepare(object):
 
 
 class GrpcMilvus(ConnectIntf):
+
     def __init__(self):
         self._channel = None
         self._stub = None
@@ -698,10 +698,10 @@ class GrpcMilvus(ConnectIntf):
         try:
             ts = self._stub.DescribeTable.future(table_name).result(timeout=timeout)
 
-            if ts.table_name.status.error_code == 0:
+            if ts.status.error_code == 0:
 
                 table = TableSchema(
-                    table_name=ts.table_name.table_name,
+                    table_name=ts.table_name,
                     dimension=ts.dimension,
                     index_file_size=ts.index_file_size,
                     metric_type=ts.metric_type
@@ -709,17 +709,16 @@ class GrpcMilvus(ConnectIntf):
 
                 return Status(message='Describe table successfully!'), table
             else:
-                LOGGER.error(ts.table_name.status)
-                return Status(code=ts.table_name.status.error_code,
-                              message=ts.table_name.status.reason), None
+                LOGGER.error(ts.status)
+                return Status(code=ts.status.error_code, message=ts.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
-    def show_tables(self):
+    def show_tables(self, timeout=10):
         """
         Show all tables in database
 
@@ -736,8 +735,13 @@ class GrpcMilvus(ConnectIntf):
 
         cmd = Prepare.cmd('666999')
         try:
-            results = [table.table_name for table in self._stub.ShowTables(cmd)]
-            return Status(message='Show tables successfully!'), results
+            response = self._stub.ShowTables.future(cmd).result(timeout=timeout)
+            if response.status.error_code == 0:
+                table_names = [name for name in response.table_names]
+                return Status(message='Show tables successfully!'), table_names
+            return Status(response.status.error_code, message='Show tables successfully!'), []
+        except grpc.FutureTimeoutError:
+            return Status(Status.UNEXPECTED_ERROR, message="Request timeout"), []
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
@@ -898,7 +902,7 @@ class GrpcMilvus(ConnectIntf):
         :returns:
             Status:  indicate if query is successful
             IndexSchema:
-            
+
         """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
@@ -908,11 +912,11 @@ class GrpcMilvus(ConnectIntf):
         try:
             index_param = self._stub.DescribeIndex.future(table_name).result(timeout=timeout)
 
-            status = index_param.table_name.status
+            status = index_param.status
 
             if status.error_code == 0:
                 return Status(message="Successfully"), \
-                       IndexParam(index_param.table_name.table_name,
+                       IndexParam(index_param.table_name,
                                   index_param.index.index_type,
                                   index_param.index.nlist)
             else:
