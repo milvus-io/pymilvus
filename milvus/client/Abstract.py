@@ -87,9 +87,11 @@ class TopKQueryResult(object):
     TopK query results, 2-D array of query result
     """
 
-    def __init__(self, raw_source):
+    def __init__(self, raw_source, **kwargs):
         self._raw = raw_source
-        self._array = self._create_array(self._raw)
+        self._async = kwargs.get("async", False)
+        self._lazy = kwargs.get("lazy", False)
+        self._array = self._create_array(self._raw) if not (self._async or self._lazy) else None
 
     def _create_array(self, raw):
 
@@ -105,12 +107,20 @@ class TopKQueryResult(object):
     def shape(self):
         row = len(self._array)
 
-        if row == 0:
-            column = 0
-        else:
-            column = len(self._array[0])
+        column = 0 if row == 0 else len(self._array[0])
 
         return row, column
+
+    @property
+    def raw(self):
+        return self._raw
+
+    def result(self, timeout=10):
+        if self._async is True:
+            response = self._raw.result(timeout=timeout)
+            return TopKQueryResult(response, lazy=self._lazy, async=False)
+
+        return self
 
     def __getitem__(self, item):
         return self._array.__getitem__(item)

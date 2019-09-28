@@ -372,6 +372,60 @@ class TestSearch:
         assert len(results[0]) == topk
         print(results)
 
+    def test_search_vector_lazy(self, gcon, gvector):
+        topk = random.randint(1, 10)
+        query_records = records_factory(dim, nq)
+        param = {
+            'table_name': gvector,
+            'query_records': query_records,
+            'top_k': topk,
+            'nprobe': 10,
+            'lazy': True
+        }
+        res, results = gcon.search_vectors(**param)
+
+        with pytest.raises(Exception):
+            results[0]
+
+    def test_search_vector_async(self, gcon, gvector):
+        topk = random.randint(1, 10)
+        query_records = records_factory(dim, nq)
+        param = {
+            'table_name': gvector,
+            'query_records': query_records,
+            'top_k': topk,
+            'nprobe': 10,
+            'async': True
+        }
+        res, results = gcon.search_vectors(**param)
+
+        assert res.OK()
+
+        results_ = results.result(timeout=10)
+
+        assert len(results_) == nq
+        assert len(results_[0]) == topk
+
+    def test_search_vector_async_lazy(self, gcon, gvector):
+        topk = random.randint(1, 10)
+        query_records = records_factory(dim, nq)
+        param = {
+            'table_name': gvector,
+            'query_records': query_records,
+            'top_k': topk,
+            'nprobe': 10,
+            'async': True,
+            'lazy': True
+        }
+        res, results = gcon.search_vectors(**param)
+
+        assert res.OK()
+
+        results_ = results.result(timeout=10)
+
+        with pytest.raises(Exception):
+            results_[0]
+
     def test_search_vector_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim + 1, nq)
