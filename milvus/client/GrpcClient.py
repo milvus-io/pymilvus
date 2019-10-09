@@ -199,8 +199,6 @@ class Prepare(object):
     def search_vector_in_files_param(cls, table_name, query_records, query_ranges, topk, nprobe, ids):
         _search_param = Prepare.search_param(table_name, query_records, query_ranges, topk, nprobe)
 
-        # check_pass_param(ids=ids)
-
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,
             search_param=_search_param
@@ -253,7 +251,7 @@ class GrpcMilvus(ConnectIntf):
                 _port = _uri.port
 
             except Exception:
-                raise ParamError("`{}` is illegal".format(uri or config_uri))
+                raise ParamError("`{}` is illegal".format(uri))
         else:
             raise ParamError("Param is not complete. Please invoke as follow:\n"
                              "\t(host = ${HOST}, port = ${PORT})\n"

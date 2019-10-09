@@ -526,12 +526,10 @@ class TestPrepare:
 
 class TestPing:
 
-    def test_ping_server_version(self):
-        milvus = GrpcMilvus()
-        milvus.connect()
+    def test_ping_server_version(self, gcon):
 
-        _, version = milvus.server_version()
-        assert version in ("0.4.0", "0.5.0")
+        _, version = gcon.server_version()
+        assert version in ("0.4.0",)
 
 
 class TestCreateTable:
