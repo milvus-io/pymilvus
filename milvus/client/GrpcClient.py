@@ -198,8 +198,6 @@ class Prepare(object):
     def search_vector_in_files_param(cls, table_name, query_records, query_ranges, topk, nprobe, ids):
         _search_param = Prepare.search_param(table_name, query_records, query_ranges, topk, nprobe)
 
-        # check_pass_param(ids=ids)
-
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,
             search_param=_search_param
@@ -602,11 +600,11 @@ class GrpcMilvus(ConnectIntf):
             table_name, query_records, query_ranges, top_k, nprobe
         )
 
-        lazy = kwargs.get("lazy", False)
-        async = kwargs.get("async", False)
+        lazy_flag = kwargs.get("lazy_", False)
+        async_flag = kwargs.get("async_", False)
 
         try:
-            if async is True:
+            if async_flag is True:
                 response = self._stub.Search.future(infos)
             else:
                 response = self._stub.Search(infos)
@@ -614,7 +612,8 @@ class GrpcMilvus(ConnectIntf):
                 if response.status.error_code != 0:
                     return Status(code=response.status.error_code, message=response.status.reason), []
 
-            return Status(message='Search vectors successfully!'), TopKQueryResult(response, async=async, lazy=lazy)
+            return Status(message='Search vectors successfully!'), TopKQueryResult(response, async_=async_flag,
+                                                                                   lazy_=lazy_flag)
 
         except grpc.RpcError as e:
             LOGGER.error(e)
@@ -662,11 +661,11 @@ class GrpcMilvus(ConnectIntf):
             table_name, query_records, query_ranges, top_k, nprobe, file_ids
         )
 
-        lazy = kwargs.get("lazy", False)
-        async = kwargs.get("async", False)
+        lazy_flag = kwargs.get("lazy_", False)
+        async_flag = kwargs.get("async_", False)
 
         try:
-            if async is True:
+            if async_flag is True:
                 response = self._stub.SearchInFiles.future(infos)
             else:
                 response = self._stub.SearchInFiles(infos)
@@ -674,7 +673,7 @@ class GrpcMilvus(ConnectIntf):
                 if response.status.error_code != 0:
                     return Status(code=response.status.error_code, message=response.status.reason), []
 
-            return Status(message='Search vectors successfully!'), TopKQueryResult(response, async=async, lazy=lazy)
+            return Status(message='Search vectors successfully!'), TopKQueryResult(response, async_=async_flag, lazy_=lazy_flag)
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
