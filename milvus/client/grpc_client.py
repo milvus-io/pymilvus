@@ -1,10 +1,10 @@
 """
 This is a client for milvus of gRPC
 """
-import grpc
+from urllib.parse import urlparse
 import logging
+import grpc
 from grpc._cython import cygrpc
-import socket
 
 from .Abstract import (
     ConnectIntf,
@@ -14,20 +14,26 @@ from .Abstract import (
     IndexParam
 )
 
-from .types import IndexType, Status
-from .utils import *
-from .Exceptions import *
+from .types import IndexType, MetricType, Status
+from .utils import (
+    check_pass_param,
+    int_or_str,
+    is_legal_host,
+    is_legal_port,
+    is_legal_array
+)
+from .Exceptions import ParamError, NotConnectError, DisconnectNotConnectedClientError
 from ..settings import DefaultConfig as config
 
 from ..grpc_gen import milvus_pb2_grpc, status_pb2
 from ..grpc_gen import milvus_pb2 as grpc_types
-from urllib.parse import urlparse
 
-LOGGER = logging.getLogger(__name__)
 from . import __version__
 
+LOGGER = logging.getLogger(__name__)
 
-class Prepare(object):
+
+class Prepare:
 
     @classmethod
     def table_name(cls, table_name):
@@ -195,8 +201,10 @@ class Prepare(object):
         return search_param
 
     @classmethod
-    def search_vector_in_files_param(cls, table_name, query_records, query_ranges, topk, nprobe, ids):
-        _search_param = Prepare.search_param(table_name, query_records, query_ranges, topk, nprobe)
+    def search_vector_in_files_param(cls, table_name, query_records,
+                                     query_ranges, topk, nprobe, ids):
+        _search_param = Prepare.search_param(table_name, query_records,
+                                             query_ranges, topk, nprobe)
 
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,
@@ -673,7 +681,8 @@ class GrpcMilvus(ConnectIntf):
                 if response.status.error_code != 0:
                     return Status(code=response.status.error_code, message=response.status.reason), []
 
-            return Status(message='Search vectors successfully!'), TopKQueryResult(response, async_=async_flag, lazy_=lazy_flag)
+            return Status(message='Search vectors successfully!'), TopKQueryResult(response, async_=async_flag,
+                                                                                   lazy_=lazy_flag)
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))

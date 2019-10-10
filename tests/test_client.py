@@ -4,7 +4,7 @@ import sys
 
 sys.path.append('.')
 
-from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
+from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.Abstract import IndexType, TableSchema, TopKQueryResult, MetricType
 from milvus.client.Exceptions import *
 
@@ -184,6 +184,33 @@ class TestConnection:
     def test_set_channel(self):
         cnn = GrpcMilvus()
         cnn.set_channel(host="www.baidu.com", port="19530")
+
+
+@pytest.mark.skip
+class TestIndextype:
+
+    index_param = {
+        'index_type': IndexType.FLAT,
+        'nlist': 128
+    }
+
+    def test_flat(self, gcon, gvector):
+        self.index_param['index_type'] = IndexType.FLAT
+
+        gcon.create_index(gvector, self.index_param)
+        pass
+
+    def test_ifvflat(self, gcon, gvector):
+        pass
+
+    def test_ivfsq8(self, gcon, gvector):
+        pass
+
+    def test_mixnsg(self, gcon, gvector):
+        pass
+
+    def test_ivfsqh(self, gcon, gvector):
+        pass
 
 
 class TestTable:
@@ -386,7 +413,7 @@ class TestSearch:
             'query_records': query_records,
             'top_k': topk,
             'nprobe': 10,
-            'lazy': True
+            'lazy_': True
         }
         res, results = gcon.search_vectors(**param)
 
@@ -401,7 +428,7 @@ class TestSearch:
             'query_records': query_records,
             'top_k': topk,
             'nprobe': 10,
-            'async': True
+            'async_': True
         }
         res, results = gcon.search_vectors(**param)
 
@@ -420,8 +447,8 @@ class TestSearch:
             'query_records': query_records,
             'top_k': topk,
             'nprobe': 10,
-            'async': True,
-            'lazy': True
+            'async_': True,
+            'lazy_': True
         }
         res, results = gcon.search_vectors(**param)
 
@@ -586,11 +613,8 @@ class TestPrepare:
 
 class TestPing:
 
-    def test_ping_server_version(self):
-        milvus = GrpcMilvus()
-        milvus.connect(host=_HOST, port=str(_PORT))
-
-        _, version = milvus.server_version()
+    def test_ping_server_version(self, gcon):
+        _, version = gcon.server_version()
         assert version in ("0.4.0", "0.5.0")
 
 
@@ -699,13 +723,6 @@ class TestAddVectors:
 
         assert count == nb
 
-    def test_add_vectors_ids(self, gcon, gtable):
-        vectors = records_factory(dim, nq)
-        ids = [i for i in range(nq - 2)]
-
-        with pytest.raises(ParamError):
-            gcon.add_vectors(gtable, vectors, ids)
-
 
 class TestIndex:
 
@@ -796,7 +813,7 @@ class TestSearchVectors:
 
         assert status.OK()
 
-        ranges = [['2019-06-25', '2019-10-10']]
+        ranges = ranges_factory()
         time.sleep(2)
 
         s_vectors = [vectors[0]]

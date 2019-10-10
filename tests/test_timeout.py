@@ -4,7 +4,7 @@ import sys
 
 sys.path.append('.')
 
-from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
+from milvus import Prepare, Milvus, Status
 from milvus.client.Exceptions import *
 
 dim = 128
@@ -14,7 +14,7 @@ class TestTimeout(object):
     TIMEOUT = 0.0000000001
 
     def test_connect_timeout(self):
-        client = GrpcMilvus()
+        client = Milvus()
         with pytest.raises(NotConnectError):
             client.connect(timeout=self.TIMEOUT)
 

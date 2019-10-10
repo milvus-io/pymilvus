@@ -36,7 +36,8 @@
     - **[MS-521]** fix ids check error
     - **[MS-522]** fix index_param check error
 - \#88 ISSUE: fix bug connecting failed in celery cluster
-    
+- \#90 ISSUE: remove TODO file
+  
 ### Improvement
 ---
 - \#10 ISSUE: Update examples

@@ -118,7 +118,7 @@ class TopKQueryResult(object):
     def result(self, timeout=10):
         if self._async is True:
             response = self._raw.result(timeout=timeout)
-            return TopKQueryResult(response, lazy=self._lazy, async=False)
+            return TopKQueryResult(response, lazy_=self._lazy, async_=False)
 
         return self
 
