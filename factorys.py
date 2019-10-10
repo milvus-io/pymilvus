@@ -93,8 +93,8 @@ fake.add_provider(FakerProvider)
 
 def range_factory():
     param = {
-        'start_date': '2019-06-25',
-        'end_date': '2019-10-10'
+        'start_date': '2019-01-01',
+        'end_date': '2029-12-31'
     }
     return gPrepare.range(**param)
 
