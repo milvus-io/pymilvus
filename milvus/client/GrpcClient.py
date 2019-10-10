@@ -297,7 +297,7 @@ class GrpcMilvus(ConnectIntf):
         try:
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
         except grpc.FutureTimeoutError:
-            raise NotConnectError('Fail connecting to server on {}'.format(self._uri))
+            raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
         except grpc.RpcError:
             raise NotConnectError("Connect error")
         else:

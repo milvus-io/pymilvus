@@ -20,6 +20,12 @@ _HOST = "127.0.0.1"
 _PORT = 19530
 
 
+class TestChannel:
+    def test_channel_host_port(self):
+        client = GrpcMilvus()
+
+        client.set_channel(host="localhost", port="19530")
+
 @pytest.mark.skip
 class TestConnection:
     param = {'host': _HOST, 'port': str(_PORT)}
