@@ -734,7 +734,7 @@ class TestSearchVectors:
 
         assert status.OK()
 
-        ranges = [['2019-06-25', '2019-10-10']]
+        ranges = ranges_factory()
         time.sleep(2)
 
         s_vectors = [vectors[0]]
