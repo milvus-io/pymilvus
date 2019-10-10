@@ -1,6 +1,6 @@
 ---
 name: "\U0001F914 General question"
-about: Describe this issue template's purpose here.
+about: Ask a general question about pymilvus
 title: ''
 labels: ''
 assignees: ''
