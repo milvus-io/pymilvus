@@ -526,12 +526,10 @@ class TestPrepare:
 
 class TestPing:
 
-    def test_ping_server_version(self):
-        milvus = GrpcMilvus()
-        milvus.connect()
+    def test_ping_server_version(self, gcon):
 
-        _, version = milvus.server_version()
-        assert version in ("0.4.0", "0.5.0")
+        _, version = gcon.server_version()
+        assert version in ("0.4.0",)
 
 
 class TestCreateTable:
@@ -736,7 +734,7 @@ class TestSearchVectors:
 
         assert status.OK()
 
-        ranges = [['2019-06-25', '2019-10-10']]
+        ranges = ranges_factory()
         time.sleep(2)
 
         s_vectors = [vectors[0]]
