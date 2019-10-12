@@ -216,11 +216,10 @@ class TestIndextype:
 class TestTable:
 
     def test_create_table(self, gcon):
-        print(str(gcon))
         param = table_schema_factory()
         param['table_name'] = None
         with pytest.raises(ParamError):
-            res = gcon.create_table(param)
+            gcon.create_table(param)
 
         param = table_schema_factory()
         res = gcon.create_table(param)
@@ -233,11 +232,6 @@ class TestTable:
             res = gcon.create_table(param)
 
         param = '09998876565'
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
-        param['dimension'] = 0
         with pytest.raises(ParamError):
             gcon.create_table(param)
 
@@ -326,7 +320,7 @@ class TestVector:
 
         param['records'] = [['string']]
         with pytest.raises(ParamError):
-            res, ids = gcon.add_vectors(**param)
+            gcon.add_vectors(**param)
 
     def test_add_vector_with_ids(self, gcon, gtable):
         param = {

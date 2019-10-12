@@ -1,12 +1,11 @@
 import sys
 import copy
-
-sys.path.append('.')
-from milvus.client.Exceptions import *
-
 import pytest
 import time
 import random
+
+sys.path.append('.')
+from milvus.client.Exceptions import *
 
 
 def test_create_table_param(gcon):
@@ -34,8 +33,8 @@ def test_create_table_param(gcon):
 
     table_param = copy.deepcopy(_PARAM)
     table_param["index_file_size"] = -1
-    with pytest.raises(ParamError):
-        gcon.create_table(table_param)
+    status = gcon.create_table(table_param)
+    assert not status.OK()
 
     table_param = copy.deepcopy(_PARAM)
     table_param["metric_type"] = 0
@@ -79,8 +78,9 @@ def test_create_index_param(gcon, gvector):
         'index_type': 1,
         'nlist': -1
     }
-    with pytest.raises(ParamError):
-        gcon.create_index(gvector, index)
+
+    status = gcon.create_index(gvector, index)
+    assert not status.OK()
 
     index = {
         'index_type': -1,
@@ -100,8 +100,9 @@ def test_create_index_param(gcon, gvector):
         'index_type': 1,
         'nlist': 0
     }
-    with pytest.raises(ParamError):
-        gcon.create_index(gvector, index)
+
+    status = gcon.create_index(gvector, index)
+    assert not status.OK()
 
 
 def test_add_vectors_param(gcon, gtable):
@@ -118,8 +119,9 @@ def test_add_vectors_param(gcon, gtable):
 
 def test_search_param(gcon, gvector):
     query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
-    with pytest.raises(ParamError):
-        gcon.search_vectors(gvector, top_k=0, nprobe=16, query_records=query_vectors)
 
-    with pytest.raises(ParamError):
-        gcon.search_vectors(gvector, top_k=1, nprobe=0, query_records=query_vectors)
+    status, _ = gcon.search_vectors(gvector, top_k=0, nprobe=16, query_records=query_vectors)
+    assert not status.OK()
+
+    status, _ = gcon.search_vectors(gvector, top_k=1, nprobe=0, query_records=query_vectors)
+    assert not status.OK()
