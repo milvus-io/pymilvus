@@ -21,32 +21,45 @@ _PORT = 19530
 
 
 class TestChannel:
+    client = GrpcMilvus()
+
     def test_channel_host_port(self):
-        client = GrpcMilvus()
+        try:
+            self.client.set_channel(host="localhost", port="19530")
+            self.client.set_channel(host="www.milvus.io", port="19530")
+        except Exception:
+            assert False
 
-        client.set_channel(host="localhost", port="19530")
+    def test_channel_uri(self):
+        try:
+            self.client.set_channel(uri="tcp://192.168.1.1:9999")
+        except Exception:
+            assert False
 
-@pytest.mark.skip
+    def test_channel_host_non_port(self):
+        try:
+            self.client.set_channel(host="localhost")
+        except Exception:
+            assert False
+
+    def test_channel_only_port(self):
+        with pytest.raises(ParamError):
+            self.client.set_channel(port=9999)
+
+
 class TestConnection:
-    param = {'host': _HOST, 'port': str(_PORT)}
 
-    def test_true_connect(self):
+    def test_true_connect(self, gip):
         cnn = GrpcMilvus()
 
-        cnn.connect(**self.param)
+        cnn.connect(*gip)
         assert cnn.status.OK
         assert cnn.connected()
 
         # Repeating connect
-        _ = cnn.connect(**self.param)
+        _ = cnn.connect(*gip)
         status = cnn.connect()
         assert status == Status.CONNECT_FAILED
-
-    def test_ip_connect(self):
-        cnn = GrpcMilvus()
-        cnn.connect("localhost")
-        assert cnn.status.OK
-        assert cnn.connected()
 
     def test_false_connect(self):
         cnn = GrpcMilvus()
@@ -67,31 +80,11 @@ class TestConnection:
         cnn = GrpcMilvus()
         assert not cnn.connected()
 
-    def test_uri(self):
+    def test_uri(self, gip):
         cnn = GrpcMilvus()
-        cnn.connect(uri='tcp://127.0.0.1:19530')
+        uri = 'tcp://{}:{}'.format(gip[0], gip[1])
+        cnn.connect(uri=uri)
         assert cnn.status.OK()
-
-    def test_connect(self):
-        with pytest.raises(NotConnectError):
-            cnn = GrpcMilvus()
-            cnn.connect('126.0.0.2', port="9999", timeout=2)
-            # assert not cnn.status.OK()
-
-        with pytest.raises(NotConnectError):
-            cnn = GrpcMilvus()
-            cnn.connect('127.0.0.1', '9999', timeout=2)
-            # assert not cnn.status.OK()
-
-        with pytest.raises(ParamError):
-            cnn = GrpcMilvus()
-            cnn.connect(port='9999', timeout=2)
-            # assert not cnn.status.OK()
-
-        with pytest.raises(ParamError):
-            cnn = GrpcMilvus()
-            cnn.connect(uri='cp://127.0.0.1:19530', timeout=2)
-            # assert not cnn.status.OK()
 
     def test_wrong_connected(self):
         cnn = GrpcMilvus()
@@ -99,38 +92,43 @@ class TestConnection:
             cnn.connect(host='123.0.0.2', port="123", timeout=2)
 
     def test_uri_error(self):
-        cnn = GrpcMilvus()
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(uri='http://127.0.0.1:19530')
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(uri='tcp://127.0.a.1:9999')
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(uri='tcp://127.0.0.1:aaa')
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(host="1234", port="1")
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(host="aaa", port="1")
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(host="192.168.1.101", port="a")
 
-    def test_disconnected(self):
+    def test_disconnected(self, gip):
         cnn = GrpcMilvus()
-        cnn.connect(**self.param)
+        cnn.connect(*gip)
 
         assert cnn.disconnect().OK()
         assert not cnn.connected()
 
-        cnn.connect(**self.param)
+        cnn.connect(*gip)
         assert cnn.connected()
 
     def test_disconnected_error(self):
         cnn = GrpcMilvus()
-        with pytest.raises(DisconnectNotConnectedClientError):
+        with pytest.raises(NotConnectError):
             cnn.disconnect()
 
     def test_not_connect(self):
@@ -186,33 +184,6 @@ class TestConnection:
         cnn.set_channel(host="www.baidu.com", port="19530")
 
 
-@pytest.mark.skip
-class TestIndextype:
-
-    index_param = {
-        'index_type': IndexType.FLAT,
-        'nlist': 128
-    }
-
-    def test_flat(self, gcon, gvector):
-        self.index_param['index_type'] = IndexType.FLAT
-
-        gcon.create_index(gvector, self.index_param)
-        pass
-
-    def test_ifvflat(self, gcon, gvector):
-        pass
-
-    def test_ivfsq8(self, gcon, gvector):
-        pass
-
-    def test_mixnsg(self, gcon, gvector):
-        pass
-
-    def test_ivfsqh(self, gcon, gvector):
-        pass
-
-
 class TestTable:
 
     def test_create_table(self, gcon):
@@ -252,8 +223,6 @@ class TestTable:
         gcon.delete_table(_param['table_name'])
 
     def test_create_table_exception(self, gcon):
-        # mock_create_table.side_effect = grpc.RpcError
-
         param = {
             'table_name': 'test_151314',
             'dimension': 128,
@@ -290,20 +259,14 @@ class TestTable:
 
     def test_has_table(self, gcon, gtable):
         table_name = fake.table_name()
-        result = gcon.has_table(table_name)
+        status, result = gcon.has_table(table_name)
         assert not result
 
         result = gcon.has_table(gtable)
         assert result
 
         with pytest.raises(Exception):
-            result = gcon.has_table(1111)
-
-    def test_has_table_exception(self, gcon):
-        table_name = "^&&&2323523**"
-
-        ok = gcon.has_table(table_name)
-        assert not ok
+            gcon.has_table(1111)
 
 
 class TestVector:
@@ -357,7 +320,7 @@ class TestVector:
         param = {'table_name': gtable, 'records': [[]]}
 
         with pytest.raises(Exception):
-            res, ids = gcon.add_vectors(**param)
+            gcon.add_vectors(**param)
 
     def test_false_add_vector(self, gcon):
         param = {
@@ -397,7 +360,6 @@ class TestSearch:
         assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
-        print(results)
 
     def test_search_vector_lazy(self, gcon, gvector):
         topk = random.randint(1, 10)
@@ -680,7 +642,8 @@ class TestHasTable:
         s = gcon.create_table(param)
         assert s.OK()
 
-        flag = gcon.has_table(param['table_name'])
+        status, flag = gcon.has_table(param['table_name'])
+        assert status.OK()
         assert flag
 
 

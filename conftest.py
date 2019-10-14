@@ -5,12 +5,21 @@ import pytest
 from factorys import *
 from milvus import Milvus, IndexType, MetricType
 
-host = "127.0.0.1"
+default_host = "127.0.0.1"
+default_port = 19530
 
 
 def pytest_addoption(parser):
-    parser.addoption("--ip", action="store", default=host)
-    parser.addoption("--port", action="store", default=19530)
+    parser.addoption("--ip", action="store", default=default_host)
+    parser.addoption("--port", action="store", default=default_port)
+
+
+@pytest.fixture(scope="module")
+def gip(request):
+    ip_ = request.config.getoption("--ip")
+    port_ = request.config.getoption("--port")
+
+    return ip_, port_
 
 
 @pytest.fixture(scope="module")

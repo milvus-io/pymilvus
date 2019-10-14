@@ -44,7 +44,7 @@ def test_create_table_param(gcon):
 
 def test_has_table_param(gcon):
     table_name = "test_has_table_param"
-    flag = gcon.has_table(table_name)
+    status, flag = gcon.has_table(table_name)
     assert not flag
 
     table_name = 124
@@ -54,7 +54,7 @@ def test_has_table_param(gcon):
 
 def test_delete_table_param(gcon):
     table_name = "test_delete_table_param"
-    flag = gcon.has_table(table_name)
+    status, flag = gcon.has_table(table_name)
     assert not flag
 
     table_name = 124

@@ -615,7 +615,13 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             if async_flag is True:
-                response = self._stub.Search.future(infos)
+                try:
+                    response = self._stub.Search.future(infos)
+                except grpc.FutureTimeoutError as e:
+                    status = Status(code=Status.UNEXPECTED_ERROR, message='Request timeout')
+
+                    return status, []
+
             else:
                 response = self._stub.Search(infos)
 
@@ -676,7 +682,12 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             if async_flag is True:
-                response = self._stub.SearchInFiles.future(infos)
+                try:
+                    response = self._stub.SearchInFiles.future(infos)
+                except grpc.FutureTimeoutError as e:
+                    status = Status(code=Status.UNEXPECTED_ERROR, message='Request timeout')
+
+                    return status, []
             else:
                 response = self._stub.SearchInFiles(infos)
 
