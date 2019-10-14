@@ -300,6 +300,11 @@ class MilvusServiceServicer(object):
 
 
 def add_MilvusServiceServicer_to_server(servicer, server):
+    """*
+    @brief add server
+
+    This method is used to add server
+    """
     rpc_method_handlers = {
         'CreateTable': grpc.unary_unary_rpc_method_handler(
             servicer.CreateTable,

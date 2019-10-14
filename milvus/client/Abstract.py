@@ -1,13 +1,15 @@
-from .utils import *
+from ..client.Exceptions import ParamError
 
-from milvus.client.Exceptions import (
-    ParamError
+from .utils import (
+    check_pass_param,
+    parser_range_date,
+    is_legal_date_range
 )
 
-from .types import MetricType, IndexType
+from .types import IndexType
 
 
-class TableSchema(object):
+class TableSchema:
     """
     Table Schema
 
@@ -31,16 +33,8 @@ class TableSchema(object):
 
     def __init__(self, table_name, dimension, index_file_size, metric_type):
 
-        # TODO may raise UnicodeEncodeError
-        if table_name is None:
-            raise ParamError('Table name can\'t be None')
-        table_name = str(table_name) if not isinstance(table_name, str) else table_name
-        if not is_legal_dimension(dimension):
-            raise ParamError('Illegal dimension, effective range: (0 , 16384]')
-        if isinstance(metric_type, int):
-            metric_type = MetricType(metric_type)
-        if not isinstance(metric_type, MetricType):
-            raise ParamError('Illegal metric_type, should be MetricType')
+        check_pass_param(table_name=table_name, dimension=dimension,
+                         index_file_size=index_file_size, metric_type=metric_type)
 
         self.table_name = table_name
         self.dimension = dimension
@@ -53,7 +47,7 @@ class TableSchema(object):
         return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
 
 
-class Range(object):
+class Range:
     """
     Range information
 
@@ -82,7 +76,7 @@ class Range(object):
                              " than or equal to end-date!")
 
 
-class TopKQueryResult(object):
+class TopKQueryResult:
     """
     TopK query results, 2-D array of query result
     """
@@ -113,6 +107,10 @@ class TopKQueryResult(object):
 
     @property
     def raw(self):
+        """
+        getter. return the raw result response
+
+        """
         return self._raw
 
     def result(self, timeout=10):
@@ -139,7 +137,7 @@ class TopKQueryResult(object):
 
         lam = lambda x: "(id:{}, distance:{})".format(x.id, x.distance)
 
-        if self.__len__() > 10:
+        if self.__len__() > 5:
             middle = ''
 
             for topk in self[:3]:
@@ -152,15 +150,16 @@ class TopKQueryResult(object):
 
             ahead = "[\n%s%s\n]" % (middle, spaces)
             return ahead
-        else:
-            str_out_list = []
-            for i in range(self.__len__()):
-                str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
 
-            return "[\n%s\n]" % ",\n".join(str_out_list)
+        # self.__len__() < 5
+        str_out_list = []
+        for i in range(self.__len__()):
+            str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
+
+        return "[\n%s\n]" % ",\n".join(str_out_list)
 
 
-class IndexParam(object):
+class IndexParam:
     """
     Index Param
 
@@ -207,14 +206,14 @@ def _abstract():
     raise NotImplementedError('You need to override this function')
 
 
-class ConnectIntf(object):
+class ConnectIntf:
     """SDK client abstract class
 
     Connection is a abstract class
 
     """
 
-    def connect(self, host=None, port=None, uri=None):
+    def connect(self, host=None, port=None, uri=None, timeout=3):
         """
         Connect method should be called before any operations
         Server will be connected after connect return OK
@@ -228,6 +227,9 @@ class ConnectIntf(object):
 
         :type  uri: str
         :param uri: (Optional) uri
+
+        :type  timeout: int
+        :param timeout:
 
         :return: Status,  indicate if connect is successful
         """
@@ -251,7 +253,7 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def create_table(self, param):
+    def create_table(self, param, timeout):
         """
         Create table
         Should be implemented
@@ -259,18 +261,24 @@ class ConnectIntf(object):
         :type  param: TableSchema
         :param param: provide table information to be created
 
+        :type  timeout: int
+        :param timeout:
+
         :return: Status, indicate if connect is successful
         """
         _abstract()
 
-    def has_table(self, table_name):
+    def has_table(self, table_name, timeout):
         """
 
         This method is used to test table existence.
         Should be implemented
 
-        :param table_name: table name is going to be tested.
         :type table_name: str
+        :param table_name: table name is going to be tested.
+
+        :type  timeout: int
+        :param timeout:
 
         :return:
             has_table: bool, if given table_name exists
@@ -278,7 +286,7 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def delete_table(self, table_name):
+    def delete_table(self, table_name, timeout):
         """
         Delete table
         Should be implemented
@@ -286,11 +294,14 @@ class ConnectIntf(object):
         :type  table_name: str
         :param table_name: table_name of the deleting table
 
+        :type  timeout: int
+        :param timeout:
+
         :return: Status, indicate if connect is successful
         """
         _abstract()
 
-    def add_vectors(self, table_name, records):
+    def add_vectors(self, table_name, records, ids, timeout, **kwargs):
         """
         Add vectors to table
         Should be implemented
@@ -301,13 +312,19 @@ class ConnectIntf(object):
         :type  records: list[RowRecord]
         :param records: list of vectors been inserted
 
+        :type  ids: list[int]
+        :param ids: list of ids
+
+        :type  timeout: int
+        :param timeout:
+
         :returns:
             Status : indicate if vectors inserted successfully
             ids :list of id, after inserted every vector is given a id
         """
         _abstract()
 
-    def search_vectors(self, table_name, query_records, query_ranges, top_k):
+    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges, **kwargs):
         """
         Query vectors in a table
         Should be implemented
@@ -331,7 +348,8 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def search_vectors_in_files(self, table_name, file_ids, query_records, query_ranges, top_k):
+    def search_vectors_in_files(self, table_name, file_ids, query_records,
+                                top_k, nprobe, query_ranges, **kwargs):
         """
         Query vectors in a table, query vector in specified files
         Should be implemented
@@ -358,7 +376,7 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def describe_table(self, table_name):
+    def describe_table(self, table_name, timeout):
         """
         Show table information
         Should be implemented
@@ -366,13 +384,16 @@ class ConnectIntf(object):
         :type  table_name: str
         :param table_name: which table to be shown
 
+        :type  timeout: int
+        :param timeout:
+
         :returns:
             Status: indicate if query is successful
             table_schema: TableSchema, given when operation is successful
         """
         _abstract()
 
-    def get_table_row_count(self, table_name):
+    def get_table_row_count(self, table_name, timeout):
         """
         Get table row count
         Should be implemented
@@ -380,16 +401,22 @@ class ConnectIntf(object):
         :type  table_name, str
         :param table_name, target table name.
 
+        :type  timeout: int
+        :param timeout: how many similar vectors will be searched
+
         :returns:
             Status: indicate if operation is successful
             count: int, table row count
         """
         _abstract()
 
-    def show_tables(self):
+    def show_tables(self, timeout):
         """
         Show all tables in database
         should be implemented
+
+        :type  timeout: int
+        :param timeout: how many similar vectors will be searched
 
         :return:
             Status: indicate if this operation is successful
@@ -397,7 +424,7 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def create_index(self, table_name, index):
+    def create_index(self, table_name, index, timeout):
         """
         Create specified index in a table
         should be implemented
@@ -412,6 +439,9 @@ class ConnectIntf(object):
                 "index_type": IndexType.FLAT,
                 "nlist": 18384
             }
+
+        :type  timeout: int
+        :param timeout: how many similar vectors will be searched
 
         :return:
             Status: indicate if this operation is successful
@@ -434,11 +464,14 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def server_version(self):
+    def server_version(self, timeout):
         """
         Provide server version
         should be implemented
 
+        :type  timeout: int
+        :param timeout: how many similar vectors will be searched
+
         :return:
             Status: indicate if operation is successful
 
@@ -448,11 +481,14 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def server_status(self):
+    def server_status(self, timeout):
         """
         Provide server status. When cmd !='version', provide 'OK'
         should be implemented
 
+        :type  timeout: int
+        :param timeout: how many similar vectors will be searched
+
         :return:
             Status: indicate if operation is successful
 
@@ -462,7 +498,7 @@ class ConnectIntf(object):
         """
         _abstract()
 
-    def delete_vectors_by_range(self, table_name, start_time, end_time):
+    def delete_vectors_by_range(self, table_name, start_date, end_date, timeout):
         """
         delete vector by date range. The data range contains start_time but not end_time
         should be implemented
@@ -470,24 +506,30 @@ class ConnectIntf(object):
         :param table_name: table name
         :type  table_name: str
 
-        :param start_time: range start time
-        :type  start_time: str, date, datetime
+        :param start_date: range start time
+        :type  start_date: str, date, datetime
 
-        :param end_time: range end time(not contains in range)
-        :type  end_time: str, date, datetime
+        :param end_date: range end time(not contains in range)
+        :type  end_date: str, date, datetime
+
+        :type  timeout: int
+        :param timeout: how many similar vectors will be searched
 
         :return:
         """
 
         _abstract()
 
-    def preload_table(self, table_name):
+    def preload_table(self, table_name, timeout):
         """
         load table to cache in advance
         should be implemented
 
         :param table_name: target table name.
         :type table_name: str
+
+        :type  timeout: int
+        :param timeout: how many similar vectors will be searched
 
         :return:
             Status: indicate if operation is successful
@@ -497,13 +539,16 @@ class ConnectIntf(object):
 
         _abstract()
 
-    def describe_index(self, table_name):
+    def describe_index(self, table_name, timeout):
         """
         Show index information
         should be implemented
 
         :param table_name: target table name.
         :type table_name: str
+
+        :type  timeout: int
+        :param timeout: how many similar vectors will be searched
 
         :return:
             Status: indicate if operation is successful
@@ -515,13 +560,16 @@ class ConnectIntf(object):
 
         _abstract()
 
-    def drop_index(self, table_name):
+    def drop_index(self, table_name, timeout):
         """
         Show index information
         should be implemented
 
         :param table_name: target table name.
         :type table_name: str
+
+        :type  timeout: int
+        :param timeout: how many similar vectors will be searched
 
         :return:
             Status: indicate if operation is successful

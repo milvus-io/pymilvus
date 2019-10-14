@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from .client.grpc_client import GrpcMilvus as Milvus
 from .client.grpc_client import Prepare
 from .client.types import IndexType, MetricType, Status

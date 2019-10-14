@@ -1,7 +1,7 @@
 from enum import IntEnum
 
 
-class Status(object):
+class Status:
     """
     :attribute code: int (optional) default as ok
 
@@ -46,11 +46,11 @@ class Status(object):
         """Make Status comparable with self by code"""
         if isinstance(other, int):
             return self.code == other
-        else:
-            return isinstance(other, self.__class__) and self.code == other.code
+
+        return isinstance(other, self.__class__) and self.code == other.code
 
     def __ne__(self, other):
-        return not (self == other)
+        return self != other
 
     def OK(self):
         return self.code == Status.SUCCESS

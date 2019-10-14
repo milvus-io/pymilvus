@@ -5,7 +5,8 @@ import sys
 sys.path.append('.')
 
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
-from milvus.client.Abstract import IndexType, TableSchema, TopKQueryResult, MetricType
+from milvus.client.Abstract import TableSchema, TopKQueryResult
+from milvus.client.types import IndexType, MetricType
 from milvus.client.Exceptions import *
 
 from factorys import *
@@ -305,9 +306,9 @@ class TestVector:
         }
 
         with pytest.raises(ParamError):
-            res, ids = gcon.add_vectors(**param)
+            gcon.add_vectors(**param)
 
-    def test_add_vector_with_no_right_dimention(self, gcon, gtable):
+    def test_add_vector_with_no_right_dimension(self, gcon, gtable):
         param = {
             'table_name': gtable,
             'records': records_factory(dim + 1, nq)
@@ -360,6 +361,11 @@ class TestSearch:
         assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
+
+        assert results.shape[0] == nq
+        assert results.shape[1] == topk
+
+        print(results)
 
     def test_search_vector_lazy(self, gcon, gvector):
         topk = random.randint(1, 10)

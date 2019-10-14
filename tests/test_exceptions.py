@@ -6,10 +6,8 @@ import mock
 import sys
 
 sys.path.append(".")
-from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
-from milvus.client.Abstract import IndexType, TableSchema, TopKQueryResult, MetricType
+from milvus.client.grpc_client import GrpcMilvus
 from milvus.client.Exceptions import *
-from milvus.grpc_gen import *
 from grpc._channel import _UnaryUnaryMultiCallable as FC
 from grpc import FutureTimeoutError as FError
 
@@ -29,14 +27,22 @@ class TestConnectException:
     client = GrpcMilvus()
 
     @mock.patch("grpc.channel_ready_future", side_effect=grpc.FutureTimeoutError())
-    def test_connect_timeout_exp(self, mock_channel):
+    def test_connect_timeout_exp(self, _):
         with pytest.raises(NotConnectError):
             self.client.connect()
 
     @mock.patch("grpc.channel_ready_future", side_effect=grpc.RpcError())
-    def test_connect_grpc_exp(self, mock_channel):
+    def test_connect_grpc_exp(self, _):
         with pytest.raises(NotConnectError):
             self.client.connect()
+
+
+class TestConnectedException:
+    client = GrpcMilvus()
+
+    @mock.patch("grpc.channel_ready_future", side_effect=grpc.RpcError())
+    def test_connected_exp(self, mock_channel):
+        assert not self.client.connected()
 
 
 class TestDisconnectException:

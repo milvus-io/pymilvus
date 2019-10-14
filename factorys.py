@@ -15,7 +15,7 @@ import faker
 from faker.providers import BaseProvider
 
 # local application imports
-from milvus.client.Abstract import IndexType, MetricType
+from milvus.client.types import IndexType, MetricType
 
 # grpc
 from milvus.client.grpc_client import Prepare as gPrepare

@@ -3,9 +3,12 @@ This is a client for milvus of gRPC
 """
 from urllib.parse import urlparse
 import logging
+
 import grpc
 from grpc._cython import cygrpc
 
+from ..grpc_gen import milvus_pb2_grpc, status_pb2
+from ..grpc_gen import milvus_pb2 as grpc_types
 from .Abstract import (
     ConnectIntf,
     TableSchema,
@@ -13,7 +16,6 @@ from .Abstract import (
     TopKQueryResult,
     IndexParam
 )
-
 from .types import IndexType, MetricType, Status
 from .utils import (
     check_pass_param,
@@ -22,12 +24,8 @@ from .utils import (
     is_legal_port,
     is_legal_array
 )
-from .Exceptions import ParamError, NotConnectError, DisconnectNotConnectedClientError
+from .Exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
-
-from ..grpc_gen import milvus_pb2_grpc, status_pb2
-from ..grpc_gen import milvus_pb2 as grpc_types
-
 from . import __version__
 
 LOGGER = logging.getLogger(__name__)
@@ -220,11 +218,11 @@ class Prepare:
     @classmethod
     def delete_param(cls, table_name, start_date, end_date):
 
-        range = Prepare.range(start_date, end_date)
+        range_ = Prepare.range(start_date, end_date)
 
         check_pass_param(table_name=table_name)
 
-        return grpc_types.DeleteByRangeParam(range=range, table_name=table_name)
+        return grpc_types.DeleteByRangeParam(range=range_, table_name=table_name)
 
 
 class GrpcMilvus(ConnectIntf):
@@ -253,7 +251,8 @@ class GrpcMilvus(ConnectIntf):
 
                 if _uri.scheme != 'tcp':
                     raise ParamError(
-                        'Invalid parameter uri: `{}`. Scheme `{}` is not supported'.format(_uri, _uri.scheme))
+                        'Invalid parameter uri: `{}`. Scheme `{}` '
+                        'is not supported'.format(_uri, _uri.scheme))
 
                 _host = _uri.hostname
                 _port = _uri.port
@@ -270,9 +269,11 @@ class GrpcMilvus(ConnectIntf):
 
         self._uri = str(_host) + ':' + str(_port)
         self.server_address = self._uri
-        self._channel = grpc.insecure_channel(self._uri,
-                                              options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
-                                                       (cygrpc.ChannelArgKey.max_receive_message_length, -1)])
+        self._channel = grpc.insecure_channel(
+            self._uri,
+            options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
+                     (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
+        )
 
     def connect(self, host=None, port=None, uri=None, timeout=3):
         """
@@ -323,7 +324,7 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             grpc.channel_ready_future(self._channel).result(timeout=2)
-        except grpc.FutureTimeoutError:
+        except (grpc.FutureTimeoutError, grpc.RpcError):
             return False
         else:
             return True
@@ -343,12 +344,13 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first!')
 
-        try:
-            del self._channel
-            # self._channel.close()
-        except Exception as e:
-            LOGGER.error(e)
-            return Status(code=Status.CONNECT_FAILED, message='Disconnection failed')
+        del self._channel
+
+        # try:
+        #     self._channel.close()
+        # except Exception as e:
+        #     LOGGER.error(e)
+        #     return Status(code=Status.CONNECT_FAILED, message='Disconnection failed')
 
         self.status = None
         self._channel = None
@@ -386,9 +388,9 @@ class GrpcMilvus(ConnectIntf):
             status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
             if status.error_code == 0:
                 return Status(message='Create table successfully!')
-            else:
-                LOGGER.error(status)
-                return Status(code=status.error_code, message=status.reason)
+
+            LOGGER.error(status)
+            return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
@@ -416,6 +418,9 @@ class GrpcMilvus(ConnectIntf):
             reply = self._stub.HasTable.future(table_name).result(timeout=timeout)
             if reply.status.error_code == 0:
                 return Status(), reply.bool_reply
+
+            return Status(code=reply.status.error_code,
+                          message=reply.status.error_code.reason), False
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(code=Status.UNEXPECTED_ERROR, message="request timeout"), False
@@ -443,8 +448,8 @@ class GrpcMilvus(ConnectIntf):
             status = self._stub.DropTable.future(table_name).result(timeout=timeout)
             if status.error_code == 0:
                 return Status(message='Delete table successfully!')
-            else:
-                return Status(code=status.error_code, message=status.reason)
+            return Status(code=status.error_code, message=status.reason)
+
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
@@ -504,13 +509,13 @@ class GrpcMilvus(ConnectIntf):
 
             if status.error_code == 0:
                 return Status(message='Build index successfully!')
-            else:
-                return Status(code=status.error_code, message=status.reason)
+
+            return Status(code=status.error_code, message=status.reason)
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def add_vectors(self, table_name, records, ids=None, timeout=180, *args, **kwargs):
+    def add_vectors(self, table_name, records, ids=None, timeout=180, **kwargs):
         """
         Add vectors to table
 
@@ -533,6 +538,9 @@ class GrpcMilvus(ConnectIntf):
                 `OR using Prepare.records`
 
         :param records: list of vectors been inserted
+
+        :type  timeout: int
+        :param timeout:
 
         :returns:
             Status: indicate if vectors inserted successfully
@@ -557,8 +565,8 @@ class GrpcMilvus(ConnectIntf):
             if vector_ids.status.error_code == 0:
                 ids = list(vector_ids.vector_id_array)
                 return Status(message='Add vectors successfully!'), ids
-            else:
-                return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
+
+            return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
@@ -626,10 +634,11 @@ class GrpcMilvus(ConnectIntf):
                 response = self._stub.Search(infos)
 
                 if response.status.error_code != 0:
-                    return Status(code=response.status.error_code, message=response.status.reason), []
+                    return Status(code=response.status.error_code,
+                                  message=response.status.reason), []
 
-            return Status(message='Search vectors successfully!'), TopKQueryResult(response, async_=async_flag,
-                                                                                   lazy_=lazy_flag)
+            return Status(message='Search vectors successfully!'), \
+                   TopKQueryResult(response, async_=async_flag, lazy_=lazy_flag)
 
         except grpc.RpcError as e:
             LOGGER.error(e)
@@ -637,8 +646,8 @@ class GrpcMilvus(ConnectIntf):
 
             return status, []
 
-    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, query_ranges=None,
-                                **kwargs):
+    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k,
+                                nprobe=16, query_ranges=None, **kwargs):
         """
         Query vectors in a table, in specified files
 
@@ -692,10 +701,11 @@ class GrpcMilvus(ConnectIntf):
                 response = self._stub.SearchInFiles(infos)
 
                 if response.status.error_code != 0:
-                    return Status(code=response.status.error_code, message=response.status.reason), []
+                    return Status(code=response.status.error_code,
+                                  message=response.status.reason), []
 
-            return Status(message='Search vectors successfully!'), TopKQueryResult(response, async_=async_flag,
-                                                                                   lazy_=lazy_flag)
+            return Status(message='Search vectors successfully!'), \
+                   TopKQueryResult(response, async_=async_flag, lazy_=lazy_flag)
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
@@ -724,7 +734,6 @@ class GrpcMilvus(ConnectIntf):
             ts = self._stub.DescribeTable.future(table_name).result(timeout=timeout)
 
             if ts.status.error_code == 0:
-
                 table = TableSchema(
                     table_name=ts.table_name,
                     dimension=ts.dimension,
@@ -733,9 +742,10 @@ class GrpcMilvus(ConnectIntf):
                 )
 
                 return Status(message='Describe table successfully!'), table
-            else:
-                LOGGER.error(ts.status)
-                return Status(code=ts.status.error_code, message=ts.status.reason), None
+
+            LOGGER.error(ts.status)
+            return Status(code=ts.status.error_code, message=ts.status.reason), None
+
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
@@ -758,12 +768,12 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        cmd = Prepare.cmd('666999')
+        cmd = Prepare.cmd('show_tables')
         try:
             response = self._stub.ShowTables.future(cmd).result(timeout=timeout)
             if response.status.error_code == 0:
-                table_names = [name for name in response.table_names]
-                return Status(message='Show tables successfully!'), table_names
+                return Status(message='Show tables successfully!'), \
+                       [name for name in response.table_names]
             return Status(response.status.error_code, message='Show tables successfully!'), []
         except grpc.FutureTimeoutError:
             return Status(Status.UNEXPECTED_ERROR, message="Request timeout"), []
@@ -793,8 +803,8 @@ class GrpcMilvus(ConnectIntf):
             trc = self._stub.CountTable.future(table_name).result(timeout=timeout)
             if trc.status.error_code == 0:
                 return Status(message='Success!'), trc.table_row_count
-            else:
-                return Status(code=trc.status.error_code, message=trc.status.reason), None
+
+            return Status(code=trc.status.error_code, message=trc.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
@@ -851,8 +861,8 @@ class GrpcMilvus(ConnectIntf):
             ss = self._stub.Cmd.future(cmd).result(timeout=timeout)
             if ss.status.error_code == 0:
                 return Status(message='Success!'), ss.string_reply
-            else:
-                return Status(code=ss.status.error_code, message=ss.status.reason), None
+
+            return Status(code=ss.status.error_code, message=ss.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
@@ -944,8 +954,8 @@ class GrpcMilvus(ConnectIntf):
                        IndexParam(index_param.table_name,
                                   index_param.index.index_type,
                                   index_param.index.nlist)
-            else:
-                return Status(code=status.error_code, message=status.reason), None
+
+            return Status(code=status.error_code, message=status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(code=Status.UNEXPECTED_ERROR, message='Request timeout'), None
