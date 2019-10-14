@@ -134,9 +134,6 @@ class Prepare:
         else:
             check_pass_param(ids=ids)
 
-            if len(vectors) != len(ids):
-                raise ParamError("length of vectors do not match that of ids")
-
             _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids)
 
         for vector in vectors:
@@ -341,7 +338,7 @@ class GrpcMilvus(ConnectIntf):
         # Also checkout Properly Specify Channel.close Behavior in Python:
         # https://github.com/grpc/grpc/issues/19235
         if not self.connected():
-            raise DisconnectNotConnectedClientError('Please connect to the server first!')
+            raise NotConnectError('Please connect to the server first!')
 
         try:
             del self._channel
@@ -415,13 +412,13 @@ class GrpcMilvus(ConnectIntf):
         try:
             reply = self._stub.HasTable.future(table_name).result(timeout=timeout)
             if reply.status.error_code == 0:
-                return reply.bool_reply
+                return Status(), reply.bool_reply
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return False
+            return Status(code=Status.UNEXPECTED_ERROR, message="request timeout"), False
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return False
+            return Status(code=e.code(), message=e.details()), False
 
     def delete_table(self, table_name, timeout=20):
         """
@@ -496,14 +493,16 @@ class GrpcMilvus(ConnectIntf):
             elif timeout < 0:
                 raise ParamError("Param `timeout` should be a positive number or -1")
             else:
-                status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
+                try:
+                    status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
+                except grpc.FutureTimeoutError as e:
+                    LOGGER.error(e)
+                    return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+
             if status.error_code == 0:
                 return Status(message='Build index successfully!')
             else:
                 return Status(code=status.error_code, message=status.reason)
-        except grpc.FutureTimeoutError as e:
-            LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
