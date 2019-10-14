@@ -134,6 +134,9 @@ class Prepare:
         else:
             check_pass_param(ids=ids)
 
+            if len(vectors) != len(ids):
+                raise ParamError("length of vectors do not match that of ids")
+
             _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids)
 
         for vector in vectors:
