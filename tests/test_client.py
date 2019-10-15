@@ -26,9 +26,6 @@ dim = 128
 nb = 2000
 nq = 100
 
-_HOST = "127.0.0.1"
-_PORT = 19530
-
 
 class TestChannel:
     client = GrpcMilvus()
