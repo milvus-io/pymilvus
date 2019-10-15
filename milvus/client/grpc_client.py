@@ -738,7 +738,7 @@ class GrpcMilvus(ConnectIntf):
                     table_name=response.table_name,
                     dimension=response.dimension,
                     index_file_size=response.index_file_size,
-                    metric_type=response.metric_type
+                    metric_type=MetricType(response.metric_type)
                 )
 
                 return Status(message='Describe table successfully!'), table
