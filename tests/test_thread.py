@@ -21,7 +21,7 @@ def add_vector_task(milvus, vector):
 @time_it
 def grpc_thread_pool_add_vector(milvus, pool_size, vectors):
     with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as executor:
-        for x in range(pool_size):
+        for _ in range(pool_size):
             executor.submit(add_vector_task, milvus, vectors)
 
 
@@ -56,4 +56,3 @@ def test_grpc_run(gcon):
     time.sleep(1.5)
     _, gcount = gmilvus.get_table_row_count(table_name)
     print(gcount)
-

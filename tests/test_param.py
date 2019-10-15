@@ -1,11 +1,13 @@
-import sys
 import copy
-import pytest
 import time
 import random
 
+import sys
+
 sys.path.append('.')
-from milvus.client.exceptions import *
+from milvus.client.exceptions import ParamError
+
+import pytest
 
 
 def test_create_table_param(gcon):
@@ -45,6 +47,7 @@ def test_create_table_param(gcon):
 def test_has_table_param(gcon):
     table_name = "test_has_table_param"
     status, flag = gcon.has_table(table_name)
+    assert status.OK()
     assert not flag
 
     table_name = 124
@@ -55,6 +58,7 @@ def test_has_table_param(gcon):
 def test_delete_table_param(gcon):
     table_name = "test_delete_table_param"
     status, flag = gcon.has_table(table_name)
+    assert status.OK()
     assert not flag
 
     table_name = 124

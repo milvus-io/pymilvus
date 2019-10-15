@@ -1,15 +1,18 @@
 import random
-import grpc
-import pytest
-import mock
 
 import sys
 
 sys.path.append(".")
-from milvus.client.grpc_client import GrpcMilvus
-from milvus.client.exceptions import *
-from grpc._channel import _UnaryUnaryMultiCallable as FC
+
+import grpc
+import pytest
+import mock
+
 from grpc import FutureTimeoutError as FError
+from grpc._channel import _UnaryUnaryMultiCallable as FC
+
+from milvus.client.grpc_client import GrpcMilvus
+from milvus.client.exceptions import NotConnectError
 
 from factorys import get_last_day, get_next_day
 
@@ -251,7 +254,10 @@ class TestSearchVectorsInFilesException:
 
         self.client.connect()
 
-        status, _ = self.client.search_vectors_in_files(self.table_name, ["1"], self.records, 1, async_=True)
+        status, _ = \
+            self.client.search_vectors_in_files(self.table_name, ["1"],
+                                                self.records,
+                                                1, async_=True)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
@@ -260,7 +266,10 @@ class TestSearchVectorsInFilesException:
 
         self.client.connect()
 
-        status, _ = self.client.search_vectors_in_files(self.table_name, ["1"], self.records, 1, async_=True)
+        status, _ = \
+            self.client.search_vectors_in_files(self.table_name,
+                                                ["1"], self.records,
+                                                1, async_=True)
         assert not status.OK()
 
 

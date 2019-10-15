@@ -1,15 +1,24 @@
 import logging
+import time
+import random
 import pytest
 import sys
 
 sys.path.append('.')
 
+from milvus.client.types import IndexType, MetricType
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.abstract import TableSchema, TopKQueryResult
-from milvus.client.types import IndexType, MetricType
-from milvus.client.exceptions import *
+from milvus.client.exceptions import ParamError, NotConnectError
 
-from factorys import *
+from factorys import (
+    table_schema_factory,
+    records_factory,
+    query_ranges_factory,
+    ranges_factory,
+    fake
+)
+from milvus.grpc_gen import milvus_pb2
 
 LOGGER = logging.getLogger(__name__)
 
@@ -261,6 +270,7 @@ class TestTable:
     def test_has_table(self, gcon, gtable):
         table_name = fake.table_name()
         status, result = gcon.has_table(table_name)
+        assert status.OK()
         assert not result
 
         result = gcon.has_table(gtable)
@@ -498,13 +508,13 @@ class TestSearch:
             'nprobe': 16
         }
 
-        for id in range(600):
+        for id_ in range(600):
             param['file_ids'].clear()
-            param['file_ids'].append(str(id))
+            param['file_ids'].append(str(id_))
             sta, result = gcon.search_vectors_in_files(**param)
             if sta.OK():
                 param['lazy'] = True
-                results = gcon.search_vectors_in_files(**param)
+                gcon.search_vectors_in_files(**param)
                 return
 
         print("search in file failed")
@@ -756,15 +766,22 @@ class TestDeleteVectors:
         _ranges = ranges_factory()
 
         query_vectors = records_factory(dim, nq)
-        status, results = gcon.search_vectors(gtable, top_k=10, nprobe=16, query_records=query_vectors,
-                                              query_ranges=_ranges)
+        status, results = \
+            gcon.search_vectors(gtable, top_k=10, nprobe=16,
+                                query_records=query_vectors,
+                                query_ranges=_ranges)
         assert status.OK()
         assert len(results) > 0
 
-        status = gcon.delete_vectors_by_range(gtable, _ranges[0].start_value, _ranges[0].end_value)
+        status = \
+            gcon.delete_vectors_by_range(gtable,
+                                         _ranges[0].start_value,
+                                         _ranges[0].end_value)
+
         assert status.OK()
 
-        status, results = gcon.search_vectors(gtable, top_k=1, nprobe=16, query_records=query_vectors,
+        status, results = gcon.search_vectors(gtable, top_k=1, nprobe=16,
+                                              query_records=query_vectors,
                                               query_ranges=_ranges)
         assert status.OK()
 
