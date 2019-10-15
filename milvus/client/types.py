@@ -38,9 +38,9 @@ class Status:
         self.message = message
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        attr_list = ['%s=%r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
     def __eq__(self, other):
         """Make Status comparable with self by code"""

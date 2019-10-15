@@ -7,7 +7,7 @@ import sys
 
 sys.path.append(".")
 from milvus.client.grpc_client import GrpcMilvus
-from milvus.client.Exceptions import *
+from milvus.client.exceptions import *
 from grpc._channel import _UnaryUnaryMultiCallable as FC
 from grpc import FutureTimeoutError as FError
 

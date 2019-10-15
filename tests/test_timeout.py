@@ -4,8 +4,8 @@ import sys
 
 sys.path.append('.')
 
-from milvus import Prepare, Milvus, Status
-from milvus.client.Exceptions import *
+from milvus import Milvus
+from milvus.client.exceptions import *
 
 dim = 128
 

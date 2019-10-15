@@ -5,9 +5,9 @@ import sys
 sys.path.append('.')
 
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
-from milvus.client.Abstract import TableSchema, TopKQueryResult
+from milvus.client.abstract import TableSchema, TopKQueryResult
 from milvus.client.types import IndexType, MetricType
-from milvus.client.Exceptions import *
+from milvus.client.exceptions import *
 
 from factorys import *
 

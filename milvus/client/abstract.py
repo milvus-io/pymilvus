@@ -1,4 +1,4 @@
-from ..client.Exceptions import ParamError
+from ..client.exceptions import ParamError
 
 from .utils import (
     check_pass_param,
@@ -32,7 +32,6 @@ class TableSchema:
     """
 
     def __init__(self, table_name, dimension, index_file_size, metric_type):
-
         check_pass_param(table_name=table_name, dimension=dimension,
                          index_file_size=index_file_size, metric_type=metric_type)
 
@@ -42,9 +41,8 @@ class TableSchema:
         self.metric_type = metric_type
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        attr_list = ['%s=%r' % (key, value) for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
 
 class Range:
@@ -192,14 +190,14 @@ class IndexParam:
         self._nlist = nlist
 
     def __str__(self):
-        L = ['%s=%r' % (key.lstrip('_'), value)
-             for key, value in self.__dict__.items()]
-        return '(%s)' % (', '.join(L))
+        attr_list = ['%s=%r' % (key.lstrip('_'), value)
+                     for key, value in self.__dict__.items()]
+        return '(%s)' % (', '.join(attr_list))
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        attr_list = ['%s=%r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
 
 def _abstract():

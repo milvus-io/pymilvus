@@ -1,5 +1,5 @@
 import datetime
-from .Exceptions import ParamError
+from .exceptions import ParamError
 from .types import MetricType, IndexType
 
 

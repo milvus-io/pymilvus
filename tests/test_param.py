@@ -5,7 +5,7 @@ import time
 import random
 
 sys.path.append('.')
-from milvus.client.Exceptions import *
+from milvus.client.exceptions import *
 
 
 def test_create_table_param(gcon):

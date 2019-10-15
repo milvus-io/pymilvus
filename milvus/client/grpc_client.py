@@ -9,7 +9,7 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc, status_pb2
 from ..grpc_gen import milvus_pb2 as grpc_types
-from .Abstract import (
+from .abstract import (
     ConnectIntf,
     TableSchema,
     Range,
@@ -24,7 +24,7 @@ from .utils import (
     is_legal_port,
     is_legal_array
 )
-from .Exceptions import ParamError, NotConnectError
+from .exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
 from . import __version__
 
@@ -235,9 +235,9 @@ class GrpcMilvus(ConnectIntf):
         self.status = None
 
     def __str__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items() if not key.startswith('_')]
-        return '<Milvus: {}>'.format(', '.join(L))
+        attr_list = ['%s=%r' % (key, value)
+                     for key, value in self.__dict__.items() if not key.startswith('_')]
+        return '<Milvus: {}>'.format(', '.join(attr_list))
 
     def set_channel(self, host=None, port=None, uri=None):
 
@@ -283,7 +283,7 @@ class GrpcMilvus(ConnectIntf):
         :type  host: str
         :type  port: str
         :type  uri: str
-        :type  timeout: int
+        :type  timeout: float
         :param host: (Optional) host of the server, default host is 127.0.0.1
         :param port: (Optional) port of the server, default port is 19530
         :param uri: (Optional) only support tcp proto now, default uri is
@@ -731,20 +731,20 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            ts = self._stub.DescribeTable.future(table_name).result(timeout=timeout)
+            response = self._stub.DescribeTable.future(table_name).result(timeout=timeout)
 
-            if ts.status.error_code == 0:
+            if response.status.error_code == 0:
                 table = TableSchema(
-                    table_name=ts.table_name,
-                    dimension=ts.dimension,
-                    index_file_size=ts.index_file_size,
-                    metric_type=ts.metric_type
+                    table_name=response.table_name,
+                    dimension=response.dimension,
+                    index_file_size=response.index_file_size,
+                    metric_type=response.metric_type
                 )
 
                 return Status(message='Describe table successfully!'), table
 
-            LOGGER.error(ts.status)
-            return Status(code=ts.status.error_code, message=ts.status.reason), None
+            LOGGER.error(response.status)
+            return Status(code=response.status.error_code, message=response.status.reason), None
 
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
@@ -773,7 +773,7 @@ class GrpcMilvus(ConnectIntf):
             response = self._stub.ShowTables.future(cmd).result(timeout=timeout)
             if response.status.error_code == 0:
                 return Status(message='Show tables successfully!'), \
-                       [name for name in response.table_names]
+                       [name for name in response.table_names if len(name) > 0]
             return Status(response.status.error_code, message='Show tables successfully!'), []
         except grpc.FutureTimeoutError:
             return Status(Status.UNEXPECTED_ERROR, message="Request timeout"), []
@@ -858,11 +858,11 @@ class GrpcMilvus(ConnectIntf):
 
         cmd = Prepare.cmd(cmd)
         try:
-            ss = self._stub.Cmd.future(cmd).result(timeout=timeout)
-            if ss.status.error_code == 0:
-                return Status(message='Success!'), ss.string_reply
+            response = self._stub.Cmd.future(cmd).result(timeout=timeout)
+            if response.status.error_code == 0:
+                return Status(message='Success!'), response.string_reply
 
-            return Status(code=ss.status.error_code, message=ss.status.reason), None
+            return Status(code=response.status.error_code, message=response.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None

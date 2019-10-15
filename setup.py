@@ -21,7 +21,7 @@ setuptools.setup(
     license="Apache-2.0",
     packages=["milvus.client", 'milvus.grpc_gen', 'milvus'],
     include_package_data=True,
-    install_requires=["grpcio==1.22.0", "grpcio-tools==1.22.0"],
+    install_requires=["grpcio>=1.22.0", "grpcio-tools>=1.22.0"],
     classifiers=[
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
