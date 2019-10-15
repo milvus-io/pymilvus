@@ -11,7 +11,7 @@ with io.open("milvus/client/__init__.py", "rt", encoding="utf8") as f:
     version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
 
 setuptools.setup(
-    name="pymilvus-test",
+    name="pymilvus",
     version=version,
 
     description="Python Sdk for Milvus",
@@ -23,11 +23,10 @@ setuptools.setup(
     include_package_data=True,
     install_requires=["grpcio>=1.22.0", "grpcio-tools>=1.22.0"],
     classifiers=[
-        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
 
-    python_requires='>=3.4'
+    python_requires='>=3.5'
 )
