@@ -97,7 +97,9 @@ def is_legal_topk(topk):
 
 
 def is_legal_ids(ids):
-    return isinstance(ids, list) and isinstance(ids[0], int)
+    return isinstance(ids, list) and \
+           len(ids) > 0 and \
+           isinstance(ids[0], int)
 
 
 def is_legal_nprobe(nprobe):

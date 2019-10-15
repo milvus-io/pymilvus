@@ -10,6 +10,7 @@ from milvus.client.types import IndexType, MetricType
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.abstract import TableSchema, TopKQueryResult
 from milvus.client.exceptions import ParamError, NotConnectError
+from milvus.client.utils import check_pass_param
 
 from factorys import (
     table_schema_factory,
@@ -864,3 +865,31 @@ class TestCmd:
 
         _, info = gcon._cmd("OK")
         assert info in ("OK", "ok")
+
+
+class TestUtils:
+    def test_parm_check_ids(self):
+
+        check_pass_param(ids=[1, 2])
+
+        with pytest.raises(ParamError):
+            check_pass_param(ids=[])
+
+    def test_parm_check_nprobe(self):
+
+        check_pass_param(nprobe=12)
+
+        with pytest.raises(ParamError):
+            check_pass_param(nprobe='aaa')
+
+    def test_parm_check_nlist(self):
+        check_pass_param(nlist=4096)
+
+        with pytest.raises(ParamError):
+            check_pass_param(nlist='aaa')
+
+    def test_parm_check_cmd(self):
+        check_pass_param(cmd='OK')
+
+        with pytest.raises(ParamError):
+            check_pass_param(cmd=123)
