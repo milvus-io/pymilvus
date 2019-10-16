@@ -22,4 +22,4 @@ before_install:
 install: true # skip install step
 
 script: 
-  - pytest test/
+  - pytest
