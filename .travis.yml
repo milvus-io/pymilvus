@@ -1,0 +1,22 @@
+nguage: python
+python: "3.6"
+
+notifications:      #
+  email:
+    - yinghao.zou@zilliz.com
+
+branches:
+  except:
+    - legacy
+  only:
+    - develop-0.5.0
+
+sudo: false # 
+
+before_install: 
+  - pip install grpcio grpcio-tools #  
+
+install: true # skip install step
+
+script: 
+  - pytest test/
