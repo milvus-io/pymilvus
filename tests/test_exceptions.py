@@ -75,10 +75,10 @@ class TestCreateTableException:
             self.client.disconnect()
 
     @mock.patch.object(FC, "future")
-    def test_create_table_rpcerror_exp(self, mock_callable):
+    def test_create_table_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.create_table(self.table_param)
         assert not status.OK()
@@ -95,19 +95,19 @@ class TestHastableException:
             self.client.has_table("aaa")
 
     @mock.patch.object(FC, "future")
-    def test_has_table_timeout_exp(self, mock_callable):
+    def test_has_table_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.has_table("a123")
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_has_table_rpcerror_exp(self, mock_callable):
+    def test_has_table_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.has_table("a123")
         assert not status.OK()
@@ -124,19 +124,19 @@ class TestDeleteTableException:
             self.client.delete_table("aaa")
 
     @mock.patch.object(FC, "future")
-    def test_delete_table_timeout_exp(self, mock_callable):
+    def test_delete_table_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.delete_table("a123")
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_delete_table_rpcerror_exp(self, mock_callable):
+    def test_delete_table_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.delete_table("a123")
         assert not status.OK()
@@ -153,19 +153,19 @@ class TestCreateIndexException:
             self.client.create_index("aaa")
 
     @mock.patch.object(FC, "future")
-    def test_create_index_timeout_exp(self, mock_callable):
+    def test_create_index_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.create_index("a123", timeout=10)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_create_index_rpcerror_exp(self, mock_callable):
+    def test_create_index_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.create_index("a123", timeout=10)
         assert not status.OK()
@@ -185,19 +185,19 @@ class TestAddVectorsException:
             self.client.add_vectors(self.table_name, self.records)
 
     @mock.patch.object(FC, "future")
-    def test_add_vectors_timeout_exp(self, mock_callable):
+    def test_add_vectors_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.add_vectors(self.table_name, self.records)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_add_vectors_rpcerror_exp(self, mock_callable):
+    def test_add_vectors_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.add_vectors(self.table_name, self.records)
         assert not status.OK()
@@ -217,19 +217,19 @@ class TestSearchVectorsException:
             self.client.search_vectors(self.table_name, 1, 1, self.records)
 
     @mock.patch.object(FC, "future")
-    def test_search_vectors_timeout_exp(self, mock_callable):
+    def test_search_vectors_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.search_vectors(self.table_name, 1, 1, self.records, async_=True)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_search_vectors_rpcerror_exp(self, mock_callable):
+    def test_search_vectors_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.search_vectors(self.table_name, 1, 1, self.records, async_=True)
         assert not status.OK()
@@ -249,10 +249,10 @@ class TestSearchVectorsInFilesException:
             self.client.search_vectors_in_files(self.table_name, ["1"], self.records, 1)
 
     @mock.patch.object(FC, "future")
-    def test_search_vectors_in_files_timeout_exp(self, mock_callable):
+    def test_search_vectors_in_files_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = \
             self.client.search_vectors_in_files(self.table_name, ["1"],
@@ -261,10 +261,10 @@ class TestSearchVectorsInFilesException:
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_search_vectors_rpcerror_exp(self, mock_callable):
+    def test_search_vectors_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = \
             self.client.search_vectors_in_files(self.table_name,
@@ -286,19 +286,19 @@ class TestDescribeTableException:
             self.client.describe_table(self.table_name)
 
     @mock.patch.object(FC, "future")
-    def test_describe_table_timeout_exp(self, mock_callable):
+    def test_describe_table_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.describe_table(self.table_name)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_describe_table_rpcerror_exp(self, mock_callable):
+    def test_describe_table_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.describe_table(self.table_name)
         assert not status.OK()
@@ -317,19 +317,19 @@ class TestShowTableException:
             self.client.show_tables()
 
     @mock.patch.object(FC, "future")
-    def test_show_table_timeout_exp(self, mock_callable):
+    def test_show_table_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.show_tables()
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_show_table_rpcerror_exp(self, mock_callable):
+    def test_show_table_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.show_tables()
         assert not status.OK()
@@ -348,19 +348,19 @@ class TestGetTableRowCountException:
             self.client.get_table_row_count(self.table_name)
 
     @mock.patch.object(FC, "future")
-    def test_get_table_row_count_timeout_exp(self, mock_callable):
+    def test_get_table_row_count_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.get_table_row_count(self.table_name)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_sget_table_row_count_rpcerror_exp(self, mock_callable):
+    def test_sget_table_row_count_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.get_table_row_count(self.table_name)
         assert not status.OK()
@@ -379,19 +379,19 @@ class TestCmdException:
             self.client._cmd(self.cmd_str)
 
     @mock.patch.object(FC, "future")
-    def test__cmd_count_timeout_exp(self, mock_callable):
+    def test__cmd_count_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client._cmd(self.cmd_str)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test__cmd_rpcerror_exp(self, mock_callable):
+    def test__cmd_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client._cmd(self.cmd_str)
         assert not status.OK()
@@ -414,19 +414,19 @@ class TestDeleteByRangeException:
             self.client.delete_vectors_by_range(**self.delete_param)
 
     @mock.patch.object(FC, "future")
-    def test_delete_by_range_timeout_exp(self, mock_callable):
+    def test_delete_by_range_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.delete_vectors_by_range(**self.delete_param)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_delete_by_range_rpcerror_exp(self, mock_callable):
+    def test_delete_by_range_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.delete_vectors_by_range(**self.delete_param)
         assert not status.OK()
@@ -445,19 +445,19 @@ class TestPreloadTableException:
             self.client.preload_table(self.table_name)
 
     @mock.patch.object(FC, "future")
-    def test_preload_table_timeout_exp(self, mock_callable):
+    def test_preload_table_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.preload_table(self.table_name)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_preload_table_rpcerror_exp(self, mock_callable):
+    def test_preload_table_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.preload_table(self.table_name)
         assert not status.OK()
@@ -476,19 +476,19 @@ class TestDescribeIndexException:
             self.client.describe_index(self.table_name)
 
     @mock.patch.object(FC, "future")
-    def test_desribe_index_timeout_exp(self, mock_callable):
+    def test_desribe_index_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.describe_index(self.table_name)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_describe_index_rpcerror_exp(self, mock_callable):
+    def test_describe_index_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status, _ = self.client.describe_index(self.table_name)
         assert not status.OK()
@@ -507,19 +507,19 @@ class TestDropIndexException:
             self.client.drop_index(self.table_name)
 
     @mock.patch.object(FC, "future")
-    def test_drop_index_timeout_exp(self, mock_callable):
+    def test_drop_index_timeout_exp(self, mock_callable, gip):
         mock_callable.side_effect = FError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.drop_index(self.table_name)
         assert not status.OK()
 
     @mock.patch.object(FC, "future")
-    def test_drop_index_rpcerror_exp(self, mock_callable):
+    def test_drop_index_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect()
+        self.client.connect(*gip)
 
         status = self.client.drop_index(self.table_name)
         assert not status.OK()
