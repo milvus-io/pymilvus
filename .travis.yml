@@ -23,3 +23,6 @@ install: true # skip install step
 
 script: 
   - pytest
+
+after_success:
+  - codecov # submit coverage
