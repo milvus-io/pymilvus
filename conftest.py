@@ -1,8 +1,10 @@
+import time
+
 # Third party imports
 import pytest
 
 # local application imports
-from factorys import *
+from factorys import gen_unique_str, fake, records_factory
 from milvus import Milvus, IndexType, MetricType
 
 default_host = "127.0.0.1"
