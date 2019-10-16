@@ -3,6 +3,7 @@
 
 [![version](https://img.shields.io/pypi/v/pymilvus.svg?color=blue)](https://pypi.org/project/pymilvus/)
 [![license](https://img.shields.io/hexpm/l/plug.svg?color=green)](https://github.com/milvus-io/pymilvus/blob/master/LICENSE)
+[![Build Status](https://travis-ci.org/BossZou/pymilvus.svg?branch=develop-0.5.0)](https://travis-ci.org/BossZou/pymilvus)
 
 Using Milvus python sdk for Milvus
 Download
