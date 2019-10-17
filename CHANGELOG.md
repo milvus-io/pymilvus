@@ -37,6 +37,7 @@
     - **[MS-522]** fix index_param check error
 - \#88 ISSUE: fix bug connecting failed in celery cluster
 - \#90 ISSUE: remove TODO file
+- \#93 ISSUE: fix describe_table not sync'ed with latest proto bug
   
 ### Improvement
 ---
@@ -92,6 +93,10 @@
 - \#82
     - add timeout option
     - add default param in tableschema and indexparam
+    
+- \#94
+    - update protoc and interface
+    
 ### Task
 ---
 - \#1 Build Repository

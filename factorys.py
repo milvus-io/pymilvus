@@ -15,10 +15,10 @@ import faker
 from faker.providers import BaseProvider
 
 # local application imports
-from milvus.client.Abstract import IndexType, MetricType
+from milvus.client.types import IndexType, MetricType
 
 # grpc
-from milvus.client.GrpcClient import Prepare as gPrepare
+from milvus.client.grpc_client import Prepare as gPrepare
 from milvus.grpc_gen import milvus_pb2
 
 

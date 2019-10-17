@@ -1,20 +1,21 @@
-import pytest
 import random
 import sys
 
 sys.path.append('.')
 
-from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
-from milvus.client.Exceptions import *
+from milvus import Milvus
+from milvus.client.exceptions import NotConnectError
+
+import pytest
 
 dim = 128
 
 
-class TestTimeout(object):
+class TestTimeout:
     TIMEOUT = 0.0000000001
 
     def test_connect_timeout(self):
-        client = GrpcMilvus()
+        client = Milvus()
         with pytest.raises(NotConnectError):
             client.connect(timeout=self.TIMEOUT)
 
@@ -33,8 +34,8 @@ class TestTimeout(object):
         assert not status.OK()
 
     def test_has_table_timeout(self, gcon, gtable):
-        flag = gcon.has_table(gtable, timeout=self.TIMEOUT)
-        assert not flag
+        status, _ = gcon.has_table(gtable, timeout=self.TIMEOUT)
+        assert not status.OK()
 
     def test_delete_table_timeout(self, gcon, gtable):
         status = gcon.delete_table(gtable, timeout=self.TIMEOUT)
@@ -46,7 +47,8 @@ class TestTimeout(object):
 
     def test_add_vector_timeout(self, gcon, gtable):
         vectors = [[random.random() for _ in range(dim)] for _ in range(2)]
-        status, _ = gcon.add_vectors(table_name=gtable, records=vectors, ids=None, timeout=self.TIMEOUT)
+        status, _ = gcon.add_vectors(table_name=gtable, records=vectors,
+                                     ids=None, timeout=self.TIMEOUT)
         assert not status.OK()
 
     def test_describe_table_timeout(self, gcon, gtable):
@@ -64,7 +66,9 @@ class TestTimeout(object):
         assert not status.OK()
 
     def test_delete_by_range(self, gcon, gvector):
-        status = gcon.delete_vectors_by_range(gvector, "2019-05-01", "2019-12-31", timeout=self.TIMEOUT)
+        status = gcon.delete_vectors_by_range(gvector,
+                                              "2019-05-01", "2019-12-31",
+                                              timeout=self.TIMEOUT)
         assert not status.OK()
 
     def test_preload_table(self, gcon, gvector):

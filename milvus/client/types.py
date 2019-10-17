@@ -1,7 +1,7 @@
 from enum import IntEnum
 
 
-class Status(object):
+class Status:
     """
     :attribute code: int (optional) default as ok
 
@@ -38,19 +38,19 @@ class Status(object):
         self.message = message
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
-             for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        attr_list = ['%s=%r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
     def __eq__(self, other):
         """Make Status comparable with self by code"""
         if isinstance(other, int):
             return self.code == other
-        else:
-            return isinstance(other, self.__class__) and self.code == other.code
+
+        return isinstance(other, self.__class__) and self.code == other.code
 
     def __ne__(self, other):
-        return not (self == other)
+        return self != other
 
     def OK(self):
         return self.code == Status.SUCCESS
@@ -62,6 +62,7 @@ class IndexType(IntEnum):
     IVFLAT = 2
     IVF_SQ8 = 3
     MIX_NSG = 4
+    IVF_SQ8H = 5
 
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self._name_)
