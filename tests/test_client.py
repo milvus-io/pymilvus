@@ -72,12 +72,12 @@ class TestConnection:
     def test_false_connect(self):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(uri='tcp://127.0.0.1:7987', timeout=3)
+            cnn.connect(uri='tcp://127.0.0.1:7987', timeout=2)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
 
         with pytest.raises(NotConnectError):
-            cnn.connect(uri='tcp://123.0.0.1:19530', timeout=3)
+            cnn.connect(uri='tcp://123.0.0.1:19530', timeout=2)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
 
