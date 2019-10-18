@@ -4,8 +4,8 @@ import time
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 128
-nb = 100000  # number of vector dataset
-nq = 10  # number of query vector
+nb = 1000000  # number of vector dataset
+nq = 100  # number of query vector
 table_name = 'examples_milvus'
 top_K = 10
 
@@ -153,7 +153,9 @@ def run():
     # generate query vectors
     query_vectors = random_vectors(nq)
 
+    t0 =time.time()
     search_vectors(query_vectors)
+    print("Cost {:.4f} s".format(time.time() - t0))
 
     # delete index
     milvus.drop_index(table_name=table_name)

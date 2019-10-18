@@ -305,8 +305,10 @@ class GrpcMilvus(ConnectIntf):
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
         except grpc.FutureTimeoutError:
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
-        except grpc.RpcError:
-            raise NotConnectError("Connect error")
+        except grpc.RpcError as e:
+            raise NotConnectError("Connect error: <{}>".format(e))
+        except Exception as e:
+            raise NotConnectError("Error occurred when trying to connect server:\n<{}>".format(e))
         else:
             self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
             self.status = Status(message='Successfully connected! {}'.format(self._uri))
