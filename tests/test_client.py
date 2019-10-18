@@ -375,60 +375,6 @@ class TestSearch:
 
         print(results)
 
-    def test_search_vector_lazy(self, gcon, gvector):
-        topk = random.randint(1, 10)
-        query_records = records_factory(dim, nq)
-        param = {
-            'table_name': gvector,
-            'query_records': query_records,
-            'top_k': topk,
-            'nprobe': 10,
-            'lazy_': True
-        }
-        res, results = gcon.search_vectors(**param)
-
-        with pytest.raises(Exception):
-            results[0]
-
-    def test_search_vector_async(self, gcon, gvector):
-        topk = random.randint(1, 10)
-        query_records = records_factory(dim, nq)
-        param = {
-            'table_name': gvector,
-            'query_records': query_records,
-            'top_k': topk,
-            'nprobe': 10,
-            'async_': True
-        }
-        res, results = gcon.search_vectors(**param)
-
-        assert res.OK()
-
-        results_ = results.result(timeout=10)
-
-        assert len(results_) == nq
-        assert len(results_[0]) == topk
-
-    def test_search_vector_async_lazy(self, gcon, gvector):
-        topk = random.randint(1, 10)
-        query_records = records_factory(dim, nq)
-        param = {
-            'table_name': gvector,
-            'query_records': query_records,
-            'top_k': topk,
-            'nprobe': 10,
-            'async_': True,
-            'lazy_': True
-        }
-        res, results = gcon.search_vectors(**param)
-
-        assert res.OK()
-
-        results_ = results.result(timeout=10)
-
-        with pytest.raises(Exception):
-            results_[0]
-
     def test_search_vector_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim + 1, nq)
@@ -869,14 +815,12 @@ class TestCmd:
 
 class TestUtils:
     def test_parm_check_ids(self):
-
         check_pass_param(ids=[1, 2])
 
         with pytest.raises(ParamError):
             check_pass_param(ids=[])
 
     def test_parm_check_nprobe(self):
-
         check_pass_param(nprobe=12)
 
         with pytest.raises(ParamError):
@@ -893,3 +837,70 @@ class TestUtils:
 
         with pytest.raises(ParamError):
             check_pass_param(cmd=123)
+
+
+class TestQueryResult:
+    query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
+
+    def test_search_lazy(self, gcon, gvector):
+        response = gcon.search_vectors(gvector, 1, 1, self.query_vectors, lazy_=True)
+        assert isinstance(response, milvus_pb2.TopKQueryResultList)
+
+    def test_search_normal(self, gcon, gvector):
+        try:
+            response = gcon.search_vectors(gvector, 1, 1, self.query_vectors)
+
+            assert isinstance(response, tuple)
+            status, results = response
+            # test get_item
+            shape = results.shape
+            item = results[shape[0] - 1][shape[1] - 1]
+
+            # test iter
+            for topk_result in results:
+                for item in topk_result:
+                    print(item)
+
+            # test len
+            len(results)
+
+            # test print
+            print(results)
+        except Exception:
+            assert False
+
+    def test_search_in_files_lazy(self, gcon, gvector):
+        response = \
+            gcon.search_vectors_in_files(table_name=gvector, top_k=1,
+                                         nprobe=1, file_ids=['2'],
+                                         query_records=self.query_vectors, lazy_=True)
+        assert isinstance(response, milvus_pb2.TopKQueryResultList)
+
+    def test_search_in_files_normal(self, gcon, gvector):
+        try:
+            for index in range(500):
+                status, results = \
+                    gcon.search_vectors_in_files(table_name=gvector,
+                                                 top_k=1,
+                                                 nprobe=1,
+                                                 file_ids=[str(index)],
+                                                 query_records=self.query_vectors)
+                if status.OK():
+                    break
+
+            # test get_item
+            shape = results.shape
+            item = results[shape[0] - 1][shape[1] - 1]
+
+            # test iter
+            for topk_result in results:
+                for item in topk_result:
+                    print(item)
+
+            # test len
+            len(results)
+
+            # test print
+            print(results)
+        except Exception:
+            assert False

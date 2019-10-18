@@ -619,26 +619,18 @@ class GrpcMilvus(ConnectIntf):
         )
 
         lazy_flag = kwargs.get("lazy_", False)
-        async_flag = kwargs.get("async_", False)
 
         try:
-            if async_flag is True:
-                try:
-                    response = self._stub.Search.future(infos)
-                except grpc.FutureTimeoutError as e:
-                    status = Status(code=Status.UNEXPECTED_ERROR, message='Request timeout')
+            response = self._stub.Search(infos)
 
-                    return status, []
+            if lazy_flag is True:
+                return response
 
-            else:
-                response = self._stub.Search(infos)
+            if response.status.error_code != 0:
+                return Status(code=response.status.error_code,
+                              message=response.status.reason), []
 
-                if response.status.error_code != 0:
-                    return Status(code=response.status.error_code,
-                                  message=response.status.reason), []
-
-            return Status(message='Search vectors successfully!'), \
-                   TopKQueryResult(response, async_=async_flag, lazy_=lazy_flag)
+            return Status(message='Search vectors successfully!'), TopKQueryResult(response)
 
         except grpc.RpcError as e:
             LOGGER.error(e)
@@ -687,25 +679,18 @@ class GrpcMilvus(ConnectIntf):
         )
 
         lazy_flag = kwargs.get("lazy_", False)
-        async_flag = kwargs.get("async_", False)
 
         try:
-            if async_flag is True:
-                try:
-                    response = self._stub.SearchInFiles.future(infos)
-                except grpc.FutureTimeoutError as e:
-                    status = Status(code=Status.UNEXPECTED_ERROR, message='Request timeout')
+            response = self._stub.SearchInFiles(infos)
 
-                    return status, []
-            else:
-                response = self._stub.SearchInFiles(infos)
+            if lazy_flag is True:
+                return response
 
-                if response.status.error_code != 0:
-                    return Status(code=response.status.error_code,
-                                  message=response.status.reason), []
+            if response.status.error_code != 0:
+                return Status(code=response.status.error_code,
+                              message=response.status.reason), []
 
-            return Status(message='Search vectors successfully!'), \
-                   TopKQueryResult(response, async_=async_flag, lazy_=lazy_flag)
+            return Status(message='Search vectors successfully!'), TopKQueryResult(response)
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))

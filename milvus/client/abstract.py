@@ -83,7 +83,7 @@ class TopKQueryResult:
         self._raw = raw_source
         self._async = kwargs.get("async_", False)
         self._lazy = kwargs.get("lazy_", False)
-        self._array = self._create_array(self._raw) if not (self._async or self._lazy) else None
+        self._array = self._create_array(self._raw) if not (self._async or self._lazy) else []
 
     def _create_array(self, raw):
 
