@@ -1,5 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from ..client.exceptions import ParamError
 
 from .utils import (
@@ -89,7 +87,6 @@ class TopKQueryResult:
 
     def _create_array(self, raw):
 
-        # TODO: use multi thread to generate result
         # def _task(topk_result):
         #     topk_result_list = []
         #     topk_result_list.extend(topk_result[0].query_result_arrays)
