@@ -414,7 +414,9 @@ class GrpcMilvus(ConnectIntf):
         :param table_name: table name is going to be tested.
         :type table_name: str
 
-        :return: bool if given table_name exists
+        :return:
+            Status: indicate if vectors inserted successfully
+            bool if given table_name exists
 
         """
         if not self.connected():

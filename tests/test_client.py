@@ -247,12 +247,6 @@ class TestTable:
         res = gcon.delete_table(table_name)
         assert not res.OK()
 
-    def test_delete_table_exception(self, gcon):
-        table_name = "^&&&2323523**"
-
-        status = gcon.delete_table(table_name)
-        assert not status.OK()
-
     def test_repeat_add_table(self, gcon):
         param = table_schema_factory()
 
