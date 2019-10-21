@@ -165,13 +165,6 @@ Drop index
 Status(code=0, message='')
 ```
 ---
-Delete vectors by date range
->>> 
-```python
->>> milvus.delete_vectors_by_range('test01', '2019-09-01', '2019-12-31')
-Status(code=0, message='')
-```
----
 Delete the table we just created
 
 ```python

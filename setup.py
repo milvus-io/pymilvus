@@ -13,7 +13,6 @@ with io.open("milvus/client/__init__.py", "rt", encoding="utf8") as f:
 setuptools.setup(
     name="pymilvus-test",
     version=version,
-
     description="Python Sdk for Milvus",
     long_description=README,
     long_description_content_type='text/markdown',
