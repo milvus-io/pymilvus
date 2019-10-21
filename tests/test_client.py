@@ -9,7 +9,7 @@ sys.path.append('.')
 from milvus.client.types import IndexType, MetricType
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.abstract import TableSchema, TopKQueryResult
-from milvus.client.exceptions import ParamError, NotConnectError
+from milvus.client.exceptions import ParamError, NotConnectError, ConnectError
 from milvus.client.utils import check_pass_param
 
 from factorys import (
@@ -96,8 +96,8 @@ class TestConnection:
 
     def test_wrong_connected(self):
         cnn = GrpcMilvus()
-        with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2', port="123", timeout=2)
+        with pytest.raises(ConnectError):
+            cnn.connect(host='123.0.0.2', port="123", timeout=1)
 
     def test_uri_error(self):
         with pytest.raises(Exception):
@@ -176,9 +176,6 @@ class TestConnection:
             client._cmd("")
 
         with pytest.raises(NotConnectError):
-            client.delete_vectors_by_range("Afd", "2010-01-01", "2020-12-31")
-
-        with pytest.raises(NotConnectError):
             client.preload_table("a")
 
         with pytest.raises(NotConnectError):
@@ -250,12 +247,6 @@ class TestTable:
         res = gcon.delete_table(table_name)
         assert not res.OK()
 
-    def test_delete_table_exception(self, gcon):
-        table_name = "^&&&2323523**"
-
-        status = gcon.delete_table(table_name)
-        assert not status.OK()
-
     def test_repeat_add_table(self, gcon):
         param = table_schema_factory()
 
@@ -277,6 +268,18 @@ class TestTable:
         with pytest.raises(Exception):
             gcon.has_table(1111)
 
+    def test_has_table_invalid_name(self, gcon, gtable):
+        table_name = "1234455"
+        status, result = gcon.has_table(table_name)
+        assert not status.OK()
+
+
+class TestrecordCount:
+    def test_count_table(self, gcon, gvector):
+        status, num = gcon.count_table(gvector)
+        assert status.OK()
+        assert num > 0
+
 
 class TestVector:
 
@@ -286,6 +289,11 @@ class TestVector:
             'records': records_factory(dim, nq)
         }
         res, ids = gcon.add_vectors(**param)
+        assert res.OK()
+        assert isinstance(ids, list)
+        assert len(ids) == nq
+
+        res, ids = gcon.insert(**param)
         assert res.OK()
         assert isinstance(ids, list)
         assert len(ids) == nq
@@ -374,60 +382,6 @@ class TestSearch:
         assert results.shape[1] == topk
 
         print(results)
-
-    def test_search_vector_lazy(self, gcon, gvector):
-        topk = random.randint(1, 10)
-        query_records = records_factory(dim, nq)
-        param = {
-            'table_name': gvector,
-            'query_records': query_records,
-            'top_k': topk,
-            'nprobe': 10,
-            'lazy_': True
-        }
-        res, results = gcon.search_vectors(**param)
-
-        with pytest.raises(Exception):
-            results[0]
-
-    def test_search_vector_async(self, gcon, gvector):
-        topk = random.randint(1, 10)
-        query_records = records_factory(dim, nq)
-        param = {
-            'table_name': gvector,
-            'query_records': query_records,
-            'top_k': topk,
-            'nprobe': 10,
-            'async_': True
-        }
-        res, results = gcon.search_vectors(**param)
-
-        assert res.OK()
-
-        results_ = results.result(timeout=10)
-
-        assert len(results_) == nq
-        assert len(results_[0]) == topk
-
-    def test_search_vector_async_lazy(self, gcon, gvector):
-        topk = random.randint(1, 10)
-        query_records = records_factory(dim, nq)
-        param = {
-            'table_name': gvector,
-            'query_records': query_records,
-            'top_k': topk,
-            'nprobe': 10,
-            'async_': True,
-            'lazy_': True
-        }
-        res, results = gcon.search_vectors(**param)
-
-        assert res.OK()
-
-        results_ = results.result(timeout=10)
-
-        with pytest.raises(Exception):
-            results_[0]
 
     def test_search_vector_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
@@ -649,6 +603,10 @@ class TestDeleteTable:
         _, tables = gcon.show_tables()
         assert param['table_name'] not in tables
 
+    def test_drop_table(self, gcon, gtable):
+        status = gcon.drop_table(gtable)
+        assert status.OK()
+
 
 class TestHasTable:
     def test_has_table(self, gcon):
@@ -751,39 +709,6 @@ class TestIndex:
         assert status.OK()
 
 
-class TestDeleteVectors:
-    def test_delete_range(self, gcon, gtable):
-        vectors = records_factory(dim, 5000)
-        status, ids = gcon.add_vectors(gtable, vectors)
-
-        assert status.OK()
-        assert len(ids) == 5000
-
-        time.sleep(4)
-
-        _ranges = ranges_factory()
-
-        query_vectors = records_factory(dim, nq)
-        status, results = \
-            gcon.search_vectors(gtable, top_k=10, nprobe=16,
-                                query_records=query_vectors,
-                                query_ranges=_ranges)
-        assert status.OK()
-        assert len(results) > 0
-
-        status = \
-            gcon.delete_vectors_by_range(gtable,
-                                         _ranges[0].start_value,
-                                         _ranges[0].end_value)
-
-        assert status.OK()
-
-        status, results = gcon.search_vectors(gtable, top_k=1, nprobe=16,
-                                              query_records=query_vectors,
-                                              query_ranges=_ranges)
-        assert status.OK()
-
-
 class TestSearchVectors:
     def test_search_vectors_normal_1_with_ranges(self, gcon, gtable):
         vectors = records_factory(dim, nq)
@@ -869,14 +794,12 @@ class TestCmd:
 
 class TestUtils:
     def test_parm_check_ids(self):
-
         check_pass_param(ids=[1, 2])
 
         with pytest.raises(ParamError):
             check_pass_param(ids=[])
 
     def test_parm_check_nprobe(self):
-
         check_pass_param(nprobe=12)
 
         with pytest.raises(ParamError):
@@ -893,3 +816,70 @@ class TestUtils:
 
         with pytest.raises(ParamError):
             check_pass_param(cmd=123)
+
+
+class TestQueryResult:
+    query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
+
+    def test_search_lazy(self, gcon, gvector):
+        response = gcon.search_vectors(gvector, 1, 1, self.query_vectors, lazy_=True)
+        assert isinstance(response, milvus_pb2.TopKQueryResultList)
+
+    def test_search_normal(self, gcon, gvector):
+        try:
+            response = gcon.search_vectors(gvector, 1, 1, self.query_vectors)
+
+            assert isinstance(response, tuple)
+            status, results = response
+            # test get_item
+            shape = results.shape
+            item = results[shape[0] - 1][shape[1] - 1]
+
+            # test iter
+            for topk_result in results:
+                for item in topk_result:
+                    print(item)
+
+            # test len
+            len(results)
+
+            # test print
+            print(results)
+        except Exception:
+            assert False
+
+    def test_search_in_files_lazy(self, gcon, gvector):
+        response = \
+            gcon.search_vectors_in_files(table_name=gvector, top_k=1,
+                                         nprobe=1, file_ids=['2'],
+                                         query_records=self.query_vectors, lazy_=True)
+        assert isinstance(response, milvus_pb2.TopKQueryResultList)
+
+    def test_search_in_files_normal(self, gcon, gvector):
+        try:
+            for index in range(500):
+                status, results = \
+                    gcon.search_vectors_in_files(table_name=gvector,
+                                                 top_k=1,
+                                                 nprobe=1,
+                                                 file_ids=[str(index)],
+                                                 query_records=self.query_vectors)
+                if status.OK():
+                    break
+
+            # test get_item
+            shape = results.shape
+            item = results[shape[0] - 1][shape[1] - 1]
+
+            # test iter
+            for topk_result in results:
+                for item in topk_result:
+                    print(item)
+
+            # test len
+            len(results)
+
+            # test print
+            print(results)
+        except Exception:
+            assert False

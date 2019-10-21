@@ -216,22 +216,13 @@ class TestSearchVectorsException:
         with pytest.raises(NotConnectError):
             self.client.search_vectors(self.table_name, 1, 1, self.records)
 
-    @mock.patch.object(FC, "future")
-    def test_search_vectors_timeout_exp(self, mock_callable, gip):
-        mock_callable.side_effect = FError()
-
-        self.client.connect(*gip)
-
-        status, _ = self.client.search_vectors(self.table_name, 1, 1, self.records, async_=True)
-        assert not status.OK()
-
-    @mock.patch.object(FC, "future")
+    @mock.patch.object(FC, "__call__")
     def test_search_vectors_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
         self.client.connect(*gip)
 
-        status, _ = self.client.search_vectors(self.table_name, 1, 1, self.records, async_=True)
+        status, _ = self.client.search_vectors(self.table_name, 1, 1, self.records)
         assert not status.OK()
 
 
@@ -248,19 +239,7 @@ class TestSearchVectorsInFilesException:
         with pytest.raises(NotConnectError):
             self.client.search_vectors_in_files(self.table_name, ["1"], self.records, 1)
 
-    @mock.patch.object(FC, "future")
-    def test_search_vectors_in_files_timeout_exp(self, mock_callable, gip):
-        mock_callable.side_effect = FError()
-
-        self.client.connect(*gip)
-
-        status, _ = \
-            self.client.search_vectors_in_files(self.table_name, ["1"],
-                                                self.records,
-                                                1, async_=True)
-        assert not status.OK()
-
-    @mock.patch.object(FC, "future")
+    @mock.patch.object(FC, "__call__")
     def test_search_vectors_rpcerror_exp(self, mock_callable, gip):
         mock_callable.side_effect = RpcTestError()
 
@@ -394,41 +373,6 @@ class TestCmdException:
         self.client.connect(*gip)
 
         status, _ = self.client._cmd(self.cmd_str)
-        assert not status.OK()
-
-
-class TestDeleteByRangeException:
-    client = GrpcMilvus()
-
-    delete_param = {
-        "table_name": "test_table_name",
-        "start_date": get_last_day(5),
-        "end_date": get_next_day(5)
-    }
-
-    @mock.patch.object(GrpcMilvus, "connected")
-    def test_delete_by_range_not_connect_exp(self, mock_client):
-        mock_client.return_value = False
-
-        with pytest.raises(NotConnectError):
-            self.client.delete_vectors_by_range(**self.delete_param)
-
-    @mock.patch.object(FC, "future")
-    def test_delete_by_range_timeout_exp(self, mock_callable, gip):
-        mock_callable.side_effect = FError()
-
-        self.client.connect(*gip)
-
-        status = self.client.delete_vectors_by_range(**self.delete_param)
-        assert not status.OK()
-
-    @mock.patch.object(FC, "future")
-    def test_delete_by_range_rpcerror_exp(self, mock_callable, gip):
-        mock_callable.side_effect = RpcTestError()
-
-        self.client.connect(*gip)
-
-        status = self.client.delete_vectors_by_range(**self.delete_param)
         assert not status.OK()
 
 
