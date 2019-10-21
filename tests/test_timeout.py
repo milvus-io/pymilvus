@@ -65,12 +65,6 @@ class TestTimeout:
         status = gcon.drop_index(gtable, timeout=self.TIMEOUT)
         assert not status.OK()
 
-    def test_delete_by_range(self, gcon, gvector):
-        status = gcon.delete_vectors_by_range(gvector,
-                                              "2019-05-01", "2019-12-31",
-                                              timeout=self.TIMEOUT)
-        assert not status.OK()
-
     def test_preload_table(self, gcon, gvector):
         status = gcon.preload_table(gvector, timeout=self.TIMEOUT)
         assert not status.OK()

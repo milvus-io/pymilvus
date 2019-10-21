@@ -83,11 +83,22 @@ class TopKQueryResult:
         self._raw = raw_source
         self._async = kwargs.get("async_", False)
         self._lazy = kwargs.get("lazy_", False)
-        self._array = self._create_array(self._raw) if not (self._async or self._lazy) else None
+        self._array = self._create_array(self._raw) if not (self._async or self._lazy) else []
 
     def _create_array(self, raw):
 
+        # def _task(topk_result):
+        #     topk_result_list = []
+        #     topk_result_list.extend(topk_result[0].query_result_arrays)
+        #     return topk_result_list
+        #
+        # executor = ThreadPoolExecutor()
+        #
+        # tasks = [executor.submit(_task, (topk_result,)) for topk_result in raw.topk_query_result]
+        # array = [future.result() for future in as_completed(tasks)]
+
         array = []
+
         for topk_result in raw.topk_query_result:
             topk_result_list = []
             topk_result_list.extend(topk_result.query_result_arrays)
@@ -496,27 +507,27 @@ class ConnectIntf:
         """
         _abstract()
 
-    def delete_vectors_by_range(self, table_name, start_date, end_date, timeout):
-        """
-        delete vector by date range. The data range contains start_time but not end_time
-        should be implemented
-
-        :param table_name: table name
-        :type  table_name: str
-
-        :param start_date: range start time
-        :type  start_date: str, date, datetime
-
-        :param end_date: range end time(not contains in range)
-        :type  end_date: str, date, datetime
-
-        :type  timeout: int
-        :param timeout: how many similar vectors will be searched
-
-        :return:
-        """
-
-        _abstract()
+    # def delete_vectors_by_range(self, table_name, start_date, end_date, timeout):
+    #     """
+    #     delete vector by date range. The data range contains start_time but not end_time
+    #     should be implemented
+    #
+    #     :param table_name: table name
+    #     :type  table_name: str
+    #
+    #     :param start_date: range start time
+    #     :type  start_date: str, date, datetime
+    #
+    #     :param end_date: range end time(not contains in range)
+    #     :type  end_date: str, date, datetime
+    #
+    #     :type  timeout: int
+    #     :param timeout: how many similar vectors will be searched
+    #
+    #     :return:
+    #     """
+    #
+    #     _abstract()
 
     def preload_table(self, table_name, timeout):
         """
