@@ -9,7 +9,7 @@ sys.path.append('.')
 from milvus.client.types import IndexType, MetricType
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.abstract import TableSchema, TopKQueryResult
-from milvus.client.exceptions import ParamError, NotConnectError
+from milvus.client.exceptions import ParamError, NotConnectError, ConnectError
 from milvus.client.utils import check_pass_param
 
 from factorys import (
@@ -96,8 +96,8 @@ class TestConnection:
 
     def test_wrong_connected(self):
         cnn = GrpcMilvus()
-        with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2', port="123", timeout=2)
+        with pytest.raises(ConnectError):
+            cnn.connect(host='123.0.0.2', port="123", timeout=1)
 
     def test_uri_error(self):
         with pytest.raises(Exception):
@@ -174,9 +174,6 @@ class TestConnection:
 
         with pytest.raises(NotConnectError):
             client._cmd("")
-
-        with pytest.raises(NotConnectError):
-            client.delete_vectors_by_range("Afd", "2010-01-01", "2020-12-31")
 
         with pytest.raises(NotConnectError):
             client.preload_table("a")
@@ -697,6 +694,7 @@ class TestIndex:
         assert status.OK()
 
 
+@pytest.mark.skip
 class TestDeleteVectors:
     def test_delete_range(self, gcon, gtable):
         vectors = records_factory(dim, 5000)

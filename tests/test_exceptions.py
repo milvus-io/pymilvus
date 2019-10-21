@@ -397,6 +397,7 @@ class TestCmdException:
         assert not status.OK()
 
 
+@pytest.mark.skip
 class TestDeleteByRangeException:
     client = GrpcMilvus()
 
