@@ -280,6 +280,13 @@ class TestTable:
         assert not status.OK()
 
 
+class TestrecordCount:
+    def test_count_table(self, gcon, gvector):
+        status, num = gcon.count_table(gvector)
+        assert status.OK()
+        assert num > 0
+
+
 class TestVector:
 
     def test_add_vector(self, gcon, gtable):
@@ -288,6 +295,11 @@ class TestVector:
             'records': records_factory(dim, nq)
         }
         res, ids = gcon.add_vectors(**param)
+        assert res.OK()
+        assert isinstance(ids, list)
+        assert len(ids) == nq
+
+        res, ids = gcon.insert(**param)
         assert res.OK()
         assert isinstance(ids, list)
         assert len(ids) == nq
@@ -596,6 +608,10 @@ class TestDeleteTable:
         status = gcon.delete_table(param['table_name'])
         _, tables = gcon.show_tables()
         assert param['table_name'] not in tables
+
+    def test_drop_table(self, gcon, gtable):
+        status = gcon.drop_table(gtable)
+        assert status.OK()
 
 
 class TestHasTable:
