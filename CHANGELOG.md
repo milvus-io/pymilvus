@@ -1,3 +1,11 @@
+
+# pymilvus 0.5.1(TBD)
+
+## Bug
+## Improvement
+## Feature
+## Task
+
 # pymilvus 0.5.0(2019-10-21)
 
 ## Bug
@@ -14,7 +22,7 @@
 ## Improvement
 - \#97 - modify CHANGLOG.md to adjust standdard
 
-## New Feature
+## Feature
 - \#94 - remove stream call in grpc
 
 
@@ -57,7 +65,7 @@
 - \#74 - Add a new attribute server_address
 - \#77 - print out TopKResult more friendly
 
-## New Feature
+## Feature
 - \#3 - transport protocol configurable by settings, add_vector support non-binary array inputs
 - \#6 - Status quick-check-success, Log message more understandable, Status code related to Thrift Exception, Operations before connect will raise NotConnectError, Adding UNKNOWN Status
 - \#8 - Add new api: search_vectors_by_file, fix some bugs
