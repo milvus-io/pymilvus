@@ -982,3 +982,9 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    drop_table = delete_table
+    insert = add_vectors
+    search = search_vectors
+    search_in_files = search_vectors_in_files
+    count_table = get_table_row_count
