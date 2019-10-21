@@ -3,11 +3,11 @@ import time
 
 from milvus import Milvus, IndexType, MetricType
 
-_DIM = 512
-nb = 500000  # number of vector dataset
-nq = 2000  # number of query vector
+_DIM = 128
+nb = 1000000  # number of vector dataset
+nq = 100  # number of query vector
 table_name = 'examples_milvus'
-top_K = 1000
+top_K = 10
 
 server_config = {
     "host": 'localhost',
@@ -26,11 +26,13 @@ def random_vectors(num):
 def create_table():
     param = {
         'table_name': table_name,
-        'dimension': _DIM
+        'dimension': _DIM,
+        'index_file_size': 1024,
+        'metric_type': MetricType.L2
     }
 
-    if milvus.has_table(param['table_name']):
-        milvus.delete_table(param['table_name'])
+    if milvus.has_table(table_name):
+        milvus.delete_table(table_name)
         time.sleep(2)
 
     print("Create table: {}".format(param))
@@ -120,8 +122,7 @@ def search_vectors(_query_vectors):
 def create_index():
     _index = {
         'index_type': IndexType.IVFLAT,
-        'nlist': 4096,
-        'metric_type': MetricType.L2
+        'nlist': 1024
     }
 
     print("starting create index ... ")
@@ -152,7 +153,9 @@ def run():
     # generate query vectors
     query_vectors = random_vectors(nq)
 
+    t0 =time.time()
     search_vectors(query_vectors)
+    print("Cost {:.4f} s".format(time.time() - t0))
 
     # delete index
     milvus.drop_index(table_name=table_name)

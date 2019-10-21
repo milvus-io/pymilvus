@@ -15,10 +15,10 @@ import faker
 from faker.providers import BaseProvider
 
 # local application imports
-from milvus.client.Abstract import IndexType, MetricType
+from milvus.client.types import IndexType, MetricType
 
 # grpc
-from milvus.client.GrpcClient import Prepare as gPrepare
+from milvus.client.grpc_client import Prepare as gPrepare
 from milvus.grpc_gen import milvus_pb2
 
 
@@ -93,8 +93,8 @@ fake.add_provider(FakerProvider)
 
 def range_factory():
     param = {
-        'start_date': '2019-06-25',
-        'end_date': '2019-10-10'
+        'start_date': get_last_day(5),
+        'end_date': get_next_day(5)
     }
     return gPrepare.range(**param)
 
@@ -118,7 +118,7 @@ def records_factory(dimension, nq):
 
 
 def query_ranges_factory():
-    param = [('2019-06-25', '2020-1-25')]
+    param = ranges_factory()
     return param
 
 

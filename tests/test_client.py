@@ -1,14 +1,25 @@
 import logging
+import time
+import random
 import pytest
 import sys
 
 sys.path.append('.')
 
-from milvus.client.GrpcClient import Prepare, GrpcMilvus, Status
-from milvus.client.Abstract import IndexType, TableSchema, TopKQueryResult, MetricType
-from milvus.client.Exceptions import *
+from milvus.client.types import IndexType, MetricType
+from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
+from milvus.client.abstract import TableSchema, TopKQueryResult
+from milvus.client.exceptions import ParamError, NotConnectError, ConnectError
+from milvus.client.utils import check_pass_param
 
-from factorys import *
+from factorys import (
+    table_schema_factory,
+    records_factory,
+    query_ranges_factory,
+    ranges_factory,
+    fake
+)
+from milvus.grpc_gen import milvus_pb2
 
 LOGGER = logging.getLogger(__name__)
 
@@ -16,41 +27,57 @@ dim = 128
 nb = 2000
 nq = 100
 
-_HOST = "localhost"
-_PORT = 19530
+
+class TestChannel:
+    client = GrpcMilvus()
+
+    def test_channel_host_port(self):
+        try:
+            self.client.set_channel(host="localhost", port="19530")
+            self.client.set_channel(host="www.milvus.io", port="19530")
+        except Exception:
+            assert False
+
+    def test_channel_uri(self):
+        try:
+            self.client.set_channel(uri="tcp://192.168.1.1:9999")
+        except Exception:
+            assert False
+
+    def test_channel_host_non_port(self):
+        try:
+            self.client.set_channel(host="localhost")
+        except Exception:
+            assert False
+
+    def test_channel_only_port(self):
+        with pytest.raises(ParamError):
+            self.client.set_channel(port=9999)
 
 
-@pytest.mark.skip
 class TestConnection:
-    param = {'host': _HOST, 'port': str(_PORT)}
 
-    def test_true_connect(self):
+    def test_true_connect(self, gip):
         cnn = GrpcMilvus()
 
-        cnn.connect(**self.param)
+        cnn.connect(*gip)
         assert cnn.status.OK
         assert cnn.connected()
 
         # Repeating connect
-        _ = cnn.connect(**self.param)
+        _ = cnn.connect(*gip)
         status = cnn.connect()
         assert status == Status.CONNECT_FAILED
-
-    def test_ip_connect(self):
-        cnn = GrpcMilvus()
-        cnn.connect("localhost")
-        assert cnn.status.OK
-        assert cnn.connected()
 
     def test_false_connect(self):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(uri='tcp://127.0.0.1:7987', timeout=3)
+            cnn.connect(uri='tcp://127.0.0.1:7987', timeout=2)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
 
         with pytest.raises(NotConnectError):
-            cnn.connect(uri='tcp://123.0.0.1:19530', timeout=3)
+            cnn.connect(uri='tcp://123.0.0.1:19530', timeout=2)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
 
@@ -61,70 +88,55 @@ class TestConnection:
         cnn = GrpcMilvus()
         assert not cnn.connected()
 
-    def test_uri(self):
+    def test_uri(self, gip):
         cnn = GrpcMilvus()
-        cnn.connect(uri='tcp://127.0.0.1:19530')
+        uri = 'tcp://{}:{}'.format(gip[0], gip[1])
+        cnn.connect(uri=uri)
         assert cnn.status.OK()
-
-    def test_connect(self):
-        cnn = GrpcMilvus()
-        with pytest.raises(NotConnectError):
-            cnn.connect('126.0.0.2', port="9999", timeout=2)
-            assert not cnn.status.OK()
-
-            cnn.connect('127.0.0.1', '9999', timeout=2)
-            assert not cnn.status.OK()
-
-            cnn.connect(port='9999', timeout=2)
-            assert not cnn.status.OK()
-
-            cnn.connect(uri='cp://127.0.0.1:19530', timeout=2)
-            assert not cnn.status.OK()
-
-    def test_connect_timeout(self):
-        cnn = GrpcMilvus()
-        with pytest.raises(NotConnectError):
-            cnn.connect(host='123.0.0.2', port='19530', timeout=2)
 
     def test_wrong_connected(self):
         cnn = GrpcMilvus()
-        with pytest.raises(NotConnectError):
+        with pytest.raises(ConnectError):
             cnn.connect(host='123.0.0.2', port="123", timeout=1)
-        assert not cnn.connected()
 
     def test_uri_error(self):
-        cnn = GrpcMilvus()
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(uri='http://127.0.0.1:19530')
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(uri='tcp://127.0.a.1:9999')
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(uri='tcp://127.0.0.1:aaa')
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(host="1234", port="1")
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(host="aaa", port="1")
 
         with pytest.raises(Exception):
+            cnn = GrpcMilvus()
             cnn.connect(host="192.168.1.101", port="a")
 
-    def test_disconnected(self):
+    def test_disconnected(self, gip):
         cnn = GrpcMilvus()
-        cnn.connect(**self.param)
+        cnn.connect(*gip)
 
         assert cnn.disconnect().OK()
         assert not cnn.connected()
 
-        cnn.connect(**self.param)
+        cnn.connect(*gip)
         assert cnn.connected()
 
     def test_disconnected_error(self):
         cnn = GrpcMilvus()
-        with pytest.raises(DisconnectNotConnectedClientError):
+        with pytest.raises(NotConnectError):
             cnn.disconnect()
 
     def test_not_connect(self):
@@ -164,9 +176,6 @@ class TestConnection:
             client._cmd("")
 
         with pytest.raises(NotConnectError):
-            client.delete_vectors_by_range("Afd", "2010-01-01", "2020-12-31")
-
-        with pytest.raises(NotConnectError):
             client.preload_table("a")
 
         with pytest.raises(NotConnectError):
@@ -175,15 +184,18 @@ class TestConnection:
         with pytest.raises(NotConnectError):
             client.drop_index("")
 
+    def test_set_channel(self):
+        cnn = GrpcMilvus()
+        cnn.set_channel(host="www.baidu.com", port="19530")
+
 
 class TestTable:
 
     def test_create_table(self, gcon):
-        print(str(gcon))
         param = table_schema_factory()
         param['table_name'] = None
         with pytest.raises(ParamError):
-            res = gcon.create_table(param)
+            gcon.create_table(param)
 
         param = table_schema_factory()
         res = gcon.create_table(param)
@@ -196,11 +208,6 @@ class TestTable:
             res = gcon.create_table(param)
 
         param = '09998876565'
-        with pytest.raises(ParamError):
-            res = gcon.create_table(param)
-
-        param = table_schema_factory()
-        param['dimension'] = 0
         with pytest.raises(ParamError):
             gcon.create_table(param)
 
@@ -221,8 +228,6 @@ class TestTable:
         gcon.delete_table(_param['table_name'])
 
     def test_create_table_exception(self, gcon):
-        # mock_create_table.side_effect = grpc.RpcError
-
         param = {
             'table_name': 'test_151314',
             'dimension': 128,
@@ -242,12 +247,6 @@ class TestTable:
         res = gcon.delete_table(table_name)
         assert not res.OK()
 
-    def test_delete_table_exception(self, gcon):
-        table_name = "^&&&2323523**"
-
-        status = gcon.delete_table(table_name)
-        assert not status.OK()
-
     def test_repeat_add_table(self, gcon):
         param = table_schema_factory()
 
@@ -259,20 +258,27 @@ class TestTable:
 
     def test_has_table(self, gcon, gtable):
         table_name = fake.table_name()
-        result = gcon.has_table(table_name)
+        status, result = gcon.has_table(table_name)
+        assert status.OK()
         assert not result
 
         result = gcon.has_table(gtable)
         assert result
 
         with pytest.raises(Exception):
-            result = gcon.has_table(1111)
+            gcon.has_table(1111)
 
-    def test_has_table_exception(self, gcon):
-        table_name = "^&&&2323523**"
+    def test_has_table_invalid_name(self, gcon, gtable):
+        table_name = "1234455"
+        status, result = gcon.has_table(table_name)
+        assert not status.OK()
 
-        ok = gcon.has_table(table_name)
-        assert not ok
+
+class TestrecordCount:
+    def test_count_table(self, gcon, gvector):
+        status, num = gcon.count_table(gvector)
+        assert status.OK()
+        assert num > 0
 
 
 class TestVector:
@@ -287,9 +293,14 @@ class TestVector:
         assert isinstance(ids, list)
         assert len(ids) == nq
 
+        res, ids = gcon.insert(**param)
+        assert res.OK()
+        assert isinstance(ids, list)
+        assert len(ids) == nq
+
         param['records'] = [['string']]
         with pytest.raises(ParamError):
-            res, ids = gcon.add_vectors(**param)
+            gcon.add_vectors(**param)
 
     def test_add_vector_with_ids(self, gcon, gtable):
         param = {
@@ -311,9 +322,9 @@ class TestVector:
         }
 
         with pytest.raises(ParamError):
-            res, ids = gcon.add_vectors(**param)
+            gcon.add_vectors(**param)
 
-    def test_add_vector_with_no_right_dimention(self, gcon, gtable):
+    def test_add_vector_with_no_right_dimension(self, gcon, gtable):
         param = {
             'table_name': gtable,
             'records': records_factory(dim + 1, nq)
@@ -326,7 +337,7 @@ class TestVector:
         param = {'table_name': gtable, 'records': [[]]}
 
         with pytest.raises(Exception):
-            res, ids = gcon.add_vectors(**param)
+            gcon.add_vectors(**param)
 
     def test_false_add_vector(self, gcon):
         param = {
@@ -366,6 +377,10 @@ class TestSearch:
         assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
+
+        assert results.shape[0] == nq
+        assert results.shape[1] == topk
+
         print(results)
 
     def test_search_vector_wrong_dim(self, gcon, gvector):
@@ -445,13 +460,13 @@ class TestSearch:
             'nprobe': 16
         }
 
-        for id in range(600):
+        for id_ in range(600):
             param['file_ids'].clear()
-            param['file_ids'].append(str(id))
+            param['file_ids'].append(str(id_))
             sta, result = gcon.search_vectors_in_files(**param)
             if sta.OK():
                 param['lazy'] = True
-                results = gcon.search_vectors_in_files(**param)
+                gcon.search_vectors_in_files(**param)
                 return
 
         print("search in file failed")
@@ -522,12 +537,9 @@ class TestPrepare:
 
 class TestPing:
 
-    def test_ping_server_version(self):
-        milvus = GrpcMilvus()
-        milvus.connect()
-
-        _, version = milvus.server_version()
-        assert version == '0.4.0'
+    def test_ping_server_version(self, gcon):
+        _, version = gcon.server_version()
+        assert version in ("0.4.0", "0.5.0")
 
 
 class TestCreateTable:
@@ -591,6 +603,10 @@ class TestDeleteTable:
         _, tables = gcon.show_tables()
         assert param['table_name'] not in tables
 
+    def test_drop_table(self, gcon, gtable):
+        status = gcon.drop_table(gtable)
+        assert status.OK()
+
 
 class TestHasTable:
     def test_has_table(self, gcon):
@@ -598,7 +614,8 @@ class TestHasTable:
         s = gcon.create_table(param)
         assert s.OK()
 
-        flag = gcon.has_table(param['table_name'])
+        status, flag = gcon.has_table(param['table_name'])
+        assert status.OK()
         assert flag
 
 
@@ -635,13 +652,6 @@ class TestAddVectors:
 
         assert count == nb
 
-    def test_add_vectors_ids(self, gcon, gtable):
-        vectors = records_factory(dim, nq)
-        ids = [i for i in range(nq - 2)]
-
-        with pytest.raises(ParamError):
-            gcon.add_vectors(gtable, vectors, ids)
-
 
 class TestIndex:
 
@@ -652,7 +662,7 @@ class TestIndex:
         assert status.OK()
         assert len(ids) == nb
 
-        time.sleep(6)
+        time.sleep(3)
 
         _index = {
             'index_type': IndexType.IVFLAT,
@@ -660,7 +670,7 @@ class TestIndex:
         }
 
         gcon.create_index(gtable, _index)
-        time.sleep(10)
+        time.sleep(5)
 
         status, index_schema = gcon.describe_index(gtable)
 
@@ -699,32 +709,6 @@ class TestIndex:
         assert status.OK()
 
 
-class TestDeleteVectors:
-    def test_delete_range(self, gcon, gtable):
-        vectors = records_factory(dim, 5000)
-        status, ids = gcon.add_vectors(gtable, vectors)
-
-        assert status.OK()
-        assert len(ids) == 5000
-
-        time.sleep(4)
-
-        _ranges = ranges_factory()
-
-        query_vectors = records_factory(dim, nq)
-        status, results = gcon.search_vectors(gtable, top_k=10, nprobe=16, query_records=query_vectors,
-                                              query_ranges=_ranges)
-        assert status.OK()
-        assert len(results) > 0
-
-        status = gcon.delete_vectors_by_range(gtable, _ranges[0].start_value, _ranges[0].end_value)
-        assert status.OK()
-
-        status, results = gcon.search_vectors(gtable, top_k=1, nprobe=16, query_records=query_vectors,
-                                              query_ranges=_ranges)
-        assert status.OK()
-
-
 class TestSearchVectors:
     def test_search_vectors_normal_1_with_ranges(self, gcon, gtable):
         vectors = records_factory(dim, nq)
@@ -732,7 +716,7 @@ class TestSearchVectors:
 
         assert status.OK()
 
-        ranges = [['2019-06-25', '2019-10-10']]
+        ranges = ranges_factory()
         time.sleep(2)
 
         s_vectors = [vectors[0]]
@@ -794,7 +778,7 @@ class TestCmd:
 
     def test_server_version(self, gcon):
         _, version = gcon.server_version()
-        assert version in ("0.4.0",)
+        assert version in ("0.4.0", "0.5.0")
 
     def test_server_status(self, gcon):
         _, status = gcon.server_status()
@@ -802,7 +786,100 @@ class TestCmd:
 
     def test_cmd(self, gcon):
         _, info = gcon._cmd("version")
-        assert info in ("0.4.0",)
+        assert info in ("0.4.0", "0.5.0")
 
         _, info = gcon._cmd("OK")
         assert info in ("OK", "ok")
+
+
+class TestUtils:
+    def test_parm_check_ids(self):
+        check_pass_param(ids=[1, 2])
+
+        with pytest.raises(ParamError):
+            check_pass_param(ids=[])
+
+    def test_parm_check_nprobe(self):
+        check_pass_param(nprobe=12)
+
+        with pytest.raises(ParamError):
+            check_pass_param(nprobe='aaa')
+
+    def test_parm_check_nlist(self):
+        check_pass_param(nlist=4096)
+
+        with pytest.raises(ParamError):
+            check_pass_param(nlist='aaa')
+
+    def test_parm_check_cmd(self):
+        check_pass_param(cmd='OK')
+
+        with pytest.raises(ParamError):
+            check_pass_param(cmd=123)
+
+
+class TestQueryResult:
+    query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
+
+    def test_search_lazy(self, gcon, gvector):
+        response = gcon.search_vectors(gvector, 1, 1, self.query_vectors, lazy_=True)
+        assert isinstance(response, milvus_pb2.TopKQueryResultList)
+
+    def test_search_normal(self, gcon, gvector):
+        try:
+            response = gcon.search_vectors(gvector, 1, 1, self.query_vectors)
+
+            assert isinstance(response, tuple)
+            status, results = response
+            # test get_item
+            shape = results.shape
+            item = results[shape[0] - 1][shape[1] - 1]
+
+            # test iter
+            for topk_result in results:
+                for item in topk_result:
+                    print(item)
+
+            # test len
+            len(results)
+
+            # test print
+            print(results)
+        except Exception:
+            assert False
+
+    def test_search_in_files_lazy(self, gcon, gvector):
+        response = \
+            gcon.search_vectors_in_files(table_name=gvector, top_k=1,
+                                         nprobe=1, file_ids=['2'],
+                                         query_records=self.query_vectors, lazy_=True)
+        assert isinstance(response, milvus_pb2.TopKQueryResultList)
+
+    def test_search_in_files_normal(self, gcon, gvector):
+        try:
+            for index in range(500):
+                status, results = \
+                    gcon.search_vectors_in_files(table_name=gvector,
+                                                 top_k=1,
+                                                 nprobe=1,
+                                                 file_ids=[str(index)],
+                                                 query_records=self.query_vectors)
+                if status.OK():
+                    break
+
+            # test get_item
+            shape = results.shape
+            item = results[shape[0] - 1][shape[1] - 1]
+
+            # test iter
+            for topk_result in results:
+                for item in topk_result:
+                    print(item)
+
+            # test len
+            len(results)
+
+            # test print
+            print(results)
+        except Exception:
+            assert False

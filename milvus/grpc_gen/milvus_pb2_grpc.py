@@ -60,10 +60,10 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.TableName.SerializeToString,
             response_deserializer=milvus__pb2.TableRowCount.FromString,
         )
-        self.ShowTables = channel.unary_stream(
+        self.ShowTables = channel.unary_unary(
             '/milvus.grpc.MilvusService/ShowTables',
             request_serializer=milvus__pb2.Command.SerializeToString,
-            response_deserializer=milvus__pb2.TableName.FromString,
+            response_deserializer=milvus__pb2.TableNameList.FromString,
         )
         self.Cmd = channel.unary_unary(
             '/milvus.grpc.MilvusService/Cmd',
@@ -300,6 +300,11 @@ class MilvusServiceServicer(object):
 
 
 def add_MilvusServiceServicer_to_server(servicer, server):
+    """*
+    @brief add server
+
+    This method is used to add server
+    """
     rpc_method_handlers = {
         'CreateTable': grpc.unary_unary_rpc_method_handler(
             servicer.CreateTable,
@@ -346,10 +351,10 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.TableName.FromString,
             response_serializer=milvus__pb2.TableRowCount.SerializeToString,
         ),
-        'ShowTables': grpc.unary_stream_rpc_method_handler(
+        'ShowTables': grpc.unary_unary_rpc_method_handler(
             servicer.ShowTables,
             request_deserializer=milvus__pb2.Command.FromString,
-            response_serializer=milvus__pb2.TableName.SerializeToString,
+            response_serializer=milvus__pb2.TableNameList.SerializeToString,
         ),
         'Cmd': grpc.unary_unary_rpc_method_handler(
             servicer.Cmd,
