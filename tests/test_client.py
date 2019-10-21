@@ -274,6 +274,11 @@ class TestTable:
         with pytest.raises(Exception):
             gcon.has_table(1111)
 
+    def test_has_table_invalid_name(self, gcon, gtable):
+        table_name = "1234455"
+        status, result = gcon.has_table(table_name)
+        assert not status.OK()
+
 
 class TestVector:
 
@@ -691,40 +696,6 @@ class TestIndex:
         time.sleep(1)
 
         status = gcon.drop_index(gtable)
-        assert status.OK()
-
-
-@pytest.mark.skip
-class TestDeleteVectors:
-    def test_delete_range(self, gcon, gtable):
-        vectors = records_factory(dim, 5000)
-        status, ids = gcon.add_vectors(gtable, vectors)
-
-        assert status.OK()
-        assert len(ids) == 5000
-
-        time.sleep(4)
-
-        _ranges = ranges_factory()
-
-        query_vectors = records_factory(dim, nq)
-        status, results = \
-            gcon.search_vectors(gtable, top_k=10, nprobe=16,
-                                query_records=query_vectors,
-                                query_ranges=_ranges)
-        assert status.OK()
-        assert len(results) > 0
-
-        status = \
-            gcon.delete_vectors_by_range(gtable,
-                                         _ranges[0].start_value,
-                                         _ranges[0].end_value)
-
-        assert status.OK()
-
-        status, results = gcon.search_vectors(gtable, top_k=1, nprobe=16,
-                                              query_records=query_vectors,
-                                              query_ranges=_ranges)
         assert status.OK()
 
 
