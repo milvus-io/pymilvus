@@ -865,38 +865,38 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
-    # def delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
-    #     """
-    #     Delete vectors by range. The data range contains start_time but not end_time
-    #     should be implemented
-    #
-    #     :type  table_name: str
-    #     :param table_name: str, date, datetime
-    #
-    #     :type  start_date: str, date, datetime
-    #     :param start_date:
-    #
-    #     :type  end_date: str, date, datetime
-    #     :param end_date:
-    #
-    #     :return:
-    #         Status:  indicate if invoke is successful
-    #     """
-    #
-    #     if not self.connected():
-    #         raise NotConnectError('Please connect to the server first')
-    #
-    #     delete_range = Prepare.delete_param(table_name, start_date, end_date)
-    #
-    #     try:
-    #         status = self._stub.DeleteByRange.future(delete_range).result(timeout=timeout)
-    #         return Status(code=status.error_code, message=status.reason)
-    #     except grpc.FutureTimeoutError as e:
-    #         LOGGER.error(e)
-    #         return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-    #     except grpc.RpcError as e:
-    #         LOGGER.error(e)
-    #         return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+    def _delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
+        """
+        Delete vectors by range. The data range contains start_time but not end_time
+        This method is deprecated, not recommended for users
+
+        :type  table_name: str
+        :param table_name: str, date, datetime
+
+        :type  start_date: str, date, datetime
+        :param start_date:
+
+        :type  end_date: str, date, datetime
+        :param end_date:
+
+        :return:
+            Status:  indicate if invoke is successful
+        """
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        delete_range = Prepare.delete_param(table_name, start_date, end_date)
+
+        try:
+            status = self._stub.DeleteByRange.future(delete_range).result(timeout=timeout)
+            return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     def preload_table(self, table_name, timeout=300):
         """
@@ -985,8 +985,8 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
+    count_table = get_table_row_count
     drop_table = delete_table
     insert = add_vectors
     search = search_vectors
     search_in_files = search_vectors_in_files
-    count_table = get_table_row_count
