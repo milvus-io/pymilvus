@@ -1,17 +1,11 @@
 """
 This is a client for milvus of gRPC
 """
-import sys
 from urllib.parse import urlparse
 import logging
 
 import grpc
-
-try:
-    from grpc._cython import cygrpc
-except ImportError:
-    print("Error ouucrred. Please check grpcio and grpcio-tools version")
-    sys.exit(1)
+from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc, status_pb2
 from ..grpc_gen import milvus_pb2 as grpc_types
@@ -865,7 +859,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
-    def _delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
+    def __delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
         """
         Delete vectors by range. The data range contains start_time but not end_time
         This method is deprecated, not recommended for users
