@@ -1,12 +1,17 @@
-
-# pymilvus 0.5.1(TBD)
+# pymilvus 0.2.4(2019-10-29)
 
 ## Bug
-## Improvement
-## Feature
-## Task
+- \#102 - make methods `delete_by_range` private
 
-# pymilvus 0.5.0(2019-10-21)
+## Improvement
+- \#103 - remove .codecov.yml and .travis.yml
+
+## New Feature
+- \#100 - add new index type PQ
+- \#101 - Give some methods new names
+
+
+# pymilvus 0.2.3(2019-10-21)
 
 ## Bug
 - MS-452 - fix build index timeout bug
@@ -20,13 +25,13 @@
 - \#93 - fix describe_table not sync'ed with latest proto bug
 
 ## Improvement
-- \#97 - modify CHANGLOG.md to adjust standdard
+- \#97 - modify CHANGLOG.md to adjust standard
 
 ## Feature
 - \#94 - remove stream call in grpc
 
 
-# pymilvus 0.4.0(2019-09-12)
+# pymilvus 0.2.2(2019-09-12)
 
 ## Bug
 - \#12 - IndexType change & fix param of search_vector_in_files ranges

@@ -293,14 +293,20 @@ class TestVector:
         assert isinstance(ids, list)
         assert len(ids) == nq
 
+        param['records'] = [['string']]
+        with pytest.raises(ParamError):
+            gcon.add_vectors(**param)
+
+    def test_insert(self, gcon, gtable):
+        param = {
+            'table_name': gtable,
+            'records': records_factory(dim, nq)
+        }
+
         res, ids = gcon.insert(**param)
         assert res.OK()
         assert isinstance(ids, list)
         assert len(ids) == nq
-
-        param['records'] = [['string']]
-        with pytest.raises(ParamError):
-            gcon.add_vectors(**param)
 
     def test_add_vector_with_ids(self, gcon, gtable):
         param = {
@@ -373,6 +379,26 @@ class TestSearch:
             'nprobe': 10
         }
         res, results = gcon.search_vectors(**param)
+        assert res.OK()
+        assert isinstance(results, (list, TopKQueryResult))
+        assert len(results) == nq
+        assert len(results[0]) == topk
+
+        assert results.shape[0] == nq
+        assert results.shape[1] == topk
+
+        print(results)
+
+    def test_search_normal(self, gcon, gvector):
+        topk = random.randint(1, 10)
+        query_records = records_factory(dim, nq)
+        param = {
+            'table_name': gvector,
+            'query_records': query_records,
+            'top_k': topk,
+            'nprobe': 10
+        }
+        res, results = gcon.search(**param)
         assert res.OK()
         assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
@@ -500,6 +526,11 @@ class TestSearch:
 
     def test_get_table_row_count(self, gcon, gvector, gtable):
         res, count = gcon.get_table_row_count(gvector)
+        assert res.OK()
+        assert count == 10000
+
+    def test_count_table(self, gcon, gvector, gtable):
+        res, count = gcon.count_table(gvector)
         assert res.OK()
         assert count == 10000
 

@@ -63,6 +63,7 @@ class IndexType(IntEnum):
     IVF_SQ8 = 3
     MIX_NSG = 4
     IVF_SQ8H = 5
+    PQ = 6
 
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self._name_)
