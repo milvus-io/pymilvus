@@ -1,4 +1,4 @@
-# pymilvus 0.5.1(TBD)
+# pymilvus 0.2.4(2019-10-29)
 
 ## Bug
 - \#102 - make methods `delete_by_range` private
@@ -10,7 +10,8 @@
 - \#100 - add new index type PQ
 - \#101 - Give some methods new names
 
-# pymilvus 0.5.0(2019-10-21)
+
+# pymilvus 0.2.3(2019-10-21)
 
 ## Bug
 - MS-452 - fix build index timeout bug
