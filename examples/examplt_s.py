@@ -7,7 +7,7 @@ from milvus import Milvus, IndexType
 
 if __name__ == '__main__':
     client = Milvus()
-    client.connect(host="localhost", port="19531")
+    client.connect(host="192.168.1.113", port="19530")
 
     table_name = "table_name_test"
 

@@ -637,7 +637,7 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=response.status.error_code,
                               message=response.status.reason), []
 
-            resutls = TopKQueryResult(response)
+            resutls = TopKQueryResult(response, lazy_=True)
 
             print("[{}] Result done. result {}".format(datetime.datetime.now(), resutls.shape))
 
@@ -848,7 +848,6 @@ class GrpcMilvus(ConnectIntf):
         return self._cmd(cmd='OK', timeout=timeout)
 
     def _cmd(self, cmd, timeout=10):
-
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
