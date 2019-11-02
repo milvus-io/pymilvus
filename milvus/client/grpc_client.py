@@ -1,6 +1,7 @@
 """
 This is a client for milvus of gRPC
 """
+import datetime
 from urllib.parse import urlparse
 import logging
 
@@ -625,7 +626,9 @@ class GrpcMilvus(ConnectIntf):
         lazy_flag = kwargs.get("lazy_", False)
 
         try:
+            print("[{}] Start search ....".format(datetime.datetime.now()))
             response = self._stub.Search(infos)
+            print("[{}] Search done.".format(datetime.datetime.now()))
 
             if lazy_flag is True:
                 return response
@@ -634,7 +637,11 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=response.status.error_code,
                               message=response.status.reason), []
 
-            return Status(message='Search vectors successfully!'), TopKQueryResult(response)
+            resutls = TopKQueryResult(response)
+
+            print("[{}] Result done. result {}".format(datetime.datetime.now(), resutls.shape))
+
+            return Status(message='Search vectors successfully!'), resutls
 
         except grpc.RpcError as e:
             LOGGER.error(e)
