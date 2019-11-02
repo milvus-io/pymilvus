@@ -17,8 +17,8 @@ def _create_table(_args):
         sys.exit(1)
     print("Port {}".format(_port))
 
-    _name = _dict.get("name", None)
-    if not _name:
+    table_name = _dict.get("table_name", None)
+    if not table_name:
         print("Please input port")
         sys.exit(1)
 
@@ -31,7 +31,7 @@ def _create_table(_args):
     print(status.message)
 
     param = {
-        'table_name': _name,
+        'table_name': table_name,
         'dimension': 16,
         'index_file_size': 1024,
         'metric_type': MetricType.L2
@@ -46,4 +46,3 @@ def _create_table(_args):
 def table(args):
     if args.table == 'create':
         _create_table(args)
-

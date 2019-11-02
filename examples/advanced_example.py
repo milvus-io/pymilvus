@@ -4,7 +4,7 @@ import time
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 128
-nb = 1000000  # number of vector dataset
+nb = 100000  # number of vector dataset
 nq = 100  # number of query vector
 table_name = 'examples_milvus'
 top_K = 10
@@ -110,13 +110,14 @@ def search_vectors(_query_vectors):
     :param _query_vectors:
     :return: None
     """
-    status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K,
-                                            nprobe=16)
-    if not status.OK():
-        print("search failed. {}".format(status))
-    else:
-        print('serach successfully!')
-        print("\nresult:\n{}".format(results))
+    print("start search")
+    results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K,
+                                            nprobe=16, lazy_=True)
+    # if not status.OK():
+    #     print("search failed. {}".format(status))
+    # else:
+    #     print('serach successfully!')
+    #     print("\nresult:\n{}".format(results))
 
 
 def create_index():
