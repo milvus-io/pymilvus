@@ -1,3 +1,4 @@
+import struct
 from ..client.exceptions import ParamError
 
 from .utils import (
@@ -166,6 +167,48 @@ class TopKQueryResult:
             str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
 
         return "[\n%s\n]" % ",\n".join(str_out_list)
+
+
+class TopKQueryResult2:
+
+    def __init__(self, _raw, **kwargs):
+        self._raw = _raw
+        self._nq = self._raw.nq
+        self._topk = self._raw.topk
+        self._id_array = []
+        self._dis_array = []
+
+        self.__unpack()
+
+    def __unpack(self):
+
+        count = self._nq * self._topk
+
+        # import pdb;pdb.set_trace()
+        # id_bytes_list = list(self._raw.id)
+
+        print("Start dump distance")
+
+        dis_list = []
+        for byte in self._raw.distance:
+            dis = struct.unpack('d', byte)
+            dis_list.append(dis[0])
+
+        id_list = []
+        for byte in self._raw.id:
+            id = struct.unpack('l', byte)
+            # index = index + 1
+            # print("Index = {}".format(index))
+            # if index == 38:
+            #     print("")
+            id_list.append(id[0])
+
+        # id_bytes = bytes(id_bytes_list)
+        # sizeof_id = len(id_bytes) // count
+        sizeof_id = 8
+
+        dis_bytes = list(self._raw.distance)
+        # sizeof_dis = len(dis_bytes) // count
 
 
 class IndexParam:

@@ -15,6 +15,7 @@ from .abstract import (
     TableSchema,
     Range,
     TopKQueryResult,
+    TopKQueryResult2,
     IndexParam
 )
 from .types import IndexType, MetricType, Status
@@ -637,9 +638,10 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=response.status.error_code,
                               message=response.status.reason), []
 
-            resutls = TopKQueryResult(response, lazy_=True)
+            # resutls = TopKQueryResult2(response, lazy_=True)
+            resutls = TopKQueryResult2(response)
 
-            print("[{}] Result done. result {}".format(datetime.datetime.now(), resutls.shape))
+            print("[{}] Result done.".format(datetime.datetime.now()))
 
             return Status(message='Search vectors successfully!'), resutls
 
