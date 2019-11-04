@@ -26,7 +26,7 @@ Different versions of Milvus and lowest/highest pymilvus version supported accor
 
 You can download a specific version by:
 ```$
-$ pip install pymilvus==0.2.4
+$ pip install pymilvus==0.2.3
 ```
 
 If you want to upgrade `pymilvus` to newest version
@@ -95,7 +95,7 @@ First create 20 vectors of 256-dimension.
 
 Then add vectors into table `test01`
 ```python
->>> status, ids = milvus.insert(table_name='test01', records=vectors)
+>>> status, ids = milvus.add_vectors(table_name='test01', records=vectors)
 >>> print(status)
 Status(code=0, message='Add vectors successfully!')
 >>> pprint(ids) # List of ids returned
@@ -108,7 +108,7 @@ Status(code=0, message='Add vectors successfully!')
 You can also specify vectors id
 ```python
 >>> vector_ids = [i for i in range(20)]
->>> status, ids = milvus.insert(table_name='test01', records=vectors, ids=vector_ids)
+>>> status, ids = milvus.add_vectors(table_name='test01', records=vectors, ids=vector_ids)
 >>> pprint(ids)
 [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
 ```
@@ -145,7 +145,7 @@ Search vectors
 
 Then get results
 ```python
->>> status, results = milvus.search(table_name='test01', query_records=q_records, top_k=1, nprobe=16)
+>>> status, results = milvus.search_vectors(table_name='test01', query_records=q_records, top_k=1, nprobe=16)
 >>> print(status)
 Status(code=0, message='Search vectors successfully!')
 >>> pprint(results) # Searched top_k vectors
@@ -169,7 +169,7 @@ Status(code=0, message='')
 Delete the table we just created
 
 ```python
->>> milvus.drop1_table(table_name='test01')
+>>> milvus.delete_table(table_name='test01')
 Status(code=0, message='Delete table successfully!')
 ```
 Disconnect with the server
