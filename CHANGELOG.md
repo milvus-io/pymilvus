@@ -1,14 +1,15 @@
-# pymilvus 0.2.4(2019-10-29)
+# pymilvus 0.2.4(2019-11-04)
 
 ## Bug
 - \#102 - make methods `delete_by_range` private
 
 ## Improvement
 - \#103 - remove .codecov.yml and .travis.yml
+- \#105 - update READ.md to update version table and version note
 
 ## New Feature
 - \#100 - add new index type PQ
-- \#101 - Give some methods new names
+- \#101 - Give client methods new alterative names.
 
 
 # pymilvus 0.2.3(2019-10-21)
