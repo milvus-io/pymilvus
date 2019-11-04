@@ -16,13 +16,13 @@ $ pip install pymilvus
 ```
 Different versions of Milvus and lowest/highest pymilvus version supported accordingly
 
-|Milvus version| Lowest pymilvus version supported|Highest pymivus version supported|
-|:-----:|:-----:|:-----:|
-| 0.3.0 |   -   | 0.1.13|
-| 0.3.1 | 0.1.14| 0.1.25|
-| 0.4.0 | 0.2.0 | 0.2.2 |
-| 0.5.0 | 0.2.3 | 0.2.3 |
-| 0.5.1 | 0.2.4 |   -   |
+|Milvus version| Recommended pymilvus version |
+|:-----:|:-----:|
+| 0.3.0 | 0.1.13|
+| 0.3.1 | 0.1.25|
+| 0.4.0 | 0.2.2 |
+| 0.5.0 | 0.2.3 |
+
 
 You can download a specific version by:
 ```$
@@ -191,13 +191,3 @@ $ sphinx-build -b html doc/en/ doc/en/build
 
 If you encounter any problems or bugs, please open new issues
 
-## Version note
-from v0.2.4, pymilvus apply new alternative methods for client, the old will be deprecated soon. Although the old methods is still available, You are recommended to use the new.
-
-| Old method | New method |
-|:-----:|:-----:|
-|delete_table | drop_table |
-|add_vectors  | insert|
-| search_vectors | search |
-| search_vectors_in_files | search_in_files |
-| get_table_row_count | count_table |
