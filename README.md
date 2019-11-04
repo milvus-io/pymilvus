@@ -114,7 +114,7 @@ You can also specify vectors id
 ```
 Get vectors num
 ```python
->>> milvus.count_table('test01')
+>>> milvus.get_table_row_count('test01')
 (Status(code=0, message='Success!'), 20)
 ```
 ---
