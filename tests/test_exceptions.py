@@ -39,6 +39,11 @@ class TestConnectException:
         with pytest.raises(NotConnectError):
             self.client.connect()
 
+    @mock.patch("grpc.channel_ready_future", side_effect=Exception())
+    def test_connect_grpc_exp(self, _):
+        with pytest.raises(NotConnectError):
+            self.client.connect()
+
 
 class TestConnectedException:
     client = GrpcMilvus()

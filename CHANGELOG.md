@@ -1,4 +1,18 @@
-# pymilvus 0.5.0(2019-10-21)
+# pymilvus 0.2.4(2019-11-04)
+
+## Bug
+- \#102 - make methods `delete_by_range` private
+
+## Improvement
+- \#103 - remove .codecov.yml and .travis.yml
+- \#105 - update READ.md to update version table and version note
+
+## New Feature
+- \#100 - add new index type PQ
+- \#101 - Give client methods new alterative names.
+
+
+# pymilvus 0.2.3(2019-10-21)
 
 ## Bug
 - MS-452 - fix build index timeout bug
@@ -12,13 +26,13 @@
 - \#93 - fix describe_table not sync'ed with latest proto bug
 
 ## Improvement
-- \#97 - modify CHANGLOG.md to adjust standdard
+- \#97 - modify CHANGLOG.md to adjust standard
 
-## New Feature
+## Feature
 - \#94 - remove stream call in grpc
 
 
-# pymilvus 0.4.0(2019-09-12)
+# pymilvus 0.2.2(2019-09-12)
 
 ## Bug
 - \#12 - IndexType change & fix param of search_vector_in_files ranges
@@ -57,7 +71,7 @@
 - \#74 - Add a new attribute server_address
 - \#77 - print out TopKResult more friendly
 
-## New Feature
+## Feature
 - \#3 - transport protocol configurable by settings, add_vector support non-binary array inputs
 - \#6 - Status quick-check-success, Log message more understandable, Status code related to Thrift Exception, Operations before connect will raise NotConnectError, Adding UNKNOWN Status
 - \#8 - Add new api: search_vectors_by_file, fix some bugs
