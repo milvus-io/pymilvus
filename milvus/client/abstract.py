@@ -173,42 +173,48 @@ class TopKQueryResult2:
 
     def __init__(self, _raw, **kwargs):
         self._raw = _raw
-        self._nq = self._raw.nq
-        self._topk = self._raw.topk
+        self._nq = 0  # self._raw.nq
+        self._topk = 0  # self._raw.topk
         self._id_array = []
         self._dis_array = []
 
         self.__unpack()
 
+    def __unpack_array(self, _column, _unit_size, _bytes, _array):
+        _len = len(_bytes)
+        _byte_batch = _column * _unit_size
+        _unpack_str = str(_column) + "l"
+
+        for i in range(0, _len, _byte_batch):
+            _array.append(struct.unpack(_unpack_str, _bytes[i: i + _byte_batch]))
+
     def __unpack(self):
+        _binary = self._raw.query_result_binary
+        self._nq = struct.unpack('l', _binary[: 8])[0]
+        self._topk = struct.unpack('l', _binary[8: 16])[0]
 
-        count = self._nq * self._topk
+        _id_binary_offset = 8 + 8
+        _id_size = self._nq * self._topk
+        _id_binary_size = _id_size * 8
 
-        # import pdb;pdb.set_trace()
-        # id_bytes_list = list(self._raw.id)
+        self.__unpack_array(self._topk,
+                            8,
+                            _binary[_id_binary_offset: _id_binary_offset + _id_binary_size],
+                            self._id_array
+                            )
+        if len(self._id_array) != self._nq:
+            raise ParamError("Unpack search result Error: id")
 
-        print("Start dump distance")
-
-        dis_list = []
-        for byte in self._raw.distance:
-            dis = struct.unpack('d', byte)
-            dis_list.append(dis[0])
-
-        id_list = []
-        for byte in self._raw.id:
-            id = struct.unpack('l', byte)
-            # index = index + 1
-            # print("Index = {}".format(index))
-            # if index == 38:
-            #     print("")
-            id_list.append(id[0])
-
-        # id_bytes = bytes(id_bytes_list)
-        # sizeof_id = len(id_bytes) // count
-        sizeof_id = 8
-
-        dis_bytes = list(self._raw.distance)
-        # sizeof_dis = len(dis_bytes) // count
+        _dis_binary_offset = _id_binary_offset + _id_binary_size
+        _dis_size = _id_size
+        _dis_binary_size = _id_binary_size
+        self.__unpack_array(self._topk,
+                            8,
+                            _binary[_dis_binary_offset: _dis_binary_offset + _dis_binary_size],
+                            self._dis_array
+                            )
+        if len(self._dis_array) != self._nq:
+            raise ParamError("Unpack search result Error: dis")
 
 
 class IndexParam:
