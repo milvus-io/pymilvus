@@ -6,6 +6,7 @@
 ## Improvement
 - \#103 - remove .codecov.yml and .travis.yml
 - \#105 - update READ.md to update version table and version note
+- \#108 - Update version table in README.md adding milvus v0.5.1
 
 ## New Feature
 - \#100 - add new index type PQ
