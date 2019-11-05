@@ -26,7 +26,7 @@ def mmap_bvecs(fname):
 
 if __name__ == '__main__':
     client = Milvus()
-    client.connect(host="192.168.1.113", port="19530")
+    client.connect(host="192.168.1.113", port="19531")
 
     table_name = "table_test"
 
