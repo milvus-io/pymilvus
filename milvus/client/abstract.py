@@ -183,10 +183,10 @@ class TopKQueryResult2:
 
         self.__unpack()
 
-    def __unpack_array(self, _column, _unit_size, _bytes, _array):
+    def __unpack_array(self, _column, _unit_size, _fmt, _bytes, _array):
         _len = len(_bytes)
         _byte_batch = _column * _unit_size
-        _unpack_str = str(_column) + "l"
+        _unpack_str = str(_column) + _fmt
 
         for i in range(0, _len, _byte_batch):
             _array.append(struct.unpack(_unpack_str, _bytes[i: i + _byte_batch]))
@@ -202,6 +202,7 @@ class TopKQueryResult2:
 
         self.__unpack_array(self._topk,
                             8,
+                            "l",
                             _binary[_id_binary_offset: _id_binary_offset + _id_binary_size],
                             self._id_array
                             )
@@ -212,7 +213,8 @@ class TopKQueryResult2:
         _dis_size = _id_size
         _dis_binary_size = _id_binary_size
         self.__unpack_array(self._topk,
-                            8,
+                            4,
+                            "f",
                             _binary[_dis_binary_offset: _dis_binary_offset + _dis_binary_size],
                             self._dis_array
                             )

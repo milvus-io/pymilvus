@@ -627,9 +627,13 @@ class GrpcMilvus(ConnectIntf):
         lazy_flag = kwargs.get("lazy_", False)
 
         try:
-            print("[{}] Start search ....".format(datetime.datetime.now()))
+            time_stamp0 = datetime.datetime.now()
+            print("[{}] Start search ....".format(time_stamp0))
             response = self._stub.Search(infos)
-            print("[{}] Search done.".format(datetime.datetime.now()))
+            time_stamp1 = datetime.datetime.now()
+            print("[{}] Search done.".format(time_stamp1))
+            time_r = time_stamp1 - time_stamp0
+            print("Call server cost {} ms".format(time_r.seconds * 1000 + time_r.microseconds // 1000))
 
             if lazy_flag is True:
                 return response
@@ -638,10 +642,12 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=response.status.error_code,
                               message=response.status.reason), []
 
-            # resutls = TopKQueryResult2(response, lazy_=True)
             resutls = TopKQueryResult2(response)
 
-            print("[{}] Result done.".format(datetime.datetime.now()))
+            time_stamp2 = datetime.datetime.now()
+            print("[{}] Result done. result {}".format(time_stamp2, resutls.shape))
+            time_r = time_stamp2 - time_stamp1
+            print("Serialise cost {} ms".format(time_r.seconds * 1000 + time_r.microseconds // 1000))
 
             return Status(message='Search vectors successfully!'), resutls
 
