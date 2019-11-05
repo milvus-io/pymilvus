@@ -173,11 +173,10 @@ class TopKQueryResult2:
 
     def __init__(self, _raw, **kwargs):
         self._raw = _raw
-        self._nq = 0  # self._raw.nq
-        self._topk = 0  # self._raw.topk
+        self._nq = self._raw.nq  # self._raw.nq
+        self._topk = self._raw.topk  # self._raw.topk
         self._id_array = []
         self._dis_array = []
-
         ##
         self.__index = 0
 
@@ -192,30 +191,21 @@ class TopKQueryResult2:
             _array.append(struct.unpack(_unpack_str, _bytes[i: i + _byte_batch]))
 
     def __unpack(self):
-        _binary = self._raw.query_result_binary
-        self._nq = struct.unpack('l', _binary[: 8])[0]
-        self._topk = struct.unpack('l', _binary[8: 16])[0]
-
-        _id_binary_offset = 8 + 8
-        _id_size = self._nq * self._topk
-        _id_binary_size = _id_size * 8
-
+        _id_binary = self._raw.ids_binary
         self.__unpack_array(self._topk,
                             8,
                             "l",
-                            _binary[_id_binary_offset: _id_binary_offset + _id_binary_size],
+                            _id_binary,
                             self._id_array
                             )
         if len(self._id_array) != self._nq:
             raise ParamError("Unpack search result Error: id")
 
-        _dis_binary_offset = _id_binary_offset + _id_binary_size
-        _dis_size = _id_size
-        _dis_binary_size = _id_binary_size
+        _dis_binary = self._raw.distances_binary
         self.__unpack_array(self._topk,
                             4,
                             "f",
-                            _binary[_dis_binary_offset: _dis_binary_offset + _dis_binary_size],
+                            _dis_binary,
                             self._dis_array
                             )
         if len(self._dis_array) != self._nq:
