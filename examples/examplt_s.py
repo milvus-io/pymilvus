@@ -13,6 +13,8 @@ _Top_K = 1000
 _HOST = "192.168.1.113"
 # _HOST = "127.0.0.1"
 _PORT = "19531"
+
+
 # _PORT = "19530"
 
 
@@ -57,6 +59,10 @@ if __name__ == '__main__':
     # query_records = [np.random.rand(128).astype(np.float32).tolist() for i in range(_NQ)]
     query_records = mmap_bvecs(sift_1b_query_file)[:_NQ].astype(np.float32).tolist()
 
-    print("[{}] <Interface> Start search ....".format(datetime.datetime.now()))
+    time_stamp0 = datetime.datetime.now()
+    print("[{}] <Interface> Start search ....".format(time_stamp0))
     client.search_vectors(table_name, top_k=_Top_K, nprobe=16, query_records=query_records)
-    print("[{}] <Interface> Search done.".format(datetime.datetime.now()))
+    time_stamp1 = datetime.datetime.now()
+    print("[{}] <Interface> Search done.".format(time_stamp1))
+    time_r = time_stamp1 - time_stamp0
+    print("Search interface cost {} ms".format(time_r.seconds * 1000 + time_r.microseconds // 1000))

@@ -1,3 +1,4 @@
+import struct
 from ..client.exceptions import ParamError
 
 from .utils import (
@@ -166,6 +167,82 @@ class TopKQueryResult:
             str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
 
         return "[\n%s\n]" % ",\n".join(str_out_list)
+
+
+class TopKQueryResult2:
+
+    def __init__(self, _raw, **kwargs):
+        self._raw = _raw
+        self._nq = self._raw.nq  # self._raw.nq
+        self._topk = self._raw.topk  # self._raw.topk
+        self._id_array = []
+        self._dis_array = []
+        ##
+        self.__index = 0
+
+        self.__unpack()
+
+    def __unpack_array(self, _column, _unit_size, _fmt, _bytes, _array):
+        _len = len(_bytes)
+        _byte_batch = _column * _unit_size
+        _unpack_str = str(_column) + _fmt
+
+        for i in range(0, _len, _byte_batch):
+            _array.append(struct.unpack(_unpack_str, _bytes[i: i + _byte_batch]))
+
+    def __unpack(self):
+        _id_binary = self._raw.ids_binary
+        self.__unpack_array(self._topk,
+                            8,
+                            "l",
+                            _id_binary,
+                            self._id_array
+                            )
+        if len(self._id_array) != self._nq:
+            raise ParamError("Unpack search result Error: id")
+
+        _dis_binary = self._raw.distances_binary
+        self.__unpack_array(self._topk,
+                            4,
+                            "f",
+                            _dis_binary,
+                            self._dis_array
+                            )
+        if len(self._dis_array) != self._nq:
+            raise ParamError("Unpack search result Error: dis")
+
+    @property
+    def raw(self):
+        return self._raw
+
+    @property
+    def shape(self):
+        try:
+            _r = len(self._id_array)
+            _c = len(self._id_array[0])
+        except Exception:
+            _r = 0
+            _c = 0
+
+        return _r, _c
+
+    def __getitem__(self, item):
+        # return self._.__getitem__(item)
+        return self._id_array[item], self._dis_array[item]
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        while self.__index < self.__len__():
+            self.__index += 1
+            return self.__getitem__(self.__index)
+
+        self.__index = 0
+        raise StopIteration()
+
+    def __len__(self):
+        return len(self._id_array)
 
 
 class IndexParam:
