@@ -8,8 +8,12 @@ from milvus import Milvus, IndexType
 sift_1b_base_file = "/exp/hdd1/data/faiss_assets/ANN_SIFT1B/dataset/bigann_base.bvecs"
 sift_1b_query_file = "/exp/hdd1/data/faiss_assets/ANN_SIFT1B/dataset/bigann_query.bvecs"
 _NB = 1000 * 1000
-_NQ = 10000
+_NQ = 1000
 _Top_K = 1000
+_HOST = "192.168.1.113"
+# _HOST = "127.0.0.1"
+_PORT = "19531"
+# _PORT = "19530"
 
 
 def mmap_fvecs(fname):
@@ -26,7 +30,7 @@ def mmap_bvecs(fname):
 
 if __name__ == '__main__':
     client = Milvus()
-    client.connect(host="192.168.1.113", port="19531")
+    client.connect(host=_HOST, port=_PORT)
 
     table_name = "table_test"
 
