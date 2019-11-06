@@ -173,8 +173,8 @@ class TopKQueryResult2:
 
     def __init__(self, _raw, **kwargs):
         self._raw = _raw
-        self._nq = self._raw.nq  # self._raw.nq
-        self._topk = self._raw.topk  # self._raw.topk
+        self._nq = self._raw.nq
+        self._topk = self._raw.topk
         self._id_array = []
         self._dis_array = []
         ##
@@ -225,6 +225,14 @@ class TopKQueryResult2:
             _c = 0
 
         return _r, _c
+
+    @property
+    def id_array(self):
+        return self._id_array
+
+    @property
+    def dis_array(self):
+        return self._dis_array
 
     def __getitem__(self, item):
         # return self._.__getitem__(item)
