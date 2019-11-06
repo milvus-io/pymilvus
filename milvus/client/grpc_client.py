@@ -632,14 +632,14 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        infos = Prepare.search_param(
+        request = Prepare.search_param(
             table_name, query_records, query_ranges, top_k, nprobe
         )
 
         lazy_flag = kwargs.get("lazy_", False)
 
         try:
-            response = self._stub.Search(infos)
+            response = self._stub.Search(request)
             if lazy_flag is True:
                 return response
 
