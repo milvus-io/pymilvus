@@ -10,5 +10,8 @@ class BaseaSearchHook(AbstractHook):
     def aft_search(self, *args, **kwargs):
         pass
 
-    def on_response(self, _response, *args, **kwargs):
+    def on_response(self, *args, **kwargs):
         return False
+
+    def handle_response(self, _response):
+        pass
