@@ -290,6 +290,8 @@ class GrpcMilvus(ConnectIntf):
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
 
+    def _set_hook(self, ):
+
     def connect(self, host=None, port=None, uri=None, timeout=3):
         """
         Connect method should be called before any operations.
