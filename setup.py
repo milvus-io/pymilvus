@@ -18,12 +18,9 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/milvus-io/pymilvus',
     license="Apache-2.0",
-    packages=["milvus.client", 'milvus.grpc_gen', 'milvus.cli', 'milvus'],
+    packages=["milvus.client", 'milvus.grpc_gen', 'milvus'],
     include_package_data=True,
     install_requires=["grpcio>=1.22.0", "grpcio-tools>=1.22.0"],
-    entry_points={
-        'console_scripts': ['milvus=milvus.cli:main'],
-    },
     classifiers=[
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",

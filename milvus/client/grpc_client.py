@@ -233,7 +233,6 @@ class GrpcMilvus(ConnectIntf):
         self._channel = None
         self._stub = None
         self._uri = None
-        self.server_address = None
         self.status = None
 
     def __str__(self):
@@ -241,12 +240,11 @@ class GrpcMilvus(ConnectIntf):
                      for key, value in self.__dict__.items() if not key.startswith('_')]
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
-    def set_channel(self, host=None, port=None, uri=None):
-
-        if host is not None:
-            _port = port or "19530"
+    def _set_uri(self, host=None, port=None, uri=None):
+        if host:
+            _port = port or config.GRPC_PORT
             _host = host
-        elif port is None:
+        elif not port:
             try:
                 config_uri = urlparse(config.GRPC_URI)
                 _uri = urlparse(uri) if uri else config_uri
@@ -258,7 +256,6 @@ class GrpcMilvus(ConnectIntf):
 
                 _host = _uri.hostname
                 _port = _uri.port
-
             except Exception:
                 raise ParamError("`{}` is illegal".format(uri))
         else:
@@ -269,8 +266,12 @@ class GrpcMilvus(ConnectIntf):
         if not is_legal_host(_host) or not is_legal_port(_port):
             raise ParamError("host or port is illegal")
 
-        self._uri = str(_host) + ':' + str(_port)
-        self.server_address = self._uri
+        self._uri = "{}:{}".format(str(_host), str(_port))
+
+    def _set_channel(self, host=None, port=None, uri=None):
+        self._set_uri(host, port, uri)
+
+        # set transport unlimited
         self._channel = grpc.insecure_channel(
             self._uri,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
@@ -298,7 +299,7 @@ class GrpcMilvus(ConnectIntf):
         :rtype: Status
         """
         if self._channel is None:
-            self.set_channel(host, port, uri)
+            self._set_channel(host, port, uri)
 
         elif self.connected():
             return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
@@ -310,7 +311,7 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             raise NotConnectError("Connect error: <{}>".format(e))
         except Exception as e:
-            raise NotConnectError("Error occurred when trying to connect server:\n<{}>".format(e))
+            raise NotConnectError("Error occurred when trying to connect server:\n<{}>".format(str(e)))
         else:
             self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
             self.status = Status(message='Successfully connected! {}'.format(self._uri))
@@ -328,10 +329,9 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             grpc.channel_ready_future(self._channel).result(timeout=2)
+            return True
         except (grpc.FutureTimeoutError, grpc.RpcError):
             return False
-        else:
-            return True
 
     def disconnect(self):
         """
@@ -627,13 +627,13 @@ class GrpcMilvus(ConnectIntf):
         lazy_flag = kwargs.get("lazy_", False)
 
         try:
-            time_stamp0 = datetime.datetime.now()
-            print("[{}] Start search ....".format(time_stamp0))
+            # time_stamp0 = datetime.datetime.now()
+            # print("[{}] Start search ....".format(time_stamp0))
             response = self._stub.Search(infos)
-            time_stamp1 = datetime.datetime.now()
-            print("[{}] Search done.".format(time_stamp1))
-            time_r = time_stamp1 - time_stamp0
-            print("Call server cost {} ms".format(time_r.seconds * 1000 + time_r.microseconds // 1000))
+            # time_stamp1 = datetime.datetime.now()
+            # print("[{}] Search done.".format(time_stamp1))
+            # time_r = time_stamp1 - time_stamp0
+            # print("Call server cost {} ms".format(time_r.seconds * 1000 + time_r.microseconds // 1000))
 
             if lazy_flag is True:
                 return response
@@ -644,10 +644,10 @@ class GrpcMilvus(ConnectIntf):
 
             resutls = TopKQueryResult2(response)
 
-            time_stamp2 = datetime.datetime.now()
-            print("[{}] Result done. result {}".format(time_stamp2, resutls.shape))
-            time_r = time_stamp2 - time_stamp1
-            print("Serialise cost {} ms".format(time_r.seconds * 1000 + time_r.microseconds // 1000))
+            # time_stamp2 = datetime.datetime.now()
+            # print("[{}] Result done. result {}".format(time_stamp2, resutls.shape))
+            # time_r = time_stamp2 - time_stamp1
+            # print("Serialise cost {} ms".format(time_r.seconds * 1000 + time_r.microseconds // 1000))
 
             return Status(message='Search vectors successfully!'), resutls
 
@@ -713,7 +713,6 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
-
             return status, []
 
     def describe_table(self, table_name, timeout=10):
@@ -811,10 +810,10 @@ class GrpcMilvus(ConnectIntf):
             return Status(code=trc.status.error_code, message=trc.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
     def client_version(self):
         """
