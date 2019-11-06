@@ -15,7 +15,7 @@ from .abstract import (
     TableSchema,
     Range,
     TopKQueryResult,
-    TopKQueryResult2,
+    TopKQueryBinResult,
     IndexParam
 )
 from .types import IndexType, MetricType, Status
@@ -229,11 +229,23 @@ class Prepare:
 
 class GrpcMilvus(ConnectIntf):
 
-    def __init__(self):
+    def __init__(self, host=None, port=None, uri=None):
         self._channel = None
         self._stub = None
         self._uri = None
         self.status = None
+
+        if host or port or uri:
+            self.connect(host, port, uri)
+
+    def __enter__(self):
+        if not self.connected():
+            self.connect()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -298,7 +310,7 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if connect is successful
         :rtype: Status
         """
-        if self._channel is None:
+        if not self._channel:
             self._set_channel(host, port, uri)
 
         elif self.connected():
@@ -484,7 +496,7 @@ class GrpcMilvus(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
-        if index is None:
+        if not index:
             index = {
                 'index_type': IndexType.FLAT,
                 'nlist': 16384
@@ -493,8 +505,8 @@ class GrpcMilvus(ConnectIntf):
             raise ParamError("param `index` should be a dictionary")
 
         index = {
-            'index_type': index['index_type'] if 'index_type' in index else IndexType.FLAT,
-            'nlist': index['nlist'] if 'nlist' in index else 16384
+            'index_type': index.get('index_type', None) or IndexType.FLAT,
+            'nlist': index.get('nlist', None) or 16384
         }
 
         if not self.connected():
@@ -580,7 +592,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=Status.UNEXPECTED_ERROR, message="Request timeout"), []
 
-    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
+    def search_vectors_bin(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
         """
         Query vectors in a table
 
@@ -627,14 +639,7 @@ class GrpcMilvus(ConnectIntf):
         lazy_flag = kwargs.get("lazy_", False)
 
         try:
-            # time_stamp0 = datetime.datetime.now()
-            # print("[{}] Start search ....".format(time_stamp0))
             response = self._stub.Search(infos)
-            # time_stamp1 = datetime.datetime.now()
-            # print("[{}] Search done.".format(time_stamp1))
-            # time_r = time_stamp1 - time_stamp0
-            # print("Call server cost {} ms".format(time_r.seconds * 1000 + time_r.microseconds // 1000))
-
             if lazy_flag is True:
                 return response
 
@@ -642,20 +647,27 @@ class GrpcMilvus(ConnectIntf):
                 return Status(code=response.status.error_code,
                               message=response.status.reason), []
 
-            resutls = TopKQueryResult2(response)
-
-            # time_stamp2 = datetime.datetime.now()
-            # print("[{}] Result done. result {}".format(time_stamp2, resutls.shape))
-            # time_r = time_stamp2 - time_stamp1
-            # print("Serialise cost {} ms".format(time_r.seconds * 1000 + time_r.microseconds // 1000))
-
+            resutls = TopKQueryBinResult(response)
             return Status(message='Search vectors successfully!'), resutls
 
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
-
             return status, []
+
+    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
+        lazy_flag = kwargs.get('lazy_', False)
+
+        if lazy_flag:
+            return self.search_vectors_bin(table_name, top_k, nprobe, query_records, query_ranges, **kwargs)
+
+        kwargs.update({'lazy_': True})
+        raw = self.search_vectors_bin(table_name, top_k, nprobe, query_records, query_ranges, **kwargs)
+        # Exception occurred. raw is (statue, [])
+        if isinstance(raw, tuple):
+            return raw
+        else:
+            return Status(message='Search vectors successfully!'), TopKQueryResult(raw)
 
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k,
                                 nprobe=16, query_ranges=None, **kwargs):

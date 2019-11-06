@@ -169,7 +169,7 @@ class TopKQueryResult:
         return "[\n%s\n]" % ",\n".join(str_out_list)
 
 
-class TopKQueryResult2:
+class TopKQueryBinResult:
 
     def __init__(self, _raw, **kwargs):
         self._raw = _raw
@@ -231,11 +231,10 @@ class TopKQueryResult2:
         return self._id_array
 
     @property
-    def dis_array(self):
+    def distance_array(self):
         return self._dis_array
 
     def __getitem__(self, item):
-        # return self._.__getitem__(item)
         return self._id_array[item], self._dis_array[item]
 
     def __iter__(self):
