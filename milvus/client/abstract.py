@@ -75,6 +75,16 @@ class Range:
                              " than or equal to end-date!")
 
 
+class QueryResult:
+
+    def __init__(self, _id, _distance):
+        self._id = _id
+        self._distance = _distance
+
+    def __str__(self):
+        return ""
+
+
 class TopKQueryResult:
     """
     TopK query results, 2-D array of query result
@@ -82,30 +92,10 @@ class TopKQueryResult:
 
     def __init__(self, raw_source, **kwargs):
         self._raw = raw_source
-        self._async = kwargs.get("async_", False)
-        self._lazy = kwargs.get("lazy_", False)
-        self._array = self._create_array(self._raw) if not (self._async or self._lazy) else []
+        self._array = TopKQueryBinResult(self._raw)
 
-    def _create_array(self, raw):
-
-        # def _task(topk_result):
-        #     topk_result_list = []
-        #     topk_result_list.extend(topk_result[0].query_result_arrays)
-        #     return topk_result_list
-        #
-        # executor = ThreadPoolExecutor()
-        #
-        # tasks = [executor.submit(_task, (topk_result,)) for topk_result in raw.topk_query_result]
-        # array = [future.result() for future in as_completed(tasks)]
-
-        array = []
-
-        for topk_result in raw.topk_query_result:
-            topk_result_list = []
-            topk_result_list.extend(topk_result.query_result_arrays)
-            array.append(topk_result_list)
-
-        return array
+    def _create_array(self, _raw):
+        bin_result = TopKQueryBinResult(self._raw)
 
     @property
     def shape(self):

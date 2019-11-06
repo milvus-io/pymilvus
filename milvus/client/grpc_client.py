@@ -26,6 +26,12 @@ from .utils import (
     is_legal_port,
     is_legal_array
 )
+
+from .client_hooks import (
+    SearchHook,
+    SearchBinHook
+)
+
 from .exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
 from . import __version__
@@ -235,17 +241,11 @@ class GrpcMilvus(ConnectIntf):
         self._uri = None
         self.status = None
 
-        if host or port or uri:
-            self.connect(host, port, uri)
+        # hook
+        self._search_hook = None
+        self._search_bin_hook = None
 
-    def __enter__(self):
-        if not self.connected():
-            self.connect()
-
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.disconnect()
+        self._set_hook()
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -290,7 +290,9 @@ class GrpcMilvus(ConnectIntf):
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
 
-    def _set_hook(self, ):
+    def _set_hook(self, **kwargs):
+        self._search_hook = kwargs.get('search', SearchHook())
+        self._search_bin_hook = kwargs.get('search_bin', SearchBinHook())
 
     def connect(self, host=None, port=None, uri=None, timeout=3):
         """
@@ -340,7 +342,6 @@ class GrpcMilvus(ConnectIntf):
         """
         if not self._stub or not self.status or not self._channel:
             return False
-
         try:
             grpc.channel_ready_future(self._channel).result(timeout=2)
             return True
@@ -638,18 +639,19 @@ class GrpcMilvus(ConnectIntf):
             table_name, query_records, query_ranges, top_k, nprobe
         )
 
-        lazy_flag = kwargs.get("lazy_", False)
-
         try:
+            self._search_bin_hook.pre_search()
             response = self._stub.Search(request)
-            if lazy_flag is True:
+            self._search_bin_hook.aft_search()
+
+            if self._search_bin_hook.on_response():
                 return response
 
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code,
                               message=response.status.reason), []
 
-            resutls = TopKQueryBinResult(response)
+            resutls = self._search_bin_hook.handle_response(response)
             return Status(message='Search vectors successfully!'), resutls
 
         except grpc.RpcError as e:
@@ -658,18 +660,32 @@ class GrpcMilvus(ConnectIntf):
             return status, []
 
     def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
-        lazy_flag = kwargs.get('lazy_', False)
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
 
-        if lazy_flag:
-            return self.search_vectors_bin(table_name, top_k, nprobe, query_records, query_ranges, **kwargs)
+        request = Prepare.search_param(
+            table_name, query_records, query_ranges, top_k, nprobe
+        )
 
-        kwargs.update({'lazy_': True})
-        raw = self.search_vectors_bin(table_name, top_k, nprobe, query_records, query_ranges, **kwargs)
-        # Exception occurred. raw is (statue, [])
-        if isinstance(raw, tuple):
-            return raw
-        else:
-            return Status(message='Search vectors successfully!'), TopKQueryResult(raw)
+        try:
+            self._search_hook.pre_search()
+            response = self._stub.Search(request)
+            self._search_hook.aft_search()
+
+            if self._search_hook.on_response():
+                return response
+
+            if response.status.error_code != 0:
+                return Status(code=response.status.error_code,
+                              message=response.status.reason), []
+
+            resutls = self._search_hook.handle_response(response)
+            return Status(message='Search vectors successfully!'), resutls
+
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
+            return status, []
 
     def search_vectors_in_files(self, table_name, file_ids, query_records, top_k,
                                 nprobe=16, query_ranges=None, **kwargs):
@@ -711,19 +727,79 @@ class GrpcMilvus(ConnectIntf):
             table_name, query_records, query_ranges, top_k, nprobe, file_ids
         )
 
-        lazy_flag = kwargs.get("lazy_", False)
-
         try:
+            self._search_hook.pre_search()
             response = self._stub.SearchInFiles(infos)
+            self._search_hook.aft_search()
 
-            if lazy_flag is True:
+            if self._search_hook.on_response():
                 return response
 
             if response.status.error_code != 0:
                 return Status(code=response.status.error_code,
                               message=response.status.reason), []
 
-            return Status(message='Search vectors successfully!'), TopKQueryResult(response)
+            return Status(message='Search vectors successfully!'), \
+                   self._search_hook.handle_response(response)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
+            return status, []
+
+    def search_vectors_bin_in_files(self, table_name, file_ids, query_records, top_k,
+                                nprobe=16, query_ranges=None, **kwargs):
+        """
+        Query vectors in a table, in specified files
+
+        :type  nprobe: int
+        :param nprobe:
+
+        :type  table_name: str
+        :param table_name: table name been queried
+
+        :type  file_ids: list[str] or list[int]
+        :param file_ids: Specified files id array
+
+        :type  query_records: list[list[float]]
+        :param query_records: all vectors going to be queried
+
+        :param query_ranges: Optional ranges for conditional search.
+            If not specified, search in the whole table
+
+
+        :type  top_k: int
+        :param top_k: how many similar vectors will be searched
+
+        :returns:
+            Status:  indicate if query is successful
+            query_results: list[TopKQueryResult]
+
+        :rtype: (Status, TopKQueryResult[QueryResult])
+        """
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        file_ids = list(map(int_or_str, file_ids))
+
+        infos = Prepare.search_vector_in_files_param(
+            table_name, query_records, query_ranges, top_k, nprobe, file_ids
+        )
+
+        try:
+            self._search_bin_hook.pre_search()
+            response = self._stub.SearchInFiles(infos)
+            self._search_bin_hook.aft_search()
+
+            if self._search_bin_hook.on_response():
+                return response
+
+            if response.status.error_code != 0:
+                return Status(code=response.status.error_code,
+                              message=response.status.reason), []
+
+            return Status(message='Search vectors successfully!'), \
+                   self._search_bin_hook.handle_response(response)
         except grpc.RpcError as e:
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
