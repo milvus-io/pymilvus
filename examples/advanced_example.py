@@ -1,6 +1,5 @@
 import random
 import time
-
 from milvus import Milvus, IndexType, MetricType
 
 _DIM = 128
@@ -10,12 +9,12 @@ table_name = 'examples_milvus'
 top_K = 10
 
 server_config = {
-    "host": 'localhost',
+    "host": '127.0.0.1',
     "port": '19530',
 }
 
 milvus = Milvus()
-milvus.connect()
+milvus.connect(**server_config)
 
 
 def random_vectors(num):
@@ -31,6 +30,7 @@ def create_table():
         'metric_type': MetricType.L2
     }
 
+    assert milvus.has_table(table_name) == True
     if milvus.has_table(table_name):
         milvus.delete_table(table_name)
         time.sleep(2)
@@ -112,7 +112,7 @@ def search_vectors(_query_vectors):
     """
     print("start search")
     results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K,
-                                            nprobe=16, lazy_=True)
+                                    nprobe=16, lazy_=True)
     # if not status.OK():
     #     print("search failed. {}".format(status))
     # else:
@@ -154,7 +154,7 @@ def run():
     # generate query vectors
     query_vectors = random_vectors(nq)
 
-    t0 =time.time()
+    t0 = time.time()
     search_vectors(query_vectors)
     print("Cost {:.4f} s".format(time.time() - t0))
 
