@@ -78,11 +78,11 @@ class Range:
 class QueryResult:
 
     def __init__(self, _id, _distance):
-        self._id = _id
-        self._distance = _distance
+        self.id = _id
+        self.distance = _distance
 
     def __str__(self):
-        return ""
+        return "Result(id={}, distance={})".format(self.id, self.distance)
 
 
 class TopKQueryResult:
@@ -92,10 +92,20 @@ class TopKQueryResult:
 
     def __init__(self, raw_source, **kwargs):
         self._raw = raw_source
-        self._array = TopKQueryBinResult(self._raw)
+        self._array = []
 
-    def _create_array(self, _raw):
+        self._unpack(self._raw)
+
+    def _unpack(self, _raw):
         bin_result = TopKQueryBinResult(self._raw)
+
+        row, col = bin_result.shape
+        for i in range(row):
+            row_result = []
+            for j in range(col):
+                row_result.append(QueryResult(bin_result.id_array[i][j], bin_result.distance_array[i][j]))
+
+            self._array.append(row_result)
 
     @property
     def shape(self):

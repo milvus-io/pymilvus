@@ -506,11 +506,12 @@ class GrpcMilvus(ConnectIntf):
             }
         elif not isinstance(index, dict):
             raise ParamError("param `index` should be a dictionary")
-
-        index = {
-            'index_type': index.get('index_type', None) or IndexType.FLAT,
-            'nlist': index.get('nlist', None) or 16384
-        }
+        else:
+            index = {
+                'index_type': index.get('index_type', None)
+                              if index.get('index_type', None) is not None else IndexType.FLAT,
+                'nlist': index.get('nlist', None) if index.get('nlist', None) is not None else 16384
+            }
 
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
@@ -595,7 +596,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=Status.UNEXPECTED_ERROR, message="Request timeout"), []
 
-    def search_vectors_bin(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
+    def search_bin(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
         """
         Query vectors in a table
 
@@ -746,7 +747,7 @@ class GrpcMilvus(ConnectIntf):
             status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
             return status, []
 
-    def search_vectors_bin_in_files(self, table_name, file_ids, query_records, top_k,
+    def search_bin_in_files(self, table_name, file_ids, query_records, top_k,
                                 nprobe=16, query_ranges=None, **kwargs):
         """
         Query vectors in a table, in specified files

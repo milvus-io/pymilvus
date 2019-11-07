@@ -64,6 +64,10 @@ class IndexType(IntEnum):
     MIX_NSG = 4
     IVF_SQ8H = 5
 
+    # alternative name
+    IVF_FLAT = IVFLAT
+    IVF_SQ8_H = IVF_SQ8H
+
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self._name_)
 
