@@ -14,8 +14,6 @@ from .abstract import (
     ConnectIntf,
     TableSchema,
     Range,
-    TopKQueryResult,
-    TopKQueryBinResult,
     IndexParam
 )
 from .types import IndexType, MetricType, Status
@@ -509,7 +507,7 @@ class GrpcMilvus(ConnectIntf):
         else:
             index = {
                 'index_type': index.get('index_type', None)
-                              if index.get('index_type', None) is not None else IndexType.FLAT,
+                if index.get('index_type', None) is not None else IndexType.FLAT,
                 'nlist': index.get('nlist', None) if index.get('nlist', None) is not None else 16384
             }
 
@@ -748,7 +746,7 @@ class GrpcMilvus(ConnectIntf):
             return status, []
 
     def search_bin_in_files(self, table_name, file_ids, query_records, top_k,
-                                nprobe=16, query_ranges=None, **kwargs):
+                            nprobe=16, query_ranges=None, **kwargs):
         """
         Query vectors in a table, in specified files
 

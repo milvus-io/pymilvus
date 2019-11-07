@@ -380,14 +380,11 @@ class TestSearch:
         }
         res, results = gcon.search_vectors(**param)
         assert res.OK()
-        assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
 
         assert results.shape[0] == nq
         assert results.shape[1] == topk
-
-        # print(results)
 
     def test_search_normal(self, gcon, gvector):
         topk = random.randint(1, 10)
@@ -400,14 +397,11 @@ class TestSearch:
         }
         res, results = gcon.search(**param)
         assert res.OK()
-        assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
 
         assert results.shape[0] == nq
         assert results.shape[1] == topk
-
-        print(results)
 
     def test_search_vector_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
@@ -446,7 +440,6 @@ class TestSearch:
         }
         res, results = gcon.search_vectors(**param)
         assert res.OK()
-        assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
 
@@ -891,6 +884,36 @@ class TestQueryResult:
 
             # test len
             len(results)
+            # test print
+            print(results)
+        except Exception:
+            assert False
+
+
+class TestTopkBinQueryResult:
+    query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
+
+    def test_results(self, gcon, gvector):
+        try:
+            status, results = gcon.search_vectors(gvector, 10, 10, self.query_vectors)
+            assert status.OK()
+
+            # test get_item
+            shape = results.shape
+            assert shape[0] == len(results)
+
+            # test iterate
+            total_num = 0
+            for topk_result in results:
+                for item in topk_result:
+                    print(item)
+                    total_num += 1
+
+            assert total_num == shape[0] * shape[1]
+
+            item = results[0][0]
+            print(item, item.id, item.distance)
+
             # test print
             print(results)
         except Exception:

@@ -85,6 +85,33 @@ class QueryResult:
         return "Result(id={}, distance={})".format(self.id, self.distance)
 
 
+class RowQueryResult:
+    def __init__(self, _id_list, _dis_list):
+        self._id_list = _id_list or []
+        self._dis_list = _dis_list or []
+
+        # Iterator index
+        self.__index = 0
+
+    def __getitem__(self, item):
+        return QueryResult(self._id_list[item], self._dis_list[item])
+
+    def __len__(self):
+        return len(self._id_list)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        while self.__index < self.__len__():
+            self.__index += 1
+            return self.__getitem__(self.__index - 1)
+
+        # iterate stop, raise Exception
+        self.__index = 0
+        raise StopIteration()
+
+
 class TopKQueryResult:
     """
     TopK query results, 2-D array of query result
@@ -200,6 +227,8 @@ class TopKQueryBinResult:
                             )
         if len(self._id_array) != self._nq:
             raise ParamError("Unpack search result Error: id")
+        if len(self._id_array[0]) != self._topk:
+            raise ParamError("Unpack search result Error: id")
 
         _dis_binary = self._raw.distances_binary
         self.__unpack_array(self._topk,
@@ -217,14 +246,7 @@ class TopKQueryBinResult:
 
     @property
     def shape(self):
-        try:
-            _r = len(self._id_array)
-            _c = len(self._id_array[0])
-        except Exception:
-            _r = 0
-            _c = 0
-
-        return _r, _c
+        return self._nq, self._topk
 
     @property
     def id_array(self):
@@ -235,7 +257,8 @@ class TopKQueryBinResult:
         return self._dis_array
 
     def __getitem__(self, item):
-        return self._id_array[item], self._dis_array[item]
+        # return self._id_array[item], self._dis_array[item]
+        return RowQueryResult(self._id_array[item], self._dis_array[item])
 
     def __iter__(self):
         return self
@@ -243,7 +266,7 @@ class TopKQueryBinResult:
     def __next__(self):
         while self.__index < self.__len__():
             self.__index += 1
-            return self.__getitem__(self.__index)
+            return self.__getitem__(self.__index - 1)
 
         self.__index = 0
         raise StopIteration()
