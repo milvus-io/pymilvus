@@ -25,7 +25,7 @@ LOGGER = logging.getLogger(__name__)
 
 dim = 128
 nb = 2000
-nq = 100
+nq = 10
 
 
 class TestChannel:
@@ -387,7 +387,7 @@ class TestSearch:
         assert results.shape[0] == nq
         assert results.shape[1] == topk
 
-        print(results)
+        # print(results)
 
     def test_search_normal(self, gcon, gvector):
         topk = random.randint(1, 10)
@@ -564,13 +564,6 @@ class TestPrepare:
         }
         res = Prepare.table_schema(param)
         assert isinstance(res, milvus_pb2.TableSchema)
-
-
-class TestPing:
-
-    def test_ping_server_version(self, gcon):
-        _, version = gcon.server_version()
-        assert version in ("0.4.0", "0.5.0")
 
 
 class TestCreateTable:
@@ -799,6 +792,7 @@ class TestBuildIndex:
 
 
 class TestCmd:
+    versions = ("0.5.3",)
 
     def test_client_version(self, gcon):
         try:
@@ -809,7 +803,7 @@ class TestCmd:
 
     def test_server_version(self, gcon):
         _, version = gcon.server_version()
-        assert version in ("0.4.0", "0.5.0")
+        assert version in self.versions
 
     def test_server_status(self, gcon):
         _, status = gcon.server_status()
@@ -817,7 +811,7 @@ class TestCmd:
 
     def test_cmd(self, gcon):
         _, info = gcon._cmd("version")
-        assert info in ("0.4.0", "0.5.0")
+        assert info in self.versions
 
         _, info = gcon._cmd("OK")
         assert info in ("OK", "ok")
@@ -852,10 +846,6 @@ class TestUtils:
 class TestQueryResult:
     query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
 
-    def test_search_lazy(self, gcon, gvector):
-        response = gcon.search_vectors(gvector, 1, 1, self.query_vectors, lazy_=True)
-        assert isinstance(response, milvus_pb2.TopKQueryResultList)
-
     def test_search_normal(self, gcon, gvector):
         try:
             response = gcon.search_vectors(gvector, 1, 1, self.query_vectors)
@@ -873,18 +863,10 @@ class TestQueryResult:
 
             # test len
             len(results)
-
             # test print
             print(results)
         except Exception:
             assert False
-
-    def test_search_in_files_lazy(self, gcon, gvector):
-        response = \
-            gcon.search_vectors_in_files(table_name=gvector, top_k=1,
-                                         nprobe=1, file_ids=['2'],
-                                         query_records=self.query_vectors, lazy_=True)
-        assert isinstance(response, milvus_pb2.TopKQueryResultList)
 
     def test_search_in_files_normal(self, gcon, gvector):
         try:
@@ -909,7 +891,6 @@ class TestQueryResult:
 
             # test len
             len(results)
-
             # test print
             print(results)
         except Exception:
