@@ -221,10 +221,11 @@ class TopKQueryBinResult:
                             _id_binary,
                             self._id_array
                             )
-        if len(self._id_array) != self._nq:
-            raise ParamError("Unpack search result Error: id")
-        if len(self._id_array[0]) != self._topk:
-            raise ParamError("Unpack search result Error: id")
+        if self._id_array:
+            if len(self._id_array) != self._nq:
+                raise ParamError("Unpack search result Error: id")
+            if len(self._id_array[0]) != self._topk:
+                raise ParamError("Unpack search result Error: id")
 
         _dis_binary = self._raw.distances_binary
         self.__unpack_array(self._topk,
