@@ -150,13 +150,6 @@ class TopKQueryResult:
         """
         return self._raw
 
-    def result(self, timeout=10):
-        if self._async is True:
-            response = self._raw.result(timeout=timeout)
-            return TopKQueryResult(response, lazy_=self._lazy, async_=False)
-
-        return self
-
     def __getitem__(self, item):
         return self._array.__getitem__(item)
 
