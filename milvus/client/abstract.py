@@ -203,6 +203,7 @@ class TopKQueryBinResult:
         self.__unpack()
 
     def __unpack_array(self, _column, _unit_size, _fmt, _bytes, _array):
+        import pdb;pdb.set_trace()
         _len = len(_bytes)
         _byte_batch = _column * _unit_size
         _unpack_str = str(_column) + _fmt
@@ -215,6 +216,8 @@ class TopKQueryBinResult:
 
     def __unpack(self):
         _id_binary = self._raw.ids_binary
+
+        import pdb;pdb.set_trace()
         self.__unpack_array(self._topk,
                             8,
                             "l",

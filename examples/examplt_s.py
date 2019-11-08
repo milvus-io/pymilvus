@@ -8,8 +8,8 @@ from milvus import Milvus, IndexType
 sift_1b_base_file = "/exp/hdd1/data/faiss_assets/ANN_SIFT1B/dataset/bigann_base.bvecs"
 sift_1b_query_file = "/exp/hdd1/data/faiss_assets/ANN_SIFT1B/dataset/bigann_query.bvecs"
 _NB = 1000 * 1000
-_NQ = 10000
-_Top_K = 1000
+_NQ = 100
+_Top_K = 100
 _HOST = "192.168.1.113"
 # _HOST = "127.0.0.1"
 # _PORT = "19531"
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     time_stamp0 = datetime.datetime.now()
     print("[{}] <Interface> Start search ....".format(time_stamp0))
-    client.search_vectors(table_name, top_k=_Top_K, nprobe=16, query_records=query_records)
+    status, result = client.search_vectors(table_name, top_k=_Top_K, nprobe=16, query_records=query_records)
     time_stamp1 = datetime.datetime.now()
     print("[{}] <Interface> Search done.".format(time_stamp1))
     time_r = time_stamp1 - time_stamp0
