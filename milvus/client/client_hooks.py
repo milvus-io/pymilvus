@@ -24,8 +24,8 @@ class SearchHook(BaseaSearchHook):
         return super().on_response(*args, **kwargs)
 
     def handle_response(self, _response):
-        return TopKQueryResult(_response)
-        # return TopKQueryBinResult(_response)
+        # return TopKQueryResult(_response)
+        return TopKQueryBinResult(_response)
 
 
 class SearchBinHook(BaseaSearchHook):

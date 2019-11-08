@@ -207,6 +207,9 @@ class TopKQueryBinResult:
         _byte_batch = _column * _unit_size
         _unpack_str = str(_column) + _fmt
 
+        if 0 == _byte_batch:
+            return
+
         for i in range(0, _len, _byte_batch):
             _array.append(struct.unpack(_unpack_str, _bytes[i: i + _byte_batch]))
 
