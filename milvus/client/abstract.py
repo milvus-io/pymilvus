@@ -119,28 +119,44 @@ class TopKQueryResult:
 
     def __init__(self, raw_source, **kwargs):
         self._raw = raw_source
-        self._array = []
+        self._nq = 0
+        self._topk = 0
+        self._id_array = []
+        self._dis_array = []
+
+        ##
+        self.__index = 0
 
         self._unpack(self._raw)
 
     def _unpack(self, _raw):
-        bin_result = TopKQueryBinResult(self._raw)
+        self._nq = _raw.row_num
 
-        row, col = bin_result.shape
-        for i in range(row):
-            row_result = []
-            for j in range(col):
-                row_result.append(QueryResult(bin_result.id_array[i][j], bin_result.distance_array[i][j]))
+        if self._nq == 0:
+            return
 
-            self._array.append(row_result)
+        id_list = list(_raw.ids)
+        id_col = len(id_list) // self._nq
+        for i in range(0, len(id_list), id_col):
+            self._id_array.append(id_list[i: i + id_col])
+
+        dis_list = list(_raw.distances)
+        dis_col = len(dis_list) // self._nq
+        for j in range(0, len(dis_list), dis_col):
+            self._dis_array.append(dis_list[j: j + dis_col])
+
+        if len(self._id_array) != self._nq or \
+                len(self._dis_array) != self._nq:
+            raise ParamError("Result parse error.")
+
+        if id_col != dis_col:
+            raise ParamError("Result parse error.")
+
+        self._topk = id_col
 
     @property
     def shape(self):
-        row = len(self._array)
-
-        column = 0 if row == 0 else len(self._array[0])
-
-        return row, column
+        return self._nq, self._topk
 
     @property
     def raw(self):
@@ -150,14 +166,23 @@ class TopKQueryResult:
         """
         return self._raw
 
+    def __len__(self):
+        return self._nq
+
     def __getitem__(self, item):
-        return self._array.__getitem__(item)
+        return RowQueryResult(self._id_array[item], self._dis_array[item])
 
     def __iter__(self):
-        return self._array.__iter__()
+        return self
 
-    def __len__(self):
-        return self._array.__len__()
+    def __next__(self):
+        while self.__index < self.__len__():
+            self.__index += 1
+            return self.__getitem__(self.__index - 1)
+
+        # iterate stop, raise Exception
+        self.__index = 0
+        raise StopIteration()
 
     def __repr__(self):
         """
@@ -176,7 +201,7 @@ class TopKQueryResult:
                 middle += "\n   %s ]\n\n" % lam(topk[-1])
 
             spaces = """        ......
-        ......"""
+            ......"""
 
             ahead = "[\n%s%s\n]" % (middle, spaces)
             return ahead
@@ -187,92 +212,6 @@ class TopKQueryResult:
             str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
 
         return "[\n%s\n]" % ",\n".join(str_out_list)
-
-
-class TopKQueryBinResult:
-
-    def __init__(self, _raw, **kwargs):
-        self._raw = _raw
-        self._nq = self._raw.nq
-        self._topk = self._raw.topk
-        self._id_array = []
-        self._dis_array = []
-        ##
-        self.__index = 0
-
-        self.__unpack()
-
-    def __unpack_array(self, _column, _unit_size, _fmt, _bytes, _array):
-        import pdb;pdb.set_trace()
-        _len = len(_bytes)
-        _byte_batch = _column * _unit_size
-        _unpack_str = str(_column) + _fmt
-
-        if 0 == _byte_batch:
-            return
-
-        for i in range(0, _len, _byte_batch):
-            _array.append(struct.unpack(_unpack_str, _bytes[i: i + _byte_batch]))
-
-    def __unpack(self):
-        _id_binary = self._raw.ids_binary
-
-        import pdb;pdb.set_trace()
-        self.__unpack_array(self._topk,
-                            8,
-                            "l",
-                            _id_binary,
-                            self._id_array
-                            )
-        if self._id_array:
-            if len(self._id_array) != self._nq:
-                raise ParamError("Unpack search result Error: id")
-            if len(self._id_array[0]) != self._topk:
-                raise ParamError("Unpack search result Error: id")
-
-        _dis_binary = self._raw.distances_binary
-        self.__unpack_array(self._topk,
-                            4,
-                            "f",
-                            _dis_binary,
-                            self._dis_array
-                            )
-        if len(self._dis_array) != self._nq:
-            raise ParamError("Unpack search result Error: dis")
-
-    @property
-    def raw(self):
-        return self._raw
-
-    @property
-    def shape(self):
-        return self._nq, self._topk
-
-    @property
-    def id_array(self):
-        return self._id_array
-
-    @property
-    def distance_array(self):
-        return self._dis_array
-
-    def __getitem__(self, item):
-        # return self._id_array[item], self._dis_array[item]
-        return RowQueryResult(self._id_array[item], self._dis_array[item])
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        while self.__index < self.__len__():
-            self.__index += 1
-            return self.__getitem__(self.__index - 1)
-
-        self.__index = 0
-        raise StopIteration()
-
-    def __len__(self):
-        return len(self._id_array)
 
 
 class IndexParam:

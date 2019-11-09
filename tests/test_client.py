@@ -6,10 +6,9 @@ import sys
 
 sys.path.append('.')
 
-from milvus.client.types import IndexType, MetricType
+from milvus import IndexType, MetricType, Prepare, Milvus, Status, ParamError, NotConnectError, ConnectError
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.abstract import TableSchema, TopKQueryResult
-from milvus.client.exceptions import ParamError, NotConnectError, ConnectError
 from milvus.client.utils import check_pass_param
 
 from factorys import (
