@@ -1,7 +1,3 @@
-"""
-This is a client for milvus of gRPC
-"""
-import datetime
 from urllib.parse import urlparse
 import logging
 
@@ -325,7 +321,8 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             raise NotConnectError("Connect error: <{}>".format(e))
         except Exception as e:
-            raise NotConnectError("Error occurred when trying to connect server:\n<{}>".format(str(e)))
+            raise NotConnectError("Error occurred when trying to connect server:\n"
+                                  "\t<{}>".format(str(e)))
         else:
             self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
             self.status = Status(message='Successfully connected! {}'.format(self._uri))
@@ -497,18 +494,19 @@ class GrpcMilvus(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
-        if not index:
-            index = {
-                'index_type': IndexType.FLAT,
-                'nlist': 16384
-            }
-        elif not isinstance(index, dict):
+        if not isinstance(index, dict):
             raise ParamError("param `index` should be a dictionary")
+
+        index_default = {
+            'index_type': IndexType.FLAT,
+            'nlist': 16384
+        }
+        if not index:
+            _index = index_default
         else:
-            index = {
-                'index_type': index.get('index_type', None)
-                if index.get('index_type', None) is not None else IndexType.FLAT,
-                'nlist': index.get('nlist', None) if index.get('nlist', None) is not None else 16384
+            _index = {
+                'index_type': index.get('index_type', None) or index_default['index_type'],
+                'nlist': index.get('nlist', None) or index_default['nlist']
             }
 
         if not self.connected():
