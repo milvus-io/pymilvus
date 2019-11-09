@@ -887,33 +887,3 @@ class TestQueryResult:
             print(results)
         except Exception:
             assert False
-
-
-class TestTopkBinQueryResult:
-    query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
-
-    def test_results(self, gcon, gvector):
-        try:
-            status, results = gcon.search_vectors(gvector, 10, 10, self.query_vectors)
-            assert status.OK()
-
-            # test get_item
-            shape = results.shape
-            assert shape[0] == len(results)
-
-            # test iterate
-            total_num = 0
-            for topk_result in results:
-                for item in topk_result:
-                    print(item)
-                    total_num += 1
-
-            assert total_num == shape[0] * shape[1]
-
-            item = results[0][0]
-            print(item, item.id, item.distance)
-
-            # test print
-            print(results)
-        except Exception:
-            assert False

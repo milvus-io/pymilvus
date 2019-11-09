@@ -1,4 +1,3 @@
-import struct
 from ..client.exceptions import ParamError
 
 from .utils import (
