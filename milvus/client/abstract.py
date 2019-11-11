@@ -552,31 +552,9 @@ class ConnectIntf:
         """
         _abstract()
 
-    # def delete_vectors_by_range(self, table_name, start_date, end_date, timeout):
-    #     """
-    #     delete vector by date range. The data range contains start_time but not end_time
-    #     should be implemented
-    #
-    #     :param table_name: table name
-    #     :type  table_name: str
-    #
-    #     :param start_date: range start time
-    #     :type  start_date: str, date, datetime
-    #
-    #     :param end_date: range end time(not contains in range)
-    #     :type  end_date: str, date, datetime
-    #
-    #     :type  timeout: int
-    #     :param timeout: how many similar vectors will be searched
-    #
-    #     :return:
-    #     """
-    #
-    #     _abstract()
-
     def preload_table(self, table_name, timeout):
         """
-        load table to cache in advance
+        load table to memory cache in advance
         should be implemented
 
         :param table_name: target table name.

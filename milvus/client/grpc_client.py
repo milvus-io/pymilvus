@@ -48,7 +48,8 @@ class Prepare:
 
             `example param={'table_name': 'name',
                             'dimension': 16,
-                            'index_type': IndexType.FLAT
+                            'index_file_size': 1024
+                            'metric_type': MetricType.L2
                             }`
 
         :return: ttypes.TableSchema object
