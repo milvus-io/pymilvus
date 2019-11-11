@@ -30,8 +30,8 @@ def create_table():
         'metric_type': MetricType.L2
     }
 
-    assert milvus.has_table(table_name) == True
-    if milvus.has_table(table_name):
+    status, ok = milvus.has_table(table_name)
+    if ok:
         milvus.delete_table(table_name)
         time.sleep(2)
 
@@ -111,8 +111,9 @@ def search_vectors(_query_vectors):
     :return: None
     """
     print("start search")
-    results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K,
-                                    nprobe=16, lazy_=True)
+    status, results = milvus.search_vectors(table_name=table_name, query_records=_query_vectors, top_k=top_K,
+                                            nprobe=16)
+    print(results)
     # if not status.OK():
     #     print("search failed. {}".format(status))
     # else:

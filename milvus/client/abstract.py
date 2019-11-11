@@ -93,6 +93,16 @@ class RowQueryResult:
         self.__index = 0
 
     def __getitem__(self, item):
+        if isinstance(item, slice):
+            _start = item.start or 0
+            _end = item.stop or self.__len__()
+            _step = item.step or 1
+
+            elements = []
+            for i in range(_start, _end, _step):
+                elements.append(self.__getitem__(i))
+            return elements
+
         return QueryResult(self._id_list[item], self._dis_list[item])
 
     def __len__(self):
@@ -169,6 +179,16 @@ class TopKQueryResult:
         return self._nq
 
     def __getitem__(self, item):
+        if isinstance(item, slice):
+            _start = item.start or 0
+            _end = item.stop or self.__len__()
+            _step = item.step or 1
+
+            elements = []
+            for i in range(_start, _end, _step):
+                elements.append(self.__getitem__(i))
+            return elements
+
         return RowQueryResult(self._id_array[item], self._dis_array[item])
 
     def __iter__(self):
@@ -194,7 +214,8 @@ class TopKQueryResult:
         if self.__len__() > 5:
             middle = ''
 
-            for topk in self[:3]:
+            ll = self[:3]
+            for topk in ll:
                 middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
                 middle += ",\n   ..."
                 middle += "\n   %s ]\n\n" % lam(topk[-1])

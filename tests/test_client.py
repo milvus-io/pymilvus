@@ -838,7 +838,7 @@ class TestUtils:
 class TestQueryResult:
     query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
 
-    def test_search_normal(self, gcon, gvector):
+    def test_search_result(self, gcon, gvector):
         try:
             response = gcon.search_vectors(gvector, 1, 1, self.query_vectors)
 
@@ -860,7 +860,7 @@ class TestQueryResult:
         except Exception:
             assert False
 
-    def test_search_in_files_normal(self, gcon, gvector):
+    def test_search_in_files_result(self, gcon, gvector):
         try:
             for index in range(500):
                 status, results = \
@@ -887,3 +887,11 @@ class TestQueryResult:
             print(results)
         except Exception:
             assert False
+
+    def test_empty_result(self, gcon, gtable):
+        status, results = gcon.search_vectors(gtable, 1, 1, self.query_vectors)
+        shape = results.shape
+
+        for topk_result in results:
+            for item in topk_result:
+                print(item)
