@@ -129,6 +129,13 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
+            self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+            status, ok = self.server_status(timeout=timeout)
+            if status.OK():
+                self.status = Status(message='Successfully connected! {}'.format(self._uri))
+                return self.status
+            else:
+                raise NotConnectError("Connect error: ping server failed")
         except grpc.FutureTimeoutError:
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
         except grpc.RpcError as e:
@@ -136,10 +143,6 @@ class GrpcMilvus(ConnectIntf):
         except Exception as e:
             raise NotConnectError("Error occurred when trying to connect server:\n"
                                   "\t<{}>".format(str(e)))
-        else:
-            self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
-            self.status = Status(message='Successfully connected! {}'.format(self._uri))
-            return self.status
 
     def connected(self):
         """
@@ -148,7 +151,7 @@ class GrpcMilvus(ConnectIntf):
         :return: if client is connected
         :rtype bool
         """
-        if not self._stub or not self.status or not self._channel:
+        if not self._stub or not self._channel:
             return False
         try:
             grpc.channel_ready_future(self._channel).result(timeout=2)
