@@ -10,18 +10,20 @@ Download
 Pymilvus only supports `python >= 3.5`, is fully tested under 3.5, 3.6, 3.7.
 
 
-Pymilvus can be downloaded via `pip`. If no use, try `pip3`
+Pymilvus can be downloaded via `pip` or `pip3` for python3
 ```$
 $ pip install pymilvus
 ```
 Different versions of Milvus and lowest/highest pymilvus version supported accordingly
 
-|Milvus version| Lowest pymilvus version supported|Highest pymivus version supported|
-|:-----:|:-----:|:-----:|
-| 0.3.0 |   -   | 0.1.13|
-| 0.3.1 | 0.1.14| 0.1.25|
-| 0.4.0 | 0.2.0 | 0.2.2 |
-| 0.5.0 | 0.2.3 |   -   |
+|Milvus version| Recommended pymilvus version |
+|:-----:|:-----:|
+| 0.3.0 | 0.1.13|
+| 0.3.1 | 0.1.25|
+| 0.4.0 | 0.2.2 |
+| 0.5.0 | 0.2.3 |
+| 0.5.1 | 0.2.3 |
+
 
 You can download a specific version by:
 ```$
@@ -189,3 +191,4 @@ $ sphinx-build -b html doc/en/ doc/en/build
 
 
 If you encounter any problems or bugs, please open new issues
+

@@ -32,6 +32,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class GrpcMilvus(ConnectIntf):
+    """
+    """
 
     def __init__(self, host=None, port=None, uri=None):
         self._channel = None
