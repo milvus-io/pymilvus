@@ -1,0 +1,525 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="python">
+  <head>
+    <meta charset="utf-8" />
+    <title>milvus package &#8212; pymilvus 0.2.4 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="milvus-package">
+<h1>milvus package<a class="headerlink" href="#milvus-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="milvus.client.html">milvus.client package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="milvus.client.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.client.html#module-milvus.client.abstract">milvus.client.abstract module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.client.html#module-milvus.client.exceptions">milvus.client.exceptions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.client.html#module-milvus.client.grpc_client">milvus.client.grpc_client module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.client.html#module-milvus.client.types">milvus.client.types module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.client.html#module-milvus.client.utils">milvus.client.utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.client.html#module-milvus.client">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="milvus.grpc_gen.html">milvus.grpc_gen package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="milvus.grpc_gen.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.grpc_gen.html#module-milvus.grpc_gen.milvus_pb2">milvus.grpc_gen.milvus_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.grpc_gen.html#module-milvus.grpc_gen.milvus_pb2_grpc">milvus.grpc_gen.milvus_pb2_grpc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.grpc_gen.html#module-milvus.grpc_gen.status_pb2">milvus.grpc_gen.status_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.grpc_gen.html#module-milvus.grpc_gen.status_pb2_grpc">milvus.grpc_gen.status_pb2_grpc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="milvus.grpc_gen.html#module-milvus.grpc_gen">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-milvus.settings">
+<span id="milvus-settings-module"></span><h2>milvus.settings module<a class="headerlink" href="#module-milvus.settings" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="milvus.settings.ColorFulFormatColMixin">
+<em class="property">class </em><code class="sig-prename descclassname">milvus.settings.</code><code class="sig-name descname">ColorFulFormatColMixin</code><a class="reference internal" href="_modules/milvus/settings.html#ColorFulFormatColMixin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.settings.ColorFulFormatColMixin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="milvus.settings.ColorFulFormatColMixin.format_col">
+<code class="sig-name descname">format_col</code><span class="sig-paren">(</span><em class="sig-param">message_str</em>, <em class="sig-param">level_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/settings.html#ColorFulFormatColMixin.format_col"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.settings.ColorFulFormatColMixin.format_col" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="milvus.settings.ColorfulFormatter">
+<em class="property">class </em><code class="sig-prename descclassname">milvus.settings.</code><code class="sig-name descname">ColorfulFormatter</code><span class="sig-paren">(</span><em class="sig-param">fmt=None</em>, <em class="sig-param">datefmt=None</em>, <em class="sig-param">style='%'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/settings.html#ColorfulFormatter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.settings.ColorfulFormatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">logging.Formatter</span></code>, <a class="reference internal" href="#milvus.settings.ColorFulFormatColMixin" title="milvus.settings.ColorFulFormatColMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">milvus.settings.ColorFulFormatColMixin</span></code></a></p>
+<dl class="method">
+<dt id="milvus.settings.ColorfulFormatter.format">
+<code class="sig-name descname">format</code><span class="sig-paren">(</span><em class="sig-param">record</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/settings.html#ColorfulFormatter.format"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.settings.ColorfulFormatter.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format the specified record as text.</p>
+<p>The record's attribute dictionary is used as the operand to a
+string formatting operation which yields the returned string.
+Before formatting the dictionary, a couple of preparatory steps
+are carried out. The message attribute of the record is computed
+using LogRecord.getMessage(). If the formatting string uses the
+time (as determined by a call to usesTime(), formatTime() is
+called to format the event time. If there is exception information,
+it is formatted using formatException() and appended to the message.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="milvus.settings.DefaultConfig">
+<em class="property">class </em><code class="sig-prename descclassname">milvus.settings.</code><code class="sig-name descname">DefaultConfig</code><a class="reference internal" href="_modules/milvus/settings.html#DefaultConfig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.settings.DefaultConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="attribute">
+<dt id="milvus.settings.DefaultConfig.GRPC_URI">
+<code class="sig-name descname">GRPC_URI</code><em class="property"> = 'tcp://127.0.0.1:19530'</em><a class="headerlink" href="#milvus.settings.DefaultConfig.GRPC_URI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-milvus">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-milvus" title="Permalink to this headline">¶</a></h2>
+<dl class="attribute">
+<dt id="milvus.Milvus">
+<code class="sig-prename descclassname">milvus.</code><code class="sig-name descname">Milvus</code><a class="headerlink" href="#milvus.Milvus" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="milvus.client.html#milvus.client.grpc_client.GrpcMilvus" title="milvus.client.grpc_client.GrpcMilvus"><code class="xref py py-class docutils literal notranslate"><span class="pre">milvus.client.grpc_client.GrpcMilvus</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="milvus.Prepare">
+<em class="property">class </em><code class="sig-prename descclassname">milvus.</code><code class="sig-name descname">Prepare</code><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="milvus.Prepare.cmd">
+<em class="property">classmethod </em><code class="sig-name descname">cmd</code><span class="sig-paren">(</span><em class="sig-param">cmd</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.cmd"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.cmd" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.delete_param">
+<em class="property">classmethod </em><code class="sig-name descname">delete_param</code><span class="sig-paren">(</span><em class="sig-param">table_name</em>, <em class="sig-param">start_date</em>, <em class="sig-param">end_date</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.delete_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.delete_param" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.index">
+<em class="property">classmethod </em><code class="sig-name descname">index</code><span class="sig-paren">(</span><em class="sig-param">index_type</em>, <em class="sig-param">nlist</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.index"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.index" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>index_type</strong> (<a class="reference internal" href="#milvus.IndexType" title="milvus.IndexType"><em>IndexType</em></a>) -- index type</p></li>
+<li><p><strong>nlist</strong> -- </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.index_param">
+<em class="property">classmethod </em><code class="sig-name descname">index_param</code><span class="sig-paren">(</span><em class="sig-param">table_name</em>, <em class="sig-param">index_param</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.index_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.index_param" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.insert_param">
+<em class="property">classmethod </em><code class="sig-name descname">insert_param</code><span class="sig-paren">(</span><em class="sig-param">table_name</em>, <em class="sig-param">vectors</em>, <em class="sig-param">ids=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.insert_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.insert_param" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.range">
+<em class="property">classmethod </em><code class="sig-name descname">range</code><span class="sig-paren">(</span><em class="sig-param">start_date</em>, <em class="sig-param">end_date</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.range"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.range" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parser a 'yyyy-mm-dd' like str or date/datetime object to Range object</p>
+<blockquote>
+<div><p><cite>Range: (start_date, end_date]</cite></p>
+<p><cite>start_date : '2019-05-25'</cite></p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_date</strong> (<em>str</em><em>, </em><em>date</em><em>, </em><em>datetime</em>) -- start date</p></li>
+<li><p><strong>end_date</strong> (<em>str</em><em>, </em><em>date</em><em>, </em><em>datetime</em>) -- end date</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Range object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.ranges">
+<em class="property">classmethod </em><code class="sig-name descname">ranges</code><span class="sig-paren">(</span><em class="sig-param">ranges</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.ranges"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.ranges" title="Permalink to this definition">¶</a></dt>
+<dd><p>prepare query_ranges</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>ranges</strong> -- prepare query_ranges</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list[Range]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.search_param">
+<em class="property">classmethod </em><code class="sig-name descname">search_param</code><span class="sig-paren">(</span><em class="sig-param">table_name</em>, <em class="sig-param">query_records</em>, <em class="sig-param">query_ranges</em>, <em class="sig-param">topk</em>, <em class="sig-param">nprobe</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.search_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.search_param" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.search_vector_in_files_param">
+<em class="property">classmethod </em><code class="sig-name descname">search_vector_in_files_param</code><span class="sig-paren">(</span><em class="sig-param">table_name</em>, <em class="sig-param">query_records</em>, <em class="sig-param">query_ranges</em>, <em class="sig-param">topk</em>, <em class="sig-param">nprobe</em>, <em class="sig-param">ids</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.search_vector_in_files_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.search_vector_in_files_param" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.table_name">
+<em class="property">classmethod </em><code class="sig-name descname">table_name</code><span class="sig-paren">(</span><em class="sig-param">table_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.table_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.table_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="milvus.Prepare.table_schema">
+<em class="property">classmethod </em><code class="sig-name descname">table_schema</code><span class="sig-paren">(</span><em class="sig-param">param</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/grpc_client.html#Prepare.table_schema"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Prepare.table_schema" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>param</strong> (<em>dict</em>) -- <p>(Required)</p>
+<dl class="simple">
+<dt><a href="#id3"><span class="problematic" id="id4">`</span></a>example param={'table_name': 'name',</dt><dd><p>'dimension': 16,
+'index_type': IndexType.FLAT
+}`</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>ttypes.TableSchema object</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="milvus.Status">
+<em class="property">class </em><code class="sig-prename descclassname">milvus.</code><code class="sig-name descname">Status</code><span class="sig-paren">(</span><em class="sig-param">code=0</em>, <em class="sig-param">message='Success'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/types.html#Status"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Attribute code</dt>
+<dd class="field-odd"><p>int (optional) default as ok</p>
+</dd>
+<dt class="field-even">Attribute message</dt>
+<dd class="field-even"><p>str (optional) current status message</p>
+</dd>
+</dl>
+<dl class="attribute">
+<dt id="milvus.Status.BUILD_INDEX_ERROR">
+<code class="sig-name descname">BUILD_INDEX_ERROR</code><em class="property"> = 21</em><a class="headerlink" href="#milvus.Status.BUILD_INDEX_ERROR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.CACHE_FAILED">
+<code class="sig-name descname">CACHE_FAILED</code><em class="property"> = 16</em><a class="headerlink" href="#milvus.Status.CACHE_FAILED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.CANNOT_CREATE_FILE">
+<code class="sig-name descname">CANNOT_CREATE_FILE</code><em class="property"> = 18</em><a class="headerlink" href="#milvus.Status.CANNOT_CREATE_FILE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.CANNOT_CREATE_FOLDER">
+<code class="sig-name descname">CANNOT_CREATE_FOLDER</code><em class="property"> = 17</em><a class="headerlink" href="#milvus.Status.CANNOT_CREATE_FOLDER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.CANNOT_DELETE_FILE">
+<code class="sig-name descname">CANNOT_DELETE_FILE</code><em class="property"> = 20</em><a class="headerlink" href="#milvus.Status.CANNOT_DELETE_FILE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.CANNOT_DELETE_FOLDER">
+<code class="sig-name descname">CANNOT_DELETE_FOLDER</code><em class="property"> = 19</em><a class="headerlink" href="#milvus.Status.CANNOT_DELETE_FOLDER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.CONNECT_FAILED">
+<code class="sig-name descname">CONNECT_FAILED</code><em class="property"> = 2</em><a class="headerlink" href="#milvus.Status.CONNECT_FAILED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.FILE_NOT_FOUND">
+<code class="sig-name descname">FILE_NOT_FOUND</code><em class="property"> = 14</em><a class="headerlink" href="#milvus.Status.FILE_NOT_FOUND" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_ARGUMENT">
+<code class="sig-name descname">ILLEGAL_ARGUMENT</code><em class="property"> = 5</em><a class="headerlink" href="#milvus.Status.ILLEGAL_ARGUMENT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_DIMENSION">
+<code class="sig-name descname">ILLEGAL_DIMENSION</code><em class="property"> = 7</em><a class="headerlink" href="#milvus.Status.ILLEGAL_DIMENSION" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_INDEX_TYPE">
+<code class="sig-name descname">ILLEGAL_INDEX_TYPE</code><em class="property"> = 8</em><a class="headerlink" href="#milvus.Status.ILLEGAL_INDEX_TYPE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_METRIC_TYPE">
+<code class="sig-name descname">ILLEGAL_METRIC_TYPE</code><em class="property"> = 23</em><a class="headerlink" href="#milvus.Status.ILLEGAL_METRIC_TYPE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_NLIST">
+<code class="sig-name descname">ILLEGAL_NLIST</code><em class="property"> = 22</em><a class="headerlink" href="#milvus.Status.ILLEGAL_NLIST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_RANGE">
+<code class="sig-name descname">ILLEGAL_RANGE</code><em class="property"> = 6</em><a class="headerlink" href="#milvus.Status.ILLEGAL_RANGE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_ROWRECORD">
+<code class="sig-name descname">ILLEGAL_ROWRECORD</code><em class="property"> = 11</em><a class="headerlink" href="#milvus.Status.ILLEGAL_ROWRECORD" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_SEARCH_RESULT">
+<code class="sig-name descname">ILLEGAL_SEARCH_RESULT</code><em class="property"> = 13</em><a class="headerlink" href="#milvus.Status.ILLEGAL_SEARCH_RESULT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_TABLE_NAME">
+<code class="sig-name descname">ILLEGAL_TABLE_NAME</code><em class="property"> = 9</em><a class="headerlink" href="#milvus.Status.ILLEGAL_TABLE_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_TOPK">
+<code class="sig-name descname">ILLEGAL_TOPK</code><em class="property"> = 10</em><a class="headerlink" href="#milvus.Status.ILLEGAL_TOPK" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.ILLEGAL_VECTOR_ID">
+<code class="sig-name descname">ILLEGAL_VECTOR_ID</code><em class="property"> = 12</em><a class="headerlink" href="#milvus.Status.ILLEGAL_VECTOR_ID" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.META_FAILED">
+<code class="sig-name descname">META_FAILED</code><em class="property"> = 15</em><a class="headerlink" href="#milvus.Status.META_FAILED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="milvus.Status.OK">
+<code class="sig-name descname">OK</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/milvus/client/types.html#Status.OK"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.Status.OK" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.OUT_OF_MEMORY">
+<code class="sig-name descname">OUT_OF_MEMORY</code><em class="property"> = 24</em><a class="headerlink" href="#milvus.Status.OUT_OF_MEMORY" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.PERMISSION_DENIED">
+<code class="sig-name descname">PERMISSION_DENIED</code><em class="property"> = 3</em><a class="headerlink" href="#milvus.Status.PERMISSION_DENIED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.SUCCESS">
+<code class="sig-name descname">SUCCESS</code><em class="property"> = 0</em><a class="headerlink" href="#milvus.Status.SUCCESS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.TABLE_NOT_EXISTS">
+<code class="sig-name descname">TABLE_NOT_EXISTS</code><em class="property"> = 4</em><a class="headerlink" href="#milvus.Status.TABLE_NOT_EXISTS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.Status.UNEXPECTED_ERROR">
+<code class="sig-name descname">UNEXPECTED_ERROR</code><em class="property"> = 1</em><a class="headerlink" href="#milvus.Status.UNEXPECTED_ERROR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="milvus.IndexType">
+<em class="property">class </em><code class="sig-prename descclassname">milvus.</code><code class="sig-name descname">IndexType</code><a class="reference internal" href="_modules/milvus/client/types.html#IndexType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.IndexType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">enum.IntEnum</span></code></p>
+<p>An enumeration.</p>
+<dl class="attribute">
+<dt id="milvus.IndexType.FLAT">
+<code class="sig-name descname">FLAT</code><em class="property"> = 1</em><a class="headerlink" href="#milvus.IndexType.FLAT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.IndexType.INVALID">
+<code class="sig-name descname">INVALID</code><em class="property"> = 0</em><a class="headerlink" href="#milvus.IndexType.INVALID" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.IndexType.IVFLAT">
+<code class="sig-name descname">IVFLAT</code><em class="property"> = 2</em><a class="headerlink" href="#milvus.IndexType.IVFLAT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.IndexType.IVF_SQ8">
+<code class="sig-name descname">IVF_SQ8</code><em class="property"> = 3</em><a class="headerlink" href="#milvus.IndexType.IVF_SQ8" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.IndexType.IVF_SQ8H">
+<code class="sig-name descname">IVF_SQ8H</code><em class="property"> = 5</em><a class="headerlink" href="#milvus.IndexType.IVF_SQ8H" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.IndexType.MIX_NSG">
+<code class="sig-name descname">MIX_NSG</code><em class="property"> = 4</em><a class="headerlink" href="#milvus.IndexType.MIX_NSG" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="milvus.MetricType">
+<em class="property">class </em><code class="sig-prename descclassname">milvus.</code><code class="sig-name descname">MetricType</code><a class="reference internal" href="_modules/milvus/client/types.html#MetricType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.MetricType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">enum.IntEnum</span></code></p>
+<p>An enumeration.</p>
+<dl class="attribute">
+<dt id="milvus.MetricType.IP">
+<code class="sig-name descname">IP</code><em class="property"> = 2</em><a class="headerlink" href="#milvus.MetricType.IP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="milvus.MetricType.L2">
+<code class="sig-name descname">L2</code><em class="property"> = 1</em><a class="headerlink" href="#milvus.MetricType.L2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="milvus.ParamError">
+<em class="property">exception </em><code class="sig-prename descclassname">milvus.</code><code class="sig-name descname">ParamError</code><a class="reference internal" href="_modules/milvus/client/exceptions.html#ParamError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.ParamError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ValueError</span></code></p>
+<p>Param of interface is illegal</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="milvus.ConnectError">
+<em class="property">exception </em><code class="sig-prename descclassname">milvus.</code><code class="sig-name descname">ConnectError</code><a class="reference internal" href="_modules/milvus/client/exceptions.html#ConnectError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.ConnectError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ValueError</span></code></p>
+<p>Connect server failed</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="milvus.NotConnectError">
+<em class="property">exception </em><code class="sig-prename descclassname">milvus.</code><code class="sig-name descname">NotConnectError</code><a class="reference internal" href="_modules/milvus/client/exceptions.html#NotConnectError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.NotConnectError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="milvus.client.html#milvus.client.exceptions.ConnectError" title="milvus.client.exceptions.ConnectError"><code class="xref py py-class docutils literal notranslate"><span class="pre">milvus.client.exceptions.ConnectError</span></code></a></p>
+<p>Disconnect error</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="milvus.RepeatingConnectError">
+<em class="property">exception </em><code class="sig-prename descclassname">milvus.</code><code class="sig-name descname">RepeatingConnectError</code><a class="reference internal" href="_modules/milvus/client/exceptions.html#RepeatingConnectError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#milvus.RepeatingConnectError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="milvus.client.html#milvus.client.exceptions.ConnectError" title="milvus.client.exceptions.ConnectError"><code class="xref py py-class docutils literal notranslate"><span class="pre">milvus.client.exceptions.ConnectError</span></code></a></p>
+<p>Try to connect repeatedly</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pymilvus</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="main.html">Module Contents</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Milvus.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/milvus.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

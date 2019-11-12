@@ -1,0 +1,235 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="python">
+  <head>
+    <meta charset="utf-8" />
+    <title>factorys &#8212; pymilvus 0.2.4 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for factorys</h1><div class="highlight"><pre>
+<span></span><span class="c1"># STL imports</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">struct</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">wraps</span>
+
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+<span class="c1"># Third party imports</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">faker</span>
+<span class="kn">from</span> <span class="nn">faker.providers</span> <span class="k">import</span> <span class="n">BaseProvider</span>
+
+<span class="c1"># local application imports</span>
+<span class="kn">from</span> <span class="nn">milvus.client.types</span> <span class="k">import</span> <span class="n">IndexType</span><span class="p">,</span> <span class="n">MetricType</span>
+
+<span class="c1"># grpc</span>
+<span class="kn">from</span> <span class="nn">milvus.client.grpc_client</span> <span class="k">import</span> <span class="n">Prepare</span> <span class="k">as</span> <span class="n">gPrepare</span>
+<span class="kn">from</span> <span class="nn">milvus.grpc_gen</span> <span class="k">import</span> <span class="n">milvus_pb2</span>
+
+
+<div class="viewcode-block" id="gen_vectors"><a class="viewcode-back" href="../factorys.html#factorys.gen_vectors">[docs]</a><span class="k">def</span> <span class="nf">gen_vectors</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[[</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dim</span><span class="p">)]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="gen_single_vector"><a class="viewcode-back" href="../factorys.html#factorys.gen_single_vector">[docs]</a><span class="k">def</span> <span class="nf">gen_single_vector</span><span class="p">(</span><span class="n">dim</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[[</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dim</span><span class="p">)]]</span></div>
+
+
+<div class="viewcode-block" id="gen_vector"><a class="viewcode-back" href="../factorys.html#factorys.gen_vector">[docs]</a><span class="k">def</span> <span class="nf">gen_vector</span><span class="p">(</span><span class="n">nb</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="mi">1234</span><span class="p">)):</span>
+    <span class="n">xb</span> <span class="o">=</span> <span class="n">seed</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">nb</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">xb</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="gen_unique_str"><a class="viewcode-back" href="../factorys.html#factorys.gen_unique_str">[docs]</a><span class="k">def</span> <span class="nf">gen_unique_str</span><span class="p">(</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span> <span class="o">+</span> <span class="n">string</span><span class="o">.</span><span class="n">digits</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">prefix</span> <span class="k">if</span> <span class="nb">str</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">str</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">prefix</span></div>
+
+
+<div class="viewcode-block" id="get_current_day"><a class="viewcode-back" href="../factorys.html#factorys.get_current_day">[docs]</a><span class="k">def</span> <span class="nf">get_current_day</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="get_last_day"><a class="viewcode-back" href="../factorys.html#factorys.get_last_day">[docs]</a><span class="k">def</span> <span class="nf">get_last_day</span><span class="p">(</span><span class="n">day</span><span class="p">):</span>
+    <span class="n">tmp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">day</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tmp</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_next_day"><a class="viewcode-back" href="../factorys.html#factorys.get_next_day">[docs]</a><span class="k">def</span> <span class="nf">get_next_day</span><span class="p">(</span><span class="n">day</span><span class="p">):</span>
+    <span class="n">tmp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">day</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tmp</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="gen_long_str"><a class="viewcode-back" href="../factorys.html#factorys.gen_long_str">[docs]</a><span class="k">def</span> <span class="nf">gen_long_str</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
+    <span class="n">string</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
+        <span class="n">char</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">&#39;tomorrow&#39;</span><span class="p">)</span>
+        <span class="n">string</span> <span class="o">+=</span> <span class="n">char</span></div>
+
+
+<div class="viewcode-block" id="gen_one_binary"><a class="viewcode-back" href="../factorys.html#factorys.gen_one_binary">[docs]</a><span class="k">def</span> <span class="nf">gen_one_binary</span><span class="p">(</span><span class="n">topk</span><span class="p">):</span>
+    <span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="mi">10000000</span><span class="p">,</span> <span class="mi">99999999</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">topk</span><span class="p">)]</span>
+    <span class="n">distances</span> <span class="o">=</span> <span class="p">[</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">topk</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">milvus_pb2</span><span class="o">.</span><span class="n">TopKQueryResult</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">topk</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;l&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">ids</span><span class="p">),</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">topk</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">distances</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="gen_nq_binaries"><a class="viewcode-back" href="../factorys.html#factorys.gen_nq_binaries">[docs]</a><span class="k">def</span> <span class="nf">gen_nq_binaries</span><span class="p">(</span><span class="n">nq</span><span class="p">,</span> <span class="n">topk</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">gen_one_binary</span><span class="p">(</span><span class="n">topk</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nq</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="fake_query_bin_result"><a class="viewcode-back" href="../factorys.html#factorys.fake_query_bin_result">[docs]</a><span class="k">def</span> <span class="nf">fake_query_bin_result</span><span class="p">(</span><span class="n">nq</span><span class="p">,</span> <span class="n">topk</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">gen_nq_binaries</span><span class="p">(</span><span class="n">nq</span><span class="p">,</span> <span class="n">topk</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FakerProvider"><a class="viewcode-back" href="../factorys.html#factorys.FakerProvider">[docs]</a><span class="k">class</span> <span class="nc">FakerProvider</span><span class="p">(</span><span class="n">BaseProvider</span><span class="p">):</span>
+
+<div class="viewcode-block" id="FakerProvider.table_name"><a class="viewcode-back" href="../factorys.html#factorys.FakerProvider.table_name">[docs]</a>    <span class="k">def</span> <span class="nf">table_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;table_names&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">9999</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FakerProvider.name"><a class="viewcode-back" href="../factorys.html#factorys.FakerProvider.name">[docs]</a>    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;name&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">9999</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FakerProvider.dim"><a class="viewcode-back" href="../factorys.html#factorys.FakerProvider.dim">[docs]</a>    <span class="k">def</span> <span class="nf">dim</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">999</span><span class="p">)</span></div></div>
+
+
+<span class="n">fake</span> <span class="o">=</span> <span class="n">faker</span><span class="o">.</span><span class="n">Faker</span><span class="p">()</span>
+<span class="n">fake</span><span class="o">.</span><span class="n">add_provider</span><span class="p">(</span><span class="n">FakerProvider</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="range_factory"><a class="viewcode-back" href="../factorys.html#factorys.range_factory">[docs]</a><span class="k">def</span> <span class="nf">range_factory</span><span class="p">():</span>
+    <span class="n">param</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;start_date&#39;</span><span class="p">:</span> <span class="n">get_last_day</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span>
+        <span class="s1">&#39;end_date&#39;</span><span class="p">:</span> <span class="n">get_next_day</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">gPrepare</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="o">**</span><span class="n">param</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ranges_factory"><a class="viewcode-back" href="../factorys.html#factorys.ranges_factory">[docs]</a><span class="k">def</span> <span class="nf">ranges_factory</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">range_factory</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="table_schema_factory"><a class="viewcode-back" href="../factorys.html#factorys.table_schema_factory">[docs]</a><span class="k">def</span> <span class="nf">table_schema_factory</span><span class="p">():</span>
+    <span class="n">param</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;table_name&#39;</span><span class="p">:</span> <span class="n">fake</span><span class="o">.</span><span class="n">table_name</span><span class="p">(),</span>
+        <span class="s1">&#39;dimension&#39;</span><span class="p">:</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">999</span><span class="p">),</span>
+        <span class="s1">&#39;index_file_size&#39;</span><span class="p">:</span> <span class="mi">1024</span><span class="p">,</span>
+        <span class="s1">&#39;metric_type&#39;</span><span class="p">:</span> <span class="n">MetricType</span><span class="o">.</span><span class="n">L2</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">param</span></div>
+
+
+<div class="viewcode-block" id="records_factory"><a class="viewcode-back" href="../factorys.html#factorys.records_factory">[docs]</a><span class="k">def</span> <span class="nf">records_factory</span><span class="p">(</span><span class="n">dimension</span><span class="p">,</span> <span class="n">nq</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[[</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dimension</span><span class="p">)]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nq</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="query_ranges_factory"><a class="viewcode-back" href="../factorys.html#factorys.query_ranges_factory">[docs]</a><span class="k">def</span> <span class="nf">query_ranges_factory</span><span class="p">():</span>
+    <span class="n">param</span> <span class="o">=</span> <span class="n">ranges_factory</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">param</span></div>
+
+
+<div class="viewcode-block" id="time_it"><a class="viewcode-back" href="../factorys.html#factorys.time_it">[docs]</a><span class="k">def</span> <span class="nf">time_it</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwrgs</span><span class="p">):</span>
+        <span class="n">pref</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwrgs</span><span class="p">)</span>
+        <span class="n">delt</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">pref</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;[</span><span class="si">{func.__name__}</span><span class="s2">][</span><span class="si">{delt:.4}</span><span class="s2">s]&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">return</span> <span class="n">inner</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pymilvus</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../main.html">Module Contents</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Milvus.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

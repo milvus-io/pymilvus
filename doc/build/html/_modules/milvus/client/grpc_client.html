@@ -1,0 +1,1087 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="python">
+  <head>
+    <meta charset="utf-8" />
+    <title>milvus.client.grpc_client &#8212; pymilvus 0.2.4 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for milvus.client.grpc_client</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This is a client for milvus of gRPC</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="k">import</span> <span class="n">urlparse</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">grpc</span>
+<span class="kn">from</span> <span class="nn">grpc._cython</span> <span class="k">import</span> <span class="n">cygrpc</span>
+
+<span class="kn">from</span> <span class="nn">..grpc_gen</span> <span class="k">import</span> <span class="n">milvus_pb2_grpc</span><span class="p">,</span> <span class="n">status_pb2</span>
+<span class="kn">from</span> <span class="nn">..grpc_gen</span> <span class="k">import</span> <span class="n">milvus_pb2</span> <span class="k">as</span> <span class="n">grpc_types</span>
+<span class="kn">from</span> <span class="nn">.abstract</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">ConnectIntf</span><span class="p">,</span>
+    <span class="n">TableSchema</span><span class="p">,</span>
+    <span class="n">Range</span><span class="p">,</span>
+    <span class="n">TopKQueryResult</span><span class="p">,</span>
+    <span class="n">IndexParam</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.types</span> <span class="k">import</span> <span class="n">IndexType</span><span class="p">,</span> <span class="n">MetricType</span><span class="p">,</span> <span class="n">Status</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">check_pass_param</span><span class="p">,</span>
+    <span class="n">int_or_str</span><span class="p">,</span>
+    <span class="n">is_legal_host</span><span class="p">,</span>
+    <span class="n">is_legal_port</span><span class="p">,</span>
+    <span class="n">is_legal_array</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.exceptions</span> <span class="k">import</span> <span class="n">ParamError</span><span class="p">,</span> <span class="n">NotConnectError</span>
+<span class="kn">from</span> <span class="nn">..settings</span> <span class="k">import</span> <span class="n">DefaultConfig</span> <span class="k">as</span> <span class="n">config</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">__version__</span>
+
+<span class="n">LOGGER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Prepare"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare">[docs]</a><span class="k">class</span> <span class="nc">Prepare</span><span class="p">:</span>
+
+<div class="viewcode-block" id="Prepare.table_name"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.table_name">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">table_name</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">table_name</span><span class="p">):</span>
+
+        <span class="n">check_pass_param</span><span class="p">(</span><span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">TableName</span><span class="p">(</span><span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Prepare.table_schema"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.table_schema">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">table_schema</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :type param: dict</span>
+<span class="sd">        :param param: (Required)</span>
+
+<span class="sd">            `example param={&#39;table_name&#39;: &#39;name&#39;,</span>
+<span class="sd">                            &#39;dimension&#39;: 16,</span>
+<span class="sd">                            &#39;index_type&#39;: IndexType.FLAT</span>
+<span class="sd">                            }`</span>
+
+<span class="sd">        :return: ttypes.TableSchema object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">TableSchema</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">param</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s1">&#39;Param type incorrect, expect </span><span class="si">{}</span><span class="s1"> but get </span><span class="si">{}</span><span class="s1"> instead &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="nb">dict</span><span class="p">),</span> <span class="nb">type</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+            <span class="p">))</span>
+
+        <span class="k">if</span> <span class="s1">&#39;index_file_size&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">param</span><span class="p">:</span>
+            <span class="n">param</span><span class="p">[</span><span class="s1">&#39;index_file_size&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1024</span>
+        <span class="k">if</span> <span class="s1">&#39;metric_type&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">param</span><span class="p">:</span>
+            <span class="n">param</span><span class="p">[</span><span class="s1">&#39;metric_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">MetricType</span><span class="o">.</span><span class="n">L2</span>
+
+        <span class="n">_param</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;table_name&#39;</span><span class="p">:</span> <span class="n">param</span><span class="p">[</span><span class="s1">&#39;table_name&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;dimension&#39;</span><span class="p">:</span> <span class="n">param</span><span class="p">[</span><span class="s1">&#39;dimension&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;index_file_size&#39;</span><span class="p">:</span> <span class="n">param</span><span class="p">[</span><span class="s1">&#39;index_file_size&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;metric_type&#39;</span><span class="p">:</span> <span class="n">param</span><span class="p">[</span><span class="s1">&#39;metric_type&#39;</span><span class="p">]</span>
+        <span class="p">}</span>
+
+        <span class="n">check_pass_param</span><span class="p">(</span><span class="o">**</span><span class="n">_param</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">TableSchema</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status_pb2</span><span class="o">.</span><span class="n">Status</span><span class="p">(</span><span class="n">error_code</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s1">&#39;Client&#39;</span><span class="p">),</span>
+                                      <span class="n">table_name</span><span class="o">=</span><span class="n">_param</span><span class="p">[</span><span class="s2">&quot;table_name&quot;</span><span class="p">],</span>
+                                      <span class="n">dimension</span><span class="o">=</span><span class="n">_param</span><span class="p">[</span><span class="s2">&quot;dimension&quot;</span><span class="p">],</span>
+                                      <span class="n">index_file_size</span><span class="o">=</span><span class="n">_param</span><span class="p">[</span><span class="s2">&quot;index_file_size&quot;</span><span class="p">],</span>
+                                      <span class="n">metric_type</span><span class="o">=</span><span class="n">_param</span><span class="p">[</span><span class="s2">&quot;metric_type&quot;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Prepare.range"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.range">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">range</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parser a &#39;yyyy-mm-dd&#39; like str or date/datetime object to Range object</span>
+
+<span class="sd">            `Range: (start_date, end_date]`</span>
+
+<span class="sd">            `start_date : &#39;2019-05-25&#39;`</span>
+
+<span class="sd">        :param start_date: start date</span>
+<span class="sd">        :type  start_date: str, date, datetime</span>
+<span class="sd">        :param end_date: end date</span>
+<span class="sd">        :type  end_date: str, date, datetime</span>
+
+<span class="sd">        :return: Range object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">Range</span><span class="p">(</span><span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">Range</span><span class="p">(</span><span class="n">start_value</span><span class="o">=</span><span class="n">temp</span><span class="o">.</span><span class="n">start_date</span><span class="p">,</span>
+                                <span class="n">end_value</span><span class="o">=</span><span class="n">temp</span><span class="o">.</span><span class="n">end_date</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Prepare.ranges"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.ranges">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">ranges</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">ranges</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        prepare query_ranges</span>
+
+<span class="sd">        :param ranges: prepare query_ranges</span>
+<span class="sd">        :type  ranges: [[str, str], (str,str)], iterable</span>
+
+<span class="sd">            `Example: [[start, end]], ((start, end), (start, end)), or</span>
+<span class="sd">                    [(start, end)]`</span>
+
+<span class="sd">        :return: list[Range]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_range</span> <span class="ow">in</span> <span class="n">ranges</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_range</span><span class="p">,</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">Range</span><span class="p">):</span>
+                <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Prepare</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="n">_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_range</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">res</span></div>
+
+<div class="viewcode-block" id="Prepare.insert_param"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.insert_param">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">insert_param</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">vectors</span><span class="p">,</span> <span class="n">ids</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="n">check_pass_param</span><span class="p">(</span><span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">ids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_param</span> <span class="o">=</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">InsertParam</span><span class="p">(</span><span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">check_pass_param</span><span class="p">(</span><span class="n">ids</span><span class="o">=</span><span class="n">ids</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s2">&quot;length of vectors do not match that of ids&quot;</span><span class="p">)</span>
+
+            <span class="n">_param</span> <span class="o">=</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">InsertParam</span><span class="p">(</span><span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">,</span> <span class="n">row_id_array</span><span class="o">=</span><span class="n">ids</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">vector</span> <span class="ow">in</span> <span class="n">vectors</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_legal_array</span><span class="p">(</span><span class="n">vector</span><span class="p">):</span>
+                <span class="n">_param</span><span class="o">.</span><span class="n">row_record_array</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">vector_data</span><span class="o">=</span><span class="n">vector</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s1">&#39;Vectors should be 2-dim array!&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">_param</span></div>
+
+<div class="viewcode-block" id="Prepare.index"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.index">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">index_type</span><span class="p">,</span> <span class="n">nlist</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        :type index_type: IndexType</span>
+<span class="sd">        :param index_type: index type</span>
+
+<span class="sd">        :type  nlist:</span>
+<span class="sd">        :param nlist:</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">check_pass_param</span><span class="p">(</span><span class="n">index_type</span><span class="o">=</span><span class="n">index_type</span><span class="p">,</span> <span class="n">nlist</span><span class="o">=</span><span class="n">nlist</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">Index</span><span class="p">(</span><span class="n">index_type</span><span class="o">=</span><span class="n">index_type</span><span class="p">,</span> <span class="n">nlist</span><span class="o">=</span><span class="n">nlist</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Prepare.index_param"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.index_param">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">index_param</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">index_param</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index_param</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s1">&#39;Param type incorrect, expect </span><span class="si">{}</span><span class="s1"> but get </span><span class="si">{}</span><span class="s1"> instead &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">type</span><span class="p">(</span><span class="nb">dict</span><span class="p">),</span> <span class="nb">type</span><span class="p">(</span><span class="n">index_param</span><span class="p">)</span>
+            <span class="p">))</span>
+
+        <span class="n">check_pass_param</span><span class="p">(</span><span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">,</span> <span class="o">**</span><span class="n">index_param</span><span class="p">)</span>
+
+        <span class="n">_index</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="o">**</span><span class="n">index_param</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">IndexParam</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status_pb2</span><span class="o">.</span><span class="n">Status</span><span class="p">(</span><span class="n">error_code</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="s1">&#39;Client&#39;</span><span class="p">),</span>
+                                     <span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">,</span>
+                                     <span class="n">index</span><span class="o">=</span><span class="n">_index</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Prepare.search_param"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.search_param">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">search_param</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">query_records</span><span class="p">,</span> <span class="n">query_ranges</span><span class="p">,</span> <span class="n">topk</span><span class="p">,</span> <span class="n">nprobe</span><span class="p">):</span>
+        <span class="n">query_ranges</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">ranges</span><span class="p">(</span><span class="n">query_ranges</span><span class="p">)</span> <span class="k">if</span> <span class="n">query_ranges</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="n">check_pass_param</span><span class="p">(</span><span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">,</span> <span class="n">topk</span><span class="o">=</span><span class="n">topk</span><span class="p">,</span> <span class="n">nprobe</span><span class="o">=</span><span class="n">nprobe</span><span class="p">)</span>
+
+        <span class="n">search_param</span> <span class="o">=</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">SearchParam</span><span class="p">(</span>
+            <span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">,</span>
+            <span class="n">query_range_array</span><span class="o">=</span><span class="n">query_ranges</span><span class="p">,</span>
+            <span class="n">topk</span><span class="o">=</span><span class="n">topk</span><span class="p">,</span>
+            <span class="n">nprobe</span><span class="o">=</span><span class="n">nprobe</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">vector</span> <span class="ow">in</span> <span class="n">query_records</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_legal_array</span><span class="p">(</span><span class="n">vector</span><span class="p">):</span>
+                <span class="n">search_param</span><span class="o">.</span><span class="n">query_record_array</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">vector_data</span><span class="o">=</span><span class="n">vector</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s1">&#39;Vectors should be 2-dim array!&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">search_param</span></div>
+
+<div class="viewcode-block" id="Prepare.search_vector_in_files_param"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.search_vector_in_files_param">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">search_vector_in_files_param</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">query_records</span><span class="p">,</span>
+                                     <span class="n">query_ranges</span><span class="p">,</span> <span class="n">topk</span><span class="p">,</span> <span class="n">nprobe</span><span class="p">,</span> <span class="n">ids</span><span class="p">):</span>
+        <span class="n">_search_param</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">search_param</span><span class="p">(</span><span class="n">table_name</span><span class="p">,</span> <span class="n">query_records</span><span class="p">,</span>
+                                             <span class="n">query_ranges</span><span class="p">,</span> <span class="n">topk</span><span class="p">,</span> <span class="n">nprobe</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">SearchInFilesParam</span><span class="p">(</span>
+            <span class="n">file_id_array</span><span class="o">=</span><span class="n">ids</span><span class="p">,</span>
+            <span class="n">search_param</span><span class="o">=</span><span class="n">_search_param</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Prepare.cmd"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.cmd">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">cmd</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="n">check_pass_param</span><span class="p">(</span><span class="n">cmd</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">Command</span><span class="p">(</span><span class="n">cmd</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Prepare.delete_param"><a class="viewcode-back" href="../../../milvus.client.html#milvus.Prepare.delete_param">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">delete_param</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">):</span>
+
+        <span class="n">range_</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">)</span>
+
+        <span class="n">check_pass_param</span><span class="p">(</span><span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">DeleteByRangeParam</span><span class="p">(</span><span class="nb">range</span><span class="o">=</span><span class="n">range_</span><span class="p">,</span> <span class="n">table_name</span><span class="o">=</span><span class="n">table_name</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="GrpcMilvus"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus">[docs]</a><span class="k">class</span> <span class="nc">GrpcMilvus</span><span class="p">(</span><span class="n">ConnectIntf</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_channel</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_address</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">attr_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">=</span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                     <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="s1">&#39;&lt;Milvus: </span><span class="si">{}</span><span class="s1">&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">attr_list</span><span class="p">))</span>
+
+<div class="viewcode-block" id="GrpcMilvus.set_channel"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.set_channel">[docs]</a>    <span class="k">def</span> <span class="nf">set_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">host</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_port</span> <span class="o">=</span> <span class="n">port</span> <span class="ow">or</span> <span class="s2">&quot;19530&quot;</span>
+            <span class="n">_host</span> <span class="o">=</span> <span class="n">host</span>
+        <span class="k">elif</span> <span class="n">port</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">config_uri</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">GRPC_URI</span><span class="p">)</span>
+                <span class="n">_uri</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span> <span class="k">if</span> <span class="n">uri</span> <span class="k">else</span> <span class="n">config_uri</span>
+
+                <span class="k">if</span> <span class="n">_uri</span><span class="o">.</span><span class="n">scheme</span> <span class="o">!=</span> <span class="s1">&#39;tcp&#39;</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span>
+                        <span class="s1">&#39;Invalid parameter uri: `</span><span class="si">{}</span><span class="s1">`. Scheme `</span><span class="si">{}</span><span class="s1">` &#39;</span>
+                        <span class="s1">&#39;is not supported&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_uri</span><span class="p">,</span> <span class="n">_uri</span><span class="o">.</span><span class="n">scheme</span><span class="p">))</span>
+
+                <span class="n">_host</span> <span class="o">=</span> <span class="n">_uri</span><span class="o">.</span><span class="n">hostname</span>
+                <span class="n">_port</span> <span class="o">=</span> <span class="n">_uri</span><span class="o">.</span><span class="n">port</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s2">&quot;`</span><span class="si">{}</span><span class="s2">` is illegal&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">uri</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s2">&quot;Param is not complete. Please invoke as follow:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                             <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">(host = $</span><span class="si">{HOST}</span><span class="s2">, port = $</span><span class="si">{PORT}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">&quot;</span>
+                             <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">(uri = $</span><span class="si">{URI}</span><span class="s2">)</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_legal_host</span><span class="p">(</span><span class="n">_host</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">is_legal_port</span><span class="p">(</span><span class="n">_port</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s2">&quot;host or port is illegal&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">_host</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">_port</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_address</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_channel</span> <span class="o">=</span> <span class="n">grpc</span><span class="o">.</span><span class="n">insecure_channel</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_uri</span><span class="p">,</span>
+            <span class="n">options</span><span class="o">=</span><span class="p">[(</span><span class="n">cygrpc</span><span class="o">.</span><span class="n">ChannelArgKey</span><span class="o">.</span><span class="n">max_send_message_length</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+                     <span class="p">(</span><span class="n">cygrpc</span><span class="o">.</span><span class="n">ChannelArgKey</span><span class="o">.</span><span class="n">max_receive_message_length</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)]</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.connect"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">uri</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Connect method should be called before any operations.</span>
+<span class="sd">        Server will be connected after connect return OK</span>
+
+<span class="sd">        :type  host: str</span>
+<span class="sd">        :type  port: str</span>
+<span class="sd">        :type  uri: str</span>
+<span class="sd">        :type  timeout: float</span>
+<span class="sd">        :param host: (Optional) host of the server, default host is 127.0.0.1</span>
+<span class="sd">        :param port: (Optional) port of the server, default port is 19530</span>
+<span class="sd">        :param uri: (Optional) only support tcp proto now, default uri is</span>
+
+<span class="sd">                `tcp://127.0.0.1:19530`</span>
+
+<span class="sd">        :param timeout: (Optional) connection timeout, default timeout is 3000ms</span>
+
+<span class="sd">        :return: Status, indicate if connect is successful</span>
+<span class="sd">        :rtype: Status</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channel</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_channel</span><span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">uri</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;You have already connected!&quot;</span><span class="p">,</span> <span class="n">code</span><span class="o">=</span><span class="n">Status</span><span class="o">.</span><span class="n">CONNECT_FAILED</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">grpc</span><span class="o">.</span><span class="n">channel_ready_future</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channel</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Fail connecting to server on </span><span class="si">{}</span><span class="s1">. Timeout&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uri</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s2">&quot;Connect error: &lt;</span><span class="si">{}</span><span class="s2">&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s2">&quot;Error occurred when trying to connect server:</span><span class="se">\n</span><span class="s2">&lt;</span><span class="si">{}</span><span class="s2">&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span> <span class="o">=</span> <span class="n">milvus_pb2_grpc</span><span class="o">.</span><span class="n">MilvusServiceStub</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channel</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Successfully connected! </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_uri</span><span class="p">))</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.connected"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.connected">[docs]</a>    <span class="k">def</span> <span class="nf">connected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if client is connected to the server</span>
+
+<span class="sd">        :return: if client is connected</span>
+<span class="sd">        :rtype bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channel</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">grpc</span><span class="o">.</span><span class="n">channel_ready_future</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channel</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span><span class="p">,</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.disconnect"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.disconnect">[docs]</a>    <span class="k">def</span> <span class="nf">disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Disconnect with the server and distroy the channel</span>
+
+<span class="sd">        :return: Status, indicate if disconnect is successful</span>
+<span class="sd">        :rtype: Status</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># After closeing, a exception stack trace is printed from a background thread and</span>
+        <span class="c1"># no exception is thrown in the main thread, issue is under test and not done yet</span>
+        <span class="c1"># checkout https://github.com/grpc/grpc/issues/18995</span>
+        <span class="c1"># Also checkout Properly Specify Channel.close Behavior in Python:</span>
+        <span class="c1"># https://github.com/grpc/grpc/issues/19235</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first!&#39;</span><span class="p">)</span>
+
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channel</span>
+
+        <span class="c1"># try:</span>
+        <span class="c1">#     self._channel.close()</span>
+        <span class="c1"># except Exception as e:</span>
+        <span class="c1">#     LOGGER.error(e)</span>
+        <span class="c1">#     return Status(code=Status.CONNECT_FAILED, message=&#39;Disconnection failed&#39;)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_channel</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Disconnect successfully&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.create_table"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.create_table">[docs]</a>    <span class="k">def</span> <span class="nf">create_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create table</span>
+
+<span class="sd">        :type  param: dict or TableSchema</span>
+<span class="sd">        :param param: Provide table information to be created</span>
+
+<span class="sd">                `example param={&#39;table_name&#39;: &#39;name&#39;,</span>
+<span class="sd">                                &#39;dimension&#39;: 16,</span>
+<span class="sd">                                &#39;index_file_size&#39;: 1024 (default)，</span>
+<span class="sd">                                &#39;metric_type&#39;: Metric_type.L2 (default)</span>
+<span class="sd">                                }`</span>
+
+<span class="sd">                `OR using Prepare.table_schema to create param`</span>
+
+<span class="sd">        :param timeout: timeout, The unit is seconds</span>
+<span class="sd">        :type  timeout: double</span>
+
+<span class="sd">        :return: Status, indicate if operation is successful</span>
+<span class="sd">        :rtype: Status</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">table_schema</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">table_schema</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">CreateTable</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">table_schema</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Create table successfully!&#39;</span><span class="p">)</span>
+
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.has_table"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.has_table">[docs]</a>    <span class="k">def</span> <span class="nf">has_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        This method is used to test table existence.</span>
+
+<span class="sd">        :param table_name: table name is going to be tested.</span>
+<span class="sd">        :type table_name: str</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">            Status: indicate if vectors inserted successfully</span>
+<span class="sd">            bool if given table_name exists</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">table_name</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">reply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">HasTable</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">reply</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(),</span> <span class="n">reply</span><span class="o">.</span><span class="n">bool_reply</span>
+
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">reply</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span>
+                          <span class="n">message</span><span class="o">=</span><span class="n">reply</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">),</span> <span class="kc">False</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">&quot;request timeout&quot;</span><span class="p">),</span> <span class="kc">False</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()),</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.delete_table"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.delete_table">[docs]</a>    <span class="k">def</span> <span class="nf">delete_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">20</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete table with table_name</span>
+
+<span class="sd">        :type  table_name: str</span>
+<span class="sd">        :param table_name: Name of the table being deleted</span>
+
+<span class="sd">        :return: Status, indicate if operation is successful</span>
+<span class="sd">        :rtype: Status</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">table_name</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">DropTable</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Delete table successfully!&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.create_index"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.create_index">[docs]</a>    <span class="k">def</span> <span class="nf">create_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param table_name: table used to build index.</span>
+<span class="sd">        :type table_name: str</span>
+<span class="sd">        :param index: index params</span>
+<span class="sd">        :type index: dict</span>
+
+<span class="sd">            index_param can be None</span>
+
+<span class="sd">            `example (default) param={&#39;index_type&#39;: IndexType.FLAT,</span>
+<span class="sd">                            &#39;nlist&#39;: 16384}`</span>
+
+<span class="sd">        :param timeout: grpc request timeout.</span>
+
+<span class="sd">            if `timeout` = -1, method invoke a synchronous call, waiting util grpc response</span>
+<span class="sd">            else method invoke a asynchronous call, timeout work here</span>
+
+<span class="sd">        :type  timeout: int</span>
+
+<span class="sd">        :return: Status, indicate if operation is successful</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;index_type&#39;</span><span class="p">:</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">FLAT</span><span class="p">,</span>
+                <span class="s1">&#39;nlist&#39;</span><span class="p">:</span> <span class="mi">16384</span>
+            <span class="p">}</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s2">&quot;param `index` should be a dictionary&quot;</span><span class="p">)</span>
+
+        <span class="n">index</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;index_type&#39;</span><span class="p">:</span> <span class="n">index</span><span class="p">[</span><span class="s1">&#39;index_type&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;index_type&#39;</span> <span class="ow">in</span> <span class="n">index</span> <span class="k">else</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">FLAT</span><span class="p">,</span>
+            <span class="s1">&#39;nlist&#39;</span><span class="p">:</span> <span class="n">index</span><span class="p">[</span><span class="s1">&#39;nlist&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;nlist&#39;</span> <span class="ow">in</span> <span class="n">index</span> <span class="k">else</span> <span class="mi">16384</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">index_param</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">index_param</span><span class="p">(</span><span class="n">table_name</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">timeout</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">CreateIndex</span><span class="p">(</span><span class="n">index_param</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">timeout</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s2">&quot;Param `timeout` should be a positive number or -1&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">CreateIndex</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">index_param</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Build index successfully!&#39;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.add_vectors"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.add_vectors">[docs]</a>    <span class="k">def</span> <span class="nf">add_vectors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">records</span><span class="p">,</span> <span class="n">ids</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">180</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add vectors to table</span>
+
+<span class="sd">        This function allows to pass in arguments which is type of `milvus_ob2.InsertParam`</span>
+<span class="sd">        to avoid serializing and deserializing repeatedly, as follows:</span>
+
+<span class="sd">            `obj.add_vectors(None, None, insert_param=param)`</span>
+
+<span class="sd">        `obj` is a milvus object, param is an object which is type of `milvus_ob2.InsertParam`</span>
+
+<span class="sd">        :param ids:</span>
+
+<span class="sd">        :type  table_name: str</span>
+<span class="sd">        :param table_name: table name been inserted</span>
+
+<span class="sd">        :type  records: list[list[float]]</span>
+
+<span class="sd">                `example records: [[1.2345],[1.2345]]`</span>
+
+<span class="sd">                `OR using Prepare.records`</span>
+
+<span class="sd">        :param records: list of vectors been inserted</span>
+
+<span class="sd">        :type  timeout: int</span>
+<span class="sd">        :param timeout:</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            Status: indicate if vectors inserted successfully</span>
+<span class="sd">            ids: list of id, after inserted every vector is given a id</span>
+<span class="sd">        :rtype: (Status, list(int))</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">insert_param</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;insert_param&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">insert_param</span><span class="p">:</span>
+            <span class="n">insert_param</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">insert_param</span><span class="p">(</span><span class="n">table_name</span><span class="p">,</span> <span class="n">records</span><span class="p">,</span> <span class="n">ids</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">insert_param</span><span class="p">,</span> <span class="n">grpc_types</span><span class="o">.</span><span class="n">InsertParam</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">ParamError</span><span class="p">(</span><span class="s2">&quot;The value of key &#39;insert_param&#39; is invalid&quot;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">vector_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">Insert</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">insert_param</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">vector_ids</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">vector_ids</span><span class="o">.</span><span class="n">vector_id_array</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Add vectors successfully!&#39;</span><span class="p">),</span> <span class="n">ids</span>
+
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">vector_ids</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">vector_ids</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">),</span> <span class="p">[]</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">())),</span> <span class="p">[]</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Request timeout&quot;</span><span class="p">),</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.search_vectors"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.search_vectors">[docs]</a>    <span class="k">def</span> <span class="nf">search_vectors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">top_k</span><span class="p">,</span> <span class="n">nprobe</span><span class="p">,</span> <span class="n">query_records</span><span class="p">,</span> <span class="n">query_ranges</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Query vectors in a table</span>
+
+<span class="sd">        :param query_ranges: (Optional) ranges for conditional search.</span>
+<span class="sd">            If not specified, search in the whole table</span>
+<span class="sd">        :type  query_ranges: list[(date, date)]</span>
+
+<span class="sd">                `date` supports:</span>
+<span class="sd">                   a. date-like-str, e.g. &#39;2019-01-01&#39;</span>
+<span class="sd">                   b. datetime.date object, e.g. datetime.date(2019, 1, 1)</span>
+<span class="sd">                   c. datetime.datetime object, e.g. datetime.datetime.now()</span>
+
+<span class="sd">                example query_ranges:</span>
+
+<span class="sd">                `query_ranges = [(&#39;2019-05-10&#39;, &#39;2019-05-10&#39;),(..., ...), ...]`</span>
+
+<span class="sd">        :param table_name: table name been queried</span>
+<span class="sd">        :type  table_name: str</span>
+<span class="sd">        :param query_records: all vectors going to be queried</span>
+
+<span class="sd">                `Using Prepare.records generate query_records`</span>
+
+<span class="sd">        :type  query_records: list[list[float]] or list[RowRecord]</span>
+<span class="sd">        :param top_k: int, how many similar vectors will be searched</span>
+<span class="sd">        :type  top_k: int</span>
+<span class="sd">        :param nprobe: cell num of probing</span>
+<span class="sd">        :type nprobe: int</span>
+
+<span class="sd">        :returns: (Status, res)</span>
+
+<span class="sd">            Status:  indicate if query is successful</span>
+<span class="sd">            res: TopKQueryResult, return when operation is successful</span>
+
+<span class="sd">        :rtype: (Status, TopKQueryResult[QueryResult])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">infos</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">search_param</span><span class="p">(</span>
+            <span class="n">table_name</span><span class="p">,</span> <span class="n">query_records</span><span class="p">,</span> <span class="n">query_ranges</span><span class="p">,</span> <span class="n">top_k</span><span class="p">,</span> <span class="n">nprobe</span>
+        <span class="p">)</span>
+
+        <span class="n">lazy_flag</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;lazy_&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">Search</span><span class="p">(</span><span class="n">infos</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">lazy_flag</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">response</span>
+
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span>
+                              <span class="n">message</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">),</span> <span class="p">[]</span>
+
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Search vectors successfully!&#39;</span><span class="p">),</span> <span class="n">TopKQueryResult</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span>
+
+            <span class="k">return</span> <span class="n">status</span><span class="p">,</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.search_vectors_in_files"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.search_vectors_in_files">[docs]</a>    <span class="k">def</span> <span class="nf">search_vectors_in_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">file_ids</span><span class="p">,</span> <span class="n">query_records</span><span class="p">,</span> <span class="n">top_k</span><span class="p">,</span>
+                                <span class="n">nprobe</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">query_ranges</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Query vectors in a table, in specified files</span>
+
+<span class="sd">        :type  nprobe: int</span>
+<span class="sd">        :param nprobe:</span>
+
+<span class="sd">        :type  table_name: str</span>
+<span class="sd">        :param table_name: table name been queried</span>
+
+<span class="sd">        :type  file_ids: list[str] or list[int]</span>
+<span class="sd">        :param file_ids: Specified files id array</span>
+
+<span class="sd">        :type  query_records: list[list[float]]</span>
+<span class="sd">        :param query_records: all vectors going to be queried</span>
+
+<span class="sd">        :param query_ranges: Optional ranges for conditional search.</span>
+<span class="sd">            If not specified, search in the whole table</span>
+
+
+<span class="sd">        :type  top_k: int</span>
+<span class="sd">        :param top_k: how many similar vectors will be searched</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            Status:  indicate if query is successful</span>
+<span class="sd">            query_results: list[TopKQueryResult]</span>
+
+<span class="sd">        :rtype: (Status, TopKQueryResult[QueryResult])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">file_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">int_or_str</span><span class="p">,</span> <span class="n">file_ids</span><span class="p">))</span>
+
+        <span class="n">infos</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">search_vector_in_files_param</span><span class="p">(</span>
+            <span class="n">table_name</span><span class="p">,</span> <span class="n">query_records</span><span class="p">,</span> <span class="n">query_ranges</span><span class="p">,</span> <span class="n">top_k</span><span class="p">,</span> <span class="n">nprobe</span><span class="p">,</span> <span class="n">file_ids</span>
+        <span class="p">)</span>
+
+        <span class="n">lazy_flag</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;lazy_&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">SearchInFiles</span><span class="p">(</span><span class="n">infos</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">lazy_flag</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">response</span>
+
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span>
+                              <span class="n">message</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">),</span> <span class="p">[]</span>
+
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Search vectors successfully!&#39;</span><span class="p">),</span> <span class="n">TopKQueryResult</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span>
+
+            <span class="k">return</span> <span class="n">status</span><span class="p">,</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.describe_table"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.describe_table">[docs]</a>    <span class="k">def</span> <span class="nf">describe_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Show table information</span>
+
+<span class="sd">        :type  table_name: str</span>
+<span class="sd">        :param table_name: which table to be shown</span>
+
+<span class="sd">        :returns: (Status, table_schema)</span>
+<span class="sd">            Status: indicate if query is successful</span>
+<span class="sd">            table_schema: return when operation is successful</span>
+<span class="sd">        :rtype: (Status, TableSchema)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">table_name</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">DescribeTable</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">table</span> <span class="o">=</span> <span class="n">TableSchema</span><span class="p">(</span>
+                    <span class="n">table_name</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
+                    <span class="n">dimension</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">dimension</span><span class="p">,</span>
+                    <span class="n">index_file_size</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">index_file_size</span><span class="p">,</span>
+                    <span class="n">metric_type</span><span class="o">=</span><span class="n">MetricType</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">metric_type</span><span class="p">)</span>
+                <span class="p">)</span>
+
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Describe table successfully!&#39;</span><span class="p">),</span> <span class="n">table</span>
+
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">),</span> <span class="kc">None</span>
+
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">())),</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.show_tables"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.show_tables">[docs]</a>    <span class="k">def</span> <span class="nf">show_tables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Show all tables in database</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">            Status: indicate if this operation is successful</span>
+
+<span class="sd">            tables: list of table names, return when operation</span>
+<span class="sd">                    is successful</span>
+<span class="sd">        :rtype:</span>
+<span class="sd">            (Status, list[str])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">cmd</span><span class="p">(</span><span class="s1">&#39;show_tables&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">ShowTables</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Show tables successfully!&#39;</span><span class="p">),</span> \
+                       <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">table_names</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">),</span> <span class="p">[]</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Request timeout&quot;</span><span class="p">),</span> <span class="p">[]</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">())),</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.get_table_row_count"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.get_table_row_count">[docs]</a>    <span class="k">def</span> <span class="nf">get_table_row_count</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get table row count</span>
+
+<span class="sd">        :type  table_name: str</span>
+<span class="sd">        :param table_name: target table name.</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            Status: indicate if operation is successful</span>
+
+<span class="sd">            res: int, table row count</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">table_name</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">trc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">CountTable</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">trc</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Success!&#39;</span><span class="p">),</span> <span class="n">trc</span><span class="o">.</span><span class="n">table_row_count</span>
+
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">trc</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">trc</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">),</span> <span class="p">[]</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">())),</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.client_version"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.client_version">[docs]</a>    <span class="k">def</span> <span class="nf">client_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Provide client version</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">            Status: indicate if operation is successful</span>
+
+<span class="sd">            str : Client version</span>
+
+<span class="sd">        :rtype: (str)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">__version__</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.server_version"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.server_version">[docs]</a>    <span class="k">def</span> <span class="nf">server_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Provide server version</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">            Status: indicate if operation is successful</span>
+
+<span class="sd">            str : Server version</span>
+
+<span class="sd">        :rtype: (Status, str)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmd</span><span class="p">(</span><span class="n">cmd</span><span class="o">=</span><span class="s1">&#39;version&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.server_status"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.server_status">[docs]</a>    <span class="k">def</span> <span class="nf">server_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Provide server status</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">            Status: indicate if operation is successful</span>
+
+<span class="sd">            str : Server version</span>
+
+<span class="sd">        :rtype: (Status, str)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmd</span><span class="p">(</span><span class="n">cmd</span><span class="o">=</span><span class="s1">&#39;OK&#39;</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">cmd</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">Cmd</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s1">&#39;Success!&#39;</span><span class="p">),</span> <span class="n">response</span><span class="o">.</span><span class="n">string_reply</span>
+
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">())),</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__delete_vectors_by_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">start_date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">end_date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete vectors by range. The data range contains start_time but not end_time</span>
+<span class="sd">        This method is deprecated, not recommended for users</span>
+
+<span class="sd">        :type  table_name: str</span>
+<span class="sd">        :param table_name: str, date, datetime</span>
+
+<span class="sd">        :type  start_date: str, date, datetime</span>
+<span class="sd">        :param start_date:</span>
+
+<span class="sd">        :type  end_date: str, date, datetime</span>
+<span class="sd">        :param end_date:</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">            Status:  indicate if invoke is successful</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">delete_range</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">delete_param</span><span class="p">(</span><span class="n">table_name</span><span class="p">,</span> <span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">DeleteByRange</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">delete_range</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span>
+
+<div class="viewcode-block" id="GrpcMilvus.preload_table"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.preload_table">[docs]</a>    <span class="k">def</span> <span class="nf">preload_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load table to cache in advance</span>
+
+<span class="sd">        :type table_name: str</span>
+<span class="sd">        :param table_name: table to preload</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            Status:  indicate if invoke is successful</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">table_name</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">PreloadTable</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.describe_index"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.describe_index">[docs]</a>    <span class="k">def</span> <span class="nf">describe_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Show index information of designated table</span>
+
+<span class="sd">        :type table_name: str</span>
+<span class="sd">        :param table_name: table name been queried</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            Status:  indicate if query is successful</span>
+<span class="sd">            IndexSchema:</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">table_name</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">index_param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">DescribeIndex</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+
+            <span class="n">status</span> <span class="o">=</span> <span class="n">index_param</span><span class="o">.</span><span class="n">status</span>
+
+            <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">error_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;Successfully&quot;</span><span class="p">),</span> \
+                       <span class="n">IndexParam</span><span class="p">(</span><span class="n">index_param</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
+                                  <span class="n">index_param</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">index_type</span><span class="p">,</span>
+                                  <span class="n">index_param</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlist</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">())),</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="GrpcMilvus.drop_index"><a class="viewcode-back" href="../../../milvus.client.html#milvus.GrpcMilvus.drop_index">[docs]</a>    <span class="k">def</span> <span class="nf">drop_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        drop index from index file</span>
+
+<span class="sd">        :param table_name: target table name.</span>
+<span class="sd">        :type table_name: str</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">            Status: indicate if operation is successful</span>
+
+<span class="sd">        ：:rtype: Status</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">connected</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">NotConnectError</span><span class="p">(</span><span class="s1">&#39;Please connect to the server first&#39;</span><span class="p">)</span>
+
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">Prepare</span><span class="o">.</span><span class="n">table_name</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stub</span><span class="o">.</span><span class="n">DropIndex</span><span class="o">.</span><span class="n">future</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">error_code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">Status</span><span class="o">.</span><span class="n">UNEXPECTED_ERROR</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Request timeout&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Status</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">message</span><span class="o">=</span><span class="s1">&#39;Error occurred. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span></div>
+
+    <span class="n">count_table</span> <span class="o">=</span> <span class="n">get_table_row_count</span>
+    <span class="n">drop_table</span> <span class="o">=</span> <span class="n">delete_table</span>
+    <span class="n">insert</span> <span class="o">=</span> <span class="n">add_vectors</span>
+    <span class="n">search</span> <span class="o">=</span> <span class="n">search_vectors</span>
+    <span class="n">search_in_files</span> <span class="o">=</span> <span class="n">search_vectors_in_files</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">pymilvus</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../main.html">Module Contents</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Milvus.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

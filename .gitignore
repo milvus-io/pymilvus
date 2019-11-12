@@ -16,4 +16,4 @@ debug/
 milvus/client/wrapper.py
 examples/example_test.py
 .codecov.yml
-docs/
+doc/
