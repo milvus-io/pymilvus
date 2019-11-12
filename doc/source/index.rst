@@ -10,7 +10,7 @@ Welcome to pymilvus's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   main
+   major
 
 
 Indices and tables

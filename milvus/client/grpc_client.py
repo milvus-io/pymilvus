@@ -226,6 +226,8 @@ class Prepare:
 
 
 class GrpcMilvus(ConnectIntf):
+    """
+    """
 
     def __init__(self):
         self._channel = None
