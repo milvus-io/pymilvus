@@ -11,6 +11,7 @@ import mock
 from grpc import FutureTimeoutError as FError
 from grpc._channel import _UnaryUnaryMultiCallable as FC
 
+from milvus import Status
 from milvus.client.grpc_client import GrpcMilvus
 from milvus.client.exceptions import NotConnectError
 
@@ -66,6 +67,7 @@ class TestDisconnectException:
 
 class TestCreateTableException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_param = {
         "table_name": "test001",
@@ -91,6 +93,7 @@ class TestCreateTableException:
 
 class TestHastableException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     @mock.patch.object(GrpcMilvus, "connected")
     def test_has_table_not_connect_exp(self, mock_client):
@@ -120,6 +123,7 @@ class TestHastableException:
 
 class TestDeleteTableException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     @mock.patch.object(GrpcMilvus, "connected")
     def test_delete_table_not_connect_exp(self, mock_client):
@@ -149,6 +153,7 @@ class TestDeleteTableException:
 
 class TestCreateIndexException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     @mock.patch.object(GrpcMilvus, "connected")
     def test_create_index_not_connect_exp(self, mock_client):
@@ -178,6 +183,7 @@ class TestCreateIndexException:
 
 class TestAddVectorsException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_name = "aaa"
     records = [[random.random() for _ in range(16)] for _ in range(10)]
@@ -210,6 +216,7 @@ class TestAddVectorsException:
 
 class TestSearchVectorsException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_name = "aaa"
     records = [[random.random() for _ in range(16)] for _ in range(10)]
@@ -233,6 +240,7 @@ class TestSearchVectorsException:
 
 class TestSearchVectorsInFilesException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_name = "aaa"
     records = [[random.random() for _ in range(16)] for _ in range(10)]
@@ -259,6 +267,7 @@ class TestSearchVectorsInFilesException:
 
 class TestDescribeTableException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_name = "test_table_name"
 
@@ -290,6 +299,7 @@ class TestDescribeTableException:
 
 class TestShowTableException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_name = "test_table_name"
 
@@ -321,6 +331,7 @@ class TestShowTableException:
 
 class TestGetTableRowCountException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_name = "test_table_name"
 
@@ -352,6 +363,7 @@ class TestGetTableRowCountException:
 
 class TestCmdException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     cmd_str = "OK"
 
@@ -383,6 +395,7 @@ class TestCmdException:
 
 class TestPreloadTableException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_name = "test_table_name"
 
@@ -414,6 +427,7 @@ class TestPreloadTableException:
 
 class TestDescribeIndexException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_name = "test_table_name"
 
@@ -445,6 +459,7 @@ class TestDescribeIndexException:
 
 class TestDropIndexException:
     client = GrpcMilvus()
+    client.server_status = mock.Mock(return_value=(Status(), "OK"))
 
     table_name = "test_table_name"
 
