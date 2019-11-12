@@ -7,6 +7,7 @@ class Status:
 
     :attribute message: str (optional) current status message
     """
+
     SUCCESS = 0
     UNEXPECTED_ERROR = 1
     CONNECT_FAILED = 2

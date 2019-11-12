@@ -123,7 +123,9 @@ class RowQueryResult:
 
 class TopKQueryResult:
     """
-    TopK query results, 2-D array of query result
+    TopK query results, shown as 2-D array
+
+    This Class unpack response from server, store ids and distances separately.
     """
 
     def __init__(self, raw_source, **kwargs):
@@ -139,6 +141,14 @@ class TopKQueryResult:
         self._unpack(self._raw)
 
     def _unpack(self, _raw):
+        """
+
+        Args:
+            _raw:
+
+        Returns:
+
+        """
         self._nq = _raw.row_num
 
         if self._nq == 0:
@@ -164,7 +174,25 @@ class TopKQueryResult:
         self._topk = id_col
 
     @property
+    def id_array(self):
+        """
+        Id array, it's a 2-D array.
+        """
+        return self._id_array
+
+    @property
+    def distance_array(self):
+        """
+        Distance array, it's a 2-D array
+        """
+        return self._dis_array
+
+    @property
     def shape(self):
+        """
+        getter. return result shape, format as (row, column).
+
+        """
         return self._nq, self._topk
 
     @property
