@@ -68,15 +68,11 @@ class TestConnection:
         status = cnn.connect()
         assert status == Status.CONNECT_FAILED
 
-    def test_false_connect(self):
+    @pytest.mark.parametrize("url", ['tcp://127.0.0.1:7987', 'tcp://123.0.0.1:19530'])
+    def test_false_connect(self, url):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(uri='tcp://127.0.0.1:7987', timeout=2)
-            LOGGER.error(cnn.status)
-            assert not cnn.status.OK()
-
-        with pytest.raises(NotConnectError):
-            cnn.connect(uri='tcp://123.0.0.1:19530', timeout=2)
+            cnn.connect(uri=url, timeout=2)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
 
@@ -98,30 +94,21 @@ class TestConnection:
         with pytest.raises(ConnectError):
             cnn.connect(host='123.0.0.2', port="123", timeout=1)
 
-    def test_uri_error(self):
+    @pytest.mark.parametrize("url",
+                             ['http://127.0.0.1:45678',
+                              'tcp://127.0.a.1:9999',
+                              'tcp://127.0.0.1:aaa'])
+    def test_uri_error(self, url):
         with pytest.raises(Exception):
             cnn = GrpcMilvus()
-            cnn.connect(uri='http://127.0.0.1:19530')
+            cnn.connect(uri=url)
 
+    @pytest.mark.parametrize("h", ['12234', 'aaa', '192.168.1.101'])
+    @pytest.mark.parametrize("p", ['1', 'a', 0])
+    def test_host_port_error(self, h, p):
         with pytest.raises(Exception):
             cnn = GrpcMilvus()
-            cnn.connect(uri='tcp://127.0.a.1:9999')
-
-        with pytest.raises(Exception):
-            cnn = GrpcMilvus()
-            cnn.connect(uri='tcp://127.0.0.1:aaa')
-
-        with pytest.raises(Exception):
-            cnn = GrpcMilvus()
-            cnn.connect(host="1234", port="1")
-
-        with pytest.raises(Exception):
-            cnn = GrpcMilvus()
-            cnn.connect(host="aaa", port="1")
-
-        with pytest.raises(Exception):
-            cnn = GrpcMilvus()
-            cnn.connect(host="192.168.1.101", port="a")
+            cnn.connect(host=h, port=p)
 
     def test_disconnected(self, gip):
         cnn = GrpcMilvus()
@@ -810,29 +797,24 @@ class TestCmd:
 
 
 class TestUtils:
-    def test_parm_check_ids(self):
-        check_pass_param(ids=[1, 2])
 
+    @pytest.mark.parametrize(
+        "key_, value_",
+        [("ids", [1, 2]), ("nprobe", 12), ("nlist", 4096), ("cmd", 'OK')]
+    )
+    def test_param_check_normal(self, key_, value_):
+        try:
+            check_pass_param(**{key_: value_})
+        except Exception:
+            assert False
+
+    @pytest.mark.parametrize(
+        "key_, value_",
+        [("ids", []), ("nprobe", "aaa"), ("nlist", "aaa"), ("cmd", 123)]
+    )
+    def test_param_check_error(self, key_, value_):
         with pytest.raises(ParamError):
-            check_pass_param(ids=[])
-
-    def test_parm_check_nprobe(self):
-        check_pass_param(nprobe=12)
-
-        with pytest.raises(ParamError):
-            check_pass_param(nprobe='aaa')
-
-    def test_parm_check_nlist(self):
-        check_pass_param(nlist=4096)
-
-        with pytest.raises(ParamError):
-            check_pass_param(nlist='aaa')
-
-    def test_parm_check_cmd(self):
-        check_pass_param(cmd='OK')
-
-        with pytest.raises(ParamError):
-            check_pass_param(cmd=123)
+            check_pass_param(**{key_: value_})
 
 
 class TestQueryResult:
