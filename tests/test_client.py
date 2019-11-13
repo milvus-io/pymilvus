@@ -89,11 +89,6 @@ class TestConnection:
         cnn.connect(uri=uri)
         assert cnn.status.OK()
 
-    def test_wrong_connected(self):
-        cnn = GrpcMilvus()
-        with pytest.raises(ConnectError):
-            cnn.connect(host='123.0.0.2', port="123", timeout=1)
-
     @pytest.mark.parametrize("url",
                              ['http://127.0.0.1:45678',
                               'tcp://127.0.a.1:9999',
@@ -104,7 +99,7 @@ class TestConnection:
             cnn.connect(uri=url)
 
     @pytest.mark.parametrize("h", ['12234', 'aaa', '192.168.1.101'])
-    @pytest.mark.parametrize("p", ['1', 'a', 0])
+    @pytest.mark.parametrize("p", ['...', 'a', 49999])
     def test_host_port_error(self, h, p):
         with pytest.raises(Exception):
             cnn = GrpcMilvus()
