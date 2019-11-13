@@ -186,10 +186,8 @@ Status(code=0, message='Disconnect successfully')
 ## Example python
 There are some small examples in `examples/`, you can find more guide there.
 
-Build docs
-```$
-$ sphinx-build -b html doc/en/ doc/en/build
-```
+You can find api doc in [API文档](https://milvus-io.github.io/milvus-sdk-python/pythondoc/index.html)
+
 
 
 If you encounter any problems or bugs, please open new issues
