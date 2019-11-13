@@ -108,6 +108,13 @@ class GrpcMilvus(ConnectIntf):
 
             self._search_file_hook = _search_file_hook
 
+    @property
+    def server_address(self):
+        """
+        Server network address
+        """
+        return self._uri
+
     def connect(self, host=None, port=None, uri=None, timeout=3):
         """
         Connect method should be called before any operations.
