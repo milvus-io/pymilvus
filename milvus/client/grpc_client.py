@@ -49,10 +49,10 @@ class GrpcMilvus(ConnectIntf):
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
     def _set_uri(self, host=None, port=None, uri=None):
-        if host:
-            _port = port or config.GRPC_PORT
+        if host is not None:
+            _port = port if port is not None else config.GRPC_PORT
             _host = host
-        elif not port:
+        elif port is None:
             try:
                 config_uri = urlparse(config.GRPC_URI)
                 _uri = urlparse(uri) if uri else config_uri
@@ -129,20 +129,17 @@ class GrpcMilvus(ConnectIntf):
 
         try:
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
-            self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
-            status, ok = self.server_status(timeout=timeout)
-            if status.OK() and ok == 'OK':
-                self.status = Status(message='Successfully connected! {}'.format(self._uri))
-                return self.status
-
-            raise NotConnectError("Connect error: ping server failed")
         except grpc.FutureTimeoutError:
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
         except grpc.RpcError as e:
             raise NotConnectError("Connect error: <{}>".format(e))
+        # Unexpected error
         except Exception as e:
             raise NotConnectError("Error occurred when trying to connect server:\n"
                                   "\t<{}>".format(str(e)))
+
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        self.status = Status()
 
     def connected(self):
         """
