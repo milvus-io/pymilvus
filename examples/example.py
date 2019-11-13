@@ -4,6 +4,8 @@
 # and execute a vector similarity search.
 import sys
 import numpy as np
+import random
+sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 import time
 
@@ -34,8 +36,8 @@ def main():
         param = {
             'table_name': table_name,
             'dimension': 16,
-            'index_file_size': 1024,
-            'metric_type': MetricType.L2
+            'index_file_size': 1024,  # optional
+            'metric_type': MetricType.L2  # optional
         }
 
         milvus.create_table(param)
@@ -50,7 +52,9 @@ def main():
     # 10000 vectors with 16 dimension
     # element per dimension is float32 type
     # vectors should be a 2-D array
-    vectors = np.random.rand(10000, 16).astype(np.float32).tolist()
+    vectors = [[random.random() for _ in range(16)] for _ in range(10000)]
+    # You can also use numpy to generate random vectors:
+    #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
 
     # Insert vectors into demo_table, return status and vectors id list
     status, ids = milvus.insert(table_name=table_name, records=vectors)
@@ -66,9 +70,13 @@ def main():
         'index_type': IndexType.IVFLAT,  # choice ivflat index
         'nlist': 2048
     }
+
+    # Create ivflat index in demo_table
+    # You can search vectors without creating index. however, Creating index help to
+    # search faster
     status = milvus.create_index(table_name, index_param)
 
-    # describe index
+    # describe index, get information of index
     status, index = milvus.describe_index(table_name)
     print(index)
 

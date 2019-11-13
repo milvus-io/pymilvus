@@ -44,7 +44,9 @@ class Status:
         return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
     def __eq__(self, other):
-        """Make Status comparable with self by code"""
+        """
+        Make Status comparable with self by code
+        """
         if isinstance(other, int):
             return self.code == other
 

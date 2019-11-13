@@ -49,6 +49,10 @@ class GrpcMilvus(ConnectIntf):
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
     def _set_uri(self, host=None, port=None, uri=None):
+        """
+        Set server network address
+
+        """
         if host is not None:
             _port = port if port is not None else config.GRPC_PORT
             _host = host
@@ -77,6 +81,9 @@ class GrpcMilvus(ConnectIntf):
         self._uri = "{}:{}".format(str(_host), str(_port))
 
     def _set_channel(self, host=None, port=None, uri=None):
+        """
+        set grpc channel
+        """
         self._set_uri(host, port, uri)
 
         # set transport unlimited
@@ -128,6 +135,7 @@ class GrpcMilvus(ConnectIntf):
             return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
 
         try:
+            # check if server is ready
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
         except grpc.FutureTimeoutError:
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
@@ -140,6 +148,7 @@ class GrpcMilvus(ConnectIntf):
 
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
         self.status = Status()
+        return self.status
 
     def connected(self):
         """
@@ -171,6 +180,7 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first!')
 
+        # closing channel by calling interface close() will result in grpc interval error
         del self._channel
 
         # try:
@@ -243,7 +253,8 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
     def create_table(self, param, timeout=10):
-        """Create table
+        """
+        Create table
 
         :type  param: dict or TableSchema
         :param param: Provide table information to be created
@@ -288,7 +299,9 @@ class GrpcMilvus(ConnectIntf):
         This method is used to test table existence.
 
         :param table_name: table name is going to be tested.
-        :type table_name: str
+        :type  table_name: str
+        :param timeout: time waiting for server response
+        :type  timeout: int
 
         :return:
             Status: indicate if vectors inserted successfully
@@ -357,7 +370,7 @@ class GrpcMilvus(ConnectIntf):
 
     def count_table(self, table_name, timeout=30):
         """
-        Get table row count
+        obtain vector number in table
 
         :type  table_name: str
         :param table_name: target table name.
@@ -388,7 +401,7 @@ class GrpcMilvus(ConnectIntf):
 
     def show_tables(self, timeout=10):
         """
-        Show all tables in database
+        Show all tables information in database
 
         :return:
             Status: indicate if this operation is successful
@@ -471,14 +484,8 @@ class GrpcMilvus(ConnectIntf):
         """
         Add vectors to table
 
-        This function allows to pass in arguments which is type of `milvus_ob2.InsertParam`
-        to avoid serializing and deserializing repeatedly, as follows:
-
-            `obj.add_vectors(None, None, insert_param=param)`
-
-        `obj` is a milvus object, param is an object which is type of `milvus_ob2.InsertParam`
-
-        :param ids:
+        :param ids: list of id
+        :type  ids: list[int]
 
         :type  table_name: str
         :param table_name: table name been inserted
@@ -492,7 +499,7 @@ class GrpcMilvus(ConnectIntf):
         :param records: list of vectors been inserted
 
         :type  timeout: int
-        :param timeout:
+        :param timeout: time waiting for server response
 
         :returns:
             Status: indicate if vectors inserted successfully
@@ -528,7 +535,9 @@ class GrpcMilvus(ConnectIntf):
 
     def create_index(self, table_name, index=None, timeout=-1):
         """
-        :param table_name: table used to build index.
+        build vectors of specific table and create vector index
+
+        :param table_name: table used to crete index.
         :type table_name: str
         :param index: index params
         :type index: dict
@@ -650,6 +659,26 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     def search(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
+        """
+        Search similar vectors in designated table
+
+        :param table_name: target table name
+        :type  table_name: str
+        :param top_k: number of vertors which is most similar with query vectors
+        :type  top_k: int
+        :param nprobe: cell number of probe
+        :type  nprobe: int
+        :param query_records: vectors to query
+        :type  query_records: list[list[float32]]
+        :param query_ranges: query data range
+
+        :return
+            Status: indicate if search successfully
+            result: query result
+
+        :rtype: (Status, TopKQueryResult)
+
+        """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -697,15 +726,14 @@ class GrpcMilvus(ConnectIntf):
         :param query_ranges: Optional ranges for conditional search.
             If not specified, search in the whole table
 
-
         :type  top_k: int
         :param top_k: how many similar vectors will be searched
 
         :returns:
             Status:  indicate if query is successful
-            query_results: list[TopKQueryResult]
+            results: query result
 
-        :rtype: (Status, TopKQueryResult[QueryResult])
+        :rtype: (Status, TopKQueryResult)
         """
 
         if not self.connected():
@@ -769,6 +797,8 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
+    # In old version of pymilvus, some methods are different from the new.
+    # apply alternative method name for compatibility
     get_table_row_count = count_table
     delete_table = drop_table
     add_vectors = insert

@@ -316,7 +316,7 @@ class ConnectIntf:
 
     """
 
-    def connect(self, host=None, port=None, uri=None, timeout=3):
+    def connect(self, host, port, uri, timeout):
         """
         Connect method should be called before any operations
         Server will be connected after connect return OK

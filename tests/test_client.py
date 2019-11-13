@@ -820,15 +820,25 @@ class TestUtils:
 class TestQueryResult:
     query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
 
+    def _get_response(self, gcon, gvector):
+        return gcon.search_vectors(gvector, 1, 1, self.query_vectors)
+
     def test_search_result(self, gcon, gvector):
         try:
-            response = gcon.search_vectors(gvector, 1, 1, self.query_vectors)
+            status, results = self._get_response(gcon, gvector)
+            assert status.OK()
 
-            assert isinstance(response, tuple)
-            status, results = response
             # test get_item
             shape = results.shape
-            item = results[shape[0] - 1][shape[1] - 1]
+
+            # test TopKQueryResult slice
+            rows = results[:1]
+
+            # test RowQueryResult
+            row = results[shape[0] - 1]
+
+            # test RowQueryResult slice
+            items = row[:1]
 
             # test iter
             for topk_result in results:
@@ -871,7 +881,7 @@ class TestQueryResult:
             assert False
 
     def test_empty_result(self, gcon, gtable):
-        status, results = gcon.search_vectors(gtable, 1, 1, self.query_vectors)
+        status, results = self._get_response(gcon, gtable)
         shape = results.shape
 
         for topk_result in results:

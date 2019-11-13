@@ -74,7 +74,7 @@ def multi_insert(_table_name):
         process_list.append(p)
         p.start()
 
-    # block main process util whole sub process exit
+    # block main process until whole sub process exit
     for p in process_list:
         p.join()
 
