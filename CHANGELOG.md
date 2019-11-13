@@ -1,3 +1,17 @@
+# pymilvus 0.2.5(2019-11-13)
+
+## Bug
+- \#114 - fix method `has_table` bug for return a tuple
+
+## Improvement
+- \#108 - Update version table in README.md
+- \#110 - remove attribute `server_address` in class GrpcMilvus
+- \#111 - make method `set_channel` protected
+- \#115 - Format index type name
+- \#118 - add hook in search method
+- \#119 - set timeout -1 for default to allow invoke synchronously
+
+
 # pymilvus 0.2.4(2019-11-04)
 
 ## Bug
