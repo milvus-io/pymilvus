@@ -1,9 +1,6 @@
 pymilvus Exceptions
 ===================
 
-GuideLines
-----------
-
 Module Contents
 ---------------
 

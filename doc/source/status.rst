@@ -2,9 +2,6 @@ pymilvus Status
 ===============
 
 
-GuideLines
-----------
-
 Module Contents
 ---------------
 

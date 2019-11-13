@@ -1,9 +1,6 @@
 pymilvus types
 ==========
 
-GuideLines
-----------
-
 Module Contents
 ---------------
 
