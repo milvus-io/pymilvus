@@ -10,28 +10,27 @@ from .types import IndexType
 
 
 class TableSchema:
-    """
-    Table Schema
-
-    :type  table_name: str
-    :param table_name: (Required) name of table
-
-        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
-
-    :type  dimension: int64
-    :param dimension: (Required) dimension of vector
-
-    :type  index_file_size: int64
-    :param index_file_size: (Optional) max size of files which store index
-
-    :type  metric_type: MetricType
-    :param metric_type: (Optional) vectors metric type
-
-        `MetricType`: 1-L2, 2-IP
-
-    """
-
     def __init__(self, table_name, dimension, index_file_size, metric_type):
+        """
+        Table Schema
+
+        :type  table_name: str
+        :param table_name: (Required) name of table
+
+            `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
+
+        :type  dimension: int64
+        :param dimension: (Required) dimension of vector
+
+        :type  index_file_size: int64
+        :param index_file_size: (Optional) max size of files which store index
+
+        :type  metric_type: MetricType
+        :param metric_type: (Optional) vectors metric type
+
+            `MetricType`: 1-L2, 2-IP
+
+        """
         check_pass_param(table_name=table_name, dimension=dimension,
                          index_file_size=index_file_size, metric_type=metric_type)
 
@@ -74,45 +73,126 @@ class Range:
                              " than or equal to end-date!")
 
 
+class QueryResult:
+
+    def __init__(self, _id, _distance):
+        self.id = _id
+        self.distance = _distance
+
+    def __str__(self):
+        return "Result(id={}, distance={})".format(self.id, self.distance)
+
+
+class RowQueryResult:
+    def __init__(self, _id_list, _dis_list):
+        self._id_list = _id_list or []
+        self._dis_list = _dis_list or []
+
+        # Iterator index
+        self.__index = 0
+
+    def __getitem__(self, item):
+        if isinstance(item, slice):
+            _start = item.start or 0
+            _end = item.stop or self.__len__()
+            _step = item.step or 1
+
+            elements = []
+            for i in range(_start, _end, _step):
+                elements.append(self.__getitem__(i))
+            return elements
+
+        return QueryResult(self._id_list[item], self._dis_list[item])
+
+    def __len__(self):
+        return len(self._id_list)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        while self.__index < self.__len__():
+            self.__index += 1
+            return self.__getitem__(self.__index - 1)
+
+        # iterate stop, raise Exception
+        self.__index = 0
+        raise StopIteration()
+
+
 class TopKQueryResult:
     """
-    TopK query results, 2-D array of query result
+    TopK query results, shown as 2-D array
+
+    This Class unpack response from server, store ids and distances separately.
     """
 
     def __init__(self, raw_source, **kwargs):
         self._raw = raw_source
-        self._async = kwargs.get("async_", False)
-        self._lazy = kwargs.get("lazy_", False)
-        self._array = self._create_array(self._raw) if not (self._async or self._lazy) else []
+        self._nq = 0
+        self._topk = 0
+        self._id_array = []
+        self._dis_array = []
 
-    def _create_array(self, raw):
+        ##
+        self.__index = 0
 
-        # def _task(topk_result):
-        #     topk_result_list = []
-        #     topk_result_list.extend(topk_result[0].query_result_arrays)
-        #     return topk_result_list
-        #
-        # executor = ThreadPoolExecutor()
-        #
-        # tasks = [executor.submit(_task, (topk_result,)) for topk_result in raw.topk_query_result]
-        # array = [future.result() for future in as_completed(tasks)]
+        self._unpack(self._raw)
 
-        array = []
+    def _unpack(self, _raw):
+        """
 
-        for topk_result in raw.topk_query_result:
-            topk_result_list = []
-            topk_result_list.extend(topk_result.query_result_arrays)
-            array.append(topk_result_list)
+        Args:
+            _raw:
 
-        return array
+        Returns:
+
+        """
+        self._nq = _raw.row_num
+
+        if self._nq == 0:
+            return
+
+        id_list = list(_raw.ids)
+        id_col = len(id_list) // self._nq
+        for i in range(0, len(id_list), id_col):
+            self._id_array.append(id_list[i: i + id_col])
+
+        dis_list = list(_raw.distances)
+        dis_col = len(dis_list) // self._nq
+        for j in range(0, len(dis_list), dis_col):
+            self._dis_array.append(dis_list[j: j + dis_col])
+
+        if len(self._id_array) != self._nq or \
+                len(self._dis_array) != self._nq:
+            raise ParamError("Result parse error.")
+
+        if id_col != dis_col:
+            raise ParamError("Result parse error.")
+
+        self._topk = id_col
+
+    @property
+    def id_array(self):
+        """
+        Id array, it's a 2-D array.
+        """
+        return self._id_array
+
+    @property
+    def distance_array(self):
+        """
+        Distance array, it's a 2-D array
+        """
+        return self._dis_array
 
     @property
     def shape(self):
-        row = len(self._array)
+        """
+        getter. return result shape, format as (row, column).
 
-        column = 0 if row == 0 else len(self._array[0])
-
-        return row, column
+        """
+        return self._nq, self._topk
 
     @property
     def raw(self):
@@ -122,21 +202,33 @@ class TopKQueryResult:
         """
         return self._raw
 
-    def result(self, timeout=10):
-        if self._async is True:
-            response = self._raw.result(timeout=timeout)
-            return TopKQueryResult(response, lazy_=self._lazy, async_=False)
-
-        return self
+    def __len__(self):
+        return self._nq
 
     def __getitem__(self, item):
-        return self._array.__getitem__(item)
+        if isinstance(item, slice):
+            _start = item.start or 0
+            _end = item.stop or self.__len__()
+            _step = item.step or 1
+
+            elements = []
+            for i in range(_start, _end, _step):
+                elements.append(self.__getitem__(i))
+            return elements
+
+        return RowQueryResult(self._id_array[item], self._dis_array[item])
 
     def __iter__(self):
-        return self._array.__iter__()
+        return self
 
-    def __len__(self):
-        return self._array.__len__()
+    def __next__(self):
+        while self.__index < self.__len__():
+            self.__index += 1
+            return self.__getitem__(self.__index - 1)
+
+        # iterate stop, raise Exception
+        self.__index = 0
+        raise StopIteration()
 
     def __repr__(self):
         """
@@ -149,13 +241,14 @@ class TopKQueryResult:
         if self.__len__() > 5:
             middle = ''
 
-            for topk in self[:3]:
+            ll = self[:3]
+            for topk in ll:
                 middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
                 middle += ",\n   ..."
                 middle += "\n   %s ]\n\n" % lam(topk[-1])
 
             spaces = """        ......
-        ......"""
+            ......"""
 
             ahead = "[\n%s%s\n]" % (middle, spaces)
             return ahead
@@ -222,7 +315,7 @@ class ConnectIntf:
 
     """
 
-    def connect(self, host=None, port=None, uri=None, timeout=3):
+    def connect(self, host, port, uri, timeout):
         """
         Connect method should be called before any operations
         Server will be connected after connect return OK
@@ -507,31 +600,9 @@ class ConnectIntf:
         """
         _abstract()
 
-    # def delete_vectors_by_range(self, table_name, start_date, end_date, timeout):
-    #     """
-    #     delete vector by date range. The data range contains start_time but not end_time
-    #     should be implemented
-    #
-    #     :param table_name: table name
-    #     :type  table_name: str
-    #
-    #     :param start_date: range start time
-    #     :type  start_date: str, date, datetime
-    #
-    #     :param end_date: range end time(not contains in range)
-    #     :type  end_date: str, date, datetime
-    #
-    #     :type  timeout: int
-    #     :param timeout: how many similar vectors will be searched
-    #
-    #     :return:
-    #     """
-    #
-    #     _abstract()
-
     def preload_table(self, table_name, timeout):
         """
-        load table to cache in advance
+        load table to memory cache in advance
         should be implemented
 
         :param table_name: target table name.

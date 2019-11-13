@@ -6,10 +6,9 @@ import sys
 
 sys.path.append('.')
 
-from milvus.client.types import IndexType, MetricType
+from milvus import IndexType, MetricType, Prepare, Milvus, Status, ParamError, NotConnectError, ConnectError
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.abstract import TableSchema, TopKQueryResult
-from milvus.client.exceptions import ParamError, NotConnectError, ConnectError
 from milvus.client.utils import check_pass_param
 
 from factorys import (
@@ -25,7 +24,7 @@ LOGGER = logging.getLogger(__name__)
 
 dim = 128
 nb = 2000
-nq = 100
+nq = 10
 
 
 class TestChannel:
@@ -33,26 +32,26 @@ class TestChannel:
 
     def test_channel_host_port(self):
         try:
-            self.client.set_channel(host="localhost", port="19530")
-            self.client.set_channel(host="www.milvus.io", port="19530")
+            self.client._set_channel(host="localhost", port="19530")
+            self.client._set_channel(host="www.milvus.io", port="19530")
         except Exception:
             assert False
 
     def test_channel_uri(self):
         try:
-            self.client.set_channel(uri="tcp://192.168.1.1:9999")
+            self.client._set_channel(uri="tcp://192.168.1.1:9999")
         except Exception:
             assert False
 
     def test_channel_host_non_port(self):
         try:
-            self.client.set_channel(host="localhost")
+            self.client._set_channel(host="localhost")
         except Exception:
             assert False
 
     def test_channel_only_port(self):
         with pytest.raises(ParamError):
-            self.client.set_channel(port=9999)
+            self.client._set_channel(port=9999)
 
 
 class TestConnection:
@@ -69,15 +68,11 @@ class TestConnection:
         status = cnn.connect()
         assert status == Status.CONNECT_FAILED
 
-    def test_false_connect(self):
+    @pytest.mark.parametrize("url", ['tcp://127.0.0.1:7987', 'tcp://123.0.0.1:19530'])
+    def test_false_connect(self, url):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(uri='tcp://127.0.0.1:7987', timeout=2)
-            LOGGER.error(cnn.status)
-            assert not cnn.status.OK()
-
-        with pytest.raises(NotConnectError):
-            cnn.connect(uri='tcp://123.0.0.1:19530', timeout=2)
+            cnn.connect(uri=url, timeout=2)
             LOGGER.error(cnn.status)
             assert not cnn.status.OK()
 
@@ -94,35 +89,21 @@ class TestConnection:
         cnn.connect(uri=uri)
         assert cnn.status.OK()
 
-    def test_wrong_connected(self):
-        cnn = GrpcMilvus()
-        with pytest.raises(ConnectError):
-            cnn.connect(host='123.0.0.2', port="123", timeout=1)
-
-    def test_uri_error(self):
+    @pytest.mark.parametrize("url",
+                             ['http://127.0.0.1:45678',
+                              'tcp://127.0.a.1:9999',
+                              'tcp://127.0.0.1:aaa'])
+    def test_uri_error(self, url):
         with pytest.raises(Exception):
             cnn = GrpcMilvus()
-            cnn.connect(uri='http://127.0.0.1:19530')
+            cnn.connect(uri=url)
 
+    @pytest.mark.parametrize("h", ['12234', 'aaa', '192.168.1.101'])
+    @pytest.mark.parametrize("p", ['...', 'a'])
+    def test_host_port_error(self, h, p):
         with pytest.raises(Exception):
             cnn = GrpcMilvus()
-            cnn.connect(uri='tcp://127.0.a.1:9999')
-
-        with pytest.raises(Exception):
-            cnn = GrpcMilvus()
-            cnn.connect(uri='tcp://127.0.0.1:aaa')
-
-        with pytest.raises(Exception):
-            cnn = GrpcMilvus()
-            cnn.connect(host="1234", port="1")
-
-        with pytest.raises(Exception):
-            cnn = GrpcMilvus()
-            cnn.connect(host="aaa", port="1")
-
-        with pytest.raises(Exception):
-            cnn = GrpcMilvus()
-            cnn.connect(host="192.168.1.101", port="a")
+            cnn.connect(host=h, port=p)
 
     def test_disconnected(self, gip):
         cnn = GrpcMilvus()
@@ -186,7 +167,7 @@ class TestConnection:
 
     def test_set_channel(self):
         cnn = GrpcMilvus()
-        cnn.set_channel(host="www.baidu.com", port="19530")
+        cnn._set_channel(host="www.baidu.com", port="19530")
 
 
 class TestTable:
@@ -380,14 +361,11 @@ class TestSearch:
         }
         res, results = gcon.search_vectors(**param)
         assert res.OK()
-        assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
 
         assert results.shape[0] == nq
         assert results.shape[1] == topk
-
-        print(results)
 
     def test_search_normal(self, gcon, gvector):
         topk = random.randint(1, 10)
@@ -400,14 +378,11 @@ class TestSearch:
         }
         res, results = gcon.search(**param)
         assert res.OK()
-        assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
 
         assert results.shape[0] == nq
         assert results.shape[1] == topk
-
-        print(results)
 
     def test_search_vector_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
@@ -446,7 +421,6 @@ class TestSearch:
         }
         res, results = gcon.search_vectors(**param)
         assert res.OK()
-        assert isinstance(results, (list, TopKQueryResult))
         assert len(results) == nq
         assert len(results[0]) == topk
 
@@ -564,13 +538,6 @@ class TestPrepare:
         }
         res = Prepare.table_schema(param)
         assert isinstance(res, milvus_pb2.TableSchema)
-
-
-class TestPing:
-
-    def test_ping_server_version(self, gcon):
-        _, version = gcon.server_version()
-        assert version in ("0.4.0", "0.5.0")
 
 
 class TestCreateTable:
@@ -799,6 +766,7 @@ class TestBuildIndex:
 
 
 class TestCmd:
+    versions = ("0.5.3",)
 
     def test_client_version(self, gcon):
         try:
@@ -809,7 +777,7 @@ class TestCmd:
 
     def test_server_version(self, gcon):
         _, version = gcon.server_version()
-        assert version in ("0.4.0", "0.5.0")
+        assert version in self.versions
 
     def test_server_status(self, gcon):
         _, status = gcon.server_status()
@@ -817,54 +785,55 @@ class TestCmd:
 
     def test_cmd(self, gcon):
         _, info = gcon._cmd("version")
-        assert info in ("0.4.0", "0.5.0")
+        assert info in self.versions
 
         _, info = gcon._cmd("OK")
         assert info in ("OK", "ok")
 
 
 class TestUtils:
-    def test_parm_check_ids(self):
-        check_pass_param(ids=[1, 2])
 
+    @pytest.mark.parametrize(
+        "key_, value_",
+        [("ids", [1, 2]), ("nprobe", 12), ("nlist", 4096), ("cmd", 'OK')]
+    )
+    def test_param_check_normal(self, key_, value_):
+        try:
+            check_pass_param(**{key_: value_})
+        except Exception:
+            assert False
+
+    @pytest.mark.parametrize(
+        "key_, value_",
+        [("ids", []), ("nprobe", "aaa"), ("nlist", "aaa"), ("cmd", 123)]
+    )
+    def test_param_check_error(self, key_, value_):
         with pytest.raises(ParamError):
-            check_pass_param(ids=[])
-
-    def test_parm_check_nprobe(self):
-        check_pass_param(nprobe=12)
-
-        with pytest.raises(ParamError):
-            check_pass_param(nprobe='aaa')
-
-    def test_parm_check_nlist(self):
-        check_pass_param(nlist=4096)
-
-        with pytest.raises(ParamError):
-            check_pass_param(nlist='aaa')
-
-    def test_parm_check_cmd(self):
-        check_pass_param(cmd='OK')
-
-        with pytest.raises(ParamError):
-            check_pass_param(cmd=123)
+            check_pass_param(**{key_: value_})
 
 
 class TestQueryResult:
     query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
 
-    def test_search_lazy(self, gcon, gvector):
-        response = gcon.search_vectors(gvector, 1, 1, self.query_vectors, lazy_=True)
-        assert isinstance(response, milvus_pb2.TopKQueryResultList)
+    def _get_response(self, gcon, gvector):
+        return gcon.search_vectors(gvector, 1, 1, self.query_vectors)
 
-    def test_search_normal(self, gcon, gvector):
+    def test_search_result(self, gcon, gvector):
         try:
-            response = gcon.search_vectors(gvector, 1, 1, self.query_vectors)
+            status, results = self._get_response(gcon, gvector)
+            assert status.OK()
 
-            assert isinstance(response, tuple)
-            status, results = response
             # test get_item
             shape = results.shape
-            item = results[shape[0] - 1][shape[1] - 1]
+
+            # test TopKQueryResult slice
+            rows = results[:1]
+
+            # test RowQueryResult
+            row = results[shape[0] - 1]
+
+            # test RowQueryResult slice
+            items = row[:1]
 
             # test iter
             for topk_result in results:
@@ -873,20 +842,12 @@ class TestQueryResult:
 
             # test len
             len(results)
-
             # test print
             print(results)
         except Exception:
             assert False
 
-    def test_search_in_files_lazy(self, gcon, gvector):
-        response = \
-            gcon.search_vectors_in_files(table_name=gvector, top_k=1,
-                                         nprobe=1, file_ids=['2'],
-                                         query_records=self.query_vectors, lazy_=True)
-        assert isinstance(response, milvus_pb2.TopKQueryResultList)
-
-    def test_search_in_files_normal(self, gcon, gvector):
+    def test_search_in_files_result(self, gcon, gvector):
         try:
             for index in range(500):
                 status, results = \
@@ -909,8 +870,15 @@ class TestQueryResult:
 
             # test len
             len(results)
-
             # test print
             print(results)
         except Exception:
             assert False
+
+    def test_empty_result(self, gcon, gtable):
+        status, results = self._get_response(gcon, gtable)
+        shape = results.shape
+
+        for topk_result in results:
+            for item in topk_result:
+                print(item)

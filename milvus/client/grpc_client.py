@@ -1,228 +1,34 @@
-"""
-This is a client for milvus of gRPC
-"""
 from urllib.parse import urlparse
 import logging
 
 import grpc
 from grpc._cython import cygrpc
 
-from ..grpc_gen import milvus_pb2_grpc, status_pb2
+from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as grpc_types
 from .abstract import (
     ConnectIntf,
     TableSchema,
-    Range,
-    TopKQueryResult,
     IndexParam
 )
+from .prepare import Prepare
 from .types import IndexType, MetricType, Status
 from .utils import (
-    check_pass_param,
     int_or_str,
     is_legal_host,
     is_legal_port,
-    is_legal_array
 )
+
+from .hooks import BaseaSearchHook
+from .client_hooks import (
+    SearchHook
+)
+
 from .exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
 from . import __version__
 
 LOGGER = logging.getLogger(__name__)
-
-
-class Prepare:
-
-    @classmethod
-    def table_name(cls, table_name):
-
-        check_pass_param(table_name=table_name)
-        return grpc_types.TableName(table_name=table_name)
-
-    @classmethod
-    def table_schema(cls, param):
-        """
-        :type param: dict
-        :param param: (Required)
-
-            `example param={'table_name': 'name',
-                            'dimension': 16,
-                            'index_type': IndexType.FLAT
-                            }`
-
-        :return: ttypes.TableSchema object
-        """
-        if isinstance(param, grpc_types.TableSchema):
-            return param
-
-        if not isinstance(param, dict):
-            raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
-                type(dict), type(param)
-            ))
-
-        if 'index_file_size' not in param:
-            param['index_file_size'] = 1024
-        if 'metric_type' not in param:
-            param['metric_type'] = MetricType.L2
-
-        _param = {
-            'table_name': param['table_name'],
-            'dimension': param['dimension'],
-            'index_file_size': param['index_file_size'],
-            'metric_type': param['metric_type']
-        }
-
-        check_pass_param(**_param)
-
-        return grpc_types.TableSchema(status=status_pb2.Status(error_code=0, reason='Client'),
-                                      table_name=_param["table_name"],
-                                      dimension=_param["dimension"],
-                                      index_file_size=_param["index_file_size"],
-                                      metric_type=_param["metric_type"])
-
-    @classmethod
-    def range(cls, start_date, end_date):
-        """
-        Parser a 'yyyy-mm-dd' like str or date/datetime object to Range object
-
-            `Range: (start_date, end_date]`
-
-            `start_date : '2019-05-25'`
-
-        :param start_date: start date
-        :type  start_date: str, date, datetime
-        :param end_date: end date
-        :type  end_date: str, date, datetime
-
-        :return: Range object
-        """
-        temp = Range(start_date, end_date)
-
-        return grpc_types.Range(start_value=temp.start_date,
-                                end_value=temp.end_date)
-
-    @classmethod
-    def ranges(cls, ranges):
-        """
-        prepare query_ranges
-
-        :param ranges: prepare query_ranges
-        :type  ranges: [[str, str], (str,str)], iterable
-
-            `Example: [[start, end]], ((start, end), (start, end)), or
-                    [(start, end)]`
-
-        :return: list[Range]
-        """
-        res = []
-        for _range in ranges:
-            if not isinstance(_range, grpc_types.Range):
-                res.append(Prepare.range(_range[0], _range[1]))
-            else:
-                res.append(_range)
-        return res
-
-    @classmethod
-    def insert_param(cls, table_name, vectors, ids=None):
-
-        check_pass_param(table_name=table_name)
-
-        if ids is None:
-            _param = grpc_types.InsertParam(table_name=table_name)
-        else:
-            check_pass_param(ids=ids)
-
-            if len(vectors) != len(ids):
-                raise ParamError("length of vectors do not match that of ids")
-
-            _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids)
-
-        for vector in vectors:
-            if is_legal_array(vector):
-                _param.row_record_array.add(vector_data=vector)
-            else:
-                raise ParamError('Vectors should be 2-dim array!')
-
-        return _param
-
-    @classmethod
-    def index(cls, index_type, nlist):
-        """
-
-        :type index_type: IndexType
-        :param index_type: index type
-
-        :type  nlist:
-        :param nlist:
-
-        :return:
-        """
-        check_pass_param(index_type=index_type, nlist=nlist)
-
-        return grpc_types.Index(index_type=index_type, nlist=nlist)
-
-    @classmethod
-    def index_param(cls, table_name, index_param):
-
-        if not isinstance(index_param, dict):
-            raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
-                type(dict), type(index_param)
-            ))
-
-        check_pass_param(table_name=table_name, **index_param)
-
-        _index = Prepare.index(**index_param)
-
-        return grpc_types.IndexParam(status=status_pb2.Status(error_code=0, reason='Client'),
-                                     table_name=table_name,
-                                     index=_index)
-
-    @classmethod
-    def search_param(cls, table_name, query_records, query_ranges, topk, nprobe):
-        query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
-
-        check_pass_param(table_name=table_name, topk=topk, nprobe=nprobe)
-
-        search_param = grpc_types.SearchParam(
-            table_name=table_name,
-            query_range_array=query_ranges,
-            topk=topk,
-            nprobe=nprobe
-        )
-
-        for vector in query_records:
-            if is_legal_array(vector):
-                search_param.query_record_array.add(vector_data=vector)
-            else:
-                raise ParamError('Vectors should be 2-dim array!')
-
-        return search_param
-
-    @classmethod
-    def search_vector_in_files_param(cls, table_name, query_records,
-                                     query_ranges, topk, nprobe, ids):
-        _search_param = Prepare.search_param(table_name, query_records,
-                                             query_ranges, topk, nprobe)
-
-        return grpc_types.SearchInFilesParam(
-            file_id_array=ids,
-            search_param=_search_param
-        )
-
-    @classmethod
-    def cmd(cls, cmd):
-        check_pass_param(cmd=cmd)
-
-        return grpc_types.Command(cmd=cmd)
-
-    @classmethod
-    def delete_param(cls, table_name, start_date, end_date):
-
-        range_ = Prepare.range(start_date, end_date)
-
-        check_pass_param(table_name=table_name)
-
-        return grpc_types.DeleteByRangeParam(range=range_, table_name=table_name)
 
 
 class GrpcMilvus(ConnectIntf):
@@ -231,18 +37,24 @@ class GrpcMilvus(ConnectIntf):
         self._channel = None
         self._stub = None
         self._uri = None
-        self.server_address = None
         self.status = None
+
+        # hook
+        self._search_hook = SearchHook()
+        self._search_file_hook = SearchHook()
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
                      for key, value in self.__dict__.items() if not key.startswith('_')]
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
-    def set_channel(self, host=None, port=None, uri=None):
+    def _set_uri(self, host=None, port=None, uri=None):
+        """
+        Set server network address
 
+        """
         if host is not None:
-            _port = port or "19530"
+            _port = port if port is not None else config.GRPC_PORT
             _host = host
         elif port is None:
             try:
@@ -256,7 +68,6 @@ class GrpcMilvus(ConnectIntf):
 
                 _host = _uri.hostname
                 _port = _uri.port
-
             except Exception:
                 raise ParamError("`{}` is illegal".format(uri))
         else:
@@ -267,13 +78,42 @@ class GrpcMilvus(ConnectIntf):
         if not is_legal_host(_host) or not is_legal_port(_port):
             raise ParamError("host or port is illegal")
 
-        self._uri = str(_host) + ':' + str(_port)
-        self.server_address = self._uri
+        self._uri = "{}:{}".format(str(_host), str(_port))
+
+    def _set_channel(self, host=None, port=None, uri=None):
+        """
+        set grpc channel
+        """
+        self._set_uri(host, port, uri)
+
+        # set transport unlimited
         self._channel = grpc.insecure_channel(
             self._uri,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
+
+    def _set_hook(self, **kwargs):
+        _search_hook = kwargs.get('search', None)
+        if _search_hook:
+            if not isinstance(_search_hook, BaseaSearchHook):
+                raise ParamError("search hook must be a subclass of `BaseSearchHook`")
+
+            self._search_hook = _search_hook
+
+        _search_file_hook = kwargs.get('search_in_file', None)
+        if _search_file_hook:
+            if not isinstance(_search_file_hook, BaseaSearchHook):
+                raise ParamError("search hook must be a subclass of `BaseSearchHook`")
+
+            self._search_file_hook = _search_file_hook
+
+    @property
+    def server_address(self):
+        """
+        Server network address
+        """
+        return self._uri
 
     def connect(self, host=None, port=None, uri=None, timeout=3):
         """
@@ -295,41 +135,42 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if connect is successful
         :rtype: Status
         """
-        if self._channel is None:
-            self.set_channel(host, port, uri)
+        if not self._channel:
+            self._set_channel(host, port, uri)
 
         elif self.connected():
             return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
 
         try:
+            # check if server is ready
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
         except grpc.FutureTimeoutError:
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
         except grpc.RpcError as e:
             raise NotConnectError("Connect error: <{}>".format(e))
+        # Unexpected error
         except Exception as e:
-            raise NotConnectError("Error occurred when trying to connect server:\n<{}>".format(e))
-        else:
-            self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
-            self.status = Status(message='Successfully connected! {}'.format(self._uri))
-            return self.status
+            raise NotConnectError("Error occurred when trying to connect server:\n"
+                                  "\t<{}>".format(str(e)))
+
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        self.status = Status()
+        return self.status
 
     def connected(self):
         """
         Check if client is connected to the server
 
         :return: if client is connected
-        :rtype bool
+        :rtype: bool
         """
-        if not self._stub or not self.status or not self._channel:
+        if not self._stub or not self._channel:
             return False
-
         try:
             grpc.channel_ready_future(self._channel).result(timeout=2)
+            return True
         except (grpc.FutureTimeoutError, grpc.RpcError):
             return False
-        else:
-            return True
 
     def disconnect(self):
         """
@@ -346,6 +187,7 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first!')
 
+        # closing channel by calling interface close() will result in grpc interval error
         del self._channel
 
         # try:
@@ -360,8 +202,64 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Disconnect successfully')
 
+    def client_version(self):
+        """
+        Provide client version
+
+        :return:
+            version: Client version
+
+        :rtype: (str)
+        """
+        return __version__
+
+    def server_version(self, timeout=10):
+        """
+        Provide server version
+
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
+        """
+        return self._cmd(cmd='version', timeout=timeout)
+
+    def server_status(self, timeout=10):
+        """
+        Provide server status
+
+        :return:
+            Status: indicate if operation is successful
+
+            str : Server version
+
+        :rtype: (Status, str)
+        """
+        return self._cmd(cmd='OK', timeout=timeout)
+
+    def _cmd(self, cmd, timeout=10):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        cmd = Prepare.cmd(cmd)
+        try:
+            response = self._stub.Cmd.future(cmd).result(timeout=timeout)
+            if response.status.error_code == 0:
+                return Status(message='Success!'), response.string_reply
+
+            return Status(code=response.status.error_code, message=response.status.reason), None
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
+
     def create_table(self, param, timeout=10):
-        """Create table
+        """
+        Create table
 
         :type  param: dict or TableSchema
         :param param: Provide table information to be created
@@ -406,7 +304,9 @@ class GrpcMilvus(ConnectIntf):
         This method is used to test table existence.
 
         :param table_name: table name is going to be tested.
-        :type table_name: str
+        :type  table_name: str
+        :param timeout: time waiting for server response
+        :type  timeout: int
 
         :return:
             Status: indicate if vectors inserted successfully
@@ -431,275 +331,6 @@ class GrpcMilvus(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(code=e.code(), message=e.details()), False
-
-    def delete_table(self, table_name, timeout=20):
-        """
-        Delete table with table_name
-
-        :type  table_name: str
-        :param table_name: Name of the table being deleted
-
-        :return: Status, indicate if operation is successful
-        :rtype: Status
-        """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        table_name = Prepare.table_name(table_name)
-
-        try:
-            status = self._stub.DropTable.future(table_name).result(timeout=timeout)
-            if status.error_code == 0:
-                return Status(message='Delete table successfully!')
-            return Status(code=status.error_code, message=status.reason)
-
-        except grpc.FutureTimeoutError as e:
-            LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='Error occurred: {}'.format(e.details()))
-
-    def create_index(self, table_name, index=None, timeout=-1):
-        """
-        :param table_name: table used to build index.
-        :type table_name: str
-        :param index: index params
-        :type index: dict
-
-            index_param can be None
-
-            `example (default) param={'index_type': IndexType.FLAT,
-                            'nlist': 16384}`
-
-        :param timeout: grpc request timeout.
-
-            if `timeout` = -1, method invoke a synchronous call, waiting util grpc response
-            else method invoke a asynchronous call, timeout work here
-
-        :type  timeout: int
-
-        :return: Status, indicate if operation is successful
-        """
-        if index is None:
-            index = {
-                'index_type': IndexType.FLAT,
-                'nlist': 16384
-            }
-        elif not isinstance(index, dict):
-            raise ParamError("param `index` should be a dictionary")
-
-        index = {
-            'index_type': index['index_type'] if 'index_type' in index else IndexType.FLAT,
-            'nlist': index['nlist'] if 'nlist' in index else 16384
-        }
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        index_param = Prepare.index_param(table_name, index)
-        try:
-            if timeout == -1:
-                status = self._stub.CreateIndex(index_param)
-            elif timeout < 0:
-                raise ParamError("Param `timeout` should be a positive number or -1")
-            else:
-                try:
-                    status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
-                except grpc.FutureTimeoutError as e:
-                    LOGGER.error(e)
-                    return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-
-            if status.error_code == 0:
-                return Status(message='Build index successfully!')
-
-            return Status(code=status.error_code, message=status.reason)
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
-
-    def add_vectors(self, table_name, records, ids=None, timeout=180, **kwargs):
-        """
-        Add vectors to table
-
-        This function allows to pass in arguments which is type of `milvus_ob2.InsertParam`
-        to avoid serializing and deserializing repeatedly, as follows:
-
-            `obj.add_vectors(None, None, insert_param=param)`
-
-        `obj` is a milvus object, param is an object which is type of `milvus_ob2.InsertParam`
-
-        :param ids:
-
-        :type  table_name: str
-        :param table_name: table name been inserted
-
-        :type  records: list[list[float]]
-
-                `example records: [[1.2345],[1.2345]]`
-
-                `OR using Prepare.records`
-
-        :param records: list of vectors been inserted
-
-        :type  timeout: int
-        :param timeout:
-
-        :returns:
-            Status: indicate if vectors inserted successfully
-            ids: list of id, after inserted every vector is given a id
-        :rtype: (Status, list(int))
-        """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        insert_param = kwargs.get('insert_param', None)
-
-        if not insert_param:
-            insert_param = Prepare.insert_param(table_name, records, ids)
-        else:
-            if not isinstance(insert_param, grpc_types.InsertParam):
-                raise ParamError("The value of key 'insert_param' is invalid")
-
-        try:
-            vector_ids = self._stub.Insert.future(insert_param).result(timeout=timeout)
-
-            if vector_ids.status.error_code == 0:
-                ids = list(vector_ids.vector_id_array)
-                return Status(message='Add vectors successfully!'), ids
-
-            return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
-        except grpc.FutureTimeoutError as e:
-            LOGGER.error(e)
-            return Status(code=Status.UNEXPECTED_ERROR, message="Request timeout"), []
-
-    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
-        """
-        Query vectors in a table
-
-        :param query_ranges: (Optional) ranges for conditional search.
-            If not specified, search in the whole table
-        :type  query_ranges: list[(date, date)]
-
-                `date` supports:
-                   a. date-like-str, e.g. '2019-01-01'
-                   b. datetime.date object, e.g. datetime.date(2019, 1, 1)
-                   c. datetime.datetime object, e.g. datetime.datetime.now()
-
-                example query_ranges:
-
-                `query_ranges = [('2019-05-10', '2019-05-10'),(..., ...), ...]`
-
-        :param table_name: table name been queried
-        :type  table_name: str
-        :param query_records: all vectors going to be queried
-
-                `Using Prepare.records generate query_records`
-
-        :type  query_records: list[list[float]] or list[RowRecord]
-        :param top_k: int, how many similar vectors will be searched
-        :type  top_k: int
-        :param nprobe: cell num of probing
-        :type nprobe: int
-
-        :returns: (Status, res)
-
-            Status:  indicate if query is successful
-            res: TopKQueryResult, return when operation is successful
-
-        :rtype: (Status, TopKQueryResult[QueryResult])
-        """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        infos = Prepare.search_param(
-            table_name, query_records, query_ranges, top_k, nprobe
-        )
-
-        lazy_flag = kwargs.get("lazy_", False)
-
-        try:
-            response = self._stub.Search(infos)
-
-            if lazy_flag is True:
-                return response
-
-            if response.status.error_code != 0:
-                return Status(code=response.status.error_code,
-                              message=response.status.reason), []
-
-            return Status(message='Search vectors successfully!'), TopKQueryResult(response)
-
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
-
-            return status, []
-
-    def search_vectors_in_files(self, table_name, file_ids, query_records, top_k,
-                                nprobe=16, query_ranges=None, **kwargs):
-        """
-        Query vectors in a table, in specified files
-
-        :type  nprobe: int
-        :param nprobe:
-
-        :type  table_name: str
-        :param table_name: table name been queried
-
-        :type  file_ids: list[str] or list[int]
-        :param file_ids: Specified files id array
-
-        :type  query_records: list[list[float]]
-        :param query_records: all vectors going to be queried
-
-        :param query_ranges: Optional ranges for conditional search.
-            If not specified, search in the whole table
-
-
-        :type  top_k: int
-        :param top_k: how many similar vectors will be searched
-
-        :returns:
-            Status:  indicate if query is successful
-            query_results: list[TopKQueryResult]
-
-        :rtype: (Status, TopKQueryResult[QueryResult])
-        """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        file_ids = list(map(int_or_str, file_ids))
-
-        infos = Prepare.search_vector_in_files_param(
-            table_name, query_records, query_ranges, top_k, nprobe, file_ids
-        )
-
-        lazy_flag = kwargs.get("lazy_", False)
-
-        try:
-            response = self._stub.SearchInFiles(infos)
-
-            if lazy_flag is True:
-                return response
-
-            if response.status.error_code != 0:
-                return Status(code=response.status.error_code,
-                              message=response.status.reason), []
-
-            return Status(message='Search vectors successfully!'), TopKQueryResult(response)
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
-
-            return status, []
 
     def describe_table(self, table_name, timeout=10):
         """
@@ -742,9 +373,40 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
+    def count_table(self, table_name, timeout=30):
+        """
+        obtain vector number in table
+
+        :type  table_name: str
+        :param table_name: target table name.
+
+        :returns:
+            Status: indicate if operation is successful
+
+            res: int, table row count
+        """
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        table_name = Prepare.table_name(table_name)
+
+        try:
+            trc = self._stub.CountTable.future(table_name).result(timeout=timeout)
+            if trc.status.error_code == 0:
+                return Status(message='Success!'), trc.table_row_count
+
+            return Status(code=trc.status.error_code, message=trc.status.reason), None
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
+
     def show_tables(self, timeout=10):
         """
-        Show all tables in database
+        Show all tables information in database
 
         :return:
             Status: indicate if this operation is successful
@@ -770,128 +432,6 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
-    def get_table_row_count(self, table_name, timeout=30):
-        """
-        Get table row count
-
-        :type  table_name: str
-        :param table_name: target table name.
-
-        :returns:
-            Status: indicate if operation is successful
-
-            res: int, table row count
-        """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        table_name = Prepare.table_name(table_name)
-
-        try:
-            trc = self._stub.CountTable.future(table_name).result(timeout=timeout)
-            if trc.status.error_code == 0:
-                return Status(message='Success!'), trc.table_row_count
-
-            return Status(code=trc.status.error_code, message=trc.status.reason), None
-        except grpc.FutureTimeoutError as e:
-            LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
-
-    def client_version(self):
-        """
-        Provide client version
-
-        :return:
-            Status: indicate if operation is successful
-
-            str : Client version
-
-        :rtype: (str)
-        """
-        return __version__
-
-    def server_version(self, timeout=10):
-        """
-        Provide server version
-
-        :return:
-            Status: indicate if operation is successful
-
-            str : Server version
-
-        :rtype: (Status, str)
-        """
-        return self._cmd(cmd='version', timeout=timeout)
-
-    def server_status(self, timeout=10):
-        """
-        Provide server status
-
-        :return:
-            Status: indicate if operation is successful
-
-            str : Server version
-
-        :rtype: (Status, str)
-        """
-        return self._cmd(cmd='OK', timeout=timeout)
-
-    def _cmd(self, cmd, timeout=10):
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        cmd = Prepare.cmd(cmd)
-        try:
-            response = self._stub.Cmd.future(cmd).result(timeout=timeout)
-            if response.status.error_code == 0:
-                return Status(message='Success!'), response.string_reply
-
-            return Status(code=response.status.error_code, message=response.status.reason), None
-        except grpc.FutureTimeoutError as e:
-            LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
-
-    def __delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
-        """
-        Delete vectors by range. The data range contains start_time but not end_time
-        This method is deprecated, not recommended for users
-
-        :type  table_name: str
-        :param table_name: str, date, datetime
-
-        :type  start_date: str, date, datetime
-        :param start_date:
-
-        :type  end_date: str, date, datetime
-        :param end_date:
-
-        :return:
-            Status:  indicate if invoke is successful
-        """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        delete_range = Prepare.delete_param(table_name, start_date, end_date)
-
-        try:
-            status = self._stub.DeleteByRange.future(delete_range).result(timeout=timeout)
-            return Status(code=status.error_code, message=status.reason)
-        except grpc.FutureTimeoutError as e:
-            LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
-
     def preload_table(self, table_name, timeout=300):
         """
         Load table to cache in advance
@@ -915,6 +455,153 @@ class GrpcMilvus(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             return Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
+
+    def drop_table(self, table_name, timeout=20):
+        """
+        Delete table with table_name
+
+        :type  table_name: str
+        :param table_name: Name of the table being deleted
+
+        :return: Status, indicate if operation is successful
+        :rtype: Status
+        """
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        table_name = Prepare.table_name(table_name)
+
+        try:
+            status = self._stub.DropTable.future(table_name).result(timeout=timeout)
+            if status.error_code == 0:
+                return Status(message='Delete table successfully!')
+            return Status(code=status.error_code, message=status.reason)
+
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred: {}'.format(e.details()))
+
+    def insert(self, table_name, records, ids=None, timeout=-1, **kwargs):
+        """
+        Add vectors to table
+
+        :param ids: list of id
+        :type  ids: list[int]
+
+        :type  table_name: str
+        :param table_name: table name been inserted
+
+        :type  records: list[list[float]]
+
+                `example records: [[1.2345],[1.2345]]`
+
+                `OR using Prepare.records`
+
+        :param records: list of vectors been inserted
+
+        :type  timeout: int
+        :param timeout: time waiting for server response
+
+        :returns:
+            Status: indicate if vectors inserted successfully
+            ids: list of id, after inserted every vector is given a id
+        :rtype: (Status, list(int))
+        """
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        insert_param = kwargs.get('insert_param', None)
+
+        if not insert_param:
+            insert_param = Prepare.insert_param(table_name, records, ids)
+        else:
+            if not isinstance(insert_param, grpc_types.InsertParam):
+                raise ParamError("The value of key 'insert_param' is invalid")
+
+        try:
+            if timeout == -1:
+                vector_ids = self._stub.Insert(insert_param)
+            else:
+                vector_ids = self._stub.Insert.future(insert_param).result(timeout=timeout)
+
+            if vector_ids.status.error_code == 0:
+                ids = list(vector_ids.vector_id_array)
+                return Status(message='Add vectors successfully!'), ids
+
+            return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(code=Status.UNEXPECTED_ERROR, message="Request timeout"), []
+
+    def create_index(self, table_name, index=None, timeout=-1):
+        """
+        build vectors of specific table and create vector index
+
+        :param table_name: table used to crete index.
+        :type table_name: str
+        :param index: index params
+        :type index: dict
+
+            index_param can be None
+
+            `example (default) param={'index_type': IndexType.FLAT,
+                            'nlist': 16384}`
+
+        :param timeout: grpc request timeout.
+
+            if `timeout` = -1, method invoke a synchronous call, waiting util grpc response
+            else method invoke a asynchronous call, timeout work here
+
+        :type  timeout: int
+
+        :return: Status, indicate if operation is successful
+        """
+
+        index_default = {
+            'index_type': IndexType.FLAT,
+            'nlist': 16384
+        }
+        if not index:
+            _index = index_default
+        elif not isinstance(index, dict):
+            raise ParamError("param `index` should be a dictionary")
+        else:
+            _index = index
+            if index.get('index_type', None) is None:
+                _index.update({'index_type': IndexType.FLAT})
+            if index.get('nlist', None) is None:
+                _index.update({'nlist': 16384})
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        index_param = Prepare.index_param(table_name, _index)
+        try:
+            if timeout == -1:
+                status = self._stub.CreateIndex(index_param)
+            elif timeout < 0:
+                raise ParamError("Param `timeout` should be a positive number or -1")
+            else:
+                try:
+                    status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
+                except grpc.FutureTimeoutError as e:
+                    LOGGER.error(e)
+                    return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+
+            if status.error_code == 0:
+                return Status(message='Build index successfully!')
+
+            return Status(code=status.error_code, message=status.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     def describe_index(self, table_name, timeout=10):
         """
@@ -979,8 +666,149 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    count_table = get_table_row_count
-    drop_table = delete_table
-    insert = add_vectors
-    search = search_vectors
-    search_in_files = search_vectors_in_files
+    def search(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
+        """
+        Search similar vectors in designated table
+
+        :param table_name: target table name
+        :type  table_name: str
+        :param top_k: number of vertors which is most similar with query vectors
+        :type  top_k: int
+        :param nprobe: cell number of probe
+        :type  nprobe: int
+        :param query_records: vectors to query
+        :type  query_records: list[list[float32]]
+        :param query_ranges: query data range
+
+        :return
+            Status: indicate if search successfully
+            result: query result
+
+        :rtype: (Status, TopKQueryResult)
+
+        """
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        request = Prepare.search_param(
+            table_name, query_records, query_ranges, top_k, nprobe
+        )
+
+        try:
+            self._search_hook.pre_search()
+            response = self._stub.Search(request)
+            self._search_hook.aft_search()
+
+            if self._search_hook.on_response():
+                return response
+
+            if response.status.error_code != 0:
+                return Status(code=response.status.error_code,
+                              message=response.status.reason), []
+
+            resutls = self._search_hook.handle_response(response)
+            return Status(message='Search vectors successfully!'), resutls
+
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
+            return status, []
+
+    def search_in_files(self, table_name, file_ids, query_records, top_k,
+                        nprobe=16, query_ranges=None, **kwargs):
+        """
+        Query vectors in a table, in specified files
+
+        :type  nprobe: int
+        :param nprobe:
+
+        :type  table_name: str
+        :param table_name: table name been queried
+
+        :type  file_ids: list[str] or list[int]
+        :param file_ids: Specified files id array
+
+        :type  query_records: list[list[float]]
+        :param query_records: all vectors going to be queried
+
+        :param query_ranges: Optional ranges for conditional search.
+            If not specified, search in the whole table
+
+        :type  top_k: int
+        :param top_k: how many similar vectors will be searched
+
+        :returns:
+            Status:  indicate if query is successful
+            results: query result
+
+        :rtype: (Status, TopKQueryResult)
+        """
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        file_ids = list(map(int_or_str, file_ids))
+
+        infos = Prepare.search_vector_in_files_param(
+            table_name, query_records, query_ranges, top_k, nprobe, file_ids
+        )
+
+        try:
+            self._search_file_hook.pre_search()
+            response = self._stub.SearchInFiles(infos)
+            self._search_file_hook.aft_search()
+
+            if self._search_file_hook.on_response():
+                return response
+
+            if response.status.error_code != 0:
+                return Status(code=response.status.error_code,
+                              message=response.status.reason), []
+
+            return Status(message='Search vectors successfully!'), \
+                   self._search_file_hook.handle_response(response)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            status = Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
+            return status, []
+
+    def __delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
+        """
+        Delete vectors by range. The data range contains start_time but not end_time
+        This method is deprecated, not recommended for users
+
+        :type  table_name: str
+        :param table_name: str, date, datetime
+
+        :type  start_date: str, date, datetime
+        :param start_date:
+
+        :type  end_date: str, date, datetime
+        :param end_date:
+
+        :return:
+            Status:  indicate if invoke is successful
+        """
+
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        delete_range = Prepare.delete_param(table_name, start_date, end_date)
+
+        try:
+            status = self._stub.DeleteByRange.future(delete_range).result(timeout=timeout)
+            return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    # In old version of pymilvus, some methods are different from the new.
+    # apply alternative method name for compatibility
+    get_table_row_count = count_table
+    delete_table = drop_table
+    add_vectors = insert
+    search_vectors = search
+    search_vectors_in_files = search_in_files
