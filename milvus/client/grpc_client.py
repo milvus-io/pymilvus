@@ -162,7 +162,7 @@ class GrpcMilvus(ConnectIntf):
         Check if client is connected to the server
 
         :return: if client is connected
-        :rtype bool
+        :rtype: bool
         """
         if not self._stub or not self._channel:
             return False
@@ -207,9 +207,7 @@ class GrpcMilvus(ConnectIntf):
         Provide client version
 
         :return:
-            Status: indicate if operation is successful
-
-            str : Client version
+            version: Client version
 
         :rtype: (str)
         """
@@ -487,7 +485,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
-    def insert(self, table_name, records, ids=None, timeout=180, **kwargs):
+    def insert(self, table_name, records, ids=None, timeout=-1, **kwargs):
         """
         Add vectors to table
 
@@ -526,7 +524,10 @@ class GrpcMilvus(ConnectIntf):
                 raise ParamError("The value of key 'insert_param' is invalid")
 
         try:
-            vector_ids = self._stub.Insert.future(insert_param).result(timeout=timeout)
+            if timeout == -1:
+                vector_ids = self._stub.Insert(insert_param)
+            else:
+                vector_ids = self._stub.Insert.future(insert_param).result(timeout=timeout)
 
             if vector_ids.status.error_code == 0:
                 ids = list(vector_ids.vector_id_array)
