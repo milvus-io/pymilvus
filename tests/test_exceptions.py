@@ -234,7 +234,7 @@ class TestSearchVectorsException:
 
         self.client.connect(*gip)
 
-        status, _ = self.client.search_vectors(self.table_name, 1, 1, self.records)
+        status, _ = self.client.search(self.table_name, 1, 1, self.records)
         assert not status.OK()
 
 
@@ -259,9 +259,9 @@ class TestSearchVectorsInFilesException:
         self.client.connect(*gip)
 
         status, _ = \
-            self.client.search_vectors_in_files(self.table_name,
-                                                ["1"], self.records,
-                                                1, async_=True)
+            self.client.search_in_files(self.table_name,
+                                        ["1"], self.records,
+                                        1)
         assert not status.OK()
 
 

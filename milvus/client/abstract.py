@@ -304,6 +304,19 @@ class IndexParam:
         return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
 
+class PartitionParam:
+
+    def __init__(self, table_name, partition_name, tag):
+        self.table_name = table_name
+        self.partition_name = partition_name
+        self.tag = tag
+
+    def __str__(self):
+        attr_list = ['%s=%r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '(%s)' % (', '.join(attr_list))
+
+
 def _abstract():
     raise NotImplementedError('You need to override this function')
 

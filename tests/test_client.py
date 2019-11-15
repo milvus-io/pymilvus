@@ -463,10 +463,8 @@ class TestSearch:
         for id_ in range(600):
             param['file_ids'].clear()
             param['file_ids'].append(str(id_))
-            sta, result = gcon.search_vectors_in_files(**param)
+            sta, result = gcon.search_in_files(**param)
             if sta.OK():
-                param['lazy'] = True
-                gcon.search_vectors_in_files(**param)
                 return
 
         print("search in file failed")
@@ -766,7 +764,7 @@ class TestBuildIndex:
 
 
 class TestCmd:
-    versions = ("0.5.3",)
+    versions = ("0.5.3", "0.6.0")
 
     def test_client_version(self, gcon):
         try:
@@ -882,3 +880,80 @@ class TestQueryResult:
         for topk_result in results:
             for item in topk_result:
                 print(item)
+
+
+class TestPartition:
+
+    def test_create_partition(self, gcon, gtable):
+        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="1")
+        assert status.OK()
+
+    def test_insert_with_partition(self, gcon, gtable):
+        time.sleep(5)
+        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="1")
+        assert status.OK()
+
+        vectors = [[random.random() for _ in range(128)] for _ in range(100)]
+        status, _ = gcon.insert(gtable, vectors, partition_tag="1")
+        assert status.OK()
+
+    def test_search_with_partition_partition_first(self, gcon, gtable):
+        time.sleep(5)
+        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="2")
+        assert status.OK()
+
+        status, partitions = gcon.show_partitions(gtable)
+        assert status.OK()
+
+        vectors = [[random.random() for _ in range(128)] for _ in range(100)]
+        status, ids = gcon.insert(gtable, vectors, partition_tag="2")
+        assert status.OK()
+        assert len(ids) == 100
+
+        time.sleep(5)
+
+        query_vectors = [[random.random() for _ in range(128)] for _ in range(1)]
+        # search in global scope
+        status, results = gcon.search(gtable, 1, 1, query_vectors)
+        assert status.OK()
+        assert results.shape == (1, 1)
+
+        # search in specific tags
+        status, results = gcon.search(gtable, 1, 1, query_vectors, parittion_tags=["2"])
+        assert status.OK()
+        assert results.shape == (1, 1)
+
+        # search in specific tags
+        status, results = gcon.search(gtable, 1, 1, query_vectors, parittion_tags=["567"])
+        assert status.OK()
+        assert results.shape == (0, 0)
+
+    def test_search_with_partition_insert_first(self, gcon, gtable):
+        vectors = [[random.random() for _ in range(128)] for _ in range(100)]
+        status, ids = gcon.insert(gtable, vectors)
+        assert status.OK()
+        assert len(ids) == 100
+
+        time.sleep(5)
+
+        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="2")
+        assert status.OK()
+
+        status, partitions = gcon.show_partitions(gtable)
+        assert status.OK()
+
+        query_vectors = [[random.random() for _ in range(128)] for _ in range(1)]
+        # search in global scope
+        status, results = gcon.search(gtable, 1, 1, query_vectors)
+        assert status.OK()
+        assert results.shape == (1, 1)
+
+        # search in specific tags
+        status, results = gcon.search(gtable, 1, 1, query_vectors, parittion_tags=["2"])
+        assert status.OK()
+        assert results.shape == (0, 0)
+
+        # search in specific tags
+        status, results = gcon.search(gtable, 1, 1, query_vectors, parittion_tags=["567"])
+        assert status.OK()
+        assert results.shape == (0, 0)

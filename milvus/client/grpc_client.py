@@ -9,7 +9,8 @@ from ..grpc_gen import milvus_pb2 as grpc_types
 from .abstract import (
     ConnectIntf,
     TableSchema,
-    IndexParam
+    IndexParam,
+    PartitionParam
 )
 from .prepare import Prepare
 from .types import IndexType, MetricType, Status
@@ -485,7 +486,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
-    def insert(self, table_name, records, ids=None, timeout=-1, **kwargs):
+    def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
         """
         Add vectors to table
 
@@ -518,7 +519,7 @@ class GrpcMilvus(ConnectIntf):
         insert_param = kwargs.get('insert_param', None)
 
         if not insert_param:
-            insert_param = Prepare.insert_param(table_name, records, ids)
+            insert_param = Prepare.insert_param(table_name, records, partition_tag, ids)
         else:
             if not isinstance(insert_param, grpc_types.InsertParam):
                 raise ParamError("The value of key 'insert_param' is invalid")
@@ -666,7 +667,65 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def search(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
+    def create_partition(self, table_name, partition_name, tag):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        # TODO: prepare request
+        request = Prepare.partition_param(table_name, partition_name, tag)
+
+        try:
+            response = self._stub.CreatePartition(request)
+            return Status(code=response.error_code, message=response.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    def show_partitions(self, table_name):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        # TODO: prepare request
+        request = Prepare.table_name(table_name)
+
+        try:
+            response = self._stub.ShowPartitions(request)
+            status = response.status
+            if status.error_code == 0:
+
+                partition_list = []
+                for partition in response.partition_array:
+                    partition_param = PartitionParam(
+                        partition.table_name,
+                        partition.partition_name,
+                        partition.tag
+                    )
+                    partition_list.append(partition_param
+                                          )
+                # TODO: return patririons list
+                return Status(), partition_list
+
+            return Status(), []
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(), []
+
+    def drop_partition(self, table_name, partition_name, tag):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        # TODO: prepare request
+        request = Prepare.partition_param(table_name, partition_name, tag)
+
+        try:
+            response = self._stub.DropPartition(request)
+
+            return Status(code=response.error_code, message=response.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(code=1, message="")
+
+    def search(self, table_name, top_k, nprobe, query_records, query_ranges=None, parittion_tags=None, **kwargs):
         """
         Search similar vectors in designated table
 
@@ -691,7 +750,7 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         request = Prepare.search_param(
-            table_name, query_records, query_ranges, top_k, nprobe
+            table_name, top_k, nprobe, query_records, query_ranges, parittion_tags
         )
 
         try:

@@ -99,19 +99,19 @@ class Prepare:
         return res
 
     @classmethod
-    def insert_param(cls, table_name, vectors, ids=None):
+    def insert_param(cls, table_name, vectors, partition_tag, ids=None):
 
         check_pass_param(table_name=table_name)
 
         if ids is None:
-            _param = grpc_types.InsertParam(table_name=table_name)
+            _param = grpc_types.InsertParam(table_name=table_name, partition_tag=partition_tag)
         else:
             check_pass_param(ids=ids)
 
             if len(vectors) != len(ids):
                 raise ParamError("length of vectors do not match that of ids")
 
-            _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids)
+            _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids, partition_tag=partition_tag)
 
         for vector in vectors:
             if is_legal_array(vector):
@@ -154,7 +154,7 @@ class Prepare:
                                      index=_index)
 
     @classmethod
-    def search_param(cls, table_name, query_records, query_ranges, topk, nprobe):
+    def search_param(cls, table_name, topk, nprobe, query_records, query_ranges, partitions):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
 
         check_pass_param(table_name=table_name, topk=topk, nprobe=nprobe)
@@ -163,7 +163,8 @@ class Prepare:
             table_name=table_name,
             query_range_array=query_ranges,
             topk=topk,
-            nprobe=nprobe
+            nprobe=nprobe,
+            partition_tag_array=partitions
         )
 
         for vector in query_records:
@@ -177,8 +178,8 @@ class Prepare:
     @classmethod
     def search_vector_in_files_param(cls, table_name, query_records,
                                      query_ranges, topk, nprobe, ids):
-        _search_param = Prepare.search_param(table_name, query_records,
-                                             query_ranges, topk, nprobe)
+        _search_param = Prepare.search_param(table_name, topk, nprobe, query_records,
+                                             query_ranges, partitions=[])
 
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,
@@ -199,3 +200,10 @@ class Prepare:
         check_pass_param(table_name=table_name)
 
         return grpc_types.DeleteByRangeParam(range=range_, table_name=table_name)
+
+    @classmethod
+    def partition_param(cls, table_name, partition_name, tag):
+
+        # TODO: check param
+
+        return grpc_types.PartitionParam(table_name=table_name, partition_name=partition_name, tag=tag)
