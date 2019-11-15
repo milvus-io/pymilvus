@@ -2,7 +2,7 @@ import logging.config
 
 
 class DefaultConfig:
-
+    GRPC_PORT = "19530"
     GRPC_URI = 'tcp://127.0.0.1:19530'
 
 

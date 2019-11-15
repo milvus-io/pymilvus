@@ -43,12 +43,12 @@ class MilvusServiceStub(object):
         self.Search = channel.unary_unary(
             '/milvus.grpc.MilvusService/Search',
             request_serializer=milvus__pb2.SearchParam.SerializeToString,
-            response_deserializer=milvus__pb2.TopKQueryResultList.FromString,
+            response_deserializer=milvus__pb2.TopKQueryResult.FromString,
         )
         self.SearchInFiles = channel.unary_unary(
             '/milvus.grpc.MilvusService/SearchInFiles',
             request_serializer=milvus__pb2.SearchInFilesParam.SerializeToString,
-            response_deserializer=milvus__pb2.TopKQueryResultList.FromString,
+            response_deserializer=milvus__pb2.TopKQueryResult.FromString,
         )
         self.DescribeTable = channel.unary_unary(
             '/milvus.grpc.MilvusService/DescribeTable',
@@ -300,11 +300,6 @@ class MilvusServiceServicer(object):
 
 
 def add_MilvusServiceServicer_to_server(servicer, server):
-    """*
-    @brief add server
-
-    This method is used to add server
-    """
     rpc_method_handlers = {
         'CreateTable': grpc.unary_unary_rpc_method_handler(
             servicer.CreateTable,
@@ -334,12 +329,12 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'Search': grpc.unary_unary_rpc_method_handler(
             servicer.Search,
             request_deserializer=milvus__pb2.SearchParam.FromString,
-            response_serializer=milvus__pb2.TopKQueryResultList.SerializeToString,
+            response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
         ),
         'SearchInFiles': grpc.unary_unary_rpc_method_handler(
             servicer.SearchInFiles,
             request_deserializer=milvus__pb2.SearchInFilesParam.FromString,
-            response_serializer=milvus__pb2.TopKQueryResultList.SerializeToString,
+            response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
         ),
         'DescribeTable': grpc.unary_unary_rpc_method_handler(
             servicer.DescribeTable,

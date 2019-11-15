@@ -10,7 +10,7 @@ Download
 Pymilvus only supports `python >= 3.5`, is fully tested under 3.5, 3.6, 3.7.
 
 
-Pymilvus can be downloaded via `pip`. If no use, try `pip3`
+Pymilvus can be downloaded via `pip` or `pip3` for python3
 ```$
 $ pip install pymilvus
 ```
@@ -22,11 +22,14 @@ Different versions of Milvus and lowest/highest pymilvus version supported accor
 | 0.3.1 | 0.1.25|
 | 0.4.0 | 0.2.2 |
 | 0.5.0 | 0.2.3 |
+| 0.5.1 | 0.2.3 |
+| 0.5.2 | 0.2.3 |
+| 0.5.3 | 0.2.5 |
 
 
 You can download a specific version by:
 ```$
-$ pip install pymilvus==0.2.3
+$ pip install pymilvus==0.2.5
 ```
 
 If you want to upgrade `pymilvus` to newest version
@@ -95,7 +98,7 @@ First create 20 vectors of 256-dimension.
 
 Then add vectors into table `test01`
 ```python
->>> status, ids = milvus.add_vectors(table_name='test01', records=vectors)
+>>> status, ids = milvus.insert(table_name='test01', records=vectors)
 >>> print(status)
 Status(code=0, message='Add vectors successfully!')
 >>> pprint(ids) # List of ids returned
@@ -108,13 +111,13 @@ Status(code=0, message='Add vectors successfully!')
 You can also specify vectors id
 ```python
 >>> vector_ids = [i for i in range(20)]
->>> status, ids = milvus.add_vectors(table_name='test01', records=vectors, ids=vector_ids)
+>>> status, ids = milvus.insert(table_name='test01', records=vectors, ids=vector_ids)
 >>> pprint(ids)
 [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
 ```
 Get vectors num
 ```python
->>> milvus.get_table_row_count('test01')
+>>> milvus.count_table('test01')
 (Status(code=0, message='Success!'), 20)
 ```
 ---
@@ -145,7 +148,7 @@ Search vectors
 
 Then get results
 ```python
->>> status, results = milvus.search_vectors(table_name='test01', query_records=q_records, top_k=1, nprobe=16)
+>>> status, results = milvus.search(table_name='test01', query_records=q_records, top_k=1, nprobe=16)
 >>> print(status)
 Status(code=0, message='Search vectors successfully!')
 >>> pprint(results) # Searched top_k vectors
@@ -169,7 +172,7 @@ Status(code=0, message='')
 Delete the table we just created
 
 ```python
->>> milvus.delete_table(table_name='test01')
+>>> milvus.drop_table(table_name='test01')
 Status(code=0, message='Delete table successfully!')
 ```
 Disconnect with the server
@@ -183,10 +186,8 @@ Status(code=0, message='Disconnect successfully')
 ## Example python
 There are some small examples in `examples/`, you can find more guide there.
 
-Build docs
-```$
-$ sphinx-build -b html doc/en/ doc/en/build
-```
+You can find api doc in [API Doc](https://milvus-io.github.io/milvus-sdk-python/pythondoc/index.html)
+
 
 
 If you encounter any problems or bugs, please open new issues

@@ -7,6 +7,7 @@ class Status:
 
     :attribute message: str (optional) current status message
     """
+
     SUCCESS = 0
     UNEXPECTED_ERROR = 1
     CONNECT_FAILED = 2
@@ -43,7 +44,9 @@ class Status:
         return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
     def __eq__(self, other):
-        """Make Status comparable with self by code"""
+        """
+        Make Status comparable with self by code
+        """
         if isinstance(other, int):
             return self.code == other
 
@@ -63,6 +66,10 @@ class IndexType(IntEnum):
     IVF_SQ8 = 3
     MIX_NSG = 4
     IVF_SQ8H = 5
+
+    # alternative name
+    IVF_FLAT = IVFLAT
+    IVF_SQ8_H = IVF_SQ8H
 
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self._name_)

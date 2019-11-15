@@ -16,12 +16,9 @@ def is_legal_port(port):
             _port = int(port)
         except ValueError:
             return False
-
-    if isinstance(port, int):
-        _port = port
-
-    if _port <= 0 or _port > 65535:
-        return False
+        else:
+            if _port <= 0 or _port > 65535:
+                return False
 
     return True
 
