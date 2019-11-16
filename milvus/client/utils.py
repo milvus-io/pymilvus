@@ -25,9 +25,9 @@ def is_legal_port(port):
 
 def is_legal_array(array):
     if not array or \
-       not isinstance(array, list) or \
-       len(array) <= 0 or \
-       not isinstance(array[0], float):
+            not isinstance(array, list) or \
+            len(array) <= 0 or \
+            not isinstance(array[0], float):
         return False
 
     return True
@@ -131,6 +131,28 @@ def is_legal_date_range(start, end):
     return True
 
 
+def is_legal_partition_name(name):
+    return isinstance(name, str)
+
+
+def is_legal_partition_tag(tag):
+    return isinstance(tag, str)
+
+
+def is_legal_partition_tag_array(tag_array):
+    if tag_array is None:
+        return True
+
+    if not isinstance(tag_array, list):
+        return False
+
+    for tag in tag_array:
+        if not is_legal_partition_tag(tag):
+            return False
+
+    return True
+
+
 def _raise_param_error(param_name):
     raise ParamError("{} is illegal".format(param_name))
 
@@ -170,3 +192,14 @@ def check_pass_param(*args, **kwargs):
         elif key in ("cmd",):
             if not is_legal_cmd(value):
                 _raise_param_error(key)
+        elif key in ("partition_name",):
+            if not is_legal_partition_name(value):
+                _raise_param_error(key)
+        elif key in ("partition_tag",):
+            if not is_legal_partition_tag(value):
+                _raise_param_error(key)
+        elif key in ("partition_tag_array",):
+            if not is_legal_partition_tag_array(value):
+                _raise_param_error(key)
+        else:
+            raise ParamError("unknown param `{}`".format(key))

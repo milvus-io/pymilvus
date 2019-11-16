@@ -101,7 +101,7 @@ class Prepare:
     @classmethod
     def insert_param(cls, table_name, vectors, partition_tag, ids=None):
 
-        check_pass_param(table_name=table_name)
+        check_pass_param(table_name=table_name, partition_tag=partition_tag)
 
         if ids is None:
             _param = grpc_types.InsertParam(table_name=table_name, partition_tag=partition_tag)
@@ -157,7 +157,7 @@ class Prepare:
     def search_param(cls, table_name, topk, nprobe, query_records, query_ranges, partitions):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
 
-        check_pass_param(table_name=table_name, topk=topk, nprobe=nprobe)
+        check_pass_param(table_name=table_name, topk=topk, nprobe=nprobe, partition_tag_array=partitions)
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
@@ -166,6 +166,9 @@ class Prepare:
             nprobe=nprobe,
             partition_tag_array=partitions
         )
+
+        if not isinstance(query_records, list):
+            raise ParamError('Vectors should be 2-dim array!')
 
         for vector in query_records:
             if is_legal_array(vector):
@@ -205,5 +208,6 @@ class Prepare:
     def partition_param(cls, table_name, partition_name, tag):
 
         # TODO: check param
+        check_pass_param(partition_name=partition_name, partition_tag=tag)
 
         return grpc_types.PartitionParam(table_name=table_name, partition_name=partition_name, tag=tag)

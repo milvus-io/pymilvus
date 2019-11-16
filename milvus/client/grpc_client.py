@@ -49,6 +49,8 @@ class GrpcMilvus(ConnectIntf):
                      for key, value in self.__dict__.items() if not key.startswith('_')]
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
+    # def __del__(self):
+
     def _set_uri(self, host=None, port=None, uri=None):
         """
         Set server network address

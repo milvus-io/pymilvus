@@ -73,8 +73,6 @@ class TestConnection:
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
             cnn.connect(uri=url, timeout=2)
-            LOGGER.error(cnn.status)
-            assert not cnn.status.OK()
 
     def test_connected(self, gcon):
         assert gcon.connected()
@@ -98,11 +96,12 @@ class TestConnection:
             cnn = GrpcMilvus()
             cnn.connect(uri=url)
 
-    @pytest.mark.parametrize("h", ['12234', 'aaa', '194.168.1.255'])
-    @pytest.mark.parametrize("p", ['...', 'a', '1'])
+    @pytest.mark.parametrize("h", ['12234', 'aaa', '194.168.1.255', '123.0.0.1', '192.168.255.255'])
+    @pytest.mark.parametrize("p", ['...', 'a', '1', '40000'])
     def test_host_port_error(self, h, p):
         with pytest.raises(Exception):
             cnn = GrpcMilvus()
+            # LOGGER.info("Id: [{}]\trefcount = {}".format(id(cnn), sys.getrefcount(cnn)))
             cnn.connect(host=h, port=p)
 
     def test_disconnected(self, gip):
@@ -884,18 +883,25 @@ class TestQueryResult:
 
 class TestPartition:
 
-    def test_create_partition(self, gcon, gtable):
-        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="1")
-        assert status.OK()
-
-    def test_insert_with_partition(self, gcon, gtable):
-        time.sleep(5)
+    def test_create_partition_in_empty_table(self, gcon, gtable):
         status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="1")
         assert status.OK()
 
         vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         status, _ = gcon.insert(gtable, vectors, partition_tag="1")
         assert status.OK()
+
+    def test_create_partition_after_insert(self, gcon, gvector):
+        status = gcon.create_partition(table_name=gvector, partition_name="t1", tag="1")
+        assert status.OK()
+
+    def test_insert_with_wrong_partition(self, gcon, gtable):
+        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="1")
+        assert status.OK()
+
+        vectors = [[random.random() for _ in range(128)] for _ in range(100)]
+        status, _ = gcon.insert(gtable, vectors, partition_tag="2")
+        assert not status.OK()
 
     def test_search_with_partition_partition_first(self, gcon, gtable):
         time.sleep(5)

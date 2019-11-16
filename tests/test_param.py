@@ -1,13 +1,17 @@
 import copy
 import time
 import random
+import mock
 
 import sys
 
 sys.path.append('.')
-from milvus.client.exceptions import ParamError
+from milvus import ParamError, Milvus
 
 import pytest
+
+client = Milvus()
+client.connected = mock.Mock(return_value=True)
 
 
 def test_create_table_param(gcon):
@@ -55,77 +59,59 @@ def test_has_table_param(gcon):
         gcon.has_table(table_name)
 
 
-def test_delete_table_param(gcon):
-    table_name = "test_delete_table_param"
-    status, flag = gcon.has_table(table_name)
-    assert status.OK()
-    assert not flag
-
+def test_delete_table_param():
     table_name = 124
     with pytest.raises(ParamError):
-        gcon.has_table(table_name)
+        client.has_table(table_name)
 
 
-def test_create_index_param(gcon, gvector):
-    status = gcon.create_index(gvector, None)
-    assert status.OK()
-
+def test_create_index_param():
     index = {
         'index_type': 0,
         'nlist': 16384
     }
 
     with pytest.raises(ParamError):
-        gcon.create_index(gvector, index)
-
-    index = {
-        'index_type': 1,
-        'nlist': -1
-    }
-
-    status = gcon.create_index(gvector, index)
-    assert not status.OK()
+        client.create_index("test", index)
 
     index = {
         'index_type': -1,
         'nlist': 4096
     }
     with pytest.raises(ParamError):
-        gcon.create_index(gvector, index)
+        client.create_index("test", index)
 
     index = {
         'index_type': 100,
         'nlist': 16384
     }
     with pytest.raises(ParamError):
-        gcon.create_index(gvector, index)
-
-    index = {
-        'index_type': 1,
-        'nlist': 0
-    }
-
-    status = gcon.create_index(gvector, index)
-    assert not status.OK()
+        client.create_index("test", index)
 
 
-def test_add_vectors_param(gcon, gtable):
-    table_name = ""
+class TestInsertParam:
+    vectors = [[random.random() for _ in range(16)] for _ in range(10)]
 
-    vectors = [[random.random() for _ in range(128)] for _ in range(1000)]
-    with pytest.raises(ParamError):
-        gcon.add_vectors(table_name, vectors)
+    @pytest.mark.parametrize("table", [None, "", 123, False])
+    def test_insert_with_wrong_table_name(self, table):
+        with pytest.raises(ParamError):
+            client.add_vectors(table, self.vectors)
 
-    ids = [1, 2, 3]
-    with pytest.raises(ParamError):
-        gcon.add_vectors(gtable, vectors, ids)
+    @pytest.mark.parametrize("ids", ["3423", 134, [1, 2, 3], False])
+    def test_insert_with_wrong_ids(self, ids):
+        with pytest.raises(ParamError):
+            client.insert("test", self.vectors, ids)
+
+    @pytest.mark.parametrize("part", [1, None, False, []])
+    def test_insert_with_wrong_partition(self, part):
+        with pytest.raises(ParamError):
+            client.insert("test", self.vectors, partition_tag=part)
 
 
-def test_search_param(gcon, gvector):
-    query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
+class TestSearchParam:
+    query_vectors = [[random.random() for _ in range(16)] for _ in range(10)]
 
-    status, _ = gcon.search_vectors(gvector, top_k=0, nprobe=16, query_records=query_vectors)
-    assert not status.OK()
-
-    status, _ = gcon.search_vectors(gvector, top_k=1, nprobe=0, query_records=query_vectors)
-    assert not status.OK()
+    @pytest.mark.parametrize("tags", ["", 1, False, [123]])
+    def test_search_with_wrong_parittion_args(self, tags):
+        with pytest.raises(ParamError):
+            client.search("test", top_k=1, nprobe=1, query_records=self.query_vectors, parittion_tags=tags)
