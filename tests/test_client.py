@@ -884,6 +884,7 @@ class TestQueryResult:
 class TestPartition:
 
     def test_create_partition_in_empty_table(self, gcon, gtable):
+        time.sleep(10)
         status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="1")
         assert status.OK()
 
@@ -892,10 +893,12 @@ class TestPartition:
         assert status.OK()
 
     def test_create_partition_after_insert(self, gcon, gvector):
+        time.sleep(10)
         status = gcon.create_partition(table_name=gvector, partition_name="t1", tag="1")
         assert status.OK()
 
     def test_insert_with_wrong_partition(self, gcon, gtable):
+        time.sleep(10)
         status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="1")
         assert status.OK()
 
@@ -903,8 +906,10 @@ class TestPartition:
         status, _ = gcon.insert(gtable, vectors, partition_tag="2")
         assert not status.OK()
 
-    def test_search_with_partition_partition_first(self, gcon, gtable):
-        time.sleep(5)
+    def test_search_with_partition_first(self, gcon, gtable):
+        # Sleep to avoid fail status which
+        # message='Table already exists and it is in delete state, please wait a second'
+        time.sleep(10)
         status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="2")
         assert status.OK()
 
@@ -918,19 +923,25 @@ class TestPartition:
 
         time.sleep(5)
 
-        query_vectors = [[random.random() for _ in range(128)] for _ in range(1)]
+        query_vectors = vectors[:1]
         # search in global scope
         status, results = gcon.search(gtable, 1, 1, query_vectors)
         assert status.OK()
         assert results.shape == (1, 1)
 
         # search in specific tags
-        status, results = gcon.search(gtable, 1, 1, query_vectors, parittion_tags=["2"])
+        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=["2"])
         assert status.OK()
         assert results.shape == (1, 1)
 
         # search in specific tags
-        status, results = gcon.search(gtable, 1, 1, query_vectors, parittion_tags=["567"])
+        status, results = gcon.search(
+            gtable,
+            1,
+            1,
+            query_vectors,
+            partition_tags=["3etergdgdgedgdgergete5465efdf"])
+
         assert status.OK()
         assert results.shape == (0, 0)
 
@@ -940,6 +951,7 @@ class TestPartition:
         assert status.OK()
         assert len(ids) == 100
 
+        # waiting for data prepared
         time.sleep(5)
 
         status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="2")
@@ -955,11 +967,11 @@ class TestPartition:
         assert results.shape == (1, 1)
 
         # search in specific tags
-        status, results = gcon.search(gtable, 1, 1, query_vectors, parittion_tags=["2"])
+        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=["2"])
         assert status.OK()
         assert results.shape == (0, 0)
 
         # search in specific tags
-        status, results = gcon.search(gtable, 1, 1, query_vectors, parittion_tags=["567"])
+        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=["567"])
         assert status.OK()
         assert results.shape == (0, 0)

@@ -136,7 +136,7 @@ def is_legal_partition_name(name):
 
 
 def is_legal_partition_tag(tag):
-    return isinstance(tag, str)
+    return True if tag is None else isinstance(tag, str)
 
 
 def is_legal_partition_tag_array(tag_array):

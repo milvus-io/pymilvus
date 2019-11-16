@@ -50,6 +50,16 @@ class GrpcMilvus(ConnectIntf):
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
     # def __del__(self):
+    #     if self.connected():
+    #         self.disconnect()
+    #
+    #     if self._channel:
+    #         del self._channel
+    #
+    #     if self._stub:
+    #         del self._stub
+
+    # def __del__(self):
 
     def _set_uri(self, host=None, port=None, uri=None):
         """
@@ -727,7 +737,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=1, message="")
 
-    def search(self, table_name, top_k, nprobe, query_records, query_ranges=None, parittion_tags=None, **kwargs):
+    def search(self, table_name, top_k, nprobe, query_records, query_ranges=None, partition_tags=None, **kwargs):
         """
         Search similar vectors in designated table
 
@@ -752,7 +762,7 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         request = Prepare.search_param(
-            table_name, top_k, nprobe, query_records, query_ranges, parittion_tags
+            table_name, top_k, nprobe, query_records, query_ranges, partition_tags
         )
 
         try:

@@ -102,7 +102,7 @@ class TestInsertParam:
         with pytest.raises(ParamError):
             client.insert("test", self.vectors, ids)
 
-    @pytest.mark.parametrize("part", [1, None, False, []])
+    @pytest.mark.parametrize("part", [1, (), False, []])
     def test_insert_with_wrong_partition(self, part):
         with pytest.raises(ParamError):
             client.insert("test", self.vectors, partition_tag=part)
@@ -114,4 +114,4 @@ class TestSearchParam:
     @pytest.mark.parametrize("tags", ["", 1, False, [123]])
     def test_search_with_wrong_parittion_args(self, tags):
         with pytest.raises(ParamError):
-            client.search("test", top_k=1, nprobe=1, query_records=self.query_vectors, parittion_tags=tags)
+            client.search("test", top_k=1, nprobe=1, query_records=self.query_vectors, partition_tags=tags)
