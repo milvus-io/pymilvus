@@ -52,10 +52,10 @@ class GrpcMilvus(ConnectIntf):
     # def __del__(self):
     #     if self.connected():
     #         self.disconnect()
-    #
+
     #     if self._channel:
     #         del self._channel
-    #
+
     #     if self._stub:
     #         del self._stub
 
@@ -158,8 +158,12 @@ class GrpcMilvus(ConnectIntf):
             # check if server is ready
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
         except grpc.FutureTimeoutError:
+            del self._channel
+            self._channel = None
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
         except grpc.RpcError as e:
+            del self._channel
+            self._channel = None
             raise NotConnectError("Connect error: <{}>".format(e))
         # Unexpected error
         except Exception as e:
