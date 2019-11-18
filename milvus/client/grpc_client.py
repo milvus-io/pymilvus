@@ -1,5 +1,7 @@
 from urllib.parse import urlparse
 import logging
+import collections
+import uuid
 
 import grpc
 from grpc._cython import cygrpc
@@ -30,6 +32,35 @@ from ..settings import DefaultConfig as config
 from . import __version__
 
 LOGGER = logging.getLogger(__name__)
+
+
+class _ClientCallDetails(
+    collections.namedtuple(
+        '_ClientCallDetails',
+        ('method', 'timeout', 'metadata', 'credentials', 'wait_for_ready')),
+    grpc.ClientCallDetails):
+    pass
+
+
+class RequestIDClientInterceptor(grpc.UnaryUnaryClientInterceptor):
+
+    def __generate_request_id(self):
+        return uuid.uuid1()
+
+    def intercept_unary_unary(self, continuation, client_call_details, request):
+        rid = self.__generate_request_id()
+        LOGGER.info("Sending RPC request, Method: {}, Request ID: {}.".format(client_call_details.method, rid))
+
+        # Add request into client call details, aka, metadata.
+        metadata = []
+        if client_call_details.metadata is not None:
+            metadata = list(client_call_details.metadata)
+        metadata.append(("request_id", rid))
+
+        client_call_details = _ClientCallDetails(
+            client_call_details.method, client_call_details.timeout, metadata,
+            client_call_details.credentials, client_call_details.wait_for_ready)
+        return continuation(client_call_details, request)
 
 
 class GrpcMilvus(ConnectIntf):
@@ -157,6 +188,8 @@ class GrpcMilvus(ConnectIntf):
         try:
             # check if server is ready
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
+            _intercept_channel = grpc.intercept_channel(self._channel, RequestIDClientInterceptor())
+            self._channel = _intercept_channel
         except grpc.FutureTimeoutError:
             del self._channel
             self._channel = None
@@ -726,7 +759,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(), []
 
-    def drop_partition(self, table_name, partition_name, tag):
+    def drop_partition(self, table_name, tag):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
