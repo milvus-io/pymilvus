@@ -884,8 +884,7 @@ class TestQueryResult:
 class TestPartition:
 
     def test_create_partition_in_empty_table(self, gcon, gtable):
-        time.sleep(10)
-        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="1")
+        status = gcon.create_partition(table_name=gtable, partition_name="p1", partition_tag="1")
         assert status.OK()
 
         vectors = [[random.random() for _ in range(128)] for _ in range(100)]
@@ -893,13 +892,11 @@ class TestPartition:
         assert status.OK()
 
     def test_create_partition_after_insert(self, gcon, gvector):
-        time.sleep(10)
-        status = gcon.create_partition(table_name=gvector, partition_name="t1", tag="1")
+        status = gcon.create_partition(table_name=gvector, partition_name="t1", partition_tag="1")
         assert status.OK()
 
     def test_insert_with_wrong_partition(self, gcon, gtable):
-        time.sleep(10)
-        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="1")
+        status = gcon.create_partition(table_name=gtable, partition_name="p2", partition_tag="1")
         assert status.OK()
 
         vectors = [[random.random() for _ in range(128)] for _ in range(100)]
@@ -909,8 +906,7 @@ class TestPartition:
     def test_search_with_partition_first(self, gcon, gtable):
         # Sleep to avoid fail status which
         # message='Table already exists and it is in delete state, please wait a second'
-        time.sleep(10)
-        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="2")
+        status = gcon.create_partition(table_name=gtable, partition_name="p22", partition_tag="2")
         assert status.OK()
 
         status, partitions = gcon.show_partitions(gtable)
@@ -954,7 +950,7 @@ class TestPartition:
         # waiting for data prepared
         time.sleep(5)
 
-        status = gcon.create_partition(table_name=gtable, partition_name="p1", tag="2")
+        status = gcon.create_partition(table_name=gtable, partition_name="p3", partition_tag="2")
         assert status.OK()
 
         status, partitions = gcon.show_partitions(gtable)

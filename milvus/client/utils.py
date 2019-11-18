@@ -132,11 +132,11 @@ def is_legal_date_range(start, end):
 
 
 def is_legal_partition_name(name):
-    return isinstance(name, str)
+    return name is None or isinstance(name, str)
 
 
 def is_legal_partition_tag(tag):
-    return True if tag is None else isinstance(tag, str)
+    return tag is None or isinstance(tag, str)
 
 
 def is_legal_partition_tag_array(tag_array):

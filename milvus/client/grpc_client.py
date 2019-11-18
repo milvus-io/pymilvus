@@ -683,12 +683,12 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def create_partition(self, table_name, partition_name, tag):
+    def create_partition(self, table_name, partition_name, partition_tag):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
         # TODO: prepare request
-        request = Prepare.partition_param(table_name, partition_name, tag)
+        request = Prepare.partition_param(table_name, partition_name, partition_tag)
 
         try:
             response = self._stub.CreatePartition(request)
@@ -726,12 +726,12 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(), []
 
-    def drop_partition(self, table_name, partition_name, tag):
+    def drop_partition(self, table_name, partition_tag):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
         # TODO: prepare request
-        request = Prepare.partition_param(table_name, partition_name, tag)
+        request = Prepare.partition_param(table_name=table_name, partition_name=None, tag=partition_tag)
 
         try:
             response = self._stub.DropPartition(request)

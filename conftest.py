@@ -116,7 +116,7 @@ def gvector(request, gcon, gtable):
 
     records = records_factory(dim, 10000)
 
-    gcon.add_vectors(gtable, records)
+    gcon.insert(gtable, records)
     time.sleep(3)
 
     return gtable
