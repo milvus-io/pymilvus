@@ -208,6 +208,6 @@ class Prepare:
     def partition_param(cls, table_name, partition_name, tag):
 
         # TODO: check param
-        check_pass_param(partition_name=partition_name, partition_tag=tag)
+        check_pass_param(table_name=table_name, partition_name=partition_name, partition_tag=tag)
 
         return grpc_types.PartitionParam(table_name=table_name, partition_name=partition_name, tag=tag)

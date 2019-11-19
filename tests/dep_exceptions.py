@@ -10,6 +10,7 @@ import mock
 
 from grpc import FutureTimeoutError as FError
 from grpc._channel import _UnaryUnaryMultiCallable as FC
+from milvus.grpc_gen.milvus_pb2_grpc import MilvusServiceStub as Stub
 
 from milvus import Status
 from milvus.client.grpc_client import GrpcMilvus
@@ -67,7 +68,7 @@ class TestDisconnectException:
 
 class TestCreateTableException:
     client = GrpcMilvus()
-    client.server_status = mock.Mock(return_value=(Status(), "OK"))
+    # client.connected = mock.Mock(return_value=True)
 
     table_param = {
         "table_name": "test001",
@@ -81,11 +82,12 @@ class TestCreateTableException:
         with pytest.raises(NotConnectError):
             self.client.disconnect()
 
-    @mock.patch.object(FC, "future")
-    def test_create_table_rpcerror_exp(self, mock_callable, gip):
+    @mock.patch.object(Stub, "CreateTable")
+    def test_create_table_rpcerror_exp(self, mock_callable):
         mock_callable.side_effect = RpcTestError()
 
-        self.client.connect(*gip)
+        # self.client.connect(*gip)
+        self.client.connected = mock.Mock(return_value=True)
 
         status = self.client.create_table(self.table_param)
         assert not status.OK()
