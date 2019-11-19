@@ -96,8 +96,9 @@ class TestConnection:
             cnn = GrpcMilvus()
             cnn.connect(uri=url)
 
-    @pytest.mark.parametrize("h", ['12234', 'aaa', '194.168.1.255', '123.0.0.1', '192.168.255.255'])
-    @pytest.mark.parametrize("p", ['...', 'a', '1', '40000'])
+    @pytest.mark.repeat(20)
+    @pytest.mark.parametrize("h", ['12234', 'aaa', '194.168.200.200', '123.0.0.1', '192.168.250.250'])
+    @pytest.mark.parametrize("p", ['...', 'a', '1', '40000', '19530'])
     def test_host_port_error(self, h, p):
         with pytest.raises(Exception):
             cnn = GrpcMilvus()

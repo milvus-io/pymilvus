@@ -91,7 +91,6 @@ def main():
         'query_records': query_vectors,
         'top_k': 1,
         'nprobe': 16
-
     }
     status, results = milvus.search_vectors(**param)
 
@@ -100,6 +99,9 @@ def main():
             print('Query result is correct')
         else:
             print('Query result isn\'t correct')
+
+    # print results
+    print(results)
 
     # Delete demo_table
     status = milvus.drop_table(table_name)
