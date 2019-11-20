@@ -162,7 +162,7 @@ class GrpcMilvus(ConnectIntf):
         """
         return self._uri
 
-    def connect(self, host=None, port=None, uri=None, timeout=3):
+    def connect(self, host=None, port=None, uri=None, timeout=1):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -182,11 +182,11 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if connect is successful
         :rtype: Status
         """
+        if self.connected():
+            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
+
         if not self._channel:
             self._set_channel(host, port, uri)
-
-        elif self.connected():
-            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
 
         try:
             # check if server is ready
