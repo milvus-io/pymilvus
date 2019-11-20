@@ -4,6 +4,12 @@ class AbstractHook:
 
 class BaseaSearchHook(AbstractHook):
 
+    def prepare_data(self, *args, **kwargs):
+        """
+        Prepare grpc data
+        """
+        pass
+
     def pre_search(self, *args, **kwargs):
         """
         This method allow user to prepare for starting searching vectors.
@@ -20,8 +26,10 @@ class BaseaSearchHook(AbstractHook):
     def on_response(self, *args, **kwargs):
         """
         Indicate if deal with response from server.
-        return bool variables.
+        return bool variables. False default
 
+        When return True, the method tell caller to return raw response received from
+        server directly.
         """
         return False
 
