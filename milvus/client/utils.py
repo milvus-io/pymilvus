@@ -25,9 +25,9 @@ def is_legal_port(port):
 
 def is_legal_array(array):
     if not array or \
-            not isinstance(array, list) or \
-            len(array) <= 0 or \
-            not isinstance(array[0], float):
+       not isinstance(array, list) or \
+       len(array) <= 0 or \
+       not isinstance(array[0], float):
         return False
 
     return True
