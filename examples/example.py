@@ -12,8 +12,10 @@ import time
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
-# _PORT = '19530'  # default value
-_PORT = '19532'  # default value
+_PORT = '19530'  # default value
+
+# Vector parameters
+_DIM = 16  # dimension of vector
 
 
 def main():
@@ -36,8 +38,8 @@ def main():
     if not ok:
         param = {
             'table_name': table_name,
-            'dimension': 128,
-            'index_file_size': 1024,  # optional
+            'dimension': _DIM,
+            'index_file_size': 32,  # optional
             'metric_type': MetricType.L2  # optional
         }
 
@@ -53,7 +55,7 @@ def main():
     # 10000 vectors with 16 dimension
     # element per dimension is float32 type
     # vectors should be a 2-D array
-    vectors = [[random.random() for _ in range(128)] for _ in range(1000000)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(1000)]
     # You can also use numpy to generate random vectors:
     #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
 
