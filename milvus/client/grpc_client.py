@@ -18,7 +18,7 @@ from .abstract import (
 )
 from .prepare import Prepare
 from .types import IndexType, MetricType, Status
-from .utils import (
+from .check import (
     int_or_str,
     is_legal_host,
     is_legal_port,

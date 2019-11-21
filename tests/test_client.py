@@ -9,7 +9,7 @@ sys.path.append('.')
 from milvus import IndexType, MetricType, Prepare, Milvus, Status, ParamError, NotConnectError, ConnectError
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.abstract import TableSchema, TopKQueryResult
-from milvus.client.utils import check_pass_param
+from milvus.client.check import check_pass_param
 
 from factorys import (
     table_schema_factory,
@@ -96,14 +96,11 @@ class TestConnection:
             cnn = GrpcMilvus()
             cnn.connect(uri=url)
 
-    # @pytest.mark.repeat(20)
     @pytest.mark.parametrize("h", ['12234', 'aaa', '194.168.200.200', '123.0.0.1'])
-    @pytest.mark.parametrize("p", ['...', 'a', '1', '40000', '19530'])
+    @pytest.mark.parametrize("p", ['...', 'a', '1', '800000'])
     def test_host_port_error(self, h, p):
         with pytest.raises(Exception):
-            cnn = GrpcMilvus()
-            # LOGGER.info("Id: [{}]\trefcount = {}".format(id(cnn), sys.getrefcount(cnn)))
-            cnn.connect(host=h, port=p)
+            GrpcMilvus().connect(host=h, port=p)
 
     def test_disconnected(self, gip):
         cnn = GrpcMilvus()

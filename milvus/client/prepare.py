@@ -2,7 +2,7 @@ from .types import MetricType
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 from .exceptions import ParamError
-from .utils import check_pass_param, is_legal_array
+from .check import check_pass_param, is_legal_array
 from .abstract import Range
 
 
