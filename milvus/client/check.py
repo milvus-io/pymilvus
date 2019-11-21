@@ -1,4 +1,5 @@
 import datetime
+from urllib.parse import urlparse
 from .exceptions import ParamError
 from .types import MetricType, IndexType
 
@@ -21,6 +22,14 @@ def is_legal_port(port):
                 return False
 
     return True
+
+
+def is_legal_uri(uri):
+    try:
+        _uri = urlparse(uri)
+        return _uri.scheme == 'tcp'
+    except Exception:
+        return False
 
 
 def is_legal_array(array):
