@@ -51,6 +51,7 @@ class RequestIDClientInterceptor(grpc.UnaryUnaryClientInterceptor):
     """
     Client interceptor. Add request id into metadata.
     """
+
     def __init__(self):
         pass
 
@@ -93,6 +94,11 @@ class GrpcMilvus(ConnectIntf):
         attr_list = ['%s=%r' % (key, value)
                      for key, value in self.__dict__.items() if not key.startswith('_')]
         return '<Milvus: {}>'.format(', '.join(attr_list))
+
+
+
+    def __init(self):
+        self._set_channel()
 
     def _set_uri(self, host, port, **kwargs):
         """
@@ -152,9 +158,6 @@ class GrpcMilvus(ConnectIntf):
                 raise ParamError("search hook must be a subclass of `BaseSearchHook`")
 
             self._search_file_hook = _search_file_hook
-
-    def __init(self):
-        self._set_channel()
 
     @property
     def server_address(self):
