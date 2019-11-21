@@ -1,5 +1,4 @@
 from urllib.parse import urlparse
-import sys
 import logging
 import collections
 import uuid
@@ -22,6 +21,7 @@ from .check import (
     int_or_str,
     is_legal_host,
     is_legal_port,
+    is_legal_uri
 )
 
 from .hooks import BaseaSearchHook
@@ -41,14 +41,19 @@ class _ClientCallDetails(
         '_ClientCallDetails',
         ('method', 'timeout', 'metadata', 'credentials', 'wait_for_ready')),
     grpc.ClientCallDetails):
+    """
+    Describes an RPC to be invoked.
+    """
     pass
 
 
 class RequestIDClientInterceptor(grpc.UnaryUnaryClientInterceptor):
+    """
+    Client interceptor. Add request id into metadata.
+    """
 
     def __generate_request_id(self):
         return str(uuid.uuid1()) + "-" + str(os.getpid())
-        # return uuid.uuid1() + sys.os.
 
     def intercept_unary_unary(self, continuation, client_call_details, request):
         rid = self.__generate_request_id()
@@ -68,7 +73,7 @@ class RequestIDClientInterceptor(grpc.UnaryUnaryClientInterceptor):
 
 class GrpcMilvus(ConnectIntf):
 
-    def __init__(self):
+    def __init__(self, host=None, port=None, **kwargs):
         self._channel = None
         self._stub = None
         self._uri = None
@@ -78,24 +83,15 @@ class GrpcMilvus(ConnectIntf):
         self._search_hook = SearchHook()
         self._search_file_hook = SearchHook()
 
+        # init client
+        self._set_uri(host, port, **kwargs)
+
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
                      for key, value in self.__dict__.items() if not key.startswith('_')]
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
-    # def __del__(self):
-    #     if self.connected():
-    #         self.disconnect()
-
-    #     if self._channel:
-    #         del self._channel
-
-    #     if self._stub:
-    #         del self._stub
-
-    # def __del__(self):
-
-    def _set_uri(self, host=None, port=None, uri=None):
+    def _set_uri(self, host, port, **kwargs):
         """
         Set server network address
 
@@ -103,42 +99,41 @@ class GrpcMilvus(ConnectIntf):
         if host is not None:
             _port = port if port is not None else config.GRPC_PORT
             _host = host
+            if not is_legal_host(_host) or not is_legal_port(_port):
+                raise ParamError("host or port is illeagl")
         elif port is None:
-            try:
-                config_uri = urlparse(config.GRPC_URI)
-                _uri = urlparse(uri) if uri else config_uri
+            _uri = kwargs.get("uri", None)
 
-                if _uri.scheme != 'tcp':
-                    raise ParamError(
-                        'Invalid parameter uri: `{}`. Scheme `{}` '
-                        'is not supported'.format(_uri, _uri.scheme))
-
-                _host = _uri.hostname
-                _port = _uri.port
-            except Exception:
-                raise ParamError("`{}` is illegal".format(uri))
+            if _uri is None:
+                _uri = urlparse(config.GRPC_URI)
+            elif not is_legal_uri(_uri):
+                raise ParamError("uri {} is illegal".format(_uri))
+            else:
+                _uri = urlparse(_uri)
+            _host = _uri.hostname
+            _port = _uri.port
         else:
             raise ParamError("Param is not complete. Please invoke as follow:\n"
                              "\t(host = ${HOST}, port = ${PORT})\n"
                              "\t(uri = ${URI})\n")
 
-        if not is_legal_host(_host) or not is_legal_port(_port):
-            raise ParamError("host or port is illegal")
-
         self._uri = "{}:{}".format(str(_host), str(_port))
 
-    def _set_channel(self, host=None, port=None, uri=None):
+    def _set_channel(self):
         """
         set grpc channel
         """
-        self._set_uri(host, port, uri)
+        if self._channel:
+            del self._channel
 
         # set transport unlimited
-        self._channel = grpc.insecure_channel(
+        _channel = grpc.insecure_channel(
             self._uri,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
+
+        self._channel = grpc.intercept_channel(_channel, RequestIDClientInterceptor())
 
     def _set_hook(self, **kwargs):
         _search_hook = kwargs.get('search', None)
@@ -155,6 +150,9 @@ class GrpcMilvus(ConnectIntf):
 
             self._search_file_hook = _search_file_hook
 
+    def __init(self):
+        self._set_channel()
+
     @property
     def server_address(self):
         """
@@ -166,6 +164,8 @@ class GrpcMilvus(ConnectIntf):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
+
+        This API is deprecated.
 
         :type  host: str
         :type  port: str
@@ -186,13 +186,12 @@ class GrpcMilvus(ConnectIntf):
             return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
 
         if not self._channel:
-            self._set_channel(host, port, uri)
+            self._set_uri(host, port, uri=uri)
+            self._set_channel()
 
         try:
             # check if server is ready
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
-            _intercept_channel = grpc.intercept_channel(self._channel, RequestIDClientInterceptor())
-            self._channel = _intercept_channel
         except grpc.FutureTimeoutError:
             del self._channel
             self._channel = None
