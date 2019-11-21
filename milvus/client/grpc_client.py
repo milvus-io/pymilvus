@@ -51,13 +51,16 @@ class RequestIDClientInterceptor(grpc.UnaryUnaryClientInterceptor):
     """
     Client interceptor. Add request id into metadata.
     """
+    def __init__(self):
+        pass
 
     def __generate_request_id(self):
         return str(uuid.uuid1()) + "-" + str(os.getpid())
 
     def intercept_unary_unary(self, continuation, client_call_details, request):
         rid = self.__generate_request_id()
-        LOGGER.info("Sending RPC request, Method: {}, Request ID: {}.".format(client_call_details.method, rid))
+        LOGGER.info("Sending RPC request, "
+                    "Method: %s, Request ID: %s.", client_call_details.method, rid, exc_info=2)
 
         # Add request into client call details, aka, metadata.
         metadata = []
@@ -722,7 +725,6 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        # TODO: prepare request
         request = Prepare.partition_param(table_name, partition_name, partition_tag)
 
         try:
@@ -736,7 +738,6 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        # TODO: prepare request
         request = Prepare.table_name(table_name)
 
         try:
@@ -753,7 +754,6 @@ class GrpcMilvus(ConnectIntf):
                     )
                     partition_list.append(partition_param
                                           )
-                # TODO: return patririons list
                 return Status(), partition_list
 
             return Status(), []
@@ -765,8 +765,10 @@ class GrpcMilvus(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        # TODO: prepare request
-        request = Prepare.partition_param(table_name=table_name, partition_name=None, tag=partition_tag)
+        request = Prepare.partition_param(
+            table_name=table_name,
+            partition_name=None,
+            tag=partition_tag)
 
         try:
             response = self._stub.DropPartition(request)
@@ -776,7 +778,8 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(code=1, message="")
 
-    def search(self, table_name, top_k, nprobe, query_records, query_ranges=None, partition_tags=None, **kwargs):
+    def search(self, table_name, top_k, nprobe,
+               query_records, query_ranges=None, partition_tags=None, **kwargs):
         """
         Search similar vectors in designated table
 

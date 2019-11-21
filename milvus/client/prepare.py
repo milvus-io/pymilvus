@@ -111,7 +111,10 @@ class Prepare:
             if len(vectors) != len(ids):
                 raise ParamError("length of vectors do not match that of ids")
 
-            _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids, partition_tag=partition_tag)
+            _param = grpc_types.InsertParam(
+                table_name=table_name,
+                row_id_array=ids,
+                partition_tag=partition_tag)
 
         for vector in vectors:
             if is_legal_array(vector):
@@ -157,7 +160,11 @@ class Prepare:
     def search_param(cls, table_name, topk, nprobe, query_records, query_ranges, partitions):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
 
-        check_pass_param(table_name=table_name, topk=topk, nprobe=nprobe, partition_tag_array=partitions)
+        check_pass_param(
+            table_name=table_name,
+            topk=topk,
+            nprobe=nprobe,
+            partition_tag_array=partitions)
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
@@ -207,7 +214,13 @@ class Prepare:
     @classmethod
     def partition_param(cls, table_name, partition_name, tag):
 
-        # TODO: check param
-        check_pass_param(table_name=table_name, partition_name=partition_name, partition_tag=tag)
+        check_pass_param(
+            table_name=table_name,
+            partition_name=partition_name,
+            partition_tag=tag)
 
-        return grpc_types.PartitionParam(table_name=table_name, partition_name=partition_name, tag=tag)
+        return \
+            grpc_types.PartitionParam(
+                table_name=table_name,
+                partition_name=partition_name,
+                tag=tag)

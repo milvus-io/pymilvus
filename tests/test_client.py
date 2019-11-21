@@ -857,8 +857,6 @@ class TestPartition:
         assert not status.OK()
 
     def test_search_with_partition_first(self, gcon, gtable):
-        # Sleep to avoid fail status which
-        # message='Table already exists and it is in delete state, please wait a second'
         status = gcon.create_partition(table_name=gtable, partition_name="p22", partition_tag="2")
         assert status.OK()
 
@@ -873,6 +871,7 @@ class TestPartition:
         time.sleep(5)
 
         query_vectors = vectors[:1]
+
         # search in global scope
         status, results = gcon.search(gtable, 1, 1, query_vectors)
         assert status.OK()
@@ -885,9 +884,7 @@ class TestPartition:
 
         # search in specific tags
         status, results = gcon.search(
-            gtable,
-            1,
-            1,
+            gtable, 1, 1,
             query_vectors,
             partition_tags=["3etergdgdgedgdgergete5465efdf"])
 
@@ -910,6 +907,7 @@ class TestPartition:
         assert status.OK()
 
         query_vectors = [[random.random() for _ in range(128)] for _ in range(1)]
+
         # search in global scope
         status, results = gcon.search(gtable, 1, 1, query_vectors)
         assert status.OK()

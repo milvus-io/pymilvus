@@ -1,3 +1,13 @@
+# pymilvus 0.2.6(doing)
+
+## Bug
+
+## Improvement
+
+## Task
+- \#125 - replace all old method invoke with alternative new method name
+
+
 # pymilvus 0.2.5(2019-11-13)
 
 ## Bug

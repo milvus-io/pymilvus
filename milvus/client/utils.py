@@ -46,7 +46,7 @@ def _do_merge(files_n_topk_results, topk, reverse=False, **kwargs):
 
         ids = files_collection.ids
         diss = files_collection.distances  # distance collections
-        # TODO: batch_len is equal to topk, may need to compare with topk
+        # Notice: batch_len is equal to topk, may need to compare with topk
         batch_len = len(ids) // row_num
 
         for row_index in range(row_num):
@@ -55,8 +55,7 @@ def _do_merge(files_n_topk_results, topk, reverse=False, **kwargs):
 
             if len(merge_id_results) < row_index:
                 raise ValueError("merge error")
-            elif len(merge_id_results) == row_index:
-                # TODO: may bug here
+            if len(merge_id_results) == row_index:
                 merge_id_results.append(id_batch)
                 merge_dis_results.append(dis_batch)
             else:
