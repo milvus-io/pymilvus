@@ -27,33 +27,6 @@ nb = 2000
 nq = 10
 
 
-class TestChannel:
-    client = GrpcMilvus()
-
-    def test_channel_host_port(self):
-        try:
-            self.client._set_channel(host="localhost", port="19530")
-            self.client._set_channel(host="www.milvus.io", port="19530")
-        except Exception:
-            assert False
-
-    def test_channel_uri(self):
-        try:
-            self.client._set_channel(uri="tcp://192.168.1.1:9999")
-        except Exception:
-            assert False
-
-    def test_channel_host_non_port(self):
-        try:
-            self.client._set_channel(host="localhost")
-        except Exception:
-            assert False
-
-    def test_channel_only_port(self):
-        with pytest.raises(ParamError):
-            self.client._set_channel(port=9999)
-
-
 class TestConnection:
 
     def test_true_connect(self, gip):
@@ -161,10 +134,6 @@ class TestConnection:
 
         with pytest.raises(NotConnectError):
             client.drop_index("")
-
-    def test_set_channel(self):
-        cnn = GrpcMilvus()
-        cnn._set_channel(host="www.baidu.com", port="19530")
 
 
 class TestTable:
