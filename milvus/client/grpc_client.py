@@ -135,7 +135,7 @@ class GrpcMilvus(ConnectIntf):
 
         self._channel = grpc.intercept_channel(_channel, RequestIDClientInterceptor())
 
-    def _set_hook(self, **kwargs):
+    def set_hook(self, **kwargs):
         _search_hook = kwargs.get('search', None)
         if _search_hook:
             if not isinstance(_search_hook, BaseaSearchHook):
