@@ -95,8 +95,6 @@ class GrpcMilvus(ConnectIntf):
                      for key, value in self.__dict__.items() if not key.startswith('_')]
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
-
-
     def __init(self):
         self._set_channel()
 
@@ -113,7 +111,7 @@ class GrpcMilvus(ConnectIntf):
         elif port is None:
             _uri = kwargs.get("uri", None)
 
-            if _uri is None:
+            if not _uri:
                 _uri = urlparse(config.GRPC_URI)
             elif not is_legal_uri(_uri):
                 raise ParamError("uri {} is illegal".format(_uri))

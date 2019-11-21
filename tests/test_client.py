@@ -679,7 +679,7 @@ class TestBuildIndex:
     def test_build_index(self, gcon, gvector):
         _D = 128
 
-        time.sleep(30)
+        time.sleep(5)
 
         _index = {
             'index_type': IndexType.IVFLAT,
