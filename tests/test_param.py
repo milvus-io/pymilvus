@@ -25,7 +25,7 @@ def test_create_table_param(gcon):
     status = gcon.create_table(table_param)
     assert status.OK()
     time.sleep(1)
-    gcon.delete_table(table_param["table_name"])
+    gcon.drop_table(table_param["table_name"])
 
     table_param["table_name"] = 12343
 
@@ -48,7 +48,7 @@ def test_create_table_param(gcon):
         gcon.create_table(table_param)
 
 
-def test_delete_table_param():
+def test_drop_table_param():
     table_name = 124
     with pytest.raises(ParamError):
         client.has_table(table_name)

@@ -10,7 +10,6 @@ import mock
 
 from grpc import FutureTimeoutError as FError
 
-from milvus import Status
 from milvus.client.grpc_client import GrpcMilvus
 from milvus.client.exceptions import NotConnectError
 
@@ -116,20 +115,20 @@ class TestDeleteTableException:
         self.client.connected = mock.Mock(return_value=False)
 
         with pytest.raises(NotConnectError):
-            self.client.delete_table("aaa")
+            self.client.drop_table("aaa")
 
     def test_delete_table_timeout_exp(self, gip):
         self.client.connected = mock.Mock(return_value=True)
         self.client._stub = mock.Mock(side_effect=FError())
 
-        status = self.client.delete_table("a123")
+        status = self.client.drop_table("a123")
         assert not status.OK()
 
     def test_delete_table_rpcerror_exp(self):
         self.client.connected = mock.Mock(return_value=True)
         self.client._stub = mock.Mock(side_effect=RpcTestError())
 
-        status = self.client.delete_table("a123")
+        status = self.client.drop_table("a123")
         assert not status.OK()
 
 
@@ -167,20 +166,20 @@ class TestAddVectorsException:
         self.client.connected = mock.Mock(return_value=False)
 
         with pytest.raises(NotConnectError):
-            self.client.add_vectors(self.table_name, self.records)
+            self.client.insert(self.table_name, self.records)
 
     def test_add_vectors_timeout_exp(self):
         self.client.connected = mock.Mock(return_value=True)
         self.client._stub = mock.Mock(side_effect=FError())
 
-        status, _ = self.client.add_vectors(self.table_name, self.records)
+        status, _ = self.client.insert(self.table_name, self.records)
         assert not status.OK()
 
     def test_add_vectors_rpcerror_exp(self):
         self.client.connected = mock.Mock(return_value=True)
         self.client._stub = mock.Mock(side_effect=RpcTestError())
 
-        status, _ = self.client.add_vectors(self.table_name, self.records)
+        status, _ = self.client.insert(self.table_name, self.records)
         assert not status.OK()
 
 
@@ -190,13 +189,13 @@ class TestSearchVectorsException:
     table_name = "aaa"
     records = [[random.random() for _ in range(16)] for _ in range(10)]
 
-    def test_search_vectors_not_connect_exp(self):
+    def test_search_not_connect_exp(self):
         self.client.connected = mock.Mock(return_value=False)
 
         with pytest.raises(NotConnectError):
             self.client.search_vectors(self.table_name, 1, 1, self.records)
 
-    def test_search_vectors_rpcerror_exp(self):
+    def test_search_rpcerror_exp(self):
         self.client.connected = mock.Mock(return_value=True)
         self.client._stub = mock.Mock(side_effect=RpcTestError())
 
@@ -210,13 +209,13 @@ class TestSearchVectorsInFilesException:
     table_name = "aaa"
     records = [[random.random() for _ in range(16)] for _ in range(10)]
 
-    def test_search_vectors_in_files_not_connect_exp(self):
+    def test_search_in_files_not_connect_exp(self):
         self.client.connected = mock.Mock(return_value=False)
 
         with pytest.raises(NotConnectError):
             self.client.search_vectors_in_files(self.table_name, ["1"], self.records, 1)
 
-    def test_search_vectors_rpcerror_exp(self):
+    def test_search_in_files_rpcerror_exp(self):
         self.client.connected = mock.Mock(return_value=True)
         self.client._stub = mock.Mock(side_effect=RpcTestError())
 
@@ -282,18 +281,18 @@ class TestGetTableRowCountException:
     def test_get_table_row_count_not_connect_exp(self):
         self.client.connected = mock.Mock(return_value=False)
         with pytest.raises(NotConnectError):
-            self.client.get_table_row_count(self.table_name)
+            self.client.count_table(self.table_name)
 
     def test_get_table_row_count_timeout_exp(self):
         self.client.connected = mock.Mock(return_value=True)
         self.client._stub = mock.Mock(side_effect=FError())
-        status, _ = self.client.get_table_row_count(self.table_name)
+        status, _ = self.client.count_table(self.table_name)
         assert not status.OK()
 
     def test_sget_table_row_count_rpcerror_exp(self):
         self.client.connected = mock.Mock(return_value=True)
         self.client._stub = mock.Mock(side_effect=RpcTestError())
-        status, _ = self.client.get_table_row_count(self.table_name)
+        status, _ = self.client.count_table(self.table_name)
         assert not status.OK()
 
 
