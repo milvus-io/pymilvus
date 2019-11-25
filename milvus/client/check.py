@@ -25,8 +25,6 @@ def is_legal_port(port):
 
 
 def is_legal_uri(uri):
-    # if not uri:
-    #     return True
     try:
         _uri = urlparse(uri)
         return _uri.scheme == 'tcp'
