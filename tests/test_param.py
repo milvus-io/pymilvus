@@ -84,7 +84,7 @@ class TestInsertParam:
     @pytest.mark.parametrize("table", [None, "", 123, False])
     def test_insert_with_wrong_table_name(self, table):
         with pytest.raises(ParamError):
-            client.add_vectors(table, self.vectors)
+            client.insert(table, self.vectors)
 
     @pytest.mark.parametrize("ids", ["3423", 134, [1, 2, 3], False])
     def test_insert_with_wrong_ids(self, ids):

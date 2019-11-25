@@ -27,12 +27,6 @@ class TestTimeout:
         status = gcon.create_table(param, timeout=self.TIMEOUT)
         assert not status.OK()
 
-    def test_insert_timeout(self, gcon, gtable):
-        vectors = [[random.random() for _ in range(128)] for _ in range(1000)]
-
-        status, _ = gcon.insert(table_name=gtable, records=vectors, timeout=self.TIMEOUT)
-        assert not status.OK()
-
     def test_has_table_timeout(self, gcon, gtable):
         status, _ = gcon.has_table(gtable, timeout=self.TIMEOUT)
         assert not status.OK()

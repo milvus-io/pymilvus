@@ -112,7 +112,7 @@ class TestConnection:
             client.insert("a", [], None)
 
         with pytest.raises(NotConnectError):
-            client.get_table_row_count("a")
+            client.count_table("a")
 
         with pytest.raises(NotConnectError):
             client.show_tables()
@@ -302,23 +302,6 @@ class TestVector:
 
 
 class TestSearch:
-    def test_search_vector_normal(self, gcon, gvector):
-        topk = random.randint(1, 10)
-        query_records = records_factory(dim, nq)
-        param = {
-            'table_name': gvector,
-            'query_records': query_records,
-            'top_k': topk,
-            'nprobe': 10
-        }
-        res, results = gcon.search(**param)
-        assert res.OK()
-        assert len(results) == nq
-        assert len(results[0]) == topk
-
-        assert results.shape[0] == nq
-        assert results.shape[1] == topk
-
     def test_search_normal(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
@@ -336,7 +319,7 @@ class TestSearch:
         assert results.shape[0] == nq
         assert results.shape[1] == topk
 
-    def test_search_vector_wrong_dim(self, gcon, gvector):
+    def test_search_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim + 1, nq)
         param = {
@@ -348,7 +331,7 @@ class TestSearch:
         res, results = gcon.search(**param)
         assert not res.OK()
 
-    def test_search_vector_wrong_table_name(self, gcon, gvector):
+    def test_search_wrong_table_name(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
         param = {
@@ -360,7 +343,7 @@ class TestSearch:
         res, results = gcon.search(**param)
         assert not res.OK()
 
-    def test_search_vector_with_range(self, gcon, gvector):
+    def test_search_with_range(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
         param = {
@@ -412,7 +395,7 @@ class TestSearch:
             'nprobe': 16
         }
 
-        for id_ in range(600):
+        for id_ in range(1000):
             param['file_ids'].clear()
             param['file_ids'].append(str(id_))
             sta, result = gcon.search_in_files(**param)
@@ -448,8 +431,8 @@ class TestSearch:
         assert res.OK()
         assert len(tables) == 1
 
-    def test_get_table_row_count(self, gcon, gvector, gtable):
-        res, count = gcon.get_table_row_count(gvector)
+    def test_count_table(self, gcon, gvector, gtable):
+        res, count = gcon.count_table(gvector)
         assert res.OK()
         assert count == 10000
 
@@ -458,8 +441,8 @@ class TestSearch:
         assert res.OK()
         assert count == 10000
 
-    def test_false_get_table_row_count(self, gcon):
-        res, count = gcon.get_table_row_count('fake_table')
+    def test_false_count_table(self, gcon):
+        res, count = gcon.count_table('fake_table')
         assert not res.OK()
 
     def test_client_version(self, gcon):
@@ -538,8 +521,8 @@ class TestShowTables:
         assert status.OK()
 
 
-class TestDeleteTable:
-    def test_delete_table_normal(self, gcon):
+class TestDropTable:
+    def test_drop_table_normal(self, gcon):
         param = table_schema_factory()
         s = gcon.create_table(param)
         assert s.OK()
@@ -569,7 +552,7 @@ class TestHasTable:
 
 class TestAddVectors:
 
-    def test_add_vectors_normal(self, gcon, gtable):
+    def test_insert_normal(self, gcon, gtable):
         vectors = records_factory(dim, nq)
         status, ids = gcon.insert(gtable, vectors)
 
@@ -585,7 +568,7 @@ class TestAddVectors:
 
         gcon.preload_table(gtable)
 
-    def test_add_vectors_ids(self, gcon, gtable):
+    def test_insert_ids(self, gcon, gtable):
         vectors = records_factory(dim, nb)
         ids = [i for i in range(nb)]
 
@@ -799,7 +782,7 @@ class TestQueryResult:
 
     def test_search_in_files_result(self, gcon, gvector):
         try:
-            for index in range(500):
+            for index in range(1000):
                 status, results = \
                     gcon.search_in_files(table_name=gvector,
                                          top_k=1,
