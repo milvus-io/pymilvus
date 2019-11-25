@@ -94,7 +94,7 @@ class RowQueryResult:
     def __getitem__(self, item):
         if isinstance(item, slice):
             _start = item.start or 0
-            _end = item.stop or self.__len__()
+            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
             _step = item.step or 1
 
             elements = []
@@ -208,7 +208,7 @@ class TopKQueryResult:
     def __getitem__(self, item):
         if isinstance(item, slice):
             _start = item.start or 0
-            _end = item.stop or self.__len__()
+            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
             _step = item.step or 1
 
             elements = []
@@ -232,7 +232,6 @@ class TopKQueryResult:
 
     def __repr__(self):
         """
-
         :return:
         """
 
@@ -243,9 +242,12 @@ class TopKQueryResult:
 
             ll = self[:3]
             for topk in ll:
-                middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
-                middle += ",\n   ..."
-                middle += "\n   %s ]\n\n" % lam(topk[-1])
+                if len(topk) > 5:
+                    middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
+                    middle += ",\n   ..."
+                    middle += "\n   %s ]\n\n" % lam(topk[-1])
+                else:
+                   middle = middle + " [ %s ] \n" % ",\n   ".join(map(lam, topk))
 
             spaces = """        ......
             ......"""
