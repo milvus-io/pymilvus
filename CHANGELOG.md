@@ -1,11 +1,18 @@
 # pymilvus 0.2.6(doing)
 
 ## Bug
+- \#127 - fix bug when printing search result
 
 ## Improvement
+- \#124 - make method `_set_hook` public
+- \#125 - replace all old method invoke with alternative new method name
+
+## New Feature
+- \#112 - support operation `with`
+- \#123 - add a new index named `IVF_PQ`
 
 ## Task
-- \#125 - replace all old method invoke with alternative new method name
+- \#117 - implement new api for partition
 
 
 # pymilvus 0.2.5(2019-11-13)
