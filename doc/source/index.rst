@@ -7,14 +7,15 @@ Welcome to pymilvus's documentation!
 ====================================
 
 .. toctree::
-   :maxdepth: 5
+   :maxdepth: 6
    :caption: Contents:
 
    assets
+   hooks
    types
    status
-   exceptions
    results
+   exceptions
 
 
 .. toctree::

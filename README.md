@@ -186,7 +186,7 @@ Status(code=0, message='Disconnect successfully')
 ## Example python
 There are some small examples in `examples/`, you can find more guide there.
 
-You can find api doc in [API Doc](https://milvus-io.github.io/milvus-sdk-python/pythondoc/index.html)
+You can find api doc in [Reference Doc](https://milvus-io.github.io/milvus-sdk-python/pythondoc/index.html)
 
 
 
