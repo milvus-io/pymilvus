@@ -95,8 +95,35 @@ class GrpcMilvus(ConnectIntf):
                      for key, value in self.__dict__.items() if not key.startswith('_')]
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
+    def __enter__(self):
+        self.__init()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        del self._channel
+        del self._stub
+
     def __init(self):
-        self._set_channel()
+        if not self._channel:
+            self._set_channel()
+
+        try:
+            # check if server is ready
+            grpc.channel_ready_future(self._channel).result(timeout=1)
+        except grpc.FutureTimeoutError:
+            del self._channel
+            raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
+        except grpc.RpcError as e:
+            del self._channel
+            raise NotConnectError("Connect error: <{}>".format(e))
+        # Unexpected error
+        except Exception as e:
+            raise NotConnectError("Error occurred when trying to connect server:\n"
+                                  "\t<{}>".format(str(e)))
+
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        self.status = Status()
 
     def _set_uri(self, host, port, **kwargs):
         """
@@ -753,11 +780,10 @@ class GrpcMilvus(ConnectIntf):
                         partition.partition_name,
                         partition.tag
                     )
-                    partition_list.append(partition_param
-                                          )
+                    partition_list.append(partition_param)
                 return Status(), partition_list
 
-            return Status(), []
+            return Status(code=status.error_code, message=status.reason), []
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(), []
@@ -889,7 +915,9 @@ class GrpcMilvus(ConnectIntf):
     def __delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
         """
         Delete vectors by range. The data range contains start_time but not end_time
-        This method is deprecated, not recommended for users
+        This method is deprecated, not recommended for users.
+
+        This API is deprecated.
 
         :type  table_name: str
         :param table_name: str, date, datetime
