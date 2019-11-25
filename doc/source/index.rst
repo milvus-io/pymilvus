@@ -17,6 +17,13 @@ Welcome to pymilvus's documentation!
    results
 
 
+.. toctree::
+   :maxdepth: 3
+   :caption: Contents:
+
+   version_notes
+
+
 Indices and tables
 ==================
 
