@@ -3,12 +3,17 @@ class AbstractHook:
 
 
 class BaseSearchHook(AbstractHook):
+    """
 
-    def prepare_data(self, *args, **kwargs):
-        """
-        Prepare grpc data
-        """
-        pass
+    """
+
+    # def prepare_data(self, *args, **kwargs):
+    #     """
+    #     Prepare grpc data.
+    #
+    #     This is an EXPERIMENTAL API.
+    #     """
+    #     pass
 
     def pre_search(self, *args, **kwargs):
         """
