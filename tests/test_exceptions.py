@@ -699,3 +699,24 @@ class TestDropPartitionException:
 
         status = self.client.drop_partition(self.table_name, "tag")
         assert not status.OK()
+
+
+class TestWithException:
+
+    @mock.patch("grpc.channel_ready_future", side_effect=FError())
+    def test_with_timeout_error(self, _):
+        with pytest.raises(NotConnectError):
+            with GrpcMilvus():
+                pass
+
+    @mock.patch("grpc.channel_ready_future", side_effect=RpcTestError())
+    def test_with_rpc_error(self, _):
+        with pytest.raises(NotConnectError):
+            with GrpcMilvus():
+                pass
+
+    @mock.patch("grpc.channel_ready_future", side_effect=ValueError())
+    def test_with_unkonwn_error(self, _):
+        with pytest.raises(NotConnectError):
+            with GrpcMilvus():
+                pass

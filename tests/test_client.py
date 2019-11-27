@@ -42,11 +42,11 @@ class TestConnection:
         status = cnn.connect()
         assert status == Status.CONNECT_FAILED
 
-    @pytest.mark.parametrize("url", ['tcp://127.0.0.1:1', 'tcp://123.67.0.1:300'])
+    @pytest.mark.parametrize("url", ['tcp://145.98.234.1:1', 'tcp://100.67.0.1:2'])
     def test_false_connect(self, url):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(uri=url, timeout=2)
+            cnn.connect(uri=url, timeout=1)
 
     def test_connected(self, gcon):
         assert gcon.connected()
@@ -759,14 +759,14 @@ class TestChecking:
 
 
 class TestQueryResult:
-    query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
+    query_vectors = [[random.random() for _ in range(128)] for _ in range(200)]
 
-    def _get_response(self, gcon, gvector):
-        return gcon.search(gvector, 1, 1, self.query_vectors)
+    def _get_response(self, gcon, gvector, topk, nprobe, nq):
+        return gcon.search(gvector, topk, nprobe, self.query_vectors[:nq])
 
     def test_search_result(self, gcon, gvector):
         try:
-            status, results = self._get_response(gcon, gvector)
+            status, results = self._get_response(gcon, gvector, 2, 2, 1)
             assert status.OK()
 
             # test get_item
@@ -789,6 +789,10 @@ class TestQueryResult:
             # test len
             len(results)
             # test print
+            print(results)
+
+            # test result for nq = 10, topk = 10
+            status, results = self._get_response(gcon, gvector, 10, 10, 10)
             print(results)
         except Exception:
             assert False
@@ -822,7 +826,7 @@ class TestQueryResult:
             assert False
 
     def test_empty_result(self, gcon, gtable):
-        status, results = self._get_response(gcon, gtable)
+        status, results = self._get_response(gcon, gtable, 3, 3, 3)
         shape = results.shape
 
         for topk_result in results:
@@ -924,6 +928,23 @@ class TestGrpcMilvus:
     def test_with(self, gip):
         with Milvus(*gip) as client:
             client.show_tables()
+
+    @pytest.mark.parametrize(
+        "h, p",
+        [([], "1"), ("133.1.1.9", "90909090")])
+    def test_with_with_invalid_addr(self, h, p):
+        with pytest.raises(ParamError):
+            with Milvus(host=h, port=p):
+                pass
+
+    @pytest.mark.parametrize(
+        "h, p",
+        [("123.0.12.3a", "1"), ("133.a.*.9", "999"),
+         ("123.0.12.99", "1"), ("133.233.255.9", "999")])
+    def test_with_with_wrong_addr(self, h, p):
+        with pytest.raises(NotConnectError):
+            with Milvus(host=h, port=p):
+                pass
 
     def test_hooks(self, gip):
         with Milvus(*gip) as client:
