@@ -12,7 +12,7 @@ def is_legal_host(host):
 
 
 def is_legal_port(port):
-    if isinstance(port, str):
+    if isinstance(port, str) or isinstance(port, int):
         try:
             _port = int(port)
         except ValueError:
@@ -25,6 +25,9 @@ def is_legal_port(port):
 
 
 def is_legal_uri(uri):
+    if uri is None:
+        return True
+
     try:
         _uri = urlparse(uri)
         return _uri.scheme == 'tcp'

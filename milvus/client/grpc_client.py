@@ -143,26 +143,28 @@ class GrpcMilvus(ConnectIntf):
         if host is not None:
             _port = port if port is not None else config.GRPC_PORT
             _host = host
-            if not is_legal_host(_host) or not is_legal_port(_port):
-                raise ParamError("host or port is illeagl")
         elif port is None:
             try:
                 _uri = kwargs.get("uri", None)
-
-                if not _uri:
-                    _uri = urlparse(config.GRPC_URI)
-                elif not is_legal_uri(_uri):
-                    raise ParamError("uri {} is illegal".format(_uri))
-                else:
-                    _uri = urlparse(_uri)
+                # Ignore uri check here
+                # if not is_legal_uri(_uri):
+                #     raise ParamError("uri {} is illegal".format(_uri))
+                #
+                # If uri is empty (None or '') use default uri instead
+                # (the behavior may change in the future)
+                # _uri = urlparse(_uri) if _uri is not None else urlparse(config.GRPC_URI)
+                _uri = urlparse(_uri) if _uri else urlparse(config.GRPC_URI)
                 _host = _uri.hostname
                 _port = _uri.port
-            except (ValueError, TypeError) as e:
+            except (AttributeError, ValueError, TypeError) as e:
                 raise ParamError("uri is illegal: {}".format(e))
         else:
             raise ParamError("Param is not complete. Please invoke as follow:\n"
                              "\t(host = ${HOST}, port = ${PORT})\n"
                              "\t(uri = ${URI})\n")
+
+        if not is_legal_host(_host) or not is_legal_port(_port):
+            raise ParamError("host or port is illeagl")
 
         self._uri = "{}:{}".format(str(_host), str(_port))
 
@@ -239,9 +241,18 @@ class GrpcMilvus(ConnectIntf):
         if self.connected():
             return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
 
-        if not self._channel:
-            self._set_uri(host, port, uri=uri)
-            self._set_channel()
+        # TODO: Here may cause bug: IF user has already connected a server but server is down,
+        # client may connect to a new server. It's a undesirable behavior.
+        if self._channel:
+            del self._channel
+            self._channel = None
+
+        # Here a bug:
+        #z`
+        # if self._ui:
+        # not self._uri and self._set_uri(host, port, uri=uri)
+        self._set_uri(host, port, uri=uri)
+        self._set_channel()
 
         try:
             # check if server is ready
