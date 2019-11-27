@@ -10,6 +10,7 @@ from milvus import IndexType, MetricType, Prepare, Milvus, Status, ParamError, N
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.abstract import TableSchema, TopKQueryResult
 from milvus.client.check import check_pass_param
+from milvus.client.hooks import BaseSearchHook
 
 from factorys import (
     table_schema_factory,
@@ -41,7 +42,7 @@ class TestConnection:
         status = cnn.connect()
         assert status == Status.CONNECT_FAILED
 
-    @pytest.mark.parametrize("url", ['tcp://127.0.0.1:7987', 'tcp://123.0.0.1:19530'])
+    @pytest.mark.parametrize("url", ['tcp://127.0.0.1:1', 'tcp://123.67.0.1:300'])
     def test_false_connect(self, url):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
@@ -698,6 +699,18 @@ class TestBuildIndex:
         assert not status.OK()
 
 
+class TestDeleteByRange:
+    def test_delete_by_range_normal(self, gcon, gvector):
+        ranges = ranges_factory()[0]
+
+        status = gcon._GrpcMilvus__delete_vectors_by_range(
+            table_name=gvector,
+            start_date=ranges.start_value,
+            end_date=ranges.end_value)
+
+        assert status.OK()
+
+
 class TestCmd:
     versions = ("0.5.3", "0.6.0")
 
@@ -905,3 +918,20 @@ class TestPartition:
         status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=["567"])
         assert status.OK()
         assert results.shape == (0, 0)
+
+
+class TestGrpcMilvus:
+    def test_with(self, gip):
+        with Milvus(*gip) as client:
+            client.show_tables()
+
+    def test_hooks(self, gip):
+        with Milvus(*gip) as client:
+            class FakeSerchHook(BaseSearchHook):
+                def pre_search(self, *args, **kwargs):
+                    print("Before search ...")
+
+                def aft_search(self, *args, **kwargs):
+                    print("Search done ...")
+
+            client.set_hook(search=FakeSerchHook())
