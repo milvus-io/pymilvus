@@ -150,11 +150,13 @@ class TopKQueryResult:
         """
         self._nq = _raw.row_num
 
-        if self._nq == 0:
-            return
+        # if self._nq == 0:
+        #     return
 
         id_list = list(_raw.ids)
-        id_col = len(id_list) // self._nq
+        id_col = len(id_list) // self._nq if self._nq > 0 else 0
+
+
         for i in range(0, len(id_list), id_col):
             self._id_array.append(id_list[i: i + id_col])
 

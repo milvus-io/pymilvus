@@ -1,3 +1,3 @@
 from .abstract import (
-    BaseaSearchHook
+    BaseSearchHook
 )

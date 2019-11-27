@@ -28,7 +28,7 @@ def is_legal_uri(uri):
     try:
         _uri = urlparse(uri)
         return _uri.scheme == 'tcp'
-    except (AttributeError, ):
+    except (AttributeError, ValueError, TypeError):
         return False
 
 

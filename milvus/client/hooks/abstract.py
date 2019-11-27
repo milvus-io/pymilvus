@@ -2,7 +2,7 @@ class AbstractHook:
     pass
 
 
-class BaseaSearchHook(AbstractHook):
+class BaseSearchHook(AbstractHook):
 
     def prepare_data(self, *args, **kwargs):
         """

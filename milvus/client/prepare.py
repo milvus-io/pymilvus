@@ -209,7 +209,7 @@ class Prepare:
 
         check_pass_param(table_name=table_name)
 
-        return grpc_types.DeleteByRangeParam(range=range_, table_name=table_name)
+        return grpc_types.DeleteByDateParam(range=range_, table_name=table_name)
 
     @classmethod
     def partition_param(cls, table_name, partition_name, tag):

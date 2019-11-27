@@ -24,7 +24,7 @@ from .check import (
     is_legal_uri
 )
 
-from .hooks import BaseaSearchHook
+from .hooks import BaseSearchHook
 from .client_hooks import (
     SearchHook
 )
@@ -56,6 +56,10 @@ class RequestIDClientInterceptor(grpc.UnaryUnaryClientInterceptor):
         pass
 
     def __generate_request_id(self):
+        """
+        generate request id combined with rand uuid and process id
+
+        """
         return str(uuid.uuid1()) + "-" + str(os.getpid())
 
     def intercept_unary_unary(self, continuation, client_call_details, request):
@@ -83,12 +87,13 @@ class GrpcMilvus(ConnectIntf):
         self._uri = None
         self.status = None
 
-        # hook
+        # client hook
         self._search_hook = SearchHook()
         self._search_file_hook = SearchHook()
 
-        # init client
-        self._set_uri(host, port, **kwargs)
+        # set server uri if object is initialized with parameter
+        _uri = kwargs.get("uri", None)
+        (host or port or _uri) and self._set_uri(host, port, **kwargs)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -96,7 +101,7 @@ class GrpcMilvus(ConnectIntf):
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
     def __enter__(self):
-        self.__init()
+        self._setup()
 
         return self
 
@@ -104,7 +109,12 @@ class GrpcMilvus(ConnectIntf):
         del self._channel
         del self._stub
 
-    def __init(self):
+    def _setup(self):
+        """
+        Create a channel and a stub
+
+        """
+
         if not self._channel:
             self._set_channel()
 
@@ -136,16 +146,19 @@ class GrpcMilvus(ConnectIntf):
             if not is_legal_host(_host) or not is_legal_port(_port):
                 raise ParamError("host or port is illeagl")
         elif port is None:
-            _uri = kwargs.get("uri", None)
+            try:
+                _uri = kwargs.get("uri", None)
 
-            if not _uri:
-                _uri = urlparse(config.GRPC_URI)
-            elif not is_legal_uri(_uri):
-                raise ParamError("uri {} is illegal".format(_uri))
-            else:
-                _uri = urlparse(_uri)
-            _host = _uri.hostname
-            _port = _uri.port
+                if not _uri:
+                    _uri = urlparse(config.GRPC_URI)
+                elif not is_legal_uri(_uri):
+                    raise ParamError("uri {} is illegal".format(_uri))
+                else:
+                    _uri = urlparse(_uri)
+                _host = _uri.hostname
+                _port = _uri.port
+            except (ValueError, TypeError) as e:
+                raise ParamError("uri is illegal: {}".format(e))
         else:
             raise ParamError("Param is not complete. Please invoke as follow:\n"
                              "\t(host = ${HOST}, port = ${PORT})\n"
@@ -155,31 +168,43 @@ class GrpcMilvus(ConnectIntf):
 
     def _set_channel(self):
         """
-        set grpc channel
+        Set grpc channel. Use default server uri if uri is not set.
         """
         if self._channel:
             del self._channel
 
         # set transport unlimited
         _channel = grpc.insecure_channel(
-            self._uri,
+            self._uri or config.GRPC_ADDRESS,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
 
+        # config intercept channel
         self._channel = grpc.intercept_channel(_channel, RequestIDClientInterceptor())
 
     def set_hook(self, **kwargs):
+        """
+        specify client hooks.
+        The client hooks are used in methods which interact with server.
+        Use key-value method to set hooks. Supported hook setting currently is as follow.
+
+            search hook,
+            search-in-file hook
+
+        """
+
+        # config search hook
         _search_hook = kwargs.get('search', None)
         if _search_hook:
-            if not isinstance(_search_hook, BaseaSearchHook):
+            if not isinstance(_search_hook, BaseSearchHook):
                 raise ParamError("search hook must be a subclass of `BaseSearchHook`")
 
             self._search_hook = _search_hook
 
         _search_file_hook = kwargs.get('search_in_file', None)
         if _search_file_hook:
-            if not isinstance(_search_file_hook, BaseaSearchHook):
+            if not isinstance(_search_file_hook, BaseSearchHook):
                 raise ParamError("search hook must be a subclass of `BaseSearchHook`")
 
             self._search_file_hook = _search_file_hook
@@ -195,8 +220,6 @@ class GrpcMilvus(ConnectIntf):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
-
-        This API is deprecated.
 
         :type  host: str
         :type  port: str
@@ -515,7 +538,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
-    def preload_table(self, table_name, timeout=300):
+    def preload_table(self, table_name, timeout=None):
         """
         Load table to cache in advance
 
@@ -749,27 +772,30 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def create_partition(self, table_name, partition_name, partition_tag):
+    def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
         request = Prepare.partition_param(table_name, partition_name, partition_tag)
 
         try:
-            response = self._stub.CreatePartition(request)
+            response = self._stub.CreatePartition.future(request).result(timeout=timeout)
             return Status(code=response.error_code, message=response.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(code=Status.UNEXPECTED_ERROR, message='Request timeout.')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def show_partitions(self, table_name):
+    def show_partitions(self, table_name, timeout=10):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
         request = Prepare.table_name(table_name)
 
         try:
-            response = self._stub.ShowPartitions(request)
+            response = self._stub.ShowPartitions.future(request).result(timeout=timeout)
             status = response.status
             if status.error_code == 0:
 
@@ -784,11 +810,14 @@ class GrpcMilvus(ConnectIntf):
                 return Status(), partition_list
 
             return Status(code=status.error_code, message=status.reason), []
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(code=Status.UNEXPECTED_ERROR, message="request timeout"), []
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(), []
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
-    def drop_partition(self, table_name, partition_tag):
+    def drop_partition(self, table_name, partition_tag, timeout=10):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -798,12 +827,14 @@ class GrpcMilvus(ConnectIntf):
             tag=partition_tag)
 
         try:
-            response = self._stub.DropPartition(request)
-
+            response = self._stub.DropPartition.future(request).result(timeout=timeout)
             return Status(code=response.error_code, message=response.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(code=Status.UNEXPECTED_ERROR, message="request timeout")
         except grpc.RpcError as e:
             LOGGER.error(e)
-            return Status(code=1, message="")
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     def search(self, table_name, top_k, nprobe,
                query_records, query_ranges=None, partition_tags=None, **kwargs):
@@ -938,7 +969,7 @@ class GrpcMilvus(ConnectIntf):
         delete_range = Prepare.delete_param(table_name, start_date, end_date)
 
         try:
-            status = self._stub.DeleteByRange.future(delete_range).result(timeout=timeout)
+            status = self._stub.DeleteByDate.future(delete_range).result(timeout=timeout)
             return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
