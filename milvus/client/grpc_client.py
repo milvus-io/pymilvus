@@ -9,26 +9,17 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import (
-    ConnectIntf,
-    TableSchema,
-    IndexParam,
-    PartitionParam
-)
+from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam
 from .prepare import Prepare
 from .types import IndexType, MetricType, Status
 from .check import (
     int_or_str,
     is_legal_host,
     is_legal_port,
-    is_legal_uri
 )
 
 from .hooks import BaseSearchHook
-from .client_hooks import (
-    SearchHook
-)
-
+from .client_hooks import SearchHook
 from .exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
 from . import __version__
@@ -93,7 +84,7 @@ class GrpcMilvus(ConnectIntf):
 
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
-        (host or port or _uri) and self._set_uri(host, port, **kwargs)
+        _ = (host or port or _uri) and self._set_uri(host, port, **kwargs)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -247,8 +238,7 @@ class GrpcMilvus(ConnectIntf):
             del self._channel
             self._channel = None
 
-        # Here a bug:
-        #z`
+        # Here may a bug:
         # if self._ui:
         # not self._uri and self._set_uri(host, port, uri=uri)
         self._set_uri(host, port, uri=uri)
@@ -899,7 +889,14 @@ class GrpcMilvus(ConnectIntf):
     def search_in_files(self, table_name, file_ids, query_records, top_k,
                         nprobe=16, query_ranges=None, **kwargs):
         """
-        Query vectors in a table, in specified files
+        Query vectors in a table, in specified files.
+
+        The server store vector data into multiple files if the size of vectors
+        exceeds file size threshold. It is supported to search in several files
+        by specifing file ids. However, these file ids are stored in db in server,
+        and python sdk doesn't apply any APIs get them at client. It's a specific
+        method used in shards. Obtain more detail about milvus shards, see
+        <a href="https://github.com/milvus-io/milvus/tree/0.6.0/shards">
 
         :type  nprobe: int
         :param nprobe:

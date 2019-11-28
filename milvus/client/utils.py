@@ -43,7 +43,7 @@ def merge_results(results_list, topk, *args, **kwargs):
 
     for files_collection in results_list:
         if not isinstance(files_collection, Grpc_Result) and \
-           not isinstance(files_collection, TopKQueryResult):
+                not isinstance(files_collection, TopKQueryResult):
             return ParamError("Result type is unknown.")
 
         row_num = files_collection.row_num

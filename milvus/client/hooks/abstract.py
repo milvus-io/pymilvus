@@ -4,7 +4,7 @@ class AbstractHook:
 
 class BaseSearchHook(AbstractHook):
     """
-
+    Base class of search hook. Inherited from hook class of search
     """
 
     # def prepare_data(self, *args, **kwargs):

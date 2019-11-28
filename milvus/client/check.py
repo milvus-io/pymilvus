@@ -12,7 +12,7 @@ def is_legal_host(host):
 
 
 def is_legal_port(port):
-    if isinstance(port, str) or isinstance(port, int):
+    if isinstance(port, (str, int)):
         try:
             _port = int(port)
         except ValueError:

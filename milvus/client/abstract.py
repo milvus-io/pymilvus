@@ -251,7 +251,7 @@ class TopKQueryResult:
                     middle += ",\n   ..."
                     middle += "\n   %s ]\n\n" % lam(topk[-1])
                 else:
-                   middle = middle + " [ %s ] \n" % ",\n   ".join(map(lam, topk))
+                    middle = middle + " [ %s ] \n" % ",\n   ".join(map(lam, topk))
 
             spaces = """        ......
             ......"""
