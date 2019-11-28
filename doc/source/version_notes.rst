@@ -33,5 +33,5 @@ Contents
       search_hook = CustomizedSearchHook()
       client.set_hook(search=search_hook)
 
-    `Here <https://milvus-io.github.io/milvus-sdk-python/pythondoc/index.html>`_ is a simple example on how to use search hook.
-    You can find more details about API `Here <https://www.milvus.io>`_.
+    `Here <https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.6/index.html>`_ is a simple example on how to use search hook.
+    You can find more details about API `Here <https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.6/hooks.html>`_.

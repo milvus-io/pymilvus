@@ -50,7 +50,7 @@ if __name__ == '__main__':
     query_vectors = vectors[5: 10]
 
     # Start request to server.
-    # You can invoke without `with` here:
+    # You can invoke without `with` here to interact with server:
     #
     #     client = Milvus()
     #     client.connect(**_ADDRESS)

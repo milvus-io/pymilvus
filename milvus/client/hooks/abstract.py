@@ -34,7 +34,7 @@ class BaseSearchHook(AbstractHook):
         return bool variables. False default
 
         When return True, the method tell caller to return raw response received from
-        server directly.
+        server directly. In this situation, method `handle_response` will not be invoked.
         """
         return False
 
