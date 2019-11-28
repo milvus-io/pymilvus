@@ -5,7 +5,6 @@
 import sys
 #  import numpy as np
 import random
-sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 import time
 

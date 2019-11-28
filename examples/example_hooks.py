@@ -18,12 +18,12 @@ class CustomizedSearchHook(BaseSearchHook):
     def pre_search(self, *args, **kwargs):
         # record time when call on server start.
         self._start_stamp = datetime.datetime.now()
-        print("[{}] Start send request to server.".format(self._start_stamp))
+        print("[{}] <hook> Start send request to server.".format(self._start_stamp))
 
     def aft_search(self, *args, **kwargs):
         # record time when call on server done.
         self._end_stamp = datetime.datetime.now()
-        print("[{}] Server done.".format(self._end_stamp))
+        print("[{}] <hook> Server done.".format(self._end_stamp))
 
 
 if __name__ == '__main__':
@@ -72,3 +72,6 @@ if __name__ == '__main__':
         # Search approximate vectors in table `demo_hooks`,
         # you can find call information in console output
         client.search(table_name, 10, 10, query_vectors)
+
+        # delete table
+        client.drop_table(table_name)
