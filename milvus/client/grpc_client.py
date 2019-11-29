@@ -84,7 +84,7 @@ class GrpcMilvus(ConnectIntf):
 
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
-        _ = (host or port or _uri) and self._set_uri(host, port, **kwargs)
+        _ = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -499,11 +499,11 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            trc = self._stub.CountTable.future(table_name).result(timeout=timeout)
-            if trc.status.error_code == 0:
-                return Status(message='Success!'), trc.table_row_count
+            response = self._stub.CountTable.future(table_name).result(timeout=timeout)
+            if response.status.error_code == 0:
+                return Status(message='Success!'), response.table_row_count
 
-            return Status(code=trc.status.error_code, message=trc.status.reason), None
+            return Status(code=response.status.error_code, message=response.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
