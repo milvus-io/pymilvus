@@ -34,6 +34,7 @@ class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
 
 
 LOG_LEVEL = 'WARNING'
+# LOG_LEVEL = 'INFO'
 
 LOGGING = {
     'version': 1,

@@ -27,27 +27,21 @@ class TestTimeout:
         status = gcon.create_table(param, timeout=self.TIMEOUT)
         assert not status.OK()
 
-    def test_add_vectors_timeout(self, gcon, gtable):
-        vectors = [[random.random() for _ in range(128)] for _ in range(1000)]
-
-        status, _ = gcon.add_vectors(table_name=gtable, records=vectors, timeout=self.TIMEOUT)
-        assert not status.OK()
-
     def test_has_table_timeout(self, gcon, gtable):
         status, _ = gcon.has_table(gtable, timeout=self.TIMEOUT)
         assert not status.OK()
 
-    def test_delete_table_timeout(self, gcon, gtable):
-        status = gcon.delete_table(gtable, timeout=self.TIMEOUT)
+    def test_drop_table_timeout(self, gcon, gtable):
+        status = gcon.drop_table(gtable, timeout=self.TIMEOUT)
         assert not status.OK()
 
     def test_create_index_timeout(self, gcon, gtable):
         status = gcon.create_index(gtable, timeout=self.TIMEOUT)
         assert not status.OK()
 
-    def test_add_vector_timeout(self, gcon, gtable):
+    def test_insert_timeout(self, gcon, gtable):
         vectors = [[random.random() for _ in range(dim)] for _ in range(2)]
-        status, _ = gcon.add_vectors(table_name=gtable, records=vectors,
+        status, _ = gcon.insert(table_name=gtable, records=vectors,
                                      ids=None, timeout=self.TIMEOUT)
         assert not status.OK()
 
@@ -56,8 +50,8 @@ class TestTimeout:
 
         assert not status.OK()
 
-    def test_get_table_row_count_timeout(self, gcon, gtable):
-        status, _ = gcon.get_table_row_count(gtable, timeout=self.TIMEOUT)
+    def test_count_table_timeout(self, gcon, gtable):
+        status, _ = gcon.count_table(gtable, timeout=self.TIMEOUT)
 
         assert not status.OK()
 
