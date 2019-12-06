@@ -27,51 +27,7 @@ from . import __version__
 LOGGER = logging.getLogger(__name__)
 
 
-class _ClientCallDetails(
-    collections.namedtuple(
-        '_ClientCallDetails',
-        ('method', 'timeout', 'metadata', 'credentials', 'wait_for_ready')),
-    grpc.ClientCallDetails):
-    """
-    Describes an RPC to be invoked.
-    """
-    pass
-
-
-class RequestIDClientInterceptor(grpc.UnaryUnaryClientInterceptor):
-    """
-    Client interceptor. Add request id into metadata.
-    """
-
-    def __init__(self):
-        pass
-
-    def __generate_request_id(self):
-        """
-        generate request id combined with rand uuid and process id
-
-        """
-        return str(uuid.uuid1()) + "-" + str(os.getpid())
-
-    def intercept_unary_unary(self, continuation, client_call_details, request):
-        rid = self.__generate_request_id()
-        LOGGER.info("Sending RPC request, "
-                    "Method: %s, Request ID: %s.", client_call_details.method, rid, exc_info=2)
-
-        # Add request into client call details, aka, metadata.
-        metadata = []
-        if client_call_details.metadata is not None:
-            metadata = list(client_call_details.metadata)
-        metadata.append(("request_id", rid))
-
-        client_call_details = _ClientCallDetails(
-            client_call_details.method, client_call_details.timeout, metadata,
-            client_call_details.credentials, client_call_details.wait_for_ready)
-        return continuation(client_call_details, request)
-
-
 class GrpcMilvus(ConnectIntf):
-
     def __init__(self, host=None, port=None, **kwargs):
         self._channel = None
         self._stub = None
@@ -167,14 +123,11 @@ class GrpcMilvus(ConnectIntf):
             del self._channel
 
         # set transport unlimited
-        _channel = grpc.insecure_channel(
+        self._channel = grpc.insecure_channel(
             self._uri or config.GRPC_ADDRESS,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
-
-        # config intercept channel
-        self._channel = grpc.intercept_channel(_channel, RequestIDClientInterceptor())
 
     def set_hook(self, **kwargs):
         """
