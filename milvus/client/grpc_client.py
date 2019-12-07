@@ -1,8 +1,5 @@
 from urllib.parse import urlparse
 import logging
-import collections
-import uuid
-import os
 
 import grpc
 from grpc._cython import cygrpc
