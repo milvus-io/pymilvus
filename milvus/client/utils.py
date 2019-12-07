@@ -1,8 +1,10 @@
 from ..grpc_gen import status_pb2
-from ..grpc_gen.milvus_pb2 import TopKQueryResult
+from ..grpc_gen.milvus_pb2 import TopKQueryResult as Grpc_Result
+from ..client.abstract import TopKQueryResult
+from ..client.exceptions import ParamError
 
 
-def _do_merge(files_n_topk_results, topk, reverse=False, **kwargs):
+def merge_results(results_list, topk, *args, **kwargs):
     """
     merge query results
     """
@@ -28,17 +30,21 @@ def _do_merge(files_n_topk_results, topk, reverse=False, **kwargs):
 
     status = status_pb2.Status(error_code=status_pb2.SUCCESS,
                                reason="Success")
-    if not files_n_topk_results:
+
+    reverse = kwargs.get('reverse', False)
+    raw = kwargs.get('raw', False)
+
+    if not results_list:
         return status, [], []
 
     merge_id_results = []
     merge_dis_results = []
     row_num = 0
 
-    for files_collection in files_n_topk_results:
-        if isinstance(files_collection, tuple):
-            status, _ = files_collection
-            return status, []
+    for files_collection in results_list:
+        if not isinstance(files_collection, Grpc_Result) and \
+                not isinstance(files_collection, TopKQueryResult):
+            return ParamError("Result type is unknown.")
 
         row_num = files_collection.row_num
         if not row_num:
@@ -72,9 +78,11 @@ def _do_merge(files_n_topk_results, topk, reverse=False, **kwargs):
         id_mrege_list.extend(id_results)
         dis_mrege_list.extend(dis_results)
 
-    return TopKQueryResult(
+    raw_result = Grpc_Result(
         status=status,
         row_num=row_num,
         ids=id_mrege_list,
         distances=dis_mrege_list
     )
+
+    return raw_result if raw else TopKQueryResult(raw_result)

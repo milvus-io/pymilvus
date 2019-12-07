@@ -10,6 +10,7 @@ from milvus import IndexType, MetricType, Prepare, Milvus, Status, ParamError, N
 from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
 from milvus.client.abstract import TableSchema, TopKQueryResult
 from milvus.client.check import check_pass_param
+from milvus.client.hooks import BaseSearchHook
 
 from factorys import (
     table_schema_factory,
@@ -41,11 +42,11 @@ class TestConnection:
         status = cnn.connect()
         assert status == Status.CONNECT_FAILED
 
-    @pytest.mark.parametrize("url", ['tcp://127.0.0.1:7987', 'tcp://123.0.0.1:19530'])
+    @pytest.mark.parametrize("url", ['tcp://145.98.234.1:1', 'tcp://100.67.0.1:2'])
     def test_false_connect(self, url):
         cnn = GrpcMilvus()
         with pytest.raises(NotConnectError):
-            cnn.connect(uri=url, timeout=2)
+            cnn.connect(uri=url, timeout=1)
 
     def test_connected(self, gcon):
         assert gcon.connected()
@@ -69,7 +70,7 @@ class TestConnection:
             cnn = GrpcMilvus()
             cnn.connect(uri=url)
 
-    @pytest.mark.parametrize("h", ['12234', 'aaa', '194.168.200.200', '123.0.0.1'])
+    @pytest.mark.parametrize("h", ['12234', 'aaa', '194.16834.200.200', '134.77.89.34'])
     @pytest.mark.parametrize("p", ['...', 'a', '1', '800000'])
     def test_host_port_error(self, h, p):
         with pytest.raises(Exception):
@@ -698,6 +699,18 @@ class TestBuildIndex:
         assert not status.OK()
 
 
+class TestDeleteByRange:
+    def test_delete_by_range_normal(self, gcon, gvector):
+        ranges = ranges_factory()[0]
+
+        status = gcon._GrpcMilvus__delete_vectors_by_range(
+            table_name=gvector,
+            start_date=ranges.start_value,
+            end_date=ranges.end_value)
+
+        assert status.OK()
+
+
 class TestCmd:
     versions = ("0.5.3", "0.6.0")
 
@@ -746,14 +759,14 @@ class TestChecking:
 
 
 class TestQueryResult:
-    query_vectors = [[random.random() for _ in range(128)] for _ in range(5)]
+    query_vectors = [[random.random() for _ in range(128)] for _ in range(200)]
 
-    def _get_response(self, gcon, gvector):
-        return gcon.search(gvector, 1, 1, self.query_vectors)
+    def _get_response(self, gcon, gvector, topk, nprobe, nq):
+        return gcon.search(gvector, topk, nprobe, self.query_vectors[:nq])
 
     def test_search_result(self, gcon, gvector):
         try:
-            status, results = self._get_response(gcon, gvector)
+            status, results = self._get_response(gcon, gvector, 2, 2, 1)
             assert status.OK()
 
             # test get_item
@@ -776,6 +789,10 @@ class TestQueryResult:
             # test len
             len(results)
             # test print
+            print(results)
+
+            # test result for nq = 10, topk = 10
+            status, results = self._get_response(gcon, gvector, 10, 10, 10)
             print(results)
         except Exception:
             assert False
@@ -809,7 +826,7 @@ class TestQueryResult:
             assert False
 
     def test_empty_result(self, gcon, gtable):
-        status, results = self._get_response(gcon, gtable)
+        status, results = self._get_response(gcon, gtable, 3, 3, 3)
         shape = results.shape
 
         for topk_result in results:
@@ -905,3 +922,37 @@ class TestPartition:
         status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=["567"])
         assert status.OK()
         assert results.shape == (0, 0)
+
+
+class TestGrpcMilvus:
+    def test_with(self, gip):
+        with Milvus(*gip) as client:
+            client.show_tables()
+
+    @pytest.mark.parametrize(
+        "h, p",
+        [([], "1"), ("133.1.1.9", "90909090")])
+    def test_with_with_invalid_addr(self, h, p):
+        with pytest.raises(ParamError):
+            with Milvus(host=h, port=p):
+                pass
+
+    @pytest.mark.parametrize(
+        "h, p",
+        [("123.0.12.3a", "1"), ("133.a.*.9", "999"),
+         ("123.0.12.99", "1"), ("133.233.255.9", "999")])
+    def test_with_with_wrong_addr(self, h, p):
+        with pytest.raises(NotConnectError):
+            with Milvus(host=h, port=p):
+                pass
+
+    def test_hooks(self, gip):
+        with Milvus(*gip) as client:
+            class FakeSerchHook(BaseSearchHook):
+                def pre_search(self, *args, **kwargs):
+                    print("Before search ...")
+
+                def aft_search(self, *args, **kwargs):
+                    print("Search done ...")
+
+            client.set_hook(search=FakeSerchHook())

@@ -1,11 +1,13 @@
 # pymilvus 0.2.6(doing)
 
 ## Bug
-- \#127 - fix bug when printing search result
+- \#127 - fix crash when printing search result
+- \#133 - change error message when array is illegal
 
 ## Improvement
 - \#124 - make method `_set_hook` public
 - \#125 - replace all old method invoke with alternative new method name
+- \#132 - change index type `MIX_NSG` to `NSG`
 
 ## New Feature
 - \#112 - support operation `with`

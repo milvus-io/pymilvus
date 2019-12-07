@@ -3,9 +3,8 @@
 # insert 10 vectors, 
 # and execute a vector similarity search.
 import sys
-import numpy as np
+#  import numpy as np
 import random
-sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 import time
 

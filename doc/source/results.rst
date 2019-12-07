@@ -1,8 +1,6 @@
 pymilvus Search Results
 =======================
 
-GuideLines
-----------
 
 Module Contents
 ---------------

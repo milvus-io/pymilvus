@@ -120,7 +120,8 @@ class Prepare:
             if is_legal_array(vector):
                 _param.row_record_array.add(vector_data=vector)
             else:
-                raise ParamError('Vectors should be 2-dim array!')
+                raise ParamError('A vector must be a non-empty, 2-dimensional array and '
+                                 'must contain only elements with the float data type.')
 
         return _param
 
@@ -209,7 +210,7 @@ class Prepare:
 
         check_pass_param(table_name=table_name)
 
-        return grpc_types.DeleteByRangeParam(range=range_, table_name=table_name)
+        return grpc_types.DeleteByDateParam(range=range_, table_name=table_name)
 
     @classmethod
     def partition_param(cls, table_name, partition_name, tag):
