@@ -3,7 +3,8 @@ import logging.config
 
 class DefaultConfig:
     GRPC_PORT = "19530"
-    GRPC_URI = 'tcp://127.0.0.1:19530'
+    GRPC_ADDRESS = "127.0.0.1:19530"
+    GRPC_URI = "tcp://{}".format(GRPC_ADDRESS)
 
 
 # logging
@@ -34,6 +35,7 @@ class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
 
 
 LOG_LEVEL = 'WARNING'
+# LOG_LEVEL = 'INFO'
 
 LOGGING = {
     'version': 1,

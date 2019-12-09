@@ -2,7 +2,7 @@ from .types import MetricType
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 from .exceptions import ParamError
-from .utils import check_pass_param, is_legal_array
+from .check import check_pass_param, is_legal_array
 from .abstract import Range
 
 
@@ -99,25 +99,29 @@ class Prepare:
         return res
 
     @classmethod
-    def insert_param(cls, table_name, vectors, ids=None):
+    def insert_param(cls, table_name, vectors, partition_tag, ids=None):
 
-        check_pass_param(table_name=table_name)
+        check_pass_param(table_name=table_name, partition_tag=partition_tag)
 
         if ids is None:
-            _param = grpc_types.InsertParam(table_name=table_name)
+            _param = grpc_types.InsertParam(table_name=table_name, partition_tag=partition_tag)
         else:
             check_pass_param(ids=ids)
 
             if len(vectors) != len(ids):
                 raise ParamError("length of vectors do not match that of ids")
 
-            _param = grpc_types.InsertParam(table_name=table_name, row_id_array=ids)
+            _param = grpc_types.InsertParam(
+                table_name=table_name,
+                row_id_array=ids,
+                partition_tag=partition_tag)
 
         for vector in vectors:
             if is_legal_array(vector):
                 _param.row_record_array.add(vector_data=vector)
             else:
-                raise ParamError('Vectors should be 2-dim array!')
+                raise ParamError('A vector must be a non-empty, 2-dimensional array and '
+                                 'must contain only elements with the float data type.')
 
         return _param
 
@@ -154,17 +158,25 @@ class Prepare:
                                      index=_index)
 
     @classmethod
-    def search_param(cls, table_name, query_records, query_ranges, topk, nprobe):
+    def search_param(cls, table_name, topk, nprobe, query_records, query_ranges, partitions):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
 
-        check_pass_param(table_name=table_name, topk=topk, nprobe=nprobe)
+        check_pass_param(
+            table_name=table_name,
+            topk=topk,
+            nprobe=nprobe,
+            partition_tag_array=partitions)
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
             query_range_array=query_ranges,
             topk=topk,
-            nprobe=nprobe
+            nprobe=nprobe,
+            partition_tag_array=partitions
         )
+
+        if not isinstance(query_records, list):
+            raise ParamError('Vectors should be 2-dim array!')
 
         for vector in query_records:
             if is_legal_array(vector):
@@ -177,8 +189,8 @@ class Prepare:
     @classmethod
     def search_vector_in_files_param(cls, table_name, query_records,
                                      query_ranges, topk, nprobe, ids):
-        _search_param = Prepare.search_param(table_name, query_records,
-                                             query_ranges, topk, nprobe)
+        _search_param = Prepare.search_param(table_name, topk, nprobe, query_records,
+                                             query_ranges, partitions=[])
 
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,
@@ -198,4 +210,18 @@ class Prepare:
 
         check_pass_param(table_name=table_name)
 
-        return grpc_types.DeleteByRangeParam(range=range_, table_name=table_name)
+        return grpc_types.DeleteByDateParam(range=range_, table_name=table_name)
+
+    @classmethod
+    def partition_param(cls, table_name, partition_name, tag):
+
+        check_pass_param(
+            table_name=table_name,
+            partition_name=partition_name,
+            partition_tag=tag)
+
+        return \
+            grpc_types.PartitionParam(
+                table_name=table_name,
+                partition_name=partition_name,
+                tag=tag)

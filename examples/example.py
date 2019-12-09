@@ -3,9 +3,8 @@
 # insert 10 vectors, 
 # and execute a vector similarity search.
 import sys
-import numpy as np
+#  import numpy as np
 import random
-sys.path.append(".")
 from milvus import Milvus, IndexType, MetricType
 import time
 
@@ -13,6 +12,10 @@ import time
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
 _PORT = '19530'  # default value
+
+# Vector parameters
+_DIM = 16  # dimension of vector
+_INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
 def main():
@@ -35,8 +38,8 @@ def main():
     if not ok:
         param = {
             'table_name': table_name,
-            'dimension': 16,
-            'index_file_size': 1024,  # optional
+            'dimension': _DIM,
+            'index_file_size': _INDEX_FILE_SIZE,  # optional
             'metric_type': MetricType.L2  # optional
         }
 
@@ -52,7 +55,7 @@ def main():
     # 10000 vectors with 16 dimension
     # element per dimension is float32 type
     # vectors should be a 2-D array
-    vectors = [[random.random() for _ in range(16)] for _ in range(10000)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
     # You can also use numpy to generate random vectors:
     #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
 
@@ -80,10 +83,8 @@ def main():
     status, index = milvus.describe_index(table_name)
     print(index)
 
-    # Use the 3rd vector for similarity search
-    query_vectors = [
-        vectors[3]
-    ]
+    # Use the top 10 vectors for similarity search
+    query_vectors = vectors[0:10]
 
     # execute vector similarity search
     param = {
@@ -91,15 +92,20 @@ def main():
         'query_records': query_vectors,
         'top_k': 1,
         'nprobe': 16
-
     }
     status, results = milvus.search_vectors(**param)
 
     if status.OK():
-        if results[0][0].distance == 0.0 or results[0][0].id == ids[3]:
+        # indicate search result
+        # also use by:
+        #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
+        if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
             print('Query result is correct')
         else:
             print('Query result isn\'t correct')
+
+    # print results
+    print(results)
 
     # Delete demo_table
     status = milvus.drop_table(table_name)

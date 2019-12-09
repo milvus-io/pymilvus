@@ -64,8 +64,9 @@ class IndexType(IntEnum):
     FLAT = 1
     IVFLAT = 2
     IVF_SQ8 = 3
-    MIX_NSG = 4
+    NSG = 4
     IVF_SQ8H = 5
+    IVF_PQ = 6
 
     # alternative name
     IVF_FLAT = IVFLAT

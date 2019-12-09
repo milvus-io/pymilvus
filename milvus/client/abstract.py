@@ -1,6 +1,6 @@
 from ..client.exceptions import ParamError
 
-from .utils import (
+from .check import (
     check_pass_param,
     parser_range_date,
     is_legal_date_range
@@ -94,7 +94,7 @@ class RowQueryResult:
     def __getitem__(self, item):
         if isinstance(item, slice):
             _start = item.start or 0
-            _end = item.stop or self.__len__()
+            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
             _step = item.step or 1
 
             elements = []
@@ -150,11 +150,15 @@ class TopKQueryResult:
         """
         self._nq = _raw.row_num
 
-        if self._nq == 0:
-            return
+        # if self._nq == 0:
+        #     return
 
         id_list = list(_raw.ids)
-        id_col = len(id_list) // self._nq
+        id_col = len(id_list) // self._nq if self._nq > 0 else 0
+
+        if id_col == 0:
+            return
+
         for i in range(0, len(id_list), id_col):
             self._id_array.append(id_list[i: i + id_col])
 
@@ -208,7 +212,7 @@ class TopKQueryResult:
     def __getitem__(self, item):
         if isinstance(item, slice):
             _start = item.start or 0
-            _end = item.stop or self.__len__()
+            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
             _step = item.step or 1
 
             elements = []
@@ -232,7 +236,6 @@ class TopKQueryResult:
 
     def __repr__(self):
         """
-
         :return:
         """
 
@@ -243,9 +246,12 @@ class TopKQueryResult:
 
             ll = self[:3]
             for topk in ll:
-                middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
-                middle += ",\n   ..."
-                middle += "\n   %s ]\n\n" % lam(topk[-1])
+                if len(topk) > 5:
+                    middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
+                    middle += ",\n   ..."
+                    middle += "\n   %s ]\n\n" % lam(topk[-1])
+                else:
+                    middle = middle + " [ %s ] \n" % ",\n   ".join(map(lam, topk))
 
             spaces = """        ......
             ......"""
@@ -302,6 +308,19 @@ class IndexParam:
         attr_list = ['%s=%r' % (key, value)
                      for key, value in self.__dict__.items()]
         return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+
+class PartitionParam:
+
+    def __init__(self, table_name, partition_name, tag):
+        self.table_name = table_name
+        self.partition_name = partition_name
+        self.tag = tag
+
+    def __str__(self):
+        attr_list = ['%s=%r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '(%s)' % (', '.join(attr_list))
 
 
 def _abstract():

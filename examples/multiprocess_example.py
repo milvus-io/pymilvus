@@ -15,7 +15,7 @@ param = {'table_name': table_name,
          'metric_type': MetricType.L2}
 
 server_config = {
-    'host': "192.168.1.113",
+    'host': "127.0.0.1",
     'port': "19530"
 }
 

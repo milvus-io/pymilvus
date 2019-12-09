@@ -4,6 +4,11 @@
 [![version](https://img.shields.io/pypi/v/pymilvus.svg?color=blue)](https://pypi.org/project/pymilvus/)
 [![license](https://img.shields.io/hexpm/l/plug.svg?color=green)](https://github.com/milvus-io/pymilvus/blob/master/LICENSE)
 
+If you want to contribute to this repo, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md).
+
+You can find api doc in [Reference Doc](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.6/index.html)
+
+
 Using Milvus python sdk for Milvus
 Download
 ---
@@ -25,11 +30,12 @@ Different versions of Milvus and lowest/highest pymilvus version supported accor
 | 0.5.1 | 0.2.3 |
 | 0.5.2 | 0.2.3 |
 | 0.5.3 | 0.2.5 |
+| 0.6.0 | 0.2.6 |
 
 
 You can download a specific version by:
 ```$
-$ pip install pymilvus==0.2.5
+$ pip install pymilvus==0.2.6
 ```
 
 If you want to upgrade `pymilvus` to newest version
@@ -186,7 +192,6 @@ Status(code=0, message='Disconnect successfully')
 ## Example python
 There are some small examples in `examples/`, you can find more guide there.
 
-You can find api doc in [API Doc](https://milvus-io.github.io/milvus-sdk-python/pythondoc/index.html)
 
 
 

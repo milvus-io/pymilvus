@@ -1,8 +1,8 @@
-from .hooks import BaseaSearchHook
+from .hooks import BaseSearchHook
 from .abstract import TopKQueryResult
 
 
-class SearchHook(BaseaSearchHook):
+class SearchHook(BaseSearchHook):
 
     def handle_response(self, _response):
         """

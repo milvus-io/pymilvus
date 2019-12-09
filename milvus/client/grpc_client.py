@@ -6,24 +6,17 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import (
-    ConnectIntf,
-    TableSchema,
-    IndexParam
-)
+from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam
 from .prepare import Prepare
 from .types import IndexType, MetricType, Status
-from .utils import (
+from .check import (
     int_or_str,
     is_legal_host,
     is_legal_port,
 )
 
-from .hooks import BaseaSearchHook
-from .client_hooks import (
-    SearchHook
-)
-
+from .hooks import BaseSearchHook
+from .client_hooks import SearchHook
 from .exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
 from . import __version__
@@ -32,23 +25,61 @@ LOGGER = logging.getLogger(__name__)
 
 
 class GrpcMilvus(ConnectIntf):
-
-    def __init__(self):
+    def __init__(self, host=None, port=None, **kwargs):
         self._channel = None
         self._stub = None
         self._uri = None
         self.status = None
 
-        # hook
+        # client hook
         self._search_hook = SearchHook()
         self._search_file_hook = SearchHook()
+
+        # set server uri if object is initialized with parameter
+        _uri = kwargs.get("uri", None)
+        _ = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
                      for key, value in self.__dict__.items() if not key.startswith('_')]
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
-    def _set_uri(self, host=None, port=None, uri=None):
+    def __enter__(self):
+        self._setup()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        del self._channel
+        del self._stub
+
+    def _setup(self):
+        """
+        Create a channel and a stub
+
+        """
+
+        if not self._channel:
+            self._set_channel()
+
+        try:
+            # check if server is ready
+            grpc.channel_ready_future(self._channel).result(timeout=1)
+        except grpc.FutureTimeoutError:
+            del self._channel
+            raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
+        except grpc.RpcError as e:
+            del self._channel
+            raise NotConnectError("Connect error: <{}>".format(e))
+        # Unexpected error
+        except Exception as e:
+            raise NotConnectError("Error occurred when trying to connect server:\n"
+                                  "\t<{}>".format(str(e)))
+
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        self.status = Status()
+
+    def _set_uri(self, host, port, **kwargs):
         """
         Set server network address
 
@@ -58,52 +89,65 @@ class GrpcMilvus(ConnectIntf):
             _host = host
         elif port is None:
             try:
-                config_uri = urlparse(config.GRPC_URI)
-                _uri = urlparse(uri) if uri else config_uri
-
-                if _uri.scheme != 'tcp':
-                    raise ParamError(
-                        'Invalid parameter uri: `{}`. Scheme `{}` '
-                        'is not supported'.format(_uri, _uri.scheme))
-
+                _uri = kwargs.get("uri", None)
+                # Ignore uri check here
+                # if not is_legal_uri(_uri):
+                #     raise ParamError("uri {} is illegal".format(_uri))
+                #
+                # If uri is empty (None or '') use default uri instead
+                # (the behavior may change in the future)
+                # _uri = urlparse(_uri) if _uri is not None else urlparse(config.GRPC_URI)
+                _uri = urlparse(_uri) if _uri else urlparse(config.GRPC_URI)
                 _host = _uri.hostname
                 _port = _uri.port
-            except Exception:
-                raise ParamError("`{}` is illegal".format(uri))
+            except (AttributeError, ValueError, TypeError) as e:
+                raise ParamError("uri is illegal: {}".format(e))
         else:
             raise ParamError("Param is not complete. Please invoke as follow:\n"
                              "\t(host = ${HOST}, port = ${PORT})\n"
                              "\t(uri = ${URI})\n")
 
         if not is_legal_host(_host) or not is_legal_port(_port):
-            raise ParamError("host or port is illegal")
+            raise ParamError("host or port is illeagl")
 
         self._uri = "{}:{}".format(str(_host), str(_port))
 
-    def _set_channel(self, host=None, port=None, uri=None):
+    def _set_channel(self):
         """
-        set grpc channel
+        Set grpc channel. Use default server uri if uri is not set.
         """
-        self._set_uri(host, port, uri)
+        if self._channel:
+            del self._channel
 
         # set transport unlimited
         self._channel = grpc.insecure_channel(
-            self._uri,
+            self._uri or config.GRPC_ADDRESS,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
 
-    def _set_hook(self, **kwargs):
+    def set_hook(self, **kwargs):
+        """
+        specify client hooks.
+        The client hooks are used in methods which interact with server.
+        Use key-value method to set hooks. Supported hook setting currently is as follow.
+
+            search hook,
+            search-in-file hook
+
+        """
+
+        # config search hook
         _search_hook = kwargs.get('search', None)
         if _search_hook:
-            if not isinstance(_search_hook, BaseaSearchHook):
+            if not isinstance(_search_hook, BaseSearchHook):
                 raise ParamError("search hook must be a subclass of `BaseSearchHook`")
 
             self._search_hook = _search_hook
 
         _search_file_hook = kwargs.get('search_in_file', None)
         if _search_file_hook:
-            if not isinstance(_search_file_hook, BaseaSearchHook):
+            if not isinstance(_search_file_hook, BaseSearchHook):
                 raise ParamError("search hook must be a subclass of `BaseSearchHook`")
 
             self._search_file_hook = _search_file_hook
@@ -115,7 +159,7 @@ class GrpcMilvus(ConnectIntf):
         """
         return self._uri
 
-    def connect(self, host=None, port=None, uri=None, timeout=3):
+    def connect(self, host=None, port=None, uri=None, timeout=1):
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -135,18 +179,31 @@ class GrpcMilvus(ConnectIntf):
         :return: Status, indicate if connect is successful
         :rtype: Status
         """
-        if not self._channel:
-            self._set_channel(host, port, uri)
-
-        elif self.connected():
+        if self.connected():
             return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
+
+        # TODO: Here may cause bug: IF user has already connected a server but server is down,
+        # client may connect to a new server. It's a undesirable behavior.
+        if self._channel:
+            del self._channel
+            self._channel = None
+
+        # Here may a bug:
+        # if self._ui:
+        # not self._uri and self._set_uri(host, port, uri=uri)
+        self._set_uri(host, port, uri=uri)
+        self._set_channel()
 
         try:
             # check if server is ready
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
         except grpc.FutureTimeoutError:
+            del self._channel
+            self._channel = None
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
         except grpc.RpcError as e:
+            del self._channel
+            self._channel = None
             raise NotConnectError("Connect error: <{}>".format(e))
         # Unexpected error
         except Exception as e:
@@ -392,11 +449,11 @@ class GrpcMilvus(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            trc = self._stub.CountTable.future(table_name).result(timeout=timeout)
-            if trc.status.error_code == 0:
-                return Status(message='Success!'), trc.table_row_count
+            response = self._stub.CountTable.future(table_name).result(timeout=timeout)
+            if response.status.error_code == 0:
+                return Status(message='Success!'), response.table_row_count
 
-            return Status(code=trc.status.error_code, message=trc.status.reason), None
+            return Status(code=response.status.error_code, message=response.status.reason), None
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
@@ -432,7 +489,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
-    def preload_table(self, table_name, timeout=300):
+    def preload_table(self, table_name, timeout=None):
         """
         Load table to cache in advance
 
@@ -485,7 +542,7 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
-    def insert(self, table_name, records, ids=None, timeout=-1, **kwargs):
+    def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
         """
         Add vectors to table
 
@@ -518,7 +575,7 @@ class GrpcMilvus(ConnectIntf):
         insert_param = kwargs.get('insert_param', None)
 
         if not insert_param:
-            insert_param = Prepare.insert_param(table_name, records, ids)
+            insert_param = Prepare.insert_param(table_name, records, partition_tag, ids)
         else:
             if not isinstance(insert_param, grpc_types.InsertParam):
                 raise ParamError("The value of key 'insert_param' is invalid")
@@ -666,7 +723,72 @@ class GrpcMilvus(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def search(self, table_name, top_k, nprobe, query_records, query_ranges=None, **kwargs):
+    def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        request = Prepare.partition_param(table_name, partition_name, partition_tag)
+
+        try:
+            response = self._stub.CreatePartition.future(request).result(timeout=timeout)
+            return Status(code=response.error_code, message=response.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(code=Status.UNEXPECTED_ERROR, message='Request timeout.')
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    def show_partitions(self, table_name, timeout=10):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        request = Prepare.table_name(table_name)
+
+        try:
+            response = self._stub.ShowPartitions.future(request).result(timeout=timeout)
+            status = response.status
+            if status.error_code == 0:
+
+                partition_list = []
+                for partition in response.partition_array:
+                    partition_param = PartitionParam(
+                        partition.table_name,
+                        partition.partition_name,
+                        partition.tag
+                    )
+                    partition_list.append(partition_param)
+                return Status(), partition_list
+
+            return Status(code=status.error_code, message=status.reason), []
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(code=Status.UNEXPECTED_ERROR, message="request timeout"), []
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
+
+    def drop_partition(self, table_name, partition_tag, timeout=10):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        request = Prepare.partition_param(
+            table_name=table_name,
+            partition_name=None,
+            tag=partition_tag)
+
+        try:
+            response = self._stub.DropPartition.future(request).result(timeout=timeout)
+            return Status(code=response.error_code, message=response.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(code=Status.UNEXPECTED_ERROR, message="request timeout")
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    def search(self, table_name, top_k, nprobe,
+               query_records, query_ranges=None, partition_tags=None, **kwargs):
         """
         Search similar vectors in designated table
 
@@ -691,7 +813,7 @@ class GrpcMilvus(ConnectIntf):
             raise NotConnectError('Please connect to the server first')
 
         request = Prepare.search_param(
-            table_name, query_records, query_ranges, top_k, nprobe
+            table_name, top_k, nprobe, query_records, query_ranges, partition_tags
         )
 
         try:
@@ -717,7 +839,14 @@ class GrpcMilvus(ConnectIntf):
     def search_in_files(self, table_name, file_ids, query_records, top_k,
                         nprobe=16, query_ranges=None, **kwargs):
         """
-        Query vectors in a table, in specified files
+        Query vectors in a table, in specified files.
+
+        The server store vector data into multiple files if the size of vectors
+        exceeds file size threshold. It is supported to search in several files
+        by specifing file ids. However, these file ids are stored in db in server,
+        and python sdk doesn't apply any APIs get them at client. It's a specific
+        method used in shards. Obtain more detail about milvus shards, see
+        <a href="https://github.com/milvus-io/milvus/tree/0.6.0/shards">
 
         :type  nprobe: int
         :param nprobe:
@@ -775,7 +904,9 @@ class GrpcMilvus(ConnectIntf):
     def __delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
         """
         Delete vectors by range. The data range contains start_time but not end_time
-        This method is deprecated, not recommended for users
+        This method is deprecated, not recommended for users.
+
+        This API is deprecated.
 
         :type  table_name: str
         :param table_name: str, date, datetime
@@ -796,7 +927,7 @@ class GrpcMilvus(ConnectIntf):
         delete_range = Prepare.delete_param(table_name, start_date, end_date)
 
         try:
-            status = self._stub.DeleteByRange.future(delete_range).result(timeout=timeout)
+            status = self._stub.DeleteByDate.future(delete_range).result(timeout=timeout)
             return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
