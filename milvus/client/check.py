@@ -70,13 +70,14 @@ def is_legal_index_size(index_size):
 
 
 def is_legal_metric_type(metric_type):
-    if isinstance(metric_type, int):
+    if isinstance(metric_type, (int, MetricType)):
         try:
             _metric_type = MetricType(metric_type)
+            return False if _metric_type == MetricType.INVALID else True
         except ValueError:
             return False
-
-    return True
+    else:
+        return False
 
 
 def is_legal_index_type(index_type):

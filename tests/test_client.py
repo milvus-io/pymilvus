@@ -396,7 +396,7 @@ class TestSearch:
             'nprobe': 16
         }
 
-        for id_ in range(1000):
+        for id_ in range(5000):
             param['file_ids'].clear()
             param['file_ids'].append(str(id_))
             sta, result = gcon.search_in_files(**param)

@@ -55,7 +55,9 @@ class GrpcMilvus(ConnectIntf):
 
     def _setup(self):
         """
-        Create a channel and a stub
+        Create a grpc channel and a stub
+
+        :raises: NotConnectError
 
         """
 
@@ -82,6 +84,8 @@ class GrpcMilvus(ConnectIntf):
     def _set_uri(self, host, port, **kwargs):
         """
         Set server network address
+        
+        :raises: ParamError
 
         """
         if host is not None:
@@ -178,6 +182,8 @@ class GrpcMilvus(ConnectIntf):
 
         :return: Status, indicate if connect is successful
         :rtype: Status
+        
+        :raises: NotConnectError
         """
         if self.connected():
             return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
@@ -560,6 +566,13 @@ class GrpcMilvus(ConnectIntf):
 
         :param records: list of vectors been inserted
 
+        :type partition_tag: str or None.
+            If partition_tag is None, vectors will be inserted into table rather than partitions.
+
+        :param partition_tag: the tag string of table
+
+        :type
+
         :type  timeout: int
         :param timeout: time waiting for server response
 
@@ -724,6 +737,27 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
+        """
+        create a specific partition under designated table. After done, the meta file in
+        milvus server update partition information, you can perform actions about partitions
+        with partition tag.
+
+        :param table_name: target table name.
+        :type  table_name: str
+
+        :param partition_name: name of target partition under designated table.
+        :type  partition_name: str
+
+        :param partition_tag: tag name of target partition under designated table.
+        :type  partition_tag: str
+
+        :param timeout: time waiting for response.
+        :type  timeout: int
+
+       :return:
+            Status: indicate if operation is successful
+
+        """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -740,6 +774,20 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     def show_partitions(self, table_name, timeout=10):
+        """
+        Show all partitions under designated table.
+
+        :param table_name: target table name.
+        :type  table_name: str
+
+        :param timeout: time waiting for response.
+        :type  timeout: int
+
+        :return:
+            Status: indicate if operation is successful
+            partition_list:
+
+        """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -769,6 +817,22 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
     def drop_partition(self, table_name, partition_tag, timeout=10):
+        """
+        Drop specific partition under designated table.
+
+        :param table_name: target table name.
+        :type  table_name: str
+
+        :param partition_tag: tag name of specific partition
+        :type  partition_tag: str
+
+        :param timeout: time waiting for response.
+        :type  timeout: int
+
+        :return:
+            Status: indicate if operation is successful
+
+        """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -794,13 +858,21 @@ class GrpcMilvus(ConnectIntf):
 
         :param table_name: target table name
         :type  table_name: str
+
         :param top_k: number of vertors which is most similar with query vectors
         :type  top_k: int
+
         :param nprobe: cell number of probe
         :type  nprobe: int
+
         :param query_records: vectors to query
         :type  query_records: list[list[float32]]
+
         :param query_ranges: query data range
+        :type  query_ranges: list
+
+        :param partition_tags: tags to search
+        :type  partition_tags: list
 
         :return
             Status: indicate if search successfully
@@ -843,7 +915,7 @@ class GrpcMilvus(ConnectIntf):
 
         The server store vector data into multiple files if the size of vectors
         exceeds file size threshold. It is supported to search in several files
-        by specifing file ids. However, these file ids are stored in db in server,
+        by specifying file ids. However, these file ids are stored in db in server,
         and python sdk doesn't apply any APIs get them at client. It's a specific
         method used in shards. Obtain more detail about milvus shards, see
         <a href="https://github.com/milvus-io/milvus/tree/0.6.0/shards">
