@@ -19,7 +19,7 @@ Pymilvus can be downloaded via `pip` or `pip3` for python3
 ```$
 $ pip install pymilvus
 ```
-Different versions of Milvus and lowest/highest pymilvus version supported accordingly
+Different versions of Milvus and recommended pymilvus version supported accordingly
 
 |Milvus version| Recommended pymilvus version |
 |:-----:|:-----:|
@@ -51,6 +51,8 @@ from milvus import Milvus, IndexType, MetricType, Status
 ## Getting started
 
 Initial a `Milvus` instance and  `connect` to the sever
+
+### Create table
 
 ```python
 >>> milvus = Milvus()
@@ -87,6 +89,7 @@ Describe the table we just created
 ```
 
 ---
+### Insert vectors
 
 Add vectors into table `test01`
 
@@ -133,6 +136,7 @@ Load vectors into memory
 Status(code=0, message='')
 ```
 ---
+### Create index
 Create index
 ```python
 >>> index_param = {'index_type': IndexType.FLAT, 'nlist': 128}
@@ -145,7 +149,7 @@ Then show index information
 (Status(code=0, message='Successfully'), IndexParam(_table_name='test01', _index_type=<IndexType: FLAT>, _nlist=128))
 ```
 ---
-Search vectors
+### Search vectors
 
 ```python
 # create 5 vectors of 256-dimension
@@ -169,6 +173,37 @@ Status(code=0, message='Search vectors successfully!')
 ]
 ```
 ---
+
+### Partition operations
+Create table named `demo01`
+```python
+>>> param = {'table_name':'demo01', 'dimension':dim, 'index_file_size':1024, 'metric_type':MetricType.L2}
+>>> milvus.create_table(param)
+```
+Create a new partition named `partition01` under table `demo01`, and specify tag `tag01`
+```python
+>>> milvus.create_partition('demo01', 'partition01', 'tag01')
+Status(code=0, message='OK')
+```
+
+Specify partition vectors insert into
+```python
+>>> status = milvus.insert('demo01', vectors, partition_tag="tag01")
+>>> status
+(Status(code=0, message='Add vectors successfully!')
+```
+Show partitions
+```python
+milvus.show_partitions(table_name='demo01')
+```
+Search vectors in a designated partition
+```python
+>>> milvus.search(table_name='test01', query_records=q_records, top_k=1, nprobe=16, partition_tags=['tag01'])
+```
+When you not specify `partition_tags`, milvus will search in whole table.
+
+### Drop operations
+
 Drop index
 ```python
 >>> milvus.drop_index('test01')
