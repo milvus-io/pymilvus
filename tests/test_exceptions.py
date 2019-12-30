@@ -10,7 +10,7 @@ import mock
 
 from grpc import FutureTimeoutError as FError
 
-from milvus.client.grpc_client import GrpcMilvus
+from milvus.client.grpc_handler import GrpcMilvus
 from milvus.client.exceptions import NotConnectError
 
 

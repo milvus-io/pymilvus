@@ -24,7 +24,7 @@ from . import __version__
 LOGGER = logging.getLogger(__name__)
 
 
-class GrpcMilvus(ConnectIntf):
+class GrpcHandler(ConnectIntf):
     def __init__(self, host=None, port=None, **kwargs):
         self._channel = None
         self._stub = None
@@ -264,17 +264,6 @@ class GrpcMilvus(ConnectIntf):
         self._stub = None
 
         return Status(message='Disconnect successfully')
-
-    def client_version(self):
-        """
-        Provide client version
-
-        :return:
-            version: Client version
-
-        :rtype: (str)
-        """
-        return __version__
 
     def server_version(self, timeout=10):
         """

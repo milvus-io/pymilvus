@@ -571,20 +571,6 @@ class ConnectIntf:
         """
         _abstract()
 
-    def client_version(self):
-        """
-        Provide client version
-        should be implemented
-
-        :return:
-            Status: indicate if operation is successful
-
-            str : Client version
-
-        :rtype: (Status, str)
-        """
-        _abstract()
-
     def server_version(self, timeout):
         """
         Provide server version

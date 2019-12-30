@@ -6,8 +6,7 @@ import sys
 
 sys.path.append('.')
 
-from milvus import IndexType, MetricType, Prepare, Milvus, Status, ParamError, NotConnectError, ConnectError
-from milvus.client.grpc_client import Prepare, GrpcMilvus, Status
+from milvus import IndexType, MetricType, Prepare, Milvus, Status, ParamError, NotConnectError
 from milvus.client.abstract import TableSchema, TopKQueryResult
 from milvus.client.check import check_pass_param
 from milvus.client.hooks import BaseSearchHook
@@ -31,7 +30,7 @@ nq = 10
 class TestConnection:
 
     def test_true_connect(self, gip):
-        cnn = GrpcMilvus()
+        cnn = Milvus()
 
         cnn.connect(*gip)
         assert cnn.status.OK
@@ -44,7 +43,7 @@ class TestConnection:
 
     @pytest.mark.parametrize("url", ['tcp://145.98.234.1:1', 'tcp://100.67.0.1:2'])
     def test_false_connect(self, url):
-        cnn = GrpcMilvus()
+        cnn = Milvus()
         with pytest.raises(NotConnectError):
             cnn.connect(uri=url, timeout=1)
 
@@ -52,11 +51,11 @@ class TestConnection:
         assert gcon.connected()
 
     def test_non_connected(self):
-        cnn = GrpcMilvus()
+        cnn = Milvus()
         assert not cnn.connected()
 
     def test_uri(self, gip):
-        cnn = GrpcMilvus()
+        cnn = Milvus()
         uri = 'tcp://{}:{}'.format(gip[0], gip[1])
         cnn.connect(uri=uri)
         assert cnn.status.OK()
@@ -67,17 +66,17 @@ class TestConnection:
                               'tcp://127.0.0.1:aaa'])
     def test_uri_error(self, url):
         with pytest.raises(Exception):
-            cnn = GrpcMilvus()
+            cnn = Milvus()
             cnn.connect(uri=url)
 
     @pytest.mark.parametrize("h", ['12234', 'aaa', '194.16834.200.200', '134.77.89.34'])
     @pytest.mark.parametrize("p", ['...', 'a', '1', '800000'])
     def test_host_port_error(self, h, p):
         with pytest.raises(Exception):
-            GrpcMilvus().connect(host=h, port=p)
+            Milvus().connect(host=h, port=p)
 
     def test_disconnected(self, gip):
-        cnn = GrpcMilvus()
+        cnn = Milvus()
         cnn.connect(*gip)
 
         assert cnn.disconnect().OK()
@@ -87,12 +86,12 @@ class TestConnection:
         assert cnn.connected()
 
     def test_disconnected_error(self):
-        cnn = GrpcMilvus()
+        cnn = Milvus()
         with pytest.raises(NotConnectError):
             cnn.disconnect()
 
     def test_not_connect(self):
-        client = GrpcMilvus()
+        client = Milvus()
 
         with pytest.raises(NotConnectError):
             client.create_table({})
