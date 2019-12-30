@@ -733,7 +733,7 @@ class TestCmd:
         _, info = gcon._cmd("version")
         assert info in self.versions
 
-        _, info = gcon._cmd("OK")
+        _, info = gcon._cmd("status")
         assert info in ("OK", "ok")
 
 

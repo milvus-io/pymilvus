@@ -300,7 +300,7 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self._cmd(cmd='OK', timeout=timeout)
+        return self._cmd(cmd='status', timeout=timeout)
 
     def _cmd(self, cmd, timeout=10):
         if not self.connected():
