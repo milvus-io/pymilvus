@@ -49,3 +49,40 @@ class Milvus:
     def count_table(self, table_name, timeout=30):
         return self._handler.count_table(table_name, timeout)
 
+    def show_tables(self):
+        return self._handler.show_tables()
+
+    def preload_table(self, table_name):
+        return self._handler.preload_table(table_name)
+
+    def drop_table(self, table_name):
+        return self._handler.drop_table(table_name)
+
+    def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
+        return self._handler.insert(table_name, records, ids, partition_tag, timeout, **kwargs)
+
+    def create_index(self, table_name, index=None, timeout=-1):
+        return self._handler.create_index(table_name, index, timeout)
+
+    def describe_index(self, table_name, timeout=10):
+        return self._handler.describe_index(table_name, timeout)
+
+    def drop_index(self, table_name, timeout=10):
+        return self._handler.drop_index(table_name, timeout)
+
+    def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
+        return self.create_partition(table_name, partition_name, partition_tag, timeout)
+
+    def show_partitions(self, table_name, timeout=10):
+        return self._handler.show_partitions(table_name, timeout)
+
+    def drop_partition(self, table_name, partition_tag, timeout=10):
+        return self._handler.drop_partition(table_name, partition_tag, timeout)
+
+    def search(self, table_name, top_k, nprobe,
+               query_records, query_ranges=None, partition_tags=None, **kwargs):
+        return self._handler.search(table_name, top_k, nprobe, query_records, query_ranges, partition_tags, **kwargs)
+
+    def search_in_files(self, table_name, file_ids, query_records, top_k,
+                        nprobe=16, query_ranges=None, **kwargs):
+        return self._handler.search_in_files(table_name, file_ids, query_records, top_k, nprobe, query_ranges, **kwargs)
