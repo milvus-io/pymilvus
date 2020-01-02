@@ -11,8 +11,8 @@ class Milvus:
     def status(self):
         return self._handler.status
 
-    def connect(self, host=None, port=None, **kwargs):
-        return self._handler.connect(host, port, **kwargs)
+    def connect(self, host=None, port=None, uri=None, timeout=1):
+        return self._handler.connect(host, port, uri, timeout)
 
     def connected(self):
         return self._handler.connected()

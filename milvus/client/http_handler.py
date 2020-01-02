@@ -11,7 +11,7 @@ from ..settings import DefaultConfig as config
 
 class HttpHandler(ConnectIntf):
 
-    def __init__(self, host, port, **kwargs):
+    def __init__(self, host=None, port=None, **kwargs):
         self._uri = kwargs.get("uri", "127.0.0.1:19121")
 
     def _set_uri(self, host, port, **kwargs):
@@ -53,6 +53,7 @@ class HttpHandler(ConnectIntf):
         return Status(Status.UNEXPECTED_ERROR, "Error occurred when parse response.")
 
     def connect(self, host, port, uri, timeout):
+        self._set_uri(host, port, uri=uri)
         return self.ping()
 
     def connected(self):
@@ -70,7 +71,7 @@ class HttpHandler(ConnectIntf):
     def has_table(self, table_name, timeout):
         url = self._uri + "/tables/" + table_name
         response = rq.get(url=url)
-        if (200 == response.status_code):
+        if 200 == response.status_code:
             return Status()
 
         js = response.json()

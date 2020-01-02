@@ -163,7 +163,9 @@ class GrpcHandler(ConnectIntf):
         """
         return self._uri
 
+    # def connect(self, host = None, port = None, timeout=1, **kwargs):
     def connect(self, host=None, port=None, uri=None, timeout=1):
+
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
