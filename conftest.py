@@ -8,7 +8,7 @@ from factorys import gen_unique_str, fake, records_factory
 from milvus import Milvus, IndexType, MetricType
 
 default_host = "127.0.0.1"
-default_port = 19530
+default_port = 19121
 
 
 def pytest_addoption(parser):
@@ -103,7 +103,7 @@ def gtable(request, gcon):
     def teardown():
         status, table_names = gcon.show_tables()
         for name in table_names:
-            gcon.delete_table(name)
+            gcon.drop_table(name)
 
     request.addfinalizer(teardown)
 

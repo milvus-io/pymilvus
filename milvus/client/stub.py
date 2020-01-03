@@ -1,11 +1,26 @@
 from . import __version__
+from .types import IndexType, MetricType
 from .grpc_handler import GrpcHandler
+from .http_handler import HttpHandler
+from .exceptions import ParamError
 
 
 class Milvus:
-    def __init__(self, host=None, port=None, handler=GrpcHandler(), **kwargs):
-        self._handler = handler
+    def __init__(self, host=None, port=None, handler=None, **kwargs):
+        # self._handler = handler or GrpcHandler()
+        self._handler = handler or HttpHandler()
         self._handler._set_uri(host, port, **kwargs)
+
+    def __enter__(self):
+        self._handler.__enter__()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._handler.__exit__(exc_type, exc_val, exc_tb)
+
+    def set_hook(self, **kwargs):
+        return self._handler.set_hook(**kwargs)
 
     @property
     def status(self):
@@ -17,10 +32,10 @@ class Milvus:
     def connected(self):
         return self._handler.connected()
 
-    def disconncet(self):
+    def disconnect(self):
         return self._handler.disconnect()
 
-    def client_version(self):
+    def client_version(self, timeout=10):
         """
                 Provide client version
 
@@ -31,17 +46,20 @@ class Milvus:
                 """
         return __version__
 
-    def server_status(self):
+    def server_status(self, timeout=10):
         return self._handler.server_status()
 
-    def _cmd(self, cmd):
+    def server_version(self, timeout=10):
+        return self._handler.server_version(timeout)
+
+    def _cmd(self, cmd, timeout=10):
         return self._handler._cmd(cmd)
 
-    def create_table(self, param):
-        return self._handler.create_table(param)
+    def create_table(self, param, timeout=10):
+        return self._handler.create_table(param, timeout)
 
-    def has_table(self, table_name):
-        return self._handler.has_table(table_name)
+    def has_table(self, table_name, timeout=10):
+        return self._handler.has_table(table_name, timeout)
 
     def describe_table(self, table_name, timeout=10):
         return self._handler.describe_table(table_name, timeout)
@@ -49,20 +67,35 @@ class Milvus:
     def count_table(self, table_name, timeout=30):
         return self._handler.count_table(table_name, timeout)
 
-    def show_tables(self):
+    def show_tables(self, timeout=10):
         return self._handler.show_tables()
 
-    def preload_table(self, table_name):
+    def preload_table(self, table_name, timeout=None):
         return self._handler.preload_table(table_name)
 
-    def drop_table(self, table_name):
+    def drop_table(self, table_name, timeout=10):
         return self._handler.drop_table(table_name)
 
     def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
         return self._handler.insert(table_name, records, ids, partition_tag, timeout, **kwargs)
 
     def create_index(self, table_name, index=None, timeout=-1):
-        return self._handler.create_index(table_name, index, timeout)
+        index_default = {
+            'index_type': IndexType.FLAT,
+            'nlist': 16384
+        }
+        if not index:
+            _index = index_default
+        elif not isinstance(index, dict):
+            raise ParamError("param `index` should be a dictionary")
+        else:
+            _index = index
+            if index.get('index_type', None) is None:
+                _index.update({'index_type': IndexType.FLAT})
+            if index.get('nlist', None) is None:
+                _index.update({'nlist': 16384})
+
+        return self._handler.create_index(table_name, _index, timeout)
 
     def describe_index(self, table_name, timeout=10):
         return self._handler.describe_index(table_name, timeout)
@@ -71,7 +104,7 @@ class Milvus:
         return self._handler.drop_index(table_name, timeout)
 
     def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
-        return self.create_partition(table_name, partition_name, partition_tag, timeout)
+        return self._handler.create_partition(table_name, partition_name, partition_tag, timeout)
 
     def show_partitions(self, table_name, timeout=10):
         return self._handler.show_partitions(table_name, timeout)

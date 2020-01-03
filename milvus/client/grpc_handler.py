@@ -125,7 +125,8 @@ class GrpcHandler(ConnectIntf):
 
         # set transport unlimited
         self._channel = grpc.insecure_channel(
-            self._uri or config.GRPC_ADDRESS,
+            self._uri,
+            # self._uri or config.GRPC_ADDRESS,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
@@ -291,7 +292,7 @@ class GrpcHandler(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self._cmd(cmd='OK', timeout=timeout)
+        return self._cmd(cmd='status', timeout=timeout)
 
     def _cmd(self, cmd, timeout=10):
         if not self.connected():

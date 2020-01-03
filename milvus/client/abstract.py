@@ -1,3 +1,5 @@
+import json
+
 from ..client.exceptions import ParamError
 
 from .check import (
@@ -265,6 +267,51 @@ class TopKQueryResult:
             str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
 
         return "[\n%s\n]" % ",\n".join(str_out_list)
+
+
+
+class TopKQueryResult2:
+    def __init__(self, raw_source, **kwargs):
+        self._raw = raw_source
+        self._nq = 0
+        self._topk = 0
+        self._results = []
+
+        self.__index = 0
+
+        self._unpack(self._raw)
+
+    def _unpack(self, raw_resources):
+        js = raw_resources.json()
+        self._nq = js["num"]
+
+        for row_result in js["results"]:
+            row_ = []
+            for result in row_result:
+                row_.append(QueryResult(result["id"], result["distance"]))
+
+            self._results.append(row_)
+
+    @property
+    def shape(self):
+        return len(self._results), len(self._results[0]) if len(self._results) > 0 else 0
+
+    def __len__(self):
+        return len(self._results)
+
+    def __getitem__(self, item):
+        return self._results.__getitem__(item)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        while self.__index < self.__len__():
+            self.__index += 1
+            return self.__getitem__(self.__index - 1)
+
+        self.__index = 0
+        raise StopIteration()
 
 
 class IndexParam:
