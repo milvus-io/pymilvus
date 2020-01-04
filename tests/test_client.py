@@ -166,17 +166,6 @@ class TestTable:
         with pytest.raises(ParamError):
             gcon.create_table(param)
 
-    def test_create_table_default(self, gcon):
-        _param = {
-            'table_name': 'name_test_create_table_default',
-            'dimension': 16,
-        }
-
-        _status = gcon.create_table(_param)
-        assert _status.OK()
-        time.sleep(1)
-        gcon.drop_table(_param['table_name'])
-
     def test_create_table_exception(self, gcon):
         param = {
             'table_name': 'test_151314',
@@ -187,10 +176,9 @@ class TestTable:
         status = gcon.create_table(param)
         assert not status.OK()
 
-    def test_drop_table(self, gcon):
-        table_name = 'fake_table_name'
-        res = gcon.drop_table(table_name)
-        assert res.OK
+    def test_drop_table(self, gcon, gtable):
+        res = gcon.drop_table(gtable)
+        assert res.OK()
 
     def test_false_drop_table(self, gcon):
         table_name = 'fake_table_name'
@@ -297,11 +285,11 @@ class TestVector:
         status, _ = gcon.insert(table_name, vectors)
         assert not status.OK()
 
-    def test_add_vectors_wrong_insert_param(self, gcon, gvector):
-        vectors = records_factory(dim, nq)
-
-        with pytest.raises(ParamError):
-            gcon.insert(gvector, vectors, insert_param="w353453")
+    # def test_add_vectors_wrong_insert_param(self, gcon, gvector):
+    #     vectors = records_factory(dim, nq)
+    #
+    #     with pytest.raises(ParamError):
+    #         gcon.insert(gvector, vectors, insert_param="w353453")
 
 
 class TestSearch:
@@ -419,8 +407,8 @@ class TestSearch:
         assert not sta.OK()
 
     def test_describe_table(self, gcon, gtable):
-        res, table_schema = gcon.describe_table(gtable)
-        assert res.OK()
+        status, table_schema = gcon.describe_table(gtable)
+        assert status.OK()
         assert isinstance(table_schema, TableSchema)
 
     def test_false_decribe_table(self, gcon):
@@ -439,11 +427,6 @@ class TestSearch:
         assert res.OK()
         assert count == 10000
 
-    def test_count_table(self, gcon, gvector, gtable):
-        res, count = gcon.count_table(gvector)
-        assert res.OK()
-        assert count == 10000
-
     def test_false_count_table(self, gcon):
         res, count = gcon.count_table('fake_table')
         assert not res.OK()
@@ -453,12 +436,6 @@ class TestSearch:
         assert isinstance(res, str)
 
     def test_server_status(self, gcon):
-        status, res = gcon.server_status()
-        assert status.OK()
-
-        status, res = gcon.server_status()
-        assert status.OK()
-
         status, res = gcon.server_status()
         assert status.OK()
 
@@ -682,15 +659,6 @@ class TestBuildIndex:
         with pytest.raises(ParamError):
             gcon.create_index(gvector, _index)
 
-    def test_create_index_wrong_timeout(self, gcon, gvector):
-        _index = {
-            'index_type': IndexType.IVFLAT,
-            'nlist': 4096
-        }
-
-        with pytest.raises(ParamError):
-            gcon.create_index(gvector, timeout=-90)
-
     def test_create_index_wrong_table_name(self, gcon, gvector):
         _index = {
             'index_type': IndexType.IVFLAT,
@@ -699,18 +667,6 @@ class TestBuildIndex:
 
         status = gcon.create_index("*^&*^dtedge", timeout=-1)
         assert not status.OK()
-
-
-# class TestDeleteByRange:
-#     def test_delete_by_range_normal(self, gcon, gvector):
-#         ranges = ranges_factory()[0]
-#
-#         status = gcon._GrpcMilvus__delete_vectors_by_range(
-#             table_name=gvector,
-#             start_date=ranges.start_value,
-#             end_date=ranges.end_value)
-#
-#         assert status.OK()
 
 
 class TestCmd:

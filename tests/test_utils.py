@@ -1,8 +1,10 @@
 import random
 import time
+import pytest
 from milvus.client.utils import merge_results
 
 
+@pytest.mark.skip
 def test_merge_results(gcon):
     table_name = "merge_test"
 

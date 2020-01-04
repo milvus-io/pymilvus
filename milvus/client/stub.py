@@ -47,7 +47,7 @@ class Milvus:
         return __version__
 
     def server_status(self, timeout=10):
-        return self._handler.server_status()
+        return self._handler.server_status(timeout)
 
     def server_version(self, timeout=10):
         return self._handler.server_version(timeout)
@@ -64,17 +64,17 @@ class Milvus:
     def describe_table(self, table_name, timeout=10):
         return self._handler.describe_table(table_name, timeout)
 
-    def count_table(self, table_name, timeout=30):
+    def count_table(self, table_name, timeout=10):
         return self._handler.count_table(table_name, timeout)
 
     def show_tables(self, timeout=10):
-        return self._handler.show_tables()
+        return self._handler.show_tables(timeout)
 
     def preload_table(self, table_name, timeout=None):
-        return self._handler.preload_table(table_name)
+        return self._handler.preload_table(table_name, timeout)
 
     def drop_table(self, table_name, timeout=10):
-        return self._handler.drop_table(table_name)
+        return self._handler.drop_table(table_name, timeout)
 
     def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
         return self._handler.insert(table_name, records, ids, partition_tag, timeout, **kwargs)
