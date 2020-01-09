@@ -115,7 +115,6 @@ class HttpHandler(ConnectIntf):
         pass
 
     def create_table(self, param, timeout):
-        _ = Prepare.table_schema(param)
 
         table_param = copy.deepcopy(param)
 

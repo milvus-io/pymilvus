@@ -8,12 +8,13 @@ from factorys import gen_unique_str, fake, records_factory
 from milvus import Milvus, IndexType, MetricType
 
 default_host = "127.0.0.1"
-default_port = 19121
+default_grpc_port = 19530
+default_http_port = 19121
 
 
 def pytest_addoption(parser):
     parser.addoption("--ip", action="store", default=default_host)
-    parser.addoption("--port", action="store", default=default_port)
+    parser.addoption("--port", action="store", default=default_grpc_port)
 
 
 @pytest.fixture(scope="module")
