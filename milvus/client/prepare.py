@@ -87,6 +87,9 @@ class Prepare:
                 row_id_array=ids,
                 partition_tag=partition_tag)
 
+        for vector in vectors:
+            _param.row_record_array.add(vector_data=vector)
+
         return _param
 
     @classmethod
@@ -124,6 +127,9 @@ class Prepare:
             nprobe=nprobe,
             partition_tag_array=partitions
         )
+
+        for vector in query_records:
+            search_param.query_record_array.add(vector_data=vector)
 
         return search_param
 

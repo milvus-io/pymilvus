@@ -110,8 +110,8 @@ class Milvus:
         if ids is not None:
             check_pass_param(ids=ids)
 
-        if len(records) != len(ids):
-            raise ParamError("length of vectors do not match that of ids")
+            if len(records) != len(ids):
+                raise ParamError("length of vectors do not match that of ids")
 
         return self._handler.insert(table_name, records, ids, partition_tag, timeout, **kwargs)
 
@@ -128,7 +128,7 @@ class Milvus:
             if index.get('nlist', None) is None:
                 _index.update({'nlist': 16384})
 
-        check_pass_param(**_index)
+        check_pass_param(table_name=table_name, **_index)
 
         return self._handler.create_index(table_name, _index, timeout)
 
@@ -165,3 +165,9 @@ class Milvus:
                         nprobe=16, query_ranges=None, **kwargs):
         check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe, records=query_records)
         return self._handler.search_in_files(table_name, file_ids, query_records, top_k, nprobe, query_ranges, **kwargs)
+
+    get_table_row_count = count_table
+    delete_table = drop_table
+    add_vectors = insert
+    search_vectors = search
+    search_vectors_in_files = search_in_files
