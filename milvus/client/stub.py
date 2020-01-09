@@ -6,9 +6,14 @@ from .exceptions import ParamError
 
 
 class Milvus:
-    def __init__(self, host=None, port=None, handler=None, **kwargs):
-        # self._handler = handler or GrpcHandler()
-        self._handler = handler or HttpHandler()
+    def __init__(self, host=None, port=None, handler="HTTP", **kwargs):
+        if handler == "GRPC":
+            self._handler = GrpcHandler()
+        elif handler == "HTTP":
+            self._handler = HttpHandler()
+        else:
+            raise ParamError("Unknown handler options, please use \'GRPC\' or \'HTTP\'")
+
         self._handler._set_uri(host, port, **kwargs)
 
     def __enter__(self):

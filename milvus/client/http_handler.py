@@ -1,5 +1,8 @@
 import requests as rq
 import json
+import time
+import datetime
+import copy
 from urllib.parse import urlparse
 import logging
 
@@ -30,6 +33,16 @@ IndexName2ValueMap = {
     "IVFFLAT": IndexType.IVFLAT,
     "IVFSQ8": IndexType.IVF_SQ8,
     "IVFPQ": IndexType.IVF_PQ
+}
+
+MetricValue2NameMap = {
+    MetricType.L2: "L2",
+    MetricType.IP: "IP"
+}
+
+MetricName2ValueMap = {
+    "L2": MetricType.L2,
+    "IP": MetricType.IP
 }
 
 
@@ -104,8 +117,10 @@ class HttpHandler(ConnectIntf):
     def create_table(self, param, timeout):
         _ = Prepare.table_schema(param)
 
-        param['metric_type'] = int(param['metric_type'])
-        data = json.dumps(param)
+        table_param = copy.deepcopy(param)
+
+        table_param['metric_type'] = MetricValue2NameMap.get(param['metric_type'], None)
+        data = json.dumps(table_param)
 
         try:
             response = rq.post(self._uri + "/tables", data=data)
@@ -192,14 +207,14 @@ class HttpHandler(ConnectIntf):
         try:
             response = rq.get(url, params={"offset": 0, "page_size": 0}, timeout=timeout)
             if 200 != response.status_code:
-                return Status(Status.UNEXPECTED_ERROR, "Error"), []
+                return Status(Status.UNEXPECTED_ERROR, response.reason), []
 
             js = response.json()
             count = js["count"]
 
             response = rq.get(url, params={"offset": 0, "page_size": count}, timeout=timeout)
             if 200 != response.status_code:
-                return Status(Status.UNEXPECTED_ERROR, "Error"), []
+                return Status(Status.UNEXPECTED_ERROR, response.reason), []
 
             tables = []
             js = response.json()
@@ -232,6 +247,8 @@ class HttpHandler(ConnectIntf):
 
         url = self._uri + "/tables/{}/vectors".format(table_name)
 
+        t0 = time.time()
+
         data_dict = dict()
         if ids:
             data_dict["ids"] = ids
@@ -240,12 +257,33 @@ class HttpHandler(ConnectIntf):
 
         data_dict["records"] = records
 
+        t1 = time.time()
+
         data = json.dumps(data_dict)
+
+        t2 = time.time()
+
         headers = {"Content-Type": "application/json"}
 
         try:
+            time_stamp1 = datetime.datetime.now()
             response = rq.post(url, data=data, headers=headers)
+
+            time_stamp2 = datetime.datetime.now()
+
+            print("[{}] before request".format(time_stamp1))
+            print("[{}] after request".format(time_stamp2))
+
+            t3 = time.time()
+
             js = response.json()
+
+            t4 = time.time()
+
+            print("Add records to dict cost {:.4f} s".format(t1 - t0))
+            print("Json dumps cost {:.4f} s".format(t2 - t1))
+            print("Request cost {:.4f} s".format(t3 - t2))
+            print("Response json cost {:.4f} s".format(t4 - t3))
 
             if 201 == response.status_code:
                 ids = [int(item) for item in list(js["ids"])]
@@ -385,7 +423,7 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     def _cmd(self, cmd, timeout=10):
-        url = self._uri + "/cmd/{}".format(cmd)
+        url = self._uri + "/system/{}".format(cmd)
 
         try:
             response = rq.get(url, timeout=timeout)

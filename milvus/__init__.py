@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from .client.stub import Milvus
+from .client.grpc_handler import GrpcHandler
+from .client.http_handler import HttpHandler
 from .client.prepare import Prepare
 from .client.types import IndexType, MetricType, Status
 from .client.exceptions import (

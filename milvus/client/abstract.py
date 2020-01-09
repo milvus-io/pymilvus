@@ -269,7 +269,6 @@ class TopKQueryResult:
         return "[\n%s\n]" % ",\n".join(str_out_list)
 
 
-
 class TopKQueryResult2:
     def __init__(self, raw_source, **kwargs):
         self._raw = raw_source
@@ -312,6 +311,34 @@ class TopKQueryResult2:
 
         self.__index = 0
         raise StopIteration()
+
+    def __repr__(self):
+        lam = lambda x: "(id:{}, distance:{})".format(x.id, x.distance)
+
+        if self.__len__() > 5:
+            middle = ''
+
+            ll = self[:3]
+            for topk in ll:
+                if len(topk) > 5:
+                    middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
+                    middle += ",\n   ..."
+                    middle += "\n   %s ]\n\n" % lam(topk[-1])
+                else:
+                    middle = middle + " [ %s ] \n" % ",\n   ".join(map(lam, topk))
+
+            spaces = """        ......
+                    ......"""
+
+            ahead = "[\n%s%s\n]" % (middle, spaces)
+            return ahead
+
+        # self.__len__() < 5
+        str_out_list = []
+        for i in range(self.__len__()):
+            str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
+
+        return "[\n%s\n]" % ",\n".join(str_out_list)
 
 
 class IndexParam:
