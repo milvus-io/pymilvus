@@ -8,7 +8,7 @@ class DefaultConfig:
 
     HTTP_PORT = "19121"
     HTTP_ADDRESS = "127.0.0.1:19121"
-    HTTP_URI = "tcp://{}".format(HTTP_ADDRESS)
+    HTTP_URI = "http://{}".format(HTTP_ADDRESS)
 
 
 # logging

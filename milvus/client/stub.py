@@ -9,15 +9,13 @@ from .exceptions import ParamError
 
 
 class Milvus:
-    def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
+    def __init__(self, host=None, port=None, handler="HTTP", **kwargs):
         if handler == "GRPC":
-            self._handler = GrpcHandler()
+            self._handler = GrpcHandler(host=host, port=port, **kwargs)
         elif handler == "HTTP":
-            self._handler = HttpHandler()
+            self._handler = HttpHandler(host=host, port=port, **kwargs)
         else:
             raise ParamError("Unknown handler options, please use \'GRPC\' or \'HTTP\'")
-
-        self._handler._set_uri(host, port, **kwargs)
 
     def __enter__(self):
         self._handler.__enter__()
@@ -33,6 +31,15 @@ class Milvus:
     @property
     def status(self):
         return self._handler.status
+
+    @property
+    def handler(self):
+        if isinstance(self._handler, GrpcHandler):
+            return "GRPC"
+        elif isinstance(self._handler, HttpHandler):
+            return "HTTP"
+        else:
+            return "NULL"
 
     def connect(self, host=None, port=None, uri=None, timeout=1):
         return self._handler.connect(host, port, uri, timeout)

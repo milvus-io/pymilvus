@@ -18,7 +18,6 @@ from ..settings import DefaultConfig as config
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-
 IndexValue2NameMap = {
     IndexType.INVALID: "INVALID",
     IndexType.FLAT: "FLAT",
@@ -49,8 +48,12 @@ MetricName2ValueMap = {
 class HttpHandler(ConnectIntf):
 
     def __init__(self, host=None, port=None, **kwargs):
-        self._uri = kwargs.get("uri", "127.0.0.1:19121")
-        self.status = Status()
+        self._uri = None
+        self._status = None
+
+        _uri = kwargs.get("uri", None)
+
+        _ = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
 
     def __enter__(self):
         self.ping()
@@ -88,6 +91,10 @@ class HttpHandler(ConnectIntf):
 
         self._uri = "http://{}:{}".format(str(_host), str(_port))
 
+    @property
+    def status(self):
+        return self._status
+
     def ping(self, timeout=1):
         try:
             response = rq.get(self._uri + "/state", timeout=timeout)
@@ -105,8 +112,16 @@ class HttpHandler(ConnectIntf):
         pass
 
     def connect(self, host, port, uri, timeout):
-        self._set_uri(host, port, uri=uri)
-        return self.ping()
+        if host or port or uri:
+            if self._uri:
+                return Status(message="The server address is set as {}, "
+                                      "you cannot connect other server".format(self._uri),
+                              code=Status.CONNECT_FAILED)
+            else:
+                self._set_uri(host, port, uri=uri)
+
+        self._status = self.ping()
+        return self._status
 
     def connected(self):
         return self.ping()

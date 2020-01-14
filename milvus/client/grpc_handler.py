@@ -164,7 +164,6 @@ class GrpcHandler(ConnectIntf):
         """
         return self._uri
 
-    # def connect(self, host = None, port = None, timeout=1, **kwargs):
     def connect(self, host=None, port=None, uri=None, timeout=1):
 
         """
@@ -189,18 +188,23 @@ class GrpcHandler(ConnectIntf):
         :raises: NotConnectError
         """
         if self.connected():
-            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
+            return Status(message="You have already connected {} !".format(self._uri),
+                          code=Status.CONNECT_FAILED)
 
         # TODO: Here may cause bug: IF user has already connected a server but server is down,
         # client may connect to a new server. It's a undesirable behavior.
+        if host or port or uri:
+            if self._uri:
+                return Status(message="The server address is set as {}, "
+                                      "you cannot connect other server".format(self._uri),
+                              code=Status.CONNECT_FAILED)
+
+            self._set_uri(host, port, uri=uri)
+
         if self._channel:
             del self._channel
             self._channel = None
 
-        # Here may a bug:
-        # if self._ui:
-        # not self._uri and self._set_uri(host, port, uri=uri)
-        self._set_uri(host, port, uri=uri)
         self._set_channel()
 
         try:
