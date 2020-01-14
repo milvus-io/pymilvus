@@ -88,7 +88,6 @@ class Prepare:
                 partition_tag=partition_tag)
 
         for vector in vectors:
-            _param.row_record_array.add(vector_data=vector)
             if isinstance(vector, bytes):
                 _param.row_record_array.add(binary_data=vector)
             elif is_legal_array(vector):
@@ -136,7 +135,6 @@ class Prepare:
         )
 
         for vector in query_records:
-            search_param.query_record_array.add(vector_data=vector)
             if isinstance(vector, bytes):
                 search_param.query_record_array.add(binary_data=vector)
             elif is_legal_array(vector):

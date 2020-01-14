@@ -9,7 +9,7 @@ from .exceptions import ParamError
 
 
 class Milvus:
-    def __init__(self, host=None, port=None, handler="HTTP", **kwargs):
+    def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
         if handler == "GRPC":
             self._handler = GrpcHandler(host=host, port=port, **kwargs)
         elif handler == "HTTP":
