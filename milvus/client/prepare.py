@@ -89,6 +89,13 @@ class Prepare:
 
         for vector in vectors:
             _param.row_record_array.add(vector_data=vector)
+            if isinstance(vector, bytes):
+                _param.row_record_array.add(binary_data=vector)
+            elif is_legal_array(vector):
+                _param.row_record_array.add(float_data=vector)
+            else:
+                raise ParamError('A vector must be a non-empty, 2-dimensional array and '
+                                 'must contain only elements with the float data type.')
 
         return _param
 
@@ -130,6 +137,12 @@ class Prepare:
 
         for vector in query_records:
             search_param.query_record_array.add(vector_data=vector)
+            if isinstance(vector, bytes):
+                search_param.query_record_array.add(binary_data=vector)
+            elif is_legal_array(vector):
+                search_param.query_record_array.add(float_data=vector)
+            else:
+                raise ParamError('Vectors should be 2-dim array!')
 
         return search_param
 
