@@ -37,7 +37,7 @@ class GrpcHandler(ConnectIntf):
 
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
-        _ = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
+        self._uri = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -114,7 +114,7 @@ class GrpcHandler(ConnectIntf):
         if not is_legal_host(_host) or not is_legal_port(_port):
             raise ParamError("host or port is illeagl")
 
-        self._uri = "{}:{}".format(str(_host), str(_port))
+        return "{}:{}".format(str(_host), str(_port))
 
     def _set_channel(self):
         """
@@ -193,13 +193,13 @@ class GrpcHandler(ConnectIntf):
 
         # TODO: Here may cause bug: IF user has already connected a server but server is down,
         # client may connect to a new server. It's a undesirable behavior.
-        if host or port or uri:
-            if self._uri:
-                return Status(message="The server address is set as {}, "
-                                      "you cannot connect other server".format(self._uri),
-                              code=Status.CONNECT_FAILED)
 
-            self._set_uri(host, port, uri=uri)
+        if (host or port or uri) or not self._uri:
+            # if self._uri and self._uri != self._set_uri(host, port, uri=uri):
+            #     return Status(message="The server address is set as {}, "
+            #                           "you cannot connect other server".format(self._uri),
+            #                   code=Status.CONNECT_FAILED)
+            self._uri = self._set_uri(host, port, uri=uri)
 
         if self._channel:
             del self._channel

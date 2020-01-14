@@ -48,12 +48,11 @@ MetricName2ValueMap = {
 class HttpHandler(ConnectIntf):
 
     def __init__(self, host=None, port=None, **kwargs):
-        self._uri = None
         self._status = None
 
         _uri = kwargs.get("uri", None)
 
-        _ = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
+        self._uri = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
 
     def __enter__(self):
         self.ping()
@@ -89,7 +88,7 @@ class HttpHandler(ConnectIntf):
         if not is_legal_host(_host) or not is_legal_port(_port):
             raise ParamError("host or port is illeagl")
 
-        self._uri = "http://{}:{}".format(str(_host), str(_port))
+        return "http://{}:{}".format(str(_host), str(_port))
 
     @property
     def status(self):
@@ -112,13 +111,13 @@ class HttpHandler(ConnectIntf):
         pass
 
     def connect(self, host, port, uri, timeout):
-        if host or port or uri:
-            if self._uri:
-                return Status(message="The server address is set as {}, "
-                                      "you cannot connect other server".format(self._uri),
-                              code=Status.CONNECT_FAILED)
-            else:
-                self._set_uri(host, port, uri=uri)
+        if (host or port or uri) or not self._uri:
+            # if self._uri:
+            #     return Status(message="The server address is set as {}, "
+            #                           "you cannot connect other server".format(self._uri),
+            #                   code=Status.CONNECT_FAILED)
+            # else:
+            self._uri = self._set_uri(host, port, uri=uri)
 
         self._status = self.ping()
         return self._status

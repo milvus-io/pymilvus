@@ -45,6 +45,15 @@ def is_legal_array(array):
     return True
 
 
+def is_legal_bin_array(array):
+    if not array or \
+            not isinstance(array, bytes) or \
+            len(array) <= 0:
+        return False
+
+    return True
+
+
 def int_or_str(item):
     if isinstance(item, int):
         return str(item)
@@ -222,11 +231,19 @@ def check_pass_param(*args, **kwargs):
 
             _dim = len(value[0])
 
-            for record in value:
-                if not is_legal_array(record):
-                    raise ParamError('A vector must be a non-empty, 2-dimensional array and '
-                                     'must contain only elements with the float data type.')
-                if _dim != len(record):
-                    raise ParamError('Whole vectors must have the same dimension')
+            if isinstance(value[0], bytes):
+                for record in value:
+                    if not is_legal_bin_array(record):
+                        raise ParamError('A vector must be a non-empty, 2-dimensional array and '
+                                         'must contain only elements with the bytes type.')
+                    if _dim != len(record):
+                        raise ParamError('Whole vectors must have the same dimension')
+            else:
+                for record in value:
+                    if not is_legal_array(record):
+                        raise ParamError('A vector must be a non-empty, 2-dimensional array and '
+                                         'must contain only elements with the float data type.')
+                    if _dim != len(record):
+                        raise ParamError('Whole vectors must have the same dimension')
         else:
             raise ParamError("unknown param `{}`".format(key))
