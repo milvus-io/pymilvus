@@ -1,3 +1,4 @@
+# This program demos how to use binary vectors in milvus.
 import random
 import time
 import numpy as np
@@ -20,13 +21,15 @@ def gen_vectors(dim, num):
     return [[random.randint(0, 255) for _ in range(dim)] for _ in range(num)]
 
 
+## gen binary vectors
 def gen_binary_vectors(dim, num):
-    # in binary vectors, a bit represent a dimensionality
+    # in binary vectors, a bit represent a dimension.
+    # a value of `uint8` describe 8 dimension
     vectors = gen_vectors(dim // 8, num)
     data = np.array(vectors, dtype='uint8').astype("uint8")
 
     # convert to bytes
-    return [bytes(vector) for vector in vectors]
+    return [bytes(vector) for vector in data]
 
 
 if __name__ == '__main__':
@@ -51,11 +54,11 @@ if __name__ == '__main__':
     # select top 3 vectors for similarity search
     query_vectors = datas[0:3]
 
-    status, results = client.search(TABLE_NAME, top_k=1, nprobe=1, query_records=query_vectors)
+    status, results = client.search(TABLE_NAME, top_k=2, nprobe=1, query_records=query_vectors)
     if 0 != status.code:
         print("Search failed. reason:{}".format(status.message))
-
-    print(results)
+    else:
+        print(results)
 
     client.drop_table(TABLE_NAME)
     client.disconnect()
