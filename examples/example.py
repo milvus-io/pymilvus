@@ -13,7 +13,7 @@ import time
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
-_PORT = '19121'  # default value
+_PORT = '19530'  # default value
 
 # Vector parameters
 _DIM = 128  # dimension of vector
@@ -57,15 +57,12 @@ def main():
     # 10000 vectors with 16 dimension
     # element per dimension is float32 type
     # vectors should be a 2-D array
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
     # You can also use numpy to generate random vectors:
     #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
 
     # Insert vectors into demo_table, return status and vectors id list
-    t0 = time.time()
     status, ids = milvus.insert(table_name=table_name, records=vectors)
-    t1 = time.time()
-    print("Insert total cost : {:.4f} s".format(t1 - t0))
 
     # Wait for 6 seconds, until Milvus server persist vector data.
     time.sleep(6)
