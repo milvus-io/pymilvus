@@ -3,7 +3,9 @@
 # insert 10 vectors, 
 # and execute a vector similarity search.
 import sys
-#  import numpy as np
+
+sys.path.append(".")
+# import numpy as np
 import random
 from milvus import Milvus, IndexType, MetricType
 import time
@@ -14,12 +16,12 @@ _HOST = '127.0.0.1'
 _PORT = '19530'  # default value
 
 # Vector parameters
-_DIM = 16  # dimension of vector
+_DIM = 128  # dimension of vector
 _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
 def main():
-    milvus = Milvus()
+    milvus = Milvus(handler="HTTP")
 
     # Connect to Milvus server
     # You may need to change _HOST and _PORT accordingly
@@ -32,7 +34,7 @@ def main():
         sys.exit(1)
 
     # Create table demo_table if it dosen't exist.
-    table_name = 'demo_table'
+    table_name = 'demo_tables'
 
     status, ok = milvus.has_table(table_name)
     if not ok:
@@ -55,7 +57,7 @@ def main():
     # 10000 vectors with 16 dimension
     # element per dimension is float32 type
     # vectors should be a 2-D array
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
     # You can also use numpy to generate random vectors:
     #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
 
@@ -93,7 +95,7 @@ def main():
         'top_k': 1,
         'nprobe': 16
     }
-    status, results = milvus.search_vectors(**param)
+    status, results = milvus.search(**param)
 
     if status.OK():
         # indicate search result

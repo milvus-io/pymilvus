@@ -6,6 +6,10 @@ class DefaultConfig:
     GRPC_ADDRESS = "127.0.0.1:19530"
     GRPC_URI = "tcp://{}".format(GRPC_ADDRESS)
 
+    HTTP_PORT = "19121"
+    HTTP_ADDRESS = "127.0.0.1:19121"
+    HTTP_URI = "http://{}".format(HTTP_ADDRESS)
+
 
 # logging
 COLORS = {

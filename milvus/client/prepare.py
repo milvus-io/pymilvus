@@ -11,7 +11,6 @@ class Prepare:
     @classmethod
     def table_name(cls, table_name):
 
-        check_pass_param(table_name=table_name)
         return grpc_types.TableName(table_name=table_name)
 
     @classmethod
@@ -28,33 +27,12 @@ class Prepare:
 
         :return: ttypes.TableSchema object
         """
-        if isinstance(param, grpc_types.TableSchema):
-            return param
-
-        if not isinstance(param, dict):
-            raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
-                type(dict), type(param)
-            ))
-
-        if 'index_file_size' not in param:
-            param['index_file_size'] = 1024
-        if 'metric_type' not in param:
-            param['metric_type'] = MetricType.L2
-
-        _param = {
-            'table_name': param['table_name'],
-            'dimension': param['dimension'],
-            'index_file_size': param['index_file_size'],
-            'metric_type': param['metric_type']
-        }
-
-        check_pass_param(**_param)
 
         return grpc_types.TableSchema(status=status_pb2.Status(error_code=0, reason='Client'),
-                                      table_name=_param["table_name"],
-                                      dimension=_param["dimension"],
-                                      index_file_size=_param["index_file_size"],
-                                      metric_type=_param["metric_type"])
+                                      table_name=param["table_name"],
+                                      dimension=param["dimension"],
+                                      index_file_size=param["index_file_size"],
+                                      metric_type=param["metric_type"])
 
     @classmethod
     def range(cls, start_date, end_date):
@@ -101,24 +79,19 @@ class Prepare:
     @classmethod
     def insert_param(cls, table_name, vectors, partition_tag, ids=None):
 
-        check_pass_param(table_name=table_name, partition_tag=partition_tag)
-
         if ids is None:
             _param = grpc_types.InsertParam(table_name=table_name, partition_tag=partition_tag)
         else:
-            check_pass_param(ids=ids)
-
-            if len(vectors) != len(ids):
-                raise ParamError("length of vectors do not match that of ids")
-
             _param = grpc_types.InsertParam(
                 table_name=table_name,
                 row_id_array=ids,
                 partition_tag=partition_tag)
 
         for vector in vectors:
-            if is_legal_array(vector):
-                _param.row_record_array.add(vector_data=vector)
+            if isinstance(vector, bytes):
+                _param.row_record_array.add(binary_data=vector)
+            elif is_legal_array(vector):
+                _param.row_record_array.add(float_data=vector)
             else:
                 raise ParamError('A vector must be a non-empty, 2-dimensional array and '
                                  'must contain only elements with the float data type.')
@@ -137,19 +110,11 @@ class Prepare:
 
         :return:
         """
-        check_pass_param(index_type=index_type, nlist=nlist)
 
         return grpc_types.Index(index_type=index_type, nlist=nlist)
 
     @classmethod
     def index_param(cls, table_name, index_param):
-
-        if not isinstance(index_param, dict):
-            raise ParamError('Param type incorrect, expect {} but get {} instead '.format(
-                type(dict), type(index_param)
-            ))
-
-        check_pass_param(table_name=table_name, **index_param)
 
         _index = Prepare.index(**index_param)
 
@@ -161,12 +126,6 @@ class Prepare:
     def search_param(cls, table_name, topk, nprobe, query_records, query_ranges, partitions):
         query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
 
-        check_pass_param(
-            table_name=table_name,
-            topk=topk,
-            nprobe=nprobe,
-            partition_tag_array=partitions)
-
         search_param = grpc_types.SearchParam(
             table_name=table_name,
             query_range_array=query_ranges,
@@ -175,12 +134,11 @@ class Prepare:
             partition_tag_array=partitions
         )
 
-        if not isinstance(query_records, list):
-            raise ParamError('Vectors should be 2-dim array!')
-
         for vector in query_records:
-            if is_legal_array(vector):
-                search_param.query_record_array.add(vector_data=vector)
+            if isinstance(vector, bytes):
+                search_param.query_record_array.add(binary_data=vector)
+            elif is_legal_array(vector):
+                search_param.query_record_array.add(float_data=vector)
             else:
                 raise ParamError('Vectors should be 2-dim array!')
 
@@ -199,7 +157,6 @@ class Prepare:
 
     @classmethod
     def cmd(cls, cmd):
-        check_pass_param(cmd=cmd)
 
         return grpc_types.Command(cmd=cmd)
 
@@ -208,20 +165,10 @@ class Prepare:
 
         range_ = Prepare.range(start_date, end_date)
 
-        check_pass_param(table_name=table_name)
-
         return grpc_types.DeleteByDateParam(range=range_, table_name=table_name)
 
     @classmethod
     def partition_param(cls, table_name, partition_name, tag):
 
-        check_pass_param(
-            table_name=table_name,
-            partition_name=partition_name,
-            partition_tag=tag)
-
-        return \
-            grpc_types.PartitionParam(
-                table_name=table_name,
-                partition_name=partition_name,
-                tag=tag)
+        return grpc_types.PartitionParam(table_name=table_name,
+                                         partition_name=partition_name, tag=tag)

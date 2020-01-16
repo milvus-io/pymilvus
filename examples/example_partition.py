@@ -28,6 +28,7 @@ def main():
     with Milvus(**param) as client:
         # Create table demo_table if it dosen't exist.
         table_name = 'demo_partition_table'
+        partition_tag = "random"
 
         status, ok = client.has_table(table_name)
         # if table exists, then drop it
@@ -51,7 +52,9 @@ def main():
         print(table)
 
         # create partition
-        client.create_partition(table_name, partition_name="partition1", partition_tag="random")
+        client.create_partition(table_name, partition_name="partition1", partition_tag=partition_tag)
+        # display partitions
+        _, partitions = client.show_partitions(table_name)
 
         # 10000 vectors with 16 dimension
         # element per dimension is float32 type
@@ -61,7 +64,7 @@ def main():
         #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
 
         # Insert vectors into partition of table, return status and vectors id list
-        status, ids = client.insert(table_name=table_name, records=vectors, partition_tag="random")
+        status, ids = client.insert(table_name=table_name, records=vectors, partition_tag=partition_tag)
 
         # Wait for 6 seconds, until Milvus server persist vector data.
         time.sleep(6)
@@ -108,6 +111,10 @@ def main():
 
         # print results
         print(results)
+
+        # Delete partition. You can also invoke `drop_table()`, so that all of partitions belongs to
+        # designated tables will be deleted.
+        status = client.drop_partition(table_name, partition_tag)
 
         # Delete table. All of partitions of this table will be dropped.
         status = client.drop_table(table_name)

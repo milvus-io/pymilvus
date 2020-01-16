@@ -31,8 +31,9 @@ def test_grpc_run(gcon):
     if gmilvus is None:
         assert False, "Error occurred: connect failure"
 
-    if gmilvus.has_table(table_name):
-        gmilvus.delete_table(table_name)
+    status, exists = gmilvus.has_table(table_name)
+    if exists:
+        gmilvus.drop_table(table_name)
         time.sleep(2)
 
     table_param = {
@@ -54,5 +55,5 @@ def test_grpc_run(gcon):
     grpc_thread_pool_add_vector(gmilvus, p, vectors)
 
     time.sleep(1.5)
-    _, gcount = gmilvus.get_table_row_count(table_name)
+    _, gcount = gmilvus.count_table(table_name)
     print(gcount)

@@ -24,7 +24,7 @@ from . import __version__
 LOGGER = logging.getLogger(__name__)
 
 
-class GrpcMilvus(ConnectIntf):
+class GrpcHandler(ConnectIntf):
     def __init__(self, host=None, port=None, **kwargs):
         self._channel = None
         self._stub = None
@@ -37,7 +37,7 @@ class GrpcMilvus(ConnectIntf):
 
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
-        _ = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
+        self._uri = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -55,7 +55,9 @@ class GrpcMilvus(ConnectIntf):
 
     def _setup(self):
         """
-        Create a channel and a stub
+        Create a grpc channel and a stub
+
+        :raises: NotConnectError
 
         """
 
@@ -82,6 +84,8 @@ class GrpcMilvus(ConnectIntf):
     def _set_uri(self, host, port, **kwargs):
         """
         Set server network address
+        
+        :raises: ParamError
 
         """
         if host is not None:
@@ -110,7 +114,7 @@ class GrpcMilvus(ConnectIntf):
         if not is_legal_host(_host) or not is_legal_port(_port):
             raise ParamError("host or port is illeagl")
 
-        self._uri = "{}:{}".format(str(_host), str(_port))
+        return "{}:{}".format(str(_host), str(_port))
 
     def _set_channel(self):
         """
@@ -121,7 +125,8 @@ class GrpcMilvus(ConnectIntf):
 
         # set transport unlimited
         self._channel = grpc.insecure_channel(
-            self._uri or config.GRPC_ADDRESS,
+            self._uri,
+            # self._uri or config.GRPC_ADDRESS,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
@@ -160,6 +165,7 @@ class GrpcMilvus(ConnectIntf):
         return self._uri
 
     def connect(self, host=None, port=None, uri=None, timeout=1):
+
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -178,20 +184,27 @@ class GrpcMilvus(ConnectIntf):
 
         :return: Status, indicate if connect is successful
         :rtype: Status
+        
+        :raises: NotConnectError
         """
         if self.connected():
-            return Status(message="You have already connected!", code=Status.CONNECT_FAILED)
+            return Status(message="You have already connected {} !".format(self._uri),
+                          code=Status.CONNECT_FAILED)
 
         # TODO: Here may cause bug: IF user has already connected a server but server is down,
         # client may connect to a new server. It's a undesirable behavior.
+
+        if (host or port or uri) or not self._uri:
+            # if self._uri and self._uri != self._set_uri(host, port, uri=uri):
+            #     return Status(message="The server address is set as {}, "
+            #                           "you cannot connect other server".format(self._uri),
+            #                   code=Status.CONNECT_FAILED)
+            self._uri = self._set_uri(host, port, uri=uri)
+
         if self._channel:
             del self._channel
             self._channel = None
 
-        # Here may a bug:
-        # if self._ui:
-        # not self._uri and self._set_uri(host, port, uri=uri)
-        self._set_uri(host, port, uri=uri)
         self._set_channel()
 
         try:
@@ -259,17 +272,6 @@ class GrpcMilvus(ConnectIntf):
 
         return Status(message='Disconnect successfully')
 
-    def client_version(self):
-        """
-        Provide client version
-
-        :return:
-            version: Client version
-
-        :rtype: (str)
-        """
-        return __version__
-
     def server_version(self, timeout=10):
         """
         Provide server version
@@ -294,7 +296,7 @@ class GrpcMilvus(ConnectIntf):
 
         :rtype: (Status, str)
         """
-        return self._cmd(cmd='OK', timeout=timeout)
+        return self._cmd(cmd='status', timeout=timeout)
 
     def _cmd(self, cmd, timeout=10):
         if not self.connected():
@@ -560,6 +562,13 @@ class GrpcMilvus(ConnectIntf):
 
         :param records: list of vectors been inserted
 
+        :type partition_tag: str or None.
+            If partition_tag is None, vectors will be inserted into table rather than partitions.
+
+        :param partition_tag: the tag string of table
+
+        :type
+
         :type  timeout: int
         :param timeout: time waiting for server response
 
@@ -724,6 +733,27 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
+        """
+        create a specific partition under designated table. After done, the meta file in
+        milvus server update partition information, you can perform actions about partitions
+        with partition tag.
+
+        :param table_name: target table name.
+        :type  table_name: str
+
+        :param partition_name: name of target partition under designated table.
+        :type  partition_name: str
+
+        :param partition_tag: tag name of target partition under designated table.
+        :type  partition_tag: str
+
+        :param timeout: time waiting for response.
+        :type  timeout: int
+
+       :return:
+            Status: indicate if operation is successful
+
+        """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -740,6 +770,20 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     def show_partitions(self, table_name, timeout=10):
+        """
+        Show all partitions under designated table.
+
+        :param table_name: target table name.
+        :type  table_name: str
+
+        :param timeout: time waiting for response.
+        :type  timeout: int
+
+        :return:
+            Status: indicate if operation is successful
+            partition_list:
+
+        """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -769,6 +813,22 @@ class GrpcMilvus(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
     def drop_partition(self, table_name, partition_tag, timeout=10):
+        """
+        Drop specific partition under designated table.
+
+        :param table_name: target table name.
+        :type  table_name: str
+
+        :param partition_tag: tag name of specific partition
+        :type  partition_tag: str
+
+        :param timeout: time waiting for response.
+        :type  timeout: int
+
+        :return:
+            Status: indicate if operation is successful
+
+        """
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
@@ -794,13 +854,21 @@ class GrpcMilvus(ConnectIntf):
 
         :param table_name: target table name
         :type  table_name: str
+
         :param top_k: number of vertors which is most similar with query vectors
         :type  top_k: int
+
         :param nprobe: cell number of probe
         :type  nprobe: int
+
         :param query_records: vectors to query
         :type  query_records: list[list[float32]]
+
         :param query_ranges: query data range
+        :type  query_ranges: list
+
+        :param partition_tags: tags to search
+        :type  partition_tags: list
 
         :return
             Status: indicate if search successfully
@@ -843,7 +911,7 @@ class GrpcMilvus(ConnectIntf):
 
         The server store vector data into multiple files if the size of vectors
         exceeds file size threshold. It is supported to search in several files
-        by specifing file ids. However, these file ids are stored in db in server,
+        by specifying file ids. However, these file ids are stored in db in server,
         and python sdk doesn't apply any APIs get them at client. It's a specific
         method used in shards. Obtain more detail about milvus shards, see
         <a href="https://github.com/milvus-io/milvus/tree/0.6.0/shards">

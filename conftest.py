@@ -8,12 +8,22 @@ from factorys import gen_unique_str, fake, records_factory
 from milvus import Milvus, IndexType, MetricType
 
 default_host = "127.0.0.1"
-default_port = 19530
+default_grpc_port = 19530
+default_http_port = 19121
 
 
 def pytest_addoption(parser):
     parser.addoption("--ip", action="store", default=default_host)
-    parser.addoption("--port", action="store", default=default_port)
+
+    client = Milvus()
+    if client.handler == "GRPC":
+        parser.addoption("--port", action="store", default=default_grpc_port)
+    elif client.handler == "HTTP":
+        parser.addoption("--port", action="store", default=default_http_port)
+    else:
+        raise ValueError("Unknown handler type")
+
+    del client
 
 
 @pytest.fixture(scope="module")
@@ -103,7 +113,7 @@ def gtable(request, gcon):
     def teardown():
         status, table_names = gcon.show_tables()
         for name in table_names:
-            gcon.delete_table(name)
+            gcon.drop_table(name)
 
     request.addfinalizer(teardown)
 

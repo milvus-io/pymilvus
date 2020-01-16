@@ -1,4 +1,13 @@
-# pymilvus 0.2.6(doing)
+# pymilvus 0.2.7(2020-01-16)
+
+## Bug
+- \#136 - fix incorrect description in README.md
+
+## New Feature
+- \#138 - add binary vectors support
+
+
+# pymilvus 0.2.6(2019-12-07)
 
 ## Bug
 - \#127 - fix crash when printing search result

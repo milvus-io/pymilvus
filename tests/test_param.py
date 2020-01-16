@@ -11,6 +11,7 @@ from milvus import ParamError, Milvus
 import pytest
 
 client = Milvus()
+client._handler.connected = mock.Mock(return_value=True)
 client.connected = mock.Mock(return_value=True)
 
 
@@ -50,6 +51,7 @@ def test_create_table_param(gcon):
 
 def test_drop_table_param():
     table_name = 124
+    client.connected = mock.Mock(return_value=True)
     with pytest.raises(ParamError):
         client.has_table(table_name)
 
