@@ -12,7 +12,7 @@ You can find api doc in [Reference Doc](https://milvus-io.github.io/milvus-sdk-p
 Using Milvus python sdk for Milvus
 Download
 ---
-Pymilvus only supports `python >= 3.5`, is fully tested under 3.5, 3.6, 3.7.
+Pymilvus only supports `python >= 3.5`, is fully tested under 3.5, 3.6, 3.7, 3.8.
 
 
 Pymilvus can be downloaded via `pip` or `pip3` for python3
@@ -35,7 +35,7 @@ Different versions of Milvus and recommended pymilvus version supported accordin
 
 You can download a specific version by:
 ```$
-$ pip install pymilvus==0.2.6
+$ pip install pymilvus==0.2.7
 ```
 
 If you want to upgrade `pymilvus` to newest version
@@ -64,7 +64,7 @@ Once successfully connected, you can get the version of server
 
 ```python
 >>> milvus.server_version()
-(Status(code=0, message='Success'), '0.5.0')  # this is example version, the real version may vary
+(Status(code=0, message='Success'), '0.6.0')  # this is example version, the real version may vary
 ```
 ---
 
@@ -152,13 +152,13 @@ Then show index information
 ### Search vectors
 
 ```python
-# create 5 vectors of 256-dimension
+# create 5 vectors of 32-dimension
 >>> q_records = [[random.random() for _ in range(dim)] for _ in range(5)]
 ```
 
 Then get results
 ```python
->>> status, results = milvus.search(table_name='test01', query_records=q_records, top_k=1, nprobe=16)
+>>> status, results = milvus.search(table_name='test01', query_records=q_records, top_k=1, nprobe=8)
 >>> print(status)
 Status(code=0, message='Search vectors successfully!')
 >>> pprint(results) # Searched top_k vectors
@@ -198,7 +198,7 @@ milvus.show_partitions(table_name='demo01')
 ```
 Search vectors in a designated partition
 ```python
->>> milvus.search(table_name='test01', query_records=q_records, top_k=1, nprobe=16, partition_tags=['tag01'])
+>>> milvus.search(table_name='test01', query_records=q_records, top_k=1, nprobe=8, partition_tags=['tag01'])
 ```
 When you not specify `partition_tags`, milvus will search in whole table.
 
