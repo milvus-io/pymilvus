@@ -11,6 +11,10 @@ You can find api doc in [Reference Doc](https://milvus-io.github.io/milvus-sdk-p
 
 Using Milvus python sdk for Milvus
 Download
+
+## New features
+* Add new metric type `HAMMING`, `JACCARD`, `TANIMOTO` for binary vectors. examples about binary vectors in `examples/example_binary.py`
+
 ---
 Pymilvus only supports `python >= 3.5`, is fully tested under 3.5, 3.6, 3.7, 3.8.
 
