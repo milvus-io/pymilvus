@@ -14,16 +14,8 @@ default_http_port = 19121
 
 def pytest_addoption(parser):
     parser.addoption("--ip", action="store", default=default_host)
-
-    client = Milvus()
-    if client.handler == "GRPC":
-        parser.addoption("--port", action="store", default=default_grpc_port)
-    elif client.handler == "HTTP":
-        parser.addoption("--port", action="store", default=default_http_port)
-    else:
-        raise ValueError("Unknown handler type")
-
-    del client
+    parser.addoption("--handler", action="store", default="GRPC")
+    parser.addoption("--port", action="store", default=default_grpc_port)
 
 
 @pytest.fixture(scope="module")
@@ -37,7 +29,10 @@ def gip(request):
 @pytest.fixture(scope="module")
 def connect(request):
     ip = request.config.getoption("--ip")
-    port = request.config.getoption("--port")
+    handler = request.config.getoption("--handler")
+    port_default = default_http_port if handler == "HTTP" else default_grpc_port
+    port = request.config.getoption("--port", default=port_default)
+
     milvus = Milvus()
     milvus.connect(host=ip, port=port)
 
