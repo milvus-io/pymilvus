@@ -5,10 +5,9 @@ import grpc
 from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
-from ..grpc_gen import milvus_pb2 as grpc_types
 from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam, TopKQueryResult
 from .prepare import Prepare
-from .types import IndexType, MetricType, Status
+from .types import MetricType, Status
 from .check import (
     int_or_str,
     is_legal_host,
@@ -84,7 +83,6 @@ class GrpcHandler(ConnectIntf):
     def _set_uri(self, host, port, **kwargs):
         """
         Set server network address
-        
         :raises: ParamError
 
         """
@@ -557,25 +555,24 @@ class GrpcHandler(ConnectIntf):
         :rtype: (Status, list(int))
         """
 
-        insert_param = kwargs.get('insert_param', None)
+        # insert_param = kwargs.get('insert_param', None)
 
-        if not insert_param:
-            insert_param = Prepare.insert_param(table_name, records, partition_tag, ids)
-        else:
-            if not isinstance(insert_param, grpc_types.InsertParam):
-                raise ParamError("The value of key 'insert_param' is invalid")
+        # if not insert_param:
+        insert_param = Prepare.insert_param(table_name, records, partition_tag, ids)
+        # else:
+        #     if not isinstance(insert_param, grpc_types.InsertParam):
+        #         raise ParamError("The value of key 'insert_param' is invalid")
 
         try:
             if timeout == -1:
-                vector_ids = self._stub.Insert(insert_param)
+                response = self._stub.Insert(insert_param)
             else:
-                vector_ids = self._stub.Insert.future(insert_param).result(timeout=timeout)
+                response = self._stub.Insert.future(insert_param).result(timeout=timeout)
 
-            if vector_ids.status.error_code == 0:
-                ids = list(vector_ids.vector_id_array)
-                return Status(message='Add vectors successfully!'), ids
+            if response.status.error_code == 0:
+                return Status(message='Add vectors successfully!'), list(response.vector_id_array)
 
-            return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
+            return Status(code=response.status.error_code, message=response.status.reason), []
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
@@ -850,11 +847,12 @@ class GrpcHandler(ConnectIntf):
 
     def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array):
 
-        request = Prepare.search_by_id_param(table_name, top_k, nprobe, id_array, partition_tag_array)
+        request = Prepare.search_by_id_param(table_name, top_k, nprobe,
+                                             id_array, partition_tag_array)
 
         try:
             response = self._stub.SearchByID(request)
-            if 0 == response.status.error_code:
+            if response.status.error_code == 0:
                 return Status(message='Search vectors successfully!'), TopKQueryResult(response)
 
             return Status(code=response.status.error_code, message=response.status.reason), None
@@ -982,11 +980,3 @@ class GrpcHandler(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
-
-    # In old version of pymilvus, some methods are different from the new.
-    # apply alternative method name for compatibility
-    get_table_row_count = count_table
-    delete_table = drop_table
-    add_vectors = insert
-    search_vectors = search
-    search_vectors_in_files = search_in_files

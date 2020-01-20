@@ -1,8 +1,7 @@
-from .types import MetricType
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 from .exceptions import ParamError
-from .check import check_pass_param, is_legal_array
+from .check import is_legal_array
 from .abstract import Range
 
 
@@ -180,7 +179,7 @@ class Prepare:
 
         return grpc_types.PartitionParam(table_name=table_name,
                                          partition_name=partition_name, tag=tag)
-    
+
     @classmethod
     def delete_by_id_param(cls, table_name, id_array):
 

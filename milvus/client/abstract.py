@@ -1,5 +1,3 @@
-import json
-
 from ..client.exceptions import ParamError
 
 from .check import (
@@ -285,7 +283,8 @@ class TopKQueryResult2:
         self._nq = js["num"]
 
         for row_result in js["results"]:
-            row_ = [QueryResult(result["id"], float(result["distance"])) for result in row_result]
+            row_ = [QueryResult(int(result["id"]), float(result["distance"]))
+                    for result in row_result]
 
             self._results.append(row_)
 

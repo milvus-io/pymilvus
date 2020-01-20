@@ -47,10 +47,11 @@ class Milvus:
     def handler(self):
         if isinstance(self._handler, GrpcHandler):
             return "GRPC"
-        elif isinstance(self._handler, HttpHandler):
+
+        if isinstance(self._handler, HttpHandler):
             return "HTTP"
-        else:
-            return "NULL"
+
+        return "NULL"
 
     def connect(self, host=None, port=None, uri=None, timeout=1):
         return self._handler.connect(host, port, uri, timeout)
@@ -58,6 +59,7 @@ class Milvus:
     def connected(self):
         return self._handler.connected()
 
+    @check_connect
     def disconnect(self):
         return self._handler.disconnect()
 
@@ -92,11 +94,17 @@ class Milvus:
             raise ParamError('Param type incorrect, expect {} but get {} instead'
                              .format(type(dict), type(param)))
 
+        if 'table_name' not in param:
+            raise ParamError('table_name is required')
+
+        if 'dimension' not in param:
+            raise ParamError('dimension is required')
+
         table_param = copy.deepcopy(param)
 
         if 'index_file_size' not in param:
             table_param['index_file_size'] = 1024
-        if 'metric_type' not in param:
+        if 'metric_type'not in param:
             table_param['metric_type'] = MetricType.L2
 
         check_pass_param(**table_param)
@@ -134,13 +142,11 @@ class Milvus:
 
     @check_connect
     def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
-        check_pass_param(table_name=table_name, records=records, ids=ids, partition_tag=partition_tag)
+        check_pass_param(table_name=table_name, records=records,
+                         ids=ids, partition_tag=partition_tag)
 
-        if ids is not None:
-            check_pass_param(ids=ids)
-
-            if len(records) != len(ids):
-                raise ParamError("length of vectors do not match that of ids")
+        if ids is not None and len(records) != len(ids):
+            raise ParamError("length of vectors do not match that of ids")
 
         return self._handler.insert(table_name, records, ids, partition_tag, timeout, **kwargs)
 
@@ -229,12 +235,16 @@ class Milvus:
     def _search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
         check_pass_param(table_name=table_name, topk=top_k, records=query_records,
                          nprobe=nprobe, partition_tag_array=partition_tags)
-        return self._handler.search(table_name, top_k, nprobe, query_records, partition_tags, **kwargs)
+        return self._handler.search(table_name, top_k, nprobe,
+                                    query_records, partition_tags, **kwargs)
 
     def _search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
         check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe, records=query_records)
-        return self._handler.search_in_files(table_name, file_ids, query_records, top_k, nprobe, **kwargs)
+        return self._handler.search_in_files(table_name, file_ids,
+                                             query_records, top_k, nprobe, **kwargs)
 
+    # In old version of pymilvus, some methods are different from the new.
+    # apply alternative method name for compatibility
     get_table_row_count = count_table
     delete_table = drop_table
     add_vectors = insert

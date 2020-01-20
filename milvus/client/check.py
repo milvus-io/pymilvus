@@ -1,5 +1,7 @@
+import sys
 import datetime
 from urllib.parse import urlparse
+
 from .exceptions import ParamError
 from .types import MetricType, IndexType
 
@@ -38,9 +40,12 @@ def is_legal_uri(uri):
 def is_legal_array(array):
     if not array or \
             not isinstance(array, list) or \
-            len(array) <= 0 or \
-            not isinstance(array[0], float):
+            len(array) <= 0:
         return False
+
+    for v in array:
+        if not isinstance(v, float):
+            return False
 
     return True
 
@@ -52,6 +57,29 @@ def is_legal_bin_array(array):
         return False
 
     return True
+
+
+def is_legal_records(value):
+    if not isinstance(value, list) or len(value) <= 0:
+        raise ParamError('A vector must be a non-empty, 2-dimensional array and '
+                         'must contain only elements with the float data type.')
+
+    _dim = len(value[0])
+
+    if isinstance(value[0], bytes):
+        for record in value:
+            if not is_legal_bin_array(record):
+                raise ParamError('A vector must be a non-empty, 2-dimensional array and '
+                                 'must contain only elements with the bytes type.')
+            if _dim != len(record):
+                raise ParamError('Whole vectors must have the same dimension')
+    else:
+        for record in value:
+            if not is_legal_array(record):
+                raise ParamError('A vector must be a non-empty, 2-dimensional array and '
+                                 'must contain only elements with the float data type.')
+            if _dim != len(record):
+                raise ParamError('Whole vectors must have the same dimension')
 
 
 def int_or_str(item):
@@ -81,8 +109,7 @@ def is_legal_index_size(index_size):
 def is_legal_metric_type(metric_type):
     if isinstance(metric_type, (int, MetricType)):
         try:
-            _metric_type = MetricType(metric_type)
-            return False if _metric_type == MetricType.INVALID else True
+            return MetricType(metric_type) != MetricType.INVALID
         except ValueError:
             return False
     else:
@@ -116,10 +143,24 @@ def is_legal_topk(topk):
 
 
 def is_legal_ids(ids):
-    return ids is None or \
-           (isinstance(ids, list) and
-            len(ids) > 0 and
-            isinstance(ids[0], int))
+    if ids is None:
+        return True
+
+    if not isinstance(ids, list) or \
+            len(ids) == 0:
+        return False
+
+    # TODO: Here check id valid value range msa not match other SDK
+    for i in ids:
+        if not isinstance(i, int) or i < 0 or i > sys.maxsize:
+            return False
+
+    return True
+
+    # return ids is None or \
+    #        (isinstance(ids, list) and
+    #         len(ids) > 0 and
+    #         isinstance(ids[0], int))
 
 
 def is_legal_nprobe(nprobe):
@@ -245,5 +286,7 @@ def check_pass_param(*args, **kwargs):
                                          'must contain only elements with the float data type.')
                     if _dim != len(record):
                         raise ParamError('Whole vectors must have the same dimension')
+            # if not is_legal_records(value):
+            #     _raise_param_error(key)
         else:
             raise ParamError("unknown param `{}`".format(key))
