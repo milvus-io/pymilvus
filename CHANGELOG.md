@@ -1,6 +1,7 @@
 # pymilvus 0.2.8(doing)
 
 ## Bug
+- \#140 convert distance in http result to float value
 - \#141 add index IVF_SQ8H into http handler
 
 

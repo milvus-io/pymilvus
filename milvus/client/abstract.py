@@ -285,9 +285,7 @@ class TopKQueryResult2:
         self._nq = js["num"]
 
         for row_result in js["results"]:
-            row_ = []
-            for result in row_result:
-                row_.append(QueryResult(result["id"], result["distance"]))
+            row_ = [QueryResult(result["id"], float(result["distance"])) for result in row_result]
 
             self._results.append(row_)
 
