@@ -1,3 +1,9 @@
+# pymilvus 0.2.8(doing)
+
+## Bug
+- \#141 add index IVF_SQ8H into http handler
+
+
 # pymilvus 0.2.7(2020-01-16)
 
 ## Bug
