@@ -312,10 +312,11 @@ class HttpHandler(ConnectIntf):
 
         if isinstance(query_records[0], bytes):
             vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
+            body_dict["records_bin"] = vectors
         else:
             vectors = query_records
+            body_dict["records"] = vectors
 
-        body_dict["records"] = vectors
         data = json.dumps(body_dict)
         headers = {"Content-Type": "application/json"}
 
@@ -342,9 +343,10 @@ class HttpHandler(ConnectIntf):
 
         if isinstance(query_records[0], bytes):
             vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
+            body_dict["records_bin"] = vectors
         else:
             vectors = query_records
-        body_dict["records"] = vectors
+            body_dict["records"] = vectors
 
         data = json.dumps(body_dict)
         headers = {"Content-Type": "application/json"}
