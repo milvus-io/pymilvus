@@ -5,10 +5,9 @@ import grpc
 from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
-from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam
+from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam, TopKQueryResult
 from .prepare import Prepare
-from .types import IndexType, MetricType, Status
+from .types import MetricType, Status
 from .check import (
     int_or_str,
     is_legal_host,
@@ -84,7 +83,7 @@ class GrpcHandler(ConnectIntf):
     def _set_uri(self, host, port, **kwargs):
         """
         Set server network address
-        
+
         :raises: ParamError
 
         """
@@ -299,9 +298,6 @@ class GrpcHandler(ConnectIntf):
         return self._cmd(cmd='status', timeout=timeout)
 
     def _cmd(self, cmd, timeout=10):
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
         cmd = Prepare.cmd(cmd)
         try:
             response = self._stub.Cmd.future(cmd).result(timeout=timeout)
@@ -338,9 +334,6 @@ class GrpcHandler(ConnectIntf):
         :rtype: Status
         """
 
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
         table_schema = Prepare.table_schema(param)
 
         try:
@@ -372,8 +365,6 @@ class GrpcHandler(ConnectIntf):
             bool if given table_name exists
 
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
 
         table_name = Prepare.table_name(table_name)
 
@@ -403,9 +394,6 @@ class GrpcHandler(ConnectIntf):
             table_schema: return when operation is successful
         :rtype: (Status, TableSchema)
         """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
 
         table_name = Prepare.table_name(table_name)
 
@@ -445,9 +433,6 @@ class GrpcHandler(ConnectIntf):
             res: int, table row count
         """
 
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
         table_name = Prepare.table_name(table_name)
 
         try:
@@ -475,8 +460,6 @@ class GrpcHandler(ConnectIntf):
         :rtype:
             (Status, list[str])
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
 
         cmd = Prepare.cmd('show_tables')
         try:
@@ -501,8 +484,6 @@ class GrpcHandler(ConnectIntf):
         :returns:
             Status:  indicate if invoke is successful
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
 
         table_name = Prepare.table_name(table_name)
 
@@ -525,9 +506,6 @@ class GrpcHandler(ConnectIntf):
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
 
         table_name = Prepare.table_name(table_name)
 
@@ -578,28 +556,24 @@ class GrpcHandler(ConnectIntf):
         :rtype: (Status, list(int))
         """
 
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
+        # insert_param = kwargs.get('insert_param', None)
 
-        insert_param = kwargs.get('insert_param', None)
-
-        if not insert_param:
-            insert_param = Prepare.insert_param(table_name, records, partition_tag, ids)
-        else:
-            if not isinstance(insert_param, grpc_types.InsertParam):
-                raise ParamError("The value of key 'insert_param' is invalid")
+        # if not insert_param:
+        insert_param = Prepare.insert_param(table_name, records, partition_tag, ids)
+        # else:
+        #     if not isinstance(insert_param, grpc_types.InsertParam):
+        #         raise ParamError("The value of key 'insert_param' is invalid")
 
         try:
             if timeout == -1:
-                vector_ids = self._stub.Insert(insert_param)
+                response = self._stub.Insert(insert_param)
             else:
-                vector_ids = self._stub.Insert.future(insert_param).result(timeout=timeout)
+                response = self._stub.Insert.future(insert_param).result(timeout=timeout)
 
-            if vector_ids.status.error_code == 0:
-                ids = list(vector_ids.vector_id_array)
-                return Status(message='Add vectors successfully!'), ids
+            if response.status.error_code == 0:
+                return Status(message='Add vectors successfully!'), list(response.vector_id_array)
 
-            return Status(code=vector_ids.status.error_code, message=vector_ids.status.reason), []
+            return Status(code=response.status.error_code, message=response.status.reason), []
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
@@ -630,25 +604,7 @@ class GrpcHandler(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
-
-        index_default = {
-            'index_type': IndexType.FLAT,
-            'nlist': 16384
-        }
-        if not index:
-            _index = index_default
-        elif not isinstance(index, dict):
-            raise ParamError("param `index` should be a dictionary")
-        else:
-            _index = index
-            if index.get('index_type', None) is None:
-                _index.update({'index_type': IndexType.FLAT})
-            if index.get('nlist', None) is None:
-                _index.update({'nlist': 16384})
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        index_param = Prepare.index_param(table_name, _index)
+        index_param = Prepare.index_param(table_name, index)
         try:
             if timeout == -1:
                 status = self._stub.CreateIndex(index_param)
@@ -681,8 +637,6 @@ class GrpcHandler(ConnectIntf):
             IndexSchema:
 
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
 
         table_name = Prepare.table_name(table_name)
 
@@ -718,9 +672,6 @@ class GrpcHandler(ConnectIntf):
         ：:rtype: Status
         """
 
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
         table_name = Prepare.table_name(table_name)
         try:
             status = self._stub.DropIndex.future(table_name).result(timeout=timeout)
@@ -754,9 +705,6 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
         request = Prepare.partition_param(table_name, partition_name, partition_tag)
 
         try:
@@ -784,9 +732,6 @@ class GrpcHandler(ConnectIntf):
             partition_list:
 
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
         request = Prepare.table_name(table_name)
 
         try:
@@ -829,9 +774,6 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
         request = Prepare.partition_param(
             table_name=table_name,
             partition_name=None,
@@ -847,8 +789,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def search(self, table_name, top_k, nprobe,
-               query_records, query_ranges=None, partition_tags=None, **kwargs):
+    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
         """
         Search similar vectors in designated table
 
@@ -877,11 +818,9 @@ class GrpcHandler(ConnectIntf):
         :rtype: (Status, TopKQueryResult)
 
         """
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
 
         request = Prepare.search_param(
-            table_name, top_k, nprobe, query_records, query_ranges, partition_tags
+            table_name, top_k, nprobe, query_records, None, partition_tags
         )
 
         try:
@@ -904,8 +843,23 @@ class GrpcHandler(ConnectIntf):
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
             return status, []
 
-    def search_in_files(self, table_name, file_ids, query_records, top_k,
-                        nprobe=16, query_ranges=None, **kwargs):
+    def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array):
+
+        request = Prepare.search_by_id_param(table_name, top_k, nprobe,
+                                             id_array, partition_tag_array)
+
+        try:
+            response = self._stub.SearchByID(request)
+            if response.status.error_code == 0:
+                return Status(message='Search vectors successfully!'), TopKQueryResult(response)
+
+            return Status(code=response.status.error_code, message=response.status.reason), None
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
+            return status, None
+
+    def search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
         """
         Query vectors in a table, in specified files.
 
@@ -941,13 +895,10 @@ class GrpcHandler(ConnectIntf):
         :rtype: (Status, TopKQueryResult)
         """
 
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
         file_ids = list(map(int_or_str, file_ids))
 
         infos = Prepare.search_vector_in_files_param(
-            table_name, query_records, query_ranges, top_k, nprobe, file_ids
+            table_name, query_records, None, top_k, nprobe, file_ids
         )
 
         try:
@@ -1004,10 +955,26 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    # In old version of pymilvus, some methods are different from the new.
-    # apply alternative method name for compatibility
-    get_table_row_count = count_table
-    delete_table = drop_table
-    add_vectors = insert
-    search_vectors = search
-    search_vectors_in_files = search_in_files
+    def delete_by_id(self, table_name, id_array, timeout=None):
+
+        request = Prepare.delete_by_id_param(table_name, id_array)
+
+        try:
+            status = self._stub.DeleteByID.future(request).result(timeout=timeout)
+            return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    def flush(self, table_name_array):
+        request = Prepare.flush_param(table_name_array)
+
+        try:
+            response = self._stub.Flush(request)
+            return Status(code=response.error_code, message=response.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))

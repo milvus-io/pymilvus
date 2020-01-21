@@ -1,8 +1,7 @@
-from .types import MetricType
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 from .exceptions import ParamError
-from .check import check_pass_param, is_legal_array
+from .check import is_legal_array
 from .abstract import Range
 
 
@@ -145,6 +144,14 @@ class Prepare:
         return search_param
 
     @classmethod
+    def search_by_id_param(cls, table_name, top_k, nprobe, id_array, partition_tag_array):
+        return grpc_types.SearchByIDParam(
+            table_name=table_name, id_array=id_array,
+            topk=top_k, nprobe=nprobe,
+            partition_tag_array=partition_tag_array
+        )
+
+    @classmethod
     def search_vector_in_files_param(cls, table_name, query_records,
                                      query_ranges, topk, nprobe, ids):
         _search_param = Prepare.search_param(table_name, topk, nprobe, query_records,
@@ -172,3 +179,13 @@ class Prepare:
 
         return grpc_types.PartitionParam(table_name=table_name,
                                          partition_name=partition_name, tag=tag)
+
+    @classmethod
+    def delete_by_id_param(cls, table_name, id_array):
+
+        return grpc_types.DeleteByIDParam(table_name=table_name, id_array=id_array)
+
+    @classmethod
+    def flush_param(cls, table_names):
+
+        return grpc_types.FlushParam(table_name_array=table_names)

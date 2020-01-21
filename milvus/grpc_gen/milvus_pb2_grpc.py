@@ -85,6 +85,11 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.SearchParam.SerializeToString,
             response_deserializer=milvus__pb2.TopKQueryResult.FromString,
         )
+        self.SearchByID = channel.unary_unary(
+            '/milvus.grpc.MilvusService/SearchByID',
+            request_serializer=milvus__pb2.SearchByIDParam.SerializeToString,
+            response_deserializer=milvus__pb2.TopKQueryResult.FromString,
+        )
         self.SearchInFiles = channel.unary_unary(
             '/milvus.grpc.MilvusService/SearchInFiles',
             request_serializer=milvus__pb2.SearchInFilesParam.SerializeToString,
@@ -95,6 +100,11 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.Command.SerializeToString,
             response_deserializer=milvus__pb2.StringReply.FromString,
         )
+        self.DeleteByID = channel.unary_unary(
+            '/milvus.grpc.MilvusService/DeleteByID',
+            request_serializer=milvus__pb2.DeleteByIDParam.SerializeToString,
+            response_deserializer=status__pb2.Status.FromString,
+        )
         self.DeleteByDate = channel.unary_unary(
             '/milvus.grpc.MilvusService/DeleteByDate',
             request_serializer=milvus__pb2.DeleteByDateParam.SerializeToString,
@@ -103,6 +113,11 @@ class MilvusServiceStub(object):
         self.PreloadTable = channel.unary_unary(
             '/milvus.grpc.MilvusService/PreloadTable',
             request_serializer=milvus__pb2.TableName.SerializeToString,
+            response_deserializer=status__pb2.Status.FromString,
+        )
+        self.Flush = channel.unary_unary(
+            '/milvus.grpc.MilvusService/Flush',
+            request_serializer=milvus__pb2.FlushParam.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
 
@@ -279,6 +294,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SearchByID(self, request, context):
+        """*
+        @brief This method is used to query vector by id.
+
+        @param SearchByIDParam, search parameters.
+
+        @return TopKQueryResult
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def SearchInFiles(self, request, context):
         """*
         @brief This method is used to query vector in specified files.
@@ -303,6 +330,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DeleteByID(self, request, context):
+        """*
+        @brief This method is used to delete vector by id
+
+        @param DeleteByIDParam, delete parameters.
+
+        @return status
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def DeleteByDate(self, request, context):
         """*
         @brief This method is used to delete vector by date range
@@ -320,6 +359,18 @@ class MilvusServiceServicer(object):
         @brief This method is used to preload table
 
         @param TableName, target table name.
+
+        @return Status
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Flush(self, request, context):
+        """*
+        @brief This method is used to flush buffer into storage.
+
+        @param FlushParam, flush parameters
 
         @return Status
         """
@@ -400,6 +451,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.SearchParam.FromString,
             response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
         ),
+        'SearchByID': grpc.unary_unary_rpc_method_handler(
+            servicer.SearchByID,
+            request_deserializer=milvus__pb2.SearchByIDParam.FromString,
+            response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
+        ),
         'SearchInFiles': grpc.unary_unary_rpc_method_handler(
             servicer.SearchInFiles,
             request_deserializer=milvus__pb2.SearchInFilesParam.FromString,
@@ -410,6 +466,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.Command.FromString,
             response_serializer=milvus__pb2.StringReply.SerializeToString,
         ),
+        'DeleteByID': grpc.unary_unary_rpc_method_handler(
+            servicer.DeleteByID,
+            request_deserializer=milvus__pb2.DeleteByIDParam.FromString,
+            response_serializer=status__pb2.Status.SerializeToString,
+        ),
         'DeleteByDate': grpc.unary_unary_rpc_method_handler(
             servicer.DeleteByDate,
             request_deserializer=milvus__pb2.DeleteByDateParam.FromString,
@@ -418,6 +479,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'PreloadTable': grpc.unary_unary_rpc_method_handler(
             servicer.PreloadTable,
             request_deserializer=milvus__pb2.TableName.FromString,
+            response_serializer=status__pb2.Status.SerializeToString,
+        ),
+        'Flush': grpc.unary_unary_rpc_method_handler(
+            servicer.Flush,
+            request_deserializer=milvus__pb2.FlushParam.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
     }

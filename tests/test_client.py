@@ -369,14 +369,6 @@ class TestSearch:
         with pytest.raises(ParamError):
             gcon.search(**param)
 
-        param = {'table_name': fake.table_name(),
-                 'query_records': records_factory(dim, nq),
-                 'top_k': random.randint(1, 10),
-                 'nprobe': 10,
-                 'query_ranges': ['false_date_format']}
-        with pytest.raises(ParamError):
-            gcon.search(**param)
-
     def test_search_in_files(self, gcon, gvector):
         param = {
             'table_name': gvector,

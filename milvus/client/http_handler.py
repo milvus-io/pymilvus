@@ -1,17 +1,15 @@
-import requests as rq
-import json
-import time
-import datetime
 import copy
-from urllib.parse import urlparse
+import json
 import logging
+from urllib.parse import urlparse
+import struct
+
+import requests as rq
 
 from .abstract import ConnectIntf, IndexParam, TableSchema, TopKQueryResult2, PartitionParam
-from .types import Status, IndexType, MetricType
-from .exceptions import ParamError
 from .check import is_legal_host, is_legal_port
-from .exceptions import NotConnectError
-from .prepare import *
+from .exceptions import NotConnectError, ParamError
+from .types import Status, IndexType, MetricType
 
 from ..settings import DefaultConfig as config
 
@@ -23,6 +21,7 @@ IndexValue2NameMap = {
     IndexType.FLAT: "FLAT",
     IndexType.IVFLAT: "IVFFLAT",
     IndexType.IVF_SQ8: "IVFSQ8",
+    IndexType.IVF_SQ8H: "IVFSQ8H",
     IndexType.IVF_PQ: "IVFPQ"
 }
 
@@ -31,17 +30,24 @@ IndexName2ValueMap = {
     "FLAT": IndexType.FLAT,
     "IVFFLAT": IndexType.IVFLAT,
     "IVFSQ8": IndexType.IVF_SQ8,
+    "IVFSQ8H": IndexType.IVF_SQ8H,
     "IVFPQ": IndexType.IVF_PQ
 }
 
 MetricValue2NameMap = {
     MetricType.L2: "L2",
-    MetricType.IP: "IP"
+    MetricType.IP: "IP",
+    MetricType.HAMMING: "HAMMING",
+    MetricType.JACCARD: "JACCARD",
+    MetricType.TANIMOTO: "TANIMOTO",
 }
 
 MetricName2ValueMap = {
     "L2": MetricType.L2,
-    "IP": MetricType.IP
+    "IP": MetricType.IP,
+    "HAMMING": MetricType.HAMMING,
+    "JACCARD": MetricType.JACCARD,
+    "TANIMOTO": MetricType.TANIMOTO,
 }
 
 
@@ -96,13 +102,15 @@ class HttpHandler(ConnectIntf):
 
     def ping(self, timeout=1):
         try:
+            if self._uri is None:
+                self._uri = self._set_uri(None, None)
             response = rq.get(self._uri + "/state", timeout=timeout)
         except:
             raise NotConnectError("Cannot get server status")
         try:
             js = response.json()
             return Status(js["code"], js["message"])
-        except ValueError as e:
+        except ValueError:
             pass
 
         return Status(Status.UNEXPECTED_ERROR, "Error occurred when parse response.")
@@ -111,6 +119,10 @@ class HttpHandler(ConnectIntf):
         pass
 
     def connect(self, host, port, uri, timeout):
+        if self.connected():
+            return Status(message="You have already connected {} !".format(self._uri),
+                          code=Status.CONNECT_FAILED)
+
         if (host or port or uri) or not self._uri:
             # if self._uri:
             #     return Status(message="The server address is set as {}, "
@@ -123,10 +135,11 @@ class HttpHandler(ConnectIntf):
         return self._status
 
     def connected(self):
-        return self.ping()
+        return False if not (self._status and self._status.OK()) else self.ping()
 
     def disconnect(self):
-        pass
+        self._status = None
+        return Status()
 
     def create_table(self, param, timeout):
 
@@ -137,7 +150,7 @@ class HttpHandler(ConnectIntf):
 
         try:
             response = rq.post(self._uri + "/tables", data=data)
-            if 201 == response.status_code:
+            if response.status_code == 201:
                 return Status(message='Create table successfully!')
 
             js = response.json()
@@ -148,14 +161,13 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     def has_table(self, table_name, timeout):
-        _ = Prepare.table_name(table_name)
-
         url = self._uri + "/tables/" + table_name
         try:
             response = rq.get(url=url, timeout=timeout)
-            if 200 == response.status_code:
+            if response.status_code == 200:
                 return Status(), True
-            if 404 == response.status_code:
+
+            if response.status_code == 404:
                 return Status(), False
 
             js = response.json()
@@ -166,15 +178,14 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     def count_table(self, table_name, timeout):
-        _ = Prepare.table_name(table_name)
-
         url = self._uri + "/tables/{}".format(table_name)
 
         try:
+            # import pdb;pdb.set_trace()
             response = rq.get(url, timeout=timeout)
             js = response.json()
 
-            if 200 == response.status_code:
+            if response.status_code == 200:
                 return Status(), js["count"]
 
             return Status(Status(js["code"], js["message"])), None
@@ -184,8 +195,6 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
     def describe_table(self, table_name, timeout):
-        _ = Prepare.table_name(table_name)
-
         url = self._uri + "/tables/{}".format(table_name)
 
         try:
@@ -195,7 +204,7 @@ class HttpHandler(ConnectIntf):
                 return Status(Status.UNEXPECTED_ERROR, response.reason), None
 
             js = response.json()
-            if 200 == response.status_code:
+            if response.status_code == 200:
                 metric_map = dict()
                 _ = [metric_map.update({i.name: i.value}) for i in MetricType if i.value > 0]
 
@@ -203,8 +212,7 @@ class HttpHandler(ConnectIntf):
                     table_name=js["table_name"],
                     dimension=js["dimension"],
                     index_file_size=js["index_file_size"],
-                    metric_type=metric_map[js["metric_type"]]  # received is str, need to convert to MetricType.
-                )
+                    metric_type=metric_map[js["metric_type"]])
 
                 return Status(message='Describe table successfully!'), table
 
@@ -219,14 +227,14 @@ class HttpHandler(ConnectIntf):
 
         try:
             response = rq.get(url, params={"offset": 0, "page_size": 0}, timeout=timeout)
-            if 200 != response.status_code:
+            if response.status_code != 200:
                 return Status(Status.UNEXPECTED_ERROR, response.reason), []
 
             js = response.json()
             count = js["count"]
 
             response = rq.get(url, params={"offset": 0, "page_size": count}, timeout=timeout)
-            if 200 != response.status_code:
+            if response.status_code != 200:
                 return Status(Status.UNEXPECTED_ERROR, response.reason), []
 
             tables = []
@@ -245,7 +253,7 @@ class HttpHandler(ConnectIntf):
         url = self._uri + "/tables/" + table_name
         try:
             response = rq.delete(url, timeout=timeout)
-            if 204 == response.status_code:
+            if response.status_code == 204:
                 return Status(message="Delete successfully!")
 
             js = response.json()
@@ -256,11 +264,7 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     def insert(self, table_name, records, ids, partition_tag, timeout, **kwargs):
-        _ = Prepare.insert_param(table_name, records, partition_tag, ids)
-
         url = self._uri + "/tables/{}/vectors".format(table_name)
-
-        t0 = time.time()
 
         data_dict = dict()
         if ids:
@@ -268,37 +272,22 @@ class HttpHandler(ConnectIntf):
         if partition_tag:
             data_dict["tag"] = partition_tag
 
-        data_dict["records"] = records
-
-        t1 = time.time()
+        if isinstance(records[0], bytes):
+            vectors = [struct.unpack(str(len(r)) + 'B', r) for r in records]
+            data_dict["records_bin"] = vectors
+        else:
+            vectors = records
+            data_dict["records"] = vectors
 
         data = json.dumps(data_dict)
-
-        t2 = time.time()
 
         headers = {"Content-Type": "application/json"}
 
         try:
-            time_stamp1 = datetime.datetime.now()
             response = rq.post(url, data=data, headers=headers)
-
-            time_stamp2 = datetime.datetime.now()
-
-            print("[{}] before request".format(time_stamp1))
-            print("[{}] after request".format(time_stamp2))
-
-            t3 = time.time()
-
             js = response.json()
 
-            t4 = time.time()
-
-            print("Add records to dict cost {:.4f} s".format(t1 - t0))
-            print("Json dumps cost {:.4f} s".format(t2 - t1))
-            print("Request cost {:.4f} s".format(t3 - t2))
-            print("Response json cost {:.4f} s".format(t4 - t3))
-
-            if 201 == response.status_code:
+            if response.status_code == 201:
                 ids = [int(item) for item in list(js["ids"])]
                 return Status(message='Add vectors successfully!'), ids
 
@@ -308,11 +297,7 @@ class HttpHandler(ConnectIntf):
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), []
 
-    def search(self, table_name, top_k, nprobe,
-               query_records, query_ranges=None, partition_tags=None, **kwargs):
-
-        _ = Prepare.search_param(table_name, top_k, nprobe, query_records, query_ranges, partition_tags)
-
+    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
         url = self._uri + "/tables/{}/vectors".format(table_name)
 
         body_dict = dict()
@@ -320,14 +305,21 @@ class HttpHandler(ConnectIntf):
             body_dict["tags"] = partition_tags
         body_dict["topk"] = top_k
         body_dict["nprobe"] = nprobe
-        body_dict["records"] = query_records
+
+        if isinstance(query_records[0], bytes):
+            vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
+            body_dict["records_bin"] = vectors
+        else:
+            vectors = query_records
+            body_dict["records"] = vectors
+
         data = json.dumps(body_dict)
         headers = {"Content-Type": "application/json"}
 
         try:
             response = rq.put(url, data, headers=headers)
 
-            if 200 == response.status_code:
+            if response.status_code == 200:
                 return Status(), TopKQueryResult2(response)
 
             js = response.json()
@@ -337,23 +329,28 @@ class HttpHandler(ConnectIntf):
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
-    def search_in_files(self, table_name, file_ids, query_records, top_k,
-                        nprobe=16, query_ranges=None, **kwargs):
-        _ = Prepare.search_vector_in_files_param(table_name, query_records, query_ranges, top_k, nprobe, file_ids)
+    def search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
         url = self._uri + "/tables/{}/vectors".format(table_name)
 
         body_dict = dict()
         body_dict["topk"] = top_k
         body_dict["nprobe"] = nprobe
-        body_dict["records"] = query_records
         body_dict["file_ids"] = file_ids
+
+        if isinstance(query_records[0], bytes):
+            vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
+            body_dict["records_bin"] = vectors
+        else:
+            vectors = query_records
+            body_dict["records"] = vectors
+
         data = json.dumps(body_dict)
         headers = {"Content-Type": "application/json"}
 
         try:
             response = rq.put(url, data, headers=headers)
 
-            if 200 == response.status_code:
+            if response.status_code == 200:
                 return Status(), TopKQueryResult2(response)
 
             js = response.json()
@@ -363,12 +360,12 @@ class HttpHandler(ConnectIntf):
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
+    def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array):
+        return Status(Status.UNEXPECTED_ERROR, "Not uncompleted"), None
+
     def create_index(self, table_name, index, timeout):
-        _ = Prepare.index_param(table_name, index)
-
+        url = self._uri + "/tables/{}/indexes".format(table_name)
         try:
-            url = self._uri + "/tables/{}/indexes".format(table_name)
-
             index["index_type"] = IndexValue2NameMap.get(index["index_type"])
             data = json.dumps(index)
 
@@ -390,46 +387,55 @@ class HttpHandler(ConnectIntf):
         return self._cmd("status", timeout)
 
     def preload_table(self, table_name, timeout):
-        return Status()
-        # super().preload_table(table_name, timeout)
-
-    def describe_index(self, table_name, timeout):
-        _ = Prepare.table_name(table_name)
-        url = self._uri + "/tables/{}/indexes".format(table_name)
+        url = self._uri + "/system/task"
+        params = {"action": "load", "target": table_name}
 
         try:
-            response = rq.get(url, timeout=timeout)
+            response = rq.get(url, params=params, timeout=timeout)
 
-            if 500 <= response.status_code:
-                return Status(Status.UNEXPECTED_ERROR,
-                              "Unexpected error.\n\tStatus code : {}, reason : {}".format(response.status_code,
-                                                                                          response.reason))
+            if response.status_code == 200:
+                return Status(message="Load successfuly")
+
             js = response.json()
-
-            if 200 == response.status_code:
-                index_type = IndexName2ValueMap.get(js["index_type"])
-                return Status(), IndexParam(table_name, index_type, js["nlist"])
-            else:
-                return Status(js["code"], js["message"]), None
-
+            return Status(code=js["code"], message=js["message"])
         except rq.exceptions.Timeout:
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
-    def drop_index(self, table_name, timeout):
-        _ = Prepare.table_name(table_name)
+    def describe_index(self, table_name, timeout):
+        url = self._uri + "/tables/{}/indexes".format(table_name)
 
         try:
-            url = self._uri + "/tables/{}/indexes".format(table_name)
+            response = rq.get(url, timeout=timeout)
 
+            if response.status_code >= 500:
+                return Status(Status.UNEXPECTED_ERROR,
+                              "Unexpected error.\n\tStatus code : {}, reason : {}"
+                              .format(response.status_code, response.reason))
+
+            js = response.json()
+
+            if response.status_code == 200:
+                index_type = IndexName2ValueMap.get(js["index_type"])
+                return Status(), IndexParam(table_name, index_type, js["nlist"])
+
+            return Status(js["code"], js["message"]), None
+        except rq.exceptions.Timeout:
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
+        except Exception as e:
+            return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
+
+    def drop_index(self, table_name, timeout):
+        url = self._uri + "/tables/{}/indexes".format(table_name)
+        try:
             response = rq.delete(url)
 
-            if 204 == response.status_code:
+            if response.status_code == 204:
                 return Status()
-            else:
-                js = response.json()
-                return Status(js["code"], js["message"])
+
+            js = response.json()
+            return Status(js["code"], js["message"])
         except rq.exceptions.Timeout:
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except Exception as e:
@@ -442,18 +448,16 @@ class HttpHandler(ConnectIntf):
             response = rq.get(url, timeout=timeout)
 
             js = response.json()
-            if 200 == response.status_code:
+            if response.status_code == 200:
                 return Status(), js["reply"]
 
-            Status(code=js["code"], message=js["message"]), None
+            return Status(code=js["code"], message=js["message"]), None
         except rq.exceptions.Timeout:
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
     def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
-        _ = Prepare.partition_param(table_name, partition_name, partition_tag)
-
         url = self._uri + "/tables/{}/partitions".format(table_name)
 
         try:
@@ -461,7 +465,7 @@ class HttpHandler(ConnectIntf):
             headers = {"Content-Type": "application/json"}
 
             response = rq.post(url, data=data, headers=headers)
-            if 201 == response.status_code:
+            if response.status_code == 201:
                 return Status()
 
             js = response.json()
@@ -472,21 +476,21 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     def show_partitions(self, table_name, timeout):
-        _ = Prepare.table_name(table_name)
-
         url = self._uri + "/tables/{}/partitions".format(table_name)
         query_data = {"offset": 0, "page_size": 100}
 
         try:
             response = rq.get(url, params=query_data, timeout=timeout)
-            if 500 <= response.status_code:
+            if response.status_code >= 500:
                 return Status(Status.UNEXPECTED_ERROR,
-                              "Unexpected error. Status code : 500, reason: {}".format(response.reason)), None
+                              "Unexpected error. Status code : 500, reason: {}"
+                              .format(response.reason)), None
 
             js = response.json()
-            if 200 == response.status_code:
-                partition_list = [PartitionParam(table_name, item["partition_name"], item["partition_tag"])
-                                  for item in js["partitions"]]
+            if response.status_code == 200:
+                partition_list = \
+                    [PartitionParam(table_name, item["partition_name"], item["partition_tag"])
+                     for item in js["partitions"]]
 
                 return Status(), partition_list
 
@@ -501,7 +505,7 @@ class HttpHandler(ConnectIntf):
 
         try:
             response = rq.delete(url, timeout=timeout)
-            if 204 == response.status_code:
+            if response.status_code == 204:
                 return Status()
 
             js = response.json()
@@ -510,3 +514,9 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
+
+    def delete_by_id(self, table_name, id_array, timeout=None):
+        return Status()
+
+    def flush(self, table_name_array):
+        return Status()
