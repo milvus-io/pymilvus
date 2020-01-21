@@ -429,9 +429,9 @@ class HttpHandler(ConnectIntf):
 
             return Status(js["code"], js["message"]), None
         except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
         except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e))
+            return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
     def drop_index(self, table_name, timeout):
         url = self._uri + "/tables/{}/indexes".format(table_name)
