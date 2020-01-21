@@ -104,7 +104,7 @@ class Milvus:
 
         if 'index_file_size' not in param:
             table_param['index_file_size'] = 1024
-        if 'metric_type'not in param:
+        if 'metric_type' not in param:
             table_param['metric_type'] = MetricType.L2
 
         check_pass_param(**table_param)
@@ -125,6 +125,10 @@ class Milvus:
     def count_table(self, table_name, timeout=10):
         check_pass_param(table_name=table_name)
         return self._handler.count_table(table_name, timeout)
+
+    @check_connect
+    def show_tables(self, timeout=10):
+        return self._handler.show_tables(timeout)
 
     @check_connect
     def show_tables(self, timeout=10):

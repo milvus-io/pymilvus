@@ -81,6 +81,8 @@ def is_legal_records(value):
             if _dim != len(record):
                 raise ParamError('Whole vectors must have the same dimension')
 
+    return True
+
 
 def int_or_str(item):
     if isinstance(item, int):
@@ -112,8 +114,8 @@ def is_legal_metric_type(metric_type):
             return MetricType(metric_type) != MetricType.INVALID
         except ValueError:
             return False
-    else:
-        return False
+
+    return False
 
 
 def is_legal_index_type(index_type):
@@ -157,10 +159,10 @@ def is_legal_ids(ids):
 
     return True
 
-    # return ids is None or \
-    #        (isinstance(ids, list) and
-    #         len(ids) > 0 and
-    #         isinstance(ids[0], int))
+# return ids is None or \
+#        (isinstance(ids, list) and
+#         len(ids) > 0 and
+#         isinstance(ids[0], int))
 
 
 def is_legal_nprobe(nprobe):
@@ -286,7 +288,8 @@ def check_pass_param(*args, **kwargs):
                                          'must contain only elements with the float data type.')
                     if _dim != len(record):
                         raise ParamError('Whole vectors must have the same dimension')
-            # if not is_legal_records(value):
-            #     _raise_param_error(key)
+
+        # if not is_legal_records(value):
+        #     _raise_param_error(key)
         else:
             raise ParamError("unknown param `{}`".format(key))

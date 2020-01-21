@@ -83,6 +83,7 @@ class GrpcHandler(ConnectIntf):
     def _set_uri(self, host, port, **kwargs):
         """
         Set server network address
+
         :raises: ParamError
 
         """
@@ -704,7 +705,6 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-
         request = Prepare.partition_param(table_name, partition_name, partition_tag)
 
         try:
@@ -732,7 +732,6 @@ class GrpcHandler(ConnectIntf):
             partition_list:
 
         """
-
         request = Prepare.table_name(table_name)
 
         try:
@@ -775,7 +774,6 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-
         request = Prepare.partition_param(
             table_name=table_name,
             partition_name=None,

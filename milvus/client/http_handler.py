@@ -104,7 +104,6 @@ class HttpHandler(ConnectIntf):
         try:
             if self._uri is None:
                 self._uri = self._set_uri(None, None)
-
             response = rq.get(self._uri + "/state", timeout=timeout)
         except:
             raise NotConnectError("Cannot get server status")
@@ -162,7 +161,6 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     def has_table(self, table_name, timeout):
-
         url = self._uri + "/tables/" + table_name
         try:
             response = rq.get(url=url, timeout=timeout)
@@ -214,8 +212,7 @@ class HttpHandler(ConnectIntf):
                     table_name=js["table_name"],
                     dimension=js["dimension"],
                     index_file_size=js["index_file_size"],
-                    metric_type=metric_map[js["metric_type"]]
-                )
+                    metric_type=metric_map[js["metric_type"]])
 
                 return Status(message='Describe table successfully!'), table
 
@@ -300,8 +297,8 @@ class HttpHandler(ConnectIntf):
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), []
 
-    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
-
+    def search(self, table_name, top_k, nprobe,
+               query_records, query_ranges=None, partition_tags=None, **kwargs):
         url = self._uri + "/tables/{}/vectors".format(table_name)
 
         body_dict = dict()
@@ -365,14 +362,11 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
     def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array):
-
         return Status(Status.UNEXPECTED_ERROR, "Not uncompleted"), None
 
     def create_index(self, table_name, index, timeout):
-
+        url = self._uri + "/tables/{}/indexes".format(table_name)
         try:
-            url = self._uri + "/tables/{}/indexes".format(table_name)
-
             index["index_type"] = IndexValue2NameMap.get(index["index_type"])
             data = json.dumps(index)
 
@@ -395,7 +389,7 @@ class HttpHandler(ConnectIntf):
 
     def preload_table(self, table_name, timeout):
         url = self._uri + "/system/task"
-        params = {"action": "load", "target":table_name}
+        params = {"action": "load", "target": table_name}
 
         try:
             response = rq.get(url, params=params, timeout=timeout)
@@ -465,7 +459,6 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
     def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
-
         url = self._uri + "/tables/{}/partitions".format(table_name)
 
         try:
@@ -484,7 +477,6 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     def show_partitions(self, table_name, timeout):
-
         url = self._uri + "/tables/{}/partitions".format(table_name)
         query_data = {"offset": 0, "page_size": 100}
 
@@ -510,7 +502,6 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), []
 
     def drop_partition(self, table_name, partition_tag, timeout=10):
-
         url = self._uri + "/tables/{}/partitions/{}".format(table_name, partition_tag)
 
         try:
