@@ -1,9 +1,11 @@
 # pymilvus 0.2.8(doing)
 
 ## Bug
-- \#140 convert distance in http result to float value
-- \#141 add index IVF_SQ8H into http handler
+- \#140 - convert distance in http result to float value
+- \#141 - add index IVF_SQ8H into http handler
 
+## Improvement
+- \#143 - remove query range when searching
 
 # pymilvus 0.2.7(2020-01-16)
 

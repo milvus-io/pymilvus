@@ -297,8 +297,7 @@ class HttpHandler(ConnectIntf):
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), []
 
-    def search(self, table_name, top_k, nprobe,
-               query_records, query_ranges=None, partition_tags=None, **kwargs):
+    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
         url = self._uri + "/tables/{}/vectors".format(table_name)
 
         body_dict = dict()
