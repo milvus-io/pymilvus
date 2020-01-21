@@ -163,9 +163,9 @@ class Milvus:
             raise ParamError("param `index` should be a dictionary")
         else:
             _index = copy.deepcopy(index)
-            if index.get('index_type', None) is None:
+            if 'index_type' not in index:
                 _index.update({'index_type': IndexType.FLAT})
-            if index.get('nlist', None) is None:
+            if 'nlist' not in index:
                 _index.update({'nlist': 16384})
 
         check_pass_param(table_name=table_name, **_index)
