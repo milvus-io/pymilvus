@@ -843,10 +843,10 @@ class GrpcHandler(ConnectIntf):
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
             return status, []
 
-    def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array):
+    def search_by_id(self, table_name, top_k, nprobe, id_, partition_tag_array):
 
         request = Prepare.search_by_id_param(table_name, top_k, nprobe,
-                                             id_array, partition_tag_array)
+                                             id_, partition_tag_array)
 
         try:
             response = self._stub.SearchByID(request)

@@ -150,6 +150,7 @@ class TopKQueryResult:
         Returns:
 
         """
+        # import pdb; pdb.set_trace()
         self._nq = _raw.row_num
 
         # if self._nq == 0:

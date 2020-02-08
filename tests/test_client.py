@@ -3,8 +3,9 @@ import time
 import random
 import pytest
 import sys
-
 sys.path.append('.')
+
+from faker import Faker
 
 from milvus import IndexType, MetricType, Prepare, Milvus, Status, ParamError, NotConnectError
 from milvus.client.abstract import TableSchema, TopKQueryResult
@@ -20,7 +21,9 @@ from factorys import (
 )
 from milvus.grpc_gen import milvus_pb2
 
+logging.getLogger('faker').setLevel(logging.ERROR)
 LOGGER = logging.getLogger(__name__)
+faker = Faker(locale='en_US')
 
 dim = 128
 nb = 2000
@@ -611,6 +614,60 @@ class TestIndex:
         status = gcon.drop_index(gtable)
         assert status.OK()
 
+class TestSearchByID:
+    def test_search_by_id_normal(self, gcon, gtable):
+        vectors = records_factory(dim, nq)
+        status, ids = gcon.insert(gtable, vectors)
+
+        assert status.OK()
+
+        time.sleep(2)
+
+        status, result = gcon.search_by_id(gtable, 2, 10, ids[0])
+        assert status.OK()
+
+        print(result)
+
+        assert 1 == len(result)
+        assert 2 == len(result[0])
+        assert ids[0] == result[0][0].id
+
+    def test_search_by_id_with_partitions(self, gcon, gtable):
+        par = "search_by_id_partitions_"
+        tag = "search_by_id_partitions_tag"
+
+        status = gcon.create_partition(gtable, par, tag)
+        assert status.OK()
+
+        vectors = records_factory(dim, nq)
+        status, ids = gcon.insert(gtable, vectors, partition_tag=tag)
+        assert status.OK()
+
+        time.sleep(2)
+
+        status, result = gcon.search_by_id(gtable, 2, 10, ids[0], partition_tag_array=[tag])
+        assert status.OK()
+
+        assert 1 == len(result)
+        assert 2 == len(result[0])
+        assert ids[0] == result[0][0].id
+
+    def test_search_by_id_with_wrong_param(self, gcon, gtable):
+        with pytest.raises(ParamError):
+            gcon.search_by_id(gtable, 'x', 1, 1)
+
+        with pytest.raises(ParamError):
+            gcon.search_by_id(gtable, 1, '1', 1)
+
+        with pytest.raises(ParamError):
+            gcon.search_by_id(gtable, 1, 1, 'aaa')
+
+        status, _ = gcon.search_by_id(gtable, -1, 1, 1)
+        assert not status.OK()
+
+        status, _ = gcon.search_by_id(gtable, 1, -1, 1)
+        assert not status.OK()
+
 
 class TestSearchVectors:
     def test_search_normal_1_with_ranges(self, gcon, gtable):
@@ -832,15 +889,17 @@ class TestPartition:
         assert status.OK()
         assert results.shape == (1, 1)
 
-        # search in specific tags
+        # search in non-existing tags
         status, results = gcon.search(
             gtable, 1, 1,
             query_vectors,
             partition_tags=["3etergdgdgedgdgergete5465efdf"])
 
         assert status.OK()
+        print(results)
         assert results.shape == (0, 0)
 
+    @pytest.mark.skip
     def test_search_with_partition_insert_first(self, gcon, gtable):
         vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         status, ids = gcon.insert(gtable, vectors)
@@ -850,7 +909,10 @@ class TestPartition:
         # waiting for data prepared
         time.sleep(5)
 
-        status = gcon.create_partition(table_name=gtable, partition_name="p3", partition_tag="2")
+        partition_name = "partition_" + faker.word()
+        partition_tag = "partition_tag_" + faker.word()
+
+        status = gcon.create_partition(table_name=gtable, partition_name=partition_name, partition_tag=partition_tag)
         assert status.OK()
 
         status, partitions = gcon.show_partitions(gtable)
@@ -864,13 +926,16 @@ class TestPartition:
         assert results.shape == (1, 1)
 
         # search in specific tags
-        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=["2"])
+        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=[partition_tag])
         assert status.OK()
+        print(results)
         assert results.shape == (0, 0)
 
-        # search in specific tags
-        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=["567"])
+        # search in wrong tags
+        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=[faker.word() + "wrong"])
         assert status.OK()
+        # import pdb;pdb.set_trace()
+        print(results)
         assert results.shape == (0, 0)
 
 
@@ -906,3 +971,46 @@ class TestGrpcMilvus:
                     print("Search done ...")
 
             client.set_hook(search=FakeSerchHook())
+
+
+class TestDeleteByID:
+    def test_delete_by_id_normal(self, gcon, gtable):
+        vectors = records_factory(dim, nq)
+        status, ids = gcon.insert(gtable, vectors)
+        assert status.OK()
+
+        time.sleep(2)
+
+        status = gcon.delete_by_id(gtable, ids[0:10])
+        assert status.OK()
+
+    def test_delete_by_id_wrong_param(self, gcon, gtable):
+        with pytest.raises(ParamError):
+            gcon.delete_by_id(gtable, "aaa")
+
+
+
+class TestFlush:
+    def test_flush(self, gcon):
+        table_param = {
+            "table_name": '',
+            "dimension": dim
+        }
+
+        table_list = ["test_flush_1", "test_flush_2", "test_flush_3"]
+        vectors = records_factory(dim, nq)
+        for table in table_list:
+            table_param["table_name"] = table
+
+            gcon.create_table(table_param)
+
+            gcon.insert(table, vectors)
+
+        status = gcon.flush(table_list)
+        assert status.OK()
+
+
+        for table in table_list:
+            gcon.drop_table(table)
+
+

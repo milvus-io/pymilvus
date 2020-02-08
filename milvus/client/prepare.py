@@ -144,9 +144,9 @@ class Prepare:
         return search_param
 
     @classmethod
-    def search_by_id_param(cls, table_name, top_k, nprobe, id_array, partition_tag_array):
+    def search_by_id_param(cls, table_name, top_k, nprobe, id_, partition_tag_array):
         return grpc_types.SearchByIDParam(
-            table_name=table_name, id_array=id_array,
+            table_name=table_name, id=id_,
             topk=top_k, nprobe=nprobe,
             partition_tag_array=partition_tag_array
         )

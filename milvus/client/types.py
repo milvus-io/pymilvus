@@ -67,6 +67,7 @@ class IndexType(IntEnum):
     RNSG = 4
     IVF_SQ8H = 5
     IVF_PQ = 6
+    HNSW = 7
 
     # alternative name
     IVF_FLAT = IVFLAT

@@ -205,36 +205,39 @@ class Milvus:
                query_records, query_ranges=None, partition_tags=None, **kwargs):
         return self._search(table_name, top_k, nprobe, query_records, partition_tags, **kwargs)
 
-    # def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array=None):
-    #     partition_tag_array = partition_tag_array or list()
-    #     check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe,
-    #                      ids=id_array, partition_tag_array=partition_tag_array)
-    #
-    #     return self._handler.search_by_id(table_name, top_k, nprobe, id_array, partition_tag_array)
+    def search_by_id(self, table_name, top_k, nprobe, vector_id, partition_tag_array=None):
+        if not isinstance(vector_id, int):
+            raise ParamError("Vector id must be an integer")
+
+        partition_tag_array = partition_tag_array or list()
+        check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe,
+                         partition_tag_array=partition_tag_array)
+
+        return self._handler.search_by_id(table_name, top_k, nprobe, vector_id, partition_tag_array)
 
     @check_connect
     def search_in_files(self, table_name, file_ids, query_records, top_k,
                         nprobe=16, query_ranges=None, **kwargs):
         return self._search_in_files(table_name, file_ids, query_records, top_k, nprobe, **kwargs)
 
-    # @check_connect
-    # def delete_by_id(self, table_name, id_array, timeout=None):
-    #     check_pass_param(table_name=table_name, ids=id_array)
-    #
-    #     return self._handler.delete_by_id(table_name, id_array, timeout)
+    @check_connect
+    def delete_by_id(self, table_name, id_array, timeout=None):
+        check_pass_param(table_name=table_name, ids=id_array)
 
-    # @check_connect
-    # def flush(self, table_name_array):
-    #     if not isinstance(table_name_array, list):
-    #         raise ParamError("Table name array must be type of list")
-    #
-    #     if len(table_name_array) <= 0:
-    #         raise ParamError("Table name array is not allowed to be empty")
-    #
-    #     for name in table_name_array:
-    #         check_pass_param(table_name=name)
-    #
-    #     return self._handler.flush(table_name_array)
+        return self._handler.delete_by_id(table_name, id_array, timeout)
+
+    @check_connect
+    def flush(self, table_name_array):
+        if not isinstance(table_name_array, list):
+            raise ParamError("Table name array must be type of list")
+
+        if len(table_name_array) <= 0:
+            raise ParamError("Table name array is not allowed to be empty")
+
+        for name in table_name_array:
+            check_pass_param(table_name=name)
+
+        return self._handler.flush(table_name_array)
 
     def _search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
         check_pass_param(table_name=table_name, topk=top_k, records=query_records,
