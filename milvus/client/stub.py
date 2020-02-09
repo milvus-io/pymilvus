@@ -9,6 +9,17 @@ from .http_handler import HttpHandler
 from .exceptions import ParamError, NotConnectError
 
 
+def check_connect(f):
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        return f(self, *args, **kwargs)
+
+    return wrapper
+
+
 class Milvus:
     def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
         if handler == "GRPC":
@@ -25,16 +36,6 @@ class Milvus:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._handler.__exit__(exc_type, exc_val, exc_tb)
-
-    def check_connect(f):
-        @functools.wraps(f)
-        def wrapper(self, *args, **kwargs):
-            if not self.connected():
-                raise NotConnectError('Please connect to the server first')
-
-            return f(self, *args, **kwargs)
-
-        return wrapper
 
     def set_hook(self, **kwargs):
         return self._handler.set_hook(**kwargs)
