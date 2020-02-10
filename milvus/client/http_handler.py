@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+import ujson
 from urllib.parse import urlparse
 import struct
 
@@ -23,7 +24,7 @@ IndexValue2NameMap = {
     IndexType.IVF_SQ8: "IVFSQ8",
     IndexType.IVF_SQ8H: "IVFSQ8H",
     IndexType.IVF_PQ: "IVFPQ",
-    IndexType.HNSW: "HNSW"
+    # IndexType.HNSW: "HNSW"
 }
 
 IndexName2ValueMap = {
@@ -33,7 +34,7 @@ IndexName2ValueMap = {
     "IVFSQ8": IndexType.IVF_SQ8,
     "IVFSQ8H": IndexType.IVF_SQ8H,
     "IVFPQ": IndexType.IVF_PQ,
-    "HNSW": IndexType.HNSW
+    # "HNSW": IndexType.HNSW
 }
 
 MetricValue2NameMap = {
@@ -148,7 +149,8 @@ class HttpHandler(ConnectIntf):
         table_param = copy.deepcopy(param)
 
         table_param['metric_type'] = MetricValue2NameMap.get(param['metric_type'], None)
-        data = json.dumps(table_param)
+        # data = json.dumps(table_param)
+        data = ujson.dumps(table_param)
 
         try:
             response = rq.post(self._uri + "/tables", data=data)
@@ -281,7 +283,8 @@ class HttpHandler(ConnectIntf):
             vectors = records
             data_dict["records"] = vectors
 
-        data = json.dumps(data_dict)
+        # data = json.dumps(data_dict)
+        data = ujson.dumps(data_dict)
 
         headers = {"Content-Type": "application/json"}
 
@@ -315,7 +318,8 @@ class HttpHandler(ConnectIntf):
             vectors = query_records
             body_dict["records"] = vectors
 
-        data = json.dumps(body_dict)
+        # data = json.dumps(body_dict)
+        data = ujson.dumps(body_dict)
         headers = {"Content-Type": "application/json"}
 
         try:
@@ -346,7 +350,8 @@ class HttpHandler(ConnectIntf):
             vectors = query_records
             body_dict["records"] = vectors
 
-        data = json.dumps(body_dict)
+        # data = json.dumps(body_dict)
+        data = ujson.dumps(body_dict)
         headers = {"Content-Type": "application/json"}
 
         try:
@@ -369,7 +374,7 @@ class HttpHandler(ConnectIntf):
         url = self._uri + "/tables/{}/indexes".format(table_name)
         try:
             index["index_type"] = IndexValue2NameMap.get(index["index_type"])
-            data = json.dumps(index)
+            data = ujson.dumps(index)
 
             headers = {"Content-Type": "application/json"}
             response = rq.post(url, data=data, headers=headers)
@@ -463,7 +468,7 @@ class HttpHandler(ConnectIntf):
         url = self._uri + "/tables/{}/partitions".format(table_name)
 
         try:
-            data = json.dumps({"partition_name": partition_name, "partition_tag": partition_tag})
+            data = ujson.dumps({"partition_name": partition_name, "partition_tag": partition_tag})
             headers = {"Content-Type": "application/json"}
 
             response = rq.post(url, data=data, headers=headers)
@@ -518,7 +523,7 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     def delete_by_id(self, table_name, id_array, timeout=None):
-        return Status()
+        return Status(Status.UNEXPECTED_ERROR, "Not uncompleted")
 
     def flush(self, table_name_array):
-        return Status()
+        return Status(Status.UNEXPECTED_ERROR, "Not uncompleted")
