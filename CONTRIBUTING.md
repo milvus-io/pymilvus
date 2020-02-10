@@ -37,4 +37,9 @@ $ pytest --cov=milvus/client --cov-report=html
 You may need a milvus server which is running when you run unit test. See more details on [Milvus server](https://github.com/milvus-io/milvus).
 
 
+## Update CONTRIBUTING.md
+
+Add issue tips into CONTRIBUTING.md, make sure all issue tips are sort by issue number in ascending order.
+
+
 
