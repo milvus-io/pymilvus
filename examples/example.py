@@ -5,7 +5,6 @@
 import sys
 
 sys.path.append(".")
-# import numpy as np
 import random
 from milvus import Milvus, IndexType, MetricType
 import time
@@ -21,7 +20,7 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
 def main():
-    milvus = Milvus(handler="HTTP")
+    milvus = Milvus()
 
     # Connect to Milvus server
     # You may need to change _HOST and _PORT accordingly
@@ -34,7 +33,7 @@ def main():
         sys.exit(1)
 
     # Create table demo_table if it dosen't exist.
-    table_name = 'demo_tables'
+    table_name = 'example_table'
 
     status, ok = milvus.has_table(table_name)
     if not ok:
@@ -64,21 +63,22 @@ def main():
     # Insert vectors into demo_table, return status and vectors id list
     status, ids = milvus.insert(table_name=table_name, records=vectors)
 
-    # Wait for 6 seconds, until Milvus server persist vector data.
-    time.sleep(6)
+    # Wait for 4 seconds, until Milvus server persist vector data.
+    time.sleep(4)
 
     # Get demo_table row count
     status, result = milvus.count_table(table_name)
 
     # create index of vectors, search more rapidly
     index_param = {
-        'index_type': IndexType.IVFLAT,  # choice ivflat index
+        'index_type': IndexType.IVF_FLAT,  # choice ivflat index
         'nlist': 2048
     }
 
     # Create ivflat index in demo_table
     # You can search vectors without creating index. however, Creating index help to
     # search faster
+    print("Creating index: {}".format(index_param))
     status = milvus.create_index(table_name, index_param)
 
     # describe index, get information of index
@@ -95,6 +95,7 @@ def main():
         'top_k': 1,
         'nprobe': 16
     }
+    print("Searching ... ")
     status, results = milvus.search(**param)
 
     if status.OK():
