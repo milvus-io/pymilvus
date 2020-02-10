@@ -24,7 +24,7 @@ IndexValue2NameMap = {
     IndexType.IVF_SQ8: "IVFSQ8",
     IndexType.IVF_SQ8H: "IVFSQ8H",
     IndexType.IVF_PQ: "IVFPQ",
-    # IndexType.HNSW: "HNSW"
+    IndexType.HNSW: "HNSW"
 }
 
 IndexName2ValueMap = {
@@ -34,7 +34,7 @@ IndexName2ValueMap = {
     "IVFSQ8": IndexType.IVF_SQ8,
     "IVFSQ8H": IndexType.IVF_SQ8H,
     "IVFPQ": IndexType.IVF_PQ,
-    # "HNSW": IndexType.HNSW
+    "HNSW": IndexType.HNSW
 }
 
 MetricValue2NameMap = {
@@ -149,7 +149,6 @@ class HttpHandler(ConnectIntf):
         table_param = copy.deepcopy(param)
 
         table_param['metric_type'] = MetricValue2NameMap.get(param['metric_type'], None)
-        # data = json.dumps(table_param)
         data = ujson.dumps(table_param)
 
         try:
@@ -185,7 +184,6 @@ class HttpHandler(ConnectIntf):
         url = self._uri + "/tables/{}".format(table_name)
 
         try:
-            # import pdb;pdb.set_trace()
             response = rq.get(url, timeout=timeout)
             js = response.json()
 
@@ -283,7 +281,6 @@ class HttpHandler(ConnectIntf):
             vectors = records
             data_dict["records"] = vectors
 
-        # data = json.dumps(data_dict)
         data = ujson.dumps(data_dict)
 
         headers = {"Content-Type": "application/json"}
@@ -318,7 +315,6 @@ class HttpHandler(ConnectIntf):
             vectors = query_records
             body_dict["records"] = vectors
 
-        # data = json.dumps(body_dict)
         data = ujson.dumps(body_dict)
         headers = {"Content-Type": "application/json"}
 
@@ -350,7 +346,6 @@ class HttpHandler(ConnectIntf):
             vectors = query_records
             body_dict["records"] = vectors
 
-        # data = json.dumps(body_dict)
         data = ujson.dumps(body_dict)
         headers = {"Content-Type": "application/json"}
 
