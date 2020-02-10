@@ -3,8 +3,8 @@
 # insert 10 vectors, 
 # and execute a vector similarity search.
 import sys
-
 sys.path.append(".")
+import numpy as np
 import random
 from milvus import Milvus, IndexType, MetricType
 import time
@@ -58,7 +58,7 @@ def main():
     # vectors should be a 2-D array
     vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
     # You can also use numpy to generate random vectors:
-    #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
+    #     `vectors = np.random.rand(10000, 16).astype(np.float32)`
 
     # Insert vectors into demo_table, return status and vectors id list
     status, ids = milvus.insert(table_name=table_name, records=vectors)

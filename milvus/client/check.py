@@ -1,5 +1,6 @@
 import sys
 import datetime
+import numpy as np
 from urllib.parse import urlparse
 
 from .exceptions import ParamError
@@ -37,10 +38,10 @@ def is_legal_uri(uri):
         return False
 
 
-def is_legal_array(array):
+def is_legal_vector(array):
     if not array or \
             not isinstance(array, list) or \
-            len(array) <= 0:
+            len(array) == 0:
         return False
 
     for v in array:
@@ -50,36 +51,44 @@ def is_legal_array(array):
     return True
 
 
-def is_legal_bin_array(array):
+def is_legal_bin_vector(array):
     if not array or \
             not isinstance(array, bytes) or \
-            len(array) <= 0:
+            len(array) == 0:
         return False
 
     return True
 
 
+def is_legal_numpy_array(array):
+    return False if array is None or array.size == 0 else True
+
+
 def is_legal_records(value):
-    if not isinstance(value, list) or len(value) <= 0:
-        raise ParamError('A vector must be a non-empty, 2-dimensional array and '
-                         'must contain only elements with the float data type.')
+    param_error = ParamError('A vector must be a non-empty, 2-dimensional array and '
+                             'must contain only elements with the float data type.')
+
+    if isinstance(value, np.ndarray):
+        if not is_legal_numpy_array(value):
+            raise param_error
+
+        return True
+
+    if not isinstance(value, list) or len(value) == 0:
+        raise param_error
+
+    if isinstance(value[0], bytes):
+        check_func = is_legal_bin_vector
+    else:
+        check_func = is_legal_vector
 
     _dim = len(value[0])
 
-    if isinstance(value[0], bytes):
-        for record in value:
-            if not is_legal_bin_array(record):
-                raise ParamError('A vector must be a non-empty, 2-dimensional array and '
-                                 'must contain only elements with the bytes type.')
-            if _dim != len(record):
-                raise ParamError('Whole vectors must have the same dimension')
-    else:
-        for record in value:
-            if not is_legal_array(record):
-                raise ParamError('A vector must be a non-empty, 2-dimensional array and '
-                                 'must contain only elements with the float data type.')
-            if _dim != len(record):
-                raise ParamError('Whole vectors must have the same dimension')
+    for record in value:
+        if not check_func(record):
+            raise param_error
+        if _dim != len(record):
+            raise ParamError('Whole vectors must have the same dimension')
 
     return True
 
@@ -158,6 +167,7 @@ def is_legal_ids(ids):
             return False
 
     return True
+
 
 # return ids is None or \
 #        (isinstance(ids, list) and
@@ -268,28 +278,7 @@ def check_pass_param(*args, **kwargs):
             if not is_legal_partition_tag_array(value):
                 _raise_param_error(key)
         elif key in ("records",):
-            if not isinstance(value, list) or len(value) <= 0:
-                raise ParamError('A vector must be a non-empty, 2-dimensional array and '
-                                 'must contain only elements with the float data type.')
-
-            _dim = len(value[0])
-
-            if isinstance(value[0], bytes):
-                for record in value:
-                    if not is_legal_bin_array(record):
-                        raise ParamError('A vector must be a non-empty, 2-dimensional array and '
-                                         'must contain only elements with the bytes type.')
-                    if _dim != len(record):
-                        raise ParamError('Whole vectors must have the same dimension')
-            else:
-                for record in value:
-                    if not is_legal_array(record):
-                        raise ParamError('A vector must be a non-empty, 2-dimensional array and '
-                                         'must contain only elements with the float data type.')
-                    if _dim != len(record):
-                        raise ParamError('Whole vectors must have the same dimension')
-
-        # if not is_legal_records(value):
-        #     _raise_param_error(key)
+            if not is_legal_records(value):
+                _raise_param_error(key)
         else:
             raise ParamError("unknown param `{}`".format(key))

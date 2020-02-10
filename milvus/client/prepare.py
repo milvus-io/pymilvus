@@ -1,7 +1,5 @@
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
-from .exceptions import ParamError
-from .check import is_legal_array
 from .abstract import Range
 
 
@@ -89,11 +87,8 @@ class Prepare:
         for vector in vectors:
             if isinstance(vector, bytes):
                 _param.row_record_array.add(binary_data=vector)
-            elif is_legal_array(vector):
-                _param.row_record_array.add(float_data=vector)
             else:
-                raise ParamError('A vector must be a non-empty, 2-dimensional array and '
-                                 'must contain only elements with the float data type.')
+                _param.row_record_array.add(float_data=vector)
 
         return _param
 
@@ -136,10 +131,8 @@ class Prepare:
         for vector in query_records:
             if isinstance(vector, bytes):
                 search_param.query_record_array.add(binary_data=vector)
-            elif is_legal_array(vector):
-                search_param.query_record_array.add(float_data=vector)
             else:
-                raise ParamError('Vectors should be 2-dim array!')
+                search_param.query_record_array.add(float_data=vector)
 
         return search_param
 

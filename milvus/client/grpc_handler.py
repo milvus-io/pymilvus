@@ -555,20 +555,19 @@ class GrpcHandler(ConnectIntf):
             ids: list of id, after inserted every vector is given a id
         :rtype: (Status, list(int))
         """
+        insert_param = kwargs.get('insert_param', None)
 
-        # insert_param = kwargs.get('insert_param', None)
+        if insert_param and not isinstance(insert_param, milvus_pb2_grpc.InsertParam):
+            raise ParamError("The value of key 'insert_param' is invalid")
 
-        # if not insert_param:
-        insert_param = Prepare.insert_param(table_name, records, partition_tag, ids)
-        # else:
-        #     if not isinstance(insert_param, grpc_types.InsertParam):
-        #         raise ParamError("The value of key 'insert_param' is invalid")
+        body = insert_param if insert_param \
+            else Prepare.insert_param(table_name, records, partition_tag, ids)
 
         try:
             if timeout == -1:
-                response = self._stub.Insert(insert_param)
+                response = self._stub.Insert(body)
             else:
-                response = self._stub.Insert.future(insert_param).result(timeout=timeout)
+                response = self._stub.Insert.future(body).result(timeout=timeout)
 
             if response.status.error_code == 0:
                 return Status(message='Add vectors successfully!'), list(response.vector_id_array)

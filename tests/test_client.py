@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import time
 import random
 import pytest
@@ -229,6 +230,18 @@ class TestVector:
         param = {
             'table_name': gtable,
             'records': records_factory(dim, nq)
+        }
+
+        res, ids = gcon.insert(**param)
+        assert res.OK()
+        assert isinstance(ids, list)
+        assert len(ids) == nq
+
+    def test_insert_with_numpy(self, gcon, gtable):
+        vectors = np.random.rand(nq, dim).astype(np.float32)
+        param = {
+            'table_name': gtable,
+            'records': vectors
         }
 
         res, ids = gcon.insert(**param)
