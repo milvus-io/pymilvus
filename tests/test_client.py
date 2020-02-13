@@ -1066,3 +1066,38 @@ class TestFlush:
 
         for table in table_list:
             gcon.drop_table(table)
+
+
+class TestCompact:
+    def test_compact_normal(self, gcon, gtable):
+        vectors = [[random.random() for _ in range(128)] for _ in range(10000)]
+        status, ids = gcon.add_vectors(table_name=gtable, records=vectors)
+        assert status.OK()
+
+        status = gcon.compact(gtable)
+        assert status.OK(), status.message
+
+    def test_compact_after_delete(self, gcon, gtable):
+        vectors = [[random.random() for _ in range(128)] for _ in range(10000)]
+        status, ids = gcon.add_vectors(table_name=gtable, records=vectors)
+        assert status.OK(), status.message
+
+        time.sleep(2)
+
+        status = gcon.delete_by_id(gtable, ids[100:1000])
+        assert status, status.message
+
+        status = gcon.compact(gtable)
+        assert status.OK(), status.message
+
+    def test_compact_with_empty_table(self, gcon, gtable):
+        status = gcon.compact(gtable)
+        assert status.OK(), status.message
+
+    def test_compact_with_non_exist_name(self, gcon):
+        status = gcon.compact(table_name="die333")
+        assert not status.OK()
+
+    def test_compact_with_invalid_name(self, gcon):
+        with pytest.raises(ParamError):
+            gcon.compact(table_name=124)

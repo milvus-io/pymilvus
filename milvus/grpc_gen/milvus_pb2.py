@@ -3,986 +3,962 @@
 # source: milvus.proto
 
 import sys
-_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
+
+_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode('latin1'))
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
+
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
-
 from . import status_pb2 as status__pb2
 
-
 DESCRIPTOR = _descriptor.FileDescriptor(
-  name='milvus.proto',
-  package='milvus.grpc',
-  syntax='proto3',
-  serialized_options=None,
-  serialized_pb=_b('\n\x0cmilvus.proto\x12\x0bmilvus.grpc\x1a\x0cstatus.proto\"\x1f\n\tTableName\x12\x12\n\ntable_name\x18\x01 \x01(\t\"\'\n\rPartitionName\x12\x16\n\x0epartition_name\x18\x01 \x01(\t\"I\n\rTableNameList\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x13\n\x0btable_names\x18\x02 \x03(\t\"\x87\x01\n\x0bTableSchema\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\x12\x11\n\tdimension\x18\x03 \x01(\x03\x12\x17\n\x0findex_file_size\x18\x04 \x01(\x03\x12\x13\n\x0bmetric_type\x18\x05 \x01(\x05\"I\n\x0ePartitionParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x16\n\x0epartition_name\x18\x02 \x01(\t\x12\x0b\n\x03tag\x18\x03 \x01(\t\"j\n\rPartitionList\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x34\n\x0fpartition_array\x18\x02 \x03(\x0b\x32\x1b.milvus.grpc.PartitionParam\"/\n\x05Range\x12\x13\n\x0bstart_value\x18\x01 \x01(\t\x12\x11\n\tend_value\x18\x02 \x01(\t\"4\n\tRowRecord\x12\x12\n\nfloat_data\x18\x01 \x03(\x02\x12\x13\n\x0b\x62inary_data\x18\x02 \x01(\x0c\"\x80\x01\n\x0bInsertParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x30\n\x10row_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12\x14\n\x0crow_id_array\x18\x03 \x03(\x03\x12\x15\n\rpartition_tag\x18\x04 \x01(\t\"I\n\tVectorIds\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0fvector_id_array\x18\x02 \x03(\x03\"\xbf\x01\n\x0bSearchParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x32\n\x12query_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12-\n\x11query_range_array\x18\x03 \x03(\x0b\x32\x12.milvus.grpc.Range\x12\x0c\n\x04topk\x18\x04 \x01(\x03\x12\x0e\n\x06nprobe\x18\x05 \x01(\x03\x12\x1b\n\x13partition_tag_array\x18\x06 \x03(\t\"[\n\x12SearchInFilesParam\x12\x15\n\rfile_id_array\x18\x01 \x03(\t\x12.\n\x0csearch_param\x18\x02 \x01(\x0b\x32\x18.milvus.grpc.SearchParam\"l\n\x0fSearchByIDParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\n\n\x02id\x18\x02 \x01(\x03\x12\x0c\n\x04topk\x18\x03 \x01(\x03\x12\x0e\n\x06nprobe\x18\x04 \x01(\x03\x12\x1b\n\x13partition_tag_array\x18\x05 \x03(\t\"g\n\x0fTopKQueryResult\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x0f\n\x07row_num\x18\x02 \x01(\x03\x12\x0b\n\x03ids\x18\x03 \x03(\x03\x12\x11\n\tdistances\x18\x04 \x03(\x02\"H\n\x0bStringReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x14\n\x0cstring_reply\x18\x02 \x01(\t\"D\n\tBoolReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\nbool_reply\x18\x02 \x01(\x08\"M\n\rTableRowCount\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0ftable_row_count\x18\x02 \x01(\x03\"\x16\n\x07\x43ommand\x12\x0b\n\x03\x63md\x18\x01 \x01(\t\"*\n\x05Index\x12\x12\n\nindex_type\x18\x01 \x01(\x05\x12\r\n\x05nlist\x18\x02 \x01(\x05\"h\n\nIndexParam\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\x12!\n\x05index\x18\x03 \x01(\x0b\x32\x12.milvus.grpc.Index\"&\n\nFlushParam\x12\x18\n\x10table_name_array\x18\x01 \x03(\t\"7\n\x0f\x44\x65leteByIDParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x10\n\x08id_array\x18\x02 \x03(\x03\"J\n\x11\x44\x65leteByDateParam\x12!\n\x05range\x18\x01 \x01(\x0b\x32\x12.milvus.grpc.Range\x12\x12\n\ntable_name\x18\x02 \x01(\t2\x82\x0b\n\rMilvusService\x12>\n\x0b\x43reateTable\x12\x18.milvus.grpc.TableSchema\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x08HasTable\x12\x16.milvus.grpc.TableName\x1a\x16.milvus.grpc.BoolReply\"\x00\x12\x43\n\rDescribeTable\x12\x16.milvus.grpc.TableName\x1a\x18.milvus.grpc.TableSchema\"\x00\x12\x42\n\nCountTable\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.TableRowCount\"\x00\x12@\n\nShowTables\x12\x14.milvus.grpc.Command\x1a\x1a.milvus.grpc.TableNameList\"\x00\x12:\n\tDropTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0b\x43reateIndex\x12\x17.milvus.grpc.IndexParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x42\n\rDescribeIndex\x12\x16.milvus.grpc.TableName\x1a\x17.milvus.grpc.IndexParam\"\x00\x12:\n\tDropIndex\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x45\n\x0f\x43reatePartition\x12\x1b.milvus.grpc.PartitionParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x46\n\x0eShowPartitions\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.PartitionList\"\x00\x12\x43\n\rDropPartition\x12\x1b.milvus.grpc.PartitionParam\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x06Insert\x12\x18.milvus.grpc.InsertParam\x1a\x16.milvus.grpc.VectorIds\"\x00\x12\x42\n\x06Search\x12\x18.milvus.grpc.SearchParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12J\n\nSearchByID\x12\x1c.milvus.grpc.SearchByIDParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12P\n\rSearchInFiles\x12\x1f.milvus.grpc.SearchInFilesParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12\x37\n\x03\x43md\x12\x14.milvus.grpc.Command\x1a\x18.milvus.grpc.StringReply\"\x00\x12\x41\n\nDeleteByID\x12\x1c.milvus.grpc.DeleteByIDParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x45\n\x0c\x44\x65leteByDate\x12\x1e.milvus.grpc.DeleteByDateParam\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0cPreloadTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x37\n\x05\x46lush\x12\x17.milvus.grpc.FlushParam\x1a\x13.milvus.grpc.Status\"\x00\x62\x06proto3')
-  ,
-  dependencies=[status__pb2.DESCRIPTOR,])
-
-
-
+    name='milvus.proto',
+    package='milvus.grpc',
+    syntax='proto3',
+    serialized_options=None,
+    serialized_pb=_b(
+        '\n\x0cmilvus.proto\x12\x0bmilvus.grpc\x1a\x0cstatus.proto\"\x1f\n\tTableName\x12\x12\n\ntable_name\x18\x01 \x01(\t\"\'\n\rPartitionName\x12\x16\n\x0epartition_name\x18\x01 \x01(\t\"I\n\rTableNameList\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x13\n\x0btable_names\x18\x02 \x03(\t\"\x87\x01\n\x0bTableSchema\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\x12\x11\n\tdimension\x18\x03 \x01(\x03\x12\x17\n\x0findex_file_size\x18\x04 \x01(\x03\x12\x13\n\x0bmetric_type\x18\x05 \x01(\x05\"I\n\x0ePartitionParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x16\n\x0epartition_name\x18\x02 \x01(\t\x12\x0b\n\x03tag\x18\x03 \x01(\t\"j\n\rPartitionList\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x34\n\x0fpartition_array\x18\x02 \x03(\x0b\x32\x1b.milvus.grpc.PartitionParam\"/\n\x05Range\x12\x13\n\x0bstart_value\x18\x01 \x01(\t\x12\x11\n\tend_value\x18\x02 \x01(\t\"4\n\tRowRecord\x12\x12\n\nfloat_data\x18\x01 \x03(\x02\x12\x13\n\x0b\x62inary_data\x18\x02 \x01(\x0c\"\x80\x01\n\x0bInsertParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x30\n\x10row_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12\x14\n\x0crow_id_array\x18\x03 \x03(\x03\x12\x15\n\rpartition_tag\x18\x04 \x01(\t\"I\n\tVectorIds\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0fvector_id_array\x18\x02 \x03(\x03\"\xbf\x01\n\x0bSearchParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x32\n\x12query_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12-\n\x11query_range_array\x18\x03 \x03(\x0b\x32\x12.milvus.grpc.Range\x12\x0c\n\x04topk\x18\x04 \x01(\x03\x12\x0e\n\x06nprobe\x18\x05 \x01(\x03\x12\x1b\n\x13partition_tag_array\x18\x06 \x03(\t\"[\n\x12SearchInFilesParam\x12\x15\n\rfile_id_array\x18\x01 \x03(\t\x12.\n\x0csearch_param\x18\x02 \x01(\x0b\x32\x18.milvus.grpc.SearchParam\"l\n\x0fSearchByIDParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\n\n\x02id\x18\x02 \x01(\x03\x12\x0c\n\x04topk\x18\x03 \x01(\x03\x12\x0e\n\x06nprobe\x18\x04 \x01(\x03\x12\x1b\n\x13partition_tag_array\x18\x05 \x03(\t\"g\n\x0fTopKQueryResult\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x0f\n\x07row_num\x18\x02 \x01(\x03\x12\x0b\n\x03ids\x18\x03 \x03(\x03\x12\x11\n\tdistances\x18\x04 \x03(\x02\"H\n\x0bStringReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x14\n\x0cstring_reply\x18\x02 \x01(\t\"D\n\tBoolReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\nbool_reply\x18\x02 \x01(\x08\"M\n\rTableRowCount\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0ftable_row_count\x18\x02 \x01(\x03\"\x16\n\x07\x43ommand\x12\x0b\n\x03\x63md\x18\x01 \x01(\t\"*\n\x05Index\x12\x12\n\nindex_type\x18\x01 \x01(\x05\x12\r\n\x05nlist\x18\x02 \x01(\x05\"h\n\nIndexParam\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\x12!\n\x05index\x18\x03 \x01(\x0b\x32\x12.milvus.grpc.Index\"&\n\nFlushParam\x12\x18\n\x10table_name_array\x18\x01 \x03(\t\"7\n\x0f\x44\x65leteByIDParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x10\n\x08id_array\x18\x02 \x03(\x03\"J\n\x11\x44\x65leteByDateParam\x12!\n\x05range\x18\x01 \x01(\x0b\x32\x12.milvus.grpc.Range\x12\x12\n\ntable_name\x18\x02 \x01(\t2\xbc\x0b\n\rMilvusService\x12>\n\x0b\x43reateTable\x12\x18.milvus.grpc.TableSchema\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x08HasTable\x12\x16.milvus.grpc.TableName\x1a\x16.milvus.grpc.BoolReply\"\x00\x12\x43\n\rDescribeTable\x12\x16.milvus.grpc.TableName\x1a\x18.milvus.grpc.TableSchema\"\x00\x12\x42\n\nCountTable\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.TableRowCount\"\x00\x12@\n\nShowTables\x12\x14.milvus.grpc.Command\x1a\x1a.milvus.grpc.TableNameList\"\x00\x12:\n\tDropTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0b\x43reateIndex\x12\x17.milvus.grpc.IndexParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x42\n\rDescribeIndex\x12\x16.milvus.grpc.TableName\x1a\x17.milvus.grpc.IndexParam\"\x00\x12:\n\tDropIndex\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x45\n\x0f\x43reatePartition\x12\x1b.milvus.grpc.PartitionParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x46\n\x0eShowPartitions\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.PartitionList\"\x00\x12\x43\n\rDropPartition\x12\x1b.milvus.grpc.PartitionParam\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x06Insert\x12\x18.milvus.grpc.InsertParam\x1a\x16.milvus.grpc.VectorIds\"\x00\x12\x42\n\x06Search\x12\x18.milvus.grpc.SearchParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12J\n\nSearchByID\x12\x1c.milvus.grpc.SearchByIDParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12P\n\rSearchInFiles\x12\x1f.milvus.grpc.SearchInFilesParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12\x37\n\x03\x43md\x12\x14.milvus.grpc.Command\x1a\x18.milvus.grpc.StringReply\"\x00\x12\x41\n\nDeleteByID\x12\x1c.milvus.grpc.DeleteByIDParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x45\n\x0c\x44\x65leteByDate\x12\x1e.milvus.grpc.DeleteByDateParam\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0cPreloadTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x37\n\x05\x46lush\x12\x17.milvus.grpc.FlushParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x38\n\x07\x43ompact\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x62\x06proto3')
+    ,
+    dependencies=[status__pb2.DESCRIPTOR, ])
 
 _TABLENAME = _descriptor.Descriptor(
-  name='TableName',
-  full_name='milvus.grpc.TableName',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='table_name', full_name='milvus.grpc.TableName.table_name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=43,
-  serialized_end=74,
+    name='TableName',
+    full_name='milvus.grpc.TableName',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.TableName.table_name', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=43,
+    serialized_end=74,
 )
-
 
 _PARTITIONNAME = _descriptor.Descriptor(
-  name='PartitionName',
-  full_name='milvus.grpc.PartitionName',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='partition_name', full_name='milvus.grpc.PartitionName.partition_name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=76,
-  serialized_end=115,
+    name='PartitionName',
+    full_name='milvus.grpc.PartitionName',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='partition_name', full_name='milvus.grpc.PartitionName.partition_name', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=76,
+    serialized_end=115,
 )
-
 
 _TABLENAMELIST = _descriptor.Descriptor(
-  name='TableNameList',
-  full_name='milvus.grpc.TableNameList',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='milvus.grpc.TableNameList.status', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='table_names', full_name='milvus.grpc.TableNameList.table_names', index=1,
-      number=2, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=117,
-  serialized_end=190,
+    name='TableNameList',
+    full_name='milvus.grpc.TableNameList',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.TableNameList.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='table_names', full_name='milvus.grpc.TableNameList.table_names', index=1,
+            number=2, type=9, cpp_type=9, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=117,
+    serialized_end=190,
 )
-
 
 _TABLESCHEMA = _descriptor.Descriptor(
-  name='TableSchema',
-  full_name='milvus.grpc.TableSchema',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='milvus.grpc.TableSchema.status', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='table_name', full_name='milvus.grpc.TableSchema.table_name', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='dimension', full_name='milvus.grpc.TableSchema.dimension', index=2,
-      number=3, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='index_file_size', full_name='milvus.grpc.TableSchema.index_file_size', index=3,
-      number=4, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='metric_type', full_name='milvus.grpc.TableSchema.metric_type', index=4,
-      number=5, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=193,
-  serialized_end=328,
+    name='TableSchema',
+    full_name='milvus.grpc.TableSchema',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.TableSchema.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.TableSchema.table_name', index=1,
+            number=2, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='dimension', full_name='milvus.grpc.TableSchema.dimension', index=2,
+            number=3, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='index_file_size', full_name='milvus.grpc.TableSchema.index_file_size', index=3,
+            number=4, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='metric_type', full_name='milvus.grpc.TableSchema.metric_type', index=4,
+            number=5, type=5, cpp_type=1, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=193,
+    serialized_end=328,
 )
-
 
 _PARTITIONPARAM = _descriptor.Descriptor(
-  name='PartitionParam',
-  full_name='milvus.grpc.PartitionParam',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='table_name', full_name='milvus.grpc.PartitionParam.table_name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='partition_name', full_name='milvus.grpc.PartitionParam.partition_name', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='tag', full_name='milvus.grpc.PartitionParam.tag', index=2,
-      number=3, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=330,
-  serialized_end=403,
+    name='PartitionParam',
+    full_name='milvus.grpc.PartitionParam',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.PartitionParam.table_name', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='partition_name', full_name='milvus.grpc.PartitionParam.partition_name', index=1,
+            number=2, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='tag', full_name='milvus.grpc.PartitionParam.tag', index=2,
+            number=3, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=330,
+    serialized_end=403,
 )
-
 
 _PARTITIONLIST = _descriptor.Descriptor(
-  name='PartitionList',
-  full_name='milvus.grpc.PartitionList',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='milvus.grpc.PartitionList.status', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='partition_array', full_name='milvus.grpc.PartitionList.partition_array', index=1,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=405,
-  serialized_end=511,
+    name='PartitionList',
+    full_name='milvus.grpc.PartitionList',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.PartitionList.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='partition_array', full_name='milvus.grpc.PartitionList.partition_array', index=1,
+            number=2, type=11, cpp_type=10, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=405,
+    serialized_end=511,
 )
-
 
 _RANGE = _descriptor.Descriptor(
-  name='Range',
-  full_name='milvus.grpc.Range',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='start_value', full_name='milvus.grpc.Range.start_value', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='end_value', full_name='milvus.grpc.Range.end_value', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=513,
-  serialized_end=560,
+    name='Range',
+    full_name='milvus.grpc.Range',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='start_value', full_name='milvus.grpc.Range.start_value', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='end_value', full_name='milvus.grpc.Range.end_value', index=1,
+            number=2, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=513,
+    serialized_end=560,
 )
-
 
 _ROWRECORD = _descriptor.Descriptor(
-  name='RowRecord',
-  full_name='milvus.grpc.RowRecord',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='float_data', full_name='milvus.grpc.RowRecord.float_data', index=0,
-      number=1, type=2, cpp_type=6, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='binary_data', full_name='milvus.grpc.RowRecord.binary_data', index=1,
-      number=2, type=12, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b(""),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=562,
-  serialized_end=614,
+    name='RowRecord',
+    full_name='milvus.grpc.RowRecord',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='float_data', full_name='milvus.grpc.RowRecord.float_data', index=0,
+            number=1, type=2, cpp_type=6, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='binary_data', full_name='milvus.grpc.RowRecord.binary_data', index=1,
+            number=2, type=12, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b(""),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=562,
+    serialized_end=614,
 )
-
 
 _INSERTPARAM = _descriptor.Descriptor(
-  name='InsertParam',
-  full_name='milvus.grpc.InsertParam',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='table_name', full_name='milvus.grpc.InsertParam.table_name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='row_record_array', full_name='milvus.grpc.InsertParam.row_record_array', index=1,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='row_id_array', full_name='milvus.grpc.InsertParam.row_id_array', index=2,
-      number=3, type=3, cpp_type=2, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='partition_tag', full_name='milvus.grpc.InsertParam.partition_tag', index=3,
-      number=4, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=617,
-  serialized_end=745,
+    name='InsertParam',
+    full_name='milvus.grpc.InsertParam',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.InsertParam.table_name', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='row_record_array', full_name='milvus.grpc.InsertParam.row_record_array', index=1,
+            number=2, type=11, cpp_type=10, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='row_id_array', full_name='milvus.grpc.InsertParam.row_id_array', index=2,
+            number=3, type=3, cpp_type=2, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='partition_tag', full_name='milvus.grpc.InsertParam.partition_tag', index=3,
+            number=4, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=617,
+    serialized_end=745,
 )
-
 
 _VECTORIDS = _descriptor.Descriptor(
-  name='VectorIds',
-  full_name='milvus.grpc.VectorIds',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='milvus.grpc.VectorIds.status', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='vector_id_array', full_name='milvus.grpc.VectorIds.vector_id_array', index=1,
-      number=2, type=3, cpp_type=2, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=747,
-  serialized_end=820,
+    name='VectorIds',
+    full_name='milvus.grpc.VectorIds',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.VectorIds.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='vector_id_array', full_name='milvus.grpc.VectorIds.vector_id_array', index=1,
+            number=2, type=3, cpp_type=2, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=747,
+    serialized_end=820,
 )
-
 
 _SEARCHPARAM = _descriptor.Descriptor(
-  name='SearchParam',
-  full_name='milvus.grpc.SearchParam',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='table_name', full_name='milvus.grpc.SearchParam.table_name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='query_record_array', full_name='milvus.grpc.SearchParam.query_record_array', index=1,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='query_range_array', full_name='milvus.grpc.SearchParam.query_range_array', index=2,
-      number=3, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='topk', full_name='milvus.grpc.SearchParam.topk', index=3,
-      number=4, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='nprobe', full_name='milvus.grpc.SearchParam.nprobe', index=4,
-      number=5, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='partition_tag_array', full_name='milvus.grpc.SearchParam.partition_tag_array', index=5,
-      number=6, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=823,
-  serialized_end=1014,
+    name='SearchParam',
+    full_name='milvus.grpc.SearchParam',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.SearchParam.table_name', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='query_record_array', full_name='milvus.grpc.SearchParam.query_record_array', index=1,
+            number=2, type=11, cpp_type=10, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='query_range_array', full_name='milvus.grpc.SearchParam.query_range_array', index=2,
+            number=3, type=11, cpp_type=10, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='topk', full_name='milvus.grpc.SearchParam.topk', index=3,
+            number=4, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='nprobe', full_name='milvus.grpc.SearchParam.nprobe', index=4,
+            number=5, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='partition_tag_array', full_name='milvus.grpc.SearchParam.partition_tag_array', index=5,
+            number=6, type=9, cpp_type=9, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=823,
+    serialized_end=1014,
 )
-
 
 _SEARCHINFILESPARAM = _descriptor.Descriptor(
-  name='SearchInFilesParam',
-  full_name='milvus.grpc.SearchInFilesParam',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='file_id_array', full_name='milvus.grpc.SearchInFilesParam.file_id_array', index=0,
-      number=1, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='search_param', full_name='milvus.grpc.SearchInFilesParam.search_param', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1016,
-  serialized_end=1107,
+    name='SearchInFilesParam',
+    full_name='milvus.grpc.SearchInFilesParam',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='file_id_array', full_name='milvus.grpc.SearchInFilesParam.file_id_array', index=0,
+            number=1, type=9, cpp_type=9, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='search_param', full_name='milvus.grpc.SearchInFilesParam.search_param', index=1,
+            number=2, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1016,
+    serialized_end=1107,
 )
-
 
 _SEARCHBYIDPARAM = _descriptor.Descriptor(
-  name='SearchByIDParam',
-  full_name='milvus.grpc.SearchByIDParam',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='table_name', full_name='milvus.grpc.SearchByIDParam.table_name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='id', full_name='milvus.grpc.SearchByIDParam.id', index=1,
-      number=2, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='topk', full_name='milvus.grpc.SearchByIDParam.topk', index=2,
-      number=3, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='nprobe', full_name='milvus.grpc.SearchByIDParam.nprobe', index=3,
-      number=4, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='partition_tag_array', full_name='milvus.grpc.SearchByIDParam.partition_tag_array', index=4,
-      number=5, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1109,
-  serialized_end=1217,
+    name='SearchByIDParam',
+    full_name='milvus.grpc.SearchByIDParam',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.SearchByIDParam.table_name', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='id', full_name='milvus.grpc.SearchByIDParam.id', index=1,
+            number=2, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='topk', full_name='milvus.grpc.SearchByIDParam.topk', index=2,
+            number=3, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='nprobe', full_name='milvus.grpc.SearchByIDParam.nprobe', index=3,
+            number=4, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='partition_tag_array', full_name='milvus.grpc.SearchByIDParam.partition_tag_array', index=4,
+            number=5, type=9, cpp_type=9, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1109,
+    serialized_end=1217,
 )
-
 
 _TOPKQUERYRESULT = _descriptor.Descriptor(
-  name='TopKQueryResult',
-  full_name='milvus.grpc.TopKQueryResult',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='milvus.grpc.TopKQueryResult.status', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='row_num', full_name='milvus.grpc.TopKQueryResult.row_num', index=1,
-      number=2, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='ids', full_name='milvus.grpc.TopKQueryResult.ids', index=2,
-      number=3, type=3, cpp_type=2, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='distances', full_name='milvus.grpc.TopKQueryResult.distances', index=3,
-      number=4, type=2, cpp_type=6, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1219,
-  serialized_end=1322,
+    name='TopKQueryResult',
+    full_name='milvus.grpc.TopKQueryResult',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.TopKQueryResult.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='row_num', full_name='milvus.grpc.TopKQueryResult.row_num', index=1,
+            number=2, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='ids', full_name='milvus.grpc.TopKQueryResult.ids', index=2,
+            number=3, type=3, cpp_type=2, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='distances', full_name='milvus.grpc.TopKQueryResult.distances', index=3,
+            number=4, type=2, cpp_type=6, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1219,
+    serialized_end=1322,
 )
-
 
 _STRINGREPLY = _descriptor.Descriptor(
-  name='StringReply',
-  full_name='milvus.grpc.StringReply',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='milvus.grpc.StringReply.status', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='string_reply', full_name='milvus.grpc.StringReply.string_reply', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1324,
-  serialized_end=1396,
+    name='StringReply',
+    full_name='milvus.grpc.StringReply',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.StringReply.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='string_reply', full_name='milvus.grpc.StringReply.string_reply', index=1,
+            number=2, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1324,
+    serialized_end=1396,
 )
-
 
 _BOOLREPLY = _descriptor.Descriptor(
-  name='BoolReply',
-  full_name='milvus.grpc.BoolReply',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='milvus.grpc.BoolReply.status', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='bool_reply', full_name='milvus.grpc.BoolReply.bool_reply', index=1,
-      number=2, type=8, cpp_type=7, label=1,
-      has_default_value=False, default_value=False,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1398,
-  serialized_end=1466,
+    name='BoolReply',
+    full_name='milvus.grpc.BoolReply',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.BoolReply.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='bool_reply', full_name='milvus.grpc.BoolReply.bool_reply', index=1,
+            number=2, type=8, cpp_type=7, label=1,
+            has_default_value=False, default_value=False,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1398,
+    serialized_end=1466,
 )
-
 
 _TABLEROWCOUNT = _descriptor.Descriptor(
-  name='TableRowCount',
-  full_name='milvus.grpc.TableRowCount',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='milvus.grpc.TableRowCount.status', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='table_row_count', full_name='milvus.grpc.TableRowCount.table_row_count', index=1,
-      number=2, type=3, cpp_type=2, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1468,
-  serialized_end=1545,
+    name='TableRowCount',
+    full_name='milvus.grpc.TableRowCount',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.TableRowCount.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='table_row_count', full_name='milvus.grpc.TableRowCount.table_row_count', index=1,
+            number=2, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1468,
+    serialized_end=1545,
 )
-
 
 _COMMAND = _descriptor.Descriptor(
-  name='Command',
-  full_name='milvus.grpc.Command',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='cmd', full_name='milvus.grpc.Command.cmd', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1547,
-  serialized_end=1569,
+    name='Command',
+    full_name='milvus.grpc.Command',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='cmd', full_name='milvus.grpc.Command.cmd', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1547,
+    serialized_end=1569,
 )
-
 
 _INDEX = _descriptor.Descriptor(
-  name='Index',
-  full_name='milvus.grpc.Index',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='index_type', full_name='milvus.grpc.Index.index_type', index=0,
-      number=1, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='nlist', full_name='milvus.grpc.Index.nlist', index=1,
-      number=2, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1571,
-  serialized_end=1613,
+    name='Index',
+    full_name='milvus.grpc.Index',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='index_type', full_name='milvus.grpc.Index.index_type', index=0,
+            number=1, type=5, cpp_type=1, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='nlist', full_name='milvus.grpc.Index.nlist', index=1,
+            number=2, type=5, cpp_type=1, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1571,
+    serialized_end=1613,
 )
-
 
 _INDEXPARAM = _descriptor.Descriptor(
-  name='IndexParam',
-  full_name='milvus.grpc.IndexParam',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='status', full_name='milvus.grpc.IndexParam.status', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='table_name', full_name='milvus.grpc.IndexParam.table_name', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='index', full_name='milvus.grpc.IndexParam.index', index=2,
-      number=3, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1615,
-  serialized_end=1719,
+    name='IndexParam',
+    full_name='milvus.grpc.IndexParam',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.IndexParam.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.IndexParam.table_name', index=1,
+            number=2, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='index', full_name='milvus.grpc.IndexParam.index', index=2,
+            number=3, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1615,
+    serialized_end=1719,
 )
-
 
 _FLUSHPARAM = _descriptor.Descriptor(
-  name='FlushParam',
-  full_name='milvus.grpc.FlushParam',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='table_name_array', full_name='milvus.grpc.FlushParam.table_name_array', index=0,
-      number=1, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1721,
-  serialized_end=1759,
+    name='FlushParam',
+    full_name='milvus.grpc.FlushParam',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='table_name_array', full_name='milvus.grpc.FlushParam.table_name_array', index=0,
+            number=1, type=9, cpp_type=9, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1721,
+    serialized_end=1759,
 )
-
 
 _DELETEBYIDPARAM = _descriptor.Descriptor(
-  name='DeleteByIDParam',
-  full_name='milvus.grpc.DeleteByIDParam',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='table_name', full_name='milvus.grpc.DeleteByIDParam.table_name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='id_array', full_name='milvus.grpc.DeleteByIDParam.id_array', index=1,
-      number=2, type=3, cpp_type=2, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1761,
-  serialized_end=1816,
+    name='DeleteByIDParam',
+    full_name='milvus.grpc.DeleteByIDParam',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.DeleteByIDParam.table_name', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='id_array', full_name='milvus.grpc.DeleteByIDParam.id_array', index=1,
+            number=2, type=3, cpp_type=2, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1761,
+    serialized_end=1816,
 )
 
-
 _DELETEBYDATEPARAM = _descriptor.Descriptor(
-  name='DeleteByDateParam',
-  full_name='milvus.grpc.DeleteByDateParam',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='range', full_name='milvus.grpc.DeleteByDateParam.range', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='table_name', full_name='milvus.grpc.DeleteByDateParam.table_name', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1818,
-  serialized_end=1892,
+    name='DeleteByDateParam',
+    full_name='milvus.grpc.DeleteByDateParam',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='range', full_name='milvus.grpc.DeleteByDateParam.range', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.DeleteByDateParam.table_name', index=1,
+            number=2, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1818,
+    serialized_end=1892,
 )
 
 _TABLENAMELIST.fields_by_name['status'].message_type = status__pb2._STATUS
@@ -1027,367 +1003,374 @@ DESCRIPTOR.message_types_by_name['DeleteByDateParam'] = _DELETEBYDATEPARAM
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 TableName = _reflection.GeneratedProtocolMessageType('TableName', (_message.Message,), {
-  'DESCRIPTOR' : _TABLENAME,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.TableName)
-  })
+    'DESCRIPTOR': _TABLENAME,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.TableName)
+})
 _sym_db.RegisterMessage(TableName)
 
 PartitionName = _reflection.GeneratedProtocolMessageType('PartitionName', (_message.Message,), {
-  'DESCRIPTOR' : _PARTITIONNAME,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.PartitionName)
-  })
+    'DESCRIPTOR': _PARTITIONNAME,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.PartitionName)
+})
 _sym_db.RegisterMessage(PartitionName)
 
 TableNameList = _reflection.GeneratedProtocolMessageType('TableNameList', (_message.Message,), {
-  'DESCRIPTOR' : _TABLENAMELIST,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.TableNameList)
-  })
+    'DESCRIPTOR': _TABLENAMELIST,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.TableNameList)
+})
 _sym_db.RegisterMessage(TableNameList)
 
 TableSchema = _reflection.GeneratedProtocolMessageType('TableSchema', (_message.Message,), {
-  'DESCRIPTOR' : _TABLESCHEMA,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.TableSchema)
-  })
+    'DESCRIPTOR': _TABLESCHEMA,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.TableSchema)
+})
 _sym_db.RegisterMessage(TableSchema)
 
 PartitionParam = _reflection.GeneratedProtocolMessageType('PartitionParam', (_message.Message,), {
-  'DESCRIPTOR' : _PARTITIONPARAM,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.PartitionParam)
-  })
+    'DESCRIPTOR': _PARTITIONPARAM,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.PartitionParam)
+})
 _sym_db.RegisterMessage(PartitionParam)
 
 PartitionList = _reflection.GeneratedProtocolMessageType('PartitionList', (_message.Message,), {
-  'DESCRIPTOR' : _PARTITIONLIST,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.PartitionList)
-  })
+    'DESCRIPTOR': _PARTITIONLIST,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.PartitionList)
+})
 _sym_db.RegisterMessage(PartitionList)
 
 Range = _reflection.GeneratedProtocolMessageType('Range', (_message.Message,), {
-  'DESCRIPTOR' : _RANGE,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.Range)
-  })
+    'DESCRIPTOR': _RANGE,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.Range)
+})
 _sym_db.RegisterMessage(Range)
 
 RowRecord = _reflection.GeneratedProtocolMessageType('RowRecord', (_message.Message,), {
-  'DESCRIPTOR' : _ROWRECORD,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.RowRecord)
-  })
+    'DESCRIPTOR': _ROWRECORD,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.RowRecord)
+})
 _sym_db.RegisterMessage(RowRecord)
 
 InsertParam = _reflection.GeneratedProtocolMessageType('InsertParam', (_message.Message,), {
-  'DESCRIPTOR' : _INSERTPARAM,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.InsertParam)
-  })
+    'DESCRIPTOR': _INSERTPARAM,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.InsertParam)
+})
 _sym_db.RegisterMessage(InsertParam)
 
 VectorIds = _reflection.GeneratedProtocolMessageType('VectorIds', (_message.Message,), {
-  'DESCRIPTOR' : _VECTORIDS,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.VectorIds)
-  })
+    'DESCRIPTOR': _VECTORIDS,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.VectorIds)
+})
 _sym_db.RegisterMessage(VectorIds)
 
 SearchParam = _reflection.GeneratedProtocolMessageType('SearchParam', (_message.Message,), {
-  'DESCRIPTOR' : _SEARCHPARAM,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.SearchParam)
-  })
+    'DESCRIPTOR': _SEARCHPARAM,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.SearchParam)
+})
 _sym_db.RegisterMessage(SearchParam)
 
 SearchInFilesParam = _reflection.GeneratedProtocolMessageType('SearchInFilesParam', (_message.Message,), {
-  'DESCRIPTOR' : _SEARCHINFILESPARAM,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.SearchInFilesParam)
-  })
+    'DESCRIPTOR': _SEARCHINFILESPARAM,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.SearchInFilesParam)
+})
 _sym_db.RegisterMessage(SearchInFilesParam)
 
 SearchByIDParam = _reflection.GeneratedProtocolMessageType('SearchByIDParam', (_message.Message,), {
-  'DESCRIPTOR' : _SEARCHBYIDPARAM,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.SearchByIDParam)
-  })
+    'DESCRIPTOR': _SEARCHBYIDPARAM,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.SearchByIDParam)
+})
 _sym_db.RegisterMessage(SearchByIDParam)
 
 TopKQueryResult = _reflection.GeneratedProtocolMessageType('TopKQueryResult', (_message.Message,), {
-  'DESCRIPTOR' : _TOPKQUERYRESULT,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.TopKQueryResult)
-  })
+    'DESCRIPTOR': _TOPKQUERYRESULT,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.TopKQueryResult)
+})
 _sym_db.RegisterMessage(TopKQueryResult)
 
 StringReply = _reflection.GeneratedProtocolMessageType('StringReply', (_message.Message,), {
-  'DESCRIPTOR' : _STRINGREPLY,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.StringReply)
-  })
+    'DESCRIPTOR': _STRINGREPLY,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.StringReply)
+})
 _sym_db.RegisterMessage(StringReply)
 
 BoolReply = _reflection.GeneratedProtocolMessageType('BoolReply', (_message.Message,), {
-  'DESCRIPTOR' : _BOOLREPLY,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.BoolReply)
-  })
+    'DESCRIPTOR': _BOOLREPLY,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.BoolReply)
+})
 _sym_db.RegisterMessage(BoolReply)
 
 TableRowCount = _reflection.GeneratedProtocolMessageType('TableRowCount', (_message.Message,), {
-  'DESCRIPTOR' : _TABLEROWCOUNT,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.TableRowCount)
-  })
+    'DESCRIPTOR': _TABLEROWCOUNT,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.TableRowCount)
+})
 _sym_db.RegisterMessage(TableRowCount)
 
 Command = _reflection.GeneratedProtocolMessageType('Command', (_message.Message,), {
-  'DESCRIPTOR' : _COMMAND,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.Command)
-  })
+    'DESCRIPTOR': _COMMAND,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.Command)
+})
 _sym_db.RegisterMessage(Command)
 
 Index = _reflection.GeneratedProtocolMessageType('Index', (_message.Message,), {
-  'DESCRIPTOR' : _INDEX,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.Index)
-  })
+    'DESCRIPTOR': _INDEX,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.Index)
+})
 _sym_db.RegisterMessage(Index)
 
 IndexParam = _reflection.GeneratedProtocolMessageType('IndexParam', (_message.Message,), {
-  'DESCRIPTOR' : _INDEXPARAM,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.IndexParam)
-  })
+    'DESCRIPTOR': _INDEXPARAM,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.IndexParam)
+})
 _sym_db.RegisterMessage(IndexParam)
 
 FlushParam = _reflection.GeneratedProtocolMessageType('FlushParam', (_message.Message,), {
-  'DESCRIPTOR' : _FLUSHPARAM,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.FlushParam)
-  })
+    'DESCRIPTOR': _FLUSHPARAM,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.FlushParam)
+})
 _sym_db.RegisterMessage(FlushParam)
 
 DeleteByIDParam = _reflection.GeneratedProtocolMessageType('DeleteByIDParam', (_message.Message,), {
-  'DESCRIPTOR' : _DELETEBYIDPARAM,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.DeleteByIDParam)
-  })
+    'DESCRIPTOR': _DELETEBYIDPARAM,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.DeleteByIDParam)
+})
 _sym_db.RegisterMessage(DeleteByIDParam)
 
 DeleteByDateParam = _reflection.GeneratedProtocolMessageType('DeleteByDateParam', (_message.Message,), {
-  'DESCRIPTOR' : _DELETEBYDATEPARAM,
-  '__module__' : 'milvus_pb2'
-  # @@protoc_insertion_point(class_scope:milvus.grpc.DeleteByDateParam)
-  })
+    'DESCRIPTOR': _DELETEBYDATEPARAM,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.DeleteByDateParam)
+})
 _sym_db.RegisterMessage(DeleteByDateParam)
 
-
-
 _MILVUSSERVICE = _descriptor.ServiceDescriptor(
-  name='MilvusService',
-  full_name='milvus.grpc.MilvusService',
-  file=DESCRIPTOR,
-  index=0,
-  serialized_options=None,
-  serialized_start=1895,
-  serialized_end=3305,
-  methods=[
-  _descriptor.MethodDescriptor(
-    name='CreateTable',
-    full_name='milvus.grpc.MilvusService.CreateTable',
+    name='MilvusService',
+    full_name='milvus.grpc.MilvusService',
+    file=DESCRIPTOR,
     index=0,
-    containing_service=None,
-    input_type=_TABLESCHEMA,
-    output_type=status__pb2._STATUS,
     serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='HasTable',
-    full_name='milvus.grpc.MilvusService.HasTable',
-    index=1,
-    containing_service=None,
-    input_type=_TABLENAME,
-    output_type=_BOOLREPLY,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='DescribeTable',
-    full_name='milvus.grpc.MilvusService.DescribeTable',
-    index=2,
-    containing_service=None,
-    input_type=_TABLENAME,
-    output_type=_TABLESCHEMA,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='CountTable',
-    full_name='milvus.grpc.MilvusService.CountTable',
-    index=3,
-    containing_service=None,
-    input_type=_TABLENAME,
-    output_type=_TABLEROWCOUNT,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='ShowTables',
-    full_name='milvus.grpc.MilvusService.ShowTables',
-    index=4,
-    containing_service=None,
-    input_type=_COMMAND,
-    output_type=_TABLENAMELIST,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='DropTable',
-    full_name='milvus.grpc.MilvusService.DropTable',
-    index=5,
-    containing_service=None,
-    input_type=_TABLENAME,
-    output_type=status__pb2._STATUS,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='CreateIndex',
-    full_name='milvus.grpc.MilvusService.CreateIndex',
-    index=6,
-    containing_service=None,
-    input_type=_INDEXPARAM,
-    output_type=status__pb2._STATUS,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='DescribeIndex',
-    full_name='milvus.grpc.MilvusService.DescribeIndex',
-    index=7,
-    containing_service=None,
-    input_type=_TABLENAME,
-    output_type=_INDEXPARAM,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='DropIndex',
-    full_name='milvus.grpc.MilvusService.DropIndex',
-    index=8,
-    containing_service=None,
-    input_type=_TABLENAME,
-    output_type=status__pb2._STATUS,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='CreatePartition',
-    full_name='milvus.grpc.MilvusService.CreatePartition',
-    index=9,
-    containing_service=None,
-    input_type=_PARTITIONPARAM,
-    output_type=status__pb2._STATUS,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='ShowPartitions',
-    full_name='milvus.grpc.MilvusService.ShowPartitions',
-    index=10,
-    containing_service=None,
-    input_type=_TABLENAME,
-    output_type=_PARTITIONLIST,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='DropPartition',
-    full_name='milvus.grpc.MilvusService.DropPartition',
-    index=11,
-    containing_service=None,
-    input_type=_PARTITIONPARAM,
-    output_type=status__pb2._STATUS,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='Insert',
-    full_name='milvus.grpc.MilvusService.Insert',
-    index=12,
-    containing_service=None,
-    input_type=_INSERTPARAM,
-    output_type=_VECTORIDS,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='Search',
-    full_name='milvus.grpc.MilvusService.Search',
-    index=13,
-    containing_service=None,
-    input_type=_SEARCHPARAM,
-    output_type=_TOPKQUERYRESULT,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='SearchByID',
-    full_name='milvus.grpc.MilvusService.SearchByID',
-    index=14,
-    containing_service=None,
-    input_type=_SEARCHBYIDPARAM,
-    output_type=_TOPKQUERYRESULT,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='SearchInFiles',
-    full_name='milvus.grpc.MilvusService.SearchInFiles',
-    index=15,
-    containing_service=None,
-    input_type=_SEARCHINFILESPARAM,
-    output_type=_TOPKQUERYRESULT,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='Cmd',
-    full_name='milvus.grpc.MilvusService.Cmd',
-    index=16,
-    containing_service=None,
-    input_type=_COMMAND,
-    output_type=_STRINGREPLY,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='DeleteByID',
-    full_name='milvus.grpc.MilvusService.DeleteByID',
-    index=17,
-    containing_service=None,
-    input_type=_DELETEBYIDPARAM,
-    output_type=status__pb2._STATUS,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='DeleteByDate',
-    full_name='milvus.grpc.MilvusService.DeleteByDate',
-    index=18,
-    containing_service=None,
-    input_type=_DELETEBYDATEPARAM,
-    output_type=status__pb2._STATUS,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='PreloadTable',
-    full_name='milvus.grpc.MilvusService.PreloadTable',
-    index=19,
-    containing_service=None,
-    input_type=_TABLENAME,
-    output_type=status__pb2._STATUS,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='Flush',
-    full_name='milvus.grpc.MilvusService.Flush',
-    index=20,
-    containing_service=None,
-    input_type=_FLUSHPARAM,
-    output_type=status__pb2._STATUS,
-    serialized_options=None,
-  ),
-])
+    serialized_start=1895,
+    serialized_end=3363,
+    methods=[
+        _descriptor.MethodDescriptor(
+            name='CreateTable',
+            full_name='milvus.grpc.MilvusService.CreateTable',
+            index=0,
+            containing_service=None,
+            input_type=_TABLESCHEMA,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='HasTable',
+            full_name='milvus.grpc.MilvusService.HasTable',
+            index=1,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=_BOOLREPLY,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='DescribeTable',
+            full_name='milvus.grpc.MilvusService.DescribeTable',
+            index=2,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=_TABLESCHEMA,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='CountTable',
+            full_name='milvus.grpc.MilvusService.CountTable',
+            index=3,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=_TABLEROWCOUNT,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='ShowTables',
+            full_name='milvus.grpc.MilvusService.ShowTables',
+            index=4,
+            containing_service=None,
+            input_type=_COMMAND,
+            output_type=_TABLENAMELIST,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='DropTable',
+            full_name='milvus.grpc.MilvusService.DropTable',
+            index=5,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='CreateIndex',
+            full_name='milvus.grpc.MilvusService.CreateIndex',
+            index=6,
+            containing_service=None,
+            input_type=_INDEXPARAM,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='DescribeIndex',
+            full_name='milvus.grpc.MilvusService.DescribeIndex',
+            index=7,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=_INDEXPARAM,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='DropIndex',
+            full_name='milvus.grpc.MilvusService.DropIndex',
+            index=8,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='CreatePartition',
+            full_name='milvus.grpc.MilvusService.CreatePartition',
+            index=9,
+            containing_service=None,
+            input_type=_PARTITIONPARAM,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='ShowPartitions',
+            full_name='milvus.grpc.MilvusService.ShowPartitions',
+            index=10,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=_PARTITIONLIST,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='DropPartition',
+            full_name='milvus.grpc.MilvusService.DropPartition',
+            index=11,
+            containing_service=None,
+            input_type=_PARTITIONPARAM,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='Insert',
+            full_name='milvus.grpc.MilvusService.Insert',
+            index=12,
+            containing_service=None,
+            input_type=_INSERTPARAM,
+            output_type=_VECTORIDS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='Search',
+            full_name='milvus.grpc.MilvusService.Search',
+            index=13,
+            containing_service=None,
+            input_type=_SEARCHPARAM,
+            output_type=_TOPKQUERYRESULT,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='SearchByID',
+            full_name='milvus.grpc.MilvusService.SearchByID',
+            index=14,
+            containing_service=None,
+            input_type=_SEARCHBYIDPARAM,
+            output_type=_TOPKQUERYRESULT,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='SearchInFiles',
+            full_name='milvus.grpc.MilvusService.SearchInFiles',
+            index=15,
+            containing_service=None,
+            input_type=_SEARCHINFILESPARAM,
+            output_type=_TOPKQUERYRESULT,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='Cmd',
+            full_name='milvus.grpc.MilvusService.Cmd',
+            index=16,
+            containing_service=None,
+            input_type=_COMMAND,
+            output_type=_STRINGREPLY,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='DeleteByID',
+            full_name='milvus.grpc.MilvusService.DeleteByID',
+            index=17,
+            containing_service=None,
+            input_type=_DELETEBYIDPARAM,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='DeleteByDate',
+            full_name='milvus.grpc.MilvusService.DeleteByDate',
+            index=18,
+            containing_service=None,
+            input_type=_DELETEBYDATEPARAM,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='PreloadTable',
+            full_name='milvus.grpc.MilvusService.PreloadTable',
+            index=19,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='Flush',
+            full_name='milvus.grpc.MilvusService.Flush',
+            index=20,
+            containing_service=None,
+            input_type=_FLUSHPARAM,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name='Compact',
+            full_name='milvus.grpc.MilvusService.Compact',
+            index=21,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=status__pb2._STATUS,
+            serialized_options=None,
+        ),
+    ])
 _sym_db.RegisterServiceDescriptor(_MILVUSSERVICE)
 
 DESCRIPTOR.services_by_name['MilvusService'] = _MILVUSSERVICE

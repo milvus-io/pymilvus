@@ -240,6 +240,12 @@ class Milvus:
 
         return self._handler.flush(table_name_array)
 
+    @check_connect
+    def compact(self, table_name, timeout=None):
+        check_pass_param(table_name=table_name)
+
+        return self._handler.compact(table_name, timeout)
+
     def _search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
         check_pass_param(table_name=table_name, topk=top_k, records=query_records,
                          nprobe=nprobe, partition_tag_array=partition_tags)

@@ -977,3 +977,13 @@ class GrpcHandler(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    def compact(self, table_name, timeout):
+        request = Prepare.compact_param(table_name)
+
+        try:
+            response = self._stub.Compact(request)
+            return Status(code=response.error_code, message=response.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))

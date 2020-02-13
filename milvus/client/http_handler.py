@@ -522,3 +522,6 @@ class HttpHandler(ConnectIntf):
 
     def flush(self, table_name_array):
         return Status(Status.UNEXPECTED_ERROR, "Not uncompleted")
+
+    def compact(self, table_name, timeout):
+        return Status(Status.UNEXPECTED_ERROR, "Not uncompleted")

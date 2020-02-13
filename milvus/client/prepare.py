@@ -182,3 +182,7 @@ class Prepare:
     def flush_param(cls, table_names):
 
         return grpc_types.FlushParam(table_name_array=table_names)
+
+    @classmethod
+    def compact_param(cls, table_name):
+        return grpc_types.TableName(table_name=table_name)
