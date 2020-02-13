@@ -5,6 +5,7 @@
 
 ## Improvement
 - \#149 - change json parser to `ujson`
+- \#151 - add new interface `compact`
 
 ## Bug
 - \#140 - convert distance in http result to float value
