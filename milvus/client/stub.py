@@ -228,7 +228,10 @@ class Milvus:
         return self._handler.delete_by_id(table_name, id_array, timeout)
 
     @check_connect
-    def flush(self, table_name_array):
+    def flush(self, table_name_array=None):
+        if table_name_array is None:
+            return self._handler.flush(table_name_array)
+
         if not isinstance(table_name_array, list):
             raise ParamError("Table name array must be type of list")
 

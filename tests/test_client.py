@@ -557,6 +557,11 @@ class TestAddVectors:
 
         gcon.preload_table(gtable)
 
+    def test_insert_numpy_array(self, gcon ,gtable):
+        vectors = np.random.rand(10000, 128)
+        status, ids = gcon.insert(gtable, vectors)
+        assert status.OK(), status.message
+
     def test_insert_ids(self, gcon, gtable):
         vectors = records_factory(dim, nb)
         ids = [i for i in range(nb)]
@@ -1045,7 +1050,7 @@ class TestDeleteByID:
         assert not status.OK()
 
 
-@pytest.mark.skip(reason="crud branch")
+# @pytest.mark.skip(reason="crud branch")
 class TestFlush:
     def test_flush(self, gcon):
         table_param = {
@@ -1064,6 +1069,27 @@ class TestFlush:
 
         status = gcon.flush(table_list)
         assert status.OK()
+
+        for table in table_list:
+            gcon.drop_table(table)
+
+    def test_flush_with_none(self, gcon, gtable):
+        table_param = {
+            "table_name": '',
+            "dimension": dim
+        }
+
+        table_list = ["test_flush_1", "test_flush_2", "test_flush_3"]
+        vectors = records_factory(dim, nq)
+        for table in table_list:
+            table_param["table_name"] = table
+
+            gcon.create_table(table_param)
+
+            gcon.insert(table, vectors)
+
+        status = gcon.flush()
+        assert status.OK(), status.message
 
         for table in table_list:
             gcon.drop_table(table)
