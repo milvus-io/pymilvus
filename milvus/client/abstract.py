@@ -397,6 +397,47 @@ class PartitionParam:
         return '(%s)' % (', '.join(attr_list))
 
 
+class SegmentStat:
+    def __init__(self, res):
+        self.segment_name = res.segment_name
+        self.count = res.row_count
+        self.index_name = res.index_name
+
+    def __str__(self):
+        return "Segment(segment_name: {}, row_count: {}, index_name: {})".format(self.segment_name, self.count, self.index_name)
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class TableStat:
+    def __init__(self, res):
+        self.name = res.table_name
+        self.count = res.total_row_count
+        self.segment_stats = [SegmentStat(s) for s in list(res.segments_stat)]
+
+    def __str__(self):
+        return "TableStat(name: {}, count: {}, segment_stats: {})".format(self.name, self.count, self.segment_stats)
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class TableInfo:
+    def __init__(self, res):
+        self.count = res.total_row_count
+
+        self.native_stat = TableStat(res.native_stat)
+        self.partitions_stat = [TableStat(p) for p in list(res.partitions_stat)]
+
+    def __str__(self):
+        return "TableInfo(count: {}, native_stat: {}, partitions_stat: {})"\
+            .format(self.count, self.native_stat, self.partitions_stat)
+
+    def __repr__(self):
+        return super().__repr__() + "\n" + self.__str__()
+
+
 def _abstract():
     raise NotImplementedError('You need to override this function')
 

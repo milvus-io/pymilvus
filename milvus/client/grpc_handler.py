@@ -4,8 +4,8 @@ import logging
 import grpc
 from grpc._cython import cygrpc
 
-from ..grpc_gen import milvus_pb2_grpc
-from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam, TopKQueryResult
+from ..grpc_gen import milvus_pb2_grpc, milvus_pb2
+from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam, TopKQueryResult, TableInfo
 from .prepare import Prepare
 from .types import MetricType, Status
 from .check import (
@@ -473,6 +473,22 @@ class GrpcHandler(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
+
+    def show_table_info(self, table_name, timeout=10):
+        request = milvus_pb2.TableName(table_name=table_name)
+
+        try:
+            response = self._stub.ShowTableInfo.future(request).result(timeout=timeout)
+            rpc_status = response.status
+
+            if rpc_status.error_code == 0:
+                return Status(), TableInfo(response)
+
+            return Status(rpc_status.error_code, rpc_status.reason), None
+        except grpc.FutureTimeoutError:
+            return Status(Status.UNEXPECTED_ERROR, message="Request timeout"), None
+        except grpc.RpcError as e:
+            return Status(Status.UNEXPECTED_ERROR, e.details()), None
 
     def preload_table(self, table_name, timeout=None):
         """

@@ -574,6 +574,7 @@ class TestAddVectors:
 
 
 class TestIndex:
+    @pytest.mark.skip(reason="hnsw in not supported on crud branch")
     def test_available_index(self, gcon, gtable):
         for name, member in IndexType.__members__.items():
             if member.value == 0:
@@ -761,7 +762,7 @@ class TestBuildIndex:
 
 
 class TestCmd:
-    versions = ("0.5.3", "0.6.0")
+    versions = ("0.5.3", "0.6.0", "0.7.0")
 
     def test_client_version(self, gcon):
         try:
@@ -1101,3 +1102,41 @@ class TestCompact:
     def test_compact_with_invalid_name(self, gcon):
         with pytest.raises(ParamError):
             gcon.compact(table_name=124)
+
+
+class TestTableInfo:
+    def test_table_info_normal(self, gcon, gtable):
+        for _ in range(10):
+            records = records_factory(128, 10000)
+            status, _ = gcon.insert(gtable, records)
+            assert status.OK()
+
+        gcon.flush([gtable])
+
+        status, _ = gcon.table_info(gtable, timeout=None)
+        assert status.OK()
+
+    def test_table_info_with_partitions(self, gcon, gtable):
+        for i in range(5):
+            records = records_factory(128, 10000)
+            partition_name = "{}_partition_{}".format(gtable, i)
+            partition_tag = "tag_{}".format(i)
+
+            status = gcon.create_partition(gtable, partition_name, partition_tag)
+            assert status.OK(), status.message
+
+            for j in range(3):
+                records = records_factory(128, 10000)
+                status, _ = gcon.insert(gtable, records, partition_tag=partition_tag)
+                assert status.OK(), status.message
+
+        status = gcon.flush([gtable])
+        assert status.OK(), status.message
+
+        status, _ = gcon.table_info(gtable, timeout=None)
+        assert status.OK(), status.message
+
+    def test_table_info_with_empty_table(self, gcon, gtable):
+        status, _ = gcon.table_info(gtable)
+
+        assert status.OK(), status.message

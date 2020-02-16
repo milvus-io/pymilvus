@@ -22,7 +22,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax='proto3',
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x0cmilvus.proto\x12\x0bmilvus.grpc\x1a\x0cstatus.proto\"\x1f\n\tTableName\x12\x12\n\ntable_name\x18\x01 \x01(\t\"\'\n\rPartitionName\x12\x16\n\x0epartition_name\x18\x01 \x01(\t\"I\n\rTableNameList\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x13\n\x0btable_names\x18\x02 \x03(\t\"\x87\x01\n\x0bTableSchema\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\x12\x11\n\tdimension\x18\x03 \x01(\x03\x12\x17\n\x0findex_file_size\x18\x04 \x01(\x03\x12\x13\n\x0bmetric_type\x18\x05 \x01(\x05\"I\n\x0ePartitionParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x16\n\x0epartition_name\x18\x02 \x01(\t\x12\x0b\n\x03tag\x18\x03 \x01(\t\"j\n\rPartitionList\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x34\n\x0fpartition_array\x18\x02 \x03(\x0b\x32\x1b.milvus.grpc.PartitionParam\"/\n\x05Range\x12\x13\n\x0bstart_value\x18\x01 \x01(\t\x12\x11\n\tend_value\x18\x02 \x01(\t\"4\n\tRowRecord\x12\x12\n\nfloat_data\x18\x01 \x03(\x02\x12\x13\n\x0b\x62inary_data\x18\x02 \x01(\x0c\"\x80\x01\n\x0bInsertParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x30\n\x10row_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12\x14\n\x0crow_id_array\x18\x03 \x03(\x03\x12\x15\n\rpartition_tag\x18\x04 \x01(\t\"I\n\tVectorIds\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0fvector_id_array\x18\x02 \x03(\x03\"\xbf\x01\n\x0bSearchParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x32\n\x12query_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12-\n\x11query_range_array\x18\x03 \x03(\x0b\x32\x12.milvus.grpc.Range\x12\x0c\n\x04topk\x18\x04 \x01(\x03\x12\x0e\n\x06nprobe\x18\x05 \x01(\x03\x12\x1b\n\x13partition_tag_array\x18\x06 \x03(\t\"[\n\x12SearchInFilesParam\x12\x15\n\rfile_id_array\x18\x01 \x03(\t\x12.\n\x0csearch_param\x18\x02 \x01(\x0b\x32\x18.milvus.grpc.SearchParam\"l\n\x0fSearchByIDParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\n\n\x02id\x18\x02 \x01(\x03\x12\x0c\n\x04topk\x18\x03 \x01(\x03\x12\x0e\n\x06nprobe\x18\x04 \x01(\x03\x12\x1b\n\x13partition_tag_array\x18\x05 \x03(\t\"g\n\x0fTopKQueryResult\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x0f\n\x07row_num\x18\x02 \x01(\x03\x12\x0b\n\x03ids\x18\x03 \x03(\x03\x12\x11\n\tdistances\x18\x04 \x03(\x02\"H\n\x0bStringReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x14\n\x0cstring_reply\x18\x02 \x01(\t\"D\n\tBoolReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\nbool_reply\x18\x02 \x01(\x08\"M\n\rTableRowCount\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0ftable_row_count\x18\x02 \x01(\x03\"\x16\n\x07\x43ommand\x12\x0b\n\x03\x63md\x18\x01 \x01(\t\"*\n\x05Index\x12\x12\n\nindex_type\x18\x01 \x01(\x05\x12\r\n\x05nlist\x18\x02 \x01(\x05\"h\n\nIndexParam\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\x12!\n\x05index\x18\x03 \x01(\x0b\x32\x12.milvus.grpc.Index\"&\n\nFlushParam\x12\x18\n\x10table_name_array\x18\x01 \x03(\t\"7\n\x0f\x44\x65leteByIDParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x10\n\x08id_array\x18\x02 \x03(\x03\"J\n\x11\x44\x65leteByDateParam\x12!\n\x05range\x18\x01 \x01(\x0b\x32\x12.milvus.grpc.Range\x12\x12\n\ntable_name\x18\x02 \x01(\t2\xbc\x0b\n\rMilvusService\x12>\n\x0b\x43reateTable\x12\x18.milvus.grpc.TableSchema\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x08HasTable\x12\x16.milvus.grpc.TableName\x1a\x16.milvus.grpc.BoolReply\"\x00\x12\x43\n\rDescribeTable\x12\x16.milvus.grpc.TableName\x1a\x18.milvus.grpc.TableSchema\"\x00\x12\x42\n\nCountTable\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.TableRowCount\"\x00\x12@\n\nShowTables\x12\x14.milvus.grpc.Command\x1a\x1a.milvus.grpc.TableNameList\"\x00\x12:\n\tDropTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0b\x43reateIndex\x12\x17.milvus.grpc.IndexParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x42\n\rDescribeIndex\x12\x16.milvus.grpc.TableName\x1a\x17.milvus.grpc.IndexParam\"\x00\x12:\n\tDropIndex\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x45\n\x0f\x43reatePartition\x12\x1b.milvus.grpc.PartitionParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x46\n\x0eShowPartitions\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.PartitionList\"\x00\x12\x43\n\rDropPartition\x12\x1b.milvus.grpc.PartitionParam\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x06Insert\x12\x18.milvus.grpc.InsertParam\x1a\x16.milvus.grpc.VectorIds\"\x00\x12\x42\n\x06Search\x12\x18.milvus.grpc.SearchParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12J\n\nSearchByID\x12\x1c.milvus.grpc.SearchByIDParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12P\n\rSearchInFiles\x12\x1f.milvus.grpc.SearchInFilesParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12\x37\n\x03\x43md\x12\x14.milvus.grpc.Command\x1a\x18.milvus.grpc.StringReply\"\x00\x12\x41\n\nDeleteByID\x12\x1c.milvus.grpc.DeleteByIDParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x45\n\x0c\x44\x65leteByDate\x12\x1e.milvus.grpc.DeleteByDateParam\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0cPreloadTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x37\n\x05\x46lush\x12\x17.milvus.grpc.FlushParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x38\n\x07\x43ompact\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x62\x06proto3')
+        '\n\x0cmilvus.proto\x12\x0bmilvus.grpc\x1a\x0cstatus.proto\"\x1f\n\tTableName\x12\x12\n\ntable_name\x18\x01 \x01(\t\"\'\n\rPartitionName\x12\x16\n\x0epartition_name\x18\x01 \x01(\t\"I\n\rTableNameList\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x13\n\x0btable_names\x18\x02 \x03(\t\"\x87\x01\n\x0bTableSchema\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\x12\x11\n\tdimension\x18\x03 \x01(\x03\x12\x17\n\x0findex_file_size\x18\x04 \x01(\x03\x12\x13\n\x0bmetric_type\x18\x05 \x01(\x05\"I\n\x0ePartitionParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x16\n\x0epartition_name\x18\x02 \x01(\t\x12\x0b\n\x03tag\x18\x03 \x01(\t\"j\n\rPartitionList\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x34\n\x0fpartition_array\x18\x02 \x03(\x0b\x32\x1b.milvus.grpc.PartitionParam\"/\n\x05Range\x12\x13\n\x0bstart_value\x18\x01 \x01(\t\x12\x11\n\tend_value\x18\x02 \x01(\t\"4\n\tRowRecord\x12\x12\n\nfloat_data\x18\x01 \x03(\x02\x12\x13\n\x0b\x62inary_data\x18\x02 \x01(\x0c\"\x80\x01\n\x0bInsertParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x30\n\x10row_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12\x14\n\x0crow_id_array\x18\x03 \x03(\x03\x12\x15\n\rpartition_tag\x18\x04 \x01(\t\"I\n\tVectorIds\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0fvector_id_array\x18\x02 \x03(\x03\"\xbf\x01\n\x0bSearchParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x32\n\x12query_record_array\x18\x02 \x03(\x0b\x32\x16.milvus.grpc.RowRecord\x12-\n\x11query_range_array\x18\x03 \x03(\x0b\x32\x12.milvus.grpc.Range\x12\x0c\n\x04topk\x18\x04 \x01(\x03\x12\x0e\n\x06nprobe\x18\x05 \x01(\x03\x12\x1b\n\x13partition_tag_array\x18\x06 \x03(\t\"[\n\x12SearchInFilesParam\x12\x15\n\rfile_id_array\x18\x01 \x03(\t\x12.\n\x0csearch_param\x18\x02 \x01(\x0b\x32\x18.milvus.grpc.SearchParam\"l\n\x0fSearchByIDParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\n\n\x02id\x18\x02 \x01(\x03\x12\x0c\n\x04topk\x18\x03 \x01(\x03\x12\x0e\n\x06nprobe\x18\x04 \x01(\x03\x12\x1b\n\x13partition_tag_array\x18\x05 \x03(\t\"g\n\x0fTopKQueryResult\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x0f\n\x07row_num\x18\x02 \x01(\x03\x12\x0b\n\x03ids\x18\x03 \x03(\x03\x12\x11\n\tdistances\x18\x04 \x03(\x02\"H\n\x0bStringReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x14\n\x0cstring_reply\x18\x02 \x01(\t\"D\n\tBoolReply\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\nbool_reply\x18\x02 \x01(\x08\"M\n\rTableRowCount\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0ftable_row_count\x18\x02 \x01(\x03\"\x16\n\x07\x43ommand\x12\x0b\n\x03\x63md\x18\x01 \x01(\t\"*\n\x05Index\x12\x12\n\nindex_type\x18\x01 \x01(\x05\x12\r\n\x05nlist\x18\x02 \x01(\x05\"h\n\nIndexParam\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x12\n\ntable_name\x18\x02 \x01(\t\x12!\n\x05index\x18\x03 \x01(\x0b\x32\x12.milvus.grpc.Index\"&\n\nFlushParam\x12\x18\n\x10table_name_array\x18\x01 \x03(\t\"7\n\x0f\x44\x65leteByIDParam\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x10\n\x08id_array\x18\x02 \x03(\x03\"J\n\x11\x44\x65leteByDateParam\x12!\n\x05range\x18\x01 \x01(\x0b\x32\x12.milvus.grpc.Range\x12\x12\n\ntable_name\x18\x02 \x01(\t\"J\n\x0bSegmentStat\x12\x14\n\x0csegment_name\x18\x01 \x01(\t\x12\x11\n\trow_count\x18\x02 \x01(\x03\x12\x12\n\nindex_name\x18\x03 \x01(\t\"i\n\tTableStat\x12\x12\n\ntable_name\x18\x01 \x01(\t\x12\x17\n\x0ftotal_row_count\x18\x02 \x01(\x03\x12/\n\rsegments_stat\x18\x03 \x03(\x0b\x32\x18.milvus.grpc.SegmentStat\"\xa7\x01\n\tTableInfo\x12#\n\x06status\x18\x01 \x01(\x0b\x32\x13.milvus.grpc.Status\x12\x17\n\x0ftotal_row_count\x18\x02 \x01(\x03\x12+\n\x0bnative_stat\x18\x03 \x01(\x0b\x32\x16.milvus.grpc.TableStat\x12/\n\x0fpartitions_stat\x18\x04 \x03(\x0b\x32\x16.milvus.grpc.TableStat2\xff\x0b\n\rMilvusService\x12>\n\x0b\x43reateTable\x12\x18.milvus.grpc.TableSchema\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x08HasTable\x12\x16.milvus.grpc.TableName\x1a\x16.milvus.grpc.BoolReply\"\x00\x12\x43\n\rDescribeTable\x12\x16.milvus.grpc.TableName\x1a\x18.milvus.grpc.TableSchema\"\x00\x12\x42\n\nCountTable\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.TableRowCount\"\x00\x12@\n\nShowTables\x12\x14.milvus.grpc.Command\x1a\x1a.milvus.grpc.TableNameList\"\x00\x12\x41\n\rShowTableInfo\x12\x16.milvus.grpc.TableName\x1a\x16.milvus.grpc.TableInfo\"\x00\x12:\n\tDropTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0b\x43reateIndex\x12\x17.milvus.grpc.IndexParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x42\n\rDescribeIndex\x12\x16.milvus.grpc.TableName\x1a\x17.milvus.grpc.IndexParam\"\x00\x12:\n\tDropIndex\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x45\n\x0f\x43reatePartition\x12\x1b.milvus.grpc.PartitionParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x46\n\x0eShowPartitions\x12\x16.milvus.grpc.TableName\x1a\x1a.milvus.grpc.PartitionList\"\x00\x12\x43\n\rDropPartition\x12\x1b.milvus.grpc.PartitionParam\x1a\x13.milvus.grpc.Status\"\x00\x12<\n\x06Insert\x12\x18.milvus.grpc.InsertParam\x1a\x16.milvus.grpc.VectorIds\"\x00\x12\x42\n\x06Search\x12\x18.milvus.grpc.SearchParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12J\n\nSearchByID\x12\x1c.milvus.grpc.SearchByIDParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12P\n\rSearchInFiles\x12\x1f.milvus.grpc.SearchInFilesParam\x1a\x1c.milvus.grpc.TopKQueryResult\"\x00\x12\x37\n\x03\x43md\x12\x14.milvus.grpc.Command\x1a\x18.milvus.grpc.StringReply\"\x00\x12\x41\n\nDeleteByID\x12\x1c.milvus.grpc.DeleteByIDParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x45\n\x0c\x44\x65leteByDate\x12\x1e.milvus.grpc.DeleteByDateParam\x1a\x13.milvus.grpc.Status\"\x00\x12=\n\x0cPreloadTable\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x12\x37\n\x05\x46lush\x12\x17.milvus.grpc.FlushParam\x1a\x13.milvus.grpc.Status\"\x00\x12\x38\n\x07\x43ompact\x12\x16.milvus.grpc.TableName\x1a\x13.milvus.grpc.Status\"\x00\x62\x06proto3')
     ,
     dependencies=[status__pb2.DESCRIPTOR, ])
 
@@ -961,6 +961,145 @@ _DELETEBYDATEPARAM = _descriptor.Descriptor(
     serialized_end=1892,
 )
 
+_SEGMENTSTAT = _descriptor.Descriptor(
+    name='SegmentStat',
+    full_name='milvus.grpc.SegmentStat',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='segment_name', full_name='milvus.grpc.SegmentStat.segment_name', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='row_count', full_name='milvus.grpc.SegmentStat.row_count', index=1,
+            number=2, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='index_name', full_name='milvus.grpc.SegmentStat.index_name', index=2,
+            number=3, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1894,
+    serialized_end=1968,
+)
+
+_TABLESTAT = _descriptor.Descriptor(
+    name='TableStat',
+    full_name='milvus.grpc.TableStat',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='table_name', full_name='milvus.grpc.TableStat.table_name', index=0,
+            number=1, type=9, cpp_type=9, label=1,
+            has_default_value=False, default_value=_b("").decode('utf-8'),
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='total_row_count', full_name='milvus.grpc.TableStat.total_row_count', index=1,
+            number=2, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='segments_stat', full_name='milvus.grpc.TableStat.segments_stat', index=2,
+            number=3, type=11, cpp_type=10, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=1970,
+    serialized_end=2075,
+)
+
+_TABLEINFO = _descriptor.Descriptor(
+    name='TableInfo',
+    full_name='milvus.grpc.TableInfo',
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name='status', full_name='milvus.grpc.TableInfo.status', index=0,
+            number=1, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='total_row_count', full_name='milvus.grpc.TableInfo.total_row_count', index=1,
+            number=2, type=3, cpp_type=2, label=1,
+            has_default_value=False, default_value=0,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='native_stat', full_name='milvus.grpc.TableInfo.native_stat', index=2,
+            number=3, type=11, cpp_type=10, label=1,
+            has_default_value=False, default_value=None,
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+        _descriptor.FieldDescriptor(
+            name='partitions_stat', full_name='milvus.grpc.TableInfo.partitions_stat', index=3,
+            number=4, type=11, cpp_type=10, label=3,
+            has_default_value=False, default_value=[],
+            message_type=None, enum_type=None, containing_type=None,
+            is_extension=False, extension_scope=None,
+            serialized_options=None, file=DESCRIPTOR),
+    ],
+    extensions=[
+    ],
+    nested_types=[],
+    enum_types=[
+    ],
+    serialized_options=None,
+    is_extendable=False,
+    syntax='proto3',
+    extension_ranges=[],
+    oneofs=[
+    ],
+    serialized_start=2078,
+    serialized_end=2245,
+)
+
 _TABLENAMELIST.fields_by_name['status'].message_type = status__pb2._STATUS
 _TABLESCHEMA.fields_by_name['status'].message_type = status__pb2._STATUS
 _PARTITIONLIST.fields_by_name['status'].message_type = status__pb2._STATUS
@@ -977,6 +1116,10 @@ _TABLEROWCOUNT.fields_by_name['status'].message_type = status__pb2._STATUS
 _INDEXPARAM.fields_by_name['status'].message_type = status__pb2._STATUS
 _INDEXPARAM.fields_by_name['index'].message_type = _INDEX
 _DELETEBYDATEPARAM.fields_by_name['range'].message_type = _RANGE
+_TABLESTAT.fields_by_name['segments_stat'].message_type = _SEGMENTSTAT
+_TABLEINFO.fields_by_name['status'].message_type = status__pb2._STATUS
+_TABLEINFO.fields_by_name['native_stat'].message_type = _TABLESTAT
+_TABLEINFO.fields_by_name['partitions_stat'].message_type = _TABLESTAT
 DESCRIPTOR.message_types_by_name['TableName'] = _TABLENAME
 DESCRIPTOR.message_types_by_name['PartitionName'] = _PARTITIONNAME
 DESCRIPTOR.message_types_by_name['TableNameList'] = _TABLENAMELIST
@@ -1000,6 +1143,9 @@ DESCRIPTOR.message_types_by_name['IndexParam'] = _INDEXPARAM
 DESCRIPTOR.message_types_by_name['FlushParam'] = _FLUSHPARAM
 DESCRIPTOR.message_types_by_name['DeleteByIDParam'] = _DELETEBYIDPARAM
 DESCRIPTOR.message_types_by_name['DeleteByDateParam'] = _DELETEBYDATEPARAM
+DESCRIPTOR.message_types_by_name['SegmentStat'] = _SEGMENTSTAT
+DESCRIPTOR.message_types_by_name['TableStat'] = _TABLESTAT
+DESCRIPTOR.message_types_by_name['TableInfo'] = _TABLEINFO
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 TableName = _reflection.GeneratedProtocolMessageType('TableName', (_message.Message,), {
@@ -1163,14 +1309,35 @@ DeleteByDateParam = _reflection.GeneratedProtocolMessageType('DeleteByDateParam'
 })
 _sym_db.RegisterMessage(DeleteByDateParam)
 
+SegmentStat = _reflection.GeneratedProtocolMessageType('SegmentStat', (_message.Message,), {
+    'DESCRIPTOR': _SEGMENTSTAT,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.SegmentStat)
+})
+_sym_db.RegisterMessage(SegmentStat)
+
+TableStat = _reflection.GeneratedProtocolMessageType('TableStat', (_message.Message,), {
+    'DESCRIPTOR': _TABLESTAT,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.TableStat)
+})
+_sym_db.RegisterMessage(TableStat)
+
+TableInfo = _reflection.GeneratedProtocolMessageType('TableInfo', (_message.Message,), {
+    'DESCRIPTOR': _TABLEINFO,
+    '__module__': 'milvus_pb2'
+    # @@protoc_insertion_point(class_scope:milvus.grpc.TableInfo)
+})
+_sym_db.RegisterMessage(TableInfo)
+
 _MILVUSSERVICE = _descriptor.ServiceDescriptor(
     name='MilvusService',
     full_name='milvus.grpc.MilvusService',
     file=DESCRIPTOR,
     index=0,
     serialized_options=None,
-    serialized_start=1895,
-    serialized_end=3363,
+    serialized_start=2248,
+    serialized_end=3783,
     methods=[
         _descriptor.MethodDescriptor(
             name='CreateTable',
@@ -1218,9 +1385,18 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
             serialized_options=None,
         ),
         _descriptor.MethodDescriptor(
+            name='ShowTableInfo',
+            full_name='milvus.grpc.MilvusService.ShowTableInfo',
+            index=5,
+            containing_service=None,
+            input_type=_TABLENAME,
+            output_type=_TABLEINFO,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
             name='DropTable',
             full_name='milvus.grpc.MilvusService.DropTable',
-            index=5,
+            index=6,
             containing_service=None,
             input_type=_TABLENAME,
             output_type=status__pb2._STATUS,
@@ -1229,7 +1405,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='CreateIndex',
             full_name='milvus.grpc.MilvusService.CreateIndex',
-            index=6,
+            index=7,
             containing_service=None,
             input_type=_INDEXPARAM,
             output_type=status__pb2._STATUS,
@@ -1238,7 +1414,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='DescribeIndex',
             full_name='milvus.grpc.MilvusService.DescribeIndex',
-            index=7,
+            index=8,
             containing_service=None,
             input_type=_TABLENAME,
             output_type=_INDEXPARAM,
@@ -1247,7 +1423,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='DropIndex',
             full_name='milvus.grpc.MilvusService.DropIndex',
-            index=8,
+            index=9,
             containing_service=None,
             input_type=_TABLENAME,
             output_type=status__pb2._STATUS,
@@ -1256,7 +1432,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='CreatePartition',
             full_name='milvus.grpc.MilvusService.CreatePartition',
-            index=9,
+            index=10,
             containing_service=None,
             input_type=_PARTITIONPARAM,
             output_type=status__pb2._STATUS,
@@ -1265,7 +1441,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='ShowPartitions',
             full_name='milvus.grpc.MilvusService.ShowPartitions',
-            index=10,
+            index=11,
             containing_service=None,
             input_type=_TABLENAME,
             output_type=_PARTITIONLIST,
@@ -1274,7 +1450,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='DropPartition',
             full_name='milvus.grpc.MilvusService.DropPartition',
-            index=11,
+            index=12,
             containing_service=None,
             input_type=_PARTITIONPARAM,
             output_type=status__pb2._STATUS,
@@ -1283,7 +1459,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='Insert',
             full_name='milvus.grpc.MilvusService.Insert',
-            index=12,
+            index=13,
             containing_service=None,
             input_type=_INSERTPARAM,
             output_type=_VECTORIDS,
@@ -1292,7 +1468,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='Search',
             full_name='milvus.grpc.MilvusService.Search',
-            index=13,
+            index=14,
             containing_service=None,
             input_type=_SEARCHPARAM,
             output_type=_TOPKQUERYRESULT,
@@ -1301,7 +1477,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='SearchByID',
             full_name='milvus.grpc.MilvusService.SearchByID',
-            index=14,
+            index=15,
             containing_service=None,
             input_type=_SEARCHBYIDPARAM,
             output_type=_TOPKQUERYRESULT,
@@ -1310,7 +1486,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='SearchInFiles',
             full_name='milvus.grpc.MilvusService.SearchInFiles',
-            index=15,
+            index=16,
             containing_service=None,
             input_type=_SEARCHINFILESPARAM,
             output_type=_TOPKQUERYRESULT,
@@ -1319,7 +1495,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='Cmd',
             full_name='milvus.grpc.MilvusService.Cmd',
-            index=16,
+            index=17,
             containing_service=None,
             input_type=_COMMAND,
             output_type=_STRINGREPLY,
@@ -1328,7 +1504,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='DeleteByID',
             full_name='milvus.grpc.MilvusService.DeleteByID',
-            index=17,
+            index=18,
             containing_service=None,
             input_type=_DELETEBYIDPARAM,
             output_type=status__pb2._STATUS,
@@ -1337,7 +1513,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='DeleteByDate',
             full_name='milvus.grpc.MilvusService.DeleteByDate',
-            index=18,
+            index=19,
             containing_service=None,
             input_type=_DELETEBYDATEPARAM,
             output_type=status__pb2._STATUS,
@@ -1346,7 +1522,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='PreloadTable',
             full_name='milvus.grpc.MilvusService.PreloadTable',
-            index=19,
+            index=20,
             containing_service=None,
             input_type=_TABLENAME,
             output_type=status__pb2._STATUS,
@@ -1355,7 +1531,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='Flush',
             full_name='milvus.grpc.MilvusService.Flush',
-            index=20,
+            index=21,
             containing_service=None,
             input_type=_FLUSHPARAM,
             output_type=status__pb2._STATUS,
@@ -1364,7 +1540,7 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
         _descriptor.MethodDescriptor(
             name='Compact',
             full_name='milvus.grpc.MilvusService.Compact',
-            index=21,
+            index=22,
             containing_service=None,
             input_type=_TABLENAME,
             output_type=status__pb2._STATUS,

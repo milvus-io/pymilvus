@@ -132,8 +132,8 @@ class Milvus:
         return self._handler.show_tables(timeout)
 
     @check_connect
-    def show_tables(self, timeout=10):
-        return self._handler.show_tables(timeout)
+    def table_info(self, table_name, timeout=10):
+        return self._handler.show_table_info(table_name, timeout)
 
     @check_connect
     def preload_table(self, table_name, timeout=None):

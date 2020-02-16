@@ -40,6 +40,11 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.Command.SerializeToString,
             response_deserializer=milvus__pb2.TableNameList.FromString,
         )
+        self.ShowTableInfo = channel.unary_unary(
+            '/milvus.grpc.MilvusService/ShowTableInfo',
+            request_serializer=milvus__pb2.TableName.SerializeToString,
+            response_deserializer=milvus__pb2.TableInfo.FromString,
+        )
         self.DropTable = channel.unary_unary(
             '/milvus.grpc.MilvusService/DropTable',
             request_serializer=milvus__pb2.TableName.SerializeToString,
@@ -186,6 +191,18 @@ class MilvusServiceServicer(object):
         @param Command, dummy parameter.
 
         @return TableNameList
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ShowTableInfo(self, request, context):
+        """*
+        @brief This method is used to get table detail information.
+
+        @param TableName, target table name.
+
+        @return TableInfo
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -422,6 +439,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             servicer.ShowTables,
             request_deserializer=milvus__pb2.Command.FromString,
             response_serializer=milvus__pb2.TableNameList.SerializeToString,
+        ),
+        'ShowTableInfo': grpc.unary_unary_rpc_method_handler(
+            servicer.ShowTableInfo,
+            request_deserializer=milvus__pb2.TableName.FromString,
+            response_serializer=milvus__pb2.TableInfo.SerializeToString,
         ),
         'DropTable': grpc.unary_unary_rpc_method_handler(
             servicer.DropTable,
