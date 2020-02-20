@@ -402,9 +402,11 @@ class SegmentStat:
         self.segment_name = res.segment_name
         self.count = res.row_count
         self.index_name = res.index_name
+        self.data_size = res.data_size
 
     def __str__(self):
-        return "Segment(segment_name: {}, row_count: {}, index_name: {})".format(self.segment_name, self.count, self.index_name)
+        return "Segment(segment_name: {}, row_count: {}, index_name: {}, data_size: {})"\
+            .format(self.segment_name, self.count, self.index_name, self.data_size)
 
     def __repr__(self):
         return self.__str__()
@@ -431,11 +433,11 @@ class TableInfo:
         self.partitions_stat = [TableStat(p) for p in list(res.partitions_stat)]
 
     def __str__(self):
-        return "TableInfo(count: {}, native_stat: {}, partitions_stat: {})"\
+        return "TableInfo(count: {}, native_stat: {}, partitions_stat: {})" \
             .format(self.count, self.native_stat, self.partitions_stat)
 
     def __repr__(self):
-        return super().__repr__() + "\n" + self.__str__()
+        return self.__str__()
 
 
 def _abstract():

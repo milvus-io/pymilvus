@@ -530,7 +530,6 @@ class GrpcHandler(ConnectIntf):
             if status.error_code == 0:
                 return Status(message='Delete table successfully!')
             return Status(code=status.error_code, message=status.reason)
-
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
@@ -595,6 +594,25 @@ class GrpcHandler(ConnectIntf):
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(code=Status.UNEXPECTED_ERROR, message="Request timeout"), []
+
+    def get_vector_by_id(self, table_name, v_id, timeout=10):
+        request = milvus_pb2.VectorIdentity(table_name=table_name, id=v_id)
+
+        try:
+            response = self._stub.GetVectorByID.future(request).result(timeout=timeout)
+            status = response.status
+            if status.error_code == 0:
+                status = Status(message="Obtain vector successfully")
+                return status, \
+                       list(response.vector_data.float_data) or bytes(response.vector_data.binary_data)
+
+            return Status(code=status.error_code, message=status.reason), []
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred: {}'.format(e.details())), []
 
     def create_index(self, table_name, index=None, timeout=-1):
         """
