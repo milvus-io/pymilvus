@@ -515,7 +515,7 @@ class TestDropTable:
         param = table_schema_factory()
         s = gcon.create_table(param)
         assert s.OK()
-        time.sleep(5)
+
         _, tables = gcon.show_tables()
         assert param['table_name'] in tables
 
@@ -548,7 +548,8 @@ class TestAddVectors:
         assert status.OK()
         assert len(ids) == nq
 
-        time.sleep(2)
+        status = gcon.flush([gtable])
+        assert status.OK(), status.message
 
         status, count = gcon.count_table(gtable)
         assert status.OK()
@@ -570,7 +571,8 @@ class TestAddVectors:
         assert status.OK()
         assert len(ids) == len(vectors_ids)
 
-        time.sleep(5)
+        status = gcon.flush([gtable])
+        assert status.OK(), status.message
 
         status, count = gcon.count_table(gtable)
         assert status.OK()
@@ -602,15 +604,16 @@ class TestIndex:
         assert status.OK()
         assert len(ids) == nb
 
-        time.sleep(3)
+        status = gcon.flush([gtable])
+        assert status.OK(), status.message
 
         _index = {
             'index_type': IndexType.IVFLAT,
             'nlist': 4096
         }
 
-        gcon.create_index(gtable, _index)
-        time.sleep(5)
+        status = gcon.create_index(gtable, _index)
+        assert status.OK(), status.message
 
         status, index_schema = gcon.describe_index(gtable)
 
@@ -630,7 +633,8 @@ class TestIndex:
         assert status.OK()
         assert len(ids) == nb
 
-        time.sleep(6)
+        status = gcon.flush([gtable])
+        assert status.OK(), status.message
 
         status, count = gcon.count_table(gtable)
         assert status.OK()
@@ -644,8 +648,6 @@ class TestIndex:
         status = gcon.create_index(gtable, _index)
         assert status.OK()
 
-        time.sleep(1)
-
         status = gcon.drop_index(gtable)
         assert status.OK()
 
@@ -658,7 +660,8 @@ class TestSearchByID:
 
         assert status.OK()
 
-        time.sleep(2)
+        status = gcon.flush([gtable])
+        assert status.OK(), status.message
 
         status, result = gcon.search_by_id(gtable, 2, 10, ids[0])
         assert status.OK()
@@ -1106,10 +1109,11 @@ class TestCompact:
 
     def test_compact_after_delete(self, gcon, gtable):
         vectors = [[random.random() for _ in range(128)] for _ in range(10000)]
-        status, ids = gcon.add_vectors(table_name=gtable, records=vectors)
+        status, ids = gcon.insert(table_name=gtable, records=vectors)
         assert status.OK(), status.message
 
-        time.sleep(2)
+        status = gcon.flush([gtable])
+        assert status.OK(), status.message
 
         status = gcon.delete_by_id(gtable, ids[100:1000])
         assert status, status.message
@@ -1144,7 +1148,6 @@ class TestTableInfo:
 
     def test_table_info_with_partitions(self, gcon, gtable):
         for i in range(5):
-            records = records_factory(128, 10000)
             partition_name = "{}_partition_{}".format(gtable, i)
             partition_tag = "tag_{}".format(i)
 
@@ -1166,3 +1169,7 @@ class TestTableInfo:
         status, _ = gcon.table_info(gtable)
 
         assert status.OK(), status.message
+
+    def test_table_info_with_non_exist_table(self, gcon):
+        status, _ = gcon.table_info("Xiaxiede")
+        assert not status.OK(), status.message
