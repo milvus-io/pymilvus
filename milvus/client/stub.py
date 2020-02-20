@@ -156,6 +156,12 @@ class Milvus:
         return self._handler.insert(table_name, records, ids, partition_tag, timeout, **kwargs)
 
     @check_connect
+    def get_vector_by_id(self, table_name, vector_id):
+        check_pass_param(table_name=table_name, ids=[vector_id])
+
+        return self._handler.get_vector_by_id(table_name, vector_id)
+
+    @check_connect
     def create_index(self, table_name, index=None, timeout=-1):
         index_default = {'index_type': IndexType.FLAT, 'nlist': 16384}
         if not index:
