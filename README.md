@@ -42,13 +42,13 @@ The following table shows Milvus versions and recommended pymilvus versions:
 
 You can install a specific version of pymilvus by:
 
-```$
+```shell
 $ pip install pymilvus==0.2.7
 ```
 
 You can upgrade `pymilvus` to the latest version by:
 
-```$
+```shell
 $ pip install --upgrade pymilvus
 ```
 
@@ -72,6 +72,7 @@ from milvus import Milvus, IndexType, MetricType, Status
 >>> milvus.connect(host='localhost', port='19530')
 Status(code=0, message='Successfully connected! localhost:19530')
 ```
+
 Once successfully connected, you can get the version of Milvus server.
 
 ```python
@@ -107,7 +108,7 @@ Once successfully connected, you can get the version of Milvus server.
 
 1. Create 20 vectors of 256-dimension.
 
-> Note: `random` and `pprint` are used for demonstration purposes only.
+    > Note: `random` and `pprint` are used for demonstration purposes only.
 
     ```python
     >>> import random
@@ -142,8 +143,6 @@ Once successfully connected, you can get the version of Milvus server.
 
 ### Get the sum of vectors
 
-Get vectors num
-
 ```python
 >>> milvus.count_table('test01')
 (Status(code=0, message='Success!'), 20)
@@ -163,6 +162,7 @@ Status(code=0, message='')
 >>> milvus.create_index('test01', index_param)
 Status(code=0, message='Build index successfully!')
 ```
+
 ### Get index information
 
 ```python
@@ -193,7 +193,7 @@ Status(code=0, message='Search vectors successfully!')
 
 ### Create a partition
 
-Create a new partition named `partition01` under table `test01`, and specify tag `tag01`
+Create a new partition named `partition01` under table `test01`, and specify tag `tag01`.
 
 ```python
 >>> milvus.create_partition('test01', 'partition01', 'tag01')
@@ -201,8 +201,6 @@ Status(code=0, message='OK')
 ```
 
 ### Insert vectors to a partition
-
-Specify partition vectors insert into
 
 ```python
 >>> status = milvus.insert('demo01', vectors, partition_tag="tag01")
@@ -215,6 +213,7 @@ Specify partition vectors insert into
 ```python
 milvus.show_partitions(table_name='test01')
 ```
+
 ### Search vectors in a partition
 
 ```python
@@ -243,9 +242,3 @@ Status(code=0, message='Delete table successfully!')
 >>> milvus.disconnect()
 Status(code=0, message='Disconnect successfully')
 ```
-
-
-
-
-
-
