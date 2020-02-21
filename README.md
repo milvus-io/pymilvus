@@ -8,6 +8,35 @@ Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code
 
 For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.6/index.html).
 
+
+<!-- TOC -->
+
+- [New features](#new-features)
+- [Get started](#get-started)
+    - [Prerequisites](#prerequisites)
+    - [Install pymilvus](#install-pymilvus)
+    - [Examples](#examples)
+- [Basic operations](#basic-operations)
+    - [Import modules](#import-modules)
+    - [Connect to Milvus server](#connect-to-milvus-server)
+    - [Create a table](#create-a-table)
+    - [Get table information](#get-table-information)
+    - [Insert vectors](#insert-vectors)
+    - [Get the sum of vectors](#get-the-sum-of-vectors)
+    - [Load vectors into memory](#load-vectors-into-memory)
+    - [Create index](#create-index)
+    - [Get index information](#get-index-information)
+    - [Search vectors](#search-vectors)
+    - [Create a partition](#create-a-partition)
+    - [Insert vectors to a partition](#insert-vectors-to-a-partition)
+    - [Get partitions of a table](#get-partitions-of-a-table)
+    - [Search vectors in a partition](#search-vectors-in-a-partition)
+    - [Drop index](#drop-index)
+    - [Drop a table](#drop-a-table)
+    - [Disconnect from Milvus server](#disconnect-from-milvus-server)
+
+<!-- /TOC -->
+
 ## New features
 
 * Add new metric type `HAMMING`, `JACCARD`, `TANIMOTO` for binary vectors. examples about binary vectors in `examples/example_binary.py`
