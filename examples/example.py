@@ -49,6 +49,10 @@ def main():
     # Show tables in Milvus server
     _, tables = milvus.show_tables()
 
+    # present table info
+    _, info = milvus.table_info(table_name)
+    print(info)
+
     # Describe demo_table
     _, table = milvus.describe_table(table_name)
     print(table)
