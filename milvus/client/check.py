@@ -207,10 +207,6 @@ def is_legal_date_range(start, end):
     return True
 
 
-def is_legal_partition_name(name):
-    return name is None or isinstance(name, str)
-
-
 def is_legal_partition_tag(tag):
     return tag is None or isinstance(tag, str)
 
@@ -267,9 +263,6 @@ def check_pass_param(*args, **kwargs):
                 _raise_param_error(key)
         elif key in ("cmd",):
             if not is_legal_cmd(value):
-                _raise_param_error(key)
-        elif key in ("partition_name",):
-            if not is_legal_partition_name(value):
                 _raise_param_error(key)
         elif key in ("partition_tag",):
             if not is_legal_partition_tag(value):

@@ -202,7 +202,7 @@ class TestTable:
     def test_has_table(self, gcon, gtable):
         table_name = fake.table_name()
         status, result = gcon.has_table(table_name)
-        assert status.OK()
+        assert status.OK(), status.message
         assert not result
 
         result = gcon.has_table(gtable)
@@ -348,24 +348,8 @@ class TestSearch:
             'top_k': topk,
             'nprobe': 10
         }
-        res, results = gcon.search(**param)
+        res, _ = gcon.search(**param)
         assert not res.OK()
-
-    def test_search_with_range(self, gcon, gvector):
-        topk = random.randint(1, 10)
-        query_records = records_factory(dim, nq)
-        param = {
-            'table_name': gvector,
-            'top_k': topk,
-            'nprobe': 10,
-            'query_records': query_records,
-            'query_ranges': query_ranges_factory()
-
-        }
-        res, results = gcon.search(**param)
-        assert res.OK()
-        assert len(results) == nq
-        assert len(results[0]) == topk
 
     def test_false_vector(self, gcon):
         param = {
@@ -673,10 +657,9 @@ class TestSearchByID:
         assert ids[0] == result[0][0].id
 
     def test_search_by_id_with_partitions(self, gcon, gtable):
-        par = "search_by_id_partitions_"
         tag = "search_by_id_partitions_tag"
 
-        status = gcon.create_partition(gtable, par, tag)
+        status = gcon.create_partition(gtable, tag)
         assert status.OK()
 
         vectors = records_factory(dim, nq)
@@ -718,24 +701,6 @@ class TestSearchByID:
         assert status.OK()
         print(result)
         assert 0 == len(result)
-
-
-class TestSearchVectors:
-    def test_search_normal_1_with_ranges(self, gcon, gtable):
-        vectors = records_factory(dim, nq)
-        status, ids = gcon.insert(gtable, vectors)
-
-        assert status.OK()
-
-        ranges = ranges_factory()
-        time.sleep(2)
-
-        s_vectors = [vectors[0]]
-
-        status, result = gcon.search(gtable, 1, 10, s_vectors, ranges)
-        assert status.OK()
-        assert len(result) == 1
-        assert len(result[0]) == 1
 
 
 class TestBuildIndex:
@@ -895,7 +860,7 @@ class TestQueryResult:
 class TestPartition:
 
     def test_create_partition_in_empty_table(self, gcon, gtable):
-        status = gcon.create_partition(table_name=gtable, partition_name="p1", partition_tag="1")
+        status = gcon.create_partition(table_name=gtable, partition_tag="1")
         assert status.OK()
 
         vectors = [[random.random() for _ in range(128)] for _ in range(100)]
@@ -903,11 +868,11 @@ class TestPartition:
         assert status.OK()
 
     def test_create_partition_after_insert(self, gcon, gvector):
-        status = gcon.create_partition(table_name=gvector, partition_name="t1", partition_tag="1")
+        status = gcon.create_partition(table_name=gvector, partition_tag="1")
         assert status.OK()
 
     def test_insert_with_wrong_partition(self, gcon, gtable):
-        status = gcon.create_partition(table_name=gtable, partition_name="p2", partition_tag="1")
+        status = gcon.create_partition(table_name=gtable, partition_tag="1")
         assert status.OK()
 
         vectors = [[random.random() for _ in range(128)] for _ in range(100)]
@@ -915,7 +880,7 @@ class TestPartition:
         assert not status.OK()
 
     def test_search_with_partition_first(self, gcon, gtable):
-        status = gcon.create_partition(table_name=gtable, partition_name="p22", partition_tag="2")
+        status = gcon.create_partition(table_name=gtable, partition_tag="2")
         assert status.OK()
 
         status, partitions = gcon.show_partitions(gtable)
@@ -963,7 +928,7 @@ class TestPartition:
         partition_name = "partition_" + faker.word()
         partition_tag = "partition_tag_" + faker.word()
 
-        status = gcon.create_partition(table_name=gtable, partition_name=partition_name, partition_tag=partition_tag)
+        status = gcon.create_partition(table_name=gtable, partition_tag=partition_tag)
         assert status.OK()
 
         status, partitions = gcon.show_partitions(gtable)
@@ -1148,10 +1113,9 @@ class TestTableInfo:
 
     def test_table_info_with_partitions(self, gcon, gtable):
         for i in range(5):
-            partition_name = "{}_partition_{}".format(gtable, i)
             partition_tag = "tag_{}".format(i)
 
-            status = gcon.create_partition(gtable, partition_name, partition_tag)
+            status = gcon.create_partition(gtable, partition_tag)
             assert status.OK(), status.message
 
             for j in range(3):

@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
     syntax='proto3',
     serialized_options=None,
     serialized_pb=_b(
-        '\n\x0cstatus.proto\x12\x0bmilvus.grpc\"D\n\x06Status\x12*\n\nerror_code\x18\x01 \x01(\x0e\x32\x16.milvus.grpc.ErrorCode\x12\x0e\n\x06reason\x18\x02 \x01(\t*\xab\x04\n\tErrorCode\x12\x0b\n\x07SUCCESS\x10\x00\x12\x14\n\x10UNEXPECTED_ERROR\x10\x01\x12\x12\n\x0e\x43ONNECT_FAILED\x10\x02\x12\x15\n\x11PERMISSION_DENIED\x10\x03\x12\x14\n\x10TABLE_NOT_EXISTS\x10\x04\x12\x14\n\x10ILLEGAL_ARGUMENT\x10\x05\x12\x11\n\rILLEGAL_RANGE\x10\x06\x12\x15\n\x11ILLEGAL_DIMENSION\x10\x07\x12\x16\n\x12ILLEGAL_INDEX_TYPE\x10\x08\x12\x16\n\x12ILLEGAL_TABLE_NAME\x10\t\x12\x10\n\x0cILLEGAL_TOPK\x10\n\x12\x15\n\x11ILLEGAL_ROWRECORD\x10\x0b\x12\x15\n\x11ILLEGAL_VECTOR_ID\x10\x0c\x12\x19\n\x15ILLEGAL_SEARCH_RESULT\x10\r\x12\x12\n\x0e\x46ILE_NOT_FOUND\x10\x0e\x12\x0f\n\x0bMETA_FAILED\x10\x0f\x12\x10\n\x0c\x43\x41\x43HE_FAILED\x10\x10\x12\x18\n\x14\x43\x41NNOT_CREATE_FOLDER\x10\x11\x12\x16\n\x12\x43\x41NNOT_CREATE_FILE\x10\x12\x12\x18\n\x14\x43\x41NNOT_DELETE_FOLDER\x10\x13\x12\x16\n\x12\x43\x41NNOT_DELETE_FILE\x10\x14\x12\x15\n\x11\x42UILD_INDEX_ERROR\x10\x15\x12\x11\n\rILLEGAL_NLIST\x10\x16\x12\x17\n\x13ILLEGAL_METRIC_TYPE\x10\x17\x12\x11\n\rOUT_OF_MEMORY\x10\x18\x62\x06proto3')
+        '\n\x0cstatus.proto\x12\x0bmilvus.grpc\"D\n\x06Status\x12*\n\nerror_code\x18\x01 \x01(\x0e\x32\x16.milvus.grpc.ErrorCode\x12\x0e\n\x06reason\x18\x02 \x01(\t*\x98\x04\n\tErrorCode\x12\x0b\n\x07SUCCESS\x10\x00\x12\x14\n\x10UNEXPECTED_ERROR\x10\x01\x12\x12\n\x0e\x43ONNECT_FAILED\x10\x02\x12\x15\n\x11PERMISSION_DENIED\x10\x03\x12\x14\n\x10TABLE_NOT_EXISTS\x10\x04\x12\x14\n\x10ILLEGAL_ARGUMENT\x10\x05\x12\x15\n\x11ILLEGAL_DIMENSION\x10\x07\x12\x16\n\x12ILLEGAL_INDEX_TYPE\x10\x08\x12\x16\n\x12ILLEGAL_TABLE_NAME\x10\t\x12\x10\n\x0cILLEGAL_TOPK\x10\n\x12\x15\n\x11ILLEGAL_ROWRECORD\x10\x0b\x12\x15\n\x11ILLEGAL_VECTOR_ID\x10\x0c\x12\x19\n\x15ILLEGAL_SEARCH_RESULT\x10\r\x12\x12\n\x0e\x46ILE_NOT_FOUND\x10\x0e\x12\x0f\n\x0bMETA_FAILED\x10\x0f\x12\x10\n\x0c\x43\x41\x43HE_FAILED\x10\x10\x12\x18\n\x14\x43\x41NNOT_CREATE_FOLDER\x10\x11\x12\x16\n\x12\x43\x41NNOT_CREATE_FILE\x10\x12\x12\x18\n\x14\x43\x41NNOT_DELETE_FOLDER\x10\x13\x12\x16\n\x12\x43\x41NNOT_DELETE_FILE\x10\x14\x12\x15\n\x11\x42UILD_INDEX_ERROR\x10\x15\x12\x11\n\rILLEGAL_NLIST\x10\x16\x12\x17\n\x13ILLEGAL_METRIC_TYPE\x10\x17\x12\x11\n\rOUT_OF_MEMORY\x10\x18\x62\x06proto3')
 )
 
 _ERRORCODE = _descriptor.EnumDescriptor(
@@ -55,86 +55,82 @@ _ERRORCODE = _descriptor.EnumDescriptor(
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_RANGE', index=6, number=6,
+            name='ILLEGAL_DIMENSION', index=6, number=7,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_DIMENSION', index=7, number=7,
+            name='ILLEGAL_INDEX_TYPE', index=7, number=8,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_INDEX_TYPE', index=8, number=8,
+            name='ILLEGAL_TABLE_NAME', index=8, number=9,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_TABLE_NAME', index=9, number=9,
+            name='ILLEGAL_TOPK', index=9, number=10,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_TOPK', index=10, number=10,
+            name='ILLEGAL_ROWRECORD', index=10, number=11,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_ROWRECORD', index=11, number=11,
+            name='ILLEGAL_VECTOR_ID', index=11, number=12,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_VECTOR_ID', index=12, number=12,
+            name='ILLEGAL_SEARCH_RESULT', index=12, number=13,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_SEARCH_RESULT', index=13, number=13,
+            name='FILE_NOT_FOUND', index=13, number=14,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='FILE_NOT_FOUND', index=14, number=14,
+            name='META_FAILED', index=14, number=15,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='META_FAILED', index=15, number=15,
+            name='CACHE_FAILED', index=15, number=16,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='CACHE_FAILED', index=16, number=16,
+            name='CANNOT_CREATE_FOLDER', index=16, number=17,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='CANNOT_CREATE_FOLDER', index=17, number=17,
+            name='CANNOT_CREATE_FILE', index=17, number=18,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='CANNOT_CREATE_FILE', index=18, number=18,
+            name='CANNOT_DELETE_FOLDER', index=18, number=19,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='CANNOT_DELETE_FOLDER', index=19, number=19,
+            name='CANNOT_DELETE_FILE', index=19, number=20,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='CANNOT_DELETE_FILE', index=20, number=20,
+            name='BUILD_INDEX_ERROR', index=20, number=21,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='BUILD_INDEX_ERROR', index=21, number=21,
+            name='ILLEGAL_NLIST', index=21, number=22,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_NLIST', index=22, number=22,
+            name='ILLEGAL_METRIC_TYPE', index=22, number=23,
             serialized_options=None,
             type=None),
         _descriptor.EnumValueDescriptor(
-            name='ILLEGAL_METRIC_TYPE', index=23, number=23,
-            serialized_options=None,
-            type=None),
-        _descriptor.EnumValueDescriptor(
-            name='OUT_OF_MEMORY', index=24, number=24,
+            name='OUT_OF_MEMORY', index=23, number=24,
             serialized_options=None,
             type=None),
     ],
     containing_type=None,
     serialized_options=None,
     serialized_start=100,
-    serialized_end=655,
+    serialized_end=636,
 )
 _sym_db.RegisterEnumDescriptor(_ERRORCODE)
 
@@ -145,7 +141,6 @@ CONNECT_FAILED = 2
 PERMISSION_DENIED = 3
 TABLE_NOT_EXISTS = 4
 ILLEGAL_ARGUMENT = 5
-ILLEGAL_RANGE = 6
 ILLEGAL_DIMENSION = 7
 ILLEGAL_INDEX_TYPE = 8
 ILLEGAL_TABLE_NAME = 9

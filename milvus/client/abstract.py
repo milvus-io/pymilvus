@@ -46,35 +46,6 @@ class TableSchema:
         return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
 
-class Range:
-    """
-    Range information
-
-    :type  start_date: str, date or datetime
-
-        `str should be YY-MM-DD format, e.g. "2019-07-01"`
-
-    :param start_date: Range start date
-
-    :type  end_date: str, date or datetime
-
-        `str should be YY-MM-DD format, e.g. "2019-07-01"`
-
-    :param end_date: Range end date
-
-    """
-
-    def __init__(self, start_date, end_date):
-        start_date = parser_range_date(start_date)
-        end_date = parser_range_date(end_date)
-        if is_legal_date_range(start_date, end_date):
-            self.start_date = start_date
-            self.end_date = end_date
-        else:
-            raise ParamError("The start-date should be smaller"
-                             " than or equal to end-date!")
-
-
 class QueryResult:
 
     def __init__(self, _id, _distance):
@@ -386,9 +357,8 @@ class IndexParam:
 
 class PartitionParam:
 
-    def __init__(self, table_name, partition_name, tag):
+    def __init__(self, table_name, tag):
         self.table_name = table_name
-        self.partition_name = partition_name
         self.tag = tag
 
     def __repr__(self):
@@ -405,21 +375,24 @@ class SegmentStat:
         self.data_size = res.data_size
 
     def __str__(self):
-        return "Segment(segment_name: {}, row_count: {}, index_name: {}, data_size: {})"\
-            .format(self.segment_name, self.count, self.index_name, self.data_size)
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
     def __repr__(self):
         return self.__str__()
 
 
-class TableStat:
+class PartitionStat:
     def __init__(self, res):
-        self.name = res.table_name
+        self.tag = res.tag
         self.count = res.total_row_count
-        self.segment_stats = [SegmentStat(s) for s in list(res.segments_stat)]
+        self.segments_stat = [SegmentStat(s) for s in list(res.segments_stat)]
 
     def __str__(self):
-        return "TableStat(name: {}, count: {}, segment_stats: {})".format(self.name, self.count, self.segment_stats)
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
     def __repr__(self):
         return self.__str__()
@@ -428,13 +401,12 @@ class TableStat:
 class TableInfo:
     def __init__(self, res):
         self.count = res.total_row_count
-
-        self.native_stat = TableStat(res.native_stat)
-        self.partitions_stat = [TableStat(p) for p in list(res.partitions_stat)]
+        self.partitions_stat = [PartitionStat(p) for p in list(res.partitions_stat)]
 
     def __str__(self):
-        return "TableInfo(count: {}, native_stat: {}, partitions_stat: {})" \
-            .format(self.count, self.native_stat, self.partitions_stat)
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
     def __repr__(self):
         return self.__str__()

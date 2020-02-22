@@ -1,6 +1,5 @@
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
-from .abstract import Range
 
 
 class Prepare:
@@ -30,27 +29,6 @@ class Prepare:
                                       dimension=param["dimension"],
                                       index_file_size=param["index_file_size"],
                                       metric_type=param["metric_type"])
-
-    @classmethod
-    def range(cls, start_date, end_date):
-        """
-        Parser a 'yyyy-mm-dd' like str or date/datetime object to Range object
-
-            `Range: (start_date, end_date]`
-
-            `start_date : '2019-05-25'`
-
-        :param start_date: start date
-        :type  start_date: str, date, datetime
-        :param end_date: end date
-        :type  end_date: str, date, datetime
-
-        :return: Range object
-        """
-        temp = Range(start_date, end_date)
-
-        return grpc_types.Range(start_value=temp.start_date,
-                                end_value=temp.end_date)
 
     @classmethod
     def ranges(cls, ranges):
@@ -122,7 +100,6 @@ class Prepare:
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
-            query_range_array=query_ranges,
             topk=topk,
             nprobe=nprobe,
             partition_tag_array=partitions
@@ -168,10 +145,9 @@ class Prepare:
         return grpc_types.DeleteByDateParam(range=range_, table_name=table_name)
 
     @classmethod
-    def partition_param(cls, table_name, partition_name, tag):
+    def partition_param(cls, table_name, tag):
 
-        return grpc_types.PartitionParam(table_name=table_name,
-                                         partition_name=partition_name, tag=tag)
+        return grpc_types.PartitionParam(table_name=table_name, tag=tag)
 
     @classmethod
     def delete_by_id_param(cls, table_name, id_array):

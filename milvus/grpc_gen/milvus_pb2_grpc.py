@@ -115,11 +115,6 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.DeleteByIDParam.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
-        self.DeleteByDate = channel.unary_unary(
-            '/milvus.grpc.MilvusService/DeleteByDate',
-            request_serializer=milvus__pb2.DeleteByDateParam.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
-        )
         self.PreloadTable = channel.unary_unary(
             '/milvus.grpc.MilvusService/PreloadTable',
             request_serializer=milvus__pb2.TableName.SerializeToString,
@@ -381,18 +376,6 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def DeleteByDate(self, request, context):
-        """*
-        @brief This method is used to delete vector by date range
-
-        @param DeleteByDateParam, delete parameters.
-
-        @return status
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def PreloadTable(self, request, context):
         """*
         @brief This method is used to preload table
@@ -530,11 +513,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'DeleteByID': grpc.unary_unary_rpc_method_handler(
             servicer.DeleteByID,
             request_deserializer=milvus__pb2.DeleteByIDParam.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
-        ),
-        'DeleteByDate': grpc.unary_unary_rpc_method_handler(
-            servicer.DeleteByDate,
-            request_deserializer=milvus__pb2.DeleteByDateParam.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
         'PreloadTable': grpc.unary_unary_rpc_method_handler(

@@ -716,7 +716,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
+    def create_partition(self, table_name, partition_tag, timeout=10):
         """
         create a specific partition under designated table. After done, the meta file in
         milvus server update partition information, you can perform actions about partitions
@@ -738,7 +738,7 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-        request = Prepare.partition_param(table_name, partition_name, partition_tag)
+        request = Prepare.partition_param(table_name, partition_tag)
 
         try:
             response = self._stub.CreatePartition.future(request).result(timeout=timeout)
@@ -772,14 +772,7 @@ class GrpcHandler(ConnectIntf):
             status = response.status
             if status.error_code == 0:
 
-                partition_list = []
-                for partition in response.partition_array:
-                    partition_param = PartitionParam(
-                        partition.table_name,
-                        partition.partition_name,
-                        partition.tag
-                    )
-                    partition_list.append(partition_param)
+                partition_list = [PartitionParam(table_name, p) for p in response.partition_tag_array]
                 return Status(), partition_list
 
             return Status(code=status.error_code, message=status.reason), []
@@ -837,9 +830,6 @@ class GrpcHandler(ConnectIntf):
 
         :param query_records: vectors to query
         :type  query_records: list[list[float32]]
-
-        :param query_ranges: query data range
-        :type  query_ranges: list
 
         :param partition_tags: tags to search
         :type  partition_tags: list

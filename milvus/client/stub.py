@@ -190,12 +190,10 @@ class Milvus:
         return self._handler.drop_index(table_name, timeout)
 
     @check_connect
-    def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
-        check_pass_param(table_name=table_name,
-                         partition_name=partition_name,
-                         partition_tag=partition_tag)
+    def create_partition(self, table_name, partition_tag, timeout=10):
+        check_pass_param(table_name=table_name, partition_tag=partition_tag)
 
-        return self._handler.create_partition(table_name, partition_name, partition_tag, timeout)
+        return self._handler.create_partition(table_name, partition_tag, timeout)
 
     @check_connect
     def show_partitions(self, table_name, timeout=10):
