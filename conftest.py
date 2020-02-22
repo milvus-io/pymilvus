@@ -104,6 +104,7 @@ def gtable(request, gcon):
              'metric_type': MetricType.L2
              }
     gcon.create_table(param)
+    gcon.flush([table_name])
 
     def teardown():
         status, table_names = gcon.show_tables()
@@ -122,6 +123,6 @@ def gvector(request, gcon, gtable):
     records = records_factory(dim, 10000)
 
     gcon.insert(gtable, records)
-    time.sleep(3)
+    gcon.flush([gtable])
 
     return gtable
