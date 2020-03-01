@@ -1,3 +1,5 @@
+import copy
+
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 
@@ -24,35 +26,31 @@ class Prepare:
         :return: ttypes.TableSchema object
         """
 
-        return grpc_types.TableSchema(status=status_pb2.Status(error_code=0, reason='Client'),
-                                      table_name=param["table_name"],
-                                      dimension=param["dimension"],
-                                      index_file_size=param["index_file_size"],
-                                      metric_type=param["metric_type"])
+        table_param = copy.deepcopy(param)
+
+        table_name = table_param["table_name"]
+        table_param.pop("table_name")
+
+        dimension = table_param["dimension"]
+        table_param.pop("dimension")
+
+        index_file_size = table_param["index_file_size"]
+        table_param.pop("index_file_size")
+
+        metric_type = table_param["metric_type"]
+        table_param.pop("metric_type")
+
+        _param = grpc_types.TableSchema(status=status_pb2.Status(error_code=0, reason='Client'),
+                                        table_name=table_name,
+                                        dimension=dimension,
+                                        index_file_size=index_file_size,
+                                        metric_type=metric_type)
+
+        for k, v in table_param.items():
+            _param.extra_params.add(key=k, value=v)
 
     @classmethod
-    def ranges(cls, ranges):
-        """
-        prepare query_ranges
-
-        :param ranges: prepare query_ranges
-        :type  ranges: [[str, str], (str,str)], iterable
-
-            `Example: [[start, end]], ((start, end), (start, end)), or
-                    [(start, end)]`
-
-        :return: list[Range]
-        """
-        res = []
-        for _range in ranges:
-            if not isinstance(_range, grpc_types.Range):
-                res.append(Prepare.range(_range[0], _range[1]))
-            else:
-                res.append(_range)
-        return res
-
-    @classmethod
-    def insert_param(cls, table_name, vectors, partition_tag, ids=None):
+    def insert_param(cls, table_name, vectors, partition_tag, ids=None, **kwargs):
 
         if ids is None:
             _param = grpc_types.InsertParam(table_name=table_name, partition_tag=partition_tag)
@@ -67,6 +65,9 @@ class Prepare:
                 _param.row_record_array.add(binary_data=vector)
             else:
                 _param.row_record_array.add(float_data=vector)
+
+        for k, v in kwargs.items():
+            _param.extra_params.add(key=k, value=v)
 
         return _param
 
@@ -95,12 +96,11 @@ class Prepare:
                                      index=_index)
 
     @classmethod
-    def search_param(cls, table_name, topk, nprobe, query_records, partitions):
+    def search_param(cls, table_name, topk, query_records, partitions, **kwargs):
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
             topk=topk,
-            nprobe=nprobe,
             partition_tag_array=partitions
         )
 
@@ -110,21 +110,25 @@ class Prepare:
             else:
                 search_param.query_record_array.add(float_data=vector)
 
+        for k, v in kwargs.items():
+            search_param.extra_params.add(key=k, value=v)
+
         return search_param
 
     @classmethod
-    def search_by_id_param(cls, table_name, top_k, nprobe, id_, partition_tag_array):
-        return grpc_types.SearchByIDParam(
-            table_name=table_name, id=id_,
-            topk=top_k, nprobe=nprobe,
+    def search_by_id_param(cls, table_name, top_k, id_, partition_tag_array, **kwargs):
+        _param = grpc_types.SearchByIDParam(
+            table_name=table_name, id=id_, topk=top_k,
             partition_tag_array=partition_tag_array
         )
 
+        for k, v in kwargs.items():
+            _param.extra_params.add(key=k, value=v)
+
     @classmethod
-    def search_vector_in_files_param(cls, table_name, query_records,
-                                     query_ranges, topk, nprobe, ids):
-        _search_param = Prepare.search_param(table_name, topk, nprobe, query_records,
-                                             partitions=[])
+    def search_vector_in_files_param(cls, table_name, query_records, topk, ids, **kwargs):
+        _search_param = Prepare.search_param(table_name, topk, query_records,
+                                             partitions=[], **kwargs)
 
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,
