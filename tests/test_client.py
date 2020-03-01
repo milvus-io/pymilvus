@@ -217,7 +217,7 @@ class TestTable:
         assert not status.OK()
 
 
-class TestrecordCount:
+class TestRecordCount:
     def test_count_table(self, gcon, gvector):
         status, num = gcon.count_table(gvector)
         assert status.OK()
@@ -824,11 +824,8 @@ class TestQueryResult:
         try:
             for index in range(1000):
                 status, results = \
-                    gcon.search_in_files(table_name=gvector,
-                                         top_k=1,
-                                         nprobe=1,
-                                         file_ids=[str(index)],
-                                         query_records=self.query_vectors)
+                    gcon.search_in_files(table_name=gvector, top_k=1, nprobe=1,
+                                         file_ids=[str(index)], query_records=self.query_vectors)
                 if status.OK():
                     break
 
@@ -909,13 +906,13 @@ class TestPartition:
         status, results = gcon.search(
             gtable, 1, 1,
             query_vectors,
-            partition_tags=["3etergdgdgedgdgergete5465efdf"])
+            partition_tags=["ee4tergdgdgedgdgergete5465efdf"])
 
         assert status.OK()
-        # print(results)
-        # assert results.shape == (0, 0)
+        print(results)
+        assert results.shape == (0, 0)
 
-    @pytest.mark.skip
+    # @pytest.mark.skip
     def test_search_with_partition_insert_first(self, gcon, gtable):
         vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         status, ids = gcon.insert(gtable, vectors)
@@ -925,7 +922,6 @@ class TestPartition:
         # waiting for data prepared
         time.sleep(5)
 
-        partition_name = "partition_" + faker.word()
         partition_tag = "partition_tag_" + faker.word()
 
         status = gcon.create_partition(table_name=gtable, partition_tag=partition_tag)
@@ -949,10 +945,62 @@ class TestPartition:
 
         # search in wrong tags
         status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=[faker.word() + "wrong"])
-        assert status.OK()
-        # import pdb;pdb.set_trace()
+        assert status.OK(), status.message
         print(results)
         assert results.shape == (0, 0)
+
+    def test_drop_partition(self, gcon, gtable):
+        status = gcon.create_partition(gtable, "1")
+        assert status.OK()
+
+        vectors = [[random.random() for _ in range(128)] for _ in range(100)]
+        status, _ = gcon.insert(gtable, vectors, partition_tag="1")
+        assert status.OK()
+
+        status = gcon.drop_partition(gtable, "1")
+        assert status.OK(), status.message
+
+
+class TestSegment:
+    def test_table_info(self, gcon, gvector):
+        status, info = gcon.table_info(gvector)
+        assert status.OK(), status.message
+        assert info.count == 10000
+        assert isinstance(info.partitions_stat, list)
+
+        par0 = info.partitions_stat[0]
+        assert par0.tag == "_default"
+        assert isinstance(par0.segments_stat, list)
+
+        print(info)
+
+    def test_table_info_wrong_name(self, gcon):
+        status, _ = gcon.table_info("124124122****")
+        assert not status.OK()
+
+    def test_get_segment_ids(self, gcon, gvector):
+        status, info = gcon.table_info(gvector)
+        assert status.OK()
+
+        seg0 = info.partitions_stat[0].segments_stat[0]
+
+        status, ids = gcon.get_vector_ids(gvector, seg0.segment_name)
+        assert status.OK(), status.message
+        print(ids[:5])
+
+    def test_get_segment_invalid_ids(self, gcon):
+        with pytest.raises(ParamError):
+            gcon.get_vector_ids(123, "")
+
+        with pytest.raises(ParamError):
+            gcon.get_vector_ids("111", [])
+
+    def test_get_segment_non_existent_table_segment(self, gcon, gtable):
+        status, _ = gcon.get_vector_ids("ijojojononsfsfswgsw", "aaa")
+        assert not status.OK()
+
+        status, _ = gcon.get_vector_ids(gtable, "aaaaaa")
+        assert not status.OK()
 
 
 class TestGrpcMilvus:

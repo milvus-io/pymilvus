@@ -95,8 +95,7 @@ class Prepare:
                                      index=_index)
 
     @classmethod
-    def search_param(cls, table_name, topk, nprobe, query_records, query_ranges, partitions):
-        query_ranges = Prepare.ranges(query_ranges) if query_ranges else None
+    def search_param(cls, table_name, topk, nprobe, query_records, partitions):
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
@@ -125,7 +124,7 @@ class Prepare:
     def search_vector_in_files_param(cls, table_name, query_records,
                                      query_ranges, topk, nprobe, ids):
         _search_param = Prepare.search_param(table_name, topk, nprobe, query_records,
-                                             query_ranges, partitions=[])
+                                             partitions=[])
 
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,

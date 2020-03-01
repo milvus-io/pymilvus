@@ -4,7 +4,8 @@ import logging
 import grpc
 from grpc._cython import cygrpc
 
-from ..grpc_gen import milvus_pb2_grpc, milvus_pb2
+from ..grpc_gen import milvus_pb2_grpc
+from ..grpc_gen import milvus_pb2 as grpc_types
 from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam, TopKQueryResult, TableInfo
 from .prepare import Prepare
 from .types import MetricType, Status
@@ -475,7 +476,7 @@ class GrpcHandler(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
     def show_table_info(self, table_name, timeout=10):
-        request = milvus_pb2.TableName(table_name=table_name)
+        request = grpc_types.TableName(table_name=table_name)
 
         try:
             response = self._stub.ShowTableInfo.future(request).result(timeout=timeout)
@@ -596,7 +597,7 @@ class GrpcHandler(ConnectIntf):
             return Status(code=Status.UNEXPECTED_ERROR, message="Request timeout"), []
 
     def get_vector_by_id(self, table_name, v_id, timeout=10):
-        request = milvus_pb2.VectorIdentity(table_name=table_name, id=v_id)
+        request = grpc_types.VectorIdentity(table_name=table_name, id=v_id)
 
         try:
             response = self._stub.GetVectorByID.future(request).result(timeout=timeout)
@@ -613,6 +614,22 @@ class GrpcHandler(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details())), []
+
+    def get_vector_ids(self, table_name, segment_name, timeout=10):
+        request = grpc_types.GetVectorIDsParam(table_name=table_name, segment_name=segment_name)
+
+        try:
+            response = self._stub.GetVectorIDs.future(request).result(timeout=timeout)
+
+            if response.status.error_code == 0:
+                return Status(), list(response.vector_id_array)
+            return Status(response.status.error_code, response.status.reason), []
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message="Request timeout"), []
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message="Error occurred: {}".format(e.details())), []
 
     def create_index(self, table_name, index=None, timeout=-1):
         """
@@ -800,10 +817,7 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-        request = Prepare.partition_param(
-            table_name=table_name,
-            partition_name=None,
-            tag=partition_tag)
+        request = grpc_types.PartitionParam(table_name=table_name, tag=partition_tag)
 
         try:
             response = self._stub.DropPartition.future(request).result(timeout=timeout)
@@ -843,7 +857,7 @@ class GrpcHandler(ConnectIntf):
         """
 
         request = Prepare.search_param(
-            table_name, top_k, nprobe, query_records, None, partition_tags
+            table_name, top_k, nprobe, query_records, partition_tags
         )
 
         try:

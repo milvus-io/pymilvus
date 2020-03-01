@@ -162,6 +162,13 @@ class Milvus:
         return self._handler.get_vector_by_id(table_name, vector_id)
 
     @check_connect
+    def get_vector_ids(self, table_name, segment_name):
+        check_pass_param(table_name=table_name)
+        check_pass_param(table_name=segment_name)
+
+        return self._handler.get_vector_ids(table_name, segment_name)
+
+    @check_connect
     def create_index(self, table_name, index=None, timeout=-1):
         index_default = {'index_type': IndexType.FLAT, 'nlist': 16384}
         if not index:
@@ -206,9 +213,11 @@ class Milvus:
         return self._handler.drop_partition(table_name, partition_tag, timeout)
 
     @check_connect
-    def search(self, table_name, top_k, nprobe,
-               query_records, query_ranges=None, partition_tags=None, **kwargs):
-        return self._search(table_name, top_k, nprobe, query_records, partition_tags, **kwargs)
+    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
+        check_pass_param(table_name=table_name, topk=top_k, records=query_records,
+                         nprobe=nprobe, partition_tag_array=partition_tags)
+        return self._handler.search(table_name, top_k, nprobe,
+                                    query_records, partition_tags, **kwargs)
 
     def search_by_id(self, table_name, top_k, nprobe, vector_id, partition_tag_array=None):
         if not isinstance(vector_id, int):
@@ -222,8 +231,10 @@ class Milvus:
 
     @check_connect
     def search_in_files(self, table_name, file_ids, query_records, top_k,
-                        nprobe=16, query_ranges=None, **kwargs):
-        return self._search_in_files(table_name, file_ids, query_records, top_k, nprobe, **kwargs)
+                        nprobe=16, **kwargs):
+        check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe, records=query_records)
+        return self._handler.search_in_files(table_name, file_ids,
+                                             query_records, top_k, nprobe, **kwargs)
 
     @check_connect
     def delete_by_id(self, table_name, id_array, timeout=None):
@@ -252,17 +263,6 @@ class Milvus:
         check_pass_param(table_name=table_name)
 
         return self._handler.compact(table_name, timeout)
-
-    def _search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
-        check_pass_param(table_name=table_name, topk=top_k, records=query_records,
-                         nprobe=nprobe, partition_tag_array=partition_tags)
-        return self._handler.search(table_name, top_k, nprobe,
-                                    query_records, partition_tags, **kwargs)
-
-    def _search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
-        check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe, records=query_records)
-        return self._handler.search_in_files(table_name, file_ids,
-                                             query_records, top_k, nprobe, **kwargs)
 
     # In old version of pymilvus, some methods are different from the new.
     # apply alternative method name for compatibility

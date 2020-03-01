@@ -90,6 +90,11 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.VectorIdentity.SerializeToString,
             response_deserializer=milvus__pb2.VectorData.FromString,
         )
+        self.GetVectorIDs = channel.unary_unary(
+            '/milvus.grpc.MilvusService/GetVectorIDs',
+            request_serializer=milvus__pb2.GetVectorIDsParam.SerializeToString,
+            response_deserializer=milvus__pb2.VectorIds.FromString,
+        )
         self.Search = channel.unary_unary(
             '/milvus.grpc.MilvusService/Search',
             request_serializer=milvus__pb2.SearchParam.SerializeToString,
@@ -316,6 +321,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetVectorIDs(self, request, context):
+        """*
+        @brief This method is used to get vector ids from a segment
+
+        @param GetVectorIDsParam, target table and segment
+
+        @return VectorIds
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def Search(self, request, context):
         """*
         @brief This method is used to query vector in table.
@@ -489,6 +506,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             servicer.GetVectorByID,
             request_deserializer=milvus__pb2.VectorIdentity.FromString,
             response_serializer=milvus__pb2.VectorData.SerializeToString,
+        ),
+        'GetVectorIDs': grpc.unary_unary_rpc_method_handler(
+            servicer.GetVectorIDs,
+            request_deserializer=milvus__pb2.GetVectorIDsParam.FromString,
+            response_serializer=milvus__pb2.VectorIds.SerializeToString,
         ),
         'Search': grpc.unary_unary_rpc_method_handler(
             servicer.Search,
