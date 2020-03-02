@@ -50,7 +50,7 @@ class Prepare:
             _param.extra_params.add(key=k, value=v)
 
     @classmethod
-    def insert_param(cls, table_name, vectors, partition_tag, ids=None, **kwargs):
+    def insert_param(cls, table_name, vectors, partition_tag, ids=None, params=None, **kwargs):
 
         if ids is None:
             _param = grpc_types.InsertParam(table_name=table_name, partition_tag=partition_tag)
@@ -66,8 +66,9 @@ class Prepare:
             else:
                 _param.row_record_array.add(float_data=vector)
 
-        for k, v in kwargs.items():
-            _param.extra_params.add(key=k, value=v)
+        if params is not None:
+            for k, v in kwargs.items():
+                _param.extra_params.add(key=k, value=v)
 
         return _param
 
@@ -87,16 +88,22 @@ class Prepare:
         return grpc_types.Index(index_type=index_type, nlist=nlist)
 
     @classmethod
-    def index_param(cls, table_name, index_param):
+    def index_param(cls, table_name, index_param, params):
 
         _index = Prepare.index(**index_param)
 
-        return grpc_types.IndexParam(status=status_pb2.Status(error_code=0, reason='Client'),
-                                     table_name=table_name,
-                                     index=_index)
+        _param = grpc_types.IndexParam(status=status_pb2.Status(error_code=0, reason='Client'),
+                                       table_name=table_name,
+                                       index_type=_index["index_type"])
+
+        if params is not None:
+            for k, v in params.items():
+                _param.extra_params.add(key=k, value=v)
+
+        return _param
 
     @classmethod
-    def search_param(cls, table_name, topk, query_records, partitions, **kwargs):
+    def search_param(cls, table_name, topk, query_records, partitions, params):
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
@@ -110,25 +117,30 @@ class Prepare:
             else:
                 search_param.query_record_array.add(float_data=vector)
 
-        for k, v in kwargs.items():
-            search_param.extra_params.add(key=k, value=v)
+        if params is not None:
+            for k, v in params.items():
+                search_param.extra_params.add(key=k, value=v)
 
         return search_param
 
     @classmethod
-    def search_by_id_param(cls, table_name, top_k, id_, partition_tag_array, **kwargs):
+    def search_by_id_param(cls, table_name, top_k, id_, partition_tag_array, params):
         _param = grpc_types.SearchByIDParam(
             table_name=table_name, id=id_, topk=top_k,
             partition_tag_array=partition_tag_array
         )
 
-        for k, v in kwargs.items():
+        params = params or dict()
+
+        for k, v in params.items():
             _param.extra_params.add(key=k, value=v)
 
+        return _param
+
     @classmethod
-    def search_vector_in_files_param(cls, table_name, query_records, topk, ids, **kwargs):
+    def search_vector_in_files_param(cls, table_name, query_records, topk, ids, params):
         _search_param = Prepare.search_param(table_name, topk, query_records,
-                                             partitions=[], **kwargs)
+                                             partitions=[], params=params)
 
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,

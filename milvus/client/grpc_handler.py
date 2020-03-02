@@ -538,7 +538,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
-    def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
+    def insert(self, table_name, records, ids=None, partition_tag=None, params=None, timeout=-1, **kwargs):
         """
         Add vectors to table
 
@@ -577,7 +577,7 @@ class GrpcHandler(ConnectIntf):
             raise ParamError("The value of key 'insert_param' is invalid")
 
         body = insert_param if insert_param \
-            else Prepare.insert_param(table_name, records, partition_tag, ids)
+            else Prepare.insert_param(table_name, records, partition_tag, ids, params)
 
         try:
             if timeout == -1:
@@ -631,7 +631,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message="Error occurred: {}".format(e.details())), []
 
-    def create_index(self, table_name, index=None, timeout=-1):
+    def create_index(self, table_name, index=None, params=None, timeout=-1):
         """
         build vectors of specific table and create vector index
 
@@ -654,7 +654,7 @@ class GrpcHandler(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
-        index_param = Prepare.index_param(table_name, index)
+        index_param = Prepare.index_param(table_name, index, params)
         try:
             if timeout == -1:
                 status = self._stub.CreateIndex(index_param)
@@ -829,7 +829,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
+    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, params=None, **kwargs):
         """
         Search similar vectors in designated table
 
@@ -856,9 +856,7 @@ class GrpcHandler(ConnectIntf):
 
         """
 
-        request = Prepare.search_param(
-            table_name, top_k, nprobe, query_records, partition_tags
-        )
+        request = Prepare.search_param(table_name, top_k, query_records, partition_tags, params)
 
         try:
             self._search_hook.pre_search()
@@ -880,10 +878,9 @@ class GrpcHandler(ConnectIntf):
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
             return status, []
 
-    def search_by_id(self, table_name, top_k, nprobe, id_, partition_tag_array):
+    def search_by_id(self, table_name, top_k, id_, partition_tags, params):
 
-        request = Prepare.search_by_id_param(table_name, top_k, nprobe,
-                                             id_, partition_tag_array)
+        request = Prepare.search_by_id_param(table_name, top_k, id_, partition_tags, params)
 
         try:
             response = self._stub.SearchByID(request)
@@ -896,7 +893,7 @@ class GrpcHandler(ConnectIntf):
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
             return status, None
 
-    def search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
+    def search_in_files(self, table_name, file_ids, query_records, top_k, params):
         """
         Query vectors in a table, in specified files.
 
@@ -906,9 +903,6 @@ class GrpcHandler(ConnectIntf):
         and python sdk doesn't apply any APIs get them at client. It's a specific
         method used in shards. Obtain more detail about milvus shards, see
         <a href="https://github.com/milvus-io/milvus/tree/0.6.0/shards">
-
-        :type  nprobe: int
-        :param nprobe:
 
         :type  table_name: str
         :param table_name: table name been queried
@@ -935,7 +929,7 @@ class GrpcHandler(ConnectIntf):
         file_ids = list(map(int_or_str, file_ids))
 
         infos = Prepare.search_vector_in_files_param(
-            table_name, query_records, None, top_k, nprobe, file_ids
+            table_name, query_records, top_k, file_ids, params
         )
 
         try:
@@ -1025,3 +1019,11 @@ class GrpcHandler(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    def set_config(self, parent_key, child_key, value):
+        cmd = "set_config {}.{} {}".format(parent_key, child_key, value)
+        return self._cmd(cmd)
+
+    def get_config(self, parent_key, child_key):
+        cmd = "get_config {}.{}".format(parent_key, child_key)
+        return self._cmd(cmd)

@@ -146,14 +146,14 @@ class Milvus:
         return self._handler.drop_table(table_name, timeout)
 
     @check_connect
-    def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
+    def insert(self, table_name, records, ids=None, partition_tag=None, params=None, timeout=-1):
         check_pass_param(table_name=table_name, records=records,
                          ids=ids, partition_tag=partition_tag)
 
         if ids is not None and len(records) != len(ids):
             raise ParamError("length of vectors do not match that of ids")
 
-        return self._handler.insert(table_name, records, ids, partition_tag, timeout, **kwargs)
+        return self._handler.insert(table_name, records, ids, partition_tag, params, timeout)
 
     @check_connect
     def get_vector_by_id(self, table_name, vector_id):
@@ -169,7 +169,7 @@ class Milvus:
         return self._handler.get_vector_ids(table_name, segment_name)
 
     @check_connect
-    def create_index(self, table_name, index=None, timeout=-1):
+    def create_index(self, table_name, index=None, params=None, timeout=-1):
         index_default = {'index_type': IndexType.FLAT, 'nlist': 16384}
         if not index:
             _index = index_default
@@ -184,7 +184,7 @@ class Milvus:
 
         check_pass_param(table_name=table_name, **_index)
 
-        return self._handler.create_index(table_name, _index, timeout)
+        return self._handler.create_index(table_name, _index, params, timeout)
 
     @check_connect
     def describe_index(self, table_name, timeout=10):
@@ -213,28 +213,25 @@ class Milvus:
         return self._handler.drop_partition(table_name, partition_tag, timeout)
 
     @check_connect
-    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
-        check_pass_param(table_name=table_name, topk=top_k, records=query_records,
-                         nprobe=nprobe, partition_tag_array=partition_tags)
-        return self._handler.search(table_name, top_k, nprobe,
-                                    query_records, partition_tags, **kwargs)
+    def search(self, table_name, top_k, query_records, partition_tags=None, params=None):
+        check_pass_param(table_name=table_name, topk=top_k,
+                         records=query_records, partition_tag_array=partition_tags)
+        return self._handler.search(table_name, top_k, query_records, partition_tags, params)
 
-    def search_by_id(self, table_name, top_k, nprobe, vector_id, partition_tag_array=None):
+    def search_by_id(self, table_name, top_k, vector_id, partition_tags=None, params=None):
         if not isinstance(vector_id, int):
             raise ParamError("Vector id must be an integer")
 
-        partition_tag_array = partition_tag_array or list()
-        check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe,
-                         partition_tag_array=partition_tag_array)
+        partition_tags = partition_tags or list()
+        check_pass_param(table_name=table_name, topk=top_k, partition_tag_array=partition_tags)
 
-        return self._handler.search_by_id(table_name, top_k, nprobe, vector_id, partition_tag_array)
+        return self._handler.search_by_id(table_name, top_k, vector_id, partition_tags, params)
 
     @check_connect
-    def search_in_files(self, table_name, file_ids, query_records, top_k,
-                        nprobe=16, **kwargs):
-        check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe, records=query_records)
+    def search_in_files(self, table_name, file_ids, query_records, top_k, params):
+        check_pass_param(table_name=table_name, topk=top_k, records=query_records)
         return self._handler.search_in_files(table_name, file_ids,
-                                             query_records, top_k, nprobe, **kwargs)
+                                             query_records, top_k, params)
 
     @check_connect
     def delete_by_id(self, table_name, id_array, timeout=None):
@@ -263,6 +260,14 @@ class Milvus:
         check_pass_param(table_name=table_name)
 
         return self._handler.compact(table_name, timeout)
+
+    @check_connect
+    def set_config(self, parent_key, child_key, value):
+        return
+
+    @check_connect
+    def get_config(self, parent_key, child_key):
+        pass
 
     # In old version of pymilvus, some methods are different from the new.
     # apply alternative method name for compatibility
