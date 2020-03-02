@@ -313,7 +313,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
-    def create_table(self, param, timeout=10):
+    def create_table(self, table_name, dimension, index_file_size, metric_type, param, timeout=10):
         """
         Create table
 
@@ -335,7 +335,7 @@ class GrpcHandler(ConnectIntf):
         :rtype: Status
         """
 
-        table_schema = Prepare.table_schema(param)
+        table_schema = Prepare.table_schema(table_name, dimension, index_file_size, metric_type, param)
 
         try:
             status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
@@ -631,7 +631,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message="Error occurred: {}".format(e.details())), []
 
-    def create_index(self, table_name, index=None, params=None, timeout=-1):
+    def create_index(self, table_name, index_type=None, params=None, timeout=-1):
         """
         build vectors of specific table and create vector index
 
@@ -654,7 +654,7 @@ class GrpcHandler(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
-        index_param = Prepare.index_param(table_name, index, params)
+        index_param = Prepare.index_param(table_name, index_type, params)
         try:
             if timeout == -1:
                 status = self._stub.CreateIndex(index_param)
@@ -698,8 +698,8 @@ class GrpcHandler(ConnectIntf):
             if status.error_code == 0:
                 return Status(message="Successfully"), \
                        IndexParam(index_param.table_name,
-                                  index_param.index.index_type,
-                                  index_param.index.nlist)
+                                  index_param.index_type,
+                                  index_param.extra_params)
 
             return Status(code=status.error_code, message=status.reason), None
         except grpc.FutureTimeoutError as e:
@@ -829,7 +829,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, params=None, **kwargs):
+    def search(self, table_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
         """
         Search similar vectors in designated table
 

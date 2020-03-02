@@ -329,7 +329,7 @@ class IndexParam:
 
     """
 
-    def __init__(self, table_name, index_type, nlist):
+    def __init__(self, table_name, index_type, params):
 
         if table_name is None:
             raise ParamError('Table name can\'t be None')
@@ -342,7 +342,7 @@ class IndexParam:
 
         self._table_name = table_name
         self._index_type = index_type
-        self._nlist = nlist
+        self._params = params or dict()
 
     def __str__(self):
         attr_list = ['%s=%r' % (key.lstrip('_'), value)

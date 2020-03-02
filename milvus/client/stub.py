@@ -95,22 +95,39 @@ class Milvus:
             raise ParamError('Param type incorrect, expect {} but get {} instead'
                              .format(type(dict), type(param)))
 
-        if 'table_name' not in param:
-            raise ParamError('table_name is required')
-
-        if 'dimension' not in param:
-            raise ParamError('dimension is required')
-
         table_param = copy.deepcopy(param)
 
-        if 'index_file_size' not in param:
-            table_param['index_file_size'] = 1024
-        if 'metric_type' not in param:
-            table_param['metric_type'] = MetricType.L2
+        # table_name = table_param["table_name"]
+        # table_param.pop("table_name")
+        #
+        # dimension = table_param["dimension"]
+        # table_param.pop("dimension")
+        #
+        # index_file_size = table_param["index_file_size"]
+        # table_param.pop("index_file_size")
+        #
+        # metric_type = table_param["metric_type"]
+        # table_param.pop("metric_type")
 
-        check_pass_param(**table_param)
+        if 'table_name' not in table_param:
+            raise ParamError('table_name is required')
+        table_name = table_param["table_name"]
+        table_param.pop('table_name')
 
-        return self._handler.create_table(table_param, timeout)
+        if 'dimension' not in table_param:
+            raise ParamError('dimension is required')
+        dim = table_param["dimension"]
+        table_param.pop("dimension")
+
+        index_file_size = table_param.get('index_file_size', 1024)
+        table_param.pop('index_file_size', None)
+
+        metric_type = table_param.get('metric_type', MetricType.L2)
+        table_param.pop('metric_type', None)
+
+        check_pass_param(table_name=table_name, dimension=dim, index_file_size=index_file_size, metric_type=metric_type)
+
+        return self._handler.create_table(table_name, dim, index_file_size, metric_type, table_param, timeout)
 
     @check_connect
     def has_table(self, table_name, timeout=10):
@@ -169,22 +186,11 @@ class Milvus:
         return self._handler.get_vector_ids(table_name, segment_name)
 
     @check_connect
-    def create_index(self, table_name, index=None, params=None, timeout=-1):
-        index_default = {'index_type': IndexType.FLAT, 'nlist': 16384}
-        if not index:
-            _index = index_default
-        elif not isinstance(index, dict):
-            raise ParamError("param `index` should be a dictionary")
-        else:
-            _index = copy.deepcopy(index)
-            if 'index_type' not in index:
-                _index.update({'index_type': IndexType.FLAT})
-            if 'nlist' not in index:
-                _index.update({'nlist': 16384})
+    def create_index(self, table_name, index_type=None, params=None, timeout=-1):
+        _index_type = index_type or IndexType.FLAT
+        check_pass_param(table_name=table_name, index_type=_index_type)
 
-        check_pass_param(table_name=table_name, **_index)
-
-        return self._handler.create_index(table_name, _index, params, timeout)
+        return self._handler.create_index(table_name, _index_type, params, timeout)
 
     @check_connect
     def describe_index(self, table_name, timeout=10):

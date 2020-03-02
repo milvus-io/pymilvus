@@ -1,5 +1,7 @@
 import copy
 
+import ujson
+
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 
@@ -12,7 +14,7 @@ class Prepare:
         return grpc_types.TableName(table_name=table_name)
 
     @classmethod
-    def table_schema(cls, param):
+    def table_schema(cls, table_name, dimension, index_file_size, metric_type, param):
         """
         :type param: dict
         :param param: (Required)
@@ -26,28 +28,17 @@ class Prepare:
         :return: ttypes.TableSchema object
         """
 
-        table_param = copy.deepcopy(param)
-
-        table_name = table_param["table_name"]
-        table_param.pop("table_name")
-
-        dimension = table_param["dimension"]
-        table_param.pop("dimension")
-
-        index_file_size = table_param["index_file_size"]
-        table_param.pop("index_file_size")
-
-        metric_type = table_param["metric_type"]
-        table_param.pop("metric_type")
-
         _param = grpc_types.TableSchema(status=status_pb2.Status(error_code=0, reason='Client'),
                                         table_name=table_name,
                                         dimension=dimension,
                                         index_file_size=index_file_size,
                                         metric_type=metric_type)
 
-        for k, v in table_param.items():
-            _param.extra_params.add(key=k, value=v)
+        if param:
+            param_str = ujson.dumps(param)
+            _param.extra_params.add(key="params", value=param_str)
+
+        return _param
 
     @classmethod
     def insert_param(cls, table_name, vectors, partition_tag, ids=None, params=None, **kwargs):
@@ -66,39 +57,21 @@ class Prepare:
             else:
                 _param.row_record_array.add(float_data=vector)
 
-        if params is not None:
-            for k, v in kwargs.items():
-                _param.extra_params.add(key=k, value=v)
+        if params:
+            params_str = ujson.dumps(params)
+            _param.extra_params.add(key="params", value=params_str)
 
         return _param
 
     @classmethod
-    def index(cls, index_type, nlist):
-        """
-
-        :type index_type: IndexType
-        :param index_type: index type
-
-        :type  nlist:
-        :param nlist:
-
-        :return:
-        """
-
-        return grpc_types.Index(index_type=index_type, nlist=nlist)
-
-    @classmethod
-    def index_param(cls, table_name, index_param, params):
-
-        _index = Prepare.index(**index_param)
+    def index_param(cls, table_name, index_type, params):
 
         _param = grpc_types.IndexParam(status=status_pb2.Status(error_code=0, reason='Client'),
                                        table_name=table_name,
-                                       index_type=_index["index_type"])
-
-        if params is not None:
-            for k, v in params.items():
-                _param.extra_params.add(key=k, value=v)
+                                       index_type=index_type)
+        if params:
+            params_str = ujson.dumps(params)
+            _param.extra_params.add(key="params", value=params_str)
 
         return _param
 
@@ -117,9 +90,9 @@ class Prepare:
             else:
                 search_param.query_record_array.add(float_data=vector)
 
-        if params is not None:
-            for k, v in params.items():
-                search_param.extra_params.add(key=k, value=v)
+        if params:
+            params_str = ujson.dumps(params)
+            search_param.extra_params.add(key="params", value=params_str)
 
         return search_param
 
@@ -130,10 +103,9 @@ class Prepare:
             partition_tag_array=partition_tag_array
         )
 
-        params = params or dict()
-
-        for k, v in params.items():
-            _param.extra_params.add(key=k, value=v)
+        if params:
+            params_str = ujson.dumps(params)
+            _param.extra_params.add(key="params", value=params_str)
 
         return _param
 
