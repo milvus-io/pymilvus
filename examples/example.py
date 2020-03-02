@@ -60,12 +60,13 @@ def main():
     # 10000 vectors with 16 dimension
     # element per dimension is float32 type
     # vectors should be a 2-D array
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
     # You can also use numpy to generate random vectors:
     #     `vectors = np.random.rand(10000, 16).astype(np.float32)`
 
     # Insert vectors into demo_table, return status and vectors id list
-    status, ids = milvus.insert(table_name=table_name, records=vectors)
+    for _ in range(10):
+        status, ids = milvus.insert(table_name=table_name, records=vectors)
 
     # Wait for 4 seconds, until Milvus server persist vector data.
     time.sleep(4)
@@ -115,7 +116,7 @@ def main():
     print(results)
 
     # Delete demo_table
-    status = milvus.drop_table(table_name)
+    # status = milvus.drop_table(table_name)
 
     # Disconnect from Milvus
     status = milvus.disconnect()
