@@ -1,4 +1,4 @@
-import json
+import ujson
 
 from ..client.exceptions import ParamError
 
@@ -342,7 +342,8 @@ class IndexParam:
 
         self._table_name = table_name
         self._index_type = index_type
-        self._params = params or dict()
+
+        self._params = ujson.loads(params[0].value)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key.lstrip('_'), value)
