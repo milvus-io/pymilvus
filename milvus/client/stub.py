@@ -264,6 +264,14 @@ class Milvus:
 
         return self._handler.compact(table_name, timeout)
 
+    @check_connect
+    def get_config(self, parent_key, child_key):
+        pass
+
+    @check_connect
+    def set_config(self, parent_key, child_key, value):
+        pass
+
     # In old version of pymilvus, some methods are different from the new.
     # apply alternative method name for compatibility
     get_table_row_count = count_table
