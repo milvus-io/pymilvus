@@ -170,6 +170,10 @@ class Milvus:
         if ids is not None and len(records) != len(ids):
             raise ParamError("length of vectors do not match that of ids")
 
+        params = params or dict()
+        if isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
+
         return self._handler.insert(table_name, records, ids, partition_tag, params, timeout)
 
     @check_connect
@@ -189,6 +193,10 @@ class Milvus:
     def create_index(self, table_name, index_type=None, params=None, timeout=-1):
         _index_type = index_type or IndexType.FLAT
         check_pass_param(table_name=table_name, index_type=_index_type)
+
+        params = params or dict()
+        if isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
 
         return self._handler.create_index(table_name, _index_type, params, timeout)
 
@@ -222,20 +230,30 @@ class Milvus:
     def search(self, table_name, top_k, query_records, partition_tags=None, params=None):
         check_pass_param(table_name=table_name, topk=top_k,
                          records=query_records, partition_tag_array=partition_tags)
+
+        params = params or dict()
+        if isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
+
         return self._handler.search(table_name, top_k, query_records, partition_tags, params)
 
-    def search_by_id(self, table_name, top_k, vector_id, partition_tags=None, params=None):
-        if not isinstance(vector_id, int):
-            raise ParamError("Vector id must be an integer")
-
-        partition_tags = partition_tags or list()
-        check_pass_param(table_name=table_name, topk=top_k, partition_tag_array=partition_tags)
+    # def search_by_id(self, table_name, top_k, vector_id, partition_tags=None, params=None):
+    #     if not isinstance(vector_id, int):
+    #         raise ParamError("Vector id must be an integer")
+    #
+    #     partition_tags = partition_tags or list()
+    #     check_pass_param(table_name=table_name, topk=top_k, partition_tag_array=partition_tags)
 
         return self._handler.search_by_id(table_name, top_k, vector_id, partition_tags, params)
 
     @check_connect
-    def search_in_files(self, table_name, file_ids, query_records, top_k, params):
+    def search_in_files(self, table_name, file_ids, query_records, top_k, params=None):
         check_pass_param(table_name=table_name, topk=top_k, records=query_records)
+
+        params = params or dict()
+        if isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
+
         return self._handler.search_in_files(table_name, file_ids,
                                              query_records, top_k, params)
 
