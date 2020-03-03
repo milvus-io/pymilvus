@@ -57,9 +57,9 @@ class Prepare:
             else:
                 _param.row_record_array.add(float_data=vector)
 
-        if params:
-            params_str = ujson.dumps(params)
-            _param.extra_params.add(key="params", value=params_str)
+        params = params or dict()
+        params_str = ujson.dumps(params)
+        _param.extra_params.add(key="params", value=params_str)
 
         return _param
 
@@ -69,9 +69,9 @@ class Prepare:
         _param = grpc_types.IndexParam(status=status_pb2.Status(error_code=0, reason='Client'),
                                        table_name=table_name,
                                        index_type=index_type)
-        if params:
-            params_str = ujson.dumps(params)
-            _param.extra_params.add(key="params", value=params_str)
+        params = params or dict()
+        params_str = ujson.dumps(params)
+        _param.extra_params.add(key="params", value=params_str)
 
         return _param
 
@@ -90,9 +90,9 @@ class Prepare:
             else:
                 search_param.query_record_array.add(float_data=vector)
 
-        if params:
-            params_str = ujson.dumps(params)
-            search_param.extra_params.add(key="params", value=params_str)
+        params = params or dict()
+        params_str = ujson.dumps(params)
+        search_param.extra_params.add(key="params", value=params_str)
 
         return search_param
 
@@ -103,9 +103,9 @@ class Prepare:
             partition_tag_array=partition_tag_array
         )
 
-        if params:
-            params_str = ujson.dumps(params)
-            _param.extra_params.add(key="params", value=params_str)
+        params = params or dict()
+        params_str = ujson.dumps(params)
+        _param.extra_params.add(key="params", value=params_str)
 
         return _param
 
