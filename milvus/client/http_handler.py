@@ -68,6 +68,10 @@ def timeout_error(returns):
                 else:
                     return status
 
+        return wrapper
+
+    return decorator
+
 
 class HttpHandler(ConnectIntf):
 

@@ -12,7 +12,7 @@ import time
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
-_PORT = '19530'  # default value
+_PORT = '19121'  # default value
 
 # Vector parameters
 _DIM = 128  # dimension of vector
@@ -20,7 +20,7 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
 def main():
-    milvus = Milvus()
+    milvus = Milvus(handler="HTTP")
 
     # Connect to Milvus server
     # You may need to change _HOST and _PORT accordingly
@@ -65,8 +65,8 @@ def main():
     #     `vectors = np.random.rand(10000, 16).astype(np.float32)`
 
     # Insert vectors into demo_table, return status and vectors id list
-    for _ in range(10):
-        status, ids = milvus.insert(table_name=table_name, records=vectors)
+    status, ids = milvus.insert(table_name=table_name, records=vectors)
+    sys.exit(0)
 
     # Wait for 4 seconds, until Milvus server persist vector data.
     time.sleep(4)
