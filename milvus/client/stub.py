@@ -179,7 +179,7 @@ class Milvus:
 
     @check_connect
     def create_index(self, table_name, index_type=None, params=None, timeout=-1):
-        _index_type = index_type or IndexType.FLAT
+        _index_type = IndexType.FLAT if index_type is None else index_type
         check_pass_param(table_name=table_name, index_type=_index_type)
 
         params = params or dict()
