@@ -1,5 +1,5 @@
 import copy
-import json
+import functools
 import logging
 import ujson
 from urllib.parse import urlparse
@@ -52,6 +52,21 @@ MetricName2ValueMap = {
     "JACCARD": MetricType.JACCARD,
     "TANIMOTO": MetricType.TANIMOTO,
 }
+
+
+def timeout_error(returns):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            nonlocal returns
+            try:
+                return func(self, *args, **kwargs)
+            except rq.exceptions.Timeout:
+                status = Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+                if returns:
+                    return tuple([status]) + returns
+                else:
+                    return status
 
 
 class HttpHandler(ConnectIntf):
@@ -144,6 +159,7 @@ class HttpHandler(ConnectIntf):
         self._status = None
         return Status()
 
+    @timeout_error
     def create_table(self, param, timeout):
 
         table_param = copy.deepcopy(param)
@@ -158,11 +174,10 @@ class HttpHandler(ConnectIntf):
 
             js = response.json()
             return Status(Status(js["code"], js["message"]))
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
+    @timeout_error(returns=(False,))
     def has_table(self, table_name, timeout):
         url = self._uri + "/tables/" + table_name
         try:
@@ -175,11 +190,10 @@ class HttpHandler(ConnectIntf):
 
             js = response.json()
             return Status(Status(js["code"], js["message"])), False
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
+    @timeout_error(returns=(None,))
     def count_table(self, table_name, timeout):
         url = self._uri + "/tables/{}".format(table_name)
 
@@ -191,11 +205,10 @@ class HttpHandler(ConnectIntf):
                 return Status(), js["count"]
 
             return Status(Status(js["code"], js["message"])), None
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
+    @timeout_error
     def describe_table(self, table_name, timeout):
         url = self._uri + "/tables/{}".format(table_name)
 
@@ -219,11 +232,10 @@ class HttpHandler(ConnectIntf):
                 return Status(message='Describe table successfully!'), table
 
             return Status(Status(js["code"], js["message"])), None
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
+    @timeout_error(returns=([],))
     def show_tables(self, timeout):
         url = self._uri + "/tables"
 
@@ -246,11 +258,10 @@ class HttpHandler(ConnectIntf):
                 tables.append(table["table_name"])
 
             return Status(), tables
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), []
 
+    @timeout_error
     def drop_table(self, table_name, timeout):
         url = self._uri + "/tables/" + table_name
         try:
@@ -260,11 +271,10 @@ class HttpHandler(ConnectIntf):
 
             js = response.json()
             return Status(js["code"], js["message"])
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
+    @timeout_error(returns=([],))
     def insert(self, table_name, records, ids, partition_tag, timeout, **kwargs):
         url = self._uri + "/tables/{}/vectors".format(table_name)
 
@@ -276,10 +286,10 @@ class HttpHandler(ConnectIntf):
 
         if isinstance(records[0], bytes):
             vectors = [struct.unpack(str(len(r)) + 'B', r) for r in records]
-            data_dict["records_bin"] = vectors
+            data_dict["vectors"] = vectors
         else:
             vectors = records
-            data_dict["records"] = vectors
+            data_dict["vectors"] = vectors
 
         data = ujson.dumps(data_dict)
 
@@ -294,8 +304,6 @@ class HttpHandler(ConnectIntf):
                 return Status(message='Add vectors successfully!'), ids
 
             return Status(Status(js["code"], js["message"])), []
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), []
 
