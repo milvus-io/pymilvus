@@ -97,18 +97,6 @@ class Milvus:
 
         table_param = copy.deepcopy(param)
 
-        # table_name = table_param["table_name"]
-        # table_param.pop("table_name")
-        #
-        # dimension = table_param["dimension"]
-        # table_param.pop("dimension")
-        #
-        # index_file_size = table_param["index_file_size"]
-        # table_param.pop("index_file_size")
-        #
-        # metric_type = table_param["metric_type"]
-        # table_param.pop("metric_type")
-
         if 'table_name' not in table_param:
             raise ParamError('table_name is required')
         table_name = table_param["table_name"]
@@ -171,7 +159,7 @@ class Milvus:
             raise ParamError("length of vectors do not match that of ids")
 
         params = params or dict()
-        if isinstance(params, dict):
+        if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
         return self._handler.insert(table_name, records, ids, partition_tag, params, timeout)
@@ -195,7 +183,7 @@ class Milvus:
         check_pass_param(table_name=table_name, index_type=_index_type)
 
         params = params or dict()
-        if isinstance(params, dict):
+        if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
         return self._handler.create_index(table_name, _index_type, params, timeout)
@@ -232,7 +220,7 @@ class Milvus:
                          records=query_records, partition_tag_array=partition_tags)
 
         params = params or dict()
-        if isinstance(params, dict):
+        if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
         return self._handler.search(table_name, top_k, query_records, partition_tags, params)
@@ -243,15 +231,15 @@ class Milvus:
     #
     #     partition_tags = partition_tags or list()
     #     check_pass_param(table_name=table_name, topk=top_k, partition_tag_array=partition_tags)
-
-        return self._handler.search_by_id(table_name, top_k, vector_id, partition_tags, params)
+    #
+    #     return self._handler.search_by_id(table_name, top_k, vector_id, partition_tags, params)
 
     @check_connect
     def search_in_files(self, table_name, file_ids, query_records, top_k, params=None):
         check_pass_param(table_name=table_name, topk=top_k, records=query_records)
 
         params = params or dict()
-        if isinstance(params, dict):
+        if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
         return self._handler.search_in_files(table_name, file_ids,
@@ -287,11 +275,13 @@ class Milvus:
 
     @check_connect
     def set_config(self, parent_key, child_key, value):
-        return
+        cmd_str = "set_config {}.{} {}".format(parent_key, child_key, value)
+        return self._cmd(cmd_str)
 
     @check_connect
     def get_config(self, parent_key, child_key):
-        pass
+        cmd_str = "get_config {}.{}".format(parent_key, child_key)
+        return self._cmd(cmd_str)
 
     # In old version of pymilvus, some methods are different from the new.
     # apply alternative method name for compatibility

@@ -57,27 +57,18 @@ def test_drop_table_param():
 
 
 def test_create_index_param():
-    index = {
-        'index_type': 0,
-        'nlist': 16384
+    index_pram = {
+        "nlist": 4096
     }
 
     with pytest.raises(ParamError):
-        client.create_index("test", index)
+        client.create_index("test", index_type=0, params=index_pram)
 
-    index = {
-        'index_type': -1,
-        'nlist': 4096
-    }
     with pytest.raises(ParamError):
-        client.create_index("test", index)
+        client.create_index("test", index_type=-1, params=index_pram)
 
-    index = {
-        'index_type': 100,
-        'nlist': 16384
-    }
     with pytest.raises(ParamError):
-        client.create_index("test", index)
+        client.create_index("test", index_type=100, params=index_pram)
 
 
 class TestInsertParam:
