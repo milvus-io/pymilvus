@@ -27,13 +27,19 @@ def gip(request):
 
 
 @pytest.fixture(scope="module")
-def connect(request):
+def ghandler(request):
+    handler_ = request.config.getoption("--handler")
+    return handler_
+
+
+@pytest.fixture(scope="module")
+def connect(request, ghandler):
     ip = request.config.getoption("--ip")
     handler = request.config.getoption("--handler")
     port_default = default_http_port if handler == "HTTP" else default_grpc_port
     port = request.config.getoption("--port", default=port_default)
 
-    milvus = Milvus()
+    milvus = Milvus(handler=ghandler)
     milvus.connect(host=ip, port=port)
 
     def fin():
@@ -47,10 +53,11 @@ def connect(request):
 
 
 @pytest.fixture(scope="module")
-def gcon(request):
+def gcon(request, ghandler):
     ip = request.config.getoption("--ip")
     port = request.config.getoption("--port")
-    milvus = Milvus()
+    milvus = Milvus(handler=ghandler)
+    print("Port: ", port)
     milvus.connect(host=ip, port=port)
 
     def fin():

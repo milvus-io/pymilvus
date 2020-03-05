@@ -61,8 +61,8 @@ class TestConnection:
     #     # import pdb;pdb.set_trace()
     #     assert not cnn.connected()
 
-    def test_uri(self, gip):
-        cnn = Milvus()
+    def test_uri(self, ghandler, gip):
+        cnn = Milvus(handler=ghandler)
         uri = 'tcp://{}:{}'.format(gip[0], gip[1])
         cnn.connect(uri=uri)
         assert cnn.status.OK()
@@ -199,18 +199,6 @@ class TestTable:
         LOGGER.error(res)
         assert not res.OK()
 
-    def test_has_table(self, gcon, gtable):
-        table_name = fake.table_name()
-        status, result = gcon.has_table(table_name)
-        assert status.OK(), status.message
-        assert not result
-
-        result = gcon.has_table(gtable)
-        assert result
-
-        with pytest.raises(Exception):
-            gcon.has_table(1111)
-
     def test_has_table_invalid_name(self, gcon, gtable):
         table_name = "1234455"
         status, result = gcon.has_table(table_name)
@@ -237,6 +225,7 @@ class TestVector:
         assert isinstance(ids, list)
         assert len(ids) == nq
 
+    @pytest.mark.skip
     def test_insert_with_numpy(self, gcon, gtable):
         vectors = np.random.rand(nq, dim).astype(np.float32)
         param = {
@@ -519,8 +508,7 @@ class TestHasTable:
         assert s.OK()
 
         status, flag = gcon.has_table(param['table_name'])
-        assert status.OK()
-        assert flag
+        assert status.OK() and flag
 
 
 class TestAddVectors:
@@ -1003,41 +991,20 @@ class TestSegment:
         assert not status.OK()
 
 
-class TestGrpcMilvus:
-    def test_with(self, gip):
-        with Milvus(*gip) as client:
-            client.show_tables()
+class TestGetVectorByID:
+    def test_get_vector_by_id(self, gcon, gtable):
 
-    @pytest.mark.parametrize(
-        "h, p",
-        [([], "1"), ("133.1.1.9", "90909090")])
-    def test_with_with_invalid_addr(self, h, p):
-        with pytest.raises(ParamError):
-            with Milvus(host=h, port=p):
-                pass
+        vectors = records_factory(128, 1000)
+        ids = [i for i in range(1000)]
+        status, ids_out = gcon.insert(table_name=gtable, records=vectors, ids=ids)
+        assert status.OK(), status.message
 
-    @pytest.mark.parametrize(
-        "h, p",
-        [("123.0.12.3a", "1"), ("133.a.*.9", "999"),
-         ("123.0.12.99", "1"), ("133.233.255.9", "999")])
-    def test_with_with_wrong_addr(self, h, p):
-        with pytest.raises(NotConnectError):
-            with Milvus(host=h, port=p):
-                pass
+        gcon.flush([gtable])
 
-    def test_hooks(self, gip):
-        with Milvus(*gip) as client:
-            class FakeSerchHook(BaseSearchHook):
-                def pre_search(self, *args, **kwargs):
-                    print("Before search ...")
-
-                def aft_search(self, *args, **kwargs):
-                    print("Search done ...")
-
-            client.set_hook(search=FakeSerchHook())
+        status, vec = gcon.get_vector_by_id(gtable, ids_out[0])
+        assert status.OK()
 
 
-@pytest.mark.skip(reason="crud branch")
 class TestDeleteByID:
     def test_delete_by_id_normal(self, gcon, gtable):
         vectors = records_factory(dim, nq)
@@ -1066,7 +1033,6 @@ class TestDeleteByID:
         assert not status.OK()
 
 
-# @pytest.mark.skip(reason="crud branch")
 class TestFlush:
     def test_flush(self, gcon):
         table_param = {

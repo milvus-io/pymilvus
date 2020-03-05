@@ -256,7 +256,7 @@ class TopKQueryResult2:
         js = raw_resources.json()
         self._nq = js["num"]
 
-        for row_result in js["results"]:
+        for row_result in js["result"]:
             row_ = [QueryResult(int(result["id"]), float(result["distance"]))
                     for result in row_result]
 
@@ -402,6 +402,51 @@ class TableInfo:
     def __init__(self, res):
         self.count = res.total_row_count
         self.partitions_stat = [PartitionStat(p) for p in list(res.partitions_stat)]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class HSegmentStat:
+    def __init__(self, res):
+        self.segment_name = res["segment_name"]
+        self.count = res["count"]
+        self.index_name = res["index"]
+        self.data_size = res["size"]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class HPartitionStat:
+    def __init__(self, res):
+        self.tag = res["partition_tag"]
+        self.count = res["count"]
+        self.segments_stat = [HSegmentStat(s) for s in res["segments_stat"]]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class HTableInfo:
+    def __init__(self, res):
+        self.count = res["count"]
+        self.partitions_stat = [HPartitionStat(p) for p in res["partitions_stat"]]
 
     def __str__(self):
         attr_list = ['%s: %r' % (key, value)

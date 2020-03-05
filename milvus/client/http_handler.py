@@ -7,7 +7,7 @@ import struct
 
 import requests as rq
 
-from .abstract import ConnectIntf, IndexParam, TableSchema, TopKQueryResult2, PartitionParam
+from .abstract import HTableInfo, ConnectIntf, IndexParam, TableSchema, TopKQueryResult2, PartitionParam
 from .check import is_legal_host, is_legal_port
 from .exceptions import NotConnectError, ParamError
 from .types import Status, IndexType, MetricType
@@ -54,7 +54,7 @@ MetricName2ValueMap = {
 }
 
 
-def timeout_error(returns):
+def timeout_error(returns=tuple()):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -163,7 +163,25 @@ class HttpHandler(ConnectIntf):
         self._status = None
         return Status()
 
-    @timeout_error
+    @timeout_error(returns=(None,))
+    def _cmd(self, cmd, timeout=10):
+        url = self._uri + "/system/{}".format(cmd)
+
+        response = rq.get(url, timeout=timeout)
+
+        js = response.json()
+        if response.status_code == 200:
+            return Status(), js["reply"]
+
+        return Status(code=js["code"], message=js["message"]), None
+
+    def server_version(self, timeout):
+        return self._cmd("version", timeout)
+
+    def server_status(self, timeout):
+        return self._cmd("status", timeout)
+
+    @timeout_error()
     def create_table(self, param, timeout):
 
         table_param = copy.deepcopy(param)
@@ -212,71 +230,87 @@ class HttpHandler(ConnectIntf):
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
-    @timeout_error
+    @timeout_error(returns=(None,))
     def describe_table(self, table_name, timeout):
         url = self._uri + "/tables/{}".format(table_name)
 
-        try:
-            response = rq.get(url, timeout=timeout)
+        response = rq.get(url, timeout=timeout)
 
-            if response.status_code >= 500:
-                return Status(Status.UNEXPECTED_ERROR, response.reason), None
+        if response.status_code >= 500:
+            return Status(Status.UNEXPECTED_ERROR, response.reason), None
 
-            js = response.json()
-            if response.status_code == 200:
-                metric_map = dict()
-                _ = [metric_map.update({i.name: i.value}) for i in MetricType if i.value > 0]
+        js = response.json()
+        if response.status_code == 200:
+            metric_map = dict()
+            _ = [metric_map.update({i.name: i.value}) for i in MetricType if i.value > 0]
 
-                table = TableSchema(
-                    table_name=js["table_name"],
-                    dimension=js["dimension"],
-                    index_file_size=js["index_file_size"],
-                    metric_type=metric_map[js["metric_type"]])
+            table = TableSchema(
+                table_name=js["table_name"],
+                dimension=js["dimension"],
+                index_file_size=js["index_file_size"],
+                metric_type=metric_map[js["metric_type"]])
 
-                return Status(message='Describe table successfully!'), table
+            return Status(message='Describe table successfully!'), table
 
-            return Status(Status(js["code"], js["message"])), None
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e))
+        return Status(Status(js["code"], js["message"])), None
 
     @timeout_error(returns=([],))
     def show_tables(self, timeout):
         url = self._uri + "/tables"
 
-        try:
-            response = rq.get(url, params={"offset": 0, "page_size": 0}, timeout=timeout)
-            if response.status_code != 200:
-                return Status(Status.UNEXPECTED_ERROR, response.reason), []
+        response = rq.get(url, params={"offset": 0, "page_size": 0}, timeout=timeout)
+        if response.status_code != 200:
+            return Status(Status.UNEXPECTED_ERROR, response.reason), []
 
-            js = response.json()
-            count = js["count"]
+        js = response.json()
+        count = js["count"]
 
-            response = rq.get(url, params={"offset": 0, "page_size": count}, timeout=timeout)
-            if response.status_code != 200:
-                return Status(Status.UNEXPECTED_ERROR, response.reason), []
+        response = rq.get(url, params={"offset": 0, "page_size": count}, timeout=timeout)
+        if response.status_code != 200:
+            return Status(Status.UNEXPECTED_ERROR, response.reason), []
 
-            tables = []
-            js = response.json()
+        tables = []
+        js = response.json()
 
-            for table in js["tables"]:
-                tables.append(table["table_name"])
+        for table in js["tables"]:
+            tables.append(table["table_name"])
 
-            return Status(), tables
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e)), []
+        return Status(), tables
 
-    @timeout_error
+    @timeout_error(returns=(None,))
+    def show_table_info(self, table_name, timeout=10):
+        url = self._uri + "/tables/{}?info=stat".format(table_name)
+
+        response = rq.get(url, timeout=timeout)
+        result = response.json()
+
+        if response.status_code == 200:
+            return Status(), HTableInfo(result)
+
+        return Status(Status(result["code"], result["message"])), None
+
+    @timeout_error()
+    def preload_table(self, table_name, timeout):
+        url = self._uri + "/system/task"
+        params = {"load": {"table_name": table_name}}
+
+        response = rq.get(url, params=params, timeout=timeout)
+
+        if response.status_code == 200:
+            return Status(message="Load successfuly")
+
+        js = response.json()
+        return Status(code=js["code"], message=js["message"])
+
+    @timeout_error()
     def drop_table(self, table_name, timeout):
         url = self._uri + "/tables/" + table_name
-        try:
-            response = rq.delete(url, timeout=timeout)
-            if response.status_code == 204:
-                return Status(message="Delete successfully!")
+        response = rq.delete(url, timeout=timeout)
+        if response.status_code == 204:
+            return Status(message="Delete successfully!")
 
-            js = response.json()
-            return Status(js["code"], js["message"])
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e))
+        js = response.json()
+        return Status(js["code"], js["message"])
 
     @timeout_error(returns=([],))
     def insert(self, table_name, records, ids, partition_tag, timeout, **kwargs):
@@ -286,7 +320,7 @@ class HttpHandler(ConnectIntf):
         if ids:
             data_dict["ids"] = ids
         if partition_tag:
-            data_dict["tag"] = partition_tag
+            data_dict["partition_tag"] = partition_tag
 
         if isinstance(records[0], bytes):
             vectors = [struct.unpack(str(len(r)) + 'B', r) for r in records]
@@ -299,241 +333,229 @@ class HttpHandler(ConnectIntf):
 
         headers = {"Content-Type": "application/json"}
 
-        try:
-            response = rq.post(url, data=data, headers=headers)
-            js = response.json()
+        response = rq.post(url, data=data, headers=headers)
+        js = response.json()
 
-            if response.status_code == 201:
-                ids = [int(item) for item in list(js["ids"])]
-                return Status(message='Add vectors successfully!'), ids
+        if response.status_code == 201:
+            ids = [int(item) for item in list(js["ids"])]
+            return Status(message='Add vectors successfully!'), ids
 
-            return Status(Status(js["code"], js["message"])), []
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e)), []
+        return Status(Status(js["code"], js["message"])), []
 
-    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
-        url = self._uri + "/tables/{}/vectors".format(table_name)
+    @timeout_error(returns=(None,))
+    def get_vector_by_id(self, table_name, v_id, timeout):
+        status, table_schema = self.describe_table(table_name, timeout)
+        if not status.OK():
+            return status, None
+        metric = table_schema.metric_type
 
-        body_dict = dict()
-        if partition_tags:
-            body_dict["tags"] = partition_tags
-        body_dict["topk"] = top_k
-        body_dict["nprobe"] = nprobe
+        bin_vector = metric in list(MetricType.__members__.values())[3:]
 
-        if isinstance(query_records[0], bytes):
-            vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
-            body_dict["records_bin"] = vectors
-        else:
-            vectors = query_records
-            body_dict["records"] = vectors
+        url = self._uri + "/tables/{}/vectors?id={}".format(table_name, v_id)
+        response = rq.get(url, timeout=timeout)
+        result = response.json()
 
-        data = ujson.dumps(body_dict)
-        headers = {"Content-Type": "application/json"}
+        if response.status_code == 200:
+            vectors = result["vectors"]
+            if not list(vectors):
+                return Status(), []
 
-        try:
-            response = rq.put(url, data, headers=headers)
+            vector = list(vectors[0]["vector"])
+            if bin_vector:
+                return Status(), bytes(vector)
+            return Status(), vector
 
-            if response.status_code == 200:
-                return Status(), TopKQueryResult2(response)
+        return Status(result["code"], result["message"]), None
 
-            js = response.json()
-            return Status(Status(js["code"], js["message"])), None
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
+    @timeout_error(returns=(None,))
+    def get_vector_ids(self, table_name, segment_name, timeout):
+        url = self._uri + "/tables/{}/segments/{}/ids".format(table_name, segment_name)
+        response = rq.get(url, timeout=timeout)
+        result = response.json()
 
-    def search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
-        url = self._uri + "/tables/{}/vectors".format(table_name)
+        if response.status_code == 200:
+            return Status(), list(result["ids"])
 
-        body_dict = dict()
-        body_dict["topk"] = top_k
-        body_dict["nprobe"] = nprobe
-        body_dict["file_ids"] = file_ids
+        return Status(result["code"], result["message"]), None
 
-        if isinstance(query_records[0], bytes):
-            vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
-            body_dict["records_bin"] = vectors
-        else:
-            vectors = query_records
-            body_dict["records"] = vectors
-
-        data = ujson.dumps(body_dict)
-        headers = {"Content-Type": "application/json"}
-
-        try:
-            response = rq.put(url, data, headers=headers)
-
-            if response.status_code == 200:
-                return Status(), TopKQueryResult2(response)
-
-            js = response.json()
-            return Status(Status(js["code"], js["message"])), None
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
-
-    def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array):
-        return Status(Status.UNEXPECTED_ERROR, "Not uncompleted"), None
-
+    @timeout_error()
     def create_index(self, table_name, index, timeout):
         url = self._uri + "/tables/{}/indexes".format(table_name)
-        try:
-            index["index_type"] = IndexValue2NameMap.get(index["index_type"])
-            data = ujson.dumps(index)
 
-            headers = {"Content-Type": "application/json"}
-            response = rq.post(url, data=data, headers=headers)
+        index["index_type"] = IndexValue2NameMap.get(index["index_type"])
+        data = ujson.dumps(index)
 
-            js = response.json()
+        headers = {"Content-Type": "application/json"}
+        response = rq.post(url, data=data, headers=headers)
 
-            return Status(js["code"], js["message"])
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e))
+        js = response.json()
 
-    def server_version(self, timeout):
-        return self._cmd("version", timeout)
+        return Status(js["code"], js["message"])
 
-    def server_status(self, timeout):
-        return self._cmd("status", timeout)
-
-    def preload_table(self, table_name, timeout):
-        url = self._uri + "/system/task"
-        params = {"action": "load", "target": table_name}
-
-        try:
-            response = rq.get(url, params=params, timeout=timeout)
-
-            if response.status_code == 200:
-                return Status(message="Load successfuly")
-
-            js = response.json()
-            return Status(code=js["code"], message=js["message"])
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e))
-
+    @timeout_error(returns=(None,))
     def describe_index(self, table_name, timeout):
         url = self._uri + "/tables/{}/indexes".format(table_name)
 
-        try:
-            response = rq.get(url, timeout=timeout)
+        response = rq.get(url, timeout=timeout)
 
-            if response.status_code >= 500:
-                return Status(Status.UNEXPECTED_ERROR,
-                              "Unexpected error.\n\tStatus code : {}, reason : {}"
-                              .format(response.status_code, response.reason))
+        if response.status_code >= 500:
+            return Status(Status.UNEXPECTED_ERROR,
+                          "Unexpected error.\n\tStatus code : {}, reason : {}"
+                          .format(response.status_code, response.reason))
 
-            js = response.json()
+        js = response.json()
 
-            if response.status_code == 200:
-                index_type = IndexName2ValueMap.get(js["index_type"])
-                return Status(), IndexParam(table_name, index_type, js["nlist"])
+        if response.status_code == 200:
+            index_type = IndexName2ValueMap.get(js["index_type"])
+            return Status(), IndexParam(table_name, index_type, js["nlist"])
 
-            return Status(js["code"], js["message"]), None
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
+        return Status(js["code"], js["message"]), None
 
+    @timeout_error()
     def drop_index(self, table_name, timeout):
         url = self._uri + "/tables/{}/indexes".format(table_name)
-        try:
-            response = rq.delete(url)
 
-            if response.status_code == 204:
-                return Status()
+        response = rq.delete(url)
 
-            js = response.json()
-            return Status(js["code"], js["message"])
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e))
+        if response.status_code == 204:
+            return Status()
 
-    def _cmd(self, cmd, timeout=10):
-        url = self._uri + "/system/{}".format(cmd)
+        js = response.json()
+        return Status(js["code"], js["message"])
 
-        try:
-            response = rq.get(url, timeout=timeout)
-
-            js = response.json()
-            if response.status_code == 200:
-                return Status(), js["reply"]
-
-            return Status(code=js["code"], message=js["message"]), None
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), None
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
-
-    def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
+    @timeout_error()
+    def create_partition(self, table_name, partition_tag, timeout=10):
         url = self._uri + "/tables/{}/partitions".format(table_name)
 
-        try:
-            data = ujson.dumps({"partition_name": partition_name, "partition_tag": partition_tag})
-            headers = {"Content-Type": "application/json"}
+        data = ujson.dumps({"partition_tag": partition_tag})
+        headers = {"Content-Type": "application/json"}
 
-            response = rq.post(url, data=data, headers=headers)
-            if response.status_code == 201:
-                return Status()
+        response = rq.post(url, data=data, headers=headers, timeout=timeout)
+        if response.status_code == 201:
+            return Status()
 
-            js = response.json()
-            return Status(Status(js["code"], js["message"]))
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e))
+        js = response.json()
+        return Status(Status(js["code"], js["message"]))
 
+    @timeout_error(returns=([],))
     def show_partitions(self, table_name, timeout):
         url = self._uri + "/tables/{}/partitions".format(table_name)
         query_data = {"offset": 0, "page_size": 100}
 
-        try:
-            response = rq.get(url, params=query_data, timeout=timeout)
-            if response.status_code >= 500:
-                return Status(Status.UNEXPECTED_ERROR,
-                              "Unexpected error. Status code : 500, reason: {}"
-                              .format(response.reason)), None
+        response = rq.get(url, params=query_data, timeout=timeout)
+        if response.status_code >= 500:
+            return Status(Status.UNEXPECTED_ERROR,
+                          "Unexpected error. Status code : 500, reason: {}"
+                          .format(response.reason)), None
 
-            js = response.json()
-            if response.status_code == 200:
-                partition_list = \
-                    [PartitionParam(table_name, item["partition_name"], item["partition_tag"])
-                     for item in js["partitions"]]
+        js = response.json()
+        if response.status_code == 200:
+            partition_list = \
+                [PartitionParam(table_name, item["partition_tag"])
+                 for item in js["partitions"]]
 
-                return Status(), partition_list
+            return Status(), partition_list
 
-            return Status(Status(js["code"], js["message"])), []
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e)), []
+        return Status(Status(js["code"], js["message"])), []
 
+    @timeout_error()
     def drop_partition(self, table_name, partition_tag, timeout=10):
-        url = self._uri + "/tables/{}/partitions/{}".format(table_name, partition_tag)
+        url = self._uri + "/tables/{}/partitions".format(table_name)
+        request = {
+            "partition_tag": partition_tag
+        }
+        payload = ujson.dumps(request)
 
-        try:
-            response = rq.delete(url, timeout=timeout)
-            if response.status_code == 204:
-                return Status()
+        response = rq.delete(url, data=payload, timeout=timeout)
+        if response.status_code == 204:
+            return Status()
 
-            js = response.json()
-            return Status(Status(js["code"], js["message"]))
-        except rq.exceptions.Timeout:
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-        except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e))
+        js = response.json()
+        return Status(Status(js["code"], js["message"]))
 
+    @timeout_error(returns=(None,))
+    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
+        url = self._uri + "/tables/{}/vectors".format(table_name)
+
+        search_dict = dict()
+        if partition_tags:
+            search_dict["partition_tags"] = partition_tags
+        search_dict["topk"] = top_k
+        search_dict["nprobe"] = nprobe
+
+        if isinstance(query_records[0], bytes):
+            vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
+            search_dict["vectors"] = vectors
+        else:
+            vectors = query_records
+            search_dict["vectors"] = vectors
+
+        data = ujson.dumps({"search": search_dict})
+        headers = {"Content-Type": "application/json"}
+
+        response = rq.put(url, data, headers=headers)
+
+        if response.status_code == 200:
+            return Status(), TopKQueryResult2(response)
+
+        js = response.json()
+        return Status(js["code"], js["message"]), None
+
+    @timeout_error(returns=(None,))
+    def search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
+        url = self._uri + "/tables/{}/vectors".format(table_name)
+
+        search_dict = dict()
+        search_dict["topk"] = top_k
+        search_dict["nprobe"] = nprobe
+        search_dict["file_ids"] = file_ids
+
+        if isinstance(query_records[0], bytes):
+            vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
+            search_dict["vectors"] = vectors
+        else:
+            vectors = query_records
+            search_dict["vectors"] = vectors
+
+        data = ujson.dumps({"search": search_dict})
+        headers = {"Content-Type": "application/json"}
+
+        response = rq.put(url, data, headers=headers)
+
+        if response.status_code == 200:
+            return Status(), TopKQueryResult2(response)
+
+        js = response.json()
+        return Status(Status(js["code"], js["message"])), None
+
+    # def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array):
+    #     return Status(Status.UNEXPECTED_ERROR, "Not uncompleted"), None
+
+    @timeout_error()
     def delete_by_id(self, table_name, id_array, timeout=None):
-        return Status(Status.UNEXPECTED_ERROR, "Not uncompleted")
+        url = self._uri + "/tables/{}/vectors".format(table_name)
+        headers = {"Content-Type": "application/json"}
+        ids = map(str, id_array)
+        request = {"delete": {"ids": ids}}
+
+        response = rq.put(url, ujson.dumps(request), headers=headers, timeout=timeout)
+        result = response.json()
+        return Status(result["code"], result["message"])
 
     def flush(self, table_name_array):
-        return Status(Status.UNEXPECTED_ERROR, "Not uncompleted")
+        url = self._uri + "/system/task"
+        headers = {"Content-Type": "application/json"}
+        request = {"flush": {"table_names": table_name_array}}
+
+        response = rq.put(url, ujson.dumps(request), headers=headers)
+        result = response.json()
+        return Status(result["code"], result["message"])
 
     def compact(self, table_name, timeout):
-        return Status(Status.UNEXPECTED_ERROR, "Not uncompleted")
+        url = self._uri + "/system/task"
+        headers = {"Content-Type": "application/json"}
+        request = {"compact": {"table_name": table_name}}
+
+        response = rq.put(url, ujson.dumps(request), headers=headers)
+        result = response.json()
+        return Status(result["code"], result["message"])

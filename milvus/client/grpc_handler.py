@@ -622,7 +622,8 @@ class GrpcHandler(ConnectIntf):
             response = self._stub.GetVectorIDs.future(request).result(timeout=timeout)
 
             if response.status.error_code == 0:
-                return Status(), list(response.vector_id_array)
+                vec = list(response.vector_id_array)
+                return Status(), vec
             return Status(response.status.error_code, response.status.reason), []
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
@@ -880,21 +881,21 @@ class GrpcHandler(ConnectIntf):
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
             return status, []
 
-    def search_by_id(self, table_name, top_k, nprobe, id_, partition_tag_array):
-
-        request = Prepare.search_by_id_param(table_name, top_k, nprobe,
-                                             id_, partition_tag_array)
-
-        try:
-            response = self._stub.SearchByID(request)
-            if response.status.error_code == 0:
-                return Status(message='Search vectors successfully!'), TopKQueryResult(response)
-
-            return Status(code=response.status.error_code, message=response.status.reason), None
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
-            return status, None
+    # def search_by_id(self, table_name, top_k, nprobe, id_, partition_tag_array):
+    #
+    #     request = Prepare.search_by_id_param(table_name, top_k, nprobe,
+    #                                          id_, partition_tag_array)
+    #
+    #     try:
+    #         response = self._stub.SearchByID(request)
+    #         if response.status.error_code == 0:
+    #             return Status(message='Search vectors successfully!'), TopKQueryResult(response)
+    #
+    #         return Status(code=response.status.error_code, message=response.status.reason), None
+    #     except grpc.RpcError as e:
+    #         LOGGER.error(e)
+    #         status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
+    #         return status, None
 
     def search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
         """

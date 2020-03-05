@@ -156,17 +156,17 @@ class Milvus:
         return self._handler.insert(table_name, records, ids, partition_tag, timeout, **kwargs)
 
     @check_connect
-    def get_vector_by_id(self, table_name, vector_id):
+    def get_vector_by_id(self, table_name, vector_id, timeout=None):
         check_pass_param(table_name=table_name, ids=[vector_id])
 
-        return self._handler.get_vector_by_id(table_name, vector_id)
+        return self._handler.get_vector_by_id(table_name, vector_id, timeout=timeout)
 
     @check_connect
-    def get_vector_ids(self, table_name, segment_name):
+    def get_vector_ids(self, table_name, segment_name, timeout=None):
         check_pass_param(table_name=table_name)
         check_pass_param(table_name=segment_name)
 
-        return self._handler.get_vector_ids(table_name, segment_name)
+        return self._handler.get_vector_ids(table_name, segment_name, timeout)
 
     @check_connect
     def create_index(self, table_name, index=None, timeout=-1):
@@ -219,15 +219,15 @@ class Milvus:
         return self._handler.search(table_name, top_k, nprobe,
                                     query_records, partition_tags, **kwargs)
 
-    def search_by_id(self, table_name, top_k, nprobe, vector_id, partition_tag_array=None):
-        if not isinstance(vector_id, int):
-            raise ParamError("Vector id must be an integer")
-
-        partition_tag_array = partition_tag_array or list()
-        check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe,
-                         partition_tag_array=partition_tag_array)
-
-        return self._handler.search_by_id(table_name, top_k, nprobe, vector_id, partition_tag_array)
+    # def search_by_id(self, table_name, top_k, nprobe, vector_id, partition_tag_array=None):
+    #     if not isinstance(vector_id, int):
+    #         raise ParamError("Vector id must be an integer")
+    #
+    #     partition_tag_array = partition_tag_array or list()
+    #     check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe,
+    #                      partition_tag_array=partition_tag_array)
+    #
+    #     return self._handler.search_by_id(table_name, top_k, nprobe, vector_id, partition_tag_array)
 
     @check_connect
     def search_in_files(self, table_name, file_ids, query_records, top_k,
@@ -245,7 +245,7 @@ class Milvus:
     @check_connect
     def flush(self, table_name_array=None):
         if table_name_array is None:
-            return self._handler.flush(table_name_array)
+            return self._handler.flush([])
 
         if not isinstance(table_name_array, list):
             raise ParamError("Table name array must be type of list")
@@ -266,11 +266,15 @@ class Milvus:
 
     @check_connect
     def get_config(self, parent_key, child_key):
-        pass
+        cmd = "get_config {}.{}".format(parent_key, child_key)
+
+        return self._cmd(cmd)
 
     @check_connect
     def set_config(self, parent_key, child_key, value):
-        pass
+        cmd = "set_config {}.{} {}".format(parent_key, child_key, value)
+
+        return self._cmd(cmd)
 
     # In old version of pymilvus, some methods are different from the new.
     # apply alternative method name for compatibility
