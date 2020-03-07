@@ -4,7 +4,6 @@
 # and execute a vector similarity search.
 import sys
 sys.path.append(".")
-import numpy as np
 import random
 from milvus import Milvus, IndexType, MetricType
 import time
@@ -12,7 +11,7 @@ import time
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
-_PORT = '19121'  # default value
+_PORT = '19530'  # default value
 
 # Vector parameters
 _DIM = 128  # dimension of vector
@@ -21,7 +20,7 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
 def main():
-    milvus = Milvus(handler="HTTP")
+    milvus = Milvus()
 
     # Connect to Milvus server
     # You may need to change _HOST and _PORT accordingly
@@ -67,10 +66,9 @@ def main():
 
     # Insert vectors into demo_table, return status and vectors id list
     status, ids = milvus.insert(table_name=table_name, records=vectors)
-    sys.exit(0)
 
-    # Wait for 4 seconds, until Milvus server persist vector data.
-    time.sleep(4)
+    # Flush table  inserted data to disk.
+    milvus.flush([table_name])
 
     # Get demo_table row count
     status, result = milvus.count_table(table_name)
@@ -119,7 +117,7 @@ def main():
     print(results)
 
     # Delete demo_table
-    # status = milvus.drop_table(table_name)
+    status = milvus.drop_table(table_name)
 
     # Disconnect from Milvus
     status = milvus.disconnect()
