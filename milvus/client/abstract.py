@@ -1,4 +1,6 @@
-import json
+import ujson
+
+from google.protobuf.pyext._message import RepeatedCompositeContainer
 
 from ..client.exceptions import ParamError
 
@@ -329,7 +331,7 @@ class IndexParam:
 
     """
 
-    def __init__(self, table_name, index_type, nlist):
+    def __init__(self, table_name, index_type, params):
 
         if table_name is None:
             raise ParamError('Table name can\'t be None')
@@ -342,7 +344,11 @@ class IndexParam:
 
         self._table_name = table_name
         self._index_type = index_type
-        self._nlist = nlist
+
+        if isinstance(params, RepeatedCompositeContainer):
+            self._params = ujson.loads(params[0].value)
+        else:
+            self._params = params
 
     def __str__(self):
         attr_list = ['%s=%r' % (key.lstrip('_'), value)
@@ -383,11 +389,42 @@ class SegmentStat:
         return self.__str__()
 
 
+class HSegmentStat:
+    def __init__(self, res):
+        self.segment_name = res["segment_name"]
+        self.count = res["count"]
+        self.index_name = res["index"]
+        self.data_size = res["size"]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
 class PartitionStat:
     def __init__(self, res):
         self.tag = res.tag
         self.count = res.total_row_count
         self.segments_stat = [SegmentStat(s) for s in list(res.segments_stat)]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class HPartitionStat:
+    def __init__(self, res):
+        self.tag = res["tag"]
+        self.count = res["count"]
+        self.segments_stat = [HSegmentStat(s) for s in res["segments_stat"]]
 
     def __str__(self):
         attr_list = ['%s: %r' % (key, value)

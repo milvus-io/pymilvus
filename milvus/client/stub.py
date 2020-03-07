@@ -95,22 +95,27 @@ class Milvus:
             raise ParamError('Param type incorrect, expect {} but get {} instead'
                              .format(type(dict), type(param)))
 
-        if 'table_name' not in param:
-            raise ParamError('table_name is required')
-
-        if 'dimension' not in param:
-            raise ParamError('dimension is required')
-
         table_param = copy.deepcopy(param)
 
-        if 'index_file_size' not in param:
-            table_param['index_file_size'] = 1024
-        if 'metric_type' not in param:
-            table_param['metric_type'] = MetricType.L2
+        if 'table_name' not in table_param:
+            raise ParamError('table_name is required')
+        table_name = table_param["table_name"]
+        table_param.pop('table_name')
 
-        check_pass_param(**table_param)
+        if 'dimension' not in table_param:
+            raise ParamError('dimension is required')
+        dim = table_param["dimension"]
+        table_param.pop("dimension")
 
-        return self._handler.create_table(table_param, timeout)
+        index_file_size = table_param.get('index_file_size', 1024)
+        table_param.pop('index_file_size', None)
+
+        metric_type = table_param.get('metric_type', MetricType.L2)
+        table_param.pop('metric_type', None)
+
+        check_pass_param(table_name=table_name, dimension=dim, index_file_size=index_file_size, metric_type=metric_type)
+
+        return self._handler.create_table(table_name, dim, index_file_size, metric_type, table_param, timeout)
 
     @check_connect
     def has_table(self, table_name, timeout=10):
@@ -146,14 +151,18 @@ class Milvus:
         return self._handler.drop_table(table_name, timeout)
 
     @check_connect
-    def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
+    def insert(self, table_name, records, ids=None, partition_tag=None, params=None, timeout=-1):
         check_pass_param(table_name=table_name, records=records,
                          ids=ids, partition_tag=partition_tag)
 
         if ids is not None and len(records) != len(ids):
             raise ParamError("length of vectors do not match that of ids")
 
-        return self._handler.insert(table_name, records, ids, partition_tag, timeout, **kwargs)
+        params = params or dict()
+        if not isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
+
+        return self._handler.insert(table_name, records, ids, partition_tag, params, timeout)
 
     @check_connect
     def get_vector_by_id(self, table_name, vector_id, timeout=None):
@@ -169,22 +178,15 @@ class Milvus:
         return self._handler.get_vector_ids(table_name, segment_name, timeout)
 
     @check_connect
-    def create_index(self, table_name, index=None, timeout=-1):
-        index_default = {'index_type': IndexType.FLAT, 'nlist': 16384}
-        if not index:
-            _index = index_default
-        elif not isinstance(index, dict):
-            raise ParamError("param `index` should be a dictionary")
-        else:
-            _index = copy.deepcopy(index)
-            if 'index_type' not in index:
-                _index.update({'index_type': IndexType.FLAT})
-            if 'nlist' not in index:
-                _index.update({'nlist': 16384})
+    def create_index(self, table_name, index_type=None, params=None, timeout=-1):
+        _index_type = IndexType.FLAT if index_type is None else index_type
+        check_pass_param(table_name=table_name, index_type=_index_type)
 
-        check_pass_param(table_name=table_name, **_index)
+        params = params or dict()
+        if not isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
 
-        return self._handler.create_index(table_name, _index, timeout)
+        return self._handler.create_index(table_name, _index_type, params, timeout)
 
     @check_connect
     def describe_index(self, table_name, timeout=10):
@@ -213,28 +215,26 @@ class Milvus:
         return self._handler.drop_partition(table_name, partition_tag, timeout)
 
     @check_connect
-    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
-        check_pass_param(table_name=table_name, topk=top_k, records=query_records,
-                         nprobe=nprobe, partition_tag_array=partition_tags)
-        return self._handler.search(table_name, top_k, nprobe,
-                                    query_records, partition_tags, **kwargs)
+    def search(self, table_name, top_k, query_records, partition_tags=None, params=None):
+        check_pass_param(table_name=table_name, topk=top_k,
+                         records=query_records, partition_tag_array=partition_tags)
 
-    # def search_by_id(self, table_name, top_k, nprobe, vector_id, partition_tag_array=None):
-    #     if not isinstance(vector_id, int):
-    #         raise ParamError("Vector id must be an integer")
-    #
-    #     partition_tag_array = partition_tag_array or list()
-    #     check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe,
-    #                      partition_tag_array=partition_tag_array)
-    #
-    #     return self._handler.search_by_id(table_name, top_k, nprobe, vector_id, partition_tag_array)
+        params = params or dict()
+        if not isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
+
+        return self._handler.search(table_name, top_k, query_records, partition_tags, params)
 
     @check_connect
-    def search_in_files(self, table_name, file_ids, query_records, top_k,
-                        nprobe=16, **kwargs):
-        check_pass_param(table_name=table_name, topk=top_k, nprobe=nprobe, records=query_records)
+    def search_in_files(self, table_name, file_ids, query_records, top_k, params=None):
+        check_pass_param(table_name=table_name, topk=top_k, records=query_records)
+
+        params = params or dict()
+        if not isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
+
         return self._handler.search_in_files(table_name, file_ids,
-                                             query_records, top_k, nprobe, **kwargs)
+                                             query_records, top_k, params)
 
     @check_connect
     def delete_by_id(self, table_name, id_array, timeout=None):

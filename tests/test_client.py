@@ -4,6 +4,7 @@ import time
 import random
 import pytest
 import sys
+import ujson
 
 sys.path.append('.')
 
@@ -126,10 +127,10 @@ class TestConnection:
             client.show_tables()
 
         with pytest.raises(NotConnectError):
-            client.search("a", 1, 2, [])
+            client.search("a", 1, 2, [], None)
 
         with pytest.raises(NotConnectError):
-            client.search_in_files("a", [], [], 2, 1)
+            client.search_in_files("a", [], [], 2, 1, None)
 
         with pytest.raises(NotConnectError):
             client._cmd("")
@@ -198,6 +199,19 @@ class TestTable:
         res = gcon.create_table(param)
         LOGGER.error(res)
         assert not res.OK()
+
+    @pytest.mark.skip
+    def test_has_table(self, gcon, gtable):
+        table_name = fake.table_name()
+        status, result = gcon.has_table(table_name)
+        assert status.OK(), status.message
+        assert not result
+
+        result = gcon.has_table(gtable)
+        assert result
+
+        with pytest.raises(Exception):
+            gcon.has_table(1111)
 
     def test_has_table_invalid_name(self, gcon, gtable):
         table_name = "1234455"
@@ -302,11 +316,16 @@ class TestSearch:
     def test_search_normal(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
+
+        search_param = {
+            "nprobe": 10
+        }
+
         param = {
             'table_name': gvector,
             'query_records': query_records,
             'top_k': topk,
-            'nprobe': 10
+            'params': search_param
         }
         res, results = gcon.search(**param)
         assert res.OK()
@@ -319,11 +338,16 @@ class TestSearch:
     def test_search_wrong_dim(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim + 1, nq)
+
+        search_param = {
+            "nprobe": 10
+        }
+
         param = {
             'table_name': gvector,
             'query_records': query_records,
             'top_k': topk,
-            'nprobe': 10
+            'params': search_param
         }
         res, results = gcon.search(**param)
         assert not res.OK()
@@ -331,21 +355,31 @@ class TestSearch:
     def test_search_wrong_table_name(self, gcon, gvector):
         topk = random.randint(1, 10)
         query_records = records_factory(dim, nq)
+
+        search_param = {
+            "nprobe": 10
+        }
+
         param = {
             'table_name': gvector + 'wrong',
             'query_records': query_records,
             'top_k': topk,
-            'nprobe': 10
+            'params': search_param
         }
+
         res, _ = gcon.search(**param)
         assert not res.OK()
 
     def test_false_vector(self, gcon):
+        search_param = {
+            "nprobe": 10
+        }
+
         param = {
             'table_name': fake.table_name(),
             'query_records': records_factory(dim, nq),
             'top_k': 'string',
-            'nprobe': 10
+            'params': search_param
         }
         with pytest.raises(ParamError):
             gcon.search(**param)
@@ -354,18 +388,22 @@ class TestSearch:
             'table_name': fake.table_name(),
             'query_records': records_factory(dim, nq),
             'top_k': 'string',
-            'nprobe': 10
+            'params': search_param
         }
         with pytest.raises(ParamError):
             gcon.search(**param)
 
     def test_search_in_files(self, gcon, gvector):
+        search_param = {
+            "nprobe": 10
+        }
+
         param = {
             'table_name': gvector,
             'query_records': records_factory(dim, nq),
             'file_ids': [],
             'top_k': random.randint(1, 10),
-            'nprobe': 16
+            'params': search_param
         }
 
         for id_ in range(5000):
@@ -379,15 +417,23 @@ class TestSearch:
         assert False
 
     def test_search_in_files_wrong_file_ids(self, gcon, gvector):
+        search_param = {
+            "nprobe": 10
+        }
+
         param = {
             'table_name': gvector,
             'query_records': records_factory(dim, nq),
             'file_ids': ['3388833'],
-            'top_k': random.randint(1, 10)
+            'top_k': random.randint(1, 10),
+            'params': search_param
         }
+
         sta, results = gcon.search_in_files(**param)
         assert not sta.OK()
 
+
+class TestTableMeta:
     def test_describe_table(self, gcon, gtable):
         status, table_schema = gcon.describe_table(gtable)
         assert status.OK()
@@ -425,13 +471,7 @@ class TestSearch:
 class TestPrepare:
 
     def test_table_schema(self):
-        param = {
-            'table_name': fake.table_name(),
-            'dimension': random.randint(0, 999),
-            'index_file_size': 1024,
-            'metric_type': MetricType.L2
-        }
-        res = Prepare.table_schema(param)
+        res = Prepare.table_schema(fake.table_name(), random.randint(0, 999), 1024, MetricType.L2, {})
         assert isinstance(res, milvus_pb2.TableSchema)
 
 
@@ -581,10 +621,9 @@ class TestIndex:
 
         _index = {
             'index_type': IndexType.IVFLAT,
-            'nlist': 4096
         }
 
-        status = gcon.create_index(gtable, _index)
+        status = gcon.create_index(gtable, IndexType.IVF_FLAT, _index)
         assert status.OK(), status.message
 
         status, index_schema = gcon.describe_index(gtable)
@@ -613,11 +652,10 @@ class TestIndex:
         assert count == nb
 
         _index = {
-            'index_type': IndexType.IVFLAT,
             'nlist': 16384
         }
 
-        status = gcon.create_index(gtable, _index)
+        status = gcon.create_index(gtable, IndexType.IVFLAT, _index)
         assert status.OK()
 
         status = gcon.drop_index(gtable)
@@ -698,12 +736,11 @@ class TestBuildIndex:
         time.sleep(5)
 
         _index = {
-            'index_type': IndexType.IVFLAT,
             'nlist': 4096
         }
 
         print("Create index ... ")
-        status = gcon.create_index(gvector, _index)
+        status = gcon.create_index(gvector, IndexType.IVF_FLAT, _index)
         assert status.OK()
 
     def test_create_index_wrong_index(self, gcon, gvector):
@@ -773,11 +810,15 @@ class TestQueryResult:
     query_vectors = [[random.random() for _ in range(128)] for _ in range(200)]
 
     def _get_response(self, gcon, gvector, topk, nprobe, nq):
-        return gcon.search(gvector, topk, nprobe, self.query_vectors[:nq])
+        search_param = {
+            "nprobe": nprobe
+        }
+
+        return gcon.search(gvector, topk, self.query_vectors[:nq], params=search_param)
 
     def test_search_result(self, gcon, gvector):
         try:
-            status, results = self._get_response(gcon, gvector, 2, 2, 1)
+            status, results = self._get_response(gcon, gvector, 2, 1, 1)
             assert status.OK()
 
             # test get_item
@@ -810,10 +851,14 @@ class TestQueryResult:
 
     def test_search_in_files_result(self, gcon, gvector):
         try:
+            search_param = {
+                "nprobe": 1
+            }
+
             for index in range(1000):
                 status, results = \
-                    gcon.search_in_files(table_name=gvector, top_k=1, nprobe=1,
-                                         file_ids=[str(index)], query_records=self.query_vectors)
+                    gcon.search_in_files(table_name=gvector, top_k=1,
+                                         file_ids=[str(index)], query_records=self.query_vectors, params=search_param)
                 if status.OK():
                     break
 
@@ -881,20 +926,24 @@ class TestPartition:
         query_vectors = vectors[:1]
 
         # search in global scope
-        status, results = gcon.search(gtable, 1, 1, query_vectors)
+        search_param = {
+            "nprobe": 1
+        }
+        status, results = gcon.search(gtable, 1, query_vectors, params=search_param)
         assert status.OK()
         assert results.shape == (1, 1)
 
         # search in specific tags
-        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=["2"])
+        status, results = gcon.search(gtable, 1, query_vectors, partition_tags=["2"], params=search_param)
         assert status.OK()
         assert results.shape == (1, 1)
 
         # search in non-existing tags
         status, results = gcon.search(
-            gtable, 1, 1,
+            gtable, 1,
             query_vectors,
-            partition_tags=["ee4tergdgdgedgdgergete5465efdf"])
+            partition_tags=["ee4tergdgdgedgdgergete5465efdf"],
+            params=search_param)
 
         assert status.OK()
         print(results)
@@ -921,18 +970,21 @@ class TestPartition:
         query_vectors = [[random.random() for _ in range(128)] for _ in range(1)]
 
         # search in global scope
-        status, results = gcon.search(gtable, 1, 1, query_vectors)
+        search_param = {
+            "nprobe": 1
+        }
+        status, results = gcon.search(gtable, 1, query_vectors, params=search_param)
         assert status.OK()
         assert results.shape == (1, 1)
 
         # search in specific tags
-        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=[partition_tag])
+        status, results = gcon.search(gtable, 1, query_vectors, partition_tags=[partition_tag], params=search_param)
         assert status.OK()
         print(results)
         assert results.shape == (0, 0)
 
         # search in wrong tags
-        status, results = gcon.search(gtable, 1, 1, query_vectors, partition_tags=[faker.word() + "wrong"])
+        status, results = gcon.search(gtable, 1, query_vectors, partition_tags=[faker.word() + "wrong"], params=search_param)
         assert status.OK(), status.message
         print(results)
         assert results.shape == (0, 0)

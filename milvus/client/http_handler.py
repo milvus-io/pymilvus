@@ -182,15 +182,21 @@ class HttpHandler(ConnectIntf):
         return self._cmd("status", timeout)
 
     @timeout_error()
-    def create_table(self, param, timeout):
+    def create_table(self, table_name, dimension, index_file_size, metric_type, params, timeout):
+        metric = MetricValue2NameMap.get(metric_type, None)
 
-        table_param = copy.deepcopy(param)
+        table_param = {
+            "table_name": table_name,
+            "dimension": dimension,
+            "index_file_size": index_file_size,
+            "metric_type": metric
+        }
 
-        table_param['metric_type'] = MetricValue2NameMap.get(param['metric_type'], None)
         data = ujson.dumps(table_param)
+        url = self._uri + "/tables"
 
         try:
-            response = rq.post(self._uri + "/tables", data=data)
+            response = rq.post(url, data=data)
             if response.status_code == 201:
                 return Status(message='Create table successfully!')
 
@@ -326,8 +332,7 @@ class HttpHandler(ConnectIntf):
             vectors = [struct.unpack(str(len(r)) + 'B', r) for r in records]
             data_dict["vectors"] = vectors
         else:
-            vectors = records
-            data_dict["vectors"] = vectors
+            data_dict["vectors"] = records
 
         data = ujson.dumps(data_dict)
 
@@ -379,15 +384,17 @@ class HttpHandler(ConnectIntf):
         return Status(result["code"], result["message"]), None
 
     @timeout_error()
-    def create_index(self, table_name, index, timeout):
+    def create_index(self, table_name, index_type, index_params, timeout):
         url = self._uri + "/tables/{}/indexes".format(table_name)
 
-        index["index_type"] = IndexValue2NameMap.get(index["index_type"])
-        data = ujson.dumps(index)
-
+        index = IndexValue2NameMap.get(index_type)
+        request = dict()
+        request["index_type"] = index
+        request["params"] = index_params
+        data = ujson.dumps(request)
         headers = {"Content-Type": "application/json"}
-        response = rq.post(url, data=data, headers=headers)
 
+        response = rq.post(url, data=data, headers=headers, timeout=timeout)
         js = response.json()
 
         return Status(js["code"], js["message"])
@@ -407,7 +414,7 @@ class HttpHandler(ConnectIntf):
 
         if response.status_code == 200:
             index_type = IndexName2ValueMap.get(js["index_type"])
-            return Status(), IndexParam(table_name, index_type, js["nlist"])
+            return Status(), IndexParam(table_name, index_type, js["params"])
 
         return Status(js["code"], js["message"]), None
 
@@ -474,23 +481,23 @@ class HttpHandler(ConnectIntf):
         return Status(Status(js["code"], js["message"]))
 
     @timeout_error(returns=(None,))
-    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
+    def search(self, table_name, top_k, query_records, partition_tags=None, search_params=None, **kwargs):
         url = self._uri + "/tables/{}/vectors".format(table_name)
 
-        search_dict = dict()
+        request_dict = dict()
         if partition_tags:
-            search_dict["partition_tags"] = partition_tags
-        search_dict["topk"] = top_k
-        search_dict["nprobe"] = nprobe
+            request_dict["tags"] = partition_tags
+        request_dict["topk"] = top_k
+        request_dict["params"] = search_params
 
         if isinstance(query_records[0], bytes):
             vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
-            search_dict["vectors"] = vectors
+            request_dict["vectors"] = vectors
         else:
             vectors = query_records
-            search_dict["vectors"] = vectors
+            request_dict["vectors"] = vectors
 
-        data = ujson.dumps({"search": search_dict})
+        data = ujson.dumps(request_dict)
         headers = {"Content-Type": "application/json"}
 
         response = rq.put(url, data, headers=headers)
@@ -502,22 +509,22 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"]), None
 
     @timeout_error(returns=(None,))
-    def search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
+    def search_in_files(self, table_name, file_ids, query_records, top_k, search_params, **kwargs):
         url = self._uri + "/tables/{}/vectors".format(table_name)
 
-        search_dict = dict()
-        search_dict["topk"] = top_k
-        search_dict["nprobe"] = nprobe
-        search_dict["file_ids"] = file_ids
+        body_dict = dict()
+        body_dict["topk"] = top_k
+        body_dict["file_ids"] = file_ids
+        body_dict["params"] = search_params
 
         if isinstance(query_records[0], bytes):
             vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
-            search_dict["vectors"] = vectors
+            body_dict["vectors"] = vectors
         else:
             vectors = query_records
-            search_dict["vectors"] = vectors
+            body_dict["vectors"] = vectors
 
-        data = ujson.dumps({"search": search_dict})
+        data = ujson.dumps({"search": body_dict})
         headers = {"Content-Type": "application/json"}
 
         response = rq.put(url, data, headers=headers)
@@ -527,9 +534,6 @@ class HttpHandler(ConnectIntf):
 
         js = response.json()
         return Status(Status(js["code"], js["message"])), None
-
-    # def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array):
-    #     return Status(Status.UNEXPECTED_ERROR, "Not uncompleted"), None
 
     @timeout_error()
     def delete_by_id(self, table_name, id_array, timeout=None):

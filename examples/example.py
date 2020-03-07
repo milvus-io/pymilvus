@@ -16,6 +16,7 @@ _PORT = '19121'  # default value
 
 # Vector parameters
 _DIM = 128  # dimension of vector
+
 _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
@@ -76,7 +77,6 @@ def main():
 
     # create index of vectors, search more rapidly
     index_param = {
-        'index_type': IndexType.IVF_FLAT,  # choice ivflat index
         'nlist': 2048
     }
 
@@ -84,7 +84,7 @@ def main():
     # You can search vectors without creating index. however, Creating index help to
     # search faster
     print("Creating index: {}".format(index_param))
-    status = milvus.create_index(table_name, index_param)
+    status = milvus.create_index(table_name, IndexType.IVF_FLAT, index_param)
 
     # describe index, get information of index
     status, index = milvus.describe_index(table_name)
@@ -94,11 +94,14 @@ def main():
     query_vectors = vectors[0:10]
 
     # execute vector similarity search
+    search_param = {
+        "nprobe": 16
+    }
     param = {
         'table_name': table_name,
         'query_records': query_vectors,
         'top_k': 1,
-        'nprobe': 16
+        'params': search_param
     }
     print("Searching ... ")
     status, results = milvus.search(**param)
