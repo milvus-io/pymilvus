@@ -4,17 +4,13 @@ from google.protobuf.pyext._message import RepeatedCompositeContainer
 
 from ..client.exceptions import ParamError
 
-from .check import (
-    check_pass_param,
-    parser_range_date,
-    is_legal_date_range
-)
+from .check import check_pass_param
 
 from .types import IndexType
 
 
-class TableSchema:
-    def __init__(self, table_name, dimension, index_file_size, metric_type):
+class CollectionSchema:
+    def __init__(self, collection_name, dimension, index_file_size, metric_type):
         """
         Table Schema
 
@@ -35,10 +31,10 @@ class TableSchema:
             `MetricType`: 1-L2, 2-IP
 
         """
-        check_pass_param(table_name=table_name, dimension=dimension,
+        check_pass_param(collection_name=collection_name, dimension=dimension,
                          index_file_size=index_file_size, metric_type=metric_type)
 
-        self.table_name = table_name
+        self.collection_name = collection_name
         self.dimension = dimension
         self.index_file_size = index_file_size
         self.metric_type = metric_type
@@ -364,7 +360,7 @@ class IndexParam:
 class PartitionParam:
 
     def __init__(self, table_name, tag):
-        self.table_name = table_name
+        self.collection_name = table_name
         self.tag = tag
 
     def __repr__(self):
@@ -389,42 +385,11 @@ class SegmentStat:
         return self.__str__()
 
 
-class HSegmentStat:
-    def __init__(self, res):
-        self.segment_name = res["segment_name"]
-        self.count = res["count"]
-        self.index_name = res["index"]
-        self.data_size = res["size"]
-
-    def __str__(self):
-        attr_list = ['%s: %r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-    def __repr__(self):
-        return self.__str__()
-
-
 class PartitionStat:
     def __init__(self, res):
         self.tag = res.tag
         self.count = res.total_row_count
         self.segments_stat = [SegmentStat(s) for s in list(res.segments_stat)]
-
-    def __str__(self):
-        attr_list = ['%s: %r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class HPartitionStat:
-    def __init__(self, res):
-        self.tag = res["tag"]
-        self.count = res["count"]
-        self.segments_stat = [HSegmentStat(s) for s in res["segments_stat"]]
 
     def __str__(self):
         attr_list = ['%s: %r' % (key, value)

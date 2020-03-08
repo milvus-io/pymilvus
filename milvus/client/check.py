@@ -234,7 +234,7 @@ def check_pass_param(*args, **kwargs):
         raise ParamError("Param should not be None")
 
     for key, value in kwargs.items():
-        if key in ("table_name",):
+        if key in ("collection_name",):
             if not is_legal_table_name(value):
                 _raise_param_error(key)
         elif key == "dimension":

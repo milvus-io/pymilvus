@@ -84,16 +84,15 @@ def table(request, connect):
     ori_table_name = getattr(request.module, "table_id", "test")
     table_name = gen_unique_str(ori_table_name)
     dim = getattr(request.module, "dim", "128")
-    param = {'table_name': table_name,
+    param = {'collection_name': table_name,
              'dimension': dim,
              'index_type': IndexType.IVFLAT,
              'metric_type': MetricType.L2
              }
-    connect.create_table(param)
+    connect.create_collection(param)
 
     def teardown():
-        status, table_names = connect.show_tables()
-        connect.delete_table(table_name)
+        connect.drop_collection(table_name)
 
     request.addfinalizer(teardown)
 
@@ -101,22 +100,22 @@ def table(request, connect):
 
 
 @pytest.fixture(scope="function")
-def gtable(request, gcon):
-    table_name = fake.table_name()
+def gcollection(request, gcon):
+    table_name = fake.collection_name()
     dim = getattr(request.module, "dim", 128)
 
-    param = {'table_name': table_name,
+    param = {'collection_name': table_name,
              'dimension': dim,
              'index_file_size': 1024,
              'metric_type': MetricType.L2
              }
-    gcon.create_table(param)
+    gcon.create_collection(param)
     gcon.flush([table_name])
 
     def teardown():
-        status, table_names = gcon.show_tables()
+        status, table_names = gcon.show_collections()
         for name in table_names:
-            gcon.drop_table(name)
+            gcon.drop_collection(name)
 
     request.addfinalizer(teardown)
 
@@ -124,12 +123,12 @@ def gtable(request, gcon):
 
 
 @pytest.fixture(scope='function')
-def gvector(request, gcon, gtable):
+def gvector(request, gcon, gcollection):
     dim = getattr(request.module, 'dim', 128)
 
     records = records_factory(dim, 10000)
 
-    gcon.insert(gtable, records)
-    gcon.flush([gtable])
+    gcon.insert(gcollection, records)
+    gcon.flush([gcollection])
 
-    return gtable
+    return gcollection

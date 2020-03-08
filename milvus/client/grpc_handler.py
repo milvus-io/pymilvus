@@ -6,7 +6,7 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam, TopKQueryResult, TableInfo
+from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, TopKQueryResult, TableInfo
 from .prepare import Prepare
 from .types import MetricType, Status
 from .check import (
@@ -402,8 +402,8 @@ class GrpcHandler(ConnectIntf):
             response = self._stub.DescribeTable.future(table_name).result(timeout=timeout)
 
             if response.status.error_code == 0:
-                table = TableSchema(
-                    table_name=response.table_name,
+                table = CollectionSchema(
+                    collection_name=response.table_name,
                     dimension=response.dimension,
                     index_file_size=response.index_file_size,
                     metric_type=MetricType(response.metric_type)

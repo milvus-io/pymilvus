@@ -7,7 +7,7 @@ import struct
 
 import requests as rq
 
-from .abstract import HTableInfo, ConnectIntf, IndexParam, TableSchema, TopKQueryResult2, PartitionParam
+from .abstract import HTableInfo, ConnectIntf, IndexParam, CollectionSchema, TopKQueryResult2, PartitionParam
 from .check import is_legal_host, is_legal_port
 from .exceptions import NotConnectError, ParamError
 from .types import Status, IndexType, MetricType
@@ -186,14 +186,14 @@ class HttpHandler(ConnectIntf):
         metric = MetricValue2NameMap.get(metric_type, None)
 
         table_param = {
-            "table_name": table_name,
+            "collection_name": table_name,
             "dimension": dimension,
             "index_file_size": index_file_size,
             "metric_type": metric
         }
 
         data = ujson.dumps(table_param)
-        url = self._uri + "/tables"
+        url = self._uri + "/collections"
 
         try:
             response = rq.post(url, data=data)
@@ -207,7 +207,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=(False,))
     def has_table(self, table_name, timeout):
-        url = self._uri + "/tables/" + table_name
+        url = self._uri + "/collections/" + table_name
         try:
             response = rq.get(url=url, timeout=timeout)
             if response.status_code == 200:
@@ -223,7 +223,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=(None,))
     def count_table(self, table_name, timeout):
-        url = self._uri + "/tables/{}".format(table_name)
+        url = self._uri + "/collections/{}".format(table_name)
 
         try:
             response = rq.get(url, timeout=timeout)
@@ -238,7 +238,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=(None,))
     def describe_table(self, table_name, timeout):
-        url = self._uri + "/tables/{}".format(table_name)
+        url = self._uri + "/collections/{}".format(table_name)
 
         response = rq.get(url, timeout=timeout)
 
@@ -250,8 +250,8 @@ class HttpHandler(ConnectIntf):
             metric_map = dict()
             _ = [metric_map.update({i.name: i.value}) for i in MetricType if i.value > 0]
 
-            table = TableSchema(
-                table_name=js["table_name"],
+            table = CollectionSchema(
+                collection_name=js["collection_name"],
                 dimension=js["dimension"],
                 index_file_size=js["index_file_size"],
                 metric_type=metric_map[js["metric_type"]])
@@ -262,7 +262,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=([],))
     def show_tables(self, timeout):
-        url = self._uri + "/tables"
+        url = self._uri + "/collections"
 
         response = rq.get(url, params={"offset": 0, "page_size": 0}, timeout=timeout)
         if response.status_code != 200:
@@ -278,14 +278,14 @@ class HttpHandler(ConnectIntf):
         tables = []
         js = response.json()
 
-        for table in js["tables"]:
-            tables.append(table["table_name"])
+        for table in js["collections"]:
+            tables.append(table["collection_name"])
 
         return Status(), tables
 
     @timeout_error(returns=(None,))
     def show_table_info(self, table_name, timeout=10):
-        url = self._uri + "/tables/{}?info=stat".format(table_name)
+        url = self._uri + "/collections/{}?info=stat".format(table_name)
 
         response = rq.get(url, timeout=timeout)
         result = response.json()
@@ -298,7 +298,7 @@ class HttpHandler(ConnectIntf):
     @timeout_error()
     def preload_table(self, table_name, timeout):
         url = self._uri + "/system/task"
-        params = {"load": {"table_name": table_name}}
+        params = {"load": {"collection_name": table_name}}
 
         response = rq.get(url, params=params, timeout=timeout)
 
@@ -310,7 +310,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error()
     def drop_table(self, table_name, timeout):
-        url = self._uri + "/tables/" + table_name
+        url = self._uri + "/collections/" + table_name
         response = rq.delete(url, timeout=timeout)
         if response.status_code == 204:
             return Status(message="Delete successfully!")
@@ -319,8 +319,8 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @timeout_error(returns=([],))
-    def insert(self, table_name, records, ids, partition_tag, timeout, **kwargs):
-        url = self._uri + "/tables/{}/vectors".format(table_name)
+    def insert(self, table_name, records, ids, partition_tag, params, timeout, **kwargs):
+        url = self._uri + "/collections/{}/vectors".format(table_name)
 
         data_dict = dict()
         if ids:
@@ -356,7 +356,7 @@ class HttpHandler(ConnectIntf):
 
         bin_vector = metric in list(MetricType.__members__.values())[3:]
 
-        url = self._uri + "/tables/{}/vectors?id={}".format(table_name, v_id)
+        url = self._uri + "/collections/{}/vectors?id={}".format(table_name, v_id)
         response = rq.get(url, timeout=timeout)
         result = response.json()
 
@@ -374,7 +374,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=(None,))
     def get_vector_ids(self, table_name, segment_name, timeout):
-        url = self._uri + "/tables/{}/segments/{}/ids".format(table_name, segment_name)
+        url = self._uri + "/collections/{}/segments/{}/ids".format(table_name, segment_name)
         response = rq.get(url, timeout=timeout)
         result = response.json()
 
@@ -385,7 +385,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error()
     def create_index(self, table_name, index_type, index_params, timeout):
-        url = self._uri + "/tables/{}/indexes".format(table_name)
+        url = self._uri + "/collections/{}/indexes".format(table_name)
 
         index = IndexValue2NameMap.get(index_type)
         request = dict()
@@ -401,7 +401,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=(None,))
     def describe_index(self, table_name, timeout):
-        url = self._uri + "/tables/{}/indexes".format(table_name)
+        url = self._uri + "/collections/{}/indexes".format(table_name)
 
         response = rq.get(url, timeout=timeout)
 
@@ -420,7 +420,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error()
     def drop_index(self, table_name, timeout):
-        url = self._uri + "/tables/{}/indexes".format(table_name)
+        url = self._uri + "/collections/{}/indexes".format(table_name)
 
         response = rq.delete(url)
 
@@ -432,7 +432,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error()
     def create_partition(self, table_name, partition_tag, timeout=10):
-        url = self._uri + "/tables/{}/partitions".format(table_name)
+        url = self._uri + "/collections/{}/partitions".format(table_name)
 
         data = ujson.dumps({"partition_tag": partition_tag})
         headers = {"Content-Type": "application/json"}
@@ -446,7 +446,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=([],))
     def show_partitions(self, table_name, timeout):
-        url = self._uri + "/tables/{}/partitions".format(table_name)
+        url = self._uri + "/collections/{}/partitions".format(table_name)
         query_data = {"offset": 0, "page_size": 100}
 
         response = rq.get(url, params=query_data, timeout=timeout)
@@ -467,7 +467,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error()
     def drop_partition(self, table_name, partition_tag, timeout=10):
-        url = self._uri + "/tables/{}/partitions".format(table_name)
+        url = self._uri + "/collections/{}/partitions".format(table_name)
         request = {
             "partition_tag": partition_tag
         }
@@ -482,22 +482,22 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=(None,))
     def search(self, table_name, top_k, query_records, partition_tags=None, search_params=None, **kwargs):
-        url = self._uri + "/tables/{}/vectors".format(table_name)
+        url = self._uri + "/collections/{}/vectors".format(table_name)
 
-        request_dict = dict()
+        search_body = dict()
         if partition_tags:
-            request_dict["tags"] = partition_tags
-        request_dict["topk"] = top_k
-        request_dict["params"] = search_params
+            search_body["partition_tags"] = partition_tags
+        search_body["topk"] = top_k
+        search_body["params"] = search_params
 
         if isinstance(query_records[0], bytes):
             vectors = [struct.unpack(str(len(r)) + 'B', r) for r in query_records]
-            request_dict["vectors"] = vectors
+            search_body["vectors"] = vectors
         else:
             vectors = query_records
-            request_dict["vectors"] = vectors
+            search_body["vectors"] = vectors
 
-        data = ujson.dumps(request_dict)
+        data = ujson.dumps({"search": search_body})
         headers = {"Content-Type": "application/json"}
 
         response = rq.put(url, data, headers=headers)
@@ -510,7 +510,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=(None,))
     def search_in_files(self, table_name, file_ids, query_records, top_k, search_params, **kwargs):
-        url = self._uri + "/tables/{}/vectors".format(table_name)
+        url = self._uri + "/collections/{}/vectors".format(table_name)
 
         body_dict = dict()
         body_dict["topk"] = top_k
@@ -537,7 +537,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error()
     def delete_by_id(self, table_name, id_array, timeout=None):
-        url = self._uri + "/tables/{}/vectors".format(table_name)
+        url = self._uri + "/collections/{}/vectors".format(table_name)
         headers = {"Content-Type": "application/json"}
         ids = map(str, id_array)
         request = {"delete": {"ids": ids}}
@@ -549,7 +549,7 @@ class HttpHandler(ConnectIntf):
     def flush(self, table_name_array):
         url = self._uri + "/system/task"
         headers = {"Content-Type": "application/json"}
-        request = {"flush": {"table_names": table_name_array}}
+        request = {"flush": {"collection_names": table_name_array}}
 
         response = rq.put(url, ujson.dumps(request), headers=headers)
         result = response.json()
@@ -558,7 +558,7 @@ class HttpHandler(ConnectIntf):
     def compact(self, table_name, timeout):
         url = self._uri + "/system/task"
         headers = {"Content-Type": "application/json"}
-        request = {"compact": {"table_name": table_name}}
+        request = {"compact": {"collection_name": table_name}}
 
         response = rq.put(url, ujson.dumps(request), headers=headers)
         result = response.json()
