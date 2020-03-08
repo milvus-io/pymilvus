@@ -6,7 +6,6 @@ import sys
 sys.path.append(".")
 import random
 from milvus import Milvus, IndexType, MetricType
-import time
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
