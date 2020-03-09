@@ -632,7 +632,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message="Error occurred: {}".format(e.details())), []
 
-    def create_index(self, table_name, index_type=None, params=None, timeout=-1):
+    def create_index(self, table_name, index_type=None, params=None, timeout=None):
         """
         build vectors of specific table and create vector index
 
@@ -657,21 +657,15 @@ class GrpcHandler(ConnectIntf):
         """
         index_param = Prepare.index_param(table_name, index_type, params)
         try:
-            if timeout == -1:
-                status = self._stub.CreateIndex(index_param)
-            elif timeout < 0:
-                raise ParamError("Param `timeout` should be a positive number or -1")
-            else:
-                try:
-                    status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
-                except grpc.FutureTimeoutError as e:
-                    LOGGER.error(e)
-                    return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+            status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
 
             if status.error_code == 0:
                 return Status(message='Build index successfully!')
 
             return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
