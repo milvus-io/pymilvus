@@ -64,8 +64,7 @@ def main():
     #     `vectors = np.random.rand(10000, 16).astype(np.float32)`
 
     # Insert vectors into demo_table, return status and vectors id list
-    milvus.create_partition(table_name, "tag01")
-    status, ids = milvus.insert(collection_name=table_name, records=vectors, partition_tag="tag01")
+    status, ids = milvus.insert(collection_name=table_name, records=vectors)
 
     # Flush table  inserted data to disk.
     milvus.flush([table_name])
@@ -117,7 +116,7 @@ def main():
     print(results)
 
     # Delete demo_table
-    # status = milvus.drop_collection(table_name)
+    status = milvus.drop_collection(table_name)
 
     # Disconnect from Milvus
     status = milvus.disconnect()

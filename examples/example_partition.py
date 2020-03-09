@@ -19,42 +19,40 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
 def main():
-    milvus = Milvus()
-
     # Connect to Milvus server
     # You may need to change _HOST and _PORT accordingly
     param = {'host': _HOST, 'port': _PORT}
 
     with Milvus(**param) as client:
-        # Create table demo_table if it dosen't exist.
-        table_name = 'demo_partition_table'
+        # Create collection demo_collection if it dosen't exist.
+        collection_name = 'demo_partition_collection'
         partition_tag = "random"
 
-        status, ok = client.has_table(table_name)
-        # if table exists, then drop it
+        status, ok = client.has_collection(collection_name)
+        # if collection exists, then drop it
         if status.OK() and ok:
-            client.drop_table(table_name)
+            client.drop_collection(collection_name)
 
         param = {
-            'table_name': table_name,
+            'collection_name': collection_name,
             'dimension': _DIM,
             'index_file_size': _INDEX_FILE_SIZE,  # optional
             'metric_type': MetricType.L2  # optional
         }
 
-        client.create_table(param)
+        client.create_collection(param)
 
-        # Show tables in Milvus server
-        _, tables = client.show_tables()
+        # Show collections in Milvus server
+        _, collections = client.show_collections()
 
-        # Describe table
-        _, table = client.describe_table(table_name)
-        print(table)
+        # Describe collection
+        _, collection = client.describe_collection(collection_name)
+        print(collection)
 
         # create partition
-        client.create_partition(table_name, partition_name="partition1", partition_tag=partition_tag)
+        client.create_partition(collection_name, partition_tag=partition_tag)
         # display partitions
-        _, partitions = client.show_partitions(table_name)
+        _, partitions = client.show_partitions(collection_name)
 
         # 10000 vectors with 16 dimension
         # element per dimension is float32 type
@@ -63,40 +61,43 @@ def main():
         # You can also use numpy to generate random vectors:
         #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
 
-        # Insert vectors into partition of table, return status and vectors id list
-        status, ids = client.insert(table_name=table_name, records=vectors, partition_tag=partition_tag)
+        # Insert vectors into partition of collection, return status and vectors id list
+        status, ids = client.insert(collection_name=collection_name, records=vectors, partition_tag=partition_tag)
 
         # Wait for 6 seconds, until Milvus server persist vector data.
         time.sleep(6)
 
-        # Get demo_table row count
-        status, num = client.count_table(table_name)
+        # Get demo_collection row count
+        status, num = client.count_collection(collection_name)
 
         # create index of vectors, search more rapidly
         index_param = {
-            'index_type': IndexType.IVFLAT,  # choose IVF-FLAT index
             'nlist': 2048
         }
 
-        # Create ivflat index in demo_table
+        # Create ivflat index in demo_collection
         # You can search vectors without creating index. however, Creating index help to
         # search faster
-        status = client.create_index(table_name, index_param)
+        status = client.create_index(collection_name, IndexType.IVF_FLAT, index_param)
 
         # describe index, get information of index
-        status, index = client.describe_index(table_name)
+        status, index = client.describe_index(collection_name)
         print(index)
 
         # Use the top 10 vectors for similarity search
         query_vectors = vectors[0:10]
 
         # execute vector similarity search, search range in partition `partition1`
+        search_param = {
+            "nprobe": 10
+        }
+
         param = {
-            'table_name': table_name,
+            'collection_name': collection_name,
             'query_records': query_vectors,
             'top_k': 1,
-            'nprobe': 16,
-            'partition_tags': ["random"]
+            'partition_tags': ["random"],
+            'params': search_param
         }
         status, results = client.search(**param)
 
@@ -112,12 +113,12 @@ def main():
         # print results
         print(results)
 
-        # Delete partition. You can also invoke `drop_table()`, so that all of partitions belongs to
-        # designated tables will be deleted.
-        status = client.drop_partition(table_name, partition_tag)
+        # Delete partition. You can also invoke `drop_collection()`, so that all of partitions belongs to
+        # designated collections will be deleted.
+        status = client.drop_partition(collection_name, partition_tag)
 
-        # Delete table. All of partitions of this table will be dropped.
-        status = client.drop_table(table_name)
+        # Delete collection. All of partitions of this collection will be dropped.
+        status = client.drop_collection(collection_name)
 
         # Disconnect from Milvus
         status = client.disconnect()
