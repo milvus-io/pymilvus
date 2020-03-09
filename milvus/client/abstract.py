@@ -330,15 +330,15 @@ class IndexParam:
     def __init__(self, table_name, index_type, params):
 
         if table_name is None:
-            raise ParamError('Table name can\'t be None')
-        table_name = str(table_name) if not isinstance(table_name, str) else table_name
+            raise ParamError('Collection name can\'t be None')
+        collection_name = str(table_name) if not isinstance(table_name, str) else table_name
 
         if isinstance(index_type, int):
             index_type = IndexType(index_type)
         if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
             raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
 
-        self._table_name = table_name
+        self._collection_name = collection_name
         self._index_type = index_type
 
         if isinstance(params, RepeatedCompositeContainer):
