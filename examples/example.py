@@ -1,5 +1,5 @@
 # This program demos how to connect to Milvus vector database, 
-# create a vector table, 
+# create a vector collection,
 # insert 10 vectors, 
 # and execute a vector similarity search.
 import sys
@@ -31,13 +31,13 @@ def main():
         print("Server connect fail.")
         sys.exit(1)
 
-    # Create table demo_table if it dosen't exist.
-    table_name = 'example_table'
+    # Create collection demo_collection if it dosen't exist.
+    collection_name = 'example_collection'
 
-    status, ok = milvus.has_collection(table_name)
+    status, ok = milvus.has_collection(collection_name)
     if not ok:
         param = {
-            'collection_name': table_name,
+            'collection_name': collection_name,
             'dimension': _DIM,
             'index_file_size': _INDEX_FILE_SIZE,  # optional
             'metric_type': MetricType.L2  # optional
@@ -45,16 +45,16 @@ def main():
 
         milvus.create_collection(param)
 
-    # Show tables in Milvus server
-    _, tables = milvus.show_collections()
+    # Show collections in Milvus server
+    _, collections = milvus.show_collections()
 
-    # present table info
-    _, info = milvus.collection_info(table_name)
+    # present collection info
+    _, info = milvus.collection_info(collection_name)
     print(info)
 
-    # Describe demo_table
-    _, table = milvus.describe_collection(table_name)
-    print(table)
+    # Describe demo_collection
+    _, collection = milvus.describe_collection(collection_name)
+    print(collection)
 
     # 10000 vectors with 16 dimension
     # element per dimension is float32 type
@@ -63,28 +63,28 @@ def main():
     # You can also use numpy to generate random vectors:
     #     `vectors = np.random.rand(10000, 16).astype(np.float32)`
 
-    # Insert vectors into demo_table, return status and vectors id list
-    status, ids = milvus.insert(collection_name=table_name, records=vectors)
+    # Insert vectors into demo_collection, return status and vectors id list
+    status, ids = milvus.insert(collection_name=collection_name, records=vectors)
 
-    # Flush table  inserted data to disk.
-    milvus.flush([table_name])
+    # Flush collection  inserted data to disk.
+    milvus.flush([collection_name])
 
-    # Get demo_table row count
-    status, result = milvus.count_collection(table_name)
+    # Get demo_collection row count
+    status, result = milvus.count_collection(collection_name)
 
     # create index of vectors, search more rapidly
     index_param = {
         'nlist': 2048
     }
 
-    # Create ivflat index in demo_table
+    # Create ivflat index in demo_collection
     # You can search vectors without creating index. however, Creating index help to
     # search faster
     print("Creating index: {}".format(index_param))
-    status = milvus.create_index(table_name, IndexType.IVF_FLAT, index_param)
+    status = milvus.create_index(collection_name, IndexType.IVF_FLAT, index_param)
 
     # describe index, get information of index
-    status, index = milvus.describe_index(table_name)
+    status, index = milvus.describe_index(collection_name)
     print(index)
 
     # Use the top 10 vectors for similarity search
@@ -95,7 +95,7 @@ def main():
         "nprobe": 16
     }
     param = {
-        'collection_name': table_name,
+        'collection_name': collection_name,
         'query_records': query_vectors,
         'top_k': 1,
         'params': search_param
@@ -115,8 +115,8 @@ def main():
     # print results
     print(results)
 
-    # Delete demo_table
-    status = milvus.drop_collection(table_name)
+    # Delete demo_collection
+    status = milvus.drop_collection(collection_name)
 
     # Disconnect from Milvus
     status = milvus.disconnect()
