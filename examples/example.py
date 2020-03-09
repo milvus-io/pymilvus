@@ -34,26 +34,26 @@ def main():
     # Create table demo_table if it dosen't exist.
     table_name = 'example_table'
 
-    status, ok = milvus.has_table(table_name)
+    status, ok = milvus.has_collection(table_name)
     if not ok:
         param = {
-            'table_name': table_name,
+            'collection_name': table_name,
             'dimension': _DIM,
             'index_file_size': _INDEX_FILE_SIZE,  # optional
             'metric_type': MetricType.L2  # optional
         }
 
-        milvus.create_table(param)
+        milvus.create_collection(param)
 
     # Show tables in Milvus server
-    _, tables = milvus.show_tables()
+    _, tables = milvus.show_collections()
 
     # present table info
-    _, info = milvus.table_info(table_name)
+    _, info = milvus.collection_info(table_name)
     print(info)
 
     # Describe demo_table
-    _, table = milvus.describe_table(table_name)
+    _, table = milvus.describe_collection(table_name)
     print(table)
 
     # 10000 vectors with 16 dimension
@@ -64,13 +64,14 @@ def main():
     #     `vectors = np.random.rand(10000, 16).astype(np.float32)`
 
     # Insert vectors into demo_table, return status and vectors id list
-    status, ids = milvus.insert(table_name=table_name, records=vectors)
+    milvus.create_partition(table_name, "tag01")
+    status, ids = milvus.insert(collection_name=table_name, records=vectors, partition_tag="tag01")
 
     # Flush table  inserted data to disk.
     milvus.flush([table_name])
 
     # Get demo_table row count
-    status, result = milvus.count_table(table_name)
+    status, result = milvus.count_collection(table_name)
 
     # create index of vectors, search more rapidly
     index_param = {
@@ -95,7 +96,7 @@ def main():
         "nprobe": 16
     }
     param = {
-        'table_name': table_name,
+        'collection_name': table_name,
         'query_records': query_vectors,
         'top_k': 1,
         'params': search_param
@@ -116,7 +117,7 @@ def main():
     print(results)
 
     # Delete demo_table
-    status = milvus.drop_table(table_name)
+    # status = milvus.drop_collection(table_name)
 
     # Disconnect from Milvus
     status = milvus.disconnect()
