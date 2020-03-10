@@ -1,20 +1,19 @@
 # pymilvus 0.2.8(doing)
 
 ## Bug
-- \#146 - preserve existing loggers when imported to other applications
-
-## Improvement
-- \#149 - change json parser to `ujson`
-- \#151 - add new interface `compact`
-- \#156 - remove data range
-- \#157 - remove partition name
-
-## Bug
 - \#140 - convert distance in http result to float value
 - \#141 - add index IVF_SQ8H into http handler
+- \#146 - preserve existing loggers when imported to other applications
+- \#162 - remove version_notes from API doc
 
 ## Improvement
 - \#143 - remove query range when searching
+- \#149 - change json parser to `ujson`
+- \#151 - add new interface `compact`
+- \#154 - add new interface `get_vector_by_id`
+- \#156 - remove data range
+- \#157 - remove partition name
+
 
 # pymilvus 0.2.7(2020-01-16)
 
