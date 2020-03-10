@@ -1,18 +1,16 @@
-import json
+import ujson
+
+from google.protobuf.pyext._message import RepeatedCompositeContainer
 
 from ..client.exceptions import ParamError
 
-from .check import (
-    check_pass_param,
-    parser_range_date,
-    is_legal_date_range
-)
+from .check import check_pass_param
 
 from .types import IndexType
 
 
-class TableSchema:
-    def __init__(self, table_name, dimension, index_file_size, metric_type):
+class CollectionSchema:
+    def __init__(self, collection_name, dimension, index_file_size, metric_type):
         """
         Table Schema
 
@@ -33,10 +31,10 @@ class TableSchema:
             `MetricType`: 1-L2, 2-IP
 
         """
-        check_pass_param(table_name=table_name, dimension=dimension,
+        check_pass_param(collection_name=collection_name, dimension=dimension,
                          index_file_size=index_file_size, metric_type=metric_type)
 
-        self.table_name = table_name
+        self.collection_name = collection_name
         self.dimension = dimension
         self.index_file_size = index_file_size
         self.metric_type = metric_type
@@ -44,35 +42,6 @@ class TableSchema:
     def __repr__(self):
         attr_list = ['%s=%r' % (key, value) for key, value in self.__dict__.items()]
         return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-
-class Range:
-    """
-    Range information
-
-    :type  start_date: str, date or datetime
-
-        `str should be YY-MM-DD format, e.g. "2019-07-01"`
-
-    :param start_date: Range start date
-
-    :type  end_date: str, date or datetime
-
-        `str should be YY-MM-DD format, e.g. "2019-07-01"`
-
-    :param end_date: Range end date
-
-    """
-
-    def __init__(self, start_date, end_date):
-        start_date = parser_range_date(start_date)
-        end_date = parser_range_date(end_date)
-        if is_legal_date_range(start_date, end_date):
-            self.start_date = start_date
-            self.end_date = end_date
-        else:
-            raise ParamError("The start-date should be smaller"
-                             " than or equal to end-date!")
 
 
 class QueryResult:
@@ -150,6 +119,7 @@ class TopKQueryResult:
         Returns:
 
         """
+        # import pdb; pdb.set_trace()
         self._nq = _raw.row_num
 
         # if self._nq == 0:
@@ -284,7 +254,7 @@ class TopKQueryResult2:
         js = raw_resources.json()
         self._nq = js["num"]
 
-        for row_result in js["results"]:
+        for row_result in js["result"]:
             row_ = [QueryResult(int(result["id"]), float(result["distance"]))
                     for result in row_result]
 
@@ -357,20 +327,24 @@ class IndexParam:
 
     """
 
-    def __init__(self, table_name, index_type, nlist):
+    def __init__(self, table_name, index_type, params):
 
         if table_name is None:
-            raise ParamError('Table name can\'t be None')
-        table_name = str(table_name) if not isinstance(table_name, str) else table_name
+            raise ParamError('Collection name can\'t be None')
+        collection_name = str(table_name) if not isinstance(table_name, str) else table_name
 
         if isinstance(index_type, int):
             index_type = IndexType(index_type)
         if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
             raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
 
-        self._table_name = table_name
+        self._collection_name = collection_name
         self._index_type = index_type
-        self._nlist = nlist
+
+        if isinstance(params, RepeatedCompositeContainer):
+            self._params = ujson.loads(params[0].value)
+        else:
+            self._params = params
 
     def __str__(self):
         attr_list = ['%s=%r' % (key.lstrip('_'), value)
@@ -385,15 +359,104 @@ class IndexParam:
 
 class PartitionParam:
 
-    def __init__(self, table_name, partition_name, tag):
-        self.table_name = table_name
-        self.partition_name = partition_name
+    def __init__(self, table_name, tag):
+        self.collection_name = table_name
         self.tag = tag
 
     def __repr__(self):
         attr_list = ['%s=%r' % (key, value)
                      for key, value in self.__dict__.items()]
         return '(%s)' % (', '.join(attr_list))
+
+
+class SegmentStat:
+    def __init__(self, res):
+        self.segment_name = res.segment_name
+        self.count = res.row_count
+        self.index_name = res.index_name
+        self.data_size = res.data_size
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class PartitionStat:
+    def __init__(self, res):
+        self.tag = res.tag
+        self.count = res.total_row_count
+        self.segments_stat = [SegmentStat(s) for s in list(res.segments_stat)]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class TableInfo:
+    def __init__(self, res):
+        self.count = res.total_row_count
+        self.partitions_stat = [PartitionStat(p) for p in list(res.partitions_stat)]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class HSegmentStat:
+    def __init__(self, res):
+        self.segment_name = res["segment_name"]
+        self.count = res["count"]
+        self.index_name = res["index"]
+        self.data_size = res["size"]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class HPartitionStat:
+    def __init__(self, res):
+        self.tag = res["partition_tag"]
+        self.count = res["count"]
+        self.segments_stat = [HSegmentStat(s) for s in res["segments_stat"]]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class HTableInfo:
+    def __init__(self, res):
+        self.count = res["count"]
+        self.partitions_stat = [HPartitionStat(p) for p in res["partitions_stat"]]
+
+    def __str__(self):
+        attr_list = ['%s: %r' % (key, value)
+                     for key, value in self.__dict__.items()]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+
+    def __repr__(self):
+        return self.__str__()
 
 
 def _abstract():

@@ -34,12 +34,12 @@ if __name__ == '__main__':
     }
 
     # Table name
-    table_name = "demo_hooks"
+    collection_name = "demo_hooks"
     # Dimension of vectors
     dim = 128
 
-    table_param = {
-        "table_name": table_name,
+    collection_param = {
+        "collection_name": collection_name,
         "dimension": dim
     }
 
@@ -62,16 +62,21 @@ if __name__ == '__main__':
         client.set_hook(search=CustomizedSearchHook())
 
         # Create table
-        client.create_table(table_param)
+        client.create_collection(collection_param)
 
         # Insert vectors into table
-        client.insert(table_name, vectors)
+        client.insert(collection_name, vectors)
 
         time.sleep(5)
 
+        # specify search param
+        search_param = {
+            "nprobe": 10
+        }
+
         # Search approximate vectors in table `demo_hooks`,
         # you can find call information in console output
-        client.search(table_name, 10, 10, query_vectors)
+        client.search(collection_name, 10, query_vectors, params=search_param)
 
         # delete table
-        client.drop_table(table_name)
+        client.drop_collection(collection_name)
