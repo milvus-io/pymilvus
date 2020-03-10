@@ -8,6 +8,7 @@ Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code
 
 For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.6/index.html).
 
+
 <!-- TOC -->
 
 - [New features](#new-features)
