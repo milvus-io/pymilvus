@@ -62,5 +62,12 @@ if __name__ == '__main__':
     else:
         print("\nVector result is not correct.")
 
+    # delete top 10 vectors
+    status = client.delete_by_id(collection_name, ids[:10])
+    if status.OK():
+        print("Delete top 10 vectors successfully")
+    else:
+        print("Error occurred when try to delete top 10 vectors. Reason: ", status.message)
+
     client.drop_collection(collection_name)
 
