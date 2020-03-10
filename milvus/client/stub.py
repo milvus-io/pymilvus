@@ -120,16 +120,17 @@ class Milvus:
 
     @check_connect
     def server_version(self, timeout=10):
-         """
-        Returns the version of the Milvus server.
-
-        :return:
-            Status: Whether the operation is successful.
-
-            str : Version of the Milvus server.
-
-        :rtype: (Status, str)
         """
+       Returns the version of the Milvus server.
+
+       :return:
+           Status: Whether the operation is successful.
+
+           str : Version of the Milvus server.
+
+       :rtype: (Status, str)
+       """
+
         return self._cmd("version", timeout)
 
     @check_connect
@@ -180,7 +181,8 @@ class Milvus:
         metric_type = collection_param.get('metric_type', MetricType.L2)
         collection_param.pop('metric_type', None)
 
-        check_pass_param(collection_name=collection_name, dimension=dim, index_file_size=index_file_size, metric_type=metric_type)
+        check_pass_param(collection_name=collection_name, dimension=dim, index_file_size=index_file_size,
+                         metric_type=metric_type)
 
         return self._handler.create_table(collection_name, dim, index_file_size, metric_type, collection_param, timeout)
 
