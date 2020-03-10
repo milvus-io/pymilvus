@@ -7,7 +7,7 @@ Welcome to pymilvus's documentation!
 ====================================
 
 .. toctree::
-   :maxdepth: 6
+   :maxdepth: 8
    :caption: Contents:
 
    assets
@@ -16,13 +16,8 @@ Welcome to pymilvus's documentation!
    status
    results
    exceptions
+   param
 
-
-.. toctree::
-   :maxdepth: 3
-   :caption: Contents:
-
-   version_notes
 
 
 Indices and tables
