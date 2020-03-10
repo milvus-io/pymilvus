@@ -17,43 +17,43 @@ client.connected = mock.Mock(return_value=True)
 
 def test_create_table_param(gcon):
     _PARAM = {
-        "table_name": "table_name_{}".format(str(random.randint(0, 10000))),
+        "collection_name": "collection_name_{}".format(str(random.randint(0, 10000))),
         "dimension": 128
     }
 
     table_param = copy.deepcopy(_PARAM)
 
-    status = gcon.create_table(table_param)
+    status = gcon.create_collection(table_param)
     assert status.OK()
     time.sleep(1)
-    gcon.drop_table(table_param["table_name"])
+    gcon.drop_collection(table_param["collection_name"])
 
-    table_param["table_name"] = 12343
+    table_param["collection_name"] = 12343
 
     with pytest.raises(ParamError):
-        gcon.create_table(table_param)
+        gcon.create_collection(table_param)
 
     table_param = copy.deepcopy(_PARAM)
     table_param["dimension"] = 'eesfst'
     with pytest.raises(ParamError):
-        gcon.create_table(table_param)
+        gcon.create_collection(table_param)
 
     table_param = copy.deepcopy(_PARAM)
     table_param["index_file_size"] = -1
-    status = gcon.create_table(table_param)
+    status = gcon.create_collection(table_param)
     assert not status.OK()
 
     table_param = copy.deepcopy(_PARAM)
     table_param["metric_type"] = 0
     with pytest.raises(ParamError):
-        gcon.create_table(table_param)
+        gcon.create_collection(table_param)
 
 
 def test_drop_table_param():
     table_name = 124
     client.connected = mock.Mock(return_value=True)
     with pytest.raises(ParamError):
-        client.has_table(table_name)
+        client.has_collection(table_name)
 
 
 def test_create_index_param():
