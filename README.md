@@ -1,29 +1,59 @@
 
-# Milvus Python SDK -- pymilvus
+# Milvus Python SDK
 
 [![version](https://img.shields.io/pypi/v/pymilvus.svg?color=blue)](https://pypi.org/project/pymilvus/)
 [![license](https://img.shields.io/hexpm/l/plug.svg?color=green)](https://github.com/milvus-io/pymilvus/blob/master/LICENSE)
 
-If you want to contribute to this repo, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md).
+Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code to this project, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md) first.
 
-You can find api doc in [Reference Doc](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.6/index.html)
+For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.6/index.html).
 
+<!-- TOC -->
 
-Using Milvus python sdk for Milvus
-Download
+- [New features](#new-features)
+- [Get started](#get-started)
+    - [Prerequisites](#prerequisites)
+    - [Install pymilvus](#install-pymilvus)
+    - [Examples](#examples)
+- [Basic operations](#basic-operations)
+- [Connect to the Milvus server](#connect-to-the-milvus-server)
+- [Create/Drop collections](#createdrop-collections)
+    - [Create a collection](#create-a-collection)
+    - [Drop a collection](#drop-a-collection)
+- [Create/Drop partitions in a collection](#createdrop-partitions-in-a-collection)
+    - [Create a partition](#create-a-partition)
+    - [Drop a partition](#drop-a-partition)
+- [Create/Drop indexes in a collection](#createdrop-indexes-in-a-collection)
+    - [Create an index](#create-an-index)
+    - [Drop an index](#drop-an-index)
+- [Insert/Delete vectors in collections/partitions](#insertdelete-vectors-in-collectionspartitions)
+    - [Insert vectors in a collection](#insert-vectors-in-a-collection)
+    - [Insert vectors in a partition](#insert-vectors-in-a-partition)
+    - [Delete vectors by ID](#delete-vectors-by-id)
+- [Flush data in one or multiple collections to disk](#flush-data-in-one-or-multiple-collections-to-disk)
+- [Compact all segments in a collection](#compact-all-segments-in-a-collection)
+- [Search vectors in collections/partitions](#search-vectors-in-collectionspartitions)
+    - [Search vectors in a collection](#search-vectors-in-a-collection)
+    - [Search vectors in a partition](#search-vectors-in-a-partition)
+- [Disconnect from the Milvus server](#disconnect-from-the-milvus-server)
 
-## New features
-* Add new metric type `HAMMING`, `JACCARD`, `TANIMOTO` for binary vectors. examples about binary vectors in `examples/example_binary.py`
+<!-- /TOC -->
 
----
-Pymilvus only supports `python >= 3.5`, is fully tested under 3.5, 3.6, 3.7, 3.8.
+## Get started
 
+### Prerequisites
 
-Pymilvus can be downloaded via `pip` or `pip3` for python3
-```$
-$ pip install pymilvus
+pymilvus only supports Python 3.5 or higher.
+
+### Install pymilvus
+
+You can install pymilvus via `pip` or `pip3` for Python3:
+
+```shell
+$ pip3 install pymilvus
 ```
-Different versions of Milvus and recommended pymilvus version supported accordingly
+
+The following collection shows Milvus versions and recommended pymilvus versions:
 
 |Milvus version| Recommended pymilvus version |
 |:-----:|:-----:|
@@ -34,205 +64,225 @@ Different versions of Milvus and recommended pymilvus version supported accordin
 | 0.5.1 | 0.2.3 |
 | 0.5.2 | 0.2.3 |
 | 0.5.3 | 0.2.5 |
-| 0.6.0 | 0.2.6 |
+| 0.6.0 | 0.2.6, 0.2.7 |
+| 0.7.0 | 0.2.8 |
 
 
-You can download a specific version by:
-```$
+You can install a specific version of pymilvus by:
+
+```shell
 $ pip install pymilvus==0.2.7
 ```
 
-If you want to upgrade `pymilvus` to newest version
-```$
+You can upgrade `pymilvus` to the latest version by:
+
+```shell
 $ pip install --upgrade pymilvus
 ```
-## Import
+
+### Examples
+
+Refer to [/examples](/examples) for more example programs.
+
+## Basic operations
+
+## Connect to the Milvus server
+
+1. Import pymilvus.
+
+   ```python
+   # Import pymilvus
+   >>> from milvus import Milvus, IndexType, MetricType, Status
+   ```
+
+2. Connect to Milvus server by using one of the following methods:
+
+   ```python
+   # Connect to Milvus server
+   >>> milvus = Milvus()
+   >>> milvus.connect(host='localhost', port='19530')
+   ```
+
+   > Note: In the above code, default values are used for `host` and `port` parameters. Feel free to change them to the IP address and port you set for Milvus server.
+   
+   ```python
+   >>> milvus.connect(uri='tcp://localhost:19530')
+   ```
+
+## Create/Drop collections
+
+### Create a collection
+
+1. Prepare collection parameters.
+
+   ```python
+   # Prepare collection parameters
+   >>> param = {'collection_name':'test01', 'dimension':256, 'index_file_size':1024, 'metric_type':MetricType.L2}
+   ```
+
+2. Create collection `test01` with dimension size as 256, size of the data file for Milvus to automatically create indexes as 1024, and metric type as Euclidean distance (L2).
+
+   ```python
+   # Create a collection
+   >>> milvus.create_collection(param)
+   ```
+
+### Drop a collection
 
 ```python
-from milvus import Milvus, IndexType, MetricType, Status
+# Drop collection
+>>> milvus.delete_collection(collection_name='test01')
 ```
 
-## Getting started
+## Create/Drop partitions in a collection
 
-Initial a `Milvus` instance and  `connect` to the sever
+### Create a partition
 
-### Create table
+You can split collections into partitions by partition tags for improved search performance. Each partition is also a collection.
 
 ```python
->>> milvus = Milvus()
-
->>> milvus.connect(host='localhost', port='19530')
-Status(code=0, message='Successfully connected! localhost:19530')
+# Create partition
+>>> milvus.create_partition(collection_name='test01', partition_tag='tag01')
 ```
-Once successfully connected, you can get the version of server
+
+Use `show_partitions()` to verify whether the partition is created.
 
 ```python
->>> milvus.server_version()
-(Status(code=0, message='Success'), '0.6.0')  # this is example version, the real version may vary
-```
----
-
-Add a new `table`
-
-
-First set param
-```python
->>> dim = 32  # Dimension of the vector
->>> param = {'table_name':'test01', 'dimension':dim, 'index_file_size':1024, 'metric_type':MetricType.L2}
-```
-Then `create table`
-```python
->>> milvus.create_table(param)
-Status(code=0, message='Create table successfully!')
+# Show partitions
+>>> milvus.show_partitions(collection_name='test01')
 ```
 
-Describe the table we just created
-```python
->>> milvus.describe_table('test01')
-(Status(code=0, message='Describe table successfully!'), TableSchema(table_name='test01', dimension=32, index_file_size=1024, metric_type=<MetricType: L2>))
-```
-
----
-### Insert vectors
-
-Add vectors into table `test01`
-
-First create 20 vectors of 256-dimension.
-
-- Note that `random` and `pprint` we used here is for creating fake vectors data and pretty print, you may not need them in your project
+### Drop a partition
 
 ```python
->>> import random
->>> from pprint import pprint
-
-# Initialize 20 vectors of 256-dimension
->>> vectors = [[random.random() for _ in range(dim)] for _ in range(20)]
+>>> milvus.drop_partition(collection_name='test01', partition_tag='tag01')
 ```
 
-Then add vectors into table `test01`
+## Create/Drop indexes in a collection
+
+### Create an index
+
+> Note: In production, it is recommended to create indexes before inserting vectors into the collection. Index is automatically built when vectors are being imported. However, you need to create the same index again after the vector insertion process is completed because some data files may not meet the `index_file_size` and index will not be automatically built for these data files.
+
+1. Prepare index parameters. The following command uses `IVF_FLAT` index type as an example.
+
+   ```python
+   # Prepare index param
+   >>> ivf_param = {'nlist': 16384}
+   ```
+
+2. Create an index for the collection.
+
+   ```python
+   # Create index
+   >>> milvus.create_index('test01', IndexType.IVF_FLAT, ivf_param)
+   ```
+
+### Drop an index
+
 ```python
->>> status, ids = milvus.insert(table_name='test01', records=vectors)
->>> print(status)
-Status(code=0, message='Add vectors successfully!')
->>> pprint(ids) # List of ids returned
-[1571123848227800000,
- 1571123848227800001,
-    ...........
- 1571123848227800018,
- 1571123848227800019]
+>>> milvus.drop_index('test01')
 ```
-You can also specify vectors id
+
+## Insert/Delete vectors in collections/partitions
+
+### Insert vectors in a collection
+
+1. Generate 20 vectors of 256 dimension.
+
+   ```python
+   >>> import random
+   # Generate 20 vectors of 256 dimension
+   >>> vectors = [[random.random() for _ in range(dim)] for _ in range(20)]
+   ```
+
+2. Insert the list of vectors. If you do not specify vector ids, Milvus automatically generates IDs for the vectors.
+
+   ```python
+   # Insert vectors
+   >>> milvus.insert(collection_name='test01', records=vectors)
+   ```
+
+   Alternatively, you can also provide user-defined vector ids:
+
+   ```python
+   >>> vector_ids = [id for id in range(20)]
+   >>> milvus.insert(collection_name='test01', records=vectors, ids=vector_ids)
+   ```
+
+### Insert vectors in a partition
+
 ```python
->>> vector_ids = [i for i in range(20)]
->>> status, ids = milvus.insert(table_name='test01', records=vectors, ids=vector_ids)
->>> pprint(ids)
-[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+>>> milvus.insert('test01', vectors, partition_tag="tag01")
 ```
-Get vectors num
+
+To verify the vectors you have inserted, use `get_vector_by_id()`. Assume you have some vectors with the following IDs.
+
 ```python
->>> milvus.count_table('test01')
-(Status(code=0, message='Success!'), 20)
+>>> status, vector = milvus.get_vector_by_id(collection_name='test01', vector_id=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
 ```
----
-Load vectors into memory
+
+### Delete vectors by ID
+
+Assume you have some vectors with the following IDs:
+
 ```python
->>> milvus.preload_table('test01')
-Status(code=0, message='')
+>>> ids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
 ```
----
-### Create index
-Create index
+
+You can delete these vectors by:
+
 ```python
->>> index_param = {'index_type': IndexType.FLAT, 'nlist': 128}
->>> milvus.create_index('test01', index_param)
-Status(code=0, message='Build index successfully!')
+>>> milvus.delete_by_id(collection_name='test01', ids)
 ```
-Then show index information
+
+## Flush data in one or multiple collections to disk
+
+When performing operations related to data changes, you can flush the data from memory to disk to avoid possible data loss. Milvus also supports automatic flushing, which runs at a fixed interval to flush the data in all collections to disk. You can use the [Milvus server configuration file](../reference/milvus_config.md) to set the interval.
+
 ```python
->>> milvus.describe_index('test01')
-(Status(code=0, message='Successfully'), IndexParam(_table_name='test01', _index_type=<IndexType: FLAT>, _nlist=128))
+>>> milvus.flush(collection_name_array=['test01'])
 ```
----
-### Search vectors
+
+## Compact all segments in a collection
+
+A segment is a data file that Milvus automatically creates by merging inserted vector data. A collection can contain multiple segments. If some vectors are deleted from a segment, the space taken by the deleted vectors cannot be released automatically. You can compact segments in a collection to release space.
+
+```python
+>>> milvus.compact(collection_name='test01', timeout='1')
+```
+
+## Search vectors in collections/partitions
+
+### Search vectors in a collection
+
+1. Prepare search parameters.
+
+```python
+>>> search_param = {'nprobe': 16}
+```
+
+2. Search vectors.
 
 ```python
 # create 5 vectors of 32-dimension
 >>> q_records = [[random.random() for _ in range(dim)] for _ in range(5)]
+# search vectors
+>>> milvus.search(collection_name='test01', query_records=q_records, top_k=2, params=search_param)
 ```
 
-Then get results
-```python
->>> status, results = milvus.search(table_name='test01', query_records=q_records, top_k=1, nprobe=8)
->>> print(status)
-Status(code=0, message='Search vectors successfully!')
->>> pprint(results) # Searched top_k vectors
-[
-[(id:15, distance:2.855304718017578),
- (id:16, distance:3.040700674057007)],
-[(id:11, distance:3.673950433731079),
- (id:15, distance:4.183730602264404)],
-      ........
-[(id:6, distance:4.065953254699707),
- (id:1, distance:4.149323463439941)]
-]
-```
----
-
-### Partition operations
-Create table named `demo01`
-```python
->>> param = {'table_name':'demo01', 'dimension':dim, 'index_file_size':1024, 'metric_type':MetricType.L2}
->>> milvus.create_table(param)
-```
-Create a new partition named `partition01` under table `demo01`, and specify tag `tag01`
-```python
->>> milvus.create_partition('demo01', 'partition01', 'tag01')
-Status(code=0, message='OK')
-```
-
-Specify partition vectors insert into
-```python
->>> status = milvus.insert('demo01', vectors, partition_tag="tag01")
->>> status
-(Status(code=0, message='Add vectors successfully!')
-```
-Show partitions
-```python
-milvus.show_partitions(table_name='demo01')
-```
-Search vectors in a designated partition
-```python
->>> milvus.search(table_name='test01', query_records=q_records, top_k=1, nprobe=8, partition_tags=['tag01'])
-```
-When you not specify `partition_tags`, milvus will search in whole table.
-
-### Drop operations
-
-Drop index
-```python
->>> milvus.drop_index('test01')
-Status(code=0, message='')
-```
----
-Delete the table we just created
+### Search vectors in a partition
 
 ```python
->>> milvus.drop_table(table_name='test01')
-Status(code=0, message='Delete table successfully!')
+# create 5 vectors of 32-dimension
+>>> q_records = [[random.random() for _ in range(dim)] for _ in range(5)]
+>>> milvus.search(collection_name='test01', query_records=q_records, top_k=1, partition_tags=['tag01'], params=search_param)
 ```
-Disconnect with the server
+
+> Note: If you do not specify `partition_tags`, Milvus searches the whole collection.
+
+## Disconnect from the Milvus server
+
 ```python
 >>> milvus.disconnect()
-Status(code=0, message='Disconnect successfully')
 ```
-
----
-
-## Example python
-There are some small examples in `examples/`, you can find more guide there.
-
-
-
-
-If you encounter any problems or bugs, please open new issues
-
