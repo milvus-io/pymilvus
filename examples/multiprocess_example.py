@@ -7,9 +7,9 @@ from factorys import *
 from milvus import Milvus
 
 ############### Global variable ###########
-table_name = 'test_test'
+collection_name = 'test_test'
 
-param = {'table_name': table_name,
+param = {'collection_name': collection_name,
          'dimension': 128,
          'index_file_size': 1024,
          'metric_type': MetricType.L2}
@@ -25,37 +25,37 @@ def _generate_vectors(_dim, _num):
     return [[random.random() for _ in range(_dim)] for _ in range(_num)]
 
 
-def prepare_table(_table_name):
-    def _create_table(_table_param):
+def prepare_collection(_collection_name):
+    def _create_collection(_collection_param):
         milvus = Milvus()
         milvus.connect(**server_config)
-        status, ok = milvus.has_table(_table_name)
+        status, ok = milvus.has_collection(_collection_name)
         if ok:
-            print("Table {} found, now going to delete it".format(_table_name))
-            status = milvus.delete_table(_table_name)
+            print("Table {} found, now going to delete it".format(_collection_name))
+            status = milvus.drop_collection(_collection_name)
             if not status.OK():
-                raise Exception("Delete table error")
-            print("delete table {} successfully!".format(_table_name))
+                raise Exception("Delete collection error")
+            print("delete collection {} successfully!".format(_collection_name))
         time.sleep(5)
 
-        status, ok = milvus.has_table(_table_name)
+        status, ok = milvus.has_collection(_collection_name)
         if ok:
-            raise Exception("Delete table error")
+            raise Exception("Delete collection error")
 
-        status = milvus.create_table(param)
+        status = milvus.create_collection(param)
         if not status.OK():
-            print("Create table {} failed".format(_table_name))
+            print("Create collection {} failed".format(_collection_name))
 
         milvus.disconnect()
 
-    # generate a process to run func `_create_table`. A exception will be raised if
-    # func `_create_table` run in main process
-    p = Process(target=_create_table, args=(param,))
+    # generate a process to run func `_create_collection`. A exception will be raised if
+    # func `_create_collection` run in main process
+    p = Process(target=_create_collection, args=(param,))
     p.start()
     p.join()
 
 
-def multi_insert(_table_name):
+def multi_insert(_collection_name):
     # contain whole subprocess
     process_list = []
 
@@ -65,7 +65,7 @@ def multi_insert(_table_name):
 
         vectors = _generate_vectors(128, 10000)
         print('\n\tPID: {}, insert {} vectors'.format(os.getpid(), 10000))
-        status, _ = milvus.add_vectors(_table_name, vectors)
+        status, _ = milvus.add_vectors(_collection_name, vectors)
 
         milvus.disconnect()
 
@@ -81,26 +81,26 @@ def multi_insert(_table_name):
     print("insert vector successfully!")
 
 
-def validate_insert(_table_name):
+def validate_insert(_collection_name):
     milvus = Milvus()
     milvus.connect(**server_config)
 
-    status, count = milvus.count_table(_table_name)
+    status, count = milvus.count_collection(_collection_name)
     assert count == 10 * 10000, "Insert validate fail. Vectors num is not matched."
     milvus.disconnect()
 
 
-def main(_table_name):
-    prepare_table(_table_name)
+def main(_collection_name):
+    prepare_collection(_collection_name)
 
     # use multiple process to insert data
-    multi_insert(_table_name)
+    multi_insert(_collection_name)
 
     # sleep 3 seconds to wait for vectors inserted Preservation
     time.sleep(3)
 
-    validate_insert(_table_name)
+    validate_insert(_collection_name)
 
 
 if __name__ == '__main__':
-    main(table_name)
+    main(collection_name)

@@ -5,7 +5,8 @@ import grpc
 from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
-from .abstract import ConnectIntf, TableSchema, IndexParam, PartitionParam, TopKQueryResult
+from ..grpc_gen import milvus_pb2 as grpc_types
+from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, TopKQueryResult, TableInfo
 from .prepare import Prepare
 from .types import MetricType, Status
 from .check import (
@@ -312,7 +313,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
-    def create_table(self, param, timeout=10):
+    def create_table(self, table_name, dimension, index_file_size, metric_type, param, timeout=10):
         """
         Create table
 
@@ -334,7 +335,7 @@ class GrpcHandler(ConnectIntf):
         :rtype: Status
         """
 
-        table_schema = Prepare.table_schema(param)
+        table_schema = Prepare.table_schema(table_name, dimension, index_file_size, metric_type, param)
 
         try:
             status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
@@ -401,8 +402,8 @@ class GrpcHandler(ConnectIntf):
             response = self._stub.DescribeTable.future(table_name).result(timeout=timeout)
 
             if response.status.error_code == 0:
-                table = TableSchema(
-                    table_name=response.table_name,
+                table = CollectionSchema(
+                    collection_name=response.table_name,
                     dimension=response.dimension,
                     index_file_size=response.index_file_size,
                     metric_type=MetricType(response.metric_type)
@@ -474,6 +475,22 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
+    def show_table_info(self, table_name, timeout=10):
+        request = grpc_types.TableName(table_name=table_name)
+
+        try:
+            response = self._stub.ShowTableInfo.future(request).result(timeout=timeout)
+            rpc_status = response.status
+
+            if rpc_status.error_code == 0:
+                return Status(), TableInfo(response)
+
+            return Status(rpc_status.error_code, rpc_status.reason), None
+        except grpc.FutureTimeoutError:
+            return Status(Status.UNEXPECTED_ERROR, message="Request timeout"), None
+        except grpc.RpcError as e:
+            return Status(Status.UNEXPECTED_ERROR, e.details()), None
+
     def preload_table(self, table_name, timeout=None):
         """
         Load table to cache in advance
@@ -514,7 +531,6 @@ class GrpcHandler(ConnectIntf):
             if status.error_code == 0:
                 return Status(message='Delete table successfully!')
             return Status(code=status.error_code, message=status.reason)
-
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
             return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
@@ -522,7 +538,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
-    def insert(self, table_name, records, ids=None, partition_tag=None, timeout=-1, **kwargs):
+    def insert(self, table_name, records, ids=None, partition_tag=None, params=None, timeout=-1, **kwargs):
         """
         Add vectors to table
 
@@ -555,20 +571,19 @@ class GrpcHandler(ConnectIntf):
             ids: list of id, after inserted every vector is given a id
         :rtype: (Status, list(int))
         """
+        insert_param = kwargs.get('insert_param', None)
 
-        # insert_param = kwargs.get('insert_param', None)
+        if insert_param and not isinstance(insert_param, milvus_pb2_grpc.InsertParam):
+            raise ParamError("The value of key 'insert_param' is invalid")
 
-        # if not insert_param:
-        insert_param = Prepare.insert_param(table_name, records, partition_tag, ids)
-        # else:
-        #     if not isinstance(insert_param, grpc_types.InsertParam):
-        #         raise ParamError("The value of key 'insert_param' is invalid")
+        body = insert_param if insert_param \
+            else Prepare.insert_param(table_name, records, partition_tag, ids, params)
 
         try:
             if timeout == -1:
-                response = self._stub.Insert(insert_param)
+                response = self._stub.Insert(body)
             else:
-                response = self._stub.Insert.future(insert_param).result(timeout=timeout)
+                response = self._stub.Insert.future(body).result(timeout=timeout)
 
             if response.status.error_code == 0:
                 return Status(message='Add vectors successfully!'), list(response.vector_id_array)
@@ -581,7 +596,43 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(code=Status.UNEXPECTED_ERROR, message="Request timeout"), []
 
-    def create_index(self, table_name, index=None, timeout=-1):
+    def get_vector_by_id(self, table_name, v_id, timeout=10):
+        request = grpc_types.VectorIdentity(table_name=table_name, id=v_id)
+
+        try:
+            response = self._stub.GetVectorByID.future(request).result(timeout=timeout)
+            status = response.status
+            if status.error_code == 0:
+                status = Status(message="Obtain vector successfully")
+                return status, \
+                       list(response.vector_data.float_data) or bytes(response.vector_data.binary_data)
+
+            return Status(code=status.error_code, message=status.reason), []
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout'), []
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred: {}'.format(e.details())), []
+
+    def get_vector_ids(self, table_name, segment_name, timeout=10):
+        request = grpc_types.GetVectorIDsParam(table_name=table_name, segment_name=segment_name)
+
+        try:
+            response = self._stub.GetVectorIDs.future(request).result(timeout=timeout)
+
+            if response.status.error_code == 0:
+                vec = list(response.vector_id_array)
+                return Status(), vec
+            return Status(response.status.error_code, response.status.reason), []
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message="Request timeout"), []
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message="Error occurred: {}".format(e.details())), []
+
+    def create_index(self, table_name, index_type=None, params=None, timeout=None):
         """
         build vectors of specific table and create vector index
 
@@ -604,23 +655,17 @@ class GrpcHandler(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
-        index_param = Prepare.index_param(table_name, index)
+        index_param = Prepare.index_param(table_name, index_type, params)
         try:
-            if timeout == -1:
-                status = self._stub.CreateIndex(index_param)
-            elif timeout < 0:
-                raise ParamError("Param `timeout` should be a positive number or -1")
-            else:
-                try:
-                    status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
-                except grpc.FutureTimeoutError as e:
-                    LOGGER.error(e)
-                    return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
+            status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
 
             if status.error_code == 0:
                 return Status(message='Build index successfully!')
 
             return Status(code=status.error_code, message=status.reason)
+        except grpc.FutureTimeoutError as e:
+            LOGGER.error(e)
+            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
@@ -648,8 +693,8 @@ class GrpcHandler(ConnectIntf):
             if status.error_code == 0:
                 return Status(message="Successfully"), \
                        IndexParam(index_param.table_name,
-                                  index_param.index.index_type,
-                                  index_param.index.nlist)
+                                  index_param.index_type,
+                                  index_param.extra_params)
 
             return Status(code=status.error_code, message=status.reason), None
         except grpc.FutureTimeoutError as e:
@@ -683,7 +728,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def create_partition(self, table_name, partition_name, partition_tag, timeout=10):
+    def create_partition(self, table_name, partition_tag, timeout=10):
         """
         create a specific partition under designated table. After done, the meta file in
         milvus server update partition information, you can perform actions about partitions
@@ -705,7 +750,7 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-        request = Prepare.partition_param(table_name, partition_name, partition_tag)
+        request = Prepare.partition_param(table_name, partition_tag)
 
         try:
             response = self._stub.CreatePartition.future(request).result(timeout=timeout)
@@ -739,14 +784,7 @@ class GrpcHandler(ConnectIntf):
             status = response.status
             if status.error_code == 0:
 
-                partition_list = []
-                for partition in response.partition_array:
-                    partition_param = PartitionParam(
-                        partition.table_name,
-                        partition.partition_name,
-                        partition.tag
-                    )
-                    partition_list.append(partition_param)
+                partition_list = [PartitionParam(table_name, p) for p in response.partition_tag_array]
                 return Status(), partition_list
 
             return Status(code=status.error_code, message=status.reason), []
@@ -774,10 +812,7 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-        request = Prepare.partition_param(
-            table_name=table_name,
-            partition_name=None,
-            tag=partition_tag)
+        request = grpc_types.PartitionParam(table_name=table_name, tag=partition_tag)
 
         try:
             response = self._stub.DropPartition.future(request).result(timeout=timeout)
@@ -789,7 +824,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def search(self, table_name, top_k, nprobe, query_records, partition_tags=None, **kwargs):
+    def search(self, table_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
         """
         Search similar vectors in designated table
 
@@ -805,9 +840,6 @@ class GrpcHandler(ConnectIntf):
         :param query_records: vectors to query
         :type  query_records: list[list[float32]]
 
-        :param query_ranges: query data range
-        :type  query_ranges: list
-
         :param partition_tags: tags to search
         :type  partition_tags: list
 
@@ -819,9 +851,7 @@ class GrpcHandler(ConnectIntf):
 
         """
 
-        request = Prepare.search_param(
-            table_name, top_k, nprobe, query_records, None, partition_tags
-        )
+        request = Prepare.search_param(table_name, top_k, query_records, partition_tags, params)
 
         try:
             self._search_hook.pre_search()
@@ -843,23 +873,23 @@ class GrpcHandler(ConnectIntf):
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
             return status, []
 
-    def search_by_id(self, table_name, top_k, nprobe, id_array, partition_tag_array):
+    # def search_by_id(self, table_name, top_k, nprobe, id_, partition_tag_array):
+    #
+    #     request = Prepare.search_by_id_param(table_name, top_k, nprobe,
+    #                                          id_, partition_tag_array)
+    #
+    #     try:
+    #         response = self._stub.SearchByID(request)
+    #         if response.status.error_code == 0:
+    #             return Status(message='Search vectors successfully!'), TopKQueryResult(response)
+    #
+    #         return Status(code=response.status.error_code, message=response.status.reason), None
+    #     except grpc.RpcError as e:
+    #         LOGGER.error(e)
+    #         status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
+    #         return status, None
 
-        request = Prepare.search_by_id_param(table_name, top_k, nprobe,
-                                             id_array, partition_tag_array)
-
-        try:
-            response = self._stub.SearchByID(request)
-            if response.status.error_code == 0:
-                return Status(message='Search vectors successfully!'), TopKQueryResult(response)
-
-            return Status(code=response.status.error_code, message=response.status.reason), None
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
-            return status, None
-
-    def search_in_files(self, table_name, file_ids, query_records, top_k, nprobe=16, **kwargs):
+    def search_in_files(self, table_name, file_ids, query_records, top_k, params):
         """
         Query vectors in a table, in specified files.
 
@@ -869,9 +899,6 @@ class GrpcHandler(ConnectIntf):
         and python sdk doesn't apply any APIs get them at client. It's a specific
         method used in shards. Obtain more detail about milvus shards, see
         <a href="https://github.com/milvus-io/milvus/tree/0.6.0/shards">
-
-        :type  nprobe: int
-        :param nprobe:
 
         :type  table_name: str
         :param table_name: table name been queried
@@ -898,7 +925,7 @@ class GrpcHandler(ConnectIntf):
         file_ids = list(map(int_or_str, file_ids))
 
         infos = Prepare.search_vector_in_files_param(
-            table_name, query_records, None, top_k, nprobe, file_ids
+            table_name, query_records, top_k, file_ids, params
         )
 
         try:
@@ -978,3 +1005,21 @@ class GrpcHandler(ConnectIntf):
         except grpc.RpcError as e:
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    def compact(self, table_name, timeout):
+        request = Prepare.compact_param(table_name)
+
+        try:
+            response = self._stub.Compact(request)
+            return Status(code=response.error_code, message=response.reason)
+        except grpc.RpcError as e:
+            LOGGER.error(e)
+            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
+
+    def set_config(self, parent_key, child_key, value):
+        cmd = "set_config {}.{} {}".format(parent_key, child_key, value)
+        return self._cmd(cmd)
+
+    def get_config(self, parent_key, child_key):
+        cmd = "get_config {}.{}".format(parent_key, child_key)
+        return self._cmd(cmd)

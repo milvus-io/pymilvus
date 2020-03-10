@@ -22,13 +22,3 @@ Client
     :show-inheritance:
 
 
-.. autoclass:: milvus.client.grpc_client.GrpcMilvus
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-.. autoclass:: milvus.Prepare
-    :members:
-    :undoc-members:
-    :show-inheritance:

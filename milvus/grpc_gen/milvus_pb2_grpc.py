@@ -40,6 +40,11 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.Command.SerializeToString,
             response_deserializer=milvus__pb2.TableNameList.FromString,
         )
+        self.ShowTableInfo = channel.unary_unary(
+            '/milvus.grpc.MilvusService/ShowTableInfo',
+            request_serializer=milvus__pb2.TableName.SerializeToString,
+            response_deserializer=milvus__pb2.TableInfo.FromString,
+        )
         self.DropTable = channel.unary_unary(
             '/milvus.grpc.MilvusService/DropTable',
             request_serializer=milvus__pb2.TableName.SerializeToString,
@@ -80,6 +85,16 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.InsertParam.SerializeToString,
             response_deserializer=milvus__pb2.VectorIds.FromString,
         )
+        self.GetVectorByID = channel.unary_unary(
+            '/milvus.grpc.MilvusService/GetVectorByID',
+            request_serializer=milvus__pb2.VectorIdentity.SerializeToString,
+            response_deserializer=milvus__pb2.VectorData.FromString,
+        )
+        self.GetVectorIDs = channel.unary_unary(
+            '/milvus.grpc.MilvusService/GetVectorIDs',
+            request_serializer=milvus__pb2.GetVectorIDsParam.SerializeToString,
+            response_deserializer=milvus__pb2.VectorIds.FromString,
+        )
         self.Search = channel.unary_unary(
             '/milvus.grpc.MilvusService/Search',
             request_serializer=milvus__pb2.SearchParam.SerializeToString,
@@ -105,11 +120,6 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.DeleteByIDParam.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
-        self.DeleteByDate = channel.unary_unary(
-            '/milvus.grpc.MilvusService/DeleteByDate',
-            request_serializer=milvus__pb2.DeleteByDateParam.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
-        )
         self.PreloadTable = channel.unary_unary(
             '/milvus.grpc.MilvusService/PreloadTable',
             request_serializer=milvus__pb2.TableName.SerializeToString,
@@ -118,6 +128,11 @@ class MilvusServiceStub(object):
         self.Flush = channel.unary_unary(
             '/milvus.grpc.MilvusService/Flush',
             request_serializer=milvus__pb2.FlushParam.SerializeToString,
+            response_deserializer=status__pb2.Status.FromString,
+        )
+        self.Compact = channel.unary_unary(
+            '/milvus.grpc.MilvusService/Compact',
+            request_serializer=milvus__pb2.TableName.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
 
@@ -181,6 +196,18 @@ class MilvusServiceServicer(object):
         @param Command, dummy parameter.
 
         @return TableNameList
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ShowTableInfo(self, request, context):
+        """*
+        @brief This method is used to get table detail information.
+
+        @param TableName, target table name.
+
+        @return TableInfo
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -282,6 +309,30 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetVectorByID(self, request, context):
+        """*
+        @brief This method is used to get vector data by id.
+
+        @param VectorIdentity, target vector id.
+
+        @return VectorData
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetVectorIDs(self, request, context):
+        """*
+        @brief This method is used to get vector ids from a segment
+
+        @param GetVectorIDsParam, target table and segment
+
+        @return VectorIds
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def Search(self, request, context):
         """*
         @brief This method is used to query vector in table.
@@ -342,18 +393,6 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def DeleteByDate(self, request, context):
-        """*
-        @brief This method is used to delete vector by date range
-
-        @param DeleteByDateParam, delete parameters.
-
-        @return status
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def PreloadTable(self, request, context):
         """*
         @brief This method is used to preload table
@@ -371,6 +410,18 @@ class MilvusServiceServicer(object):
         @brief This method is used to flush buffer into storage.
 
         @param FlushParam, flush parameters
+
+        @return Status
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Compact(self, request, context):
+        """*
+        @brief This method is used to compact table
+
+        @param TableName, target table name.
 
         @return Status
         """
@@ -405,6 +456,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             servicer.ShowTables,
             request_deserializer=milvus__pb2.Command.FromString,
             response_serializer=milvus__pb2.TableNameList.SerializeToString,
+        ),
+        'ShowTableInfo': grpc.unary_unary_rpc_method_handler(
+            servicer.ShowTableInfo,
+            request_deserializer=milvus__pb2.TableName.FromString,
+            response_serializer=milvus__pb2.TableInfo.SerializeToString,
         ),
         'DropTable': grpc.unary_unary_rpc_method_handler(
             servicer.DropTable,
@@ -446,6 +502,16 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.InsertParam.FromString,
             response_serializer=milvus__pb2.VectorIds.SerializeToString,
         ),
+        'GetVectorByID': grpc.unary_unary_rpc_method_handler(
+            servicer.GetVectorByID,
+            request_deserializer=milvus__pb2.VectorIdentity.FromString,
+            response_serializer=milvus__pb2.VectorData.SerializeToString,
+        ),
+        'GetVectorIDs': grpc.unary_unary_rpc_method_handler(
+            servicer.GetVectorIDs,
+            request_deserializer=milvus__pb2.GetVectorIDsParam.FromString,
+            response_serializer=milvus__pb2.VectorIds.SerializeToString,
+        ),
         'Search': grpc.unary_unary_rpc_method_handler(
             servicer.Search,
             request_deserializer=milvus__pb2.SearchParam.FromString,
@@ -471,11 +537,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.DeleteByIDParam.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
-        'DeleteByDate': grpc.unary_unary_rpc_method_handler(
-            servicer.DeleteByDate,
-            request_deserializer=milvus__pb2.DeleteByDateParam.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
-        ),
         'PreloadTable': grpc.unary_unary_rpc_method_handler(
             servicer.PreloadTable,
             request_deserializer=milvus__pb2.TableName.FromString,
@@ -484,6 +545,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'Flush': grpc.unary_unary_rpc_method_handler(
             servicer.Flush,
             request_deserializer=milvus__pb2.FlushParam.FromString,
+            response_serializer=status__pb2.Status.SerializeToString,
+        ),
+        'Compact': grpc.unary_unary_rpc_method_handler(
+            servicer.Compact,
+            request_deserializer=milvus__pb2.TableName.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
     }

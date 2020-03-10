@@ -77,8 +77,8 @@ def fake_query_bin_result(nq, topk):
 
 class FakerProvider(BaseProvider):
 
-    def table_name(self):
-        return 'table_names' + str(random.randint(1000, 9999))
+    def collection_name(self):
+        return 'collection_names' + str(random.randint(1000, 9999))
 
     def name(self):
         return 'name' + str(random.randint(1000, 9999))
@@ -90,22 +90,9 @@ class FakerProvider(BaseProvider):
 fake = faker.Faker()
 fake.add_provider(FakerProvider)
 
-
-def range_factory():
+def collection_schema_factory():
     param = {
-        'start_date': get_last_day(5),
-        'end_date': get_next_day(5)
-    }
-    return gPrepare.range(**param)
-
-
-def ranges_factory():
-    return [range_factory() for _ in range(1)]
-
-
-def table_schema_factory():
-    param = {
-        'table_name': fake.table_name(),
+        'collection_name': fake.collection_name(),
         'dimension': random.randint(1, 999),
         'index_file_size': 1024,
         'metric_type': MetricType.L2
@@ -115,11 +102,6 @@ def table_schema_factory():
 
 def records_factory(dimension, nq):
     return [[random.random() for _ in range(dimension)] for _ in range(nq)]
-
-
-def query_ranges_factory():
-    param = ranges_factory()
-    return param
 
 
 def time_it(func):

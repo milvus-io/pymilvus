@@ -5,11 +5,11 @@ import numpy as np
 
 from milvus import *
 
-TABLE_NAME = "binary_table"
+COLLECTION_NAME = "binary_collection"
 DIM = 512
 
-TABLE_PARAM = {
-    "table_name": TABLE_NAME,
+COLLECTION_PARAM = {
+    "collection_name": COLLECTION_NAME,
     "dimension": DIM,
     "index_file_size": 1024,
     # MetricType `HAMMING`, `JACCARD`, `TANIMOTO` are only used for binary vectors
@@ -38,14 +38,14 @@ if __name__ == '__main__':
     client = Milvus()
     client.connect(host="localhost", port="19530")
 
-    _, ok = client.has_table(TABLE_NAME)
+    _, ok = client.has_collection(COLLECTION_NAME)
 
     if not ok:
-        client.create_table(TABLE_PARAM)
+        client.create_collection(COLLECTION_PARAM)
 
-    status, _ = client.insert(TABLE_NAME, datas)
+    status, _ = client.insert(COLLECTION_NAME, datas)
     if 0 != status.code:
-        print("Insert binary vectors into talbe {} failed.".format(TABLE_NAME))
+        print("Insert binary vectors into collection {} failed.".format(COLLECTION_NAME))
         exit(1)
 
     # Wait for 6 seconds, until Milvus server persist vector data.
@@ -54,11 +54,16 @@ if __name__ == '__main__':
     # select top 3 vectors for similarity search
     query_vectors = datas[0:3]
 
-    status, results = client.search(TABLE_NAME, top_k=2, nprobe=1, query_records=query_vectors)
+    # search param
+    search_param = {
+        "nprobe": 10
+    }
+
+    status, results = client.search(COLLECTION_NAME, top_k=2, query_records=query_vectors, params=search_param)
     if 0 != status.code:
         print("Search failed. reason:{}".format(status.message))
     else:
         print(results)
 
-    client.drop_table(TABLE_NAME)
+    client.drop_collection(COLLECTION_NAME)
     client.disconnect()

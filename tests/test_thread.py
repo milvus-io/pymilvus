@@ -78,14 +78,13 @@ def test_mult_insert():
         client0.connect()
         client0.create_table(table_param)
 
-        for i in range(20):
-            print("[{}] | T{} | O{} | Start insert data .....".format(datetime.datetime.now(), utid, i))
-            client0.insert(table_name, vectors)
-            print("[{}] | T{} | O{} | Stop insert data .....".format(datetime.datetime.now(), utid, i))
+        # print("[{}] | T{} | O{} | Start insert data .....".format(datetime.datetime.now(), utid, i))
+        client0.insert(table_name, vectors)
+        # print("[{}] | T{} | O{} | Stop insert data .....".format(datetime.datetime.now(), utid, i))
 
         client0.disconnect()
 
-        print("[{}] | T{} | Stopping .....".format(datetime.datetime.now(), utid))
+        # print("[{}] | T{} | Stopping .....".format(datetime.datetime.now(), utid))
 
     thread_list = []
     for i in range(10):
