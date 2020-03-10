@@ -1,4 +1,4 @@
-# This python shell demonstrate how to create IVF_SQ8H index
+# This program demonstrates how to create IVF_SQ8H index
 # and search
 # Note that index IVF_SQ8H needs GPU devices,
 # make sure milvus server you used is on GPU version.

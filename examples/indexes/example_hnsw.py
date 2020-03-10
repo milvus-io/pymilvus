@@ -1,5 +1,3 @@
-import random
-
 from milvus import Milvus, IndexType, MetricType
 
 from utils import gen_collection, insert_data
@@ -8,6 +6,7 @@ if __name__ == '__main__':
     collection_name = "milvus_demo_hnsw"
 
     client = Milvus()
+    # use default host:127.0.0.1, port:19530
     client.connect()
 
     # create collection: dimension is 128, metric type is L2
