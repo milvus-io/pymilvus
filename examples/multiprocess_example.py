@@ -1,4 +1,6 @@
-## This program demos how to use milvus python client with multi-process
+# This program demos how to use milvus python client with multi-process
+# See more details and caution in:
+# https://milvus.io/docs/v0.6.0/faq/operational_faq.md#Why-does-my-multiprocessing-program-fail
 
 import os
 from multiprocessing import Process
