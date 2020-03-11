@@ -13,6 +13,8 @@
 - \#154 - add new interface `get_vector_by_id`
 - \#156 - remove data range
 - \#157 - remove partition name
+- \#160 - add CRUD API to readme
+- \#164 - add vectors CRUD example
 
 
 # pymilvus 0.2.7(2020-01-16)
