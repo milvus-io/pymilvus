@@ -217,10 +217,10 @@ Use `show_partitions()` to verify whether the partition is created.
 >>> milvus.insert('test01', vectors, partition_tag="tag01")
 ```
 
-To verify the vectors you have inserted, use `get_vector_by_id()`. Assume you have some vectors with the following IDs.
+To verify the vectors you have inserted, use `get_vector_by_id()`. Assume you have a vector with the following ID.
 
 ```python
->>> status, vector = milvus.get_vector_by_id(collection_name='test01', vector_id=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+>>> status, vector = milvus.get_vector_by_id(collection_name='test01', vector_id=0)
 ```
 
 ### Delete vectors by ID
@@ -242,7 +242,7 @@ You can delete these vectors by:
 When performing operations related to data changes, you can flush the data from memory to disk to avoid possible data loss. Milvus also supports automatic flushing, which runs at a fixed interval to flush the data in all collections to disk. You can use the [Milvus server configuration file](https://milvus.io/docs/reference/milvus_config.md) to set the interval.
 
 ```python
->>> milvus.flush(collection_name_array=['test01'])
+>>> milvus.flush(['test01'])
 ```
 
 ## Compact all segments in a collection
@@ -250,7 +250,7 @@ When performing operations related to data changes, you can flush the data from 
 A segment is a data file that Milvus automatically creates by merging inserted vector data. A collection can contain multiple segments. If some vectors are deleted from a segment, the space taken by the deleted vectors cannot be released automatically. You can compact segments in a collection to release space.
 
 ```python
->>> milvus.compact(collection_name='test01', timeout='1')
+>>> milvus.compact(collection_name='test01')
 ```
 
 ## Search vectors in collections/partitions
