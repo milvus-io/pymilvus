@@ -1,4 +1,10 @@
-# pymilvus 0.2.8(doing)
+# pymilvus 0.2.9(TBD)
+
+## Bug
+- \#168 - fix incorrect demo in readme
+
+
+# pymilvus 0.2.8(2020-03-11)
 
 ## Bug
 - \#140 - convert distance in http result to float value
