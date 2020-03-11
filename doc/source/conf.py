@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'pymilvus'
-copyright = '2019, Milvus'
+copyright = '2020, Milvus'
 author = 'Milvus'
 
 # The full version, including alpha/beta/rc tags
-release = '0.2.6'
+release = '0.2.8'
 
 
 # -- General configuration ---------------------------------------------------
