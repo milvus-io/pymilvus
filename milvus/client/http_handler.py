@@ -299,8 +299,10 @@ class HttpHandler(ConnectIntf):
     def preload_table(self, table_name, timeout):
         url = self._uri + "/system/task"
         params = {"load": {"collection_name": table_name}}
+        data = ujson.dumps(params)
 
-        response = rq.get(url, params=params, timeout=timeout)
+
+        response = rq.put(url, data=data, timeout=timeout)
 
         if response.status_code == 200:
             return Status(message="Load successfuly")
