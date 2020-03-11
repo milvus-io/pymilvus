@@ -563,6 +563,9 @@ class Milvus:
         """
         Flushes vector data in one collection or multiple collections to disk.
 
+        :type  collection_name_array: list
+        :param collection_name: Name of one or multiple collections to flush.
+
         """
         if collection_name_array is None:
             return self._handler.flush([])
@@ -581,7 +584,10 @@ class Milvus:
     @check_connect
     def compact(self, collection_name, timeout=None):
         """
-        Compacts segments in a collection.
+        Compacts segments in a collection. This function is recommended after deleting vectors.
+
+        :type  collection_name: str
+        :param collection_name: Name of the collections to compact.
 
         """
         check_pass_param(collection_name=collection_name)
