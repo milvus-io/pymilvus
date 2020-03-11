@@ -83,7 +83,7 @@ $ pip install --upgrade pymilvus
 
 ### Examples
 
-Refer to [/examples](/examples) for more example programs.
+Refer to [examples](/examples) for more example programs.
 
 ## Basic operations
 
@@ -239,7 +239,7 @@ You can delete these vectors by:
 
 ## Flush data in one or multiple collections to disk
 
-When performing operations related to data changes, you can flush the data from memory to disk to avoid possible data loss. Milvus also supports automatic flushing, which runs at a fixed interval to flush the data in all collections to disk. You can use the [Milvus server configuration file](../reference/milvus_config.md) to set the interval.
+When performing operations related to data changes, you can flush the data from memory to disk to avoid possible data loss. Milvus also supports automatic flushing, which runs at a fixed interval to flush the data in all collections to disk. You can use the [Milvus server configuration file](https://milvus.io/docs/reference/milvus_config.md) to set the interval.
 
 ```python
 >>> milvus.flush(collection_name_array=['test01'])
