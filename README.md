@@ -72,7 +72,7 @@ The following collection shows Milvus versions and recommended pymilvus versions
 You can install a specific version of pymilvus by:
 
 ```shell
-$ pip install pymilvus==0.2.7
+$ pip install pymilvus==0.2.8
 ```
 
 You can upgrade `pymilvus` to the latest version by:
@@ -132,7 +132,7 @@ Refer to [/examples](/examples) for more example programs.
 
 ```python
 # Drop collection
->>> milvus.delete_collection(collection_name='test01')
+>>> milvus.drop_collection(collection_name='test01')
 ```
 
 ## Create/Drop partitions in a collection
