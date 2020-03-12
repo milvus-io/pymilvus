@@ -340,7 +340,7 @@ class GrpcHandler(ConnectIntf):
         try:
             status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
             if status.error_code == 0:
-                return Status(message='Create table successfully!')
+                return Status(message='Create collection successfully!')
 
             LOGGER.error(status)
             return Status(code=status.error_code, message=status.reason)
@@ -529,7 +529,7 @@ class GrpcHandler(ConnectIntf):
         try:
             status = self._stub.DropTable.future(table_name).result(timeout=timeout)
             if status.error_code == 0:
-                return Status(message='Delete table successfully!')
+                return Status(message='Delete collection successfully!')
             return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
