@@ -290,19 +290,27 @@ class HttpHandler(ConnectIntf):
         url = self._uri + "/collections/{}?info=stat".format(table_name)
 
         response = rq.get(url, timeout=timeout)
-        result = response.json()
-
         if response.status_code == 200:
+            result = response.json()
             return Status(), HTableInfo(result)
 
-        return Status(Status(result["code"], result["message"])), None
+        if response.status_code == 404:
+            return Status(Status.TABLE_NOT_EXISTS, "Collection not found"), None
+
+        if response.text:
+            result = response.json()
+            return Status(Status(result["code"], result["message"])), None
+
+        return Status(Status.UNEXPECTED_ERROR, "Response is empty"), None
 
     @timeout_error()
     def preload_table(self, table_name, timeout):
         url = self._uri + "/system/task"
         params = {"load": {"collection_name": table_name}}
+        data = ujson.dumps(params)
 
-        response = rq.get(url, params=params, timeout=timeout)
+
+        response = rq.put(url, data=data, timeout=timeout)
 
         if response.status_code == 200:
             return Status(message="Load successfuly")

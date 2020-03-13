@@ -56,12 +56,6 @@ if __name__ == '__main__':
         print("Cannot obtain vector. exiting ....")
         sys.exit(1)
 
-    # validate if result is correct
-    if vector == vectors[0]:
-        print("\nVector result is correct.")
-    else:
-        print("\nVector result is not correct.")
-
     # delete top 10 vectors
     status = client.delete_by_id(collection_name, ids[:10])
     if status.OK():

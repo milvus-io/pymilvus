@@ -1,4 +1,10 @@
-# pymilvus 0.2.8(doing)
+# pymilvus 0.2.9(TBD)
+
+## Bug
+- \#168 - fix incorrect demo in readme
+
+
+# pymilvus 0.2.8(2020-03-11)
 
 ## Bug
 - \#140 - convert distance in http result to float value
@@ -13,6 +19,8 @@
 - \#154 - add new interface `get_vector_by_id`
 - \#156 - remove data range
 - \#157 - remove partition name
+- \#160 - add CRUD API to readme
+- \#164 - add vectors CRUD example
 
 
 # pymilvus 0.2.7(2020-01-16)

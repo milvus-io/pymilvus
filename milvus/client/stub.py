@@ -293,7 +293,7 @@ class Milvus:
         :type  ids: list[int]
 
         :type  collection_name: str
-        :param collection_name: collection name been inserted
+        :param collection_name: Name of the collection to insert vectors to.
 
         :type  records: list[list[float]]
 
@@ -301,20 +301,18 @@ class Milvus:
 
                 `OR using Prepare.records`
 
-        :param records: list of vectors been inserted
+        :param records: List of vectors to insert.
 
         :type partition_tag: str or None.
             If partition_tag is None, vectors will be inserted to the collection rather than partitions.
 
-        :param partition_tag: the tag string of a collection
-
-        :type
+        :param partition_tag: Tag of a partition.
 
         :type  timeout: int
-        :param timeout: time waiting for server response
+        :param timeout: Time to wait for server response before timeout.
 
         :returns:
-            Status: indicate whether vectors are inserted successfully.
+            Status: Whether vectors are inserted successfully.
             ids: IDs of the inserted vectors.
         :rtype: (Status, list(int))
         """
@@ -563,6 +561,9 @@ class Milvus:
         """
         Flushes vector data in one collection or multiple collections to disk.
 
+        :type  collection_name_array: list
+        :param collection_name: Name of one or multiple collections to flush.
+
         """
         if collection_name_array is None:
             return self._handler.flush([])
@@ -581,7 +582,10 @@ class Milvus:
     @check_connect
     def compact(self, collection_name, timeout=None):
         """
-        Compacts segments in a collection.
+        Compacts segments in a collection. This function is recommended after deleting vectors.
+
+        :type  collection_name: str
+        :param collection_name: Name of the collections to compact.
 
         """
         check_pass_param(collection_name=collection_name)
