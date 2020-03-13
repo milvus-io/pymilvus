@@ -24,6 +24,7 @@ IndexValue2NameMap = {
     IndexType.IVF_SQ8: "IVFSQ8",
     IndexType.IVF_SQ8H: "IVFSQ8H",
     IndexType.IVF_PQ: "IVFPQ",
+    IndexType.RNSG: "RNSG",
     IndexType.HNSW: "HNSW"
 }
 
@@ -34,6 +35,7 @@ IndexName2ValueMap = {
     "IVFSQ8": IndexType.IVF_SQ8,
     "IVFSQ8H": IndexType.IVF_SQ8H,
     "IVFPQ": IndexType.IVF_PQ,
+    "RNSG": IndexType.RNSG,
     "HNSW": IndexType.HNSW
 }
 
@@ -379,7 +381,7 @@ class HttpHandler(ConnectIntf):
         result = response.json()
 
         if response.status_code == 200:
-            return Status(), list(result["ids"])
+            return Status(), list(map(int, result["ids"]))
 
         return Status(result["code"], result["message"]), None
 
