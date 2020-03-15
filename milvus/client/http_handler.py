@@ -45,6 +45,8 @@ MetricValue2NameMap = {
     MetricType.HAMMING: "HAMMING",
     MetricType.JACCARD: "JACCARD",
     MetricType.TANIMOTO: "TANIMOTO",
+    MetricType.SUBSTRUCTURE: "SUBSTRUCTURE",
+    MetricType.SUPERSTRUCTURE: "SUPERSTRUCTURE"
 }
 
 MetricName2ValueMap = {
@@ -53,6 +55,8 @@ MetricName2ValueMap = {
     "HAMMING": MetricType.HAMMING,
     "JACCARD": MetricType.JACCARD,
     "TANIMOTO": MetricType.TANIMOTO,
+    "SUBSTRUCTURE": MetricType.SUBSTRUCTURE,
+    "SUPERSTRUCTURE": MetricType.SUPERSTRUCTURE
 }
 
 
