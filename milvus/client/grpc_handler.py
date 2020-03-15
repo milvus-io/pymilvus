@@ -538,7 +538,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
-    def insert(self, table_name, records, ids=None, partition_tag=None, params=None, timeout=-1, **kwargs):
+    def insert(self, table_name, records, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
         """
         Add vectors to table
 
@@ -580,10 +580,7 @@ class GrpcHandler(ConnectIntf):
             else Prepare.insert_param(table_name, records, partition_tag, ids, params)
 
         try:
-            if timeout == -1:
-                response = self._stub.Insert(body)
-            else:
-                response = self._stub.Insert.future(body).result(timeout=timeout)
+            response = self._stub.Insert.future(body).result(timeout=timeout)
 
             if response.status.error_code == 0:
                 return Status(message='Add vectors successfully!'), list(response.vector_id_array)

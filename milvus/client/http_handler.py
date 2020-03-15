@@ -549,13 +549,14 @@ class HttpHandler(ConnectIntf):
     def delete_by_id(self, table_name, id_array, timeout=None):
         url = self._uri + "/collections/{}/vectors".format(table_name)
         headers = {"Content-Type": "application/json"}
-        ids = map(str, id_array)
+        ids = list(map(str, id_array))
         request = {"delete": {"ids": ids}}
 
-        response = rq.put(url, ujson.dumps(request), headers=headers, timeout=timeout)
+        response = rq.put(url, data=ujson.dumps(request), headers=headers, timeout=timeout)
         result = response.json()
         return Status(result["code"], result["message"])
 
+    @timeout_error()
     def flush(self, table_name_array):
         url = self._uri + "/system/task"
         headers = {"Content-Type": "application/json"}
@@ -565,6 +566,7 @@ class HttpHandler(ConnectIntf):
         result = response.json()
         return Status(result["code"], result["message"])
 
+    @timeout_error()
     def compact(self, table_name, timeout):
         url = self._uri + "/system/task"
         headers = {"Content-Type": "application/json"}

@@ -285,7 +285,7 @@ class Milvus:
         return self._handler.drop_table(collection_name, timeout)
 
     @check_connect
-    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, timeout=-1):
+    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, **kwargs):
         """
         Insert vectors to a collection.
 
@@ -326,7 +326,7 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
-        return self._handler.insert(collection_name, records, ids, partition_tag, params, timeout)
+        return self._handler.insert(collection_name, records, ids, partition_tag, params, None, **kwargs)
 
     @check_connect
     def get_vector_by_id(self, collection_name, vector_id, timeout=None):
