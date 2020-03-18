@@ -573,7 +573,7 @@ class GrpcHandler(ConnectIntf):
         """
         insert_param = kwargs.get('insert_param', None)
 
-        if insert_param and not isinstance(insert_param, milvus_pb2_grpc.InsertParam):
+        if insert_param and not isinstance(insert_param, grpc_types.InsertParam):
             raise ParamError("The value of key 'insert_param' is invalid")
 
         body = insert_param if insert_param \
@@ -920,7 +920,7 @@ class GrpcHandler(ConnectIntf):
         """
 
         file_ids = list(map(int_or_str, file_ids))
-
+        # import pdb;pdb.set_trace()
         infos = Prepare.search_vector_in_files_param(
             table_name, query_records, top_k, file_ids, params
         )

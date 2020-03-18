@@ -316,6 +316,9 @@ class Milvus:
             ids: IDs of the inserted vectors.
         :rtype: (Status, list(int))
         """
+        if kwargs.get("insert_param", None) is not None:
+            return self._handler.insert(None, None, **kwargs)
+
         check_pass_param(collection_name=collection_name, records=records,
                          ids=ids, partition_tag=partition_tag)
 
