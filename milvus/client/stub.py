@@ -568,7 +568,7 @@ class Milvus:
         :param collection_name: Name of one or multiple collections to flush.
 
         """
-        if collection_name_array is None:
+        if collection_name_array in (None, []):
             return self._handler.flush([])
 
         if not isinstance(collection_name_array, list):
