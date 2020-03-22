@@ -8,7 +8,7 @@ from milvus import Milvus, MetricType, IndexType
 from milvus.client.pool import ConnectionPool
 
 _DIM = 128
-_COLLECTION_COUNT = 100
+_COLLECTION_COUNT = 10
 
 def run(t_id, collection_name, vectors, connection_pool):
     collection_param = {
@@ -35,9 +35,9 @@ def run(t_id, collection_name, vectors, connection_pool):
         return
 
     print("[{}] [{}] | [{}] insert done.".format(datetime.datetime.now(), threading.currentThread().ident, t_id))
-    # status = client.drop_collection(collection_name)
-    # if not status.OK():
-    #     print("[{}] [{}] | [{}] drop table fail.".format(datetime.datetime.now(), threading.currentThread().ident, t_id))
+    status = client.drop_collection(collection_name)
+    if not status.OK():
+        print("[{}] [{}] | [{}] drop table fail.".format(datetime.datetime.now(), threading.currentThread().ident, t_id))
 
 
 if __name__ == '__main__':
@@ -45,20 +45,20 @@ if __name__ == '__main__':
 
     thread_list = []
 
-    collection_name_prefix = "connection_pool_demo_g100_"
+    collection_name_prefix = "connection_pool_demo_g10_4_"
 
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
-    # vectors_list = []
-    # for _ in range(10):
-    #     vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
-    #     vectors_list.append(vectors)
+    # vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
+    vectors_list = []
+    for _ in range(_COLLECTION_COUNT):
+        vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
+        vectors_list.append(vectors)
 
     t0 = time.time()
     print("[{}] Insert start\n===========\n\n".format(datetime.datetime.now()))
     for i in range(_COLLECTION_COUNT):
         collection_name = collection_name_prefix + str(i)
-        # thread = threading.Thread(target=run, args=(i, collection_name, vectors_list[i], pool))
-        thread = threading.Thread(target=run, args=(i, collection_name, vectors, pool))
+        thread = threading.Thread(target=run, args=(i, collection_name, vectors_list[i], pool))
+        # thread = threading.Thread(target=run, args=(i, collection_name, vectors, pool))
         thread.start()
         thread_list.append(thread)
 

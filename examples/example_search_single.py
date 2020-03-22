@@ -10,9 +10,9 @@ if __name__ == '__main__':
 
     lam = lambda x: "connection_pool_demo_g100_" + str(x)
 
-    collection_list = list(map(lam, range(100)))
+    collection_list = list(map(lam, range(10)))
 
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(1000)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(100)]
 
     t0 = time.time()
 

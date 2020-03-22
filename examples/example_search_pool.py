@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     collection_name_prefix = "connection_pool_demo_g100_"
 
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(1000)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(1)]
     # vectors_list = []
     # for _ in range(10):
     #     vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     t0 = time.time()
     print("[{}] Search start\n===========\n\n".format(datetime.datetime.now()))
-    for i in range(100):
+    for i in range(10):
         collection_name = collection_name_prefix + str(i)
         # thread = threading.Thread(target=run, args=(i, collection_name, vectors_list[i], pool))
         thread = threading.Thread(target=search, args=(i, collection_name, vectors, pool))
