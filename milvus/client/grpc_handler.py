@@ -1,7 +1,7 @@
 import datetime
-import os
 from urllib.parse import urlparse
 import logging
+import threading
 
 import grpc
 from grpc._cython import cygrpc

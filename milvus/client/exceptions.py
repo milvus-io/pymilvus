@@ -20,3 +20,9 @@ class RepeatingConnectError(ConnectError):
     """
     Try to connect repeatedly
     """
+
+
+class ConnectionPoolError(ConnectError):
+    """
+    Waiting timeout error
+    """
