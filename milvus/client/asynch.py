@@ -10,8 +10,8 @@ class AbstractFuture:
     def result(self, **kwargs):
         '''Return deserialized result.
 
-        It's a synchronous interface.It will wait executing until
-        server response or timeout occur(if specified).
+        It's a synchronous interface. It will wait executing until
+        server respond or timeout occur(if specified).
 
         This API is thread-safe.
         '''
@@ -20,12 +20,16 @@ class AbstractFuture:
     @abc.abstractmethod
     def cancel(self):
         '''Cancle gRPC future.
+
+        This API is thread-safe.
         '''
         raise NotImplementedError()
 
     @abc.abstractmethod
     def done(self):
         '''Wait for request done.
+
+        This API is thread-safe.
         '''
         raise NotImplementedError()
 
@@ -42,6 +46,8 @@ class Future(AbstractFuture):
 
     @abc.abstractmethod
     def on_response(self, response):
+        ''' Parse response from gRPC server and return results.
+        '''
         raise NotImplementedError()
 
     def __init(self):

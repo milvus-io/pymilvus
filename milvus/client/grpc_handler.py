@@ -915,7 +915,7 @@ class GrpcHandler(ConnectIntf):
                 timeout = kwargs.get("timeout", None)
                 future = self._stub.Search.future(request, timeout=timeout)
 
-                func = kwargs.get("callback", None)
+                func = kwargs.get("_callback", None)
                 return SearchFuture(future, func)
             ft = self._stub.Search.future(request)
             response = ft.result()
