@@ -100,24 +100,18 @@ def main():
 
     print("Searching ... ")
 
-    def search_func(vec_ids):
-        def rsp(status, results):
-            print("[{}] [Callback].".format(datetime.datetime.now()))
-            if status.OK():
-                # indicate search result
-                # also use by:
-                #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
-                if results[0][0].distance == 0.0 or results[0][0].id == vec_ids[0]:
-                    print('Query result is correct')
-                else:
-                    print('Query result isn\'t correct')
+    # def search_func(vec_ids):
+    def rsp(status, results):
+        print("[{}] [Callback].".format(datetime.datetime.now()))
+        if status.OK():
+            # indicate search result
+            # also use by:
+            #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
+           print("Search result:", results)
+        else:
+            print("Search failed. ", status)
 
-                # print results
-                print(results)
-            else:
-                print("Search failed. ", status)
-
-        return rsp
+        # return rsp
 
     # param = {
     #     'collection_name': collection_name,
@@ -128,35 +122,36 @@ def main():
     #     'callback': search_func(ids)
     # }
 
-    def run_search(conn, name, records, topk, params):
-        ft_list = []
-        for _ in range(100):
-            future = conn.search(collection_name=name, query_records=records, top_k=topk,
-                                 params=params, _async=True)
-            ft_list.append(future)
+    # def run_search(conn, name, records, topk, params):
+    #     ft_list = []
+    #     for _ in range(100):
+    #         future = conn.search(collection_name=name, query_records=records, top_k=topk,
+    #                              params=params, _async=True)
+    #         ft_list.append(future)
+    #
+    #         status, results = future.result()
+    #         if not status.OK():
+    #             print("Search fail.", status)
+    #         else:
+    #             print("Search result len ", len(results))
+    #         for f in ft_list:
+    #             f.done()
 
-            status, results = future.result()
-            if not status.OK():
-                print("Search fail.", status)
-            else:
-                print("Search result len ", len(results))
-            for f in ft_list:
-                f.done()
-
-    thread_list = []
-    t0 = time.time()
-    for i in range(50):
-        thread = threading.Thread(target=run_search, args=(milvus, collection_name, vectors[0: 1], 1, search_param))
-        thread.start()
-        thread_list.append(thread)
-
-    for t in thread_list:
-        t.join()
-    print("Search Total cost ", time.time() - t0)
-    sys.exit(0)
+    # thread_list = []
+    # t0 = time.time()
+    # for i in range(50):
+    #     thread = threading.Thread(target=run_search, args=(milvus, collection_name, vectors[0: 1], 1, search_param))
+    #     thread.start()
+    #     thread_list.append(thread)
+    #
+    # for t in thread_list:
+    #     t.join()
+    # print("Search Total cost ", time.time() - t0)
+    milvus.search(collection_name=collection_name, query_records=vectors[:10], top_k=1,
+                  params=search_param, _async=True, callback=rsp)
 
     future_list = []
-    for i in range(1000000):
+    for i in range(10):
         future = milvus.search(collection_name=collection_name, query_records=vectors[i:i + 1], top_k=1,
                                params=search_param, _async=True)
         # time.sleep(0.01)
@@ -169,8 +164,6 @@ def main():
         else:
             print("Result len: ", len(results))
         f.done()
-
-    print("[]<> Search done. Total cost {} s".format(time.time() - t0))
 
     # print("[{}] Start search.".format(datetime.datetime.now()))
     # future = milvus.search(**param)

@@ -433,7 +433,7 @@ class Milvus:
             conn.close()
 
     # @check_connect
-    def create_index(self, collection_name, index_type=None, params=None, timeout=None):
+    def create_index(self, collection_name, index_type=None, params=None, timeout=None, **kwargs):
         """
         Creates index for a collection.
 
@@ -465,7 +465,7 @@ class Milvus:
 
         conn = self._get_connection()
         try:
-            return conn.create_index(collection_name, _index_type, params, timeout)
+            return conn.create_index(collection_name, _index_type, params, timeout, **kwargs)
         except:
             raise
         finally:

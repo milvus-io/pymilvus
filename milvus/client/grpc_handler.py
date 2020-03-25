@@ -17,7 +17,7 @@ from .check import (
     is_legal_port,
 )
 
-from .asynch import SearchFuture
+from .asynch import SearchFuture, InsertFuture, CreateIndexFuture
 
 from .hooks import BaseSearchHook
 from .client_hooks import SearchHook
@@ -613,7 +613,8 @@ class GrpcHandler(ConnectIntf):
         try:
             rf = self._stub.Insert.future(body)
             if kwargs.get("_async", False) is True:
-                return self._stub.Insert.future(body)
+                cb = kwargs.get("callback", None)
+                return InsertFuture(rf, cb)
 
             response = rf.result(timeout=timeout)
             rf.__del__()
@@ -669,7 +670,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message="Error occurred: {}".format(e.details())), []
 
-    def create_index(self, table_name, index_type=None, params=None, timeout=None):
+    def create_index(self, table_name, index_type=None, params=None, timeout=None, **kwargs):
         """
         build vectors of specific table and create vector index
 
@@ -695,7 +696,12 @@ class GrpcHandler(ConnectIntf):
         index_param = Prepare.index_param(table_name, index_type, params)
         try:
             # status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
-            status = self._stub.CreateIndex(index_param)
+            future = self._stub.CreateIndex.future(index_param, timeout=timeout)
+            if kwargs.get('_async', False):
+                cb = kwargs.get("callback", None)
+                return CreateIndexFuture(future, cb)
+            status = future.result(timeout=timeout)
+            future.__del__()
 
             if status.error_code == 0:
                 return Status(message='Build index successfully!')
