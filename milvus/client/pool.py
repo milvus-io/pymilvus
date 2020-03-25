@@ -1,22 +1,32 @@
+# -*- coding: UTF-8 -*-
+
 import queue
 import threading
 import time
-
-from ..stub import Milvus
-from ..exceptions import ConnectionPoolError
+from .grpc_handler import GrpcHandler
+from .http_handler import HttpHandler
+from milvus.client.exceptions import ConnectionPoolError
 
 
 class ConnectionRecord:
-    def __init__(self, uri, recycle, **kwargs):
+    def __init__(self, uri, recycle, handler="GRPC", conn_id=-1, **kwargs):
         '''
         @param uri server uri
         @param recycle int, time period to recycle connection.
         @param kwargs connection key-wprds
         '''
-        self._connection = Milvus(uri=uri, **kwargs)
+        self._conn_id = conn_id
+        self._uri = uri
         self.recycle = recycle
         self._last_use_time = time.time()
         self._kw = kwargs
+
+        if handler == "GRPC":
+            self._connection = GrpcHandler(uri=uri)
+        elif handler == "HTTP":
+            self._connection = HttpHandler(uri=uri)
+        else:
+            raise ValueError("Unknown handler type. Use GRPC or HTTP")
 
     # def __getattr__(self, item):
     #     getattr(self.connection(), item)
@@ -25,7 +35,7 @@ class ConnectionRecord:
         ''' Return a available connection. If connection is out-of-date,
         return new one.
         '''
-        self._connection.connect()
+        self._connection.connect(None, None, uri=self._uri, timeout=2)
         return self._connection
 
 
@@ -43,7 +53,8 @@ class ConnectionPool:
     def _inc_used(self):
         with self._condition:
             if self._used_conn < self._pool_size:
-                self._used_conn += 1
+                self._used_conn = self._used_conn + 1
+                print("inc used, used conn is ", self._used_conn)
                 return True
 
             return False
@@ -65,8 +76,9 @@ class ConnectionPool:
             return self._pool.qsize() <= 0 and self._used_conn <= 0
 
     def _create_connection(self):
-        conn = ConnectionRecord(self._uri, self._recycle, **self._kw)
-        return ScopedConnection(self, conn)
+        with self._condition:
+            conn = ConnectionRecord(self._uri, self._recycle, conn_id=self._used_conn - 1, **self._kw)
+            return ScopedConnection(self, conn)
 
     def _inc_connection(self):
         if self._inc_used():
@@ -109,6 +121,9 @@ class ScopedConnection:
         self._connection = connection
         self._closed = False
 
+    def __getattr__(self, item):
+        return getattr(self.client(), item)
+
     def __del__(self):
         self.close()
 
@@ -121,6 +136,9 @@ class ScopedConnection:
     def client(self):
         conn = self.connection()
         return conn.connection()
+
+    def conn_id(self):
+        return self._connection._conn_id
 
     def close(self):
         self._connection and self._pool.release(self._connection)

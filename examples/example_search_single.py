@@ -10,22 +10,22 @@ if __name__ == '__main__':
 
     lam = lambda x: "connection_pool_demo_g100_" + str(x)
 
-    collection_list = list(map(lam, range(10)))
+    collection_list = list(map(lam, range(100)))
 
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(100)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(500)]
 
     t0 = time.time()
 
+    client = Milvus()
+    client.connect()
     for index, name in enumerate(collection_list):
-        client = Milvus()
-        client.connect()
         status, _ = client.search(name, 1, vectors, params={"nprobe": 10})
         if not status.OK():
             print("[{}] search failed: ".format(index), status)
             break
 
         print("[{}] search done.".format(index))
-        client.disconnect()
+        # client.disconnect()
 
     # client.drop_collection(collection_name)
 

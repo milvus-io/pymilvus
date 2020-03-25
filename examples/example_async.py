@@ -1,6 +1,6 @@
-# This program demos how to connect to Milvus vector database, 
+# This program demos how to connect to Milvus vector database,
 # create a vector collection,
-# insert 10 vectors, 
+# insert 10 vectors,
 # and execute a vector similarity search.
 import datetime
 import sys
@@ -27,7 +27,7 @@ def main():
     milvus = Milvus()
 
     # Create collection demo_collection if it dosen't exist.
-    collection_name = 'example_collection_'
+    collection_name = 'example_collection_async'
 
     status, ok = milvus.has_collection(collection_name)
     if not ok:
@@ -58,8 +58,16 @@ def main():
     # You can also use numpy to generate random vectors:
     #     `vectors = np.random.rand(10000, 16).astype(np.float32)`
 
+    # def isp(ft):
+    #     print("Call isp")
+    #     response = ft.result()
+    #     if response.status.error_code == 0:
+    #         return Status(message='Add vectors successfully!'), list(response.vector_id_array)
+    #
+    #     return Status(code=response.status.error_code, message=response.status.reason), []
+
     # Insert vectors into demo_collection, return status and vectors id list
-    # status, ids = milvus.insert(collection_name=collection_name, records=vectors)
+    status, ids = milvus.insert(collection_name=collection_name, records=vectors)
 
     # Flush collection  inserted data to disk.
     milvus.flush([collection_name])
@@ -92,60 +100,85 @@ def main():
 
     print("Searching ... ")
 
-    param = {
-        'collection_name': collection_name,
-        'query_records': query_vectors,
-        'top_k': 1,
-        'params': search_param,
-    }
+    def search_func(vec_ids):
+        def rsp(status, results):
+            print("[{}] [Callback].".format(datetime.datetime.now()))
+            if status.OK():
+                # indicate search result
+                # also use by:
+                #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
+                if results[0][0].distance == 0.0 or results[0][0].id == vec_ids[0]:
+                    print('Query result is correct')
+                else:
+                    print('Query result isn\'t correct')
 
-    # status, results = milvus.search(**param)
+                # print results
+                print(results)
+            else:
+                print("Search failed. ", status)
 
-    # acquire condition lock
+        return rsp
+
+    # param = {
+    #     'collection_name': collection_name,
+    #     'query_records': query_vectors,
+    #     'top_k': 1,
+    #     'params': search_param,
+    #     '_async': True,
+    #     'callback': search_func(ids)
+    # }
+
     def run_search(conn, name, records, topk, params):
-        status, results = conn.search(collection_name=name, query_records=records, top_k=topk,
-                                      params=params)
-        if not status.OK():
-            print("Search fail.", status)
-        else:
-            print("Search result len ", len(results))
+        ft_list = []
+        for _ in range(100):
+            future = conn.search(collection_name=name, query_records=records, top_k=topk,
+                                 params=params, _async=True)
+            ft_list.append(future)
 
-    t0 = time.time()
+            status, results = future.result()
+            if not status.OK():
+                print("Search fail.", status)
+            else:
+                print("Search result len ", len(results))
+            for f in ft_list:
+                f.done()
+
     thread_list = []
-    for i in range(100):
-        thread = threading.Thread(target=run_search, args=(milvus, collection_name, vectors[i: i + 1], 1, search_param))
+    t0 = time.time()
+    for i in range(50):
+        thread = threading.Thread(target=run_search, args=(milvus, collection_name, vectors[0: 1], 1, search_param))
         thread.start()
         thread_list.append(thread)
 
     for t in thread_list:
         t.join()
-
-    print("Search total cost ", time.time() - t0)
+    print("Search Total cost ", time.time() - t0)
     sys.exit(0)
 
-    t0 = time.time()
-    for i in range(1000):
-        status, results = milvus.search(collection_name=collection_name, query_records=vectors[i:i + 1], top_k=1,
-                                        params=search_param)
+    future_list = []
+    for i in range(1000000):
+        future = milvus.search(collection_name=collection_name, query_records=vectors[i:i + 1], top_k=1,
+                               params=search_param, _async=True)
+        # time.sleep(0.01)
+        future_list.append(future)
+
+    for i, f in enumerate(future_list):
+        status, results = f.result()
         if not status.OK():
-            print("Search fail.", status)
+            print("Search failed.", status)
         else:
-            print("Search result len ", len(results))
+            print("Result len: ", len(results))
+        f.done()
+
     print("[]<> Search done. Total cost {} s".format(time.time() - t0))
 
-    # if status.OK():
-    #     # indicate search result
-    #     # also use by:
-    #     #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
-    #     if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
-    #         print('Query result is correct')
-    #     else:
-    #         print('Query result isn\'t correct')
-    #
-    #     # print results
-    #     print(results)
-    # else:
-    #     print("Search failed. ", status)
+    # print("[{}] Start search.".format(datetime.datetime.now()))
+    # future = milvus.search(**param)
+    # print("[{}] Search done.".format(datetime.datetime.now()))
+
+    # wait for search done
+    # print(future.result())
+    # future.done()
 
     # Delete demo_collection
     status = milvus.drop_collection(collection_name)

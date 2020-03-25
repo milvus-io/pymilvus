@@ -8,7 +8,8 @@ from milvus import Milvus, MetricType, IndexType
 from milvus.client.pool import ConnectionPool
 
 _DIM = 128
-_COLLECTION_COUNT = 10
+_COLLECTION_COUNT = 100
+
 
 def run(t_id, collection_name, vectors, connection_pool):
     collection_param = {
@@ -35,22 +36,23 @@ def run(t_id, collection_name, vectors, connection_pool):
         return
 
     print("[{}] [{}] | [{}] insert done.".format(datetime.datetime.now(), threading.currentThread().ident, t_id))
-    status = client.drop_collection(collection_name)
-    if not status.OK():
-        print("[{}] [{}] | [{}] drop table fail.".format(datetime.datetime.now(), threading.currentThread().ident, t_id))
+    # status = client.drop_collection(collection_name)
+    # if not status.OK():
+    #     print(
+    #         "[{}] [{}] | [{}] drop table fail.".format(datetime.datetime.now(), threading.currentThread().ident, t_id))
 
 
 if __name__ == '__main__':
-    pool = ConnectionPool(uri="tcp://127.0.0.1:19530")
+    pool = ConnectionPool(uri="tcp://127.0.0.1:19530", wait_timeout=20)
 
     thread_list = []
 
-    collection_name_prefix = "connection_pool_demo_g10_4_"
+    collection_name_prefix = "connection_pool_demo_g100_"
 
     # vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
     vectors_list = []
     for _ in range(_COLLECTION_COUNT):
-        vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
+        vectors = [[random.random() for _ in range(_DIM)] for _ in range(1000)]
         vectors_list.append(vectors)
 
     t0 = time.time()

@@ -17,6 +17,8 @@ from .check import (
     is_legal_port,
 )
 
+from .asynch import SearchFuture
+
 from .hooks import BaseSearchHook
 from .client_hooks import SearchHook
 from .exceptions import ParamError, NotConnectError
@@ -610,9 +612,12 @@ class GrpcHandler(ConnectIntf):
 
         try:
             rf = self._stub.Insert.future(body)
+            if kwargs.get("_async", False) is True:
+                return self._stub.Insert.future(body)
+
             response = rf.result(timeout=timeout)
             rf.__del__()
-
+            # print("\t[{}] [{}] <GRPC> Inserting .....".format(datetime.datetime.now(), threading.currentThread().ident))
             if response.status.error_code == 0:
                 return Status(message='Add vectors successfully!'), list(response.vector_id_array)
 
@@ -900,6 +905,12 @@ class GrpcHandler(ConnectIntf):
 
         try:
             self._search_hook.pre_search()
+            if kwargs.get("_async", False) is True:
+                timeout = kwargs.get("timeout", None)
+                future = self._stub.Search.future(request, timeout=timeout)
+
+                func = kwargs.get("callback", None)
+                return SearchFuture(future, func)
             ft = self._stub.Search.future(request)
             response = ft.result()
             ft.__del__()
@@ -919,22 +930,6 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
             return status, []
-
-    # def search_by_id(self, table_name, top_k, nprobe, id_, partition_tag_array):
-    #
-    #     request = Prepare.search_by_id_param(table_name, top_k, nprobe,
-    #                                          id_, partition_tag_array)
-    #
-    #     try:
-    #         response = self._stub.SearchByID(request)
-    #         if response.status.error_code == 0:
-    #             return Status(message='Search vectors successfully!'), TopKQueryResult(response)
-    #
-    #         return Status(code=response.status.error_code, message=response.status.reason), None
-    #     except grpc.RpcError as e:
-    #         LOGGER.error(e)
-    #         status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
-    #         return status, None
 
     def search_in_files(self, table_name, file_ids, query_records, top_k, params):
         """
