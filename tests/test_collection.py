@@ -111,8 +111,8 @@ class TestHasCollection:
             gcon.has_collection(collection)
 
     def test_has_collection_non_existent(self, gcon):
-        status, _ = gcon.has_collection("sfsfsfsfsfsfsfsfsfsf")
-        assert not status.OK()
+        status, ok = gcon.has_collection("sfsfsfsfsfsfsfsfsfsf")
+        assert not (status.OK() and ok)
 
 
 class TestDescribeCollection:
@@ -189,4 +189,19 @@ class TestDropCollection:
 
     def test_drop_collection_non_existent(self, gcon):
         status = gcon.drop_collection("non_existent")
+        assert not status.OK()
+
+
+class TestLoadCollection:
+    def test_load_collection_normal(self, gcon, gvector):
+        status = gcon.preload_collection(gvector)
+        assert status.OK()
+
+    @pytest.mark.parametrize("name", [[], bytes(), 123, True, False])
+    def test_load_collection_invalid_name(self, name, gcon):
+        with pytest.raises(ParamError):
+            gcon.preload_collection(name)
+
+    def test_load_collection_non_existent(self, gcon):
+        status = gcon.preload_collection("test_load_collection_non_existent")
         assert not status.OK()

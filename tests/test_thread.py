@@ -34,19 +34,19 @@ def test_run(gcon):
     if gmilvus is None:
         assert False, "Error occurred: connect failure"
 
-    status, exists = gmilvus.has_table(table_name)
+    status, exists = gmilvus.has_collection(table_name)
     if exists:
-        gmilvus.drop_table(table_name)
+        gmilvus.drop_collection(table_name)
         time.sleep(2)
 
     table_param = {
-        'table_name': table_name,
+        'collection_name': table_name,
         'dimension': dimension,
         'index_file_size': 1024,
         'metric_type': 1
     }
 
-    gmilvus.create_table(table_param)
+    gmilvus.create_collection(table_param)
 
     for p in (1, 5, 10, 20, 40, 50, 100):
         pool_size = p
@@ -54,37 +54,26 @@ def test_run(gcon):
 
     vectors = [[random.random() for _ in range(dimension)] for _ in range(step)]
 
-    print(f'Thread pool size................... {p}')
     thread_pool_add_vector(gmilvus, p, vectors)
 
     time.sleep(1.5)
-    _, gcount = gmilvus.count_table(table_name)
+    _, gcount = gmilvus.count_collection(table_name)
     print(gcount)
 
 
 def test_mult_insert():
-    def multi_thread_opr(table_name, utid):
-        print("[{}] | T{} | Running .....".format(datetime.datetime.now(), utid))
-
-        client0 = Milvus(handler="HTTP")
-
+    def multi_thread_opr(client, collection_name, utid):
         table_param = {
-            'table_name': table_name,
+            'collection_name': table_name,
             'dimension': 64
         }
 
         vectors = [[random.random() for _ in range(64)] for _ in range(10000)]
 
-        client0.connect()
-        client0.create_table(table_param)
+        client.connect()
+        client.create_collection(table_param)
 
-        # print("[{}] | T{} | O{} | Start insert data .....".format(datetime.datetime.now(), utid, i))
-        client0.insert(table_name, vectors)
-        # print("[{}] | T{} | O{} | Stop insert data .....".format(datetime.datetime.now(), utid, i))
-
-        client0.disconnect()
-
-        # print("[{}] | T{} | Stopping .....".format(datetime.datetime.now(), utid))
+        client.insert(table_name, vectors)
 
     thread_list = []
     for i in range(10):
