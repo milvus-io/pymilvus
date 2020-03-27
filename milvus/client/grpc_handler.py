@@ -325,7 +325,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
-    def create_table(self, table_name, dimension, index_file_size, metric_type, param, timeout=10):
+    def create_collection(self, table_name, dimension, index_file_size, metric_type, param, timeout=10):
         """
         Create table
 
@@ -366,7 +366,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
-    def has_table(self, table_name, timeout=10):
+    def has_collection(self, table_name, timeout=10):
         """
 
         This method is used to test table existence.
@@ -401,7 +401,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(code=e.code(), message=e.details()), False
 
-    def describe_table(self, table_name, timeout=10):
+    def describe_collection(self, table_name, timeout=10):
         """
         Show table information
 
@@ -441,7 +441,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
-    def count_table(self, table_name, timeout=30):
+    def count_collection(self, table_name, timeout=30):
         """
         obtain vector number in table
 
@@ -472,7 +472,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), None
 
-    def show_tables(self, timeout=10):
+    def show_collections(self, timeout=10):
         """
         Show all tables information in database
 
@@ -518,7 +518,7 @@ class GrpcHandler(ConnectIntf):
         except grpc.RpcError as e:
             return Status(Status.UNEXPECTED_ERROR, e.details()), None
 
-    def preload_table(self, table_name, timeout=None):
+    def preload_collection(self, table_name, timeout=None):
         """
         Load table to cache in advance
 
@@ -542,7 +542,7 @@ class GrpcHandler(ConnectIntf):
         except grpc.RpcError as e:
             return Status(code=e.code(), message='Error occurred. {}'.format(e.details()))
 
-    def drop_table(self, table_name, timeout=20):
+    def drop_collection(self, table_name, timeout=20):
         """
         Delete table with table_name
 
@@ -641,7 +641,7 @@ class GrpcHandler(ConnectIntf):
             if status.error_code == 0:
                 status = Status(message="Obtain vector successfully")
                 return status, \
-                       list(response.vector_data.float_data) or bytes(response.vector_data.binary_data)
+                       bytes(response.vector_data.binary_data) or list(response.vector_data.float_data)
 
             return Status(code=status.error_code, message=status.reason), []
         except grpc.FutureTimeoutError as e:
@@ -937,7 +937,7 @@ class GrpcHandler(ConnectIntf):
             status = Status(code=e.code(), message='Error occurred: {}'.format(e.details()))
             return status, []
 
-    def search_in_files(self, table_name, file_ids, query_records, top_k, params):
+    def search_in_files(self, table_name, file_ids, query_records, top_k, params, **kwargs):
         """
         Query vectors in a table, in specified files.
 
@@ -977,6 +977,14 @@ class GrpcHandler(ConnectIntf):
 
         try:
             self._search_file_hook.pre_search()
+
+            if kwargs.get("_async", False) is True:
+                timeout = kwargs.get("timeout", None)
+                future = self._stub.SearchInFiles.future(infos, timeout=timeout)
+
+                func = kwargs.get("_callback", None)
+                return SearchFuture(future, func)
+
             response = self._stub.SearchInFiles(infos)
             self._search_file_hook.aft_search()
 

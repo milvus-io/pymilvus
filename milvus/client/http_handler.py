@@ -190,7 +190,7 @@ class HttpHandler(ConnectIntf):
         return self._cmd("status", timeout)
 
     @timeout_error()
-    def create_table(self, table_name, dimension, index_file_size, metric_type, params, timeout):
+    def create_collection(self, table_name, dimension, index_file_size, metric_type, params, timeout):
         metric = MetricValue2NameMap.get(metric_type, None)
 
         table_param = {
@@ -214,7 +214,7 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     @timeout_error(returns=(False,))
-    def has_table(self, table_name, timeout):
+    def has_collection(self, table_name, timeout):
         url = self._uri + "/collections/" + table_name
         try:
             response = rq.get(url=url, timeout=timeout)
@@ -230,7 +230,7 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
     @timeout_error(returns=(None,))
-    def count_table(self, table_name, timeout):
+    def count_collection(self, table_name, timeout):
         url = self._uri + "/collections/{}".format(table_name)
 
         try:
@@ -245,7 +245,7 @@ class HttpHandler(ConnectIntf):
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
     @timeout_error(returns=(None,))
-    def describe_table(self, table_name, timeout):
+    def describe_collection(self, table_name, timeout):
         url = self._uri + "/collections/{}".format(table_name)
 
         response = rq.get(url, timeout=timeout)
@@ -269,7 +269,7 @@ class HttpHandler(ConnectIntf):
         return Status(Status(js["code"], js["message"])), None
 
     @timeout_error(returns=([],))
-    def show_tables(self, timeout):
+    def show_collections(self, timeout):
         url = self._uri + "/collections"
 
         response = rq.get(url, params={"offset": 0, "page_size": 0}, timeout=timeout)
@@ -292,7 +292,7 @@ class HttpHandler(ConnectIntf):
         return Status(), tables
 
     @timeout_error(returns=(None,))
-    def show_table_info(self, table_name, timeout=10):
+    def show_collection_info(self, table_name, timeout=10):
         url = self._uri + "/collections/{}?info=stat".format(table_name)
 
         response = rq.get(url, timeout=timeout)
@@ -310,7 +310,7 @@ class HttpHandler(ConnectIntf):
         return Status(Status.UNEXPECTED_ERROR, "Response is empty"), None
 
     @timeout_error()
-    def preload_table(self, table_name, timeout):
+    def preload_collection(self, table_name, timeout):
         url = self._uri + "/system/task"
         params = {"load": {"collection_name": table_name}}
         data = ujson.dumps(params)
@@ -325,7 +325,7 @@ class HttpHandler(ConnectIntf):
         return Status(code=js["code"], message=js["message"])
 
     @timeout_error()
-    def drop_table(self, table_name, timeout):
+    def drop_collection(self, table_name, timeout):
         url = self._uri + "/collections/" + table_name
         response = rq.delete(url, timeout=timeout)
         if response.status_code == 204:
@@ -365,7 +365,7 @@ class HttpHandler(ConnectIntf):
 
     @timeout_error(returns=(None,))
     def get_vector_by_id(self, table_name, v_id, timeout):
-        status, table_schema = self.describe_table(table_name, timeout)
+        status, table_schema = self.describe_collection(table_name, timeout)
         if not status.OK():
             return status, None
         metric = table_schema.metric_type

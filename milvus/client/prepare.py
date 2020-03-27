@@ -111,7 +111,7 @@ class Prepare:
     @classmethod
     def search_vector_in_files_param(cls, table_name, query_records, topk, ids, params):
         _search_param = Prepare.search_param(table_name, topk, query_records,
-                                             partitions=[], params=params)
+                                             partitions=None, params=params)
 
         return grpc_types.SearchInFilesParam(
             file_id_array=ids,

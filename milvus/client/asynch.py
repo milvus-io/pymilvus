@@ -39,6 +39,7 @@ class Future(AbstractFuture):
         self._future = future
         self._done_cb = done_callback
         self._condition = threading.Condition()
+        self._canceled = False
         self._done = False
         self._response = None
 
@@ -61,7 +62,12 @@ class Future(AbstractFuture):
                 self._response = future.result()
 
                 # If user specify done callback function, execute it.
-                self._done_cb and self._done_cb(*self.on_response(self._response))
+                if self._done_cb:
+                    results = self.on_response(self._response)
+                    if isinstance(results, tuple):
+                        self._done_cb(*self.on_response(self._response))
+                    else:
+                        self._done_cb(self.on_response(self._response))
                 self._done = True
                 self._condition.notify_all()
 
@@ -84,12 +90,14 @@ class Future(AbstractFuture):
 
     def cancel(self):
         with self._condition:
-            if not self._done:
+            if not self._canceled or self._done:
                 self._future.cancel()
+                self._canceled = True
+            self._condition.notify_all()
 
     def done(self):
         with self._condition:
-            if not self._done:
+            if not (self._canceled or self._done):
                 self._condition.wait()
 
             self._condition.notify_all()
@@ -115,5 +123,4 @@ class InsertFuture(Future):
 
 class CreateIndexFuture(Future):
     def on_response(self, response):
-        status = response.status
-        return Status(code=status.error_code, message=status.reason)
+        return Status(code=response.error_code, message=response.reason)

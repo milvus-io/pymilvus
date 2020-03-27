@@ -155,9 +155,6 @@ def is_legal_topk(topk):
 
 
 def is_legal_ids(ids):
-    if ids is None:
-        return True
-
     if not isinstance(ids, list) or \
             len(ids) == 0:
         return False
@@ -203,7 +200,7 @@ def is_legal_date_range(start, end):
 
 
 def is_legal_partition_tag(tag):
-    return tag is None or isinstance(tag, str)
+    return isinstance(tag, str)
 
 
 def is_legal_partition_tag_array(tag_array):

@@ -54,7 +54,6 @@ class ConnectionPool:
         with self._condition:
             if self._used_conn < self._pool_size:
                 self._used_conn = self._used_conn + 1
-                print("inc used, used conn is ", self._used_conn)
                 return True
 
             return False

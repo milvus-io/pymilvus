@@ -356,6 +356,18 @@ class IndexParam:
                      for key, value in self.__dict__.items()]
         return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
+    @property
+    def collection_name(self):
+        return self._collection_name
+
+    @property
+    def index_type(self):
+        return self._index_type
+
+    @property
+    def params(self):
+        return self._params
+
 
 class PartitionParam:
 

@@ -16,6 +16,7 @@ from .exceptions import ParamError, NotConnectError
 
 from ..settings import DefaultConfig as config
 
+
 # def check_connect(f):
 #     @functools.wraps(f)
 #     def wrapper(self, *args, **kwargs):
@@ -35,10 +36,11 @@ class Milvus:
         self._host = host
         self._port = port
         self._uri = kwargs.get('uri', None)
-        
+
         # create connection pool
         _url = self._set_uri(host, port, self._uri, handler)
         self._pool = ConnectionPool(_url)
+
     #
     # def __new__(cls, *args, **kwargs):
     #     if not hasattr(cls, '_instance'):
@@ -53,7 +55,7 @@ class Milvus:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._handler.__exit__(exc_type, exc_val, exc_tb)
-        
+
     def _set_uri(self, host, port, uri, handler="GRPC"):
         default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
         default_uri = config.GRPC_URI if handler == "GRPC" else config.HTTP_URI
@@ -85,10 +87,10 @@ class Milvus:
             raise ParamError("host or port is illeagl")
 
         return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
-        
+
     def _get_connection(self):
         return self._pool.fetch()
-    
+
     def _put_connection(self, conn):
         self._pool.release(conn)
 
@@ -202,7 +204,7 @@ class Milvus:
 
         conn = self._get_connection()
         try:
-            return conn.create_table(collection_name, dim, index_file_size, metric_type, collection_param)
+            return conn.create_collection(collection_name, dim, index_file_size, metric_type, collection_param)
         except:
             raise
         finally:
@@ -228,7 +230,7 @@ class Milvus:
         conn = self._get_connection()
         try:
             print("Connection number: ------>", conn.conn_id())
-            return conn.has_table(collection_name, timeout)
+            return conn.has_collection(collection_name, timeout)
         except:
             raise
         finally:
@@ -251,7 +253,7 @@ class Milvus:
 
         conn = self._get_connection()
         try:
-            return conn.describe_table(collection_name, timeout)
+            return conn.describe_collection(collection_name, timeout)
         except:
             raise
         finally:
@@ -274,7 +276,7 @@ class Milvus:
 
         conn = self._get_connection()
         try:
-            return conn.count_table(collection_name, timeout)
+            return conn.count_collection(collection_name, timeout)
         except:
             raise
         finally:
@@ -295,7 +297,7 @@ class Milvus:
         """
         conn = self._get_connection()
         try:
-            return conn.show_tables(timeout)
+            return conn.show_collections(timeout)
         except:
             raise
         finally:
@@ -306,7 +308,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name)
         conn = self._get_connection()
         try:
-            return conn.show_table_info(collection_name, timeout)
+            return conn.show_collection_info(collection_name, timeout)
         except:
             raise
         finally:
@@ -327,7 +329,7 @@ class Milvus:
 
         conn = self._get_connection()
         try:
-            return conn.preload_table(collection_name, timeout)
+            return conn.preload_collection(collection_name, timeout)
         except:
             raise
         finally:
@@ -348,7 +350,7 @@ class Milvus:
 
         conn = self._get_connection()
         try:
-            return conn.drop_table(collection_name, timeout)
+            return conn.drop_collection(collection_name, timeout)
         except:
             raise
         finally:
@@ -391,8 +393,9 @@ class Milvus:
             if kwargs.get("insert_param", None) is not None:
                 return conn.insert(None, None, **kwargs)
 
-            check_pass_param(collection_name=collection_name, records=records,
-                             ids=ids, partition_tag=partition_tag)
+            check_pass_param(collection_name=collection_name, records=records)
+            partition_tag is not None and check_pass_param(partition_tag=partition_tag)
+            ids is not None and check_pass_param(ids=ids)
 
             if ids is not None and len(records) != len(ids):
                 raise ParamError("length of vectors do not match that of ids")
@@ -632,7 +635,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name, topk=top_k,
                          records=query_records, partition_tag_array=partition_tags)
 
-        params = params or dict()
+        params = dict() if params is None else params
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
@@ -645,7 +648,7 @@ class Milvus:
             conn.close()
 
     # @check_connect
-    def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None):
+    def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None, **kwargs):
         """
         Searches for vectors in specific files of a collection.
 
@@ -675,16 +678,16 @@ class Milvus:
 
         :rtype: (Status, TopKQueryResult)
         """
-        check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
+        check_pass_param(collection_name=collection_name, topk=top_k, records=query_records, ids=file_ids)
 
-        params = params or dict()
+        params = dict() if params is None else params
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
         conn = self._get_connection()
         try:
             return conn.search_in_files(collection_name, file_ids,
-                                                 query_records, top_k, params)
+                                        query_records, top_k, params, **kwargs)
         except:
             raise
         finally:
