@@ -8,6 +8,7 @@
 - \#170 - add index RNSG into HTTP handler
 - \#171 - add two new binary metric: SUBSTRUCTURE and SUPERSTRUCTURE
 
+
 # pymilvus 0.2.8(2020-03-11)
 
 ## Bug
