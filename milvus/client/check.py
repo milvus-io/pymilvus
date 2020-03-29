@@ -44,9 +44,9 @@ def is_legal_vector(array):
             len(array) == 0:
         return False
 
-    for v in array:
-        if not isinstance(v, float):
-            return False
+    # for v in array:
+    #     if not isinstance(v, float):
+    #         return False
 
     return True
 
@@ -79,11 +79,12 @@ def is_legal_records(value):
 
     if isinstance(value[0], bytes):
         check_func = is_legal_bin_vector
-    else:
+    elif isinstance(value[0], list):
         check_func = is_legal_vector
+    else:
+        raise param_error
 
     _dim = len(value[0])
-
     for record in value:
         if not check_func(record):
             raise param_error
@@ -146,11 +147,11 @@ def is_legal_table_name(table_name):
 
 
 def is_legal_nlist(nlist):
-    return isinstance(nlist, int)
+    return not isinstance(nlist, bool) and isinstance(nlist, int)
 
 
 def is_legal_topk(topk):
-    return isinstance(topk, int)
+    return not isinstance(topk, bool) and isinstance(topk, int)
 
 
 def is_legal_ids(ids):
@@ -167,12 +168,6 @@ def is_legal_ids(ids):
             return False
 
     return True
-
-
-# return ids is None or \
-#        (isinstance(ids, list) and
-#         len(ids) > 0 and
-#         isinstance(ids[0], int))
 
 
 def is_legal_nprobe(nprobe):

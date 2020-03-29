@@ -1,4 +1,4 @@
-# pymilvus 0.2.9(TBD)
+# pymilvus 0.2.9(2020-03-29)
 
 ## Bug
 - \#168 - fix incorrect demo in readme
