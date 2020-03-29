@@ -3,9 +3,31 @@
 import queue
 import threading
 import time
+from collections import defaultdict
+
 from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from milvus.client.exceptions import ConnectionPoolError
+
+
+class Duration:
+    def __init__(self):
+        self.start_ts = time.time()
+        self.end_ts = None
+
+    def stop(self):
+        if self.end_ts:
+            return False
+
+        self.end_ts = time.time()
+        return True
+
+    @property
+    def value(self):
+        if not self.end_ts:
+            return None
+
+        return self.end_ts - self.start_ts
 
 
 class ConnectionRecord:
@@ -28,9 +50,6 @@ class ConnectionRecord:
         else:
             raise ValueError("Unknown handler type. Use GRPC or HTTP")
 
-    # def __getattr__(self, item):
-    #     getattr(self.connection(), item)
-
     def connection(self):
         ''' Return a available connection. If connection is out-of-date,
         return new one.
@@ -41,14 +60,20 @@ class ConnectionRecord:
 
 class ConnectionPool:
     def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, **kwargs):
+        # Asynchronous queue to store connection
         self._pool = queue.Queue()
         self._uri = uri
         self._pool_size = pool_size
         self._recycle = recycle
         self._wait_timeout = wait_timeout
+
+        # Record used connection number.
         self._used_conn = 0
         self._condition = threading.Condition()
         self._kw = kwargs
+
+        #
+        self.durations = defaultdict(list)
 
     def _inc_used(self):
         with self._condition:
@@ -66,7 +91,6 @@ class ConnectionPool:
             return True
 
     def _full(self):
-        # When pool is full, all of connection are occupied.
         with self._condition:
             return self._used_conn >= self._pool_size
 
@@ -85,9 +109,35 @@ class ConnectionPool:
 
         return self.fetch(block=True)
 
+    def record_duration(self, conn, duration):
+        if len(self.durations[conn]) >= 10000:
+            self.durations[conn].pop(0)
+
+        self.durations[conn].append(duration)
+
+    def stats(self):
+        out = {'connections': {}}
+        connections = out['connections']
+        take_time = []
+        for conn, durations in self.durations.items():
+            total_time = sum(d.value for d in durations)
+            connections[id(conn)] = {
+                'total_time': total_time,
+                'called_times': len(durations)
+            }
+            take_time.append(total_time)
+
+        out['max-time'] = max(take_time)
+        out['num'] = len(self.durations)
+        return out
+
     def count(self):
         with self._condition:
-            return self._pool.qsize() + self._used_conn
+            return self._used_conn
+
+    def activate_count(self):
+        with self._condition:
+            return self._used_conn - self._pool.qsize()
 
     def fetch(self, block=False):
         if self._empty():
@@ -106,10 +156,8 @@ class ConnectionPool:
         return self._inc_connection()
 
     def release(self, conn):
-        # Blocking put
         try:
             self._pool.put(conn, False)
-            # self._dec_used()
         except queue.Full:
             pass
 
@@ -118,6 +166,7 @@ class ScopedConnection:
     def __init__(self, pool, connection):
         self._pool = pool
         self._connection = connection
+        self._duration = Duration()
         self._closed = False
 
     def __getattr__(self, item):
@@ -140,6 +189,9 @@ class ScopedConnection:
         return self._connection._conn_id
 
     def close(self):
+        self._duration.stop()
         self._connection and self._pool.release(self._connection)
         self._connection = None
+        self._pool.record_duration(self._connection, self._duration)
+        self._duration = None
         self._closed = True

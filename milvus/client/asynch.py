@@ -62,14 +62,18 @@ class Future(AbstractFuture):
                 self._response = future.result()
 
                 # If user specify done callback function, execute it.
-                if self._done_cb:
-                    results = self.on_response(self._response)
-                    if isinstance(results, tuple):
-                        self._done_cb(*self.on_response(self._response))
-                    else:
-                        self._done_cb(self.on_response(self._response))
-                self._done = True
-                self._condition.notify_all()
+                try:
+                    if self._done_cb:
+                        results = self.on_response(self._response)
+                        if isinstance(results, tuple):
+                            self._done_cb(*self.on_response(self._response))
+                        else:
+                            self._done_cb(self.on_response(self._response))
+                    self._done = True
+                except:
+                    raise
+                finally:
+                    self._condition.notify_all()
 
         self._future.add_done_callback(async_done_callback)
 
