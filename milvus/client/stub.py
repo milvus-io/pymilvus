@@ -285,7 +285,7 @@ class Milvus:
         return self._handler.drop_table(collection_name, timeout)
 
     @check_connect
-    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, timeout=-1):
+    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, **kwargs):
         """
         Insert vectors to a collection.
 
@@ -316,6 +316,9 @@ class Milvus:
             ids: IDs of the inserted vectors.
         :rtype: (Status, list(int))
         """
+        if kwargs.get("insert_param", None) is not None:
+            return self._handler.insert(None, None, **kwargs)
+
         check_pass_param(collection_name=collection_name, records=records,
                          ids=ids, partition_tag=partition_tag)
 
@@ -326,7 +329,7 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
-        return self._handler.insert(collection_name, records, ids, partition_tag, params, timeout)
+        return self._handler.insert(collection_name, records, ids, partition_tag, params, None, **kwargs)
 
     @check_connect
     def get_vector_by_id(self, collection_name, vector_id, timeout=None):
@@ -565,7 +568,7 @@ class Milvus:
         :param collection_name: Name of one or multiple collections to flush.
 
         """
-        if collection_name_array is None:
+        if collection_name_array in (None, []):
             return self._handler.flush([])
 
         if not isinstance(collection_name_array, list):

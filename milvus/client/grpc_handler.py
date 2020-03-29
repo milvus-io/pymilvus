@@ -340,7 +340,7 @@ class GrpcHandler(ConnectIntf):
         try:
             status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
             if status.error_code == 0:
-                return Status(message='Create table successfully!')
+                return Status(message='Create collection successfully!')
 
             LOGGER.error(status)
             return Status(code=status.error_code, message=status.reason)
@@ -529,7 +529,7 @@ class GrpcHandler(ConnectIntf):
         try:
             status = self._stub.DropTable.future(table_name).result(timeout=timeout)
             if status.error_code == 0:
-                return Status(message='Delete table successfully!')
+                return Status(message='Delete collection successfully!')
             return Status(code=status.error_code, message=status.reason)
         except grpc.FutureTimeoutError as e:
             LOGGER.error(e)
@@ -538,7 +538,7 @@ class GrpcHandler(ConnectIntf):
             LOGGER.error(e)
             return Status(e.code(), message='Error occurred: {}'.format(e.details()))
 
-    def insert(self, table_name, records, ids=None, partition_tag=None, params=None, timeout=-1, **kwargs):
+    def insert(self, table_name, records, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
         """
         Add vectors to table
 
@@ -573,17 +573,14 @@ class GrpcHandler(ConnectIntf):
         """
         insert_param = kwargs.get('insert_param', None)
 
-        if insert_param and not isinstance(insert_param, milvus_pb2_grpc.InsertParam):
+        if insert_param and not isinstance(insert_param, grpc_types.InsertParam):
             raise ParamError("The value of key 'insert_param' is invalid")
 
         body = insert_param if insert_param \
             else Prepare.insert_param(table_name, records, partition_tag, ids, params)
 
         try:
-            if timeout == -1:
-                response = self._stub.Insert(body)
-            else:
-                response = self._stub.Insert.future(body).result(timeout=timeout)
+            response = self._stub.Insert.future(body).result(timeout=timeout)
 
             if response.status.error_code == 0:
                 return Status(message='Add vectors successfully!'), list(response.vector_id_array)
@@ -923,7 +920,7 @@ class GrpcHandler(ConnectIntf):
         """
 
         file_ids = list(map(int_or_str, file_ids))
-
+        # import pdb;pdb.set_trace()
         infos = Prepare.search_vector_in_files_param(
             table_name, query_records, top_k, file_ids, params
         )

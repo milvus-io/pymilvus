@@ -125,13 +125,6 @@ class Prepare:
         return grpc_types.Command(cmd=cmd)
 
     @classmethod
-    def delete_param(cls, table_name, start_date, end_date):
-
-        range_ = Prepare.range(start_date, end_date)
-
-        return grpc_types.DeleteByDateParam(range=range_, table_name=table_name)
-
-    @classmethod
     def partition_param(cls, table_name, tag):
 
         return grpc_types.PartitionParam(table_name=table_name, tag=tag)

@@ -88,6 +88,9 @@ class MetricType(IntEnum):
     HAMMING = 3
     JACCARD = 4
     TANIMOTO = 5
+    #
+    SUBSTRUCTURE = 6
+    SUPERSTRUCTURE = 7
 
     def __repr__(self):
         return "<{}: {}>".format(self.__class__.__name__, self._name_)

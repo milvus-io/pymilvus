@@ -24,6 +24,7 @@ IndexValue2NameMap = {
     IndexType.IVF_SQ8: "IVFSQ8",
     IndexType.IVF_SQ8H: "IVFSQ8H",
     IndexType.IVF_PQ: "IVFPQ",
+    IndexType.RNSG: "RNSG",
     IndexType.HNSW: "HNSW"
 }
 
@@ -34,6 +35,7 @@ IndexName2ValueMap = {
     "IVFSQ8": IndexType.IVF_SQ8,
     "IVFSQ8H": IndexType.IVF_SQ8H,
     "IVFPQ": IndexType.IVF_PQ,
+    "RNSG": IndexType.RNSG,
     "HNSW": IndexType.HNSW
 }
 
@@ -43,6 +45,8 @@ MetricValue2NameMap = {
     MetricType.HAMMING: "HAMMING",
     MetricType.JACCARD: "JACCARD",
     MetricType.TANIMOTO: "TANIMOTO",
+    MetricType.SUBSTRUCTURE: "SUBSTRUCTURE",
+    MetricType.SUPERSTRUCTURE: "SUPERSTRUCTURE"
 }
 
 MetricName2ValueMap = {
@@ -51,6 +55,8 @@ MetricName2ValueMap = {
     "HAMMING": MetricType.HAMMING,
     "JACCARD": MetricType.JACCARD,
     "TANIMOTO": MetricType.TANIMOTO,
+    "SUBSTRUCTURE": MetricType.SUBSTRUCTURE,
+    "SUPERSTRUCTURE": MetricType.SUPERSTRUCTURE
 }
 
 
@@ -387,7 +393,7 @@ class HttpHandler(ConnectIntf):
         result = response.json()
 
         if response.status_code == 200:
-            return Status(), list(result["ids"])
+            return Status(), list(map(int, result["ids"]))
 
         return Status(result["code"], result["message"]), None
 
@@ -547,13 +553,14 @@ class HttpHandler(ConnectIntf):
     def delete_by_id(self, table_name, id_array, timeout=None):
         url = self._uri + "/collections/{}/vectors".format(table_name)
         headers = {"Content-Type": "application/json"}
-        ids = map(str, id_array)
+        ids = list(map(str, id_array))
         request = {"delete": {"ids": ids}}
 
-        response = rq.put(url, ujson.dumps(request), headers=headers, timeout=timeout)
+        response = rq.put(url, data=ujson.dumps(request), headers=headers, timeout=timeout)
         result = response.json()
         return Status(result["code"], result["message"])
 
+    @timeout_error()
     def flush(self, table_name_array):
         url = self._uri + "/system/task"
         headers = {"Content-Type": "application/json"}
@@ -563,6 +570,7 @@ class HttpHandler(ConnectIntf):
         result = response.json()
         return Status(result["code"], result["message"])
 
+    @timeout_error()
     def compact(self, table_name, timeout):
         url = self._uri + "/system/task"
         headers = {"Content-Type": "application/json"}
