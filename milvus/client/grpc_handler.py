@@ -920,7 +920,6 @@ class GrpcHandler(ConnectIntf):
         """
 
         file_ids = list(map(int_or_str, file_ids))
-        # import pdb;pdb.set_trace()
         infos = Prepare.search_vector_in_files_param(
             table_name, query_records, top_k, file_ids, params
         )
