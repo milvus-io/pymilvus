@@ -25,7 +25,8 @@ IndexValue2NameMap = {
     IndexType.IVF_SQ8H: "IVFSQ8H",
     IndexType.IVF_PQ: "IVFPQ",
     IndexType.RNSG: "RNSG",
-    IndexType.HNSW: "HNSW"
+    IndexType.HNSW: "HNSW",
+    IndexType.ANNOY: "ANNOY"
 }
 
 IndexName2ValueMap = {
@@ -36,7 +37,8 @@ IndexName2ValueMap = {
     "IVFSQ8H": IndexType.IVF_SQ8H,
     "IVFPQ": IndexType.IVF_PQ,
     "RNSG": IndexType.RNSG,
-    "HNSW": IndexType.HNSW
+    "HNSW": IndexType.HNSW,
+    "ANNOY": IndexType.ANNOY
 }
 
 MetricValue2NameMap = {
