@@ -68,6 +68,7 @@ class IndexType(IntEnum):
     IVF_SQ8H = 5
     IVF_PQ = 6
     HNSW = 11
+    ANNOY = 12
 
     # alternative name
     IVF_FLAT = IVFLAT
