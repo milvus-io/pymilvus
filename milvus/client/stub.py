@@ -529,6 +529,7 @@ class Milvus:
         :param query_records: all vectors going to be queried
 
         :param query_ranges: Optional ranges for conditional search.
+
             If not specified, search in the whole table
 
         :type  top_k: int

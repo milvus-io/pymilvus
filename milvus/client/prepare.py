@@ -76,7 +76,7 @@ class Prepare:
         return _param
 
     @classmethod
-    def search_param(cls, table_name, topk, query_records, partitions, params):
+    def search_param(cls, table_name, topk, query_records, partitions, params, identity=None):
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
@@ -93,6 +93,7 @@ class Prepare:
         params = params or dict()
         params_str = ujson.dumps(params)
         search_param.extra_params.add(key="params", value=params_str)
+        search_param.extra_params.add(key="identity", value=identity)
 
         return search_param
 
