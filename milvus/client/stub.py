@@ -17,19 +17,7 @@ from .exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
 
 
-# def check_connect(f):
-#     @functools.wraps(f)
-#     def wrapper(self, *args, **kwargs):
-#         if not self.connected():
-#             raise NotConnectError('Please connect to the server first')
-# 
-#         return f(self, *args, **kwargs)
-# 
-#     return wrapper
-
-
 class Milvus:
-    _instance_lock = threading.Lock()
 
     def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
         self._handler = handler
@@ -41,20 +29,13 @@ class Milvus:
         _url = self._set_uri(host, port, self._uri, handler)
         self._pool = ConnectionPool(_url)
 
-    #
-    # def __new__(cls, *args, **kwargs):
-    #     if not hasattr(cls, '_instance'):
-    #         with cls._instance_lock:  # 加锁
-    #             cls._instance = super(Milvus, cls).__new__(cls, *args, **kwargs)
-    #     return cls._instance
-
     def __enter__(self):
-        self._handler.__enter__()
-
-        return self
+        self.__conn = self._get_connection()
+        return self.__conn
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._handler.__exit__(exc_type, exc_val, exc_tb)
+        self.__conn.close()
+        self.__conn = None
 
     def _set_uri(self, host, port, uri, handler="GRPC"):
         default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
@@ -84,7 +65,7 @@ class Milvus:
                              "\t(uri = ${URI})\n")
 
         if not is_legal_host(_host) or not is_legal_port(_port):
-            raise ParamError("host or port is illeagl")
+            raise ParamError("host or port is illegal")
 
         return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
 
@@ -92,7 +73,8 @@ class Milvus:
         return self._pool.fetch()
 
     def _put_connection(self, conn):
-        self._pool.release(conn)
+        conn.release()
+        # self._pool.release(conn)
 
     def set_hook(self, **kwargs):
         # TODO: may remove it. 
@@ -116,7 +98,6 @@ class Milvus:
         """
         return __version__
 
-    # @check_connect
     def server_status(self, timeout=10):
         """
         Returns the status of the Milvus server.
@@ -130,7 +111,6 @@ class Milvus:
         """
         return self._cmd("status", timeout)
 
-    # @check_connect
     def server_version(self, timeout=10):
         """
        Returns the version of the Milvus server.
@@ -145,7 +125,6 @@ class Milvus:
 
         return self._cmd("version", timeout)
 
-    # @check_connect
     def _cmd(self, cmd, timeout=10):
         check_pass_param(cmd=cmd)
 
@@ -157,7 +136,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def create_collection(self, param, timeout=10):
         """
         Creates a collection.
@@ -210,7 +188,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def has_collection(self, collection_name, timeout=10):
         """
 
@@ -236,7 +213,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def describe_collection(self, collection_name, timeout=10):
         """
         Returns information of a collection.
@@ -259,7 +235,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def count_collection(self, collection_name, timeout=10):
         """
         Returns the number of vectors in a collection.
@@ -282,7 +257,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def show_collections(self, timeout=10):
         """
         Returns information of all collections.
@@ -303,7 +277,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def collection_info(self, collection_name, timeout=10):
         check_pass_param(collection_name=collection_name)
         conn = self._get_connection()
@@ -314,7 +287,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def preload_collection(self, collection_name, timeout=None):
         """
         Loads a collection for caching.
@@ -335,7 +307,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def drop_collection(self, collection_name, timeout=10):
         """
         Deletes a collection by name.
@@ -356,7 +327,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, **kwargs):
         """
         Insert vectors to a collection.
@@ -410,7 +380,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def get_vector_by_id(self, collection_name, vector_id, timeout=None):
         check_pass_param(collection_name=collection_name, ids=[vector_id])
 
@@ -422,7 +391,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def get_vector_ids(self, collection_name, segment_name, timeout=None):
         check_pass_param(collection_name=collection_name)
         check_pass_param(collection_name=segment_name)
@@ -435,7 +403,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def create_index(self, collection_name, index_type=None, params=None, timeout=None, **kwargs):
         """
         Creates index for a collection.
@@ -474,7 +441,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def describe_index(self, collection_name, timeout=10):
         """
         Show index information of a collection.
@@ -497,7 +463,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def drop_index(self, collection_name, timeout=10):
         """
         Removes an index.
@@ -520,7 +485,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def create_partition(self, collection_name, partition_tag, timeout=10):
         """
         create a partition for a collection. 
@@ -551,7 +515,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def show_partitions(self, collection_name, timeout=10):
         """
         Show all partitions in a collection.
@@ -577,7 +540,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def drop_partition(self, collection_name, partition_tag, timeout=10):
         """
         Deletes a partition in a collection.
@@ -605,7 +567,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
         """
         Search vectors in a collection.
@@ -647,7 +608,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None, **kwargs):
         """
         Searches for vectors in specific files of a collection.
@@ -693,7 +653,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def delete_by_id(self, collection_name, id_array, timeout=None):
         """
         Deletes vectors in a collection by vector ID.
@@ -709,7 +668,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def flush(self, collection_name_array=None):
         """
         Flushes vector data in one collection or multiple collections to disk.
@@ -739,7 +697,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def compact(self, collection_name, timeout=None):
         """
         Compacts segments in a collection. This function is recommended after deleting vectors.
@@ -758,7 +715,6 @@ class Milvus:
         finally:
             conn.close()
 
-    # @check_connect
     def get_config(self, parent_key, child_key):
         """
         Gets Milvus configurations.
@@ -768,7 +724,6 @@ class Milvus:
 
         return self._cmd(cmd)
 
-    # @check_connect
     def set_config(self, parent_key, child_key, value):
         """
         Sets Milvus configurations.

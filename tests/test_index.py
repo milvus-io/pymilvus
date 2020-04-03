@@ -16,7 +16,8 @@ class TestCreateIndex:
                                              (IndexType.IVF_PQ, {"m": 12, "nlist": 1024}),
                                              (IndexType.HNSW, {"M": 16, "efConstruction": 500}),
                                              (IndexType.RNSG, {"search_length": 45, "out_degree": 50,
-                                                               "candidate_pool_size": 300, "knng": 100})])
+                                                               "candidate_pool_size": 300, "knng": 100}),
+                                             (IndexType.ANNOY, {})])
     def test_create_index_whole(self, index, param, gcon, gvector):
         status, mode = gcon._cmd("mode")
         assert status.OK()

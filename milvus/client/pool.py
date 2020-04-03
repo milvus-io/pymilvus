@@ -172,6 +172,9 @@ class ScopedConnection:
     def __getattr__(self, item):
         return getattr(self.client(), item)
 
+    def __enter__(self):
+        return self
+
     def __del__(self):
         self.close()
 
@@ -189,9 +192,10 @@ class ScopedConnection:
         return self._connection._conn_id
 
     def close(self):
-        self._duration.stop()
         self._connection and self._pool.release(self._connection)
         self._connection = None
-        self._pool.record_duration(self._connection, self._duration)
+        if self._duration:
+            self._duration.stop()
+            self._pool.record_duration(self._connection, self._duration)
         self._duration = None
         self._closed = True

@@ -942,7 +942,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def flush(self, table_name_array, timeout, **kwargs):
+    def flush(self, table_name_array, timeout=None, **kwargs):
         request = Prepare.flush_param(table_name_array)
         future = self._stub.Flush.future(request, timeout=timeout)
         if kwargs.get("_async", False):
