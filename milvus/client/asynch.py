@@ -128,3 +128,13 @@ class InsertFuture(Future):
 class CreateIndexFuture(Future):
     def on_response(self, response):
         return Status(code=response.error_code, message=response.reason)
+
+
+class CompactFuture(Future):
+    def on_response(self, response):
+        return Status(code=response.error_code, message=response.reason)
+
+
+class FlushFuture(Future):
+    def on_response(self, response):
+        return Status(code=response.error_code, message=response.reason)

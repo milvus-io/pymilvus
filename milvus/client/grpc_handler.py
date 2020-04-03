@@ -17,7 +17,7 @@ from .check import (
     is_legal_port,
 )
 
-from .asynch import SearchFuture, InsertFuture, CreateIndexFuture
+from .asynch import SearchFuture, InsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
 
 from .hooks import BaseSearchHook
 from .client_hooks import SearchHook
@@ -41,6 +41,7 @@ def error_handler(*rargs):
                 LOGGER.error(e)
                 status = Status(e.code(), message='Error occurred. {}'.format(e.details()))
                 return tuple([status]) + rargs
+
         return handler
 
     return wrapper
@@ -941,16 +942,23 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def flush(self, table_name_array):
+    def flush(self, table_name_array, timeout, **kwargs):
         request = Prepare.flush_param(table_name_array)
-
-        response = self._stub.Flush(request)
+        future = self._stub.Flush.future(request, timeout=timeout)
+        if kwargs.get("_async", False):
+            cb = kwargs.get("_callback", None)
+            return FlushFuture(future, cb)
+        response = future.result(timeout=timeout)
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler()
-    def compact(self, table_name, timeout):
+    def compact(self, table_name, timeout, **kwargs):
         request = Prepare.compact_param(table_name)
-        response = self._stub.Compact(request)
+        future = self._stub.Compact.future(request, timeout=timeout)
+        if kwargs.get("_async", False):
+            cb = kwargs.get("_callback", None)
+            return CompactFuture(future, cb)
+        response = future.result(timeout=timeout)
         return Status(code=response.error_code, message=response.reason)
 
     def set_config(self, parent_key, child_key, value):
