@@ -26,3 +26,9 @@ class ConnectionPoolError(ConnectError):
     """
     Waiting timeout error
     """
+
+
+class DeprecatedError(AttributeError):
+    """
+    API is deprecated
+    """

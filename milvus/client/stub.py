@@ -17,17 +17,34 @@ from .exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
 
 
+def _extract_pool_kw(kw):
+    pool_keys = ["pre_ping", "recycle", "pool_size", "wait_timeout"]
+    pool_kw = dict()
+    for k in pool_keys:
+        if k in kw.keys():
+            pool_kw[k] = kw.get(k)
+
+    return pool_kw
+
+
 class Milvus:
 
     def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
+        self._name = kwargs.get('name', None)
         self._handler = handler
         self._host = host
         self._port = port
         self._uri = kwargs.get('uri', None)
 
+        # store extra key-words arguments
+        self._kw = kwargs
+
         # create connection pool
         _url = self._set_uri(host, port, self._uri, handler)
-        self._pool = ConnectionPool(_url)
+
+        ##
+        pool_kw = _extract_pool_kw(kwargs)
+        self._pool = ConnectionPool(_url, **pool_kw)
 
     def __enter__(self):
         self.__conn = self._get_connection()
@@ -36,6 +53,11 @@ class Milvus:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.__conn.close()
         self.__conn = None
+
+    def __getattr__(self, item):
+        if item in self._kw.keys():
+            return self._kw.get(item, None)
+        raise AttributeError("Attribute {} not exists".format(item))
 
     def _set_uri(self, host, port, uri, handler="GRPC"):
         default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
@@ -83,6 +105,10 @@ class Milvus:
     @property
     def status(self):
         return self._handler.status
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def handler(self):
@@ -206,7 +232,6 @@ class Milvus:
         check_pass_param(collection_name=collection_name)
         conn = self._get_connection()
         try:
-            print("Connection number: ------>", conn.conn_id())
             return conn.has_collection(collection_name, timeout)
         except:
             raise
