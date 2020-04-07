@@ -755,7 +755,7 @@ class TestBuildIndex:
 
 
 class TestCmd:
-    versions = ("0.5.3", "0.6.0", "0.7.0")
+    versions = ("0.7.1", "0.8.0")
 
     def test_client_version(self, gcon):
         try:

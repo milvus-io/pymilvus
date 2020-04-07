@@ -896,17 +896,13 @@ class GrpcHandler(ConnectIntf):
 
         """
 
-        iden = params.pop("identity", None)
-        request = Prepare.search_param(table_name, top_k, query_records, partition_tags, params, identity=iden)
+        request = Prepare.search_param(table_name, top_k, query_records, partition_tags, params)
 
         try:
             self._search_hook.pre_search()
-            print("[{}] | [{}] | [{}] | [milvus] Start search ...".format(datetime.datetime.now(), os.getpid(), iden))
             ft = self._stub.Search.future(request)
-            print("[{}] | [{}] | [{}] | [milvus] Obtain search result ...".format(datetime.datetime.now(), os.getpid(), iden))
             response = ft.result()
             ft.__del__()
-            print("[{}] | [{}] | [{}] | [milvus] Search done.".format(datetime.datetime.now(), os.getpid(), iden))
             self._search_hook.aft_search()
 
             if self._search_hook.on_response():

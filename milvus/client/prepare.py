@@ -42,7 +42,6 @@ class Prepare:
 
     @classmethod
     def insert_param(cls, table_name, vectors, partition_tag, ids=None, params=None, **kwargs):
-
         if ids is None:
             _param = grpc_types.InsertParam(table_name=table_name, partition_tag=partition_tag)
         else:
@@ -76,7 +75,7 @@ class Prepare:
         return _param
 
     @classmethod
-    def search_param(cls, table_name, topk, query_records, partitions, params, identity=None):
+    def search_param(cls, table_name, topk, query_records, partitions, params):
 
         search_param = grpc_types.SearchParam(
             table_name=table_name,
@@ -93,7 +92,6 @@ class Prepare:
         params = params or dict()
         params_str = ujson.dumps(params)
         search_param.extra_params.add(key="params", value=params_str)
-        search_param.extra_params.add(key="identity", value=identity)
 
         return search_param
 
