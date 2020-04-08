@@ -28,7 +28,6 @@ def _extract_pool_kw(kw):
 
 
 class Milvus:
-
     def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
         self._name = kwargs.get('name', None)
         self._handler = handler
@@ -100,11 +99,13 @@ class Milvus:
 
     def set_hook(self, **kwargs):
         # TODO: may remove it. 
-        return self._handler.set_hook(**kwargs)
+        # return self._handler.set_hook(**kwargs)
+        pass
 
-    @property
-    def status(self):
-        return self._handler.status
+    # @property
+    # def status(self):
+    #     return self._handler.status
+        # pass
 
     @property
     def name(self):
@@ -113,6 +114,24 @@ class Milvus:
     @property
     def handler(self):
         return self._handler
+
+    def ping(self):
+        """
+        Check if server is accessible
+
+        """
+        conn = self._get_connection()
+        try:
+            conn.connect()
+            return True
+        except:
+            raise
+        finally:
+            conn.close()
+
+    def terminate(self):
+        del self._pool
+        self._pool = None
 
     def client_version(self):
         """
@@ -693,7 +712,7 @@ class Milvus:
         finally:
             conn.close()
 
-    def flush(self, collection_name_array=None):
+    def flush(self, collection_name_array=None, **kwargs):
         """
         Flushes vector data in one collection or multiple collections to disk.
 
@@ -716,13 +735,13 @@ class Milvus:
             check_pass_param(collection_name=name)
 
         try:
-            return conn.flush(collection_name_array)
+            return conn.flush(collection_name_array, **kwargs)
         except:
             raise
         finally:
             conn.close()
 
-    def compact(self, collection_name, timeout=None):
+    def compact(self, collection_name, timeout=None, **kwargs):
         """
         Compacts segments in a collection. This function is recommended after deleting vectors.
 
@@ -734,7 +753,7 @@ class Milvus:
 
         conn = self._get_connection()
         try:
-            return conn.compact(collection_name, timeout)
+            return conn.compact(collection_name, timeout, **kwargs)
         except:
             raise
         finally:

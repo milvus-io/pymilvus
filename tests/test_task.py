@@ -52,6 +52,23 @@ class TestFlush:
         for collection in collection_list:
             gcon.drop_collection(collection)
 
+    def test_flush_async_normal(self, gcon, gcollection):
+        records = records_factory(dim, nq)
+        gcon.insert(gcollection, records)
+        future = gcon.flush([gcollection], _async=True)
+        status = future.result()
+        assert status.OK()
+
+    def test_flush_async_callback(self, gcon, gcollection):
+
+        def cb(status):
+            assert status.OK()
+
+        records = records_factory(dim, nq)
+        gcon.insert(gcollection, records)
+        future = gcon.flush([gcollection], _async=True, _callback=cb)
+        future.done()
+
 
 class TestCompact:
     def test_compact_normal(self, gcon, gcollection):
@@ -75,6 +92,19 @@ class TestCompact:
 
         status = gcon.compact(gcollection)
         assert status.OK(), status.message
+
+    def test_compact_async_normal(self, gcon, gvector):
+        future = gcon.compact(gvector, _async=True)
+        status = future.result()
+        assert status.OK()
+
+    def test_compact_async_callback(self, gcon, gvector):
+
+        def cb(status):
+            assert status.OK()
+
+        future = gcon.compact(gvector, _async=True, _callback=cb)
+        future.done()
 
     def test_compact_with_empty_collection(self, gcon, gcollection):
         status = gcon.compact(gcollection)

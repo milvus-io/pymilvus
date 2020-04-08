@@ -32,3 +32,9 @@ class DeprecatedError(AttributeError):
     """
     API is deprecated
     """
+
+
+class FutureTimeoutError(TimeoutError):
+    """
+    Future timeout
+    """

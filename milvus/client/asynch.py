@@ -2,6 +2,7 @@ import abc
 import threading
 
 from .abstract import TopKQueryResult
+from .exceptions import FutureTimeoutError
 from .types import Status
 
 
@@ -45,6 +46,10 @@ class Future(AbstractFuture):
 
         self.__init()
 
+    def __del__(self):
+        pass
+        # self._future.__del__()
+
     @abc.abstractmethod
     def on_response(self, response):
         ''' Parse response from gRPC server and return results.
@@ -60,6 +65,9 @@ class Future(AbstractFuture):
         def async_done_callback(future):
             with self._condition:
                 self._response = future.result()
+                # delete gRCP future manually
+                self._future.__del__()
+                self._future = None
 
                 # If user specify done callback function, execute it.
                 try:
@@ -69,20 +77,25 @@ class Future(AbstractFuture):
                             self._done_cb(*self.on_response(self._response))
                         else:
                             self._done_cb(self.on_response(self._response))
-                    self._done = True
                 except:
                     raise
                 finally:
+                    self._done = True
                     self._condition.notify_all()
 
         self._future.add_done_callback(async_done_callback)
 
     def result(self, **kwargs):
+
         with self._condition:
             # future not finished. wait callback being called.
-            if not self._done:
+            if not self._done and not self._canceled:
                 to = kwargs.get("timeout", None)
                 self._condition.wait(to)
+
+                if not self._done and not self._canceled:
+                    # self._condition.notify_all()
+                    raise FutureTimeoutError("Wait timeout")
 
             self._condition.notify_all()
 

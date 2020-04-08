@@ -949,6 +949,7 @@ class GrpcHandler(ConnectIntf):
             cb = kwargs.get("_callback", None)
             return FlushFuture(future, cb)
         response = future.result(timeout=timeout)
+        future.__del__()
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler()
@@ -959,6 +960,7 @@ class GrpcHandler(ConnectIntf):
             cb = kwargs.get("_callback", None)
             return CompactFuture(future, cb)
         response = future.result(timeout=timeout)
+        future.__del__()
         return Status(code=response.error_code, message=response.reason)
 
     def set_config(self, parent_key, child_key, value):

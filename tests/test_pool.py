@@ -1,5 +1,6 @@
 import threading
 
+from milvus import Milvus
 from milvus.client.pool import ConnectionPool
 
 
@@ -15,5 +16,17 @@ class TestPool:
         thread_list = []
         for _ in range(10 * 3):
             thread = threading.Thread(target=run, args=(pool,))
+            thread.start()
+            thread_list.append(thread)
+
+    def test_pool_from_stub(self):
+        client = Milvus(uri="tcp://127.0.0.1:19530", pool_size=10)
+
+        def run(_client):
+            _client.has_collection("test_pool")
+
+        thread_list = []
+        for _ in range(10 * 3):
+            thread = threading.Thread(target=run, args=(client,))
             thread.start()
             thread_list.append(thread)
