@@ -24,7 +24,12 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
 def main():
-    milvus = Milvus()
+    milvus = Milvus(_HOST, _PORT)
+
+    # Check if server is accessible
+    if not milvus.ping():
+        print("Server is unreachable")
+        sys.exit(0)
 
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_collection_'
@@ -59,7 +64,7 @@ def main():
     #     `vectors = np.random.rand(10000, 16).astype(np.float32)`
 
     # Insert vectors into demo_collection, return status and vectors id list
-    # status, ids = milvus.insert(collection_name=collection_name, records=vectors)
+    status, ids = milvus.insert(collection_name=collection_name, records=vectors)
 
     # Flush collection  inserted data to disk.
     milvus.flush([collection_name])
@@ -99,53 +104,20 @@ def main():
         'params': search_param,
     }
 
-    # status, results = milvus.search(**param)
-
-    # acquire condition lock
-    def run_search(conn, name, records, topk, params):
-        status, results = conn.search(collection_name=name, query_records=records, top_k=topk,
-                                      params=params)
-        if not status.OK():
-            print("Search fail.", status)
+    status, results = milvus.search(**param)
+    if status.OK():
+        # indicate search result
+        # also use by:
+        #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
+        if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
+            print('Query result is correct')
         else:
-            print("Search result len ", len(results))
+            print('Query result isn\'t correct')
 
-    t0 = time.time()
-    thread_list = []
-    for i in range(100):
-        thread = threading.Thread(target=run_search, args=(milvus, collection_name, vectors[i: i + 1], 1, search_param))
-        thread.start()
-        thread_list.append(thread)
-
-    for t in thread_list:
-        t.join()
-
-    print("Search total cost ", time.time() - t0)
-    sys.exit(0)
-
-    t0 = time.time()
-    for i in range(1000):
-        status, results = milvus.search(collection_name=collection_name, query_records=vectors[i:i + 1], top_k=1,
-                                        params=search_param)
-        if not status.OK():
-            print("Search fail.", status)
-        else:
-            print("Search result len ", len(results))
-    print("[]<> Search done. Total cost {} s".format(time.time() - t0))
-
-    # if status.OK():
-    #     # indicate search result
-    #     # also use by:
-    #     #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
-    #     if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
-    #         print('Query result is correct')
-    #     else:
-    #         print('Query result isn\'t correct')
-    #
-    #     # print results
-    #     print(results)
-    # else:
-    #     print("Search failed. ", status)
+        # print results
+        print(results)
+    else:
+        print("Search failed. ", status)
 
     # Delete demo_collection
     status = milvus.drop_collection(collection_name)

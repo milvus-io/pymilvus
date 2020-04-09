@@ -7,7 +7,7 @@ import threading
 from urllib.parse import urlparse
 
 from . import __version__
-from .types import IndexType, MetricType
+from .types import IndexType, MetricType, Status
 from .check import check_pass_param, is_legal_host, is_legal_port
 from .pool import ConnectionPool
 from .grpc_handler import GrpcHandler
@@ -18,7 +18,7 @@ from ..settings import DefaultConfig as config
 
 
 def _extract_pool_kw(kw):
-    pool_keys = ["pre_ping", "recycle", "pool_size", "wait_timeout"]
+    pool_keys = ["handler", "pre_ping", "recycle", "pool_size", "wait_timeout"]
     pool_kw = dict()
     for k in pool_keys:
         if k in kw.keys():
@@ -27,23 +27,30 @@ def _extract_pool_kw(kw):
     return pool_kw
 
 
+def check_connect(func):
+    @functools.wraps(func)
+    def inner(self, *args, **kwargs):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first')
+
+        return func(self, *args, **kwargs)
+    return inner
+
+
 class Milvus:
     def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
         self._name = kwargs.get('name', None)
         self._handler = handler
-        self._host = host
-        self._port = port
-        self._uri = kwargs.get('uri', None)
+        self._uri = None
+        self._pool = None
+        self._status = None
 
         # store extra key-words arguments
         self._kw = kwargs
 
-        # create connection pool
-        _url = self._set_uri(host, port, self._uri, handler)
-
-        ##
-        pool_kw = _extract_pool_kw(kwargs)
-        self._pool = ConnectionPool(_url, **pool_kw)
+        _uri = kwargs.get('uri', None)
+        if host or port or _uri:
+            self._init(host, port, _uri, **kwargs)
 
     def __enter__(self):
         self.__conn = self._get_connection()
@@ -57,6 +64,13 @@ class Milvus:
         if item in self._kw.keys():
             return self._kw.get(item, None)
         raise AttributeError("Attribute {} not exists".format(item))
+
+    def _init(self, host, port, uri, **kwargs):
+        handler = kwargs.get("handler", "GRPC")
+        self._uri = self._set_uri(host, port, uri, handler)
+
+        pool_kw = _extract_pool_kw(kwargs)
+        self._pool = ConnectionPool(self._uri, **pool_kw)
 
     def _set_uri(self, host, port, uri, handler="GRPC"):
         default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
@@ -97,10 +111,10 @@ class Milvus:
         conn.release()
         # self._pool.release(conn)
 
-    def set_hook(self, **kwargs):
-        # TODO: may remove it. 
-        # return self._handler.set_hook(**kwargs)
-        pass
+    # def set_hook(self, **kwargs):
+    #     # TODO: may remove it.
+    #     # return self._handler.set_hook(**kwargs)
+    #     pass
 
     # @property
     # def status(self):
@@ -115,14 +129,14 @@ class Milvus:
     def handler(self):
         return self._handler
 
-    def ping(self):
+    def ping(self, timeout=2):
         """
         Check if server is accessible
 
         """
         conn = self._get_connection()
         try:
-            conn.connect()
+            conn.connect(timeout=2)
             return True
         except:
             raise
@@ -132,6 +146,27 @@ class Milvus:
     def terminate(self):
         del self._pool
         self._pool = None
+
+    def connect(self, host=None, port=None, uri=None, timeout=2):
+        if self.connected():
+            return Status(message="You have already connected {} !".format(self._uri),
+                          code=Status.CONNECT_FAILED)
+
+        if self._uri is None:
+            self._init(host, port, uri, **self._kw)
+
+        if self.ping(timeout):
+            self._status = Status(message="Connected")
+            return self._status
+
+    def connected(self):
+        return True if self._status and self._status.OK() else False
+
+    def disconnect(self):
+        if not self.connected():
+            raise NotConnectError('Please connect to the server first!')
+        self._status = None
+        return Status(message='Disconnect successfully')
 
     def client_version(self):
         """
@@ -170,6 +205,7 @@ class Milvus:
 
         return self._cmd("version", timeout)
 
+    @check_connect
     def _cmd(self, cmd, timeout=10):
         check_pass_param(cmd=cmd)
 
@@ -181,6 +217,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def create_collection(self, param, timeout=10):
         """
         Creates a collection.
@@ -233,6 +270,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def has_collection(self, collection_name, timeout=10):
         """
 
@@ -257,6 +295,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def describe_collection(self, collection_name, timeout=10):
         """
         Returns information of a collection.
@@ -279,6 +318,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def count_collection(self, collection_name, timeout=10):
         """
         Returns the number of vectors in a collection.
@@ -301,6 +341,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def show_collections(self, timeout=10):
         """
         Returns information of all collections.
@@ -321,6 +362,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def collection_info(self, collection_name, timeout=10):
         check_pass_param(collection_name=collection_name)
         conn = self._get_connection()
@@ -331,6 +373,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def preload_collection(self, collection_name, timeout=None):
         """
         Loads a collection for caching.
@@ -351,6 +394,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def drop_collection(self, collection_name, timeout=10):
         """
         Deletes a collection by name.
@@ -371,6 +415,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, **kwargs):
         """
         Insert vectors to a collection.
@@ -424,6 +469,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def get_vector_by_id(self, collection_name, vector_id, timeout=None):
         check_pass_param(collection_name=collection_name, ids=[vector_id])
 
@@ -435,6 +481,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def get_vector_ids(self, collection_name, segment_name, timeout=None):
         check_pass_param(collection_name=collection_name)
         check_pass_param(collection_name=segment_name)
@@ -447,6 +494,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def create_index(self, collection_name, index_type=None, params=None, timeout=None, **kwargs):
         """
         Creates index for a collection.
@@ -485,6 +533,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def describe_index(self, collection_name, timeout=10):
         """
         Show index information of a collection.
@@ -507,6 +556,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def drop_index(self, collection_name, timeout=10):
         """
         Removes an index.
@@ -529,6 +579,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def create_partition(self, collection_name, partition_tag, timeout=10):
         """
         create a partition for a collection. 
@@ -559,6 +610,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def show_partitions(self, collection_name, timeout=10):
         """
         Show all partitions in a collection.
@@ -584,6 +636,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def drop_partition(self, collection_name, partition_tag, timeout=10):
         """
         Deletes a partition in a collection.
@@ -611,6 +664,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
         """
         Search vectors in a collection.
@@ -652,6 +706,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None, **kwargs):
         """
         Searches for vectors in specific files of a collection.
@@ -697,6 +752,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def delete_by_id(self, collection_name, id_array, timeout=None):
         """
         Deletes vectors in a collection by vector ID.
@@ -712,6 +768,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def flush(self, collection_name_array=None, **kwargs):
         """
         Flushes vector data in one collection or multiple collections to disk.
@@ -741,6 +798,7 @@ class Milvus:
         finally:
             conn.close()
 
+    @check_connect
     def compact(self, collection_name, timeout=None, **kwargs):
         """
         Compacts segments in a collection. This function is recommended after deleting vectors.
