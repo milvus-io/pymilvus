@@ -54,7 +54,8 @@ class ConnectionRecord:
         ''' Return a available connection. If connection is out-of-date,
         return new one.
         '''
-        self._connection.connect(None, None, uri=self._uri, timeout=2)
+        if self._kw.get("pre_ping", False):
+            self._connection.connect(None, None, uri=self._uri, timeout=2)
         return self._connection
 
 

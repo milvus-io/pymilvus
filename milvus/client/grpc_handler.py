@@ -49,7 +49,6 @@ def error_handler(*rargs):
 
 class GrpcHandler(ConnectIntf):
     def __init__(self, host=None, port=None, **kwargs):
-        self._channel = None
         self._stub = None
         self._uri = None
         self.status = None
@@ -60,7 +59,9 @@ class GrpcHandler(ConnectIntf):
 
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
-        self._uri = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
+        if host or port or _uri:
+            self._uri = self._set_uri(host, port, uri=_uri)
+            self._setup(kwargs.get("pre_ping", False))
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -73,37 +74,34 @@ class GrpcHandler(ConnectIntf):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        del self._channel
         del self._stub
 
-    def _setup(self):
+    def _setup(self, pre_ping=False):
         """
         Create a grpc channel and a stub
 
         :raises: NotConnectError
 
         """
+        channel = self._set_channel()
+        if pre_ping:
+            try:
+                # check if server is ready
+                ft = grpc.channel_ready_future(channel)
+                ft.result(timeout=1)
+            except grpc.FutureTimeoutError:
+                raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
+            except grpc.RpcError as e:
+                raise NotConnectError("Connect error: <{}>".format(e))
+            # Unexpected error
+            except Exception as e:
+                raise NotConnectError("Error occurred when trying to connect server:\n"
+                                      "\t<{}>".format(str(e)))
+            finally:
+                ft.cancel()
+                ft.__del__()
 
-        if not self._channel:
-            self._set_channel()
-
-        try:
-            # check if server is ready
-            ft = grpc.channel_ready_future(self._channel)
-            ft.result(timeout=1)
-            ft.__del__()
-        except grpc.FutureTimeoutError:
-            del self._channel
-            raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
-        except grpc.RpcError as e:
-            del self._channel
-            raise NotConnectError("Connect error: <{}>".format(e))
-        # Unexpected error
-        except Exception as e:
-            raise NotConnectError("Error occurred when trying to connect server:\n"
-                                  "\t<{}>".format(str(e)))
-
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(channel)
         self.status = Status()
 
     def _set_uri(self, host, port, **kwargs):
@@ -145,11 +143,9 @@ class GrpcHandler(ConnectIntf):
         """
         Set grpc channel. Use default server uri if uri is not set.
         """
-        if self._channel:
-            del self._channel
 
         # set transport unlimited
-        self._channel = grpc.insecure_channel(
+        return grpc.insecure_channel(
             self._uri,
             # self._uri or config.GRPC_ADDRESS,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
@@ -190,7 +186,6 @@ class GrpcHandler(ConnectIntf):
         return self._uri
 
     def connect(self, host=None, port=None, uri=None, timeout=1):
-
         """
         Connect method should be called before any operations.
         Server will be connected after connect return OK
@@ -225,32 +220,24 @@ class GrpcHandler(ConnectIntf):
             #                           "you cannot connect other server".format(self._uri),
             #                   code=Status.CONNECT_FAILED)
             self._uri = self._set_uri(host, port, uri=uri)
-
-        if self._channel:
-            del self._channel
-            self._channel = None
-
-        self._set_channel()
-
         try:
             # check if server is ready
-            ft = grpc.channel_ready_future(self._channel)
+            channel = self._set_channel()
+            ft = grpc.channel_ready_future(channel)
             ft.result(timeout=timeout)
-            ft.__del__()
         except grpc.FutureTimeoutError:
-            del self._channel
-            self._channel = None
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
         except grpc.RpcError as e:
-            del self._channel
-            self._channel = None
             raise NotConnectError("Connect error: <{}>".format(e))
         # Unexpected error
         except Exception as e:
             raise NotConnectError("Error occurred when trying to connect server:\n"
                                   "\t<{}>".format(str(e)))
+        finally:
+            ft.cancel()
+            ft.__del__()
 
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(channel)
         self.status = Status()
         return self.status
 
@@ -261,15 +248,7 @@ class GrpcHandler(ConnectIntf):
         :return: if client is connected
         :rtype: bool
         """
-        if not self._stub or not self._channel:
-            return False
-        try:
-            ft = grpc.channel_ready_future(self._channel)
-            ft.result(timeout=2)
-            ft.__del__()
-            return True
-        except (grpc.FutureTimeoutError, grpc.RpcError):
-            return False
+        return True if self.status and self.status.OK() else False
 
     def disconnect(self):
         """
@@ -286,9 +265,6 @@ class GrpcHandler(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first!')
 
-        # closing channel by calling interface close() will result in grpc interval error
-        self._channel.__del__()
-
         # try:
         #     self._channel.close()
         # except Exception as e:
@@ -296,7 +272,6 @@ class GrpcHandler(ConnectIntf):
         #     return Status(code=Status.CONNECT_FAILED, message='Disconnection failed')
 
         self.status = None
-        self._channel = None
         self._stub = None
 
         return Status(message='Disconnect successfully')

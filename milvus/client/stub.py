@@ -51,6 +51,7 @@ class Milvus:
         _uri = kwargs.get('uri', None)
         if host or port or _uri:
             self._init(host, port, _uri, **kwargs)
+            self._status = Status()
 
     def __enter__(self):
         self.__conn = self._get_connection()
