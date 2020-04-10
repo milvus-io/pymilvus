@@ -470,7 +470,7 @@ class TestPrepare:
 
     def test_collection_schema(self):
         res = Prepare.table_schema(fake.collection_name(), random.randint(0, 999), 1024, MetricType.L2, {})
-        assert isinstance(res, milvus_pb2.TableSchema)
+        assert isinstance(res, milvus_pb2.CollectionSchema)
 
 
 class TestCreateCollection:
@@ -940,9 +940,9 @@ class TestPartition:
             partition_tags=["ee4tergdgdgedgdgergete5465erwtwtwtwtfdf"],
             params=search_param)
 
-        assert status.OK()
-        print(results)
-        assert results.shape == (0, 0)
+        assert not status.OK()
+        # print(results)
+        # assert results.shape == (0, 0)
 
     # @pytest.mark.skip
     def test_search_with_partition_insert_first(self, gcon, gcollection):
@@ -980,9 +980,7 @@ class TestPartition:
 
         # search in wrong tags
         status, results = gcon.search(gcollection, 1, query_vectors, partition_tags=[faker.word() + "wrong"], params=search_param)
-        assert status.OK(), status.message
-        print(results)
-        assert results.shape == (0, 0)
+        assert not status.OK(), status.message
 
     def test_drop_partition(self, gcon, gcollection):
         status = gcon.create_partition(gcollection, "1")

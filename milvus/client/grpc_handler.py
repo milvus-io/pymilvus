@@ -348,7 +348,7 @@ class GrpcHandler(ConnectIntf):
         table_schema = Prepare.table_schema(table_name, dimension, index_file_size, metric_type, param)
 
         try:
-            rf = self._stub.CreateTable.future(table_schema)
+            rf = self._stub.CreateCollection.future(table_schema)
             status = rf.result(timeout=timeout)
             rf.__del__()
             # status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
@@ -383,7 +383,7 @@ class GrpcHandler(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            rf = self._stub.HasTable.future(table_name)
+            rf = self._stub.HasCollection.future(table_name)
             reply = rf.result(timeout=timeout)
             rf.__del__()
             # reply = self._stub.HasTable.future(table_name).result(timeout=timeout)
@@ -415,13 +415,13 @@ class GrpcHandler(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            rf = self._stub.DescribeTable.future(table_name)
+            rf = self._stub.DescribeCollection.future(table_name)
             response = rf.result(timeout=timeout)
             rf.__del__()
 
             if response.status.error_code == 0:
                 table = CollectionSchema(
-                    collection_name=response.table_name,
+                    collection_name=response.collection_name,
                     dimension=response.dimension,
                     index_file_size=response.index_file_size,
                     metric_type=MetricType(response.metric_type)
@@ -455,12 +455,12 @@ class GrpcHandler(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            rf = self._stub.CountTable.future(table_name)
+            rf = self._stub.CountCollection.future(table_name)
             response = rf.result(timeout=timeout)
             rf.__del__()
             # response = self._stub.CountTable.future(table_name).result(timeout=timeout)
             if response.status.error_code == 0:
-                return Status(message='Success!'), response.table_row_count
+                return Status(message='Success!'), response.collection_row_count
 
             return Status(code=response.status.error_code, message=response.status.reason), None
         except grpc.FutureTimeoutError as e:
@@ -485,12 +485,12 @@ class GrpcHandler(ConnectIntf):
 
         cmd = Prepare.cmd('show_tables')
         try:
-            rf = self._stub.ShowTables.future(cmd)
+            rf = self._stub.ShowCollections.future(cmd)
             response = rf.result(timeout=timeout)
             rf.__del__()
             if response.status.error_code == 0:
                 return Status(message='Show tables successfully!'), \
-                       [name for name in response.table_names if len(name) > 0]
+                       [name for name in response.collection_names if len(name) > 0]
             return Status(response.status.error_code, message=response.status.reason), []
         except grpc.FutureTimeoutError:
             return Status(Status.UNEXPECTED_ERROR, message="Request timeout"), []
@@ -499,10 +499,10 @@ class GrpcHandler(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details())), []
 
     def show_table_info(self, table_name, timeout=10):
-        request = grpc_types.TableName(table_name=table_name)
+        request = grpc_types.CollectionName(collection_name=table_name)
 
         try:
-            rf = self._stub.ShowTableInfo.future(request)
+            rf = self._stub.ShowCollectionInfo.future(request)
             response = rf.result(timeout=timeout)
             rf.__del__()
             rpc_status = response.status
@@ -530,7 +530,7 @@ class GrpcHandler(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            rf = self._stub.PreloadTable.future(table_name)
+            rf = self._stub.PreloadCollection.future(table_name)
             status = rf.result(timeout=timeout)
             rf.__del__()
             return Status(code=status.error_code, message=status.reason)
@@ -554,7 +554,7 @@ class GrpcHandler(ConnectIntf):
         table_name = Prepare.table_name(table_name)
 
         try:
-            rf = self._stub.DropTable.future(table_name)
+            rf = self._stub.DropCollection.future(table_name)
             status = rf.result(timeout=timeout)
             rf.__del__()
             if status.error_code == 0:
@@ -625,7 +625,7 @@ class GrpcHandler(ConnectIntf):
             return Status(code=Status.UNEXPECTED_ERROR, message="Request timeout"), []
 
     def get_vector_by_id(self, table_name, v_id, timeout=10):
-        request = grpc_types.VectorIdentity(table_name=table_name, id=v_id)
+        request = grpc_types.VectorIdentity(collection_name=table_name, id=v_id)
 
         try:
             rf = self._stub.GetVectorByID.future(request)
@@ -646,7 +646,7 @@ class GrpcHandler(ConnectIntf):
             return Status(e.code(), message='Error occurred: {}'.format(e.details())), []
 
     def get_vector_ids(self, table_name, segment_name, timeout=10):
-        request = grpc_types.GetVectorIDsParam(table_name=table_name, segment_name=segment_name)
+        request = grpc_types.GetVectorIDsParam(collection_name=table_name, segment_name=segment_name)
 
         try:
             rf = self._stub.GetVectorIDs.future(request)
@@ -727,7 +727,7 @@ class GrpcHandler(ConnectIntf):
 
             if status.error_code == 0:
                 return Status(message="Successfully"), \
-                       IndexParam(index_param.table_name,
+                       IndexParam(index_param.collection_name,
                                   index_param.index_type,
                                   index_param.extra_params)
 
@@ -854,7 +854,7 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-        request = grpc_types.PartitionParam(table_name=table_name, tag=partition_tag)
+        request = grpc_types.PartitionParam(collection_name=table_name, tag=partition_tag)
 
         try:
             rf = self._stub.DropPartition.future(request)

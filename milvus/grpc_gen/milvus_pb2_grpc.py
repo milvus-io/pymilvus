@@ -15,39 +15,39 @@ class MilvusServiceStub(object):
         Args:
           channel: A grpc.Channel.
         """
-        self.CreateTable = channel.unary_unary(
-            '/milvus.grpc.MilvusService/CreateTable',
-            request_serializer=milvus__pb2.TableSchema.SerializeToString,
+        self.CreateCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/CreateCollection',
+            request_serializer=milvus__pb2.CollectionSchema.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
-        self.HasTable = channel.unary_unary(
-            '/milvus.grpc.MilvusService/HasTable',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
+        self.HasCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/HasCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
             response_deserializer=milvus__pb2.BoolReply.FromString,
         )
-        self.DescribeTable = channel.unary_unary(
-            '/milvus.grpc.MilvusService/DescribeTable',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
-            response_deserializer=milvus__pb2.TableSchema.FromString,
+        self.DescribeCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/DescribeCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=milvus__pb2.CollectionSchema.FromString,
         )
-        self.CountTable = channel.unary_unary(
-            '/milvus.grpc.MilvusService/CountTable',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
-            response_deserializer=milvus__pb2.TableRowCount.FromString,
+        self.CountCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/CountCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=milvus__pb2.CollectionRowCount.FromString,
         )
-        self.ShowTables = channel.unary_unary(
-            '/milvus.grpc.MilvusService/ShowTables',
+        self.ShowCollections = channel.unary_unary(
+            '/milvus.grpc.MilvusService/ShowCollections',
             request_serializer=milvus__pb2.Command.SerializeToString,
-            response_deserializer=milvus__pb2.TableNameList.FromString,
+            response_deserializer=milvus__pb2.CollectionNameList.FromString,
         )
-        self.ShowTableInfo = channel.unary_unary(
-            '/milvus.grpc.MilvusService/ShowTableInfo',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
-            response_deserializer=milvus__pb2.TableInfo.FromString,
+        self.ShowCollectionInfo = channel.unary_unary(
+            '/milvus.grpc.MilvusService/ShowCollectionInfo',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=milvus__pb2.CollectionInfo.FromString,
         )
-        self.DropTable = channel.unary_unary(
-            '/milvus.grpc.MilvusService/DropTable',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
+        self.DropCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/DropCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
         self.CreateIndex = channel.unary_unary(
@@ -57,12 +57,12 @@ class MilvusServiceStub(object):
         )
         self.DescribeIndex = channel.unary_unary(
             '/milvus.grpc.MilvusService/DescribeIndex',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
             response_deserializer=milvus__pb2.IndexParam.FromString,
         )
         self.DropIndex = channel.unary_unary(
             '/milvus.grpc.MilvusService/DropIndex',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
         self.CreatePartition = channel.unary_unary(
@@ -72,7 +72,7 @@ class MilvusServiceStub(object):
         )
         self.ShowPartitions = channel.unary_unary(
             '/milvus.grpc.MilvusService/ShowPartitions',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
             response_deserializer=milvus__pb2.PartitionList.FromString,
         )
         self.DropPartition = channel.unary_unary(
@@ -120,9 +120,9 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.DeleteByIDParam.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
-        self.PreloadTable = channel.unary_unary(
-            '/milvus.grpc.MilvusService/PreloadTable',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
+        self.PreloadCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/PreloadCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
         self.Flush = channel.unary_unary(
@@ -132,7 +132,7 @@ class MilvusServiceStub(object):
         )
         self.Compact = channel.unary_unary(
             '/milvus.grpc.MilvusService/Compact',
-            request_serializer=milvus__pb2.TableName.SerializeToString,
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
 
@@ -141,11 +141,11 @@ class MilvusServiceServicer(object):
     # missing associated documentation comment in .proto file
     pass
 
-    def CreateTable(self, request, context):
+    def CreateCollection(self, request, context):
         """*
-        @brief This method is used to create table
+        @brief This method is used to create collection
 
-        @param TableSchema, use to provide table information to be created.
+        @param CollectionSchema, use to provide collection information to be created.
 
         @return Status
         """
@@ -153,11 +153,11 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def HasTable(self, request, context):
+    def HasCollection(self, request, context):
         """*
-        @brief This method is used to test table existence.
+        @brief This method is used to test collection existence.
 
-        @param TableName, table name is going to be tested.
+        @param CollectionName, collection name is going to be tested.
 
         @return BoolReply
         """
@@ -165,61 +165,61 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def DescribeTable(self, request, context):
+    def DescribeCollection(self, request, context):
         """*
-        @brief This method is used to get table schema.
+        @brief This method is used to get collection schema.
 
-        @param TableName, target table name.
+        @param CollectionName, target collection name.
 
-        @return TableSchema
+        @return CollectionSchema
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def CountTable(self, request, context):
+    def CountCollection(self, request, context):
         """*
-        @brief This method is used to get table schema.
+        @brief This method is used to get collection schema.
 
-        @param TableName, target table name.
+        @param CollectionName, target collection name.
 
-        @return TableRowCount
+        @return CollectionRowCount
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ShowTables(self, request, context):
+    def ShowCollections(self, request, context):
         """*
-        @brief This method is used to list all tables.
+        @brief This method is used to list all collections.
 
         @param Command, dummy parameter.
 
-        @return TableNameList
+        @return CollectionNameList
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ShowTableInfo(self, request, context):
+    def ShowCollectionInfo(self, request, context):
         """*
-        @brief This method is used to get table detail information.
+        @brief This method is used to get collection detail information.
 
-        @param TableName, target table name.
+        @param CollectionName, target collection name.
 
-        @return TableInfo
+        @return CollectionInfo
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def DropTable(self, request, context):
+    def DropCollection(self, request, context):
         """*
-        @brief This method is used to delete table.
+        @brief This method is used to delete collection.
 
-        @param TableName, table name is going to be deleted.
+        @param CollectionName, collection name is going to be deleted.
 
-        @return TableNameList
+        @return CollectionNameList
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -227,7 +227,7 @@ class MilvusServiceServicer(object):
 
     def CreateIndex(self, request, context):
         """*
-        @brief This method is used to build index by table in sync mode.
+        @brief This method is used to build index by collection in sync mode.
 
         @param IndexParam, index paramters.
 
@@ -241,7 +241,7 @@ class MilvusServiceServicer(object):
         """*
         @brief This method is used to describe index
 
-        @param TableName, target table name.
+        @param CollectionName, target collection name.
 
         @return IndexParam
         """
@@ -253,7 +253,7 @@ class MilvusServiceServicer(object):
         """*
         @brief This method is used to drop index
 
-        @param TableName, target table name.
+        @param CollectionName, target collection name.
 
         @return Status
         """
@@ -277,7 +277,7 @@ class MilvusServiceServicer(object):
         """*
         @brief This method is used to show partition information
 
-        @param TableName, target table name.
+        @param CollectionName, target collection name.
 
         @return PartitionList
         """
@@ -299,7 +299,7 @@ class MilvusServiceServicer(object):
 
     def Insert(self, request, context):
         """*
-        @brief This method is used to add vector array to table.
+        @brief This method is used to add vector array to collection.
 
         @param InsertParam, insert parameters.
 
@@ -325,7 +325,7 @@ class MilvusServiceServicer(object):
         """*
         @brief This method is used to get vector ids from a segment
 
-        @param GetVectorIDsParam, target table and segment
+        @param GetVectorIDsParam, target collection and segment
 
         @return VectorIds
         """
@@ -335,7 +335,7 @@ class MilvusServiceServicer(object):
 
     def Search(self, request, context):
         """*
-        @brief This method is used to query vector in table.
+        @brief This method is used to query vector in collection.
 
         @param SearchParam, search parameters.
 
@@ -393,11 +393,11 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def PreloadTable(self, request, context):
+    def PreloadCollection(self, request, context):
         """*
-        @brief This method is used to preload table
+        @brief This method is used to preload collection
 
-        @param TableName, target table name.
+        @param CollectionName, target collection name.
 
         @return Status
         """
@@ -419,9 +419,9 @@ class MilvusServiceServicer(object):
 
     def Compact(self, request, context):
         """*
-        @brief This method is used to compact table
+        @brief This method is used to compact collection
 
-        @param TableName, target table name.
+        @param CollectionName, target collection name.
 
         @return Status
         """
@@ -432,39 +432,39 @@ class MilvusServiceServicer(object):
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-        'CreateTable': grpc.unary_unary_rpc_method_handler(
-            servicer.CreateTable,
-            request_deserializer=milvus__pb2.TableSchema.FromString,
+        'CreateCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.CreateCollection,
+            request_deserializer=milvus__pb2.CollectionSchema.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
-        'HasTable': grpc.unary_unary_rpc_method_handler(
-            servicer.HasTable,
-            request_deserializer=milvus__pb2.TableName.FromString,
+        'HasCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.HasCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
             response_serializer=milvus__pb2.BoolReply.SerializeToString,
         ),
-        'DescribeTable': grpc.unary_unary_rpc_method_handler(
-            servicer.DescribeTable,
-            request_deserializer=milvus__pb2.TableName.FromString,
-            response_serializer=milvus__pb2.TableSchema.SerializeToString,
+        'DescribeCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.DescribeCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=milvus__pb2.CollectionSchema.SerializeToString,
         ),
-        'CountTable': grpc.unary_unary_rpc_method_handler(
-            servicer.CountTable,
-            request_deserializer=milvus__pb2.TableName.FromString,
-            response_serializer=milvus__pb2.TableRowCount.SerializeToString,
+        'CountCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.CountCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=milvus__pb2.CollectionRowCount.SerializeToString,
         ),
-        'ShowTables': grpc.unary_unary_rpc_method_handler(
-            servicer.ShowTables,
+        'ShowCollections': grpc.unary_unary_rpc_method_handler(
+            servicer.ShowCollections,
             request_deserializer=milvus__pb2.Command.FromString,
-            response_serializer=milvus__pb2.TableNameList.SerializeToString,
+            response_serializer=milvus__pb2.CollectionNameList.SerializeToString,
         ),
-        'ShowTableInfo': grpc.unary_unary_rpc_method_handler(
-            servicer.ShowTableInfo,
-            request_deserializer=milvus__pb2.TableName.FromString,
-            response_serializer=milvus__pb2.TableInfo.SerializeToString,
+        'ShowCollectionInfo': grpc.unary_unary_rpc_method_handler(
+            servicer.ShowCollectionInfo,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=milvus__pb2.CollectionInfo.SerializeToString,
         ),
-        'DropTable': grpc.unary_unary_rpc_method_handler(
-            servicer.DropTable,
-            request_deserializer=milvus__pb2.TableName.FromString,
+        'DropCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.DropCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
         'CreateIndex': grpc.unary_unary_rpc_method_handler(
@@ -474,12 +474,12 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         ),
         'DescribeIndex': grpc.unary_unary_rpc_method_handler(
             servicer.DescribeIndex,
-            request_deserializer=milvus__pb2.TableName.FromString,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
             response_serializer=milvus__pb2.IndexParam.SerializeToString,
         ),
         'DropIndex': grpc.unary_unary_rpc_method_handler(
             servicer.DropIndex,
-            request_deserializer=milvus__pb2.TableName.FromString,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
         'CreatePartition': grpc.unary_unary_rpc_method_handler(
@@ -489,7 +489,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         ),
         'ShowPartitions': grpc.unary_unary_rpc_method_handler(
             servicer.ShowPartitions,
-            request_deserializer=milvus__pb2.TableName.FromString,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
             response_serializer=milvus__pb2.PartitionList.SerializeToString,
         ),
         'DropPartition': grpc.unary_unary_rpc_method_handler(
@@ -537,9 +537,9 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.DeleteByIDParam.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
-        'PreloadTable': grpc.unary_unary_rpc_method_handler(
-            servicer.PreloadTable,
-            request_deserializer=milvus__pb2.TableName.FromString,
+        'PreloadCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.PreloadCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
         'Flush': grpc.unary_unary_rpc_method_handler(
@@ -549,7 +549,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         ),
         'Compact': grpc.unary_unary_rpc_method_handler(
             servicer.Compact,
-            request_deserializer=milvus__pb2.TableName.FromString,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
     }

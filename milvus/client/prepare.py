@@ -11,7 +11,7 @@ class Prepare:
     @classmethod
     def table_name(cls, table_name):
 
-        return grpc_types.TableName(table_name=table_name)
+        return grpc_types.CollectionName(collection_name=table_name)
 
     @classmethod
     def table_schema(cls, table_name, dimension, index_file_size, metric_type, param):
@@ -28,8 +28,8 @@ class Prepare:
         :return: ttypes.TableSchema object
         """
 
-        _param = grpc_types.TableSchema(status=status_pb2.Status(error_code=0, reason='Client'),
-                                        table_name=table_name,
+        _param = grpc_types.CollectionSchema(status=status_pb2.Status(error_code=0, reason='Client'),
+                                        collection_name=table_name,
                                         dimension=dimension,
                                         index_file_size=index_file_size,
                                         metric_type=metric_type)
@@ -43,10 +43,10 @@ class Prepare:
     @classmethod
     def insert_param(cls, table_name, vectors, partition_tag, ids=None, params=None, **kwargs):
         if ids is None:
-            _param = grpc_types.InsertParam(table_name=table_name, partition_tag=partition_tag)
+            _param = grpc_types.InsertParam(collection_name=table_name, partition_tag=partition_tag)
         else:
             _param = grpc_types.InsertParam(
-                table_name=table_name,
+                collection_name=table_name,
                 row_id_array=ids,
                 partition_tag=partition_tag)
 
@@ -66,7 +66,7 @@ class Prepare:
     def index_param(cls, table_name, index_type, params):
 
         _param = grpc_types.IndexParam(status=status_pb2.Status(error_code=0, reason='Client'),
-                                       table_name=table_name,
+                                       collection_name=table_name,
                                        index_type=index_type)
         params = params or dict()
         params_str = ujson.dumps(params)
@@ -78,7 +78,7 @@ class Prepare:
     def search_param(cls, table_name, topk, query_records, partitions, params):
 
         search_param = grpc_types.SearchParam(
-            table_name=table_name,
+            collection_name=table_name,
             topk=topk,
             partition_tag_array=partitions
         )
@@ -98,7 +98,7 @@ class Prepare:
     @classmethod
     def search_by_id_param(cls, table_name, top_k, id_, partition_tag_array, params):
         _param = grpc_types.SearchByIDParam(
-            table_name=table_name, id=id_, topk=top_k,
+            collection_name=table_name, id=id_, topk=top_k,
             partition_tag_array=partition_tag_array
         )
 
@@ -126,18 +126,18 @@ class Prepare:
     @classmethod
     def partition_param(cls, table_name, tag):
 
-        return grpc_types.PartitionParam(table_name=table_name, tag=tag)
+        return grpc_types.PartitionParam(collection_name=table_name, tag=tag)
 
     @classmethod
     def delete_by_id_param(cls, table_name, id_array):
 
-        return grpc_types.DeleteByIDParam(table_name=table_name, id_array=id_array)
+        return grpc_types.DeleteByIDParam(collection_name=table_name, id_array=id_array)
 
     @classmethod
     def flush_param(cls, table_names):
 
-        return grpc_types.FlushParam(table_name_array=table_names)
+        return grpc_types.FlushParam(collection_name_array=table_names)
 
     @classmethod
     def compact_param(cls, table_name):
-        return grpc_types.TableName(table_name=table_name)
+        return grpc_types.CollectionName(collection_name=table_name)
