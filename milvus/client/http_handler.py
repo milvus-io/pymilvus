@@ -7,7 +7,7 @@ import struct
 
 import requests as rq
 
-from .abstract import HTableInfo, ConnectIntf, IndexParam, CollectionSchema, TopKQueryResult2, PartitionParam
+from .abstract import HCollectionInfo, ConnectIntf, IndexParam, CollectionSchema, TopKQueryResult2, PartitionParam
 from .check import is_legal_host, is_legal_port
 from .exceptions import NotConnectError, ParamError
 from .types import Status, IndexType, MetricType
@@ -298,7 +298,7 @@ class HttpHandler(ConnectIntf):
         response = rq.get(url, timeout=timeout)
         if response.status_code == 200:
             result = response.json()
-            return Status(), HTableInfo(result)
+            return Status(), HCollectionInfo(result)
 
         if response.status_code == 404:
             return Status(Status.TABLE_NOT_EXISTS, "Collection not found"), None

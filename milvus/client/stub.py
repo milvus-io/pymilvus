@@ -44,13 +44,16 @@ class Milvus:
         self._uri = None
         self._pool = None
         self._status = None
+        self._connected = False
 
         # store extra key-words arguments
         self._kw = kwargs
 
         _uri = kwargs.get('uri', None)
         if host or port or _uri:
-            self._init(host, port, _uri, **kwargs)
+            kw = copy.deepcopy(kwargs)
+            kw.pop('uri', None)
+            self._init(host, port, _uri, **kw)
             self._status = Status()
 
     def __enter__(self):
@@ -149,15 +152,18 @@ class Milvus:
         self._pool = None
 
     def connect(self, host=None, port=None, uri=None, timeout=2):
-        if self.connected():
+        if self.connected() and self._connected:
             return Status(message="You have already connected {} !".format(self._uri),
                           code=Status.CONNECT_FAILED)
 
-        if self._uri is None:
-            self._init(host, port, uri, **self._kw)
+        if (host or port or uri) or not self._uri:
+            kw = copy.deepcopy(self._kw)
+            kw.pop('uri', None)
+            self._init(host, port, uri, **kw)
 
         if self.ping(timeout):
             self._status = Status(message="Connected")
+            self._connected = True
             return self._status
 
     def connected(self):
@@ -365,7 +371,8 @@ class Milvus:
 
     @check_connect
     def collection_info(self, collection_name, timeout=10):
-        check_pass_param(collection_name=collection_name)
+        # TODO: need check collection_name here
+        # check_pass_param(collection_name=collection_name)
         conn = self._get_connection()
         try:
             return conn.show_collection_info(collection_name, timeout)

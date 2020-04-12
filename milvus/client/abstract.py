@@ -412,7 +412,7 @@ class PartitionStat:
         return self.__str__()
 
 
-class TableInfo:
+class CollectionInfo:
     def __init__(self, res):
         self.count = res.total_row_count
         self.partitions_stat = [PartitionStat(p) for p in list(res.partitions_stat)]
@@ -457,7 +457,7 @@ class HPartitionStat:
         return self.__str__()
 
 
-class HTableInfo:
+class HCollectionInfo:
     def __init__(self, res):
         self.count = res["count"]
         self.partitions_stat = [HPartitionStat(p) for p in res["partitions_stat"]]

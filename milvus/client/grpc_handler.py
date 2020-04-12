@@ -8,7 +8,7 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, TopKQueryResult, TableInfo
+from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, TopKQueryResult, CollectionInfo
 from .prepare import Prepare
 from .types import MetricType, Status
 from .check import (
@@ -34,11 +34,11 @@ def error_handler(*rargs):
             try:
                 return func(*args, **kwargs)
             except grpc.FutureTimeoutError as e:
-                LOGGER.error(e)
+                LOGGER.error("{}\n{}".format(func.__name__, e))
                 status = Status(Status.UNEXPECTED_ERROR, message='Request timeout')
                 return tuple([status]) + rargs
             except grpc.RpcError as e:
-                LOGGER.error(e)
+                LOGGER.error("{}\n{}".format(func.__name__, e))
                 status = Status(e.code(), message='Error occurred. {}'.format(e.details()))
                 return tuple([status]) + rargs
 
@@ -52,6 +52,7 @@ class GrpcHandler(ConnectIntf):
         self._stub = None
         self._uri = None
         self.status = None
+        self._connected = False
 
         # client hook
         self._search_hook = SearchHook()
@@ -83,25 +84,7 @@ class GrpcHandler(ConnectIntf):
         :raises: NotConnectError
 
         """
-        channel = self._set_channel()
-        if pre_ping:
-            try:
-                # check if server is ready
-                ft = grpc.channel_ready_future(channel)
-                ft.result(timeout=1)
-            except grpc.FutureTimeoutError:
-                raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
-            except grpc.RpcError as e:
-                raise NotConnectError("Connect error: <{}>".format(e))
-            # Unexpected error
-            except Exception as e:
-                raise NotConnectError("Error occurred when trying to connect server:\n"
-                                      "\t<{}>".format(str(e)))
-            finally:
-                ft.cancel()
-                ft.__del__()
-
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(channel)
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._set_channel())
         self.status = Status()
 
     def _set_uri(self, host, port, **kwargs):
@@ -207,7 +190,7 @@ class GrpcHandler(ConnectIntf):
         
         :raises: NotConnectError
         """
-        if self.connected():
+        if self.connected() and self._connected:
             return Status(message="You have already connected {} !".format(self._uri),
                           code=Status.CONNECT_FAILED)
 
@@ -314,20 +297,20 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.status.error_code, message=response.status.reason), None
 
     @error_handler()
-    def create_collection(self, table_name, dimension, index_file_size, metric_type, param, timeout=10):
+    def create_collection(self, collection_name, dimension, index_file_size, metric_type, param, timeout=10):
         """
-        Create table
+        Create collection
 
         :type  param: dict or TableSchema
-        :param param: Provide table information to be created
+        :param param: Provide collection information to be created
 
-                `example param={'table_name': 'name',
+                `example param={'collection_name': 'name',
                                 'dimension': 16,
                                 'index_file_size': 1024 (default)，
                                 'metric_type': Metric_type.L2 (default)
                                 }`
 
-                `OR using Prepare.table_schema to create param`
+                `OR using Prepare.collection_schema to create param`
 
         :param timeout: timeout, The unit is seconds
         :type  timeout: double
@@ -336,12 +319,11 @@ class GrpcHandler(ConnectIntf):
         :rtype: Status
         """
 
-        table_schema = Prepare.table_schema(table_name, dimension, index_file_size, metric_type, param)
+        collection_schema = Prepare.collection_schema(collection_name, dimension, index_file_size, metric_type, param)
 
-        rf = self._stub.CreateTable.future(table_schema)
+        rf = self._stub.CreateCollection.future(collection_schema)
         status = rf.result(timeout=timeout)
         rf.__del__()
-        # status = self._stub.CreateTable.future(table_schema).result(timeout=timeout)
         if status.error_code == 0:
             return Status(message='Create collection successfully!')
 
@@ -349,156 +331,154 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler(False)
-    def has_collection(self, table_name, timeout=10):
+    def has_collection(self, collection_name, timeout=10):
         """
 
-        This method is used to test table existence.
+        This method is used to test collection existence.
 
-        :param table_name: table name is going to be tested.
-        :type  table_name: str
+        :param collection_name: collection name is going to be tested.
+        :type  collection_name: str
         :param timeout: time waiting for server response
         :type  timeout: int
 
         :return:
             Status: indicate if vectors inserted successfully
-            bool if given table_name exists
+            bool if given collection_name exists
 
         """
 
-        table_name = Prepare.table_name(table_name)
+        collection_name = Prepare.collection_name(collection_name)
 
-        rf = self._stub.HasTable.future(table_name)
+        rf = self._stub.HasCollection.future(collection_name)
         reply = rf.result(timeout=timeout)
         rf.__del__()
-        # reply = self._stub.HasTable.future(table_name).result(timeout=timeout)
         if reply.status.error_code == 0:
             return Status(), reply.bool_reply
 
         return Status(code=reply.status.error_code, message=reply.status.reason), False
 
     @error_handler(None)
-    def describe_collection(self, table_name, timeout=10):
+    def describe_collection(self, collection_name, timeout=10):
         """
-        Show table information
+        Show collection information
 
-        :type  table_name: str
-        :param table_name: which table to be shown
+        :type  collection_name: str
+        :param collection_name: which collection to be shown
 
-        :returns: (Status, table_schema)
+        :returns: (Status, collection_schema)
             Status: indicate if query is successful
-            table_schema: return when operation is successful
+            collection_schema: return when operation is successful
         :rtype: (Status, TableSchema)
         """
-        table_name = Prepare.table_name(table_name)
-        rf = self._stub.DescribeTable.future(table_name)
+        collection_name = Prepare.collection_name(collection_name)
+        rf = self._stub.DescribeCollection.future(collection_name)
         response = rf.result(timeout=timeout)
         rf.__del__()
 
         if response.status.error_code == 0:
-            table = CollectionSchema(
-                collection_name=response.table_name,
+            collection = CollectionSchema(
+                collection_name=response.collection_name,
                 dimension=response.dimension,
                 index_file_size=response.index_file_size,
                 metric_type=MetricType(response.metric_type)
             )
-            return Status(message='Describe table successfully!'), table
+            return Status(message='Describe collection successfully!'), collection
 
         LOGGER.error(response.status)
         return Status(code=response.status.error_code, message=response.status.reason), None
 
     @error_handler(None)
-    def count_collection(self, table_name, timeout=30):
+    def count_collection(self, collection_name, timeout=30):
         """
-        obtain vector number in table
+        obtain vector number in collection
 
-        :type  table_name: str
-        :param table_name: target table name.
+        :type  collection_name: str
+        :param collection_name: target collection name.
 
         :returns:
             Status: indicate if operation is successful
 
-            res: int, table row count
+            res: int, collection row count
         """
 
-        table_name = Prepare.table_name(table_name)
+        collection_name = Prepare.collection_name(collection_name)
 
-        rf = self._stub.CountTable.future(table_name)
+        rf = self._stub.CountCollection.future(collection_name)
         response = rf.result(timeout=timeout)
         rf.__del__()
-        # response = self._stub.CountTable.future(table_name).result(timeout=timeout)
         if response.status.error_code == 0:
-            return Status(message='Success!'), response.table_row_count
+            return Status(message='Success!'), response.collection_row_count
 
         return Status(code=response.status.error_code, message=response.status.reason), None
 
     @error_handler([])
     def show_collections(self, timeout=10):
         """
-        Show all tables information in database
+        Show all collections information in database
 
         :return:
             Status: indicate if this operation is successful
 
-            tables: list of table names, return when operation
+            collections: list of collection names, return when operation
                     is successful
         :rtype:
             (Status, list[str])
         """
 
-        cmd = Prepare.cmd('show_tables')
-        rf = self._stub.ShowTables.future(cmd)
+        cmd = Prepare.cmd('show_collections')
+        rf = self._stub.ShowCollections.future(cmd)
         response = rf.result(timeout=timeout)
         rf.__del__()
         if response.status.error_code == 0:
-            return Status(message='Show tables successfully!'), \
-                   [name for name in response.table_names if len(name) > 0]
+            return Status(message='Show collections successfully!'), \
+                   [name for name in response.collection_names if len(name) > 0]
         return Status(response.status.error_code, message=response.status.reason), []
 
     @error_handler(None)
-    def show_collection_info(self, table_name, timeout=10):
-        request = grpc_types.TableName(collection_name=table_name)
+    def show_collection_info(self, collection_name, timeout=10):
+        request = grpc_types.CollectionName(collection_name=collection_name)
 
-        rf = self._stub.ShowTableInfo.future(request)
+        rf = self._stub.ShowCollectionInfo.future(request)
         response = rf.result(timeout=timeout)
         rf.__del__()
         rpc_status = response.status
 
         if rpc_status.error_code == 0:
-            return Status(), TableInfo(response)
+            return Status(), CollectionInfo(response)
 
         return Status(rpc_status.error_code, rpc_status.reason), None
 
     @error_handler()
-    def preload_collection(self, table_name, timeout=None):
+    def preload_collection(self, collection_name, timeout=None):
         """
-        Load table to cache in advance
+        Load collection to cache in advance
 
-        :type table_name: str
-        :param table_name: table to preload
+        :type collection_name: str
+        :param collection_name: collection to preload
 
         :returns:
             Status:  indicate if invoke is successful
         """
 
-        table_name = Prepare.table_name(table_name)
-        status = self._stub.PreloadTable.future(table_name).result(timeout=timeout)
+        collection_name = Prepare.collection_name(collection_name)
+        status = self._stub.PreloadCollection.future(collection_name).result(timeout=timeout)
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def drop_collection(self, table_name, timeout=20):
+    def drop_collection(self, collection_name, timeout=20):
         """
-        Delete table with table_name
+        Delete collection with collection_name
 
-        :type  table_name: str
-        :param table_name: Name of the table being deleted
+        :type  collection_name: str
+        :param collection_name: Name of the collection being deleted
 
         :return: Status, indicate if operation is successful
         :rtype: Status
         """
 
-        table_name = Prepare.table_name(table_name)
+        collection_name = Prepare.collection_name(collection_name)
 
-        rf = self._stub.DropTable.future(table_name)
+        rf = self._stub.DropCollection.future(collection_name)
         status = rf.result(timeout=timeout)
         rf.__del__()
         if status.error_code == 0:
@@ -506,15 +486,15 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler([])
-    def insert(self, table_name, records, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
+    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
         """
-        Add vectors to table
+        Add vectors to collection
 
         :param ids: list of id
         :type  ids: list[int]
 
-        :type  table_name: str
-        :param table_name: table name been inserted
+        :type  collection_name: str
+        :param collection_name: collection name been inserted
 
         :type  records: list[list[float]]
 
@@ -525,9 +505,9 @@ class GrpcHandler(ConnectIntf):
         :param records: list of vectors been inserted
 
         :type partition_tag: str or None.
-            If partition_tag is None, vectors will be inserted into table rather than partitions.
+            If partition_tag is None, vectors will be inserted into collection rather than partitions.
 
-        :param partition_tag: the tag string of table
+        :param partition_tag: the tag string of collection
 
         :type
 
@@ -545,7 +525,7 @@ class GrpcHandler(ConnectIntf):
             raise ParamError("The value of key 'insert_param' is invalid")
 
         body = insert_param if insert_param \
-            else Prepare.insert_param(table_name, records, partition_tag, ids, params)
+            else Prepare.insert_param(collection_name, records, partition_tag, ids, params)
 
         rf = self._stub.Insert.future(body)
         if kwargs.get("_async", False) is True:
@@ -560,8 +540,8 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.status.error_code, message=response.status.reason), []
 
     @error_handler([])
-    def get_vector_by_id(self, table_name, v_id, timeout=10):
-        request = grpc_types.VectorIdentity(collection_name=table_name, id=v_id)
+    def get_vector_by_id(self, collection_name, v_id, timeout=10):
+        request = grpc_types.VectorIdentity(collection_name=collection_name, id=v_id)
 
         rf = self._stub.GetVectorByID.future(request)
         response = rf.result(timeout=timeout)
@@ -575,8 +555,8 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason), []
 
     @error_handler([])
-    def get_vector_ids(self, table_name, segment_name, timeout=10):
-        request = grpc_types.GetVectorIDsParam(collection_name=table_name, segment_name=segment_name)
+    def get_vector_ids(self, collection_name, segment_name, timeout=10):
+        request = grpc_types.GetVectorIDsParam(collection_name=collection_name, segment_name=segment_name)
 
         rf = self._stub.GetVectorIDs.future(request)
         response = rf.result(timeout=timeout)
@@ -587,12 +567,12 @@ class GrpcHandler(ConnectIntf):
         return Status(response.status.error_code, response.status.reason), []
 
     @error_handler()
-    def create_index(self, table_name, index_type=None, params=None, timeout=None, **kwargs):
+    def create_index(self, collection_name, index_type=None, params=None, timeout=None, **kwargs):
         """
-        build vectors of specific table and create vector index
+        build vectors of specific collection and create vector index
 
-        :param table_name: table used to crete index.
-        :type table_name: str
+        :param collection_name: collection used to crete index.
+        :type collection_name: str
         :param index: index params
         :type index: dict
 
@@ -610,7 +590,7 @@ class GrpcHandler(ConnectIntf):
 
         :return: Status, indicate if operation is successful
         """
-        index_param = Prepare.index_param(table_name, index_type, params)
+        index_param = Prepare.index_param(collection_name, index_type, params)
         # status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
         future = self._stub.CreateIndex.future(index_param, timeout=timeout)
         if kwargs.get('_async', False):
@@ -624,12 +604,12 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def describe_index(self, table_name, timeout=10):
+    def describe_index(self, collection_name, timeout=10):
         """
-        Show index information of designated table
+        Show index information of designated collection
 
-        :type table_name: str
-        :param table_name: table name been queried
+        :type collection_name: str
+        :param collection_name: collection name been queried
 
         :returns:
             Status:  indicate if query is successful
@@ -637,9 +617,9 @@ class GrpcHandler(ConnectIntf):
 
         """
 
-        table_name = Prepare.table_name(table_name)
+        collection_name = Prepare.collection_name(collection_name)
 
-        rf = self._stub.DescribeIndex.future(table_name)
+        rf = self._stub.DescribeIndex.future(collection_name)
         index_param = rf.result(timeout=timeout)
         rf.__del__()
 
@@ -654,12 +634,12 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason), None
 
     @error_handler()
-    def drop_index(self, table_name, timeout=10):
+    def drop_index(self, collection_name, timeout=10):
         """
         drop index from index file
 
-        :param table_name: target table name.
-        :type table_name: str
+        :param collection_name: target collection name.
+        :type collection_name: str
 
         :return:
             Status: indicate if operation is successful
@@ -667,27 +647,27 @@ class GrpcHandler(ConnectIntf):
         ：:rtype: Status
         """
 
-        table_name = Prepare.table_name(table_name)
-        rf = self._stub.DropIndex.future(table_name)
+        collection_name = Prepare.collection_name(collection_name)
+        rf = self._stub.DropIndex.future(collection_name)
         status = rf.result(timeout=timeout)
         rf.__del__()
-        # status = self._stub.DropIndex.future(table_name).result(timeout=timeout)
+        # status = self._stub.DropIndex.future(collection_name).result(timeout=timeout)
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def create_partition(self, table_name, partition_tag, timeout=10):
+    def create_partition(self, collection_name, partition_tag, timeout=10):
         """
-        create a specific partition under designated table. After done, the meta file in
+        create a specific partition under designated collection. After done, the meta file in
         milvus server update partition information, you can perform actions about partitions
         with partition tag.
 
-        :param table_name: target table name.
-        :type  table_name: str
+        :param collection_name: target collection name.
+        :type  collection_name: str
 
-        :param partition_name: name of target partition under designated table.
+        :param partition_name: name of target partition under designated collection.
         :type  partition_name: str
 
-        :param partition_tag: tag name of target partition under designated table.
+        :param partition_tag: tag name of target partition under designated collection.
         :type  partition_tag: str
 
         :param timeout: time waiting for response.
@@ -697,19 +677,19 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-        request = Prepare.partition_param(table_name, partition_tag)
+        request = Prepare.partition_param(collection_name, partition_tag)
         rf = self._stub.CreatePartition.future(request)
         response = rf.result(timeout=timeout)
         rf.__del__()
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler([])
-    def show_partitions(self, table_name, timeout=10):
+    def show_partitions(self, collection_name, timeout=10):
         """
-        Show all partitions under designated table.
+        Show all partitions under designated collection.
 
-        :param table_name: target table name.
-        :type  table_name: str
+        :param collection_name: target collection name.
+        :type  collection_name: str
 
         :param timeout: time waiting for response.
         :type  timeout: int
@@ -719,7 +699,7 @@ class GrpcHandler(ConnectIntf):
             partition_list:
 
         """
-        request = Prepare.table_name(table_name)
+        request = Prepare.collection_name(collection_name)
 
         rf = self._stub.ShowPartitions.future(request)
         response = rf.result(timeout=timeout)
@@ -727,18 +707,18 @@ class GrpcHandler(ConnectIntf):
         # response = self._stub.ShowPartitions.future(request).result(timeout=timeout)
         status = response.status
         if status.error_code == 0:
-            partition_list = [PartitionParam(table_name, p) for p in response.partition_tag_array]
+            partition_list = [PartitionParam(collection_name, p) for p in response.partition_tag_array]
             return Status(), partition_list
 
         return Status(code=status.error_code, message=status.reason), []
 
     @error_handler()
-    def drop_partition(self, table_name, partition_tag, timeout=10):
+    def drop_partition(self, collection_name, partition_tag, timeout=10):
         """
-        Drop specific partition under designated table.
+        Drop specific partition under designated collection.
 
-        :param table_name: target table name.
-        :type  table_name: str
+        :param collection_name: target collection name.
+        :type  collection_name: str
 
         :param partition_tag: tag name of specific partition
         :type  partition_tag: str
@@ -750,7 +730,7 @@ class GrpcHandler(ConnectIntf):
             Status: indicate if operation is successful
 
         """
-        request = grpc_types.PartitionParam(collection_name=table_name, tag=partition_tag)
+        request = grpc_types.PartitionParam(collection_name=collection_name, tag=partition_tag)
 
         rf = self._stub.DropPartition.future(request)
         response = rf.result(timeout=timeout)
@@ -759,12 +739,12 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler(None)
-    def search(self, table_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
+    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
         """
-        Search similar vectors in designated table
+        Search similar vectors in designated collection
 
-        :param table_name: target table name
-        :type  table_name: str
+        :param collection_name: target collection name
+        :type  collection_name: str
 
         :param top_k: number of vertors which is most similar with query vectors
         :type  top_k: int
@@ -786,7 +766,7 @@ class GrpcHandler(ConnectIntf):
 
         """
 
-        request = Prepare.search_param(table_name, top_k, query_records, partition_tags, params)
+        request = Prepare.search_param(collection_name, top_k, query_records, partition_tags, params)
 
         self._search_hook.pre_search()
         if kwargs.get("_async", False) is True:
@@ -811,9 +791,9 @@ class GrpcHandler(ConnectIntf):
         return Status(message='Search vectors successfully!'), resutls
 
     @error_handler(None)
-    def search_in_files(self, table_name, file_ids, query_records, top_k, params, **kwargs):
+    def search_in_files(self, collection_name, file_ids, query_records, top_k, params, **kwargs):
         """
-        Query vectors in a table, in specified files.
+        Query vectors in a collection, in specified files.
 
         The server store vector data into multiple files if the size of vectors
         exceeds file size threshold. It is supported to search in several files
@@ -822,8 +802,8 @@ class GrpcHandler(ConnectIntf):
         method used in shards. Obtain more detail about milvus shards, see
         <a href="https://github.com/milvus-io/milvus/tree/0.6.0/shards">
 
-        :type  table_name: str
-        :param table_name: table name been queried
+        :type  collection_name: str
+        :param collection_name: collection name been queried
 
         :type  file_ids: list[str] or list[int]
         :param file_ids: Specified files id array
@@ -832,7 +812,7 @@ class GrpcHandler(ConnectIntf):
         :param query_records: all vectors going to be queried
 
         :param query_ranges: Optional ranges for conditional search.
-            If not specified, search in the whole table
+            If not specified, search in the whole collection
 
         :type  top_k: int
         :param top_k: how many similar vectors will be searched
@@ -846,7 +826,7 @@ class GrpcHandler(ConnectIntf):
 
         file_ids = list(map(int_or_str, file_ids))
         infos = Prepare.search_vector_in_files_param(
-            table_name, query_records, top_k, file_ids, params
+            collection_name, query_records, top_k, file_ids, params
         )
 
         self._search_file_hook.pre_search()
@@ -871,15 +851,15 @@ class GrpcHandler(ConnectIntf):
         return Status(message='Search vectors successfully!'), \
                self._search_file_hook.handle_response(response)
 
-    def __delete_vectors_by_range(self, table_name, start_date=None, end_date=None, timeout=10):
+    def __delete_vectors_by_range(self, collection_name, start_date=None, end_date=None, timeout=10):
         """
         Delete vectors by range. The data range contains start_time but not end_time
         This method is deprecated, not recommended for users.
 
         This API is deprecated.
 
-        :type  table_name: str
-        :param table_name: str, date, datetime
+        :type  collection_name: str
+        :param collection_name: str, date, datetime
 
         :type  start_date: str, date, datetime
         :param start_date:
@@ -894,7 +874,7 @@ class GrpcHandler(ConnectIntf):
         if not self.connected():
             raise NotConnectError('Please connect to the server first')
 
-        delete_range = Prepare.delete_param(table_name, start_date, end_date)
+        delete_range = Prepare.delete_param(collection_name, start_date, end_date)
 
         try:
             status = self._stub.DeleteByDate.future(delete_range).result(timeout=timeout)
@@ -907,8 +887,8 @@ class GrpcHandler(ConnectIntf):
             return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     @error_handler()
-    def delete_by_id(self, table_name, id_array, timeout=None):
-        request = Prepare.delete_by_id_param(table_name, id_array)
+    def delete_by_id(self, collection_name, id_array, timeout=None):
+        request = Prepare.delete_by_id_param(collection_name, id_array)
 
         rf = self._stub.DeleteByID.future(request)
         status = rf.result(timeout=timeout)
@@ -917,8 +897,8 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def flush(self, table_name_array, timeout=None, **kwargs):
-        request = Prepare.flush_param(table_name_array)
+    def flush(self, collection_name_array, timeout=None, **kwargs):
+        request = Prepare.flush_param(collection_name_array)
         future = self._stub.Flush.future(request, timeout=timeout)
         if kwargs.get("_async", False):
             cb = kwargs.get("_callback", None)
@@ -928,8 +908,8 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler()
-    def compact(self, table_name, timeout, **kwargs):
-        request = Prepare.compact_param(table_name)
+    def compact(self, collection_name, timeout, **kwargs):
+        request = Prepare.compact_param(collection_name)
         future = self._stub.Compact.future(request, timeout=timeout)
         if kwargs.get("_async", False):
             cb = kwargs.get("_callback", None)
