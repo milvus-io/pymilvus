@@ -643,7 +643,7 @@ class Milvus:
         """
 
         if collection_name_array in (None, []):
-            return conn.flush([])
+            return self._stub.flush([])
 
         if not isinstance(collection_name_array, list):
             raise ParamError("Collection name array must be type of list")
