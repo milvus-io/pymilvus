@@ -138,14 +138,12 @@ class Milvus:
         Check if server is accessible
 
         """
-        conn = self._get_connection()
-        try:
-            conn.connect(timeout=2)
-            return True
-        except:
-            raise
-        finally:
-            conn.close()
+        if self.handler == "GRPC":
+            from .grpc_handler import set_uri, connect
+            _addr = set_uri(None, None, self._uri)
+            return connect(_addr, timeout)
+
+        return True
 
     def terminate(self):
         del self._pool

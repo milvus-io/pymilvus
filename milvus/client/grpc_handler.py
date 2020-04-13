@@ -47,6 +47,59 @@ def error_handler(*rargs):
     return wrapper
 
 
+def set_uri(host, port, uri):
+    if host is not None:
+        _port = port if port is not None else config.GRPC_PORT
+        _host = host
+    elif port is None:
+        try:
+            # Ignore uri check here
+            # if not is_legal_uri(_uri):
+            #     raise ParamError("uri {} is illegal".format(_uri))
+            #
+            # If uri is empty (None or '') use default uri instead
+            # (the behavior may change in the future)
+            # _uri = urlparse(_uri) if _uri is not None else urlparse(config.GRPC_URI)
+            _uri = urlparse(uri) if uri else urlparse(config.GRPC_URI)
+            _host = _uri.hostname
+            _port = _uri.port
+        except (AttributeError, ValueError, TypeError) as e:
+            raise ParamError("uri is illegal: {}".format(e))
+    else:
+        raise ParamError("Param is not complete. Please invoke as follow:\n"
+                         "\t(host = ${HOST}, port = ${PORT})\n"
+                         "\t(uri = ${URI})\n")
+
+    if not is_legal_host(_host) or not is_legal_port(_port):
+        raise ParamError("host or port is illeagl")
+
+    return "{}:{}".format(str(_host), str(_port))
+
+
+def connect(addr, timeout):
+    channel = grpc.insecure_channel(
+        addr,
+        options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
+                 (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
+    )
+    try:
+        ft = grpc.channel_ready_future(channel)
+        ft.result(timeout=timeout)
+        return True
+    except grpc.FutureTimeoutError:
+        raise NotConnectError('Fail connecting to server on {}. Timeout'.format(addr))
+    except grpc.RpcError as e:
+        raise NotConnectError("Connect error: <{}>".format(e))
+    # Unexpected error
+    except Exception as e:
+        raise NotConnectError("Error occurred when trying to connect server:\n"
+                              "\t<{}>".format(str(e)))
+    finally:
+        ft.cancel()
+        ft.__del__()
+        channel.__del__()
+
+
 class GrpcHandler(ConnectIntf):
     def __init__(self, host=None, port=None, **kwargs):
         self._stub = None
@@ -61,7 +114,7 @@ class GrpcHandler(ConnectIntf):
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
         if host or port or _uri:
-            self._uri = self._set_uri(host, port, uri=_uri)
+            self._uri = set_uri(host, port, uri=_uri)
             self._setup(kwargs.get("pre_ping", False))
 
     def __str__(self):
@@ -86,41 +139,6 @@ class GrpcHandler(ConnectIntf):
         """
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._set_channel())
         self.status = Status()
-
-    def _set_uri(self, host, port, **kwargs):
-        """
-        Set server network address
-
-        :raises: ParamError
-
-        """
-        if host is not None:
-            _port = port if port is not None else config.GRPC_PORT
-            _host = host
-        elif port is None:
-            try:
-                _uri = kwargs.get("uri", None)
-                # Ignore uri check here
-                # if not is_legal_uri(_uri):
-                #     raise ParamError("uri {} is illegal".format(_uri))
-                #
-                # If uri is empty (None or '') use default uri instead
-                # (the behavior may change in the future)
-                # _uri = urlparse(_uri) if _uri is not None else urlparse(config.GRPC_URI)
-                _uri = urlparse(_uri) if _uri else urlparse(config.GRPC_URI)
-                _host = _uri.hostname
-                _port = _uri.port
-            except (AttributeError, ValueError, TypeError) as e:
-                raise ParamError("uri is illegal: {}".format(e))
-        else:
-            raise ParamError("Param is not complete. Please invoke as follow:\n"
-                             "\t(host = ${HOST}, port = ${PORT})\n"
-                             "\t(uri = ${URI})\n")
-
-        if not is_legal_host(_host) or not is_legal_port(_port):
-            raise ParamError("host or port is illeagl")
-
-        return "{}:{}".format(str(_host), str(_port))
 
     def _set_channel(self):
         """
@@ -202,25 +220,10 @@ class GrpcHandler(ConnectIntf):
             #     return Status(message="The server address is set as {}, "
             #                           "you cannot connect other server".format(self._uri),
             #                   code=Status.CONNECT_FAILED)
-            self._uri = self._set_uri(host, port, uri=uri)
-        try:
-            # check if server is ready
-            channel = self._set_channel()
-            ft = grpc.channel_ready_future(channel)
-            ft.result(timeout=timeout)
-        except grpc.FutureTimeoutError:
-            raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
-        except grpc.RpcError as e:
-            raise NotConnectError("Connect error: <{}>".format(e))
-        # Unexpected error
-        except Exception as e:
-            raise NotConnectError("Error occurred when trying to connect server:\n"
-                                  "\t<{}>".format(str(e)))
-        finally:
-            ft.cancel()
-            ft.__del__()
+            self._uri = set_uri(host, port, uri=uri)
+            connect(self._uri, timeout)
 
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(channel)
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._set_channel())
         self.status = Status()
         return self.status
 
@@ -256,7 +259,6 @@ class GrpcHandler(ConnectIntf):
 
         self.status = None
         self._stub = None
-
         return Status(message='Disconnect successfully')
 
     def server_version(self, timeout=10):
