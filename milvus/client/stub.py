@@ -17,16 +17,6 @@ from .exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
 
 
-def _extract_pool_kw(kw):
-    pool_keys = ["handler", "pre_ping", "recycle", "pool_size", "wait_timeout"]
-    pool_kw = dict()
-    for k in pool_keys:
-        if k in kw.keys():
-            pool_kw[k] = kw.get(k)
-
-    return pool_kw
-
-
 def check_connect(func):
     @functools.wraps(func)
     def inner(self, *args, **kwargs):
@@ -34,18 +24,18 @@ def check_connect(func):
             raise NotConnectError('Please connect to the server first')
 
         return func(self, *args, **kwargs)
+
     return inner
 
 
 class Milvus:
     def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
         self._name = kwargs.get('name', None)
-        self._handler = handler
         self._uri = None
-        self._pool = None
         self._status = None
         self._connected = False
-
+        self._handler = handler
+        self._stub = None
         # store extra key-words arguments
         self._kw = kwargs
 
@@ -72,9 +62,7 @@ class Milvus:
     def _init(self, host, port, uri, **kwargs):
         handler = kwargs.get("handler", "GRPC")
         self._uri = self._set_uri(host, port, uri, handler)
-
-        pool_kw = _extract_pool_kw(kwargs)
-        self._pool = ConnectionPool(self._uri, **pool_kw)
+        self._stub = GrpcHandler(None, None, uri=self._uri)
 
     def _set_uri(self, host, port, uri, handler="GRPC"):
         default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
@@ -108,22 +96,14 @@ class Milvus:
 
         return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
 
-    def _get_connection(self):
-        return self._pool.fetch()
-
-    def _put_connection(self, conn):
-        conn.release()
-        # self._pool.release(conn)
-
-    # def set_hook(self, **kwargs):
-    #     # TODO: may remove it.
-    #     # return self._handler.set_hook(**kwargs)
-    #     pass
+    def set_hook(self, **kwargs):
+        # TODO: may remove it.
+        return self._handler.set_hook(**kwargs)
 
     # @property
     # def status(self):
     #     return self._handler.status
-        # pass
+    # pass
 
     @property
     def name(self):
@@ -214,13 +194,7 @@ class Milvus:
     def _cmd(self, cmd, timeout=10):
         check_pass_param(cmd=cmd)
 
-        conn = self._get_connection()
-        try:
-            return conn._cmd(cmd, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        return self._stub._cmd(cmd, timeout)
 
     @check_connect
     def create_collection(self, param, timeout=10):
@@ -267,13 +241,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name, dimension=dim, index_file_size=index_file_size,
                          metric_type=metric_type)
 
-        conn = self._get_connection()
-        try:
-            return conn.create_collection(collection_name, dim, index_file_size, metric_type, collection_param)
-        except:
-            raise
-        finally:
-            conn.close()
+        return self._stub.create_collection(collection_name, dim, index_file_size, metric_type, collection_param)
 
     @check_connect
     def has_collection(self, collection_name, timeout=10):
@@ -292,13 +260,7 @@ class Milvus:
 
         """
         check_pass_param(collection_name=collection_name)
-        conn = self._get_connection()
-        try:
-            return conn.has_collection(collection_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.has_collection(collection_name, timeout)
 
     @check_connect
     def describe_collection(self, collection_name, timeout=10):
@@ -314,14 +276,7 @@ class Milvus:
         :rtype: (Status, TableSchema)
         """
         check_pass_param(collection_name=collection_name)
-
-        conn = self._get_connection()
-        try:
-            return conn.describe_collection(collection_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.describe_collection(collection_name, timeout)
 
     @check_connect
     def count_collection(self, collection_name, timeout=10):
@@ -338,13 +293,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
 
-        conn = self._get_connection()
-        try:
-            return conn.count_collection(collection_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.count_collection(collection_name, timeout)
 
     @check_connect
     def show_collections(self, timeout=10):
@@ -359,25 +308,13 @@ class Milvus:
         :rtype:
             (Status, list[str])
         """
-        conn = self._get_connection()
-        try:
-            return conn.show_collections(timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.show_collections(timeout)
 
     @check_connect
     def collection_info(self, collection_name, timeout=10):
         # TODO: need check collection_name here
         # check_pass_param(collection_name=collection_name)
-        conn = self._get_connection()
-        try:
-            return conn.show_collection_info(collection_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.show_collection_info(collection_name, timeout)
 
     @check_connect
     def preload_collection(self, collection_name, timeout=None):
@@ -392,13 +329,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
 
-        conn = self._get_connection()
-        try:
-            return conn.preload_collection(collection_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.preload_collection(collection_name, timeout)
 
     @check_connect
     def drop_collection(self, collection_name, timeout=10):
@@ -413,13 +344,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
 
-        conn = self._get_connection()
-        try:
-            return conn.drop_collection(collection_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.drop_collection(collection_name, timeout)
 
     @check_connect
     def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, **kwargs):
@@ -453,52 +378,34 @@ class Milvus:
             ids: IDs of the inserted vectors.
         :rtype: (Status, list(int))
         """
-        conn = self._get_connection()
-        try:
-            if kwargs.get("insert_param", None) is not None:
-                return conn.insert(None, None, **kwargs)
+        if kwargs.get("insert_param", None) is not None:
+            return self._stub.insert(None, None, **kwargs)
 
-            check_pass_param(collection_name=collection_name, records=records)
-            partition_tag is not None and check_pass_param(partition_tag=partition_tag)
-            ids is not None and check_pass_param(ids=ids)
+        check_pass_param(collection_name=collection_name, records=records)
+        partition_tag is not None and check_pass_param(partition_tag=partition_tag)
+        ids is not None and check_pass_param(ids=ids)
 
-            if ids is not None and len(records) != len(ids):
-                raise ParamError("length of vectors do not match that of ids")
+        if ids is not None and len(records) != len(ids):
+            raise ParamError("length of vectors do not match that of ids")
 
-            params = params or dict()
-            if not isinstance(params, dict):
-                raise ParamError("Params must be a dictionary type")
+        params = params or dict()
+        if not isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
 
-            return conn.insert(collection_name, records, ids, partition_tag, params, None, **kwargs)
-        except:
-            raise
-        finally:
-            conn.close()
+        return self._stub.insert(collection_name, records, ids, partition_tag, params, None, **kwargs)
 
     @check_connect
     def get_vector_by_id(self, collection_name, vector_id, timeout=None):
         check_pass_param(collection_name=collection_name, ids=[vector_id])
 
-        conn = self._get_connection()
-        try:
-            return conn.get_vector_by_id(collection_name, vector_id, timeout=timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.get_vector_by_id(collection_name, vector_id, timeout=timeout)
 
     @check_connect
     def get_vector_ids(self, collection_name, segment_name, timeout=None):
         check_pass_param(collection_name=collection_name)
         check_pass_param(collection_name=segment_name)
 
-        conn = self._get_connection()
-        try:
-            return conn.get_vector_ids(collection_name, segment_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.get_vector_ids(collection_name, segment_name, timeout)
 
     @check_connect
     def create_index(self, collection_name, index_type=None, params=None, timeout=None, **kwargs):
@@ -531,13 +438,7 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
-        conn = self._get_connection()
-        try:
-            return conn.create_index(collection_name, _index_type, params, timeout, **kwargs)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.create_index(collection_name, _index_type, params, timeout, **kwargs)
 
     @check_connect
     def describe_index(self, collection_name, timeout=10):
@@ -554,13 +455,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
 
-        conn = self._get_connection()
-        try:
-            return conn.describe_index(collection_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.describe_index(collection_name, timeout)
 
     @check_connect
     def drop_index(self, collection_name, timeout=10):
@@ -577,13 +472,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
 
-        conn = self._get_connection()
-        try:
-            return conn.drop_index(collection_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.drop_index(collection_name, timeout)
 
     @check_connect
     def create_partition(self, collection_name, partition_tag, timeout=10):
@@ -602,19 +491,13 @@ class Milvus:
         :param timeout: time waiting for response.
         :type  timeout: int
 
-       :return:
+        :return:
             Status: Whether the operation is successful.
 
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
 
-        conn = self._get_connection()
-        try:
-            return conn.create_partition(collection_name, partition_tag, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.create_partition(collection_name, partition_tag, timeout)
 
     @check_connect
     def show_partitions(self, collection_name, timeout=10):
@@ -634,13 +517,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
 
-        conn = self._get_connection()
-        try:
-            return conn.show_partitions(collection_name, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.show_partitions(collection_name, timeout)
 
     @check_connect
     def drop_partition(self, collection_name, partition_tag, timeout=10):
@@ -662,13 +539,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
 
-        conn = self._get_connection()
-        try:
-            return conn.drop_partition(collection_name, partition_tag, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.drop_partition(collection_name, partition_tag, timeout)
 
     @check_connect
     def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
@@ -704,13 +575,7 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
-        conn = self._get_connection()
-        try:
-            return conn.search(collection_name, top_k, query_records, partition_tags, params, **kwargs)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.search(collection_name, top_k, query_records, partition_tags, params, **kwargs)
 
     @check_connect
     def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None, **kwargs):
@@ -749,14 +614,8 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
-        conn = self._get_connection()
-        try:
-            return conn.search_in_files(collection_name, file_ids,
-                                        query_records, top_k, params, **kwargs)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.search_in_files(collection_name, file_ids,
+                                   query_records, top_k, params, **kwargs)
 
     @check_connect
     def delete_by_id(self, collection_name, id_array, timeout=None):
@@ -766,13 +625,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name, ids=id_array)
 
-        conn = self._get_connection()
-        try:
-            return conn.delete_by_id(collection_name, id_array, timeout)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.delete_by_id(collection_name, id_array, timeout)
 
     @check_connect
     def flush(self, collection_name_array=None, **kwargs):
@@ -797,12 +650,7 @@ class Milvus:
         for name in collection_name_array:
             check_pass_param(collection_name=name)
 
-        try:
-            return conn.flush(collection_name_array, **kwargs)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.flush(collection_name_array, **kwargs)
 
     @check_connect
     def compact(self, collection_name, timeout=None, **kwargs):
@@ -815,13 +663,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
 
-        conn = self._get_connection()
-        try:
-            return conn.compact(collection_name, timeout, **kwargs)
-        except:
-            raise
-        finally:
-            conn.close()
+        self._stub.compact(collection_name, timeout, **kwargs)
 
     def get_config(self, parent_key, child_key):
         """
