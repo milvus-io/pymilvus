@@ -155,16 +155,19 @@ def is_legal_topk(topk):
 
 
 def is_legal_ids(ids):
-    if ids is None:
-        return True
-
     if not isinstance(ids, list) or \
             len(ids) == 0:
         return False
 
-    # TODO: Here check id valid value range msa not match other SDK
+    # TODO: Here check id valid value range may not match other SDK
     for i in ids:
-        if not isinstance(i, int) or i < 0 or i > sys.maxsize:
+        if not isinstance(i, (int, str)):
+            return False
+        try:
+            i_ = int(i)
+            if i_ < 0 or i_ > sys.maxsize:
+                return False
+        except:
             return False
 
     return True

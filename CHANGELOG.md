@@ -1,12 +1,26 @@
+# pymilvus 0.2.10(2020-04-15)
+
+## Improvement
+- \#182 - optimize usage of gRPC future
+
+## New Feature
+- \#178 - new index annoy
+
+
 # pymilvus 0.2.9(2020-03-29)
 
 ## Bug
 - \#168 - fix incorrect demo in readme
 - \#172 - allow empty list in flush passing parameter
 
+## Improvement
+- \#175 - remove connect APIs
+
 ## New Feature
 - \#170 - add index RNSG into HTTP handler
 - \#171 - add two new binary metric: SUBSTRUCTURE and SUPERSTRUCTURE
+- \#174 - support connection pool
+- \#177 - support async APIs
 
 
 # pymilvus 0.2.8(2020-03-11)

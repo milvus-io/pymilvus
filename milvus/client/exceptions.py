@@ -20,3 +20,21 @@ class RepeatingConnectError(ConnectError):
     """
     Try to connect repeatedly
     """
+
+
+class ConnectionPoolError(ConnectError):
+    """
+    Waiting timeout error
+    """
+
+
+class DeprecatedError(AttributeError):
+    """
+    API is deprecated
+    """
+
+
+class FutureTimeoutError(TimeoutError):
+    """
+    Future timeout
+    """

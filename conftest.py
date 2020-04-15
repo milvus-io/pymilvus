@@ -56,13 +56,11 @@ def connect(request, ghandler):
 def gcon(request, ghandler):
     ip = request.config.getoption("--ip")
     port = request.config.getoption("--port")
-    milvus = Milvus(handler=ghandler)
-    print("Port: ", port)
-    milvus.connect(host=ip, port=port)
+    milvus = Milvus(host=ip, port=port, handler=ghandler)
 
     def fin():
         try:
-            milvus.disconnect()
+            pass
         except Exception as e:
             print(e)
             pass

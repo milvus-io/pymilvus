@@ -50,4 +50,4 @@ if __name__ == '__main__':
     client.drop_collection(collection_name)
 
     # disconnect from server
-    client.disconnect()
+    # client.disconnect()

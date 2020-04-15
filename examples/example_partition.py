@@ -22,105 +22,105 @@ def main():
     # You may need to change _HOST and _PORT accordingly
     param = {'host': _HOST, 'port': _PORT}
 
-    with Milvus(**param) as client:
-        # Create collection demo_collection if it dosen't exist.
-        collection_name = 'demo_partition_collection'
-        partition_tag = "random"
+    client = Milvus(**param)
+    # Create collection demo_collection if it dosen't exist.
+    collection_name = 'demo_partition_collection'
+    partition_tag = "random"
 
-        status, ok = client.has_collection(collection_name)
-        # if collection exists, then drop it
-        if status.OK() and ok:
-            client.drop_collection(collection_name)
+    status, ok = client.has_collection(collection_name)
+    # if collection exists, then drop it
+    if status.OK() and ok:
+        client.drop_collection(collection_name)
 
-        param = {
-            'collection_name': collection_name,
-            'dimension': _DIM,
-            'index_file_size': _INDEX_FILE_SIZE,  # optional
-            'metric_type': MetricType.L2  # optional
-        }
+    param = {
+        'collection_name': collection_name,
+        'dimension': _DIM,
+        'index_file_size': _INDEX_FILE_SIZE,  # optional
+        'metric_type': MetricType.L2  # optional
+    }
 
-        client.create_collection(param)
+    client.create_collection(param)
 
-        # Show collections in Milvus server
-        _, collections = client.show_collections()
+    # Show collections in Milvus server
+    _, collections = client.show_collections()
 
-        # Describe collection
-        _, collection = client.describe_collection(collection_name)
-        print(collection)
+    # Describe collection
+    _, collection = client.describe_collection(collection_name)
+    print(collection)
 
-        # create partition
-        client.create_partition(collection_name, partition_tag=partition_tag)
-        # display partitions
-        _, partitions = client.show_partitions(collection_name)
+    # create partition
+    client.create_partition(collection_name, partition_tag=partition_tag)
+    # display partitions
+    _, partitions = client.show_partitions(collection_name)
 
-        # 10000 vectors with 16 dimension
-        # element per dimension is float32 type
-        # vectors should be a 2-D array
-        vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
-        # You can also use numpy to generate random vectors:
-        #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
+    # 10000 vectors with 16 dimension
+    # element per dimension is float32 type
+    # vectors should be a 2-D array
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
+    # You can also use numpy to generate random vectors:
+    #     `vectors = np.random.rand(10000, 16).astype(np.float32).tolist()`
 
-        # Insert vectors into partition of collection, return status and vectors id list
-        status, ids = client.insert(collection_name=collection_name, records=vectors, partition_tag=partition_tag)
+    # Insert vectors into partition of collection, return status and vectors id list
+    status, ids = client.insert(collection_name=collection_name, records=vectors, partition_tag=partition_tag)
 
-        # Wait for 6 seconds, until Milvus server persist vector data.
-        time.sleep(6)
+    # Wait for 6 seconds, until Milvus server persist vector data.
+    time.sleep(6)
 
-        # Get demo_collection row count
-        status, num = client.count_collection(collection_name)
+    # Get demo_collection row count
+    status, num = client.count_collection(collection_name)
 
-        # create index of vectors, search more rapidly
-        index_param = {
-            'nlist': 2048
-        }
+    # create index of vectors, search more rapidly
+    index_param = {
+        'nlist': 2048
+    }
 
-        # Create ivflat index in demo_collection
-        # You can search vectors without creating index. however, Creating index help to
-        # search faster
-        status = client.create_index(collection_name, IndexType.IVF_FLAT, index_param)
+    # Create ivflat index in demo_collection
+    # You can search vectors without creating index. however, Creating index help to
+    # search faster
+    status = client.create_index(collection_name, IndexType.IVF_FLAT, index_param)
 
-        # describe index, get information of index
-        status, index = client.describe_index(collection_name)
-        print(index)
+    # describe index, get information of index
+    status, index = client.describe_index(collection_name)
+    print(index)
 
-        # Use the top 10 vectors for similarity search
-        query_vectors = vectors[0:10]
+    # Use the top 10 vectors for similarity search
+    query_vectors = vectors[0:10]
 
-        # execute vector similarity search, search range in partition `partition1`
-        search_param = {
-            "nprobe": 10
-        }
+    # execute vector similarity search, search range in partition `partition1`
+    search_param = {
+        "nprobe": 10
+    }
 
-        param = {
-            'collection_name': collection_name,
-            'query_records': query_vectors,
-            'top_k': 1,
-            'partition_tags': ["random"],
-            'params': search_param
-        }
-        status, results = client.search(**param)
+    param = {
+        'collection_name': collection_name,
+        'query_records': query_vectors,
+        'top_k': 1,
+        'partition_tags': ["random"],
+        'params': search_param
+    }
+    status, results = client.search(**param)
 
-        if status.OK():
-            # indicate search result
-            # also use by:
-            #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
-            if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
-                print('Query result is correct')
-            else:
-                print('Query result isn\'t correct')
+    if status.OK():
+        # indicate search result
+        # also use by:
+        #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
+        if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
+            print('Query result is correct')
+        else:
+            print('Query result isn\'t correct')
 
-        # print results
-        print(results)
+    # print results
+    print(results)
 
-        # Delete partition. You can also invoke `drop_collection()`, so that all of partitions belongs to
-        # designated collections will be deleted.
-        status = client.drop_partition(collection_name, partition_tag)
+    # Delete partition. You can also invoke `drop_collection()`, so that all of partitions belongs to
+    # designated collections will be deleted.
+    # status = client.drop_partition(collection_name, partition_tag)
 
-        # Delete collection. All of partitions of this collection will be dropped.
-        status = client.drop_collection(collection_name)
+    # Delete collection. All of partitions of this collection will be dropped.
+    status = client.drop_collection(collection_name)
 
-        # Disconnect from Milvus
-        status = client.disconnect()
+    # Disconnect from Milvus
+    # status = client.disconnect()
 
 
 if __name__ == '__main__':

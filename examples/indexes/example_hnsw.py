@@ -25,6 +25,7 @@ if __name__ == '__main__':
     }
 
     # create `HNSW` index
+    print("Createing index HNSW ... ")
     status = client.create_index(collection_name, IndexType.HNSW, index_param)
     if status.OK():
         print("Create index HNSW successfully\n")

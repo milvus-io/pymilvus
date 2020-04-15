@@ -2,10 +2,15 @@
 # create a vector collection,
 # insert 10 vectors, 
 # and execute a vector similarity search.
+import datetime
 import sys
+
 sys.path.append(".")
 import random
-from milvus import Milvus, IndexType, MetricType
+import threading
+import time
+from milvus import Milvus, IndexType, MetricType, Status
+from milvus.client.abstract import TopKQueryResult
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
@@ -19,20 +24,15 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
 def main():
-    milvus = Milvus()
+    milvus = Milvus(_HOST, _PORT)
 
-    # Connect to Milvus server
-    # You may need to change _HOST and _PORT accordingly
-    param = {'host': _HOST, 'port': _PORT}
-    status = milvus.connect(**param)
-    if status.OK():
-        print("Server connected.")
-    else:
-        print("Server connect fail.")
-        sys.exit(1)
+    # Check if server is accessible
+    if not milvus.ping():
+        print("Server is unreachable")
+        sys.exit(0)
 
     # Create collection demo_collection if it dosen't exist.
-    collection_name = 'example_collection'
+    collection_name = 'example_collection_'
 
     status, ok = milvus.has_collection(collection_name)
     if not ok:
@@ -94,15 +94,17 @@ def main():
     search_param = {
         "nprobe": 16
     }
+
+    print("Searching ... ")
+
     param = {
         'collection_name': collection_name,
         'query_records': query_vectors,
         'top_k': 1,
-        'params': search_param
+        'params': search_param,
     }
-    print("Searching ... ")
-    status, results = milvus.search(**param)
 
+    status, results = milvus.search(**param)
     if status.OK():
         # indicate search result
         # also use by:
@@ -112,14 +114,13 @@ def main():
         else:
             print('Query result isn\'t correct')
 
-    # print results
-    print(results)
+        # print results
+        print(results)
+    else:
+        print("Search failed. ", status)
 
     # Delete demo_collection
     status = milvus.drop_collection(collection_name)
-
-    # Disconnect from Milvus
-    status = milvus.disconnect()
 
 
 if __name__ == '__main__':

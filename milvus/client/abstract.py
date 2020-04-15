@@ -327,11 +327,11 @@ class IndexParam:
 
     """
 
-    def __init__(self, table_name, index_type, params):
+    def __init__(self, collection_name, index_type, params):
 
-        if table_name is None:
+        if collection_name is None:
             raise ParamError('Collection name can\'t be None')
-        collection_name = str(table_name) if not isinstance(table_name, str) else table_name
+        collection_name = str(collection_name) if not isinstance(collection_name, str) else collection_name
 
         if isinstance(index_type, int):
             index_type = IndexType(index_type)
@@ -356,11 +356,23 @@ class IndexParam:
                      for key, value in self.__dict__.items()]
         return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
 
+    @property
+    def collection_name(self):
+        return self._collection_name
+
+    @property
+    def index_type(self):
+        return self._index_type
+
+    @property
+    def params(self):
+        return self._params
+
 
 class PartitionParam:
 
-    def __init__(self, table_name, tag):
-        self.collection_name = table_name
+    def __init__(self, collection_name, tag):
+        self.collection_name = collection_name
         self.tag = tag
 
     def __repr__(self):
@@ -400,7 +412,7 @@ class PartitionStat:
         return self.__str__()
 
 
-class TableInfo:
+class CollectionInfo:
     def __init__(self, res):
         self.count = res.total_row_count
         self.partitions_stat = [PartitionStat(p) for p in list(res.partitions_stat)]
@@ -445,7 +457,7 @@ class HPartitionStat:
         return self.__str__()
 
 
-class HTableInfo:
+class HCollectionInfo:
     def __init__(self, res):
         self.count = res["count"]
         self.partitions_stat = [HPartitionStat(p) for p in res["partitions_stat"]]
