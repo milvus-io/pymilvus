@@ -129,6 +129,8 @@ class Milvus:
             from .grpc_handler import set_uri, connect
             _addr = set_uri(None, None, self._uri)
             return connect(_addr, timeout)
+        if self.handler == "HTTP":
+            self._stub.connect()
 
         return True
 
