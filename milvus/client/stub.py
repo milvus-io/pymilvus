@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 
+import collections
 import copy
 import functools
 import threading
@@ -38,6 +39,7 @@ class Milvus:
         self._stub = None
         # store extra key-words arguments
         self._kw = kwargs
+        self._hooks = collections.defaultdict()
 
         _uri = kwargs.get('uri', None)
         if host or port or _uri:
@@ -47,9 +49,7 @@ class Milvus:
             self._status = Status()
 
     def __enter__(self):
-        # self.__conn = self._get_connection()
-        # self._stub or self._init()
-        return self._stub
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # self.__conn.close()
@@ -65,6 +65,8 @@ class Milvus:
         handler = kwargs.get("handler", "GRPC")
         self._uri = self._set_uri(host, port, uri, handler)
         self._stub = GrpcHandler(None, None, uri=self._uri)
+        if len(self._hooks) > 0:
+            self._stub.set_hook(**self._hooks)
 
     def _set_uri(self, host, port, uri, handler="GRPC"):
         default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
@@ -100,7 +102,10 @@ class Milvus:
 
     def set_hook(self, **kwargs):
         # TODO: may remove it.
-        return self._handler.set_hook(**kwargs)
+        if self._stub:
+            return self._stub.set_hook(**kwargs)
+
+        self._hooks.update(kwargs)
 
     # @property
     # def status(self):
@@ -141,7 +146,6 @@ class Milvus:
         #     kw.pop('uri', None)
         #     self._init(host, port, uri, **kw)
         if self._stub is None:
-            # import pdb;pdb.set_trace()
             self._init(host, port, uri, handler=self._handler)
 
         if self.ping(timeout):
