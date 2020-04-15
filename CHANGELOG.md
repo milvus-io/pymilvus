@@ -1,6 +1,10 @@
-# pymilvus 0.2.10(TBD)
+# pymilvus 0.2.10(2020-04-15)
+
+## Improvement
+- \#182 - optimize usage of gRPC future
 
 ## New Feature
+- \#178 - new index annoy
 
 
 # pymilvus 0.2.9(2020-03-29)
@@ -17,7 +21,6 @@
 - \#171 - add two new binary metric: SUBSTRUCTURE and SUPERSTRUCTURE
 - \#174 - support connection pool
 - \#177 - support async APIs
-
 
 
 # pymilvus 0.2.8(2020-03-11)
