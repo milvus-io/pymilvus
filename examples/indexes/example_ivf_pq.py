@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     # specify index param
     index_param = {
-        "m": 12,
+        "m": 16,
         "nlist": 1024
     }
 
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     }
 
     # specify topk is 1, search approximate nearest 1 neighbor
-    status, result = client.search(collection_name, 1, query_vectors, params=search_param)
+    status, result = client.search(collection_name, 2, query_vectors, params=search_param)
 
     if status.OK():
         # show search result

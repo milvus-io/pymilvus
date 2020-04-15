@@ -7,7 +7,7 @@ if __name__ == '__main__':
 
     client = Milvus()
     # use default host:127.0.0.1, port:19530
-    # client.connect()
+    client.connect()
 
     # create collection: dimension is 128, metric type is L2
     gen_collection(client, collection_name, 128, MetricType.L2)
