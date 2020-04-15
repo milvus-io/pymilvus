@@ -139,3 +139,23 @@ NSG
 
   * Range: [10, 300]
   * recommended value: 100
+
+
+ANNOY
+^^^^^^
+
+**Create index param**
+
+
+* n_trees
+
+  * Range: [1, 1024]
+
+
+**Search param**
+
+* search_k
+
+  * Range: -1  [topk,  ∞)
+
+
