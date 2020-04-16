@@ -35,8 +35,8 @@ def gen_binary_vectors(dim, num):
 
 
 def main(collection_name, metric_type):
-    client = Milvus()
-    client.connect(host="localhost", port="19530")
+    client = Milvus(host="localhost", port="19530")
+    client.connect()
 
     _, ok = client.has_collection(collection_name)
 
