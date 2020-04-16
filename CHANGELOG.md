@@ -1,5 +1,8 @@
 # pymilvus 0.2.11(TBD)
 
+## Bug
+- \#190 - Fix rpc return error when error occur
+
 
 # pymilvus 0.2.10(2020-04-15)
 
