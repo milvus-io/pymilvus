@@ -29,8 +29,8 @@ def _generate_vectors(_dim, _num):
 
 def prepare_collection(_collection_name):
     def _create_collection(_collection_param):
-        milvus = Milvus()
-        milvus.connect(**server_config)
+        milvus = Milvus(**server_config)
+        milvus.connect()
         status, ok = milvus.has_collection(_collection_name)
         if ok:
             print("Table {} found, now going to delete it".format(_collection_name))
@@ -62,8 +62,8 @@ def multi_insert(_collection_name):
     process_list = []
 
     def _add():
-        milvus = Milvus()
-        status = milvus.connect(**server_config)
+        milvus = Milvus(**server_config)
+        status = milvus.connect()
 
         vectors = _generate_vectors(128, 10000)
         print('\n\tPID: {}, insert {} vectors'.format(os.getpid(), 10000))

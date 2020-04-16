@@ -36,11 +36,11 @@ def error_handler(*rargs):
             except grpc.FutureTimeoutError as e:
                 LOGGER.error("{}\n{}".format(func.__name__, e))
                 status = Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-                return tuple([status]) + rargs
+                return status if not rargs else tuple([status]) + rargs
             except grpc.RpcError as e:
                 LOGGER.error("{}\n{}".format(func.__name__, e))
                 status = Status(e.code(), message='Error occurred. {}'.format(e.details()))
-                return tuple([status]) + rargs
+                return status if not rargs else tuple([status]) + rargs
 
         return handler
 

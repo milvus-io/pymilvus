@@ -22,6 +22,8 @@ def main():
     # You may need to change _HOST and _PORT accordingly
     param = {'host': _HOST, 'port': _PORT}
 
+    # You can create a instance specified server addr and
+    # invoke rpc method directly
     client = Milvus(**param)
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'demo_partition_collection'
