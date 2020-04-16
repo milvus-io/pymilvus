@@ -1,5 +1,5 @@
 import copy
-
+import struct
 import ujson
 
 from ..grpc_gen import milvus_pb2 as grpc_types
@@ -41,6 +41,29 @@ class Prepare:
         return _param
 
     @classmethod
+    def collection_hybrid_schema(cls, collection_name, field, param):
+        _param = grpc_types.Mapping(
+            collection_name=collection_name
+        )
+
+        for k, v in field.items():
+            if v.contains("data_type"):
+                ft = grpc_types.FieldType()
+                ft.data_type = int(v["data_type"])
+            elif v.contains("dimension"):
+                ft = grpc_types.FieldType()
+                ft.vector_param = grpc_types.VectorFieldParam(dimension=v["dimension"])
+            else:
+                raise ValueError("Collection field not support {}".format(v))
+            _param.fields.add(name=k, type=ft)
+
+        if param:
+            param_str = ujson.dumps(param)
+            _param.extra_params.add(key="params", value=param_str)
+
+        return _param
+
+    @classmethod
     def insert_param(cls, collection_name, vectors, partition_tag, ids=None, params=None, **kwargs):
         if ids is None:
             _param = grpc_types.InsertParam(collection_name=collection_name, partition_tag=partition_tag)
@@ -61,6 +84,56 @@ class Prepare:
         _param.extra_params.add(key="params", value=params_str)
 
         return _param
+
+    @classmethod
+    def insert_hybrid_param(cls, collection_name, tag, vectors, entities, ids=None, params=None):
+        entity = grpc_types.HEntity()
+
+        len = -1
+        for v in entities.values():
+            if not isinstance(v, list):
+                raise ValueError("Field values must be a list")
+            if len == -1:
+                len = len(v)
+            else:
+                if len(v) != len:
+                    raise ValueError("Length is not equal")
+
+        item_list = []
+        for k, v in entities.items():
+            entity.field_names.add(k)
+            if isinstance(v, list):
+                if isinstance(v[0], int):
+                    pak = struct.pack(str(len(v)) + 'q', v)
+                elif isinstance(v[0], float):
+                    pak = struct.pack(str(len(v)) + 'd', v)
+                else:
+                    raise ValueError("Field item must be int or float")
+                item_list.append(pak)
+            else:
+                raise ValueError("Field values must be a list")
+
+        # vectors
+        for vector in vectors:
+            vector_field = grpc_types.VectorFieldValue
+            if isinstance(vector, bytes):
+                vector_field.value.add(binary_data=vector)
+            else:
+                vector_field.value.add(float_data=vector)
+            entity.result_values.add(vector_value=vector_field)
+
+        h_param = grpc_types.HInsertParam(
+            collection_name=collection_name,
+            partition_tag=tag,
+            entities=entity
+        )
+
+        if ids:
+            h_param.entity_id_array[:] = ids
+        params = params or dict()
+        params_str = ujson.dumps(params)
+        h_param.extra_params.add(key="params", value=params_str)
+        return h_param
 
     @classmethod
     def index_param(cls, collection_name, index_type, params):
