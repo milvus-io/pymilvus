@@ -410,8 +410,8 @@ class Milvus:
         return self._stub.insert(collection_name, records, ids, partition_tag, params, None, **kwargs)
 
     @check_connect
-    def insert_hybrid(self, collection_name, tag, vectors, entities, ids=None, params=None):
-        return self._stub.insert_hybrid(collection_name, tag, vectors, entities, ids, params)
+    def insert_hybrid(self, collection_name, tag, entities, vector_entities, ids=None, params=None):
+        return self._stub.insert_hybrid(collection_name, tag, entities, vector_entities, ids, params)
 
     @check_connect
     def get_vector_by_id(self, collection_name, vector_id, timeout=None):

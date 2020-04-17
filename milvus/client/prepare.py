@@ -86,41 +86,44 @@ class Prepare:
         return _param
 
     @classmethod
-    def insert_hybrid_param(cls, collection_name, tag, vectors, entities, ids=None, params=None):
+    def insert_hybrid_param(cls, collection_name, tag, entities, vector_entities, ids=None, params=None):
         entity = grpc_types.HEntity()
 
-        len = -1
+        _len = -1
         for v in entities.values():
             if not isinstance(v, list):
                 raise ValueError("Field values must be a list")
-            if len == -1:
-                len = len(v)
+            if _len == -1:
+                _len = len(v)
             else:
-                if len(v) != len:
+                if len(v) != _len:
                     raise ValueError("Length is not equal")
 
-        item_list = []
+        item_bytes = bytearray()
         for k, v in entities.items():
-            entity.field_names.add(k)
+            entity.field_names.append(k)
             if isinstance(v, list):
                 if isinstance(v[0], int):
-                    pak = struct.pack(str(len(v)) + 'q', v)
+                    item_bytes += struct.pack(str(len(v)) + 'q', *v)
                 elif isinstance(v[0], float):
-                    pak = struct.pack(str(len(v)) + 'd', v)
+                    item_bytes += struct.pack(str(len(v)) + 'd', *v)
                 else:
                     raise ValueError("Field item must be int or float")
-                item_list.append(pak)
             else:
                 raise ValueError("Field values must be a list")
-
+        entity.attr_records = bytes(item_bytes)
+        entity.row_num=_len
         # vectors
-        for vector in vectors:
-            vector_field = grpc_types.VectorFieldValue
-            if isinstance(vector, bytes):
-                vector_field.value.add(binary_data=vector)
-            else:
-                vector_field.value.add(float_data=vector)
-            entity.result_values.add(vector_value=vector_field)
+        # entity.field_names.append(vector_field)
+        for kv, vv in vector_entities.items():
+            entity.field_names.append(kv)
+            vector_field = grpc_types.VectorFieldValue()
+            for vector in vv:
+                if isinstance(vector, bytes):
+                    vector_field.value.append(grpc_types.RowRecord(binary_data=vector))
+                else:
+                    vector_field.value.append(grpc_types.RowRecord(float_data=vector))
+            entity.result_values.append(grpc_types.FieldValue(vector_value=vector_field))
 
         h_param = grpc_types.HInsertParam(
             collection_name=collection_name,

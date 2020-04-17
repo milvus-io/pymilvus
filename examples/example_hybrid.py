@@ -14,7 +14,7 @@ from milvus import DataType
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
-_HOST = '127.0.0.1'
+_HOST = '192.168.1.113'
 _PORT = '19530'  # default value
 
 # Vector parameters
@@ -31,17 +31,31 @@ def main():
         print("Server is unreachable")
         sys.exit(0)
 
+    num = 4000000
     # Create collection demo_collection if it dosen't exist.
-    collection_name = 'example_hybrid_collection_'
+    collection_name = 'example_hybrid_collection_{}'.format(num)
 
     collection_field = {
-        "A": {"data_type": DataType.INT8},
+        "A": {"data_type": DataType.INT64},
         "Vec": {"dimension": 128}
     }
     status = milvus.create_hybrid_collection(collection_name, collection_field, None)
     print(status)
-    sys.exit(0)
 
+    A_list = [random.randint(0, 255) for _ in range(num)]
+    vec = [[random.random() for _ in range(128)] for _ in range(num)]
+    hybrid_entities = {
+        "A": A_list,
+    }
+    vector_eneieits = {
+        "Vec": vec
+    }
+    status, ids = milvus.insert_hybrid(collection_name, "Vec", vector_eneieits, hybrid_entities)
+    print("Insert done. {}".format(status))
+    status = milvus.flush([collection_name])
+    print("Flush: {}".format(status))
+
+    sys.exit(0)
     status, ok = milvus.has_collection(collection_name)
     if not ok:
         param = {

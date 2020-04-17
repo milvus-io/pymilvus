@@ -551,12 +551,13 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.status.error_code, message=response.status.reason), []
 
     @error_handler([])
-    def insert_hybrid(self, collection_name, tag, vectors, entities, ids=None, params=None):
-        insert_param = Prepare.insert_hybrid_param(collection_name, tag, vectors, entities, ids, params)
+    def insert_hybrid(self, collection_name, tag, entities, vector_entities, ids=None, params=None):
+        insert_param = Prepare.insert_hybrid_param(collection_name, tag, entities, vector_entities, ids, params)
         response = self._stub.InsertEntity(insert_param)
-        if response.error_code == 0:
+        status = response.status
+        if status.error_code == 0:
             return Status(message='Insert successfully!'), list(response.entity_id_array)
-        return Status(code=response.error_code, message=response.reason), []
+        return Status(code=status.error_code, message=status.reason), []
 
     @error_handler([])
     def get_vector_by_id(self, collection_name, v_id, timeout=10):
