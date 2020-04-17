@@ -29,10 +29,10 @@ class Prepare:
         """
 
         _param = grpc_types.CollectionSchema(status=status_pb2.Status(error_code=0, reason='Client'),
-                                        collection_name=collection_name,
-                                        dimension=dimension,
-                                        index_file_size=index_file_size,
-                                        metric_type=metric_type)
+                                             collection_name=collection_name,
+                                             dimension=dimension,
+                                             index_file_size=index_file_size,
+                                             metric_type=metric_type)
 
         if param:
             param_str = ujson.dumps(param)
@@ -47,12 +47,12 @@ class Prepare:
         )
 
         for k, v in field.items():
-            if v.contains("data_type"):
-                ft = grpc_types.FieldType()
-                ft.data_type = int(v["data_type"])
-            elif v.contains("dimension"):
-                ft = grpc_types.FieldType()
-                ft.vector_param = grpc_types.VectorFieldParam(dimension=v["dimension"])
+            if "data_type" in v:
+                ft = grpc_types.FieldType(data_type=int(v["data_type"]))
+                # ft.data_type = int(v["data_type"])
+            elif "dimension" in v:
+                ft = grpc_types.FieldType(vector_param=grpc_types.VectorFieldParam(dimension=v["dimension"]))
+                # ft.vector_param = grpc_types.VectorFieldParam(dimension=v["dimension"])
             else:
                 raise ValueError("Collection field not support {}".format(v))
             _param.fields.add(name=k, type=ft)

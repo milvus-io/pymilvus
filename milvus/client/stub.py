@@ -255,6 +255,10 @@ class Milvus:
         return self._stub.create_collection(collection_name, dim, index_file_size, metric_type, collection_param)
 
     @check_connect
+    def create_hybrid_collection(self, collection_name, field, param, timeout=10):
+        return self._stub.create_hybrid_collection(collection_name, field, param, timeout)
+
+    @check_connect
     def has_collection(self, collection_name, timeout=10):
         """
 
@@ -404,6 +408,10 @@ class Milvus:
             raise ParamError("Params must be a dictionary type")
 
         return self._stub.insert(collection_name, records, ids, partition_tag, params, None, **kwargs)
+
+    @check_connect
+    def insert_hybrid(self, collection_name, tag, vectors, entities, ids=None, params=None):
+        return self._stub.insert_hybrid(collection_name, tag, vectors, entities, ids, params)
 
     @check_connect
     def get_vector_by_id(self, collection_name, vector_id, timeout=None):

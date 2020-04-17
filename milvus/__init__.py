@@ -2,7 +2,7 @@
 
 from .client.stub import Milvus
 from .client.prepare import Prepare
-from .client.types import IndexType, MetricType, Status
+from .client.types import IndexType, MetricType, Status, DataType
 from .client.exceptions import (
     ParamError,
     ConnectError,

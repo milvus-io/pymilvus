@@ -10,7 +10,7 @@ import random
 import threading
 import time
 from milvus import Milvus, IndexType, MetricType, Status
-from milvus.client.abstract import TopKQueryResult
+from milvus import DataType
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
@@ -32,7 +32,15 @@ def main():
         sys.exit(0)
 
     # Create collection demo_collection if it dosen't exist.
-    collection_name = 'example_collection_'
+    collection_name = 'example_hybrid_collection_'
+
+    collection_field = {
+        "A": {"data_type": DataType.INT8},
+        "Vec": {"dimension": 128}
+    }
+    status = milvus.create_hybrid_collection(collection_name, collection_field, None)
+    print(status)
+    sys.exit(0)
 
     status, ok = milvus.has_collection(collection_name)
     if not ok:
