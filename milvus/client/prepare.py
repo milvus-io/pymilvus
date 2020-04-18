@@ -172,6 +172,22 @@ class Prepare:
         return search_param
 
     @classmethod
+    def search_hybrid_param(cls, collection_name, query_entities, partition_tags, params):
+        _param = grpc_types.HSearchParam(
+            collection_name=collection_name,
+            partition_tag_array=partition_tags
+        )
+
+        for k, v in query_entities.items():
+            pass
+
+        params = params or dict()
+        params_str = ujson.dumps(params)
+        _param.extra_params.add(key="params", value=params_str)
+
+        return _param
+
+    @classmethod
     def search_by_id_param(cls, collection_name, top_k, id_, partition_tag_array, params):
         _param = grpc_types.SearchByIDParam(
             collection_name=collection_name, id=id_, topk=top_k,

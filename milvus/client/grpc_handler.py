@@ -811,6 +811,11 @@ class GrpcHandler(ConnectIntf):
         return Status(message='Search vectors successfully!'), resutls
 
     @error_handler(None)
+    def search_hybrid(self, collection_name, query_entities, partition_tags, params=None, **kwargs):
+        self._stub.HybridSearch()
+        pass
+
+    @error_handler(None)
     def search_in_files(self, collection_name, file_ids, query_records, top_k, params, **kwargs):
         """
         Query vectors in a collection, in specified files.
