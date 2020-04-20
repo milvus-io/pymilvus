@@ -24,12 +24,11 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 
 def main():
+    # Specify server addr when create milvus client instance
     milvus = Milvus(_HOST, _PORT)
 
     # Check if server is accessible
-    if not milvus.ping():
-        print("Server is unreachable")
-        sys.exit(0)
+    milvus.connect()
 
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_collection_'
