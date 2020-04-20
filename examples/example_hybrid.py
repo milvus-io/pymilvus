@@ -36,19 +36,21 @@ def main():
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_hybrid_collection_{}'.format(num)
 
-    collection_field = {
-        "A": {"data_type": DataType.INT64},
-        "B": {"data_type": DataType.INT64},
-        "Vec": {"dimension": 128}
-    }
-    status = milvus.create_hybrid_collection(collection_name, collection_field, None)
+    collection_field = [
+        {"field_name": "A", "data_type": DataType.INT64},
+        {"field_name": "B", "data_type": DataType.INT64},
+        {"field_name": "C", "data_type": DataType.INT64},
+        {"field_name": "Vec", "dimension": 128, "extra_params": {"index_file_size": 100, "metric_type": }},
+    ]
+    status = milvus.create_collection(collection_name, collection_field, None)
     print(status)
 
     A_list = [random.randint(0, 255) for _ in range(num)]
     vec = [[random.random() for _ in range(128)] for _ in range(num)]
     hybrid_entities = {
         "A": A_list,
-        "B": A_list
+        "B": A_list,
+        "C": A_list,
     }
     vector_eneieits = {
         "Vec": vec
@@ -82,10 +84,27 @@ def main():
                     "nprobe": 10
                 }
             }
+        },
+        "should": {
+            "term": {
+                "field_name": "C",
+                "boost": 2,
+                "values": [33, 40]
+            },
+            "vector": {
+                "field_name": "Vec",
+                "boost": 1,
+                "topk": 1,
+                "vectors": vec[10: 12],
+                "params": {
+                    "nprobe": 1
+                }
+            }
         }
     }
     status, results = milvus.search_hybrid(collection_name, query_hybrid, None)
     print(status)
+    print(results)
 
     sys.exit(0)
     status, ok = milvus.has_collection(collection_name)
