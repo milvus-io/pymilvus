@@ -62,8 +62,8 @@ def multi_insert(_collection_name):
     process_list = []
 
     def _add():
-        milvus = Milvus()
-        status = milvus.connect(**server_config)
+        milvus = Milvus(**server_config)
+        status = milvus.connect()
 
         vectors = _generate_vectors(128, 10000)
         print('\n\tPID: {}, insert {} vectors'.format(os.getpid(), 10000))
