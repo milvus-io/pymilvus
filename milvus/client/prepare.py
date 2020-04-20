@@ -58,25 +58,26 @@ class Prepare:
         return _param
 
     @classmethod
-    def collection_hybrid_schema(cls, collection_name, field, param):
+    def collection_hybrid_schema(cls, collection_name, fields):
         _param = grpc_types.Mapping(
             collection_name=collection_name
         )
 
-        for k, v in field.items():
-            if "data_type" in v:
-                ft = grpc_types.FieldType(data_type=int(v["data_type"]))
+        for field in fields:
+            if "data_type" in field:
+                ft = grpc_types.FieldType(data_type=int(field["data_type"]))
                 # ft.data_type = int(v["data_type"])
-            elif "dimension" in v:
-                ft = grpc_types.FieldType(vector_param=grpc_types.VectorFieldParam(dimension=v["dimension"]))
+            elif "dimension" in field:
+                ft = grpc_types.FieldType(vector_param=grpc_types.VectorFieldParam(dimension=field["dimension"]))
                 # ft.vector_param = grpc_types.VectorFieldParam(dimension=v["dimension"])
             else:
-                raise ValueError("Collection field not support {}".format(v))
-            _param.fields.add(name=k, type=ft)
-
-        if param:
-            param_str = ujson.dumps(param)
-            _param.extra_params.add(key="params", value=param_str)
+                raise ValueError("Collection field not support {}".format(field))
+            field_param = grpc_types.FieldParam(name=field["field_name"], type=ft)
+            extra_params = field.get("extra_params", None)
+            if extra_params:
+                u = ujson.dumps(extra_params)
+                field_param.extra_params.add(key="params", value=u)
+            _param.fields.append(field_param)
 
         return _param
 
@@ -104,48 +105,51 @@ class Prepare:
 
     @classmethod
     def insert_hybrid_param(cls, collection_name, tag, entities, vector_entities, ids=None, params=None):
-        entity = grpc_types.HEntity()
+        entity_param = grpc_types.HEntity()
 
         _len = -1
-        for v in entities.values():
-            if not isinstance(v, list):
+        for entity in entities:
+            values = entity["field_values"]
+            if not isinstance(values, list):
                 raise ValueError("Field values must be a list")
             if _len == -1:
-                _len = len(v)
+                _len = len(values)
             else:
-                if len(v) != _len:
+                if len(values) != _len:
                     raise ValueError("Length is not equal")
 
         item_bytes = bytearray()
-        for k, v in entities.items():
-            entity.field_names.append(k)
-            if isinstance(v, list):
-                if isinstance(v[0], int):
-                    item_bytes += struct.pack(str(len(v)) + 'q', *v)
-                elif isinstance(v[0], float):
-                    item_bytes += struct.pack(str(len(v)) + 'd', *v)
+        for entity in entities:
+            entity_param.field_names.append(entity["field_name"])
+            values = entity["field_values"]
+            if isinstance(values, list):
+                if isinstance(values[0], int):
+                    item_bytes += struct.pack(str(len(values)) + 'q', *values)
+                elif isinstance(values[0], float):
+                    item_bytes += struct.pack(str(len(values)) + 'd', *values)
                 else:
                     raise ValueError("Field item must be int or float")
             else:
                 raise ValueError("Field values must be a list")
-        entity.attr_records = bytes(item_bytes)
-        entity.row_num = _len
+        entity_param.attr_records = bytes(item_bytes)
+        entity_param.row_num = _len
         # vectors
         # entity.field_names.append(vector_field)
-        for kv, vv in vector_entities.items():
-            entity.field_names.append(kv)
+        for vector_entity in vector_entities:
+            entity_param.field_names.append(vector_entity["field_name"])
             vector_field = grpc_types.VectorFieldValue()
-            for vector in vv:
+            vectors = vector_entity["field_values"]
+            for vector in vectors:
                 if isinstance(vector, bytes):
                     vector_field.value.append(grpc_types.RowRecord(binary_data=vector))
                 else:
                     vector_field.value.append(grpc_types.RowRecord(float_data=vector))
-            entity.result_values.append(grpc_types.FieldValue(vector_value=vector_field))
+            entity_param.result_values.append(grpc_types.FieldValue(vector_value=vector_field))
 
         h_param = grpc_types.HInsertParam(
             collection_name=collection_name,
             partition_tag=tag,
-            entities=entity
+            entities=entity_param
         )
 
         if ids:
@@ -196,50 +200,79 @@ class Prepare:
         )
 
         def term_query(node):
-            _term_param = grpc_types.TermQuery(field_name=node["field_name"],
-                                               value_num=len(node["values"]),
-                                               boost=node["boost"])
-            vs = node.get("values", None)
-            item_bytes = bytearray()
-            if isinstance(vs, list):
-                if isinstance(vs[0], int):
-                    item_bytes += struct.pack(str(len(vs)) + 'q', *vs)
-                elif isinstance(vs[0], float):
-                    item_bytes += struct.pack(str(len(vs)) + 'd', *vs)
+            if len(node) > 1:
+                raise Exception()
+            for k, v in node.items():
+                vs = v.get("values", None)
+                if not vs:
+                    raise ValueError("Key values is missing")
+
+                _term_param = grpc_types.TermQuery(field_name=k,
+                                                   value_num=len(v["values"]),
+                                                   # boost=node["boost"]
+                                                   )
+                item_bytes = bytearray()
+                if isinstance(vs, list):
+                    if isinstance(vs[0], int):
+                        item_bytes += struct.pack(str(len(vs)) + 'q', *vs)
+                    elif isinstance(vs[0], float):
+                        item_bytes += struct.pack(str(len(vs)) + 'd', *vs)
+                    else:
+                        raise ValueError("Field item must be int or float")
                 else:
-                    raise ValueError("Field item must be int or float")
-            else:
-                raise ValueError("Field values must be a list")
-            _term_param.values = bytes(item_bytes)
-            return _term_param
+                    raise ValueError("Field values must be a list")
+                _term_param.values = bytes(item_bytes)
+                return _term_param
 
         def range_query(node):
-            _range_param = grpc_types.RangeQuery(field_name=node["field_name"],
-                                                 boost=node["boost"])
-            for k, v in node["ranges"].items():
-                ope = RangeOperatorMap[k]
-                _range_param.operand.add(operator=ope, operand=str(v))
+            if len(node) > 1:
+                raise Exception("Item size > 1")
+            for name, query in node.items():
+                _range_param = grpc_types.RangeQuery(field_name=name,
+                                                     # boost=node["boost"]
+                                                     )
+                for k, v in query["ranges"].items():
+                    ope = RangeOperatorMap[k]
+                    _range_param.operand.add(operator=ope, operand=str(v))
 
-            return _range_param
+                return _range_param
 
         def vector_query(node):
-            _vector_param = grpc_types.VectorQuery(field_name=node["field_name"],
-                                                   query_boost=node["boost"],
-                                                   topk=node["topk"])
-            for vector in node["vectors"]:
-                if isinstance(vector, bytes):
-                    _vector_param.records.add(binary_data=vector)
-                else:
-                    _vector_param.records.add(float_data=vector)
+            if len(node) > 1:
+                raise Exception("Item size > 1")
+            for name, query in node.items():
+                _vector_param = grpc_types.VectorQuery(field_name=name,
+                                                       # query_boost=node["boost"],
+                                                       topk=query["topk"]
+                                                       )
+                for vector in query["query"]:
+                    if isinstance(vector, bytes):
+                        _vector_param.records.add(binary_data=vector)
+                    else:
+                        _vector_param.records.add(float_data=vector)
 
-            _extra_param = node.get("params", None)
+                _extra_param = query.get("params", None)
 
-            _extra_param = _extra_param or dict()
-            params_str = ujson.dumps(_extra_param)
-            _vector_param.extra_params.add(key="params", value=params_str)
-            return _vector_param
+                _extra_param = _extra_param or dict()
+                params_str = ujson.dumps(_extra_param)
+                _vector_param.extra_params.add(key="params", value=params_str)
+                return _vector_param
 
         def gene_node(key, node):
+            if isinstance(node, list):
+                bqr = grpc_types.BooleanQuery(occur=BoolOccurMap[key])
+                for query in node:
+                    if "term" in query:
+                        bqr.general_query.append(grpc_types.GeneralQuery(term_query=term_query(query["term"])))
+                    elif "range" in query:
+                        bqr.general_query.append(grpc_types.GeneralQuery(range_query=range_query(query["range"])))
+                    elif "vector" in query:
+                        bqr.general_query.append(grpc_types.GeneralQuery(vector_query=vector_query(query["vector"])))
+                    else:
+                        raise ValueError("Unknown ")
+
+                return grpc_types.GeneralQuery(boolean_query=bqr)
+
             keys = node.keys()
             sq = {"must", "must_not", "should"}
             if len(keys) + len(sq) > len(set(keys) | sq):
@@ -255,18 +288,19 @@ class Prepare:
                     bq0.general_query.append(g)
                 return grpc_types.GeneralQuery(boolean_query=bq0)
 
-            bqr = grpc_types.BooleanQuery(occur=BoolOccurMap[key])
-            for k, v in node.items():
-                if k == "term":
-                    bqr.general_query.append(grpc_types.GeneralQuery(term_query=term_query(v)))
-                elif k == "range":
-                    bqr.general_query.append(grpc_types.GeneralQuery(range_query=range_query(v)))
-                elif k == "vector":
-                    bqr.general_query.append(grpc_types.GeneralQuery(vector_query=vector_query(v)))
-                else:
-                    raise ValueError("Unknown ")
-
-            return grpc_types.GeneralQuery(boolean_query=bqr)
+            # bqr = grpc_types.BooleanQuery(occur=BoolOccurMap[key])
+            # for k, v in node.items():
+            #     field_name = node["field_name"]
+            #     if k == "term":
+            #         bqr.general_query.append(grpc_types.GeneralQuery(term_query=term_query(v)))
+            #     elif k == "range":
+            #         bqr.general_query.append(grpc_types.GeneralQuery(range_query=range_query(v)))
+            #     elif k == "vector":
+            #         bqr.general_query.append(grpc_types.GeneralQuery(vector_query=vector_query(v)))
+            #     else:
+            #         raise ValueError("Unknown ")
+            #
+            # return grpc_types.GeneralQuery(boolean_query=bqr)
 
             # if len(node) == 1:
             #     for k, v in node.items():
@@ -281,7 +315,7 @@ class Prepare:
             #         bq = grpc_types.BooleanQuery(occur=BoolOccurMap[k])
             #         vqq.general_query.append(grpc_types.GeneralQuery(boolean_query=bq))
 
-        _param.general_query.CopyFrom(gene_node(None, query_entities))
+        _param.general_query.CopyFrom(gene_node(None, query_entities["bool"]))
 
         # import pdb;pdb.set_trace()
         # grpc_types.GeneralQuery(boolean_query=bool_node(query_entities))

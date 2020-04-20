@@ -255,8 +255,8 @@ class Milvus:
         return self._stub.create_collection(collection_name, dim, index_file_size, metric_type, collection_param)
 
     @check_connect
-    def create_hybrid_collection(self, collection_name, field, param, timeout=10):
-        return self._stub.create_hybrid_collection(collection_name, field, param, timeout)
+    def create_hybrid_collection(self, collection_name, fields, timeout=10):
+        return self._stub.create_hybrid_collection(collection_name, fields, timeout)
 
     @check_connect
     def has_collection(self, collection_name, timeout=10):
@@ -410,8 +410,8 @@ class Milvus:
         return self._stub.insert(collection_name, records, ids, partition_tag, params, None, **kwargs)
 
     @check_connect
-    def insert_hybrid(self, collection_name, tag, entities, vector_entities, ids=None, params=None):
-        return self._stub.insert_hybrid(collection_name, tag, entities, vector_entities, ids, params)
+    def insert_hybrid(self, collection_name, entities, vector_entities, ids=None, partition_tag=None, params=None):
+        return self._stub.insert_hybrid(collection_name, entities, vector_entities, ids, partition_tag, params)
 
     @check_connect
     def get_vector_by_id(self, collection_name, vector_id, timeout=None):
@@ -597,7 +597,7 @@ class Milvus:
         return self._stub.search(collection_name, top_k, query_records, partition_tags, params, **kwargs)
 
     @check_connect
-    def search_hybrid(self, collection_name, query_entities, partition_tags, params=None, **kwargs):
+    def search_hybrid(self, collection_name, query_entities, partition_tags=None, params=None, **kwargs):
         return self._stub.search_hybrid(collection_name, query_entities, partition_tags, params, **kwargs)
 
     @check_connect

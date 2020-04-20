@@ -119,9 +119,9 @@ class DataType(IntEnum):
 
 
 class RangeType(IntEnum):
-    LT = 0
-    LTE = 1
-    EQ = 2
-    GT = 3
-    GTE = 4
-    NE = 5
+    LT = 0   # less than
+    LTE = 1  # less than or equal
+    EQ = 2   # equal
+    GT = 3   # greater than
+    GTE = 4  # greater than or equal
+    NE = 5   # not equal
