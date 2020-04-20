@@ -10,7 +10,7 @@ import random
 import threading
 import time
 from milvus import Milvus, IndexType, MetricType, Status
-from milvus import DataType
+from milvus import DataType, RangeType
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
@@ -32,29 +32,31 @@ def main():
         print("Server is unreachable")
         sys.exit(0)
 
-    num = 4000000
+    num = 1000
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_hybrid_collection_{}'.format(num)
 
     collection_field = {
         "A": {"data_type": DataType.INT64},
+        "B": {"data_type": DataType.INT64},
         "Vec": {"dimension": 128}
     }
     status = milvus.create_hybrid_collection(collection_name, collection_field, None)
     print(status)
 
-    # A_list = [random.randint(0, 255) for _ in range(num)]
-    # vec = [[random.random() for _ in range(128)] for _ in range(num)]
-    # hybrid_entities = {
-    #     "A": A_list,
-    # }
-    # vector_eneieits = {
-    #     "Vec": vec
-    # }
-    # status, ids = milvus.insert_hybrid(collection_name, None, hybrid_entities, vector_eneieits)
-    # print("Insert done. {}".format(status))
-    # status = milvus.flush([collection_name])
-    # print("Flush: {}".format(status))
+    A_list = [random.randint(0, 255) for _ in range(num)]
+    vec = [[random.random() for _ in range(128)] for _ in range(num)]
+    hybrid_entities = {
+        "A": A_list,
+        "B": A_list
+    }
+    vector_eneieits = {
+        "Vec": vec
+    }
+    status, ids = milvus.insert_hybrid(collection_name, None, hybrid_entities, vector_eneieits)
+    print("Insert done. {}".format(status))
+    status = milvus.flush([collection_name])
+    print("Flush: {}".format(status))
 
     query_hybrid = {
         "must": {
@@ -62,6 +64,23 @@ def main():
                 "field_name": "A",
                 "boost": 1,
                 "values": [1, 2, 5]
+            },
+            "range": {
+                "field_name": "B",
+                "boost": 2,
+                "ranges": {
+                    RangeType.GT: 1,
+                    RangeType.LT: 100
+                }
+            },
+            "vector": {
+                "field_name": "Vec",
+                "boost": 1,
+                "topk": 10,
+                "vectors": vec[: 10],
+                "params": {
+                    "nprobe": 10
+                }
             }
         }
     }

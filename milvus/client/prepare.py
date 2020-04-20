@@ -216,7 +216,7 @@ class Prepare:
         def range_query(node):
             _range_param = grpc_types.RangeQuery(field_name=node["field_name"],
                                                  boost=node["boost"])
-            for k, v in node["ranges"]:
+            for k, v in node["ranges"].items():
                 ope = RangeOperatorMap[k]
                 _range_param.operand.add(operator=ope, operand=str(v))
 
@@ -283,7 +283,7 @@ class Prepare:
 
         _param.general_query.CopyFrom(gene_node(None, query_entities))
 
-        import pdb;pdb.set_trace()
+        # import pdb;pdb.set_trace()
         # grpc_types.GeneralQuery(boolean_query=bool_node(query_entities))
         params = params or dict()
         params_str = ujson.dumps(params)
