@@ -5,6 +5,23 @@ import ujson
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 
+from .types import RangeType
+
+BoolOccurMap = {
+    "must": grpc_types.MUST,
+    "must_not": grpc_types.MUST_NOT,
+    "should": grpc_types.SHOULD
+}
+
+RangeOperatorMap = {
+    RangeType.LT: grpc_types.LT,
+    RangeType.LTE: grpc_types.LTE,
+    RangeType.EQ: grpc_types.EQ,
+    RangeType.GT: grpc_types.GT,
+    RangeType.GTE: grpc_types.GTE,
+    RangeType.NE: grpc_types.NE
+}
+
 
 class Prepare:
 
@@ -112,7 +129,7 @@ class Prepare:
             else:
                 raise ValueError("Field values must be a list")
         entity.attr_records = bytes(item_bytes)
-        entity.row_num=_len
+        entity.row_num = _len
         # vectors
         # entity.field_names.append(vector_field)
         for kv, vv in vector_entities.items():
@@ -178,9 +195,96 @@ class Prepare:
             partition_tag_array=partition_tags
         )
 
-        for k, v in query_entities.items():
-            pass
+        def term_query(node):
+            _term_param = grpc_types.TermQuery(field_name=node["field_name"],
+                                               value_num=len(node["values"]),
+                                               boost=node["boost"])
+            vs = node.get("values", None)
+            item_bytes = bytearray()
+            if isinstance(vs, list):
+                if isinstance(vs[0], int):
+                    item_bytes += struct.pack(str(len(vs)) + 'q', *vs)
+                elif isinstance(vs[0], float):
+                    item_bytes += struct.pack(str(len(vs)) + 'd', *vs)
+                else:
+                    raise ValueError("Field item must be int or float")
+            else:
+                raise ValueError("Field values must be a list")
+            _term_param.values = bytes(item_bytes)
+            return _term_param
 
+        def range_query(node):
+            _range_param = grpc_types.RangeQuery(field_name=node["field_name"],
+                                                 boost=node["boost"])
+            for k, v in node["ranges"]:
+                ope = RangeOperatorMap[k]
+                _range_param.operand.add(operator=ope, operand=str(v))
+
+            return _range_param
+
+        def vector_query(node):
+            _vector_param = grpc_types.VectorQuery(field_name=node["field_name"],
+                                                   query_boost=node["boost"],
+                                                   topk=node["topk"])
+            for vector in node["vectors"]:
+                if isinstance(vector, bytes):
+                    _vector_param.records.add(binary_data=vector)
+                else:
+                    _vector_param.records.add(float_data=vector)
+
+            _extra_param = node.get("params", None)
+
+            _extra_param = _extra_param or dict()
+            params_str = ujson.dumps(_extra_param)
+            _vector_param.extra_params.add(key="params", value=params_str)
+            return _vector_param
+
+        def gene_node(key, node):
+            keys = node.keys()
+            sq = {"must", "must_not", "should"}
+            if len(keys) + len(sq) > len(set(keys) | sq):
+                gqs = list()
+                for k, v in node.items():
+                    gq = gene_node(k, v)
+                    gqs.append(gq)
+                if len(gqs) == 1:
+                    return gqs[0]
+
+                bq0 = grpc_types.BooleanQuery(occur=grpc_types.INVALID)
+                for g in gqs:
+                    bq0.general_query.append(g)
+                return grpc_types.GeneralQuery(boolean_query=bq0)
+
+            bqr = grpc_types.BooleanQuery(occur=BoolOccurMap[key])
+            for k, v in node.items():
+                if k == "term":
+                    bqr.general_query.append(grpc_types.GeneralQuery(term_query=term_query(v)))
+                elif k == "range":
+                    bqr.general_query.append(grpc_types.GeneralQuery(range_query=range_query(v)))
+                elif k == "vector":
+                    bqr.general_query.append(grpc_types.GeneralQuery(vector_query=vector_query(v)))
+                else:
+                    raise ValueError("Unknown ")
+
+            return grpc_types.GeneralQuery(boolean_query=bqr)
+
+            # if len(node) == 1:
+            #     for k, v in node.items():
+            #         if k in ("must", "must_not", "should"):
+            #             bq = grpc_types.BooleanQuery(occur=BoolOccurMap[k])
+            #
+            # for k, v in node.items():
+            #     if k in ("must", "must_not", "should"):
+            #         len(node) == 1:
+            #         vqq = grpc_types.BooleanQuery(occur=grpc_types.INVALID)
+            #     if k in ("must", "must_not", "should"):
+            #         bq = grpc_types.BooleanQuery(occur=BoolOccurMap[k])
+            #         vqq.general_query.append(grpc_types.GeneralQuery(boolean_query=bq))
+
+        _param.general_query.CopyFrom(gene_node(None, query_entities))
+
+        import pdb;pdb.set_trace()
+        # grpc_types.GeneralQuery(boolean_query=bool_node(query_entities))
         params = params or dict()
         params_str = ujson.dumps(params)
         _param.extra_params.add(key="params", value=params_str)

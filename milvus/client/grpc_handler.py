@@ -812,8 +812,15 @@ class GrpcHandler(ConnectIntf):
 
     @error_handler(None)
     def search_hybrid(self, collection_name, query_entities, partition_tags, params=None, **kwargs):
-        self._stub.HybridSearch()
-        pass
+        request = Prepare.search_hybrid_param(collection_name, query_entities, partition_tags, params)
+        response = self._stub.HybridSearch(request)
+        if response.status.error_code != 0:
+            return Status(code=response.status.error_code,
+                          message=response.status.reason), []
+
+        resutls = self._search_hook.handle_response(response)
+        return Status(message='Search vectors successfully!'), resutls
+        # pass
 
     @error_handler(None)
     def search_in_files(self, collection_name, file_ids, query_records, top_k, params, **kwargs):

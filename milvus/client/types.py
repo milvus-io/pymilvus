@@ -116,3 +116,12 @@ class DataType(IntEnum):
 
     VECTOR = 100
     UNKNOWN = 9999
+
+
+class RangeType(IntEnum):
+    LT = 0
+    LTE = 1
+    EQ = 2
+    GT = 3
+    GTE = 4
+    NE = 5

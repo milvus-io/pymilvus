@@ -598,8 +598,7 @@ class Milvus:
 
     @check_connect
     def search_hybrid(self, collection_name, query_entities, partition_tags, params=None, **kwargs):
-        self._stub.search_hybrid(collection_name, query_entities, partition_tags, params, kwargs)
-        pass
+        return self._stub.search_hybrid(collection_name, query_entities, partition_tags, params, **kwargs)
 
     @check_connect
     def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None, **kwargs):

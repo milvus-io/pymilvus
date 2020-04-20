@@ -14,7 +14,8 @@ from milvus import DataType
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
-_HOST = '192.168.1.113'
+# _HOST = '192.168.1.113'
+_HOST = '127.0.0.1'
 _PORT = '19530'  # default value
 
 # Vector parameters
@@ -42,18 +43,30 @@ def main():
     status = milvus.create_hybrid_collection(collection_name, collection_field, None)
     print(status)
 
-    A_list = [random.randint(0, 255) for _ in range(num)]
-    vec = [[random.random() for _ in range(128)] for _ in range(num)]
-    hybrid_entities = {
-        "A": A_list,
+    # A_list = [random.randint(0, 255) for _ in range(num)]
+    # vec = [[random.random() for _ in range(128)] for _ in range(num)]
+    # hybrid_entities = {
+    #     "A": A_list,
+    # }
+    # vector_eneieits = {
+    #     "Vec": vec
+    # }
+    # status, ids = milvus.insert_hybrid(collection_name, None, hybrid_entities, vector_eneieits)
+    # print("Insert done. {}".format(status))
+    # status = milvus.flush([collection_name])
+    # print("Flush: {}".format(status))
+
+    query_hybrid = {
+        "must": {
+            "term": {
+                "field_name": "A",
+                "boost": 1,
+                "values": [1, 2, 5]
+            }
+        }
     }
-    vector_eneieits = {
-        "Vec": vec
-    }
-    status, ids = milvus.insert_hybrid(collection_name, "Vec", vector_eneieits, hybrid_entities)
-    print("Insert done. {}".format(status))
-    status = milvus.flush([collection_name])
-    print("Flush: {}".format(status))
+    status, results = milvus.search_hybrid(collection_name, query_hybrid, None)
+    print(status)
 
     sys.exit(0)
     status, ok = milvus.has_collection(collection_name)
