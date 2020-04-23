@@ -595,7 +595,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
         if partition_tags is not None:
-            check_pass_param(artition_tag_array=partition_tags)
+            check_pass_param(partition_tag_array=partition_tags)
 
         params = dict() if params is None else params
         if not isinstance(params, dict):
