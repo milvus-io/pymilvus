@@ -47,10 +47,6 @@ def main():
     # Show collections in Milvus server
     _, collections = milvus.show_collections()
 
-    # present collection info
-    _, info = milvus.collection_info(collection_name)
-    print(info)
-
     # Describe demo_collection
     _, collection = milvus.describe_collection(collection_name)
     print(collection)
@@ -70,6 +66,10 @@ def main():
 
     # Get demo_collection row count
     status, result = milvus.count_collection(collection_name)
+
+    # present collection info
+    _, info = milvus.collection_info(collection_name)
+    print(info)
 
     # create index of vectors, search more rapidly
     index_param = {
