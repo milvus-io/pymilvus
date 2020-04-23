@@ -7,10 +7,10 @@ class TestSegment:
     def test_get_segment_ids(self, gcon, gvector):
         status, info = gcon.collection_info(gvector)
         assert status.OK()
+        # import pdb;pdb.set_trace()
+        seg0 = info["partitions"][0]["segments"][0]
 
-        seg0 = info.partitions_stat[0].segments_stat[0]
-
-        status, ids = gcon.get_vector_ids(gvector, seg0.segment_name)
+        status, ids = gcon.get_vector_ids(gvector, seg0["name"])
         assert status.OK(), status.message
         assert isinstance(ids, list)
         assert len(ids) == 10000

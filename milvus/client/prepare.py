@@ -96,11 +96,12 @@ class Prepare:
         return search_param
 
     @classmethod
-    def search_by_id_param(cls, collection_name, top_k, id_, partition_tag_array, params):
+    def search_by_ids_param(cls, collection_name, ids, top_k, partition_tag_array, params):
         _param = grpc_types.SearchByIDParam(
-            collection_name=collection_name, id=id_, topk=top_k,
-            partition_tag_array=partition_tag_array
+            collection_name=collection_name, id_array=ids, topk=top_k,
         )
+        if partition_tag_array:
+            _param.partition_tag_array[:] = partition_tag_array
 
         params = params or dict()
         params_str = ujson.dumps(params)

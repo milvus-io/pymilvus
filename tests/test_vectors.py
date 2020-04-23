@@ -8,7 +8,7 @@ nq = 100
 
 
 class TestGetVectorByID:
-    def test_get_vector_by_id(self, gcon, gcollection):
+    def test_get_vectors_by_ids(self, gcon, gcollection):
         vectors = records_factory(128, 1000)
         ids = [i for i in range(1000)]
         status, ids_out = gcon.insert(collection_name=gcollection, records=vectors, ids=ids)
@@ -16,28 +16,32 @@ class TestGetVectorByID:
 
         gcon.flush([gcollection])
 
-        status, vec = gcon.get_vector_by_id(gcollection, ids_out[0])
+        status, vec = gcon.get_vectors_by_ids(gcollection, ids_out[0:10])
         assert status.OK()
 
     @pytest.mark.parametrize("v_id", [None, "", [], {"a": 1}, (1, 2)])
-    def test_get_vector_by_id_invalid_id(self, v_id, gcon):
+    def test_get_vectors_by_ids_invalid_id(self, v_id, gcon):
         with pytest.raises(ParamError):
-            gcon.get_vector_by_id("test_get_vector_by_id_invalid_id", v_id)
+            gcon.get_vector_by_id("test_get_vectors_by_ids_invalid_id", [v_id])
 
     @pytest.mark.parametrize("collection", [None, -1, [], {"a": 1}, (1, 2)])
-    def test_get_vector_by_id_invalid_collecton(self, collection, gcon):
+    def test_get_vectors_by_ids_invalid_collecton(self, collection, gcon):
         with pytest.raises(ParamError):
-            gcon.get_vector_by_id("test_get_vector_by_id_invalid_collection", collection)
+            gcon.get_vectors_by_ids(collection, [1])
 
-    def test_get_vector_by_id_non_existent_collection(self, gcon):
-        status, _ = gcon.get_vector_by_id("non_existent", 1)
+    def test_get_vectors_by_ids_non_existent_collection(self, gcon):
+        status, _ = gcon.get_vector_by_id("non_existent", [1])
         assert not status.OK()
 
-    @pytest.mark.parametrize("v_id", [0, 9999])
-    def test_get_vector_by_id_non_existent_id(self, v_id, gcon, gcollection):
-        status, vector = gcon.get_vector_by_id(gcollection, v_id)
+    def test_get_vectors_by_ids_with_empty_collection(self, gcon, gcollection):
+        status, _ = gcon.get_vector_by_id(gcollection, [1])
+        assert not status.OK()
+
+    @pytest.mark.parametrize("ids", [[0], [9999]])
+    def test_get_vectors_by_ids_non_existent_id(self, ids, gcon, gvector):
+        status, vector = gcon.get_vector_by_id(gvector, ids)
         assert status.OK()
-        assert not vector
+        # assert not vector
 
 
 class TestDeleteByID:
@@ -73,8 +77,8 @@ class TestGetVectorID:
         status, info = gcon.collection_info(gvector)
         assert status.OK()
 
-        seg0 = info.partitions_stat[0].segments_stat[0]
-        status, ids = gcon.get_vector_ids(gvector, seg0.segment_name)
+        seg0 = info["partitions"][0]["segments"][0]
+        status, ids = gcon.get_vector_ids(gvector, seg0["name"])
         assert status.OK()
         assert isinstance(ids, list)
         assert len(ids) == 10000
@@ -95,6 +99,6 @@ class TestGetVectorID:
 
         status, info = gcon.collection_info(gvector)
         assert status.OK()
-        seg0 = info.partitions_stat[0].segments_stat[0]
-        status, _ = gcon.get_vector_ids("test", seg0.segment_name)
+        seg0 = info["partitions"][0]["segments"][0]
+        status, _ = gcon.get_vector_ids("test", seg0["name"])
         assert not status.OK()

@@ -165,15 +165,16 @@ class TestCountCollection:
 class TestCollectinInfo:
     def test_collection_info_normal(self, gcon, gvector):
         status, info = gcon.collection_info(gvector)
+        # import pdb;pdb.set_trace()
         assert status.OK()
-        assert info.count == 10000
+        assert info["row_count"] == 10000
 
-        par0_stat = info.partitions_stat[0]
-        assert par0_stat.tag == "_default"
-        assert par0_stat.count == 10000
+        par0_stat = info["partitions"][0]
+        assert par0_stat["tag"] == "_default"
+        assert par0_stat["row_count"] == 10000
 
     @pytest.mark.parametrize("collection", [None, 123, [123], {}])
-    def test_count_collection_invalid_name(self, collection, gcon):
+    def test_collection_info_invalid_name(self, collection, gcon):
         with pytest.raises(ParamError):
             gcon.collection_info(collection)
 

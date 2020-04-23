@@ -26,6 +26,31 @@ class TestCreatePartition:
         assert not status.OK()
 
 
+class TestHadPartition:
+    @pytest.mark.skip(reason="default partition tag is not exists")
+    def test_has_partition_default(self, gcon, gcollection):
+        status, exits = gcon.has_partition(gcollection, "_default")
+        assert status.OK()
+        assert exits
+
+    def test_has_partition_created(self, gcon, gcollection):
+        status = gcon.create_partition(gcollection, "test")
+        assert status.OK()
+        status, exists = gcon.has_partition(gcollection, "test")
+        assert status.OK()
+        assert exists
+
+    def test_has_partition_with_tag_non_existent(self, gcon, gcollection):
+        status, exists = gcon.has_partition(gcollection, "test_has_partition_with_tag_non_existent")
+        assert status.OK()
+        assert not exists
+
+    @pytest.mark.parametrize("tag", [[], None, 123, {}, True])
+    def test_drop_partition_invalid_tag(self, tag, gcon, gcollection):
+        with pytest.raises(ParamError):
+            gcon.drop_partition(gcollection, tag)
+
+
 class TestShowPartitions:
     def test_show_partitions_normal(self, gcon, gcollection):
         status = gcon.create_partition(gcollection, "tag01")

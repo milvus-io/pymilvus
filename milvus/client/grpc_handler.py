@@ -2,6 +2,7 @@ import datetime
 from urllib.parse import urlparse
 import logging
 import threading
+import ujson
 
 import grpc
 from grpc._cython import cygrpc
@@ -446,7 +447,7 @@ class GrpcHandler(ConnectIntf):
         rpc_status = response.status
 
         if rpc_status.error_code == 0:
-            return Status(), CollectionInfo(response)
+            return Status(), ujson.loads(response.json_info)
 
         return Status(rpc_status.error_code, rpc_status.reason), None
 
@@ -542,17 +543,20 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.status.error_code, message=response.status.reason), []
 
     @error_handler([])
-    def get_vector_by_id(self, collection_name, v_id, timeout=10):
-        request = grpc_types.VectorIdentity(collection_name=collection_name, id=v_id)
+    def get_vectors_by_ids(self, collection_name, ids, timeout=10):
+        request = grpc_types.VectorsIdentity(collection_name=collection_name, id_array=ids)
 
-        rf = self._stub.GetVectorByID.future(request)
+        rf = self._stub.GetVectorsByID.future(request)
         response = rf.result(timeout=timeout)
         rf.__del__()
         status = response.status
         if status.error_code == 0:
             status = Status(message="Obtain vector successfully")
-            return status, \
-                   bytes(response.vector_data.binary_data) or list(response.vector_data.float_data)
+            vectors = list()
+            for datas in response.vectors_data:
+                vector = bytes(datas.binary_data) or list(datas.float_data)
+                vectors.append(vector)
+            return status, vectors
 
         return Status(code=status.error_code, message=status.reason), []
 
@@ -685,6 +689,15 @@ class GrpcHandler(ConnectIntf):
         rf.__del__()
         return Status(code=response.error_code, message=response.reason)
 
+    @error_handler(False)
+    def has_partition(self, collection_name, partition_tag, timeout=10):
+        request = Prepare.partition_param(collection_name, partition_tag)
+        rf = self._stub.HasPartition.future(request)
+        response = rf.result(timeout=timeout)
+        rf.__del__()
+        status = response.status
+        return Status(code=status.error_code, message=status.reason), response.bool_reply
+
     @error_handler([])
     def show_partitions(self, collection_name, timeout=10):
         """
@@ -742,32 +755,6 @@ class GrpcHandler(ConnectIntf):
 
     @error_handler(None)
     def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
-        """
-        Search similar vectors in designated collection
-
-        :param collection_name: target collection name
-        :type  collection_name: str
-
-        :param top_k: number of vertors which is most similar with query vectors
-        :type  top_k: int
-
-        :param nprobe: cell number of probe
-        :type  nprobe: int
-
-        :param query_records: vectors to query
-        :type  query_records: list[list[float32]]
-
-        :param partition_tags: tags to search
-        :type  partition_tags: list
-
-        :return
-            Status: indicate if search successfully
-            result: query result
-
-        :rtype: (Status, TopKQueryResult)
-
-        """
-
         request = Prepare.search_param(collection_name, top_k, query_records, partition_tags, params)
 
         self._search_hook.pre_search()
@@ -791,6 +778,29 @@ class GrpcHandler(ConnectIntf):
 
         resutls = self._search_hook.handle_response(response)
         return Status(message='Search vectors successfully!'), resutls
+
+    @error_handler(None)
+    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, **kwargs):
+        request = Prepare.search_by_ids_param(collection_name, ids, top_k, partition_tags, params)
+        if kwargs.get("_async", False) is True:
+            timeout = kwargs.get("timeout", None)
+            future = self._stub.SearchInFiles.future(request, timeout=timeout)
+
+            func = kwargs.get("_callback", None)
+            return SearchFuture(future, func)
+
+        response = self._stub.SearchInFiles(request)
+        self._search_hook.aft_search()
+
+        if self._search_hook.on_response():
+            return response
+
+        if response.status.error_code != 0:
+            return Status(code=response.status.error_code,
+                          message=response.status.reason), []
+
+        return Status(message='Search vectors successfully!'), \
+               self._search_hook.handle_response(response)
 
     @error_handler(None)
     def search_in_files(self, collection_name, file_ids, query_records, top_k, params, **kwargs):

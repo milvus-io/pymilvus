@@ -118,6 +118,43 @@ class TestSearch:
             gcon.search(**param)
 
 
+class TestSearchByIds:
+    vectors = [[random.random() for _ in range(dim)] for _ in range(nq)]
+
+    def test_search_by_ids_normal(self, gcon, gcollection):
+        status, ids = gcon.insert(gcollection, self.vectors)
+        assert status.OK()
+
+        status = gcon.flush([gcollection])
+        assert status.OK()
+
+        search_param = {
+            "nprobe": 10
+        }
+        status, results = gcon.search_by_ids(gcollection, ids[0: 10], 10, params=search_param)
+        assert status
+        # assert len(results) == 10
+        # assert len(results[0]) == 10
+        #
+        # assert results.shape[0] == 10
+        # assert results.shape[1] == 10
+
+    @pytest.mark.parametrize("ids", [None, "123", False])
+    def test_seach_by_ids_with_invalid_ids(self, ids, gcon, gcollection):
+        with pytest.raises(ParamError):
+            gcon.search_by_ids(gcollection, ids, 1, params={"nprobe": 10})
+
+    @pytest.mark.parametrize("collection", [None, [], {}, False])
+    def test_search_by_ids_with_invalid_collection(self, collection, gcon):
+        with pytest.raises(ParamError):
+            gcon.search_by_ids(collection, [1], 1, params={"nprobe": 10})
+
+    @pytest.mark.parametrize("topk", [[], "", None, {}])
+    def test_search_by_ids_invalid_topk(self, topk, gcon, gcollection):
+        with pytest.raises(ParamError):
+            gcon.search(gcollection, [1], topk, params={"nprobe": 10})
+
+
 class TestSearchInFiles:
     def test_search_in_files_normal(self, gcon, gvector):
         search_param = {

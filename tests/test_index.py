@@ -13,7 +13,7 @@ class TestCreateIndex:
                                              (IndexType.IVF_FLAT, {"nlist": 1024}),
                                              (IndexType.IVF_SQ8, {"nlist": 1024}),
                                              (IndexType.IVF_SQ8_H, {"nlist": 1024}),
-                                             (IndexType.IVF_PQ, {"m": 12, "nlist": 1024}),
+                                             (IndexType.IVF_PQ, {"m": 16, "nlist": 1024}),
                                              (IndexType.HNSW, {"M": 16, "efConstruction": 500}),
                                              (IndexType.RNSG, {"search_length": 45, "out_degree": 50,
                                                                "candidate_pool_size": 300, "knng": 100}),

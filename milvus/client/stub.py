@@ -57,6 +57,15 @@ class Milvus:
         self._status = None
 
     def __getattr__(self, item):
+        if item == "get_vector_by_id":
+            return self.get_vectors_by_ids
+        if item == "add_vectors":
+            return self.insert
+        if item == "search_vectors":
+            return self.search
+        if item == "search_vectors_in_files":
+            return self.search_in_files
+
         if item in self._kw.keys():
             return self._kw.get(item, None)
         raise AttributeError("Attribute {} not exists".format(item))
@@ -324,7 +333,7 @@ class Milvus:
     @check_connect
     def collection_info(self, collection_name, timeout=10):
         # TODO: need check collection_name here
-        # check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name)
         return self._stub.show_collection_info(collection_name, timeout)
 
     @check_connect
@@ -394,10 +403,10 @@ class Milvus:
 
         check_pass_param(collection_name=collection_name, records=records)
         partition_tag is not None and check_pass_param(partition_tag=partition_tag)
-        ids is not None and check_pass_param(ids=ids)
-
-        if ids is not None and len(records) != len(ids):
-            raise ParamError("length of vectors do not match that of ids")
+        if ids is not None:
+            check_pass_param(ids=ids)
+            if len(records) != len(ids):
+                raise ParamError("length of vectors do not match that of ids")
 
         params = params or dict()
         if not isinstance(params, dict):
@@ -406,10 +415,10 @@ class Milvus:
         return self._stub.insert(collection_name, records, ids, partition_tag, params, None, **kwargs)
 
     @check_connect
-    def get_vector_by_id(self, collection_name, vector_id, timeout=None):
-        check_pass_param(collection_name=collection_name, ids=[vector_id])
+    def get_vectors_by_ids(self, collection_name, ids, timeout=None):
+        check_pass_param(collection_name=collection_name, ids=ids)
 
-        return self._stub.get_vector_by_id(collection_name, vector_id, timeout=timeout)
+        return self._stub.get_vectors_by_ids(collection_name, ids, timeout=timeout)
 
     @check_connect
     def get_vector_ids(self, collection_name, segment_name, timeout=None):
@@ -511,6 +520,11 @@ class Milvus:
         return self._stub.create_partition(collection_name, partition_tag, timeout)
 
     @check_connect
+    def has_partition(self, collection_name, partition_tag):
+        check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
+        return self._stub.has_partition(collection_name, partition_tag)
+
+    @check_connect
     def show_partitions(self, collection_name, timeout=10):
         """
         Show all partitions in a collection.
@@ -579,14 +593,26 @@ class Milvus:
         :rtype: (Status, TopKQueryResult)
 
         """
-        check_pass_param(collection_name=collection_name, topk=top_k,
-                         records=query_records, partition_tag_array=partition_tags)
+        check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
+        if partition_tags is not None:
+            check_pass_param(artition_tag_array=partition_tags)
 
         params = dict() if params is None else params
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
 
         return self._stub.search(collection_name, top_k, query_records, partition_tags, params, **kwargs)
+
+    @check_connect
+    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, **kwargs):
+        check_pass_param(collection_name=collection_name, topk=top_k, ids=ids)
+        partition_tags is not None and check_pass_param(partition_tag_array=partition_tags)
+
+        params = dict() if params is None else params
+        if not isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
+
+        return self._stub.search_by_ids(collection_name, ids, top_k, partition_tags, params, **kwargs)
 
     @check_connect
     def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None, **kwargs):
@@ -698,6 +724,6 @@ class Milvus:
 
     # get_collection_row_count = count_collection
     # delete_collection = drop_collection
-    add_vectors = insert
-    search_vectors = search
-    search_vectors_in_files = search_in_files
+    # add_vectors = insert
+    # search_vectors = search
+    # search_vectors_in_files = search_in_files
