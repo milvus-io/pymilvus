@@ -132,7 +132,7 @@ class TestSearchByIds:
             "nprobe": 10
         }
         status, results = gcon.search_by_ids(gcollection, ids[0: 10], 10, params=search_param)
-        assert status
+        assert status.OK()
         # assert len(results) == 10
         # assert len(results[0]) == 10
         #

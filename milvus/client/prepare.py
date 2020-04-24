@@ -29,10 +29,10 @@ class Prepare:
         """
 
         _param = grpc_types.CollectionSchema(status=status_pb2.Status(error_code=0, reason='Client'),
-                                        collection_name=collection_name,
-                                        dimension=dimension,
-                                        index_file_size=index_file_size,
-                                        metric_type=metric_type)
+                                             collection_name=collection_name,
+                                             dimension=dimension,
+                                             index_file_size=index_file_size,
+                                             metric_type=metric_type)
 
         if param:
             param_str = ujson.dumps(param)

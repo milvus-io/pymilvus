@@ -784,12 +784,12 @@ class GrpcHandler(ConnectIntf):
         request = Prepare.search_by_ids_param(collection_name, ids, top_k, partition_tags, params)
         if kwargs.get("_async", False) is True:
             timeout = kwargs.get("timeout", None)
-            future = self._stub.SearchInFiles.future(request, timeout=timeout)
+            future = self._stub.SearchByID.future(request, timeout=timeout)
 
             func = kwargs.get("_callback", None)
             return SearchFuture(future, func)
 
-        response = self._stub.SearchInFiles(request)
+        response = self._stub.SearchByID(request)
         self._search_hook.aft_search()
 
         if self._search_hook.on_response():
