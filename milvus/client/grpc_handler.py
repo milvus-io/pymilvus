@@ -129,7 +129,8 @@ class GrpcHandler(ConnectIntf):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        del self._stub
+        pass
+        # del self._stub
 
     def _setup(self, pre_ping=False):
         """
