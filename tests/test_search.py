@@ -139,6 +139,13 @@ class TestSearchByIds:
         # assert results.shape[0] == 10
         # assert results.shape[1] == 10
 
+    def test_search_by_ids_with_empty_param(self, gcon, gcollection):
+        status, _ = gcon.search_by_ids(gcollection, [1], 1, params=None)
+        assert not status.OK()
+
+        status, _ = gcon.search_by_ids(gcollection, [1], 1, params={})
+        assert not status.OK()
+
     @pytest.mark.parametrize("ids", [None, "123", False])
     def test_seach_by_ids_with_invalid_ids(self, ids, gcon, gcollection):
         with pytest.raises(ParamError):
@@ -153,6 +160,11 @@ class TestSearchByIds:
     def test_search_by_ids_invalid_topk(self, topk, gcon, gcollection):
         with pytest.raises(ParamError):
             gcon.search(gcollection, [1], topk, params={"nprobe": 10})
+
+    @pytest.mark.parametrize("params", [[1, 2, 3], "test", True, 128])
+    def test_search_by_ids_invalid_params(self, params, gcon, gcollection):
+        with pytest.raises(ParamError):
+            gcon.search(gcollection, [1], 1, params=params)
 
 
 class TestSearchInFiles:
