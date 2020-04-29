@@ -76,6 +76,8 @@ class ConnectionPool:
         #
         self.durations = defaultdict(list)
 
+    def __del__(self):
+        self.terminate()
 
     def _inc_used(self):
         with self._condition:
@@ -162,6 +164,21 @@ class ConnectionPool:
             self._pool.put(conn, False)
         except queue.Full:
             pass
+    #
+    # def terminate(self):
+    #     with self._condition:
+    #         while True:
+    #             if self._used_conn > 0:
+    #                 try:
+    #                     conn = self._pool.get(timeout=self._wait_timeout)
+    #                     conn.__del__()
+    #                     self._used_conn -= 1
+    #                 except:
+    #                     pass
+    #             else:
+    #                 break
+    #
+    #         self._pool = None
 
 
 class ScopedConnection:

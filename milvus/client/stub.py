@@ -108,6 +108,9 @@ class Milvus:
             return self._kw.get(item, None)
         raise AttributeError("Attribute {} not exists".format(item))
 
+    def __del__(self):
+        return self.close()
+
     # def _init(self, host, port, uri, **kwargs):
     #     handler = kwargs.get("handler", "GRPC")
     #     self._uri = self._set_uri(host, port, uri, handler)
@@ -141,23 +144,19 @@ class Milvus:
     def handler(self):
         return self._handler
 
-    def ping(self, timeout=2):
-        """
-        Check if server is accessible
-
-        """
-        if self.handler == "GRPC":
-            from .grpc_handler import set_uri, connect
-            _addr = set_uri(None, None, self._uri)
-            return connect(_addr, timeout)
-        if self.handler == "HTTP":
-            self._stub.connect()
-
-        return True
-
-    def terminate(self):
-        del self._pool
-        self._pool = None
+    # def ping(self, timeout=2):
+    #     """
+    #     Check if server is accessible
+    #
+    #     """
+    #     if self.handler == "GRPC":
+    #         from .grpc_handler import set_uri, connect
+    #         _addr = set_uri(None, None, self._uri)
+    #         return connect(_addr, timeout)
+    #     if self.handler == "HTTP":
+    #         self._stub.connect()
+    #
+    #     return True
 
     # def connect(self, host=None, port=None, uri=None, timeout=2):
     #     if self.connected() and self._connected:
@@ -179,11 +178,9 @@ class Milvus:
     # def connected(self):
     #     return True if self._status and self._status.OK() else False
     #
-    # def disconnect(self):
-    #     if not self.connected():
-    #         raise NotConnectError('Please connect to the server first!')
-    #     self._status = None
-    #     return Status(message='Disconnect successfully')
+    def close(self):
+        # self._pool.terminate()
+        self._pool = None
 
     def client_version(self):
         """

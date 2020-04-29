@@ -44,8 +44,7 @@ def connect(request, ghandler):
 
     def fin():
         try:
-            client.__del__()
-            # milvus.disconnect()
+            client.close()
         except:
             pass
 
@@ -61,7 +60,7 @@ def gcon(request, ghandler):
 
     def fin():
         try:
-            client.__del__()
+            client.close()
             pass
         except Exception as e:
             print(e)
