@@ -123,7 +123,7 @@ class Milvus:
         return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
 
     def _connection(self):
-        return self._stub
+        return self._pool.fetch()
 
     # def _get_connection
 

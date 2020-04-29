@@ -28,7 +28,7 @@ def main():
     milvus = Milvus(_HOST, _PORT)
 
     # Check if server is accessible
-    milvus.connect()
+    # milvus.connect()
 
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_collection_'

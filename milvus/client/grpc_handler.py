@@ -531,9 +531,9 @@ class GrpcHandler(ConnectIntf):
         body = insert_param if insert_param \
             else Prepare.insert_param(collection_name, records, partition_tag, ids, params)
 
-        rf = self._stub.Insert.future(body)
+        rf = self._stub.Insert.future(body, timeout=timeout)
         if kwargs.get("_async", False) is True:
-            cb = kwargs.get("callback", None)
+            cb = kwargs.get("_callback", None)
             return InsertFuture(rf, cb)
 
         response = rf.result(timeout=timeout)
@@ -601,7 +601,7 @@ class GrpcHandler(ConnectIntf):
         # status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
         future = self._stub.CreateIndex.future(index_param, timeout=timeout)
         if kwargs.get('_async', False):
-            cb = kwargs.get("callback", None)
+            cb = kwargs.get("_callback", None)
             return CreateIndexFuture(future, cb)
         status = future.result(timeout=timeout)
         future.__del__()
@@ -863,41 +863,6 @@ class GrpcHandler(ConnectIntf):
 
         return Status(message='Search vectors successfully!'), \
                self._search_file_hook.handle_response(response)
-
-    def __delete_vectors_by_range(self, collection_name, start_date=None, end_date=None, timeout=10):
-        """
-        Delete vectors by range. The data range contains start_time but not end_time
-        This method is deprecated, not recommended for users.
-
-        This API is deprecated.
-
-        :type  collection_name: str
-        :param collection_name: str, date, datetime
-
-        :type  start_date: str, date, datetime
-        :param start_date:
-
-        :type  end_date: str, date, datetime
-        :param end_date:
-
-        :return:
-            Status:  indicate if invoke is successful
-        """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        delete_range = Prepare.delete_param(collection_name, start_date, end_date)
-
-        try:
-            status = self._stub.DeleteByDate.future(delete_range).result(timeout=timeout)
-            return Status(code=status.error_code, message=status.reason)
-        except grpc.FutureTimeoutError as e:
-            LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     @error_handler()
     def delete_by_id(self, collection_name, id_array, timeout=None):
