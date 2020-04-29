@@ -76,9 +76,6 @@ class ConnectionPool:
         #
         self.durations = defaultdict(list)
 
-    def __del__(self):
-        self.terminate()
-
     def _inc_used(self):
         with self._condition:
             if self._used_conn < self._pool_size:
