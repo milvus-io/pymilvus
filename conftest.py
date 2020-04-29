@@ -39,34 +39,36 @@ def connect(request, ghandler):
     port_default = default_http_port if handler == "HTTP" else default_grpc_port
     port = request.config.getoption("--port", default=port_default)
 
-    milvus = Milvus(handler=ghandler)
-    milvus.connect(host=ip, port=port)
+    client = Milvus(host=ip, port=port, handler=ghandler)
+    # milvus.connect()
 
     def fin():
         try:
-            milvus.disconnect()
+            client.__del__()
+            # milvus.disconnect()
         except:
             pass
 
     request.addfinalizer(fin)
-    return milvus
+    return client
 
 
 @pytest.fixture(scope="module")
 def gcon(request, ghandler):
     ip = request.config.getoption("--ip")
     port = request.config.getoption("--port")
-    milvus = Milvus(host=ip, port=port, handler=ghandler)
+    client = Milvus(host=ip, port=port, handler=ghandler)
 
     def fin():
         try:
+            client.__del__()
             pass
         except Exception as e:
             print(e)
             pass
 
     request.addfinalizer(fin)
-    return milvus
+    return client
 
 
 @pytest.fixture(scope="module")

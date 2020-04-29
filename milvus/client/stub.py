@@ -31,7 +31,7 @@ def check_connect(func):
 
 def _pool_args(**kwargs):
     pool_kwargs = dict()
-    for k, v in kwargs:
+    for k, v in kwargs.items():
         if k in ("pool_size", "wait_timeout", "recycle"):
             pool_kwargs[k] = v
 
@@ -587,7 +587,7 @@ class Milvus:
             return handler.drop_partition(collection_name, partition_tag, timeout)
 
     @check_connect
-    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
+    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, timeout=None, **kwargs):
         """
         Search vectors in a collection.
 
@@ -621,10 +621,10 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.search(collection_name, top_k, query_records, partition_tags, params, **kwargs)
+            return handler.search(collection_name, top_k, query_records, partition_tags, params, timeout, **kwargs)
 
     @check_connect
-    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, **kwargs):
+    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, topk=top_k, ids=ids)
         partition_tags is not None and check_pass_param(partition_tag_array=partition_tags)
 
@@ -633,10 +633,10 @@ class Milvus:
             raise ParamError("Params must be a dictionary type")
 
         with self._connection() as handler:
-            return handler.search_by_ids(collection_name, ids, top_k, partition_tags, params, **kwargs)
+            return handler.search_by_ids(collection_name, ids, top_k, partition_tags, params, timeout, **kwargs)
 
     @check_connect
-    def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None, **kwargs):
+    def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None, timeout=None, **kwargs):
         """
         Searches for vectors in specific files of a collection.
 
@@ -673,7 +673,7 @@ class Milvus:
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
             return handler.search_in_files(collection_name, file_ids,
-                                   query_records, top_k, params, **kwargs)
+                                   query_records, top_k, params, timeout, **kwargs)
 
     @check_connect
     def delete_by_id(self, collection_name, id_array, timeout=None):
@@ -686,7 +686,7 @@ class Milvus:
             return handler.delete_by_id(collection_name, id_array, timeout)
 
     @check_connect
-    def flush(self, collection_name_array=None, **kwargs):
+    def flush(self, collection_name_array=None, timeout=None, **kwargs):
         """
         Flushes vector data in one collection or multiple collections to disk.
 
@@ -696,7 +696,8 @@ class Milvus:
         """
 
         if collection_name_array in (None, []):
-            return self._stub.flush([])
+            with self._connection() as handler:
+                return handler.flush([], timeout)
 
         if not isinstance(collection_name_array, list):
             raise ParamError("Collection name array must be type of list")
@@ -707,7 +708,7 @@ class Milvus:
         for name in collection_name_array:
             check_pass_param(collection_name=name)
         with self._connection() as handler:
-            return handler.flush(collection_name_array, **kwargs)
+            return handler.flush(collection_name_array, timeout, **kwargs)
 
     @check_connect
     def compact(self, collection_name, timeout=None, **kwargs):

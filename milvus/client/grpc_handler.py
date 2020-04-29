@@ -755,12 +755,11 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler(None)
-    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
+    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, timeout=None, **kwargs):
         request = Prepare.search_param(collection_name, top_k, query_records, partition_tags, params)
 
         self._search_hook.pre_search()
         if kwargs.get("_async", False) is True:
-            timeout = kwargs.get("timeout", None)
             future = self._stub.Search.future(request, timeout=timeout)
 
             func = kwargs.get("_callback", None)
@@ -781,16 +780,17 @@ class GrpcHandler(ConnectIntf):
         return Status(message='Search vectors successfully!'), resutls
 
     @error_handler(None)
-    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, **kwargs):
+    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
         request = Prepare.search_by_ids_param(collection_name, ids, top_k, partition_tags, params)
         if kwargs.get("_async", False) is True:
-            timeout = kwargs.get("timeout", None)
             future = self._stub.SearchByID.future(request, timeout=timeout)
 
             func = kwargs.get("_callback", None)
             return SearchFuture(future, func)
 
-        response = self._stub.SearchByID(request)
+        ft = self._stub.SearchByID.future(request, timeout)
+        response = ft.result()
+        ft.__del__()
         self._search_hook.aft_search()
 
         if self._search_hook.on_response():
@@ -804,7 +804,7 @@ class GrpcHandler(ConnectIntf):
                self._search_hook.handle_response(response)
 
     @error_handler(None)
-    def search_in_files(self, collection_name, file_ids, query_records, top_k, params, **kwargs):
+    def search_in_files(self, collection_name, file_ids, query_records, top_k, params, timeout=None, **kwargs):
         """
         Query vectors in a collection, in specified files.
 
@@ -845,13 +845,14 @@ class GrpcHandler(ConnectIntf):
         self._search_file_hook.pre_search()
 
         if kwargs.get("_async", False) is True:
-            timeout = kwargs.get("timeout", None)
             future = self._stub.SearchInFiles.future(infos, timeout=timeout)
 
             func = kwargs.get("_callback", None)
             return SearchFuture(future, func)
 
-        response = self._stub.SearchInFiles(infos)
+        ft = self._stub.SearchInFiles.future(infos, timeout)
+        response = ft.result()
+        ft.__del__()
         self._search_file_hook.aft_search()
 
         if self._search_file_hook.on_response():
