@@ -2,6 +2,7 @@
 
 ## Bug
 - \#190 - Fix rpc return error when error occur
+- \#200 - Fix TypeError raised in inserting vectors with async set true
 
 
 # pymilvus 0.2.10(2020-04-15)

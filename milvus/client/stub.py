@@ -38,6 +38,32 @@ def _pool_args(**kwargs):
     return pool_kwargs
 
 
+def _set_uri(host, port, uri, handler="GRPC"):
+    default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
+    default_uri = config.GRPC_URI if handler == "GRPC" else config.HTTP_URI
+    uri_prefix = "tcp://" if handler == "GRPC" else "http://"
+
+    if host is not None:
+        _port = port if port is not None else default_port
+        _host = host
+    elif port is None:
+        try:
+            _uri = urlparse(uri) if uri else urlparse(default_uri)
+            _host = _uri.hostname
+            _port = _uri.port
+        except (AttributeError, ValueError, TypeError) as e:
+            raise ParamError("uri is illegal: {}".format(e))
+    else:
+        raise ParamError("Param is not complete. Please invoke as follow:\n"
+                         "\t(host = ${HOST}, port = ${PORT})\n"
+                         "\t(uri = ${URI})\n")
+
+    if not is_legal_host(_host) or not is_legal_port(_port):
+        raise ParamError("host or port is illegal")
+
+    return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
+
+
 class Milvus:
     def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
         self._name = kwargs.get('name', None)
@@ -48,7 +74,7 @@ class Milvus:
         # self._stub = None
 
         _uri = kwargs.get('uri', None)
-        pool_uri = self._set_uri(host, port, _uri, self._handler)
+        pool_uri = _set_uri(host, port, _uri, self._handler)
         pool_kwargs = _pool_args(**kwargs)
         self._pool = ConnectionPool(pool_uri, **pool_kwargs)
         # store extra key-words arguments
@@ -62,16 +88,15 @@ class Milvus:
         #     self._status = Status()
 
     def __enter__(self):
-        return self
+        return self._pool.fetch()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
         # self.__conn.close()
-        self._stub = None
-        self._status = None
+        # self._stub = None
+        # self._status = None
 
     def __getattr__(self, item):
-        # if item == "get_vector_by_id":
-        #     return self.get_vectors_by_ids
         if item == "add_vectors":
             return self.insert
         if item == "search_vectors":
@@ -83,44 +108,13 @@ class Milvus:
             return self._kw.get(item, None)
         raise AttributeError("Attribute {} not exists".format(item))
 
-    def _init(self, host, port, uri, **kwargs):
-        handler = kwargs.get("handler", "GRPC")
-        self._uri = self._set_uri(host, port, uri, handler)
-        self._stub = GrpcHandler(None, None, uri=self._uri)
-        if len(self._hooks) > 0:
-            self._stub.set_hook(**self._hooks)
+    # def _init(self, host, port, uri, **kwargs):
+    #     handler = kwargs.get("handler", "GRPC")
+    #     self._uri = self._set_uri(host, port, uri, handler)
+    #     self._stub = GrpcHandler(None, None, uri=self._uri)
+    #     if len(self._hooks) > 0:
+    #         self._stub.set_hook(**self._hooks)
 
-    def _set_uri(self, host, port, uri, handler="GRPC"):
-        default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
-        default_uri = config.GRPC_URI if handler == "GRPC" else config.HTTP_URI
-        uri_prefix = "tcp://" if handler == "GRPC" else "http://"
-
-        if host is not None:
-            _port = port if port is not None else default_port
-            _host = host
-        elif port is None:
-            try:
-                # Ignore uri check here
-                # if not is_legal_uri(_uri):
-                #     raise ParamError("uri {} is illegal".format(_uri))
-                #
-                # If uri is empty (None or '') use default uri instead
-                # (the behavior may change in the future)
-                # _uri = urlparse(_uri) if _uri is not None else urlparse(config.GRPC_URI)
-                _uri = urlparse(uri) if uri else urlparse(default_uri)
-                _host = _uri.hostname
-                _port = _uri.port
-            except (AttributeError, ValueError, TypeError) as e:
-                raise ParamError("uri is illegal: {}".format(e))
-        else:
-            raise ParamError("Param is not complete. Please invoke as follow:\n"
-                             "\t(host = ${HOST}, port = ${PORT})\n"
-                             "\t(uri = ${URI})\n")
-
-        if not is_legal_host(_host) or not is_legal_port(_port):
-            raise ParamError("host or port is illegal")
-
-        return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
 
     def _connection(self):
         return self._pool.fetch()
@@ -391,7 +385,7 @@ class Milvus:
             return handler.drop_collection(collection_name, timeout)
 
     @check_connect
-    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, **kwargs):
+    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
         """
         Insert vectors to a collection.
 
@@ -414,16 +408,13 @@ class Milvus:
 
         :param partition_tag: Tag of a partition.
 
-        :type  timeout: int
-        :param timeout: Time to wait for server response before timeout.
-
         :returns:
             Status: Whether vectors are inserted successfully.
             ids: IDs of the inserted vectors.
         :rtype: (Status, list(int))
         """
         if kwargs.get("insert_param", None) is not None:
-            return self._stub.insert(None, None, **kwargs)
+            return self._stub.insert(None, None, timeout=timeout, **kwargs)
 
         check_pass_param(collection_name=collection_name, records=records)
         partition_tag is not None and check_pass_param(partition_tag=partition_tag)
@@ -436,7 +427,7 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.insert(collection_name, records, ids, partition_tag, params, None, **kwargs)
+            return handler.insert(collection_name, records, ids, partition_tag, params, timeout, **kwargs)
 
     @check_connect
     def get_vectors_by_ids(self, collection_name, ids, timeout=None):
