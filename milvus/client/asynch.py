@@ -43,6 +43,7 @@ class Future(AbstractFuture):
         self._canceled = False
         self._done = False
         self._response = None
+        self._exception = None
 
         self.__init()
 
@@ -77,8 +78,8 @@ class Future(AbstractFuture):
                             self._done_cb(*self.on_response(self._response))
                         else:
                             self._done_cb(self.on_response(self._response))
-                except:
-                    raise
+                except Exception as e:
+                    self._exception = e
                 finally:
                     self._done = True
                     self._condition.notify_all()
@@ -86,16 +87,18 @@ class Future(AbstractFuture):
         self._future.add_done_callback(async_done_callback)
 
     def result(self, **kwargs):
-
+        self.exception()
         with self._condition:
             # future not finished. wait callback being called.
-            if not self._done and not self._canceled:
-                to = kwargs.get("timeout", None)
-                self._condition.wait(to)
-
-                if not self._done and not self._canceled:
-                    # self._condition.notify_all()
-                    raise FutureTimeoutError("Wait timeout")
+            to = kwargs.get("timeout", None)
+            self._response = self._future.result(timeout=to)
+            # if not self._done and not self._canceled:
+            #     to = kwargs.get("timeout", None)
+            #     self._condition.wait(to)
+            #
+            #     if not self._done and not self._canceled:
+            #         self._condition.notify_all()
+                    # raise FutureTimeoutError("Wait timeout")
 
             self._condition.notify_all()
 
@@ -107,17 +110,24 @@ class Future(AbstractFuture):
 
     def cancel(self):
         with self._condition:
-            if not self._canceled or self._done:
-                self._future.cancel()
-                self._canceled = True
+            self._future.cancel()
+            # if not self._canceled or self._done:
+            #     self._future.cancel()
+            #     self._canceled = True
             self._condition.notify_all()
 
     def done(self):
+        self.exception()
         with self._condition:
-            if not (self._canceled or self._done):
-                self._condition.wait()
+
+            if self._future and not self._future.done():
+                self._future.result()
 
             self._condition.notify_all()
+
+    def exception(self):
+        if self._exception:
+            raise self._exception
 
 
 class SearchFuture(Future):
