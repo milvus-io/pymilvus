@@ -5,6 +5,7 @@ import threading
 import time
 from collections import defaultdict
 
+from . import __version__
 from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from milvus.client.exceptions import ConnectionPoolError
@@ -55,14 +56,14 @@ class ConnectionRecord:
         return new one.
         '''
         if self._kw.get("pre_ping", False):
-            self._connection.connect(None, None, uri=self._uri, timeout=2)
+            self._connection.ping(timeout=2)
         return self._connection
 
 
 class ConnectionPool:
     def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, **kwargs):
         # Asynchronous queue to store connection
-        self._pool = queue.Queue()
+        self._pool = queue.Queue(maxsize=pool_size)
         self._uri = uri
         self._pool_size = pool_size
         self._recycle = recycle
@@ -75,6 +76,15 @@ class ConnectionPool:
 
         #
         self.durations = defaultdict(list)
+        self._prepare()
+
+    def _prepare(self):
+        conn = self.fetch()
+        with self._condition:
+            conn.client().ping()
+            status, version = conn.client().server_version(timeout=1)
+            if version not in ('0.8.0', '0.9.0'):
+                raise ValueError("Version of python SDK({}) not match that of server{}.".format(__version__, version))
 
     def _inc_used(self):
         with self._condition:

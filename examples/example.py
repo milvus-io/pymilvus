@@ -25,7 +25,8 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 def main():
     # Specify server addr when create milvus client instance
-    milvus = Milvus(_HOST, _PORT)
+    milvus = Milvus(_HOST, _PORT, pool_size=10)
+    # milvus.connect()
 
     # Check if server is accessible
     # milvus.connect()

@@ -181,6 +181,9 @@ class GrpcHandler(ConnectIntf):
 
             self._search_file_hook = _search_file_hook
 
+    def ping(self, timeout=2):
+        connect(self._uri, timeout)
+
     @property
     def server_address(self):
         """

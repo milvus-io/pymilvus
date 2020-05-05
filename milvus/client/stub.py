@@ -3,6 +3,7 @@
 import collections
 import copy
 import functools
+import logging
 import threading
 
 from urllib.parse import urlparse
@@ -13,9 +14,21 @@ from .check import check_pass_param, is_legal_host, is_legal_port
 from .pool import ConnectionPool
 from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
-from .exceptions import ParamError, NotConnectError
+from .exceptions import ParamError, NotConnectError, DeprecatedError
 
 from ..settings import DefaultConfig as config
+
+LOGGER = logging.getLogger(__name__)
+
+
+def deprecated(func):
+    @functools.wraps(func)
+    def inner(*args, **kwargs):
+        error_str = "Function {} has been deprecated".format(func.__name__)
+        LOGGER.error(error_str)
+        raise DeprecatedError(error_str)
+
+    return inner
 
 
 def check_connect(func):
@@ -118,7 +131,6 @@ class Milvus:
     #     if len(self._hooks) > 0:
     #         self._stub.set_hook(**self._hooks)
 
-
     def _connection(self):
         return self._pool.fetch()
 
@@ -135,6 +147,9 @@ class Milvus:
     # def status(self):
     #     return self._handler.status
     # pass
+    #
+    # def connected(self):
+    #     return True
 
     @property
     def name(self):
@@ -158,25 +173,31 @@ class Milvus:
     #
     #     return True
 
-    # def connect(self, host=None, port=None, uri=None, timeout=2):
-    #     if self.connected() and self._connected:
-    #         return Status(message="You have already connected {} !".format(self._uri),
-    #                       code=Status.CONNECT_FAILED)
-    #
-    #     # if (host or port or uri) or not self._uri:
-    #     #     kw = copy.deepcopy(self._kw)
-    #     #     kw.pop('uri', None)
-    #     #     self._init(host, port, uri, **kw)
-    #     if self._stub is None:
-    #         self._init(host, port, uri, handler=self._handler)
-    #
-    #     if self.ping(timeout):
-    #         self._status = Status(message="Connected")
-    #         self._connected = True
-    #         return self._status
+    @deprecated
+    def connect(self, host=None, port=None, uri=None, timeout=2):
+        if self.connected() and self._connected:
+            return Status(message="You have already connected {} !".format(self._uri),
+                          code=Status.CONNECT_FAILED)
 
-    # def connected(self):
-    #     return True if self._status and self._status.OK() else False
+        # if (host or port or uri) or not self._uri:
+        #     kw = copy.deepcopy(self._kw)
+        #     kw.pop('uri', None)
+        #     self._init(host, port, uri, **kw)
+        if self._stub is None:
+            self._init(host, port, uri, handler=self._handler)
+
+        if self.ping(timeout):
+            self._status = Status(message="Connected")
+            self._connected = True
+            return self._status
+
+    @deprecated
+    def connected(self):
+        return True if self._status and self._status.OK() else False
+
+    @deprecated
+    def disconnect(self):
+        pass
     #
     def close(self):
         # self._pool.terminate()
@@ -670,7 +691,7 @@ class Milvus:
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
             return handler.search_in_files(collection_name, file_ids,
-                                   query_records, top_k, params, timeout, **kwargs)
+                                           query_records, top_k, params, timeout, **kwargs)
 
     @check_connect
     def delete_by_id(self, collection_name, id_array, timeout=None):
