@@ -451,7 +451,8 @@ class GrpcHandler(ConnectIntf):
         rpc_status = response.status
 
         if rpc_status.error_code == 0:
-            return Status(), ujson.loads(response.json_info)
+            json_info = response.json_info
+            return Status(), {} if not json_info else ujson.loads(json_info)
 
         return Status(rpc_status.error_code, rpc_status.reason), None
 

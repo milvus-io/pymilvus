@@ -3,6 +3,7 @@
 ## Bug
 - \#190 - Fix rpc return error when error occur
 - \#200 - Fix TypeError raised in inserting vectors with async set true
+- \#201 - Fix get collection info failed when info is null
 
 
 # pymilvus 0.2.10(2020-04-15)
