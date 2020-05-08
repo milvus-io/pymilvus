@@ -50,7 +50,7 @@ def main():
     # 10000 vectors with 16 dimension
     # element per dimension is float32 type
     # vectors should be a 2-D array
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(100000)]
     # You can also use numpy to generate random vectors:
     #     `vectors = np.random.rand(10000, 16).astype(np.float32)`
 
@@ -61,7 +61,10 @@ def main():
             print("Insert failed.", status.message)
 
     # Insert vectors into demo_collection, return status and vectors id list
-    insert_future = milvus.insert(collection_name=collection_name, records=vectors, _async=True, timeout=1, _callback=_insert_callback)
+    insert_future = milvus.insert(collection_name=collection_name, records=vectors, _async=True, _callback=_insert_callback)
+    time.sleep(2)
+    status, reply = milvus._cmd("requests") #, timeout=1000)
+    print("Reply: {}".format(reply))
     insert_future.done()
 
     # Flush collection  inserted data to disk.

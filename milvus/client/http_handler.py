@@ -7,7 +7,7 @@ import struct
 
 import requests as rq
 
-from .abstract import HCollectionInfo, ConnectIntf, IndexParam, CollectionSchema, TopKQueryResult2, PartitionParam
+from .abstract import ConnectIntf, IndexParam, CollectionSchema, TopKQueryResult2, PartitionParam
 from .check import is_legal_host, is_legal_port
 from .exceptions import NotConnectError, ParamError
 from .types import Status, IndexType, MetricType
@@ -190,11 +190,11 @@ class HttpHandler(ConnectIntf):
         return self._cmd("status", timeout)
 
     @timeout_error()
-    def create_collection(self, table_name, dimension, index_file_size, metric_type, params, timeout):
+    def create_collection(self, collection_name, dimension, index_file_size, metric_type, params=None, timeout=10):
         metric = MetricValue2NameMap.get(metric_type, None)
 
         table_param = {
-            "collection_name": table_name,
+            "collection_name": collection_name,
             "dimension": dimension,
             "index_file_size": index_file_size,
             "metric_type": metric
@@ -297,11 +297,10 @@ class HttpHandler(ConnectIntf):
 
         response = rq.get(url, timeout=timeout)
         if response.status_code == 200:
-            result = response.json()
-            return Status(), HCollectionInfo(result)
+            return Status(), response.json()
 
         if response.status_code == 404:
-            return Status(Status.TABLE_NOT_EXISTS, "Collection not found"), None
+            return Status(Status.COLLECTION_NOT_EXISTS, "Collection not found"), None
 
         if response.text:
             result = response.json()
@@ -364,16 +363,19 @@ class HttpHandler(ConnectIntf):
         return Status(Status(js["code"], js["message"])), []
 
     @timeout_error(returns=(None,))
-    def get_vector_by_id(self, table_name, v_id, timeout):
-        status, table_schema = self.describe_collection(table_name, timeout)
+    def get_vectors_by_ids(self, collection_name, ids, timeout):
+        status, table_schema = self.describe_collection(collection_name, timeout)
         if not status.OK():
             return status, None
         metric = table_schema.metric_type
 
         bin_vector = metric in list(MetricType.__members__.values())[3:]
 
-        url = self._uri + "/collections/{}/vectors?id={}".format(table_name, v_id)
-        response = rq.get(url, timeout=timeout)
+        url = self._uri + "/collections/{}/vectors".format(collection_name)
+        data_dict = dict()
+        data_dict["ids"] = list(map(str, ids))
+        data = ujson.dumps(data_dict)
+        response = rq.get(url, data=data, timeout=timeout)
         result = response.json()
 
         if response.status_code == 200:
@@ -497,8 +499,8 @@ class HttpHandler(ConnectIntf):
         return Status(Status(js["code"], js["message"]))
 
     @timeout_error(returns=(None,))
-    def search(self, table_name, top_k, query_records, partition_tags=None, search_params=None, **kwargs):
-        url = self._uri + "/collections/{}/vectors".format(table_name)
+    def search(self, collection_name, top_k, query_records, partition_tags=None, search_params=None, timeout=None, **kwargs):
+        url = self._uri + "/collections/{}/vectors".format(collection_name)
 
         search_body = dict()
         if partition_tags:
@@ -523,6 +525,28 @@ class HttpHandler(ConnectIntf):
 
         js = response.json()
         return Status(js["code"], js["message"]), None
+
+    @timeout_error(returns=(None,))
+    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, search_params=None, timeout=None, **kwargs):
+        url = self._uri + "/collections/{}/vectors".format(collection_name)
+        body_dict = dict()
+        body_dict["topk"] = top_k
+        body_dict["ids"] = list(map(str, ids))
+        if partition_tags:
+            body_dict["partition_tags"] = partition_tags
+        if search_params:
+            body_dict["params"] = search_params
+
+        data = ujson.dumps({"search": body_dict})
+        headers = {"Content-Type": "application/json"}
+
+        response = rq.put(url, data, headers=headers, timeout=timeout)
+
+        if response.status_code == 200:
+            return Status(), TopKQueryResult2(response)
+
+        js = response.json()
+        return Status(Status(js["code"], js["message"])), None
 
     @timeout_error(returns=(None,))
     def search_in_files(self, table_name, file_ids, query_records, top_k, search_params, **kwargs):
@@ -563,7 +587,7 @@ class HttpHandler(ConnectIntf):
         return Status(result["code"], result["message"])
 
     @timeout_error()
-    def flush(self, table_name_array):
+    def flush(self, table_name_array, *kwargs):
         url = self._uri + "/system/task"
         headers = {"Content-Type": "application/json"}
         request = {"flush": {"collection_names": table_name_array}}

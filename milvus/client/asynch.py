@@ -48,7 +48,8 @@ class Future(AbstractFuture):
         self.__init()
 
     def __del__(self):
-        pass
+        self._future.__del__()
+        self._future = None
         # self._future.__del__()
 
     @abc.abstractmethod
@@ -67,8 +68,8 @@ class Future(AbstractFuture):
             with self._condition:
                 self._response = future.result()
                 # delete gRCP future manually
-                self._future.__del__()
-                self._future = None
+                # self._future.__del__()
+                # self._future = None
 
                 # If user specify done callback function, execute it.
                 try:

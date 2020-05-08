@@ -45,7 +45,7 @@ def check_connect(func):
 def _pool_args(**kwargs):
     pool_kwargs = dict()
     for k, v in kwargs.items():
-        if k in ("pool_size", "wait_timeout", "recycle"):
+        if k in ("pool_size", "wait_timeout", "recycle", "handler"):
             pool_kwargs[k] = v
 
     return pool_kwargs
@@ -88,7 +88,7 @@ class Milvus:
 
         _uri = kwargs.get('uri', None)
         pool_uri = _set_uri(host, port, _uri, self._handler)
-        pool_kwargs = _pool_args(**kwargs)
+        pool_kwargs = _pool_args(handler=handler, **kwargs)
         self._pool = ConnectionPool(pool_uri, **pool_kwargs)
         # store extra key-words arguments
         self._kw = kwargs

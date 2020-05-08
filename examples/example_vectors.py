@@ -6,8 +6,7 @@ from milvus import Milvus, MetricType, IndexType
 _DIM = 128
 
 if __name__ == '__main__':
-    client = Milvus()
-    client.connect()
+    client = Milvus(host="localhost", port=19121, handler="HTTP")
 
     collection_name = 'example_collection_vector'
 
@@ -34,8 +33,8 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # show collection information
-    print("Total amount of vectors in collection {} is {}".format(collection_name, info.count))
-    for par in info.partitions_stat:
+    print("Total amount of vectors in collection {} is {}".format(collection_name, info["row_count"]))
+    for par in info["partitions"]:
         print("\tpartition tag: {}, vector count: {}".format(par.tag, par.count))
         # show segment information
         for seg in par.segments_stat:

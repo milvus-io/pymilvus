@@ -15,7 +15,8 @@ from milvus.client.abstract import TopKQueryResult
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
-_PORT = '19530'  # default value
+# _PORT = '19530'  # default value
+_PORT = '19121'  # default http value
 
 # Vector parameters
 _DIM = 128  # dimension of vector
@@ -25,11 +26,7 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 def main():
     # Specify server addr when create milvus client instance
-    milvus = Milvus(_HOST, _PORT, pool_size=10)
-    # milvus.connect()
-
-    # Check if server is accessible
-    # milvus.connect()
+    milvus = Milvus(_HOST, _PORT, pool_size=10, handler="HTTP")
 
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_collection_'
@@ -71,6 +68,8 @@ def main():
     # present collection info
     _, info = milvus.collection_info(collection_name)
     print(info)
+
+    status, result_vectors = milvus.get_vectors_by_ids(collection_name, ids[:10])
 
     # create index of vectors, search more rapidly
     index_param = {
@@ -120,7 +119,7 @@ def main():
         print("Search failed. ", status)
 
     # Delete demo_collection
-    status = milvus.drop_collection(collection_name)
+    # status = milvus.drop_collection(collection_name)
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ import random
 from milvus import *
 
 if __name__ == '__main__':
-    client = Milvus(host="localhost", port=19530)
+    client = Milvus(host="localhost", port=19121, handler="HTTP")
     collection = "test_search_by_id"
     status = client.create_collection({"collection_name": collection, "dimension": 128})
     # assert status.OK()

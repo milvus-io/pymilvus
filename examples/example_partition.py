@@ -119,7 +119,7 @@ def main():
     # status = client.drop_partition(collection_name, partition_tag)
 
     # Delete collection. All of partitions of this collection will be dropped.
-    status = client.drop_collection(collection_name)
+    # status = client.drop_collection(collection_name)
 
     # Disconnect from Milvus
     # status = client.disconnect()
