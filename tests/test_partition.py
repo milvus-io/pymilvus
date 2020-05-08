@@ -57,7 +57,7 @@ class TestShowPartitions:
         assert status.OK()
 
         status, partitions = gcon.show_partitions(gcollection)
-        assert status
+        assert status.OK()
         for partition in partitions:
             assert partition.collection_name == gcollection
             assert partition.tag in ("tag01", "_default")

@@ -432,7 +432,8 @@ class Milvus:
         :rtype: (Status, list(int))
         """
         if kwargs.get("insert_param", None) is not None:
-            return self._stub.insert(None, None, timeout=timeout, **kwargs)
+            with self._connection() as handler:
+                return handler.insert(None, None, timeout=timeout, **kwargs)
 
         check_pass_param(collection_name=collection_name, records=records)
         partition_tag is not None and check_pass_param(partition_tag=partition_tag)

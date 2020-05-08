@@ -30,12 +30,17 @@ class TestCreateIndex:
         status = gcon.create_index(gvector, index, param)
         assert status.OK()
 
-    def test_create_index_async(self, gcon, gvector):
+    def test_create_index_async(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
         future = gcon.create_index(gvector, IndexType.IVFLAT, params={"nlist": 1024}, _async=True)
         status = future.result()
         assert status.OK()
 
-    def test_create_index_async_callback(self, gcon, gvector):
+    def test_create_index_async_callback(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         def cb(status):
             assert status.OK()
 

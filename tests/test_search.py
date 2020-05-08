@@ -46,7 +46,10 @@ class TestSearch:
         assert results.shape[0] == nq
         assert results.shape[1] == self.topk
 
-    def test_search_async_normal(self, gcon, gvector):
+    def test_search_async_normal(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         param = {
             'collection_name': gvector,
             'query_records': self.query_records,
@@ -64,7 +67,10 @@ class TestSearch:
         assert results.shape[0] == nq
         assert results.shape[1] == self.topk
 
-    def test_search_async_callback(self, gcon, gvector):
+    def test_search_async_callback(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         param = {
             'collection_name': gvector,
             'query_records': self.query_records,
@@ -181,7 +187,10 @@ class TestSearchInFiles:
                 return
         assert False
 
-    def test_search_in_files_async(self, gcon, gvector):
+    def test_search_in_files_async(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         search_param = {
             "nprobe": 10
         }
@@ -195,7 +204,10 @@ class TestSearchInFiles:
                 return
         assert False
 
-    def test_search_in_files_async_callback(self, gcon, gvector):
+    def test_search_in_files_async_callback(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         def cb(status, results):
             print("Search status: ", status)
 

@@ -52,14 +52,19 @@ class TestFlush:
         for collection in collection_list:
             gcon.drop_collection(collection)
 
-    def test_flush_async_normal(self, gcon, gcollection):
+    def test_flush_async_normal(self, gcon, gcollection, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         records = records_factory(dim, nq)
         gcon.insert(gcollection, records)
         future = gcon.flush([gcollection], _async=True)
         status = future.result()
         assert status.OK()
 
-    def test_flush_async_callback(self, gcon, gcollection):
+    def test_flush_async_callback(self, gcon, gcollection, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
 
         def cb(status):
             assert status.OK()
@@ -93,12 +98,17 @@ class TestCompact:
         status = gcon.compact(gcollection)
         assert status.OK(), status.message
 
-    def test_compact_async_normal(self, gcon, gvector):
+    def test_compact_async_normal(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         future = gcon.compact(gvector, _async=True)
         status = future.result()
         assert status.OK()
 
-    def test_compact_async_callback(self, gcon, gvector):
+    def test_compact_async_callback(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
 
         def cb(status):
             assert status.OK()

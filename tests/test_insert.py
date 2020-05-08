@@ -32,14 +32,20 @@ class TestInsert:
         assert status.OK()
         assert len(ids) == len(self.vectors)
 
-    def test_insert_async(self, gcon, gcollection):
+    def test_insert_async(self, gcon, gcollection, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP not support async invoke")
+
         future = gcon.insert(gcollection, self.vectors, _async=True)
 
         status, ids = future.result()
         assert status.OK()
         assert len(ids) == len(self.vectors)
 
-    def test_insert_async_callback(self, gcon, gcollection):
+    def test_insert_async_callback(self, gcon, gcollection, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP not support async invoke")
+
         def cb(status, ids):
             assert status.OK()
             assert len(ids) == len(self.vectors)
