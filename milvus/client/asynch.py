@@ -117,6 +117,9 @@ class Future(AbstractFuture):
             #     self._canceled = True
             self._condition.notify_all()
 
+    def is_done(self):
+        return self._done
+
     def done(self):
         self.exception()
         with self._condition:

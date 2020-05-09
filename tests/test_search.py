@@ -25,7 +25,8 @@ class TestSearch:
         res, results = gcon.search(**param)
         assert res.OK()
         assert len(results) == nq
-        assert len(results[0]) == self.topk
+        for r in results:
+            assert len(r) == self.topk
 
         assert results.shape[0] == nq
         assert results.shape[1] == self.topk
@@ -45,6 +46,28 @@ class TestSearch:
 
         assert results.shape[0] == nq
         assert results.shape[1] == self.topk
+
+    def test_search_result_contain__1(self, gcon, gcollection):
+        vectors = [[random.random() for _ in range(128)] for _ in range(5)]
+        status, _ = gcon.insert(gcollection, vectors)
+        assert status.OK()
+
+        status = gcon.flush([gcollection])
+        assert status.OK()
+
+        param = {
+            'collection_name': gcollection,
+            'query_records': self.query_records[:2],
+            'top_k': 10,
+            'params': self.search_param
+        }
+        res, results = gcon.search(**param)
+        assert res.OK()
+        assert len(results) == 2
+        assert len(results[0]) == 5
+
+        assert results.shape[0] == 2
+        # assert results.shape[1] == self.topk
 
     def test_search_async_normal(self, gcon, gvector, ghandler):
         if ghandler == "HTTP":

@@ -61,7 +61,7 @@ class ConnectionRecord:
 
 
 class ConnectionPool:
-    def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, **kwargs):
+    def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, pre_ping=True, **kwargs):
         # Asynchronous queue to store connection
         self._pool = queue.Queue(maxsize=pool_size)
         self._uri = uri
@@ -74,17 +74,29 @@ class ConnectionPool:
         self._condition = threading.Condition()
         self._kw = kwargs
 
-        #
         self.durations = defaultdict(list)
-        self._prepare()
+
+        self._pre_ping = pre_ping
+        if self._pre_ping:
+            self._prepare()
+
+        self._check_version()
 
     def _prepare(self):
         conn = self.fetch()
         with self._condition:
             conn.client().ping()
+        conn.close()
+
+    def _check_version(self):
+        conn = self.fetch()
+        with self._condition:
             status, version = conn.client().server_version(timeout=1)
             if version not in ('0.8.0', '0.9.0'):
-                raise ValueError("Version of python SDK({}) not match that of server{}.".format(__version__, version))
+                raise ValueError(
+                    "Version of python SDK({}) not match that of server{}, excepted is 0.9.0.".format(__version__,
+                                                                                                      version))
+        conn.close()
 
     def _inc_used(self):
         with self._condition:
