@@ -52,11 +52,11 @@ class TestHadPartition:
 
 
 class TestShowPartitions:
-    def test_show_partitions_normal(self, gcon, gcollection):
+    def test_list_partitions_normal(self, gcon, gcollection):
         status = gcon.create_partition(gcollection, "tag01")
         assert status.OK()
 
-        status, partitions = gcon.show_partitions(gcollection)
+        status, partitions = gcon.list_partitions(gcollection)
         assert status.OK()
         for partition in partitions:
             assert partition.collection_name == gcollection

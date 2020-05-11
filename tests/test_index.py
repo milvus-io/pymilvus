@@ -58,23 +58,23 @@ class TestCreateIndex:
 
 
 class TestDescribeIndex:
-    def test_describe_index_normal(self, gcon, gvector):
+    def test_get_index_info_normal(self, gcon, gvector):
         status = gcon.create_index(gvector, IndexType.IVFLAT, params={"nlist": 1024})
         assert status.OK()
 
-        status, index = gcon.describe_index(gvector)
+        status, index = gcon.get_index_info(gvector)
         assert status.OK()
         assert index.collection_name == gvector
         assert index.index_type == IndexType.IVFLAT
         assert index.params == {"nlist": 1024}
 
     @pytest.mark.parametrize("collection", [123, None, []])
-    def test_describe_index_invalid_name(self, collection, gcon):
+    def test_get_index_info_invalid_name(self, collection, gcon):
         with pytest.raises(ParamError):
-            gcon.describe_index(collection)
+            gcon.get_index_info(collection)
 
-    def test_describe_index_non_existent(self, gcon):
-        status, _ = gcon.describe_index("non_existent")
+    def test_get_index_info_non_existent(self, gcon):
+        status, _ = gcon.get_index_info("non_existent")
         assert not status.OK()
 
 

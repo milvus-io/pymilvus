@@ -57,7 +57,7 @@ def test_run(gcon):
     thread_pool_add_vector(gmilvus, p, vectors)
 
     time.sleep(1.5)
-    _, gcount = gmilvus.count_collection(table_name)
+    _, gcount = gmilvus.count_entities(table_name)
     print(gcount)
 
 

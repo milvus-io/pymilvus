@@ -112,7 +112,7 @@ def gcollection(request, gcon):
     gcon.flush([table_name])
 
     def teardown():
-        status, table_names = gcon.show_collections()
+        status, table_names = gcon.list_collections()
         for name in table_names:
             gcon.drop_collection(name)
 

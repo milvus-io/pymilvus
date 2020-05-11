@@ -92,7 +92,7 @@ class TestCompact:
         status = gcon.flush([gcollection])
         assert status.OK(), status.message
 
-        status = gcon.delete_by_id(gcollection, ids[100:1000])
+        status = gcon.delete_entity_by_id(gcollection, ids[100:1000])
         assert status, status.message
 
         status = gcon.compact(gcollection)

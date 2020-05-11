@@ -5,6 +5,9 @@
 - \#200 - Fix TypeError raised in inserting vectors with async set true
 - \#201 - Fix get collection info failed when info is null
 
+## Improvement
+- \#206 - Update APIs names
+
 
 # pymilvus 0.2.10(2020-04-15)
 

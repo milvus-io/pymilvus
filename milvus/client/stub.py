@@ -316,7 +316,7 @@ class Milvus:
             return handler.has_collection(collection_name, timeout)
 
     @check_connect
-    def describe_collection(self, collection_name, timeout=10):
+    def get_collection_info(self, collection_name, timeout=10):
         """
         Returns information of a collection.
 
@@ -333,7 +333,7 @@ class Milvus:
             return handler.describe_collection(collection_name, timeout)
 
     @check_connect
-    def count_collection(self, collection_name, timeout=10):
+    def count_entities(self, collection_name, timeout=10):
         """
         Returns the number of vectors in a collection.
 
@@ -350,7 +350,7 @@ class Milvus:
             return handler.count_collection(collection_name, timeout)
 
     @check_connect
-    def show_collections(self, timeout=10):
+    def list_collections(self, timeout=10):
         """
         Returns information of all collections.
 
@@ -366,14 +366,14 @@ class Milvus:
             return handler.show_collections(timeout)
 
     @check_connect
-    def collection_info(self, collection_name, timeout=10):
+    def get_collection_stats(self, collection_name, timeout=10):
         # TODO: need check collection_name here
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.show_collection_info(collection_name, timeout)
 
     @check_connect
-    def preload_collection(self, collection_name, timeout=None):
+    def load_collection(self, collection_name, timeout=None):
         """
         Loads a collection for caching.
 
@@ -449,14 +449,14 @@ class Milvus:
             return handler.insert(collection_name, records, ids, partition_tag, params, timeout, **kwargs)
 
     @check_connect
-    def get_vectors_by_ids(self, collection_name, ids, timeout=None):
+    def get_entity_by_id(self, collection_name, ids, timeout=None):
         check_pass_param(collection_name=collection_name, ids=ids)
 
         with self._connection() as handler:
             return handler.get_vectors_by_ids(collection_name, ids, timeout=timeout)
 
     @check_connect
-    def get_vector_ids(self, collection_name, segment_name, timeout=None):
+    def list_id_in_segment(self, collection_name, segment_name, timeout=None):
         check_pass_param(collection_name=collection_name)
         check_pass_param(collection_name=segment_name)
         with self._connection() as handler:
@@ -496,7 +496,7 @@ class Milvus:
             return handler.create_index(collection_name, _index_type, params, timeout, **kwargs)
 
     @check_connect
-    def describe_index(self, collection_name, timeout=10):
+    def get_index_info(self, collection_name, timeout=10):
         """
         Show index information of a collection.
 
@@ -563,7 +563,7 @@ class Milvus:
             return handler.has_partition(collection_name, partition_tag)
 
     @check_connect
-    def show_partitions(self, collection_name, timeout=10):
+    def list_partitions(self, collection_name, timeout=10):
         """
         Show all partitions in a collection.
 
@@ -642,6 +642,7 @@ class Milvus:
         with self._connection() as handler:
             return handler.search(collection_name, top_k, query_records, partition_tags, params, timeout, **kwargs)
 
+    @deprecated
     @check_connect
     def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, topk=top_k, ids=ids)
@@ -655,9 +656,9 @@ class Milvus:
             return handler.search_by_ids(collection_name, ids, top_k, partition_tags, params, timeout, **kwargs)
 
     @check_connect
-    def search_in_files(self, collection_name, file_ids, query_records, top_k, params=None, timeout=None, **kwargs):
+    def search_in_segment(self, collection_name, file_ids, query_records, top_k, params=None, timeout=None, **kwargs):
         """
-        Searches for vectors in specific files of a collection.
+        Searches for vectors in specific segments of a collection.
 
         The Milvus server stores vector data into multiple files. Searching for vectors in specific files is a
         method used in Mishards. Obtain more detail about Mishards, see
@@ -695,7 +696,7 @@ class Milvus:
                                            query_records, top_k, params, timeout, **kwargs)
 
     @check_connect
-    def delete_by_id(self, collection_name, id_array, timeout=None):
+    def delete_entity_by_id(self, collection_name, id_array, timeout=None):
         """
         Deletes vectors in a collection by vector ID.
 

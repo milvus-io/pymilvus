@@ -147,6 +147,7 @@ class TestSearch:
             gcon.search(**param)
 
 
+@pytest.mark.skip(reason="departed")
 class TestSearchByIds:
     vectors = [[random.random() for _ in range(dim)] for _ in range(nq)]
 
@@ -197,20 +198,20 @@ class TestSearchByIds:
 
 
 class TestSearchInFiles:
-    def test_search_in_files_normal(self, gcon, gvector):
+    def test_search_in_segment_normal(self, gcon, gvector):
         search_param = {
             "nprobe": 10
         }
 
         query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         for i in range(5000):
-            status, _ = gcon.search_in_files(gvector, file_ids=[i], top_k=1,
+            status, _ = gcon.search_in_segment(gvector, file_ids=[i], top_k=1,
                                              query_records=query_vectors, params=search_param)
             if status.OK():
                 return
         assert False
 
-    def test_search_in_files_async(self, gcon, gvector, ghandler):
+    def test_search_in_segment_async(self, gcon, gvector, ghandler):
         if ghandler == "HTTP":
             pytest.skip("HTTP handler not support async")
 
@@ -220,14 +221,14 @@ class TestSearchInFiles:
 
         query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         for i in range(5000):
-            future = gcon.search_in_files(gvector, file_ids=[i], top_k=1, query_records=query_vectors,
+            future = gcon.search_in_segment(gvector, file_ids=[i], top_k=1, query_records=query_vectors,
                                           params=search_param, _async=True)
             status, _ = future.result()
             if status.OK():
                 return
         assert False
 
-    def test_search_in_files_async_callback(self, gcon, gvector, ghandler):
+    def test_search_in_segment_async_callback(self, gcon, gvector, ghandler):
         if ghandler == "HTTP":
             pytest.skip("HTTP handler not support async")
 
@@ -240,7 +241,7 @@ class TestSearchInFiles:
 
         query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         for i in range(5000):
-            future = gcon.search_in_files(gvector, file_ids=[i], top_k=1, query_records=query_vectors,
+            future = gcon.search_in_segment(gvector, file_ids=[i], top_k=1, query_records=query_vectors,
                                           params=search_param, _async=True, _callback=cb)
             status, _ = future.result()
             if status.OK():
@@ -248,30 +249,30 @@ class TestSearchInFiles:
         assert False
 
     @pytest.mark.parametrize("collection", [[], None, "", 123])
-    def test_search_in_files_invalid_collection(self, collection, gcon):
+    def test_search_in_segment_invalid_collection(self, collection, gcon):
         query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         with pytest.raises(ParamError):
-            gcon.search_in_files(collection, file_ids=[1], top_k=1, query_records=query_vectors, params={"nprobe": 1})
+            gcon.search_in_segment(collection, file_ids=[1], top_k=1, query_records=query_vectors, params={"nprobe": 1})
 
     @pytest.mark.parametrize("ids", [[], None, "", 123])
-    def test_search_in_files_invalid_file_ids(self, ids, gcon):
+    def test_search_in_segment_invalid_file_ids(self, ids, gcon):
         query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         with pytest.raises(ParamError):
-            gcon.search_in_files("test", file_ids=ids, top_k=1, query_records=query_vectors, params={"nprobe": 1})
+            gcon.search_in_segment("test", file_ids=ids, top_k=1, query_records=query_vectors, params={"nprobe": 1})
 
     @pytest.mark.parametrize("topk", [[], None, "", {}, True, False])
-    def test_search_in_files_invalid_topk(self, topk, gcon):
+    def test_search_in_segment_invalid_topk(self, topk, gcon):
         query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         with pytest.raises(ParamError):
-            gcon.search_in_files("test", file_ids=[1], top_k=topk, query_records=query_vectors, params={"nprobe": 1})
+            gcon.search_in_segment("test", file_ids=[1], top_k=topk, query_records=query_vectors, params={"nprobe": 1})
 
     @pytest.mark.parametrize("records", [[], None, "", 123, True, False])
-    def test_search_in_files_invalid_records(self, records, gcon):
+    def test_search_in_segment_invalid_records(self, records, gcon):
         with pytest.raises(ParamError):
-            gcon.search_in_files("test", file_ids=[1], top_k=1, query_records=records, params={"nprobe": 1})
+            gcon.search_in_segment("test", file_ids=[1], top_k=1, query_records=records, params={"nprobe": 1})
 
     @pytest.mark.parametrize("param", [[], "", 123, (), set(), True, False])
-    def test_search_in_files_invalid_param(self, param, gcon):
+    def test_search_in_segment_invalid_param(self, param, gcon):
         query_vectors = [[random.random() for _ in range(128)] for _ in range(100)]
         with pytest.raises(ParamError):
-            gcon.search_in_files("test", file_ids=[1], top_k=1, query_records=query_vectors, params=param)
+            gcon.search_in_segment("test", file_ids=[1], top_k=1, query_records=query_vectors, params=param)
