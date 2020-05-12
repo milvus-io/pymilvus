@@ -109,17 +109,17 @@ class Milvus:
         # self._stub = None
         # self._status = None
 
-    def __getattr__(self, item):
-        if item == "add_vectors":
-            return self.insert
-        if item == "search_vectors":
-            return self.search
-        if item == "search_vectors_in_files":
-            return self.search_in_files
-
-        if item in self._kw.keys():
-            return self._kw.get(item, None)
-        raise AttributeError("Attribute {} not exists".format(item))
+    # def __getattr__(self, item):
+    #     if item == "add_vectors":
+    #         return self.insert
+    #     if item == "search_vectors":
+    #         return self.search
+    #     # if item == "search_vectors_in_files":
+    #     #     return self.search_in_files
+    #
+    #     if item in self._kw.keys():
+    #         return self._kw.get(item, None)
+    #     raise AttributeError("Attribute {} not exists".format(item))
 
     def __del__(self):
         return self.close()
