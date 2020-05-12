@@ -7,7 +7,6 @@ class TestSegment:
     def test_get_segment_ids(self, gcon, gvector):
         status, info = gcon.get_collection_stats(gvector)
         assert status.OK()
-        # import pdb;pdb.set_trace()
         seg0 = info["partitions"][0]["segments"][0]
 
         status, ids = gcon.list_id_in_segment(gvector, seg0["name"])
