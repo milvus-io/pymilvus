@@ -406,7 +406,6 @@ class HttpHandler(ConnectIntf):
         headers = {"Content-Type": "application/json"}
 
         response = rq.post(url, data=data, headers=headers)
-        print(response)
         js = response.json()
 
         if response.status_code == 201:

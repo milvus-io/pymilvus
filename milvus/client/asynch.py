@@ -66,13 +66,13 @@ class Future(AbstractFuture):
 
         def async_done_callback(future):
             with self._condition:
-                self._response = future.result()
                 # delete gRCP future manually
                 # self._future.__del__()
                 # self._future = None
 
                 # If user specify done callback function, execute it.
                 try:
+                    self._response = future.result()
                     if self._done_cb:
                         results = self.on_response(self._response)
                         if isinstance(results, tuple):
@@ -121,11 +121,14 @@ class Future(AbstractFuture):
         return self._done
 
     def done(self):
-        self.exception()
+        # self.exception()
         with self._condition:
 
             if self._future and not self._future.done():
-                self._future.result()
+                try:
+                    self._future.result()
+                except Exception as e:
+                    self._exception = e
 
             self._condition.notify_all()
 
