@@ -642,18 +642,18 @@ class Milvus:
         with self._connection() as handler:
             return handler.search(collection_name, top_k, query_records, partition_tags, params, timeout, **kwargs)
 
-    @deprecated
-    @check_connect
-    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
-        check_pass_param(collection_name=collection_name, topk=top_k, ids=ids)
-        partition_tags is not None and check_pass_param(partition_tag_array=partition_tags)
-
-        params = dict() if params is None else params
-        if not isinstance(params, dict):
-            raise ParamError("Params must be a dictionary type")
-
-        with self._connection() as handler:
-            return handler.search_by_ids(collection_name, ids, top_k, partition_tags, params, timeout, **kwargs)
+    # @deprecated
+    # @check_connect
+    # def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
+    #     check_pass_param(collection_name=collection_name, topk=top_k, ids=ids)
+    #     partition_tags is not None and check_pass_param(partition_tag_array=partition_tags)
+    #
+    #     params = dict() if params is None else params
+    #     if not isinstance(params, dict):
+    #         raise ParamError("Params must be a dictionary type")
+    #
+    #     with self._connection() as handler:
+    #         return handler.search_by_ids(collection_name, ids, top_k, partition_tags, params, timeout, **kwargs)
 
     @check_connect
     def search_in_segment(self, collection_name, file_ids, query_records, top_k, params=None, timeout=None, **kwargs):

@@ -4,6 +4,7 @@
 - \#190 - Fix rpc return error when error occur
 - \#200 - Fix TypeError raised in inserting vectors with async set true
 - \#201 - Fix get collection info failed when info is null
+- \#207 - Fix excepted exceptions if async invoke with timeout
 
 ## Improvement
 - \#206 - Update APIs names

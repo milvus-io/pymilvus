@@ -123,7 +123,6 @@ class Future(AbstractFuture):
     def done(self):
         # self.exception()
         with self._condition:
-
             if self._future and not self._future.done():
                 try:
                     self._future.result()
