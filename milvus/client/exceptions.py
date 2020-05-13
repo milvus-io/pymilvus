@@ -38,3 +38,9 @@ class DeprecatedError(AttributeError):
     """
     Deprecated
     """
+
+
+class VersionError(AttributeError):
+    """
+    Version not match
+    """

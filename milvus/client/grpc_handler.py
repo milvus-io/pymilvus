@@ -33,6 +33,9 @@ def error_handler(*rargs):
     def wrapper(func):
         def handler(*args, **kwargs):
             try:
+                me = args[0]
+                if me._pre_ping:
+                    me.ping()
                 return func(*args, **kwargs)
             except grpc.FutureTimeoutError as e:
                 LOGGER.error("{}\nRequest timeout: {}".format(func.__name__, e))
@@ -42,6 +45,9 @@ def error_handler(*rargs):
                 LOGGER.error("{}\nRpc error: {}".format(func.__name__, e))
                 status = Status(e.code(), message='Error occurred. {}'.format(e.details()))
                 return status if not rargs else tuple([status]) + rargs
+            except Exception as e:
+                LOGGER.error("{}\nExcepted error: {}".format(func.__name__, e))
+                raise e
 
         return handler
 
@@ -54,13 +60,6 @@ def set_uri(host, port, uri):
         _host = host
     elif port is None:
         try:
-            # Ignore uri check here
-            # if not is_legal_uri(_uri):
-            #     raise ParamError("uri {} is illegal".format(_uri))
-            #
-            # If uri is empty (None or '') use default uri instead
-            # (the behavior may change in the future)
-            # _uri = urlparse(_uri) if _uri is not None else urlparse(config.GRPC_URI)
             _uri = urlparse(uri) if uri else urlparse(config.GRPC_URI)
             _host = _uri.hostname
             _port = _uri.port
@@ -102,11 +101,13 @@ def connect(addr, timeout):
 
 
 class GrpcHandler(ConnectIntf):
-    def __init__(self, host=None, port=None, **kwargs):
+    def __init__(self, host=None, port=None, pre_ping=True, **kwargs):
+        self._channel = None
         self._stub = None
         self._uri = None
         self.status = None
         self._connected = False
+        self._pre_ping = pre_ping
 
         # client hook
         self._search_hook = SearchHook()
@@ -114,9 +115,7 @@ class GrpcHandler(ConnectIntf):
 
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
-        if host or port or _uri:
-            self._uri = set_uri(host, port, uri=_uri)
-            self._setup(kwargs.get("pre_ping", False))
+        self._setup(host, port, _uri, pre_ping)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -124,36 +123,30 @@ class GrpcHandler(ConnectIntf):
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
     def __enter__(self):
-        self._setup()
-
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
-        # del self._stub
 
-    def _setup(self, pre_ping=False):
+    def _setup(self, host, port, uri, pre_ping=False):
         """
         Create a grpc channel and a stub
 
         :raises: NotConnectError
 
         """
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._set_channel())
-        self.status = Status()
-
-    def _set_channel(self):
-        """
-        Set grpc channel. Use default server uri if uri is not set.
-        """
-
-        # set transport unlimited
-        return grpc.insecure_channel(
+        self._uri = set_uri(host, port, uri)
+        self._channel = grpc.insecure_channel(
             self._uri,
-            # self._uri or config.GRPC_ADDRESS,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        self.status = Status()
+
+    def _pre_request(self):
+        if self._pre_ping:
+            self.ping()
 
     def set_hook(self, **kwargs):
         """
@@ -182,7 +175,18 @@ class GrpcHandler(ConnectIntf):
             self._search_file_hook = _search_file_hook
 
     def ping(self, timeout=2):
-        connect(self._uri, timeout)
+        try:
+            ft = grpc.channel_ready_future(self._channel)
+            ft.result(timeout=timeout)
+            return True
+        except grpc.FutureTimeoutError:
+            raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
+        except grpc.RpcError as e:
+            raise NotConnectError("Connect error: <{}>".format(e))
+        # Unexpected error
+        except Exception as e:
+            raise NotConnectError("Error occurred when trying to connect server:\n"
+                                  "\t<{}>".format(str(e)))
 
     @property
     def server_address(self):
@@ -190,81 +194,6 @@ class GrpcHandler(ConnectIntf):
         Server network address
         """
         return self._uri
-
-    def connect(self, host=None, port=None, uri=None, timeout=1):
-        """
-        Connect method should be called before any operations.
-        Server will be connected after connect return OK
-
-        :type  host: str
-        :type  port: str
-        :type  uri: str
-        :type  timeout: float
-        :param host: (Optional) host of the server, default host is 127.0.0.1
-        :param port: (Optional) port of the server, default port is 19530
-        :param uri: (Optional) only support tcp proto now, default uri is
-
-                `tcp://127.0.0.1:19530`
-
-        :param timeout: (Optional) connection timeout, default timeout is 3000ms
-
-        :return: Status, indicate if connect is successful
-        :rtype: Status
-        
-        :raises: NotConnectError
-        """
-        if self.connected() and self._connected:
-            return Status(message="You have already connected {} !".format(self._uri),
-                          code=Status.CONNECT_FAILED)
-
-        # TODO: Here may cause bug: IF user has already connected a server but server is down,
-        # client may connect to a new server. It's a undesirable behavior.
-
-        if (host or port or uri) or not self._uri:
-            # if self._uri and self._uri != self._set_uri(host, port, uri=uri):
-            #     return Status(message="The server address is set as {}, "
-            #                           "you cannot connect other server".format(self._uri),
-            #                   code=Status.CONNECT_FAILED)
-            self._uri = set_uri(host, port, uri=uri)
-            connect(self._uri, timeout)
-
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._set_channel())
-        self.status = Status()
-        return self.status
-
-    def connected(self):
-        """
-        Check if client is connected to the server
-
-        :return: if client is connected
-        :rtype: bool
-        """
-        return True if self.status and self.status.OK() else False
-
-    def disconnect(self):
-        """
-        Disconnect with the server and distroy the channel
-
-        :return: Status, indicate if disconnect is successful
-        :rtype: Status
-        """
-        # After closeing, a exception stack trace is printed from a background thread and
-        # no exception is thrown in the main thread, issue is under test and not done yet
-        # checkout https://github.com/grpc/grpc/issues/18995
-        # Also checkout Properly Specify Channel.close Behavior in Python:
-        # https://github.com/grpc/grpc/issues/19235
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first!')
-
-        # try:
-        #     self._channel.close()
-        # except Exception as e:
-        #     LOGGER.error(e)
-        #     return Status(code=Status.CONNECT_FAILED, message='Disconnection failed')
-
-        self.status = None
-        self._stub = None
-        return Status(message='Disconnect successfully')
 
     def server_version(self, timeout=10):
         """

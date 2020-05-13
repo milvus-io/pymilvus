@@ -8,7 +8,7 @@ from collections import defaultdict
 from . import __version__
 from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
-from milvus.client.exceptions import ConnectionPoolError
+from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
 
 
 class Duration:
@@ -32,7 +32,7 @@ class Duration:
 
 
 class ConnectionRecord:
-    def __init__(self, uri, recycle, handler="GRPC", conn_id=-1, **kwargs):
+    def __init__(self, uri, recycle, handler="GRPC", conn_id=-1, pre_ping=True, **kwargs):
         '''
         @param uri server uri
         @param recycle int, time period to recycle connection.
@@ -61,7 +61,7 @@ class ConnectionRecord:
 
 
 class ConnectionPool:
-    def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, pre_ping=True, **kwargs):
+    def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, try_connect=True, **kwargs):
         # Asynchronous queue to store connection
         self._pool = queue.Queue(maxsize=pool_size)
         self._uri = uri
@@ -76,24 +76,19 @@ class ConnectionPool:
 
         self.durations = defaultdict(list)
 
-        self._pre_ping = pre_ping
-        if self._pre_ping:
-            self._prepare()
-
-        self._check_version()
+        self._try_connect = try_connect
+        self._prepare()
 
     def _prepare(self):
         conn = self.fetch()
         with self._condition:
-            conn.client().ping()
-        conn.close()
-
-    def _check_version(self):
-        conn = self.fetch()
-        with self._condition:
+            if self._try_connect:
+                conn.client().ping()
             status, version = conn.client().server_version(timeout=1)
-            if version not in ('0.8.0', '0.9.0'):
-                raise ValueError(
+            if not status.OK():
+                raise NotConnectError("Cannot check server version: {}".format(status.message))
+            if version not in ('0.9.0',):
+                raise VersionError(
                     "Version of python SDK({}) not match that of server{}, excepted is 0.9.0.".format(__version__,
                                                                                                       version))
         conn.close()

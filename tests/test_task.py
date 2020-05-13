@@ -78,7 +78,7 @@ class TestFlush:
 class TestCompact:
     def test_compact_normal(self, gcon, gcollection):
         vectors = [[random.random() for _ in range(128)] for _ in range(10000)]
-        status, ids = gcon.add_vectors(collection_name=gcollection, records=vectors)
+        status, ids = gcon.insert(collection_name=gcollection, records=vectors)
         assert status.OK()
 
         status = gcon.compact(gcollection)
