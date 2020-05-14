@@ -32,7 +32,7 @@ class Duration:
 
 
 class ConnectionRecord:
-    def __init__(self, uri, recycle, handler="GRPC", conn_id=-1, pre_ping=False, **kwargs):
+    def __init__(self, uri, handler="GRPC", conn_id=-1, pre_ping=False, **kwargs):
         '''
         @param uri server uri
         @param recycle int, time period to recycle connection.
@@ -40,15 +40,15 @@ class ConnectionRecord:
         '''
         self._conn_id = conn_id
         self._uri = uri
-        self.recycle = recycle
+        # self.recycle = recycle
         self._pre_ping = pre_ping
         self._last_use_time = time.time()
         self._kw = kwargs
 
         if handler == "GRPC":
-            self._connection = GrpcHandler(uri=uri)
+            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping)
         elif handler == "HTTP":
-            self._connection = HttpHandler(uri=uri)
+            self._connection = HttpHandler(uri=uri, pre_ping=self._pre_ping)
         else:
             raise ValueError("Unknown handler type. Use GRPC or HTTP")
 
@@ -63,12 +63,11 @@ class ConnectionRecord:
 
 
 class ConnectionPool:
-    def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, try_connect=False, **kwargs):
+    def __init__(self, uri, pool_size=10, wait_timeout=10, try_connect=False, **kwargs):
         # Asynchronous queue to store connection
         self._pool = queue.Queue(maxsize=pool_size)
         self._uri = uri
         self._pool_size = pool_size
-        self._recycle = recycle
         self._wait_timeout = wait_timeout
 
         # Record used connection number.
@@ -120,7 +119,7 @@ class ConnectionPool:
 
     def _create_connection(self):
         with self._condition:
-            conn = ConnectionRecord(self._uri, self._recycle, conn_id=self._used_conn - 1, **self._kw)
+            conn = ConnectionRecord(self._uri, conn_id=self._used_conn - 1, **self._kw)
             return ScopedConnection(self, conn)
 
     def _inc_connection(self):

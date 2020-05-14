@@ -45,7 +45,7 @@ def check_connect(func):
 def _pool_args(**kwargs):
     pool_kwargs = dict()
     for k, v in kwargs.items():
-        if k in ("pool_size", "wait_timeout", "recycle", "handler", "try_connect", "pre_ping"):
+        if k in ("pool_size", "wait_timeout", "handler", "try_connect", "pre_ping"):
             pool_kwargs[k] = v
 
     return pool_kwargs
@@ -72,7 +72,7 @@ def _set_uri(host, port, uri, handler="GRPC"):
                          "\t(uri = ${URI})\n")
 
     if not is_legal_host(_host) or not is_legal_port(_port):
-        raise ParamError("host or port is illegal")
+        raise ParamError("host {} or port {} is illegal".format(_host, _port))
 
     return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
 
@@ -84,7 +84,6 @@ class Milvus:
         self._status = None
         self._connected = False
         self._handler = handler
-        # self._stub = None
 
         _uri = kwargs.get('uri', None)
         pool_uri = _set_uri(host, port, _uri, self._handler)
@@ -93,12 +92,6 @@ class Milvus:
         # store extra key-words arguments
         self._kw = kwargs
         self._hooks = collections.defaultdict()
-
-        # if host or port or _uri:
-        #     kw = copy.deepcopy(kwargs)
-        #     kw.pop('uri', None)
-        #     self._init(host, port, _uri, **kw)
-        #     self._status = Status()
 
     def __enter__(self):
         return self._pool.fetch()
