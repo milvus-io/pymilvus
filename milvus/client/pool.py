@@ -32,7 +32,7 @@ class Duration:
 
 
 class ConnectionRecord:
-    def __init__(self, uri, recycle, handler="GRPC", conn_id=-1, pre_ping=True, **kwargs):
+    def __init__(self, uri, recycle, handler="GRPC", conn_id=-1, pre_ping=False, **kwargs):
         '''
         @param uri server uri
         @param recycle int, time period to recycle connection.
@@ -41,6 +41,7 @@ class ConnectionRecord:
         self._conn_id = conn_id
         self._uri = uri
         self.recycle = recycle
+        self._pre_ping = pre_ping
         self._last_use_time = time.time()
         self._kw = kwargs
 
@@ -55,13 +56,14 @@ class ConnectionRecord:
         ''' Return a available connection. If connection is out-of-date,
         return new one.
         '''
-        if self._kw.get("pre_ping", False):
+        self._last_use_time = time.time()
+        if self._pre_ping:
             self._connection.ping(timeout=2)
         return self._connection
 
 
 class ConnectionPool:
-    def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, try_connect=True, **kwargs):
+    def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, try_connect=False, **kwargs):
         # Asynchronous queue to store connection
         self._pool = queue.Queue(maxsize=pool_size)
         self._uri = uri
@@ -228,10 +230,13 @@ class ScopedConnection:
         return self._connection._conn_id
 
     def close(self):
+        self._closed = True
+        if not self._pool:
+            return
+
         self._connection and self._pool.release(self._connection)
         self._connection = None
         if self._duration:
             self._duration.stop()
             self._pool.record_duration(self._connection, self._duration)
         self._duration = None
-        self._closed = True

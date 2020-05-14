@@ -15,8 +15,8 @@ from milvus.client.abstract import TopKQueryResult
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
-# _PORT = '19530'  # default value
-_PORT = '19121'  # default http value
+_PORT = '19530'  # default value
+# _PORT = '19121'  # default http value
 
 # Vector parameters
 _DIM = 128  # dimension of vector
@@ -26,7 +26,7 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 
 def main():
     # Specify server addr when create milvus client instance
-    milvus = Milvus(_HOST, _PORT, pool_size=10, handler="HTTP")
+    milvus = Milvus(_HOST, _PORT, pool_size=10, try_connect=False, pre_ping=True)
 
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_collection_'
@@ -43,10 +43,10 @@ def main():
         milvus.create_collection(param)
 
     # Show collections in Milvus server
-    _, collections = milvus.show_collections()
+    _, collections = milvus.list_collections()
 
     # Describe demo_collection
-    _, collection = milvus.describe_collection(collection_name)
+    _, collection = milvus.get_collection_info(collection_name)
     print(collection)
 
     # 10000 vectors with 16 dimension
@@ -63,13 +63,13 @@ def main():
     milvus.flush([collection_name])
 
     # Get demo_collection row count
-    status, result = milvus.count_collection(collection_name)
+    status, result = milvus.count_entities(collection_name)
 
     # present collection info
-    _, info = milvus.collection_info(collection_name)
+    _, info = milvus.get_collection_stats(collection_name)
     print(info)
 
-    status, result_vectors = milvus.get_vectors_by_ids(collection_name, ids[:10])
+    status, result_vectors = milvus.get_entity_by_id(collection_name, ids[:10])
 
     # create index of vectors, search more rapidly
     index_param = {
@@ -83,7 +83,7 @@ def main():
     status = milvus.create_index(collection_name, IndexType.IVF_FLAT, index_param)
 
     # describe index, get information of index
-    status, index = milvus.describe_index(collection_name)
+    status, index = milvus.get_index_info(collection_name)
     print(index)
 
     # Use the top 10 vectors for similarity search
