@@ -60,10 +60,12 @@ def main():
     # vectors should be a 2-D array
     vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
     # You can also use numpy to generate random vectors:
-    #    vectors = np.random.rand(10000, _DIM).astype(np.float32)
+    #   vectors = np.random.rand(10000, _DIM).astype(np.float32)
 
     # Insert vectors into demo_collection, return status and vectors id list
     status, ids = milvus.insert(collection_name=collection_name, records=vectors)
+    # if not status.OK():
+    #     print("Insert failed: {}".format(status))
 
     # Flush collection  inserted data to disk.
     milvus.flush([collection_name])
