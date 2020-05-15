@@ -424,10 +424,10 @@ class HttpHandler(ConnectIntf):
         bin_vector = metric in list(MetricType.__members__.values())[3:]
 
         url = self._uri + "/collections/{}/vectors".format(collection_name)
-        data_dict = dict()
-        data_dict["ids"] = list(map(str, ids))
-        data = ujson.dumps(data_dict)
-        response = rq.get(url, data=data, timeout=timeout)
+        ids_list = list(map(str, ids))
+        query_ids = ",".join(ids_list)
+        url = url + "?ids=" + query_ids
+        response = rq.get(url, timeout=timeout)
         result = response.json()
 
         if response.status_code == 200:
