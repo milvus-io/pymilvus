@@ -65,9 +65,13 @@ def main():
         else:
             print("Insert failed.", status.message)
 
-    # Insert vectors into demo_collection, return status and vectors id list
+    # Insert vectors into demo_collection, adding callback function
     insert_future = milvus.insert(collection_name=collection_name, records=vectors, _async=True,
                                   _callback=_insert_callback)
+    # Or invoke result() to get results:
+    #   insert_future = milvus.insert(collection_name=collection_name, records=vectors, _async=True)
+    #   status, ids = insert_future.result()
+
     insert_future.done()
 
     # Flush collection  inserted data to disk.
@@ -78,6 +82,9 @@ def main():
             print("Flush failed.", status.message)
 
     flush_future = milvus.flush([collection_name], _async=True, _callback=_flush_callback)
+    # Or invoke result() to get results:
+    #   flush_future = milvus.flush([collection_name], _async=True)
+    #   status = flush_future.result()
     flush_future.done()
 
     def _compact_callback(status):
@@ -87,6 +94,9 @@ def main():
             print("Compact failed.", status.message)
 
     compact_furure = milvus.compact(collection_name, _async=True, _cakkback=_compact_callback)
+    # Or invoke result() to get results:
+    #   compact_future = milvus.compact(collection_name, _async=True)
+    #   status = compact_future.result()
     compact_furure.done()
 
     # Get demo_collection row count
@@ -113,6 +123,9 @@ def main():
     print("Creating index: {}".format(index_param))
     index_future = milvus.create_index(collection_name, IndexType.IVF_FLAT, index_param, _async=True,
                                        _callback=_index_callback)
+    # Or invoke result() to get results:
+    #   index_future = milvus.create_index(collection_name, IndexType.IVF_FLAT, index_param, _async=True)
+    #   status = index_future.result()
     index_future.done()
 
     # describe index, get information of index
@@ -156,8 +169,19 @@ def main():
         "_async": True,
         "_callback": _search_callback
     }
-
     search_future = milvus.search(**param)
+    # Or invoke result() to get results:
+    #
+    #   param = {
+    #       'collection_name': collection_name,
+    #       'query_records': query_vectors,
+    #       'top_k': 1,
+    #       'params': search_param,
+    #       "_async": True,
+    #   }
+    #   search_future = milvus.search(param)
+    #   status, results = index_future.result()
+
     search_future.done()
 
     # Delete demo_collection
