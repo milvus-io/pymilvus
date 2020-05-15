@@ -1,7 +1,22 @@
-# pymilvus 0.2.11(TBD)
+# pymilvus 0.2.11(2020-05-15)
 
 ## Bug
 - \#190 - Fix rpc return error when error occur
+- \#200 - Fix TypeError raised in inserting vectors with async set true
+- \#201 - Fix get collection info failed when info is null
+- \#202 - Fix async 'NoneType' object has no attribute 'result'
+- \#207 - Fix excepted exceptions if async invoke with timeout
+
+## Improvement
+- \#175 - Remove connect API
+- \#203 - Add method 'is_done()' in Future class
+- \#205 - Filter search results which id is -1
+- \#206 - Update APIs names
+
+## New Feature
+- \#174 - Support connection pool
+- \#177 - Support async API
+- \#199 - Add API 'has_partition'
 
 
 # pymilvus 0.2.10(2020-04-15)

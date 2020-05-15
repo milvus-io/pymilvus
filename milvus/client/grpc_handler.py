@@ -2,6 +2,7 @@ import datetime
 from urllib.parse import urlparse
 import logging
 import threading
+import ujson
 
 import grpc
 from grpc._cython import cygrpc
@@ -32,15 +33,21 @@ def error_handler(*rargs):
     def wrapper(func):
         def handler(*args, **kwargs):
             try:
+                me = args[0]
+                if me._pre_ping:
+                    me.ping()
                 return func(*args, **kwargs)
             except grpc.FutureTimeoutError as e:
-                LOGGER.error("{}\n{}".format(func.__name__, e))
+                LOGGER.error("{}\nRequest timeout: {}".format(func.__name__, e))
                 status = Status(Status.UNEXPECTED_ERROR, message='Request timeout')
                 return status if not rargs else tuple([status]) + rargs
             except grpc.RpcError as e:
-                LOGGER.error("{}\n{}".format(func.__name__, e))
+                LOGGER.error("{}\nRpc error: {}".format(func.__name__, e))
                 status = Status(e.code(), message='Error occurred. {}'.format(e.details()))
                 return status if not rargs else tuple([status]) + rargs
+            except Exception as e:
+                LOGGER.error("{}\nExcepted error: {}".format(func.__name__, e))
+                raise e
 
         return handler
 
@@ -53,13 +60,6 @@ def set_uri(host, port, uri):
         _host = host
     elif port is None:
         try:
-            # Ignore uri check here
-            # if not is_legal_uri(_uri):
-            #     raise ParamError("uri {} is illegal".format(_uri))
-            #
-            # If uri is empty (None or '') use default uri instead
-            # (the behavior may change in the future)
-            # _uri = urlparse(_uri) if _uri is not None else urlparse(config.GRPC_URI)
             _uri = urlparse(uri) if uri else urlparse(config.GRPC_URI)
             _host = _uri.hostname
             _port = _uri.port
@@ -101,11 +101,13 @@ def connect(addr, timeout):
 
 
 class GrpcHandler(ConnectIntf):
-    def __init__(self, host=None, port=None, **kwargs):
+    def __init__(self, host=None, port=None, pre_ping=True, **kwargs):
+        self._channel = None
         self._stub = None
         self._uri = None
         self.status = None
         self._connected = False
+        self._pre_ping = pre_ping
 
         # client hook
         self._search_hook = SearchHook()
@@ -113,9 +115,7 @@ class GrpcHandler(ConnectIntf):
 
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
-        if host or port or _uri:
-            self._uri = set_uri(host, port, uri=_uri)
-            self._setup(kwargs.get("pre_ping", False))
+        self._setup(host, port, _uri, pre_ping)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -123,35 +123,30 @@ class GrpcHandler(ConnectIntf):
         return '<Milvus: {}>'.format(', '.join(attr_list))
 
     def __enter__(self):
-        self._setup()
-
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        del self._stub
+        pass
 
-    def _setup(self, pre_ping=False):
+    def _setup(self, host, port, uri, pre_ping=False):
         """
         Create a grpc channel and a stub
 
         :raises: NotConnectError
 
         """
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._set_channel())
-        self.status = Status()
-
-    def _set_channel(self):
-        """
-        Set grpc channel. Use default server uri if uri is not set.
-        """
-
-        # set transport unlimited
-        return grpc.insecure_channel(
+        self._uri = set_uri(host, port, uri)
+        self._channel = grpc.insecure_channel(
             self._uri,
-            # self._uri or config.GRPC_ADDRESS,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
         )
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        self.status = Status()
+
+    def _pre_request(self):
+        if self._pre_ping:
+            self.ping()
 
     def set_hook(self, **kwargs):
         """
@@ -179,87 +174,26 @@ class GrpcHandler(ConnectIntf):
 
             self._search_file_hook = _search_file_hook
 
+    def ping(self, timeout=2):
+        try:
+            ft = grpc.channel_ready_future(self._channel)
+            ft.result(timeout=timeout)
+            return True
+        except grpc.FutureTimeoutError:
+            raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
+        except grpc.RpcError as e:
+            raise NotConnectError("Connect error: <{}>".format(e))
+        # Unexpected error
+        except Exception as e:
+            raise NotConnectError("Error occurred when trying to connect server:\n"
+                                  "\t<{}>".format(str(e)))
+
     @property
     def server_address(self):
         """
         Server network address
         """
         return self._uri
-
-    def connect(self, host=None, port=None, uri=None, timeout=1):
-        """
-        Connect method should be called before any operations.
-        Server will be connected after connect return OK
-
-        :type  host: str
-        :type  port: str
-        :type  uri: str
-        :type  timeout: float
-        :param host: (Optional) host of the server, default host is 127.0.0.1
-        :param port: (Optional) port of the server, default port is 19530
-        :param uri: (Optional) only support tcp proto now, default uri is
-
-                `tcp://127.0.0.1:19530`
-
-        :param timeout: (Optional) connection timeout, default timeout is 3000ms
-
-        :return: Status, indicate if connect is successful
-        :rtype: Status
-        
-        :raises: NotConnectError
-        """
-        if self.connected() and self._connected:
-            return Status(message="You have already connected {} !".format(self._uri),
-                          code=Status.CONNECT_FAILED)
-
-        # TODO: Here may cause bug: IF user has already connected a server but server is down,
-        # client may connect to a new server. It's a undesirable behavior.
-
-        if (host or port or uri) or not self._uri:
-            # if self._uri and self._uri != self._set_uri(host, port, uri=uri):
-            #     return Status(message="The server address is set as {}, "
-            #                           "you cannot connect other server".format(self._uri),
-            #                   code=Status.CONNECT_FAILED)
-            self._uri = set_uri(host, port, uri=uri)
-            connect(self._uri, timeout)
-
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._set_channel())
-        self.status = Status()
-        return self.status
-
-    def connected(self):
-        """
-        Check if client is connected to the server
-
-        :return: if client is connected
-        :rtype: bool
-        """
-        return True if self.status and self.status.OK() else False
-
-    def disconnect(self):
-        """
-        Disconnect with the server and distroy the channel
-
-        :return: Status, indicate if disconnect is successful
-        :rtype: Status
-        """
-        # After closeing, a exception stack trace is printed from a background thread and
-        # no exception is thrown in the main thread, issue is under test and not done yet
-        # checkout https://github.com/grpc/grpc/issues/18995
-        # Also checkout Properly Specify Channel.close Behavior in Python:
-        # https://github.com/grpc/grpc/issues/19235
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first!')
-
-        # try:
-        #     self._channel.close()
-        # except Exception as e:
-        #     LOGGER.error(e)
-        #     return Status(code=Status.CONNECT_FAILED, message='Disconnection failed')
-
-        self.status = None
-        self._stub = None
-        return Status(message='Disconnect successfully')
 
     def server_version(self, timeout=10):
         """
@@ -446,7 +380,8 @@ class GrpcHandler(ConnectIntf):
         rpc_status = response.status
 
         if rpc_status.error_code == 0:
-            return Status(), CollectionInfo(response)
+            json_info = response.json_info
+            return Status(), {} if not json_info else ujson.loads(json_info)
 
         return Status(rpc_status.error_code, rpc_status.reason), None
 
@@ -529,9 +464,9 @@ class GrpcHandler(ConnectIntf):
         body = insert_param if insert_param \
             else Prepare.insert_param(collection_name, records, partition_tag, ids, params)
 
-        rf = self._stub.Insert.future(body)
+        rf = self._stub.Insert.future(body, timeout=timeout)
         if kwargs.get("_async", False) is True:
-            cb = kwargs.get("callback", None)
+            cb = kwargs.get("_callback", None)
             return InsertFuture(rf, cb)
 
         response = rf.result(timeout=timeout)
@@ -542,17 +477,20 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.status.error_code, message=response.status.reason), []
 
     @error_handler([])
-    def get_vector_by_id(self, collection_name, v_id, timeout=10):
-        request = grpc_types.VectorIdentity(collection_name=collection_name, id=v_id)
+    def get_vectors_by_ids(self, collection_name, ids, timeout=10):
+        request = grpc_types.VectorsIdentity(collection_name=collection_name, id_array=ids)
 
-        rf = self._stub.GetVectorByID.future(request)
+        rf = self._stub.GetVectorsByID.future(request)
         response = rf.result(timeout=timeout)
         rf.__del__()
         status = response.status
         if status.error_code == 0:
             status = Status(message="Obtain vector successfully")
-            return status, \
-                   bytes(response.vector_data.binary_data) or list(response.vector_data.float_data)
+            vectors = list()
+            for datas in response.vectors_data:
+                vector = bytes(datas.binary_data) or list(datas.float_data)
+                vectors.append(vector)
+            return status, vectors
 
         return Status(code=status.error_code, message=status.reason), []
 
@@ -596,7 +534,7 @@ class GrpcHandler(ConnectIntf):
         # status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
         future = self._stub.CreateIndex.future(index_param, timeout=timeout)
         if kwargs.get('_async', False):
-            cb = kwargs.get("callback", None)
+            cb = kwargs.get("_callback", None)
             return CreateIndexFuture(future, cb)
         status = future.result(timeout=timeout)
         future.__del__()
@@ -685,6 +623,15 @@ class GrpcHandler(ConnectIntf):
         rf.__del__()
         return Status(code=response.error_code, message=response.reason)
 
+    @error_handler(False)
+    def has_partition(self, collection_name, partition_tag, timeout=10):
+        request = Prepare.partition_param(collection_name, partition_tag)
+        rf = self._stub.HasPartition.future(request)
+        response = rf.result(timeout=timeout)
+        rf.__del__()
+        status = response.status
+        return Status(code=status.error_code, message=status.reason), response.bool_reply
+
     @error_handler([])
     def show_partitions(self, collection_name, timeout=10):
         """
@@ -741,38 +688,11 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler(None)
-    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, **kwargs):
-        """
-        Search similar vectors in designated collection
-
-        :param collection_name: target collection name
-        :type  collection_name: str
-
-        :param top_k: number of vertors which is most similar with query vectors
-        :type  top_k: int
-
-        :param nprobe: cell number of probe
-        :type  nprobe: int
-
-        :param query_records: vectors to query
-        :type  query_records: list[list[float32]]
-
-        :param partition_tags: tags to search
-        :type  partition_tags: list
-
-        :return
-            Status: indicate if search successfully
-            result: query result
-
-        :rtype: (Status, TopKQueryResult)
-
-        """
-
+    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, timeout=None, **kwargs):
         request = Prepare.search_param(collection_name, top_k, query_records, partition_tags, params)
 
         self._search_hook.pre_search()
         if kwargs.get("_async", False) is True:
-            timeout = kwargs.get("timeout", None)
             future = self._stub.Search.future(request, timeout=timeout)
 
             func = kwargs.get("_callback", None)
@@ -793,7 +713,31 @@ class GrpcHandler(ConnectIntf):
         return Status(message='Search vectors successfully!'), resutls
 
     @error_handler(None)
-    def search_in_files(self, collection_name, file_ids, query_records, top_k, params, **kwargs):
+    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
+        request = Prepare.search_by_ids_param(collection_name, ids, top_k, partition_tags, params)
+        if kwargs.get("_async", False) is True:
+            future = self._stub.SearchByID.future(request, timeout=timeout)
+
+            func = kwargs.get("_callback", None)
+            return SearchFuture(future, func)
+
+        ft = self._stub.SearchByID.future(request, timeout)
+        response = ft.result()
+        ft.__del__()
+        self._search_hook.aft_search()
+
+        if self._search_hook.on_response():
+            return response
+
+        if response.status.error_code != 0:
+            return Status(code=response.status.error_code,
+                          message=response.status.reason), []
+
+        return Status(message='Search vectors successfully!'), \
+               self._search_hook.handle_response(response)
+
+    @error_handler(None)
+    def search_in_files(self, collection_name, file_ids, query_records, top_k, params, timeout=None, **kwargs):
         """
         Query vectors in a collection, in specified files.
 
@@ -834,13 +778,14 @@ class GrpcHandler(ConnectIntf):
         self._search_file_hook.pre_search()
 
         if kwargs.get("_async", False) is True:
-            timeout = kwargs.get("timeout", None)
             future = self._stub.SearchInFiles.future(infos, timeout=timeout)
 
             func = kwargs.get("_callback", None)
             return SearchFuture(future, func)
 
-        response = self._stub.SearchInFiles(infos)
+        ft = self._stub.SearchInFiles.future(infos, timeout)
+        response = ft.result()
+        ft.__del__()
         self._search_file_hook.aft_search()
 
         if self._search_file_hook.on_response():
@@ -852,41 +797,6 @@ class GrpcHandler(ConnectIntf):
 
         return Status(message='Search vectors successfully!'), \
                self._search_file_hook.handle_response(response)
-
-    def __delete_vectors_by_range(self, collection_name, start_date=None, end_date=None, timeout=10):
-        """
-        Delete vectors by range. The data range contains start_time but not end_time
-        This method is deprecated, not recommended for users.
-
-        This API is deprecated.
-
-        :type  collection_name: str
-        :param collection_name: str, date, datetime
-
-        :type  start_date: str, date, datetime
-        :param start_date:
-
-        :type  end_date: str, date, datetime
-        :param end_date:
-
-        :return:
-            Status:  indicate if invoke is successful
-        """
-
-        if not self.connected():
-            raise NotConnectError('Please connect to the server first')
-
-        delete_range = Prepare.delete_param(collection_name, start_date, end_date)
-
-        try:
-            status = self._stub.DeleteByDate.future(delete_range).result(timeout=timeout)
-            return Status(code=status.error_code, message=status.reason)
-        except grpc.FutureTimeoutError as e:
-            LOGGER.error(e)
-            return Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-        except grpc.RpcError as e:
-            LOGGER.error(e)
-            return Status(e.code(), message='Error occurred. {}'.format(e.details()))
 
     @error_handler()
     def delete_by_id(self, collection_name, id_array, timeout=None):

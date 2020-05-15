@@ -52,14 +52,19 @@ class TestFlush:
         for collection in collection_list:
             gcon.drop_collection(collection)
 
-    def test_flush_async_normal(self, gcon, gcollection):
+    def test_flush_async_normal(self, gcon, gcollection, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         records = records_factory(dim, nq)
         gcon.insert(gcollection, records)
         future = gcon.flush([gcollection], _async=True)
         status = future.result()
         assert status.OK()
 
-    def test_flush_async_callback(self, gcon, gcollection):
+    def test_flush_async_callback(self, gcon, gcollection, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
 
         def cb(status):
             assert status.OK()
@@ -73,7 +78,7 @@ class TestFlush:
 class TestCompact:
     def test_compact_normal(self, gcon, gcollection):
         vectors = [[random.random() for _ in range(128)] for _ in range(10000)]
-        status, ids = gcon.add_vectors(collection_name=gcollection, records=vectors)
+        status, ids = gcon.insert(collection_name=gcollection, records=vectors)
         assert status.OK()
 
         status = gcon.compact(gcollection)
@@ -87,18 +92,23 @@ class TestCompact:
         status = gcon.flush([gcollection])
         assert status.OK(), status.message
 
-        status = gcon.delete_by_id(gcollection, ids[100:1000])
+        status = gcon.delete_entity_by_id(gcollection, ids[100:1000])
         assert status, status.message
 
         status = gcon.compact(gcollection)
         assert status.OK(), status.message
 
-    def test_compact_async_normal(self, gcon, gvector):
+    def test_compact_async_normal(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         future = gcon.compact(gvector, _async=True)
         status = future.result()
         assert status.OK()
 
-    def test_compact_async_callback(self, gcon, gvector):
+    def test_compact_async_callback(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
 
         def cb(status):
             assert status.OK()

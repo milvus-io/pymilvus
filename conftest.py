@@ -39,34 +39,35 @@ def connect(request, ghandler):
     port_default = default_http_port if handler == "HTTP" else default_grpc_port
     port = request.config.getoption("--port", default=port_default)
 
-    milvus = Milvus(handler=ghandler)
-    milvus.connect(host=ip, port=port)
+    client = Milvus(host=ip, port=port, handler=ghandler)
+    # milvus.connect()
 
     def fin():
         try:
-            milvus.disconnect()
+            client.close()
         except:
             pass
 
     request.addfinalizer(fin)
-    return milvus
+    return client
 
 
 @pytest.fixture(scope="module")
 def gcon(request, ghandler):
     ip = request.config.getoption("--ip")
     port = request.config.getoption("--port")
-    milvus = Milvus(host=ip, port=port, handler=ghandler)
+    client = Milvus(host=ip, port=port, handler=ghandler)
 
     def fin():
         try:
+            client.close()
             pass
         except Exception as e:
             print(e)
             pass
 
     request.addfinalizer(fin)
-    return milvus
+    return client
 
 
 @pytest.fixture(scope="module")
@@ -111,7 +112,7 @@ def gcollection(request, gcon):
     gcon.flush([table_name])
 
     def teardown():
-        status, table_names = gcon.show_collections()
+        status, table_names = gcon.list_collections()
         for name in table_names:
             gcon.drop_collection(name)
 

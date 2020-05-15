@@ -70,6 +70,11 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.PartitionParam.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
+        self.HasPartition = channel.unary_unary(
+            '/milvus.grpc.MilvusService/HasPartition',
+            request_serializer=milvus__pb2.PartitionParam.SerializeToString,
+            response_deserializer=milvus__pb2.BoolReply.FromString,
+        )
         self.ShowPartitions = channel.unary_unary(
             '/milvus.grpc.MilvusService/ShowPartitions',
             request_serializer=milvus__pb2.CollectionName.SerializeToString,
@@ -85,10 +90,10 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.InsertParam.SerializeToString,
             response_deserializer=milvus__pb2.VectorIds.FromString,
         )
-        self.GetVectorByID = channel.unary_unary(
-            '/milvus.grpc.MilvusService/GetVectorByID',
-            request_serializer=milvus__pb2.VectorIdentity.SerializeToString,
-            response_deserializer=milvus__pb2.VectorData.FromString,
+        self.GetVectorsByID = channel.unary_unary(
+            '/milvus.grpc.MilvusService/GetVectorsByID',
+            request_serializer=milvus__pb2.VectorsIdentity.SerializeToString,
+            response_deserializer=milvus__pb2.VectorsData.FromString,
         )
         self.GetVectorIDs = channel.unary_unary(
             '/milvus.grpc.MilvusService/GetVectorIDs',
@@ -133,6 +138,76 @@ class MilvusServiceStub(object):
         self.Compact = channel.unary_unary(
             '/milvus.grpc.MilvusService/Compact',
             request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=status__pb2.Status.FromString,
+        )
+        self.CreateHybridCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/CreateHybridCollection',
+            request_serializer=milvus__pb2.Mapping.SerializeToString,
+            response_deserializer=status__pb2.Status.FromString,
+        )
+        self.HasHybridCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/HasHybridCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=milvus__pb2.BoolReply.FromString,
+        )
+        self.DropHybridCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/DropHybridCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=status__pb2.Status.FromString,
+        )
+        self.DescribeHybridCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/DescribeHybridCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=milvus__pb2.Mapping.FromString,
+        )
+        self.CountHybridCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/CountHybridCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=milvus__pb2.CollectionRowCount.FromString,
+        )
+        self.ShowHybridCollections = channel.unary_unary(
+            '/milvus.grpc.MilvusService/ShowHybridCollections',
+            request_serializer=milvus__pb2.Command.SerializeToString,
+            response_deserializer=milvus__pb2.MappingList.FromString,
+        )
+        self.ShowHybridCollectionInfo = channel.unary_unary(
+            '/milvus.grpc.MilvusService/ShowHybridCollectionInfo',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=milvus__pb2.CollectionInfo.FromString,
+        )
+        self.PreloadHybridCollection = channel.unary_unary(
+            '/milvus.grpc.MilvusService/PreloadHybridCollection',
+            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            response_deserializer=status__pb2.Status.FromString,
+        )
+        self.InsertEntity = channel.unary_unary(
+            '/milvus.grpc.MilvusService/InsertEntity',
+            request_serializer=milvus__pb2.HInsertParam.SerializeToString,
+            response_deserializer=milvus__pb2.HEntityIDs.FromString,
+        )
+        self.HybridSearch = channel.unary_unary(
+            '/milvus.grpc.MilvusService/HybridSearch',
+            request_serializer=milvus__pb2.HSearchParam.SerializeToString,
+            response_deserializer=milvus__pb2.TopKQueryResult.FromString,
+        )
+        self.HybridSearchInSegments = channel.unary_unary(
+            '/milvus.grpc.MilvusService/HybridSearchInSegments',
+            request_serializer=milvus__pb2.HSearchInSegmentsParam.SerializeToString,
+            response_deserializer=milvus__pb2.TopKQueryResult.FromString,
+        )
+        self.GetEntityByID = channel.unary_unary(
+            '/milvus.grpc.MilvusService/GetEntityByID',
+            request_serializer=milvus__pb2.HEntityIdentity.SerializeToString,
+            response_deserializer=milvus__pb2.HEntity.FromString,
+        )
+        self.GetEntityIDs = channel.unary_unary(
+            '/milvus.grpc.MilvusService/GetEntityIDs',
+            request_serializer=milvus__pb2.HGetEntityIDsParam.SerializeToString,
+            response_deserializer=milvus__pb2.HEntityIDs.FromString,
+        )
+        self.DeleteEntitiesByID = channel.unary_unary(
+            '/milvus.grpc.MilvusService/DeleteEntitiesByID',
+            request_serializer=milvus__pb2.HDeleteByIDParam.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
 
@@ -273,6 +348,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def HasPartition(self, request, context):
+        """*
+        @brief This method is used to test partition existence.
+
+        @param PartitionParam, target partition.
+
+        @return BoolReply
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def ShowPartitions(self, request, context):
         """*
         @brief This method is used to show partition information
@@ -309,13 +396,13 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GetVectorByID(self, request, context):
+    def GetVectorsByID(self, request, context):
         """*
-        @brief This method is used to get vector data by id.
+        @brief This method is used to get vectors data by id array.
 
-        @param VectorIdentity, target vector id.
+        @param VectorsIdentity, target vector id array.
 
-        @return VectorData
+        @return VectorsData
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -429,6 +516,114 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateHybridCollection(self, request, context):
+        """*******************************New Interface*******************************************
+
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def HasHybridCollection(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropHybridCollection(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DescribeHybridCollection(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CountHybridCollection(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ShowHybridCollections(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ShowHybridCollectionInfo(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def PreloadHybridCollection(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def InsertEntity(self, request, context):
+        """/////////////////////////////////////////////////////////////////
+
+        rpc CreateIndex(IndexParam) returns (Status) {}
+
+        rpc DescribeIndex(CollectionName) returns (IndexParam) {}
+
+        rpc DropIndex(CollectionName) returns (Status) {}
+
+        /////////////////////////////////////////////////////////////////
+
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def HybridSearch(self, request, context):
+        """TODO(yukun): will change to HQueryResult
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def HybridSearchInSegments(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetEntityByID(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetEntityIDs(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteEntitiesByID(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -487,6 +682,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.PartitionParam.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
+        'HasPartition': grpc.unary_unary_rpc_method_handler(
+            servicer.HasPartition,
+            request_deserializer=milvus__pb2.PartitionParam.FromString,
+            response_serializer=milvus__pb2.BoolReply.SerializeToString,
+        ),
         'ShowPartitions': grpc.unary_unary_rpc_method_handler(
             servicer.ShowPartitions,
             request_deserializer=milvus__pb2.CollectionName.FromString,
@@ -502,10 +702,10 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.InsertParam.FromString,
             response_serializer=milvus__pb2.VectorIds.SerializeToString,
         ),
-        'GetVectorByID': grpc.unary_unary_rpc_method_handler(
-            servicer.GetVectorByID,
-            request_deserializer=milvus__pb2.VectorIdentity.FromString,
-            response_serializer=milvus__pb2.VectorData.SerializeToString,
+        'GetVectorsByID': grpc.unary_unary_rpc_method_handler(
+            servicer.GetVectorsByID,
+            request_deserializer=milvus__pb2.VectorsIdentity.FromString,
+            response_serializer=milvus__pb2.VectorsData.SerializeToString,
         ),
         'GetVectorIDs': grpc.unary_unary_rpc_method_handler(
             servicer.GetVectorIDs,
@@ -550,6 +750,76 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'Compact': grpc.unary_unary_rpc_method_handler(
             servicer.Compact,
             request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=status__pb2.Status.SerializeToString,
+        ),
+        'CreateHybridCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.CreateHybridCollection,
+            request_deserializer=milvus__pb2.Mapping.FromString,
+            response_serializer=status__pb2.Status.SerializeToString,
+        ),
+        'HasHybridCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.HasHybridCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=milvus__pb2.BoolReply.SerializeToString,
+        ),
+        'DropHybridCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.DropHybridCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=status__pb2.Status.SerializeToString,
+        ),
+        'DescribeHybridCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.DescribeHybridCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=milvus__pb2.Mapping.SerializeToString,
+        ),
+        'CountHybridCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.CountHybridCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=milvus__pb2.CollectionRowCount.SerializeToString,
+        ),
+        'ShowHybridCollections': grpc.unary_unary_rpc_method_handler(
+            servicer.ShowHybridCollections,
+            request_deserializer=milvus__pb2.Command.FromString,
+            response_serializer=milvus__pb2.MappingList.SerializeToString,
+        ),
+        'ShowHybridCollectionInfo': grpc.unary_unary_rpc_method_handler(
+            servicer.ShowHybridCollectionInfo,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=milvus__pb2.CollectionInfo.SerializeToString,
+        ),
+        'PreloadHybridCollection': grpc.unary_unary_rpc_method_handler(
+            servicer.PreloadHybridCollection,
+            request_deserializer=milvus__pb2.CollectionName.FromString,
+            response_serializer=status__pb2.Status.SerializeToString,
+        ),
+        'InsertEntity': grpc.unary_unary_rpc_method_handler(
+            servicer.InsertEntity,
+            request_deserializer=milvus__pb2.HInsertParam.FromString,
+            response_serializer=milvus__pb2.HEntityIDs.SerializeToString,
+        ),
+        'HybridSearch': grpc.unary_unary_rpc_method_handler(
+            servicer.HybridSearch,
+            request_deserializer=milvus__pb2.HSearchParam.FromString,
+            response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
+        ),
+        'HybridSearchInSegments': grpc.unary_unary_rpc_method_handler(
+            servicer.HybridSearchInSegments,
+            request_deserializer=milvus__pb2.HSearchInSegmentsParam.FromString,
+            response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
+        ),
+        'GetEntityByID': grpc.unary_unary_rpc_method_handler(
+            servicer.GetEntityByID,
+            request_deserializer=milvus__pb2.HEntityIdentity.FromString,
+            response_serializer=milvus__pb2.HEntity.SerializeToString,
+        ),
+        'GetEntityIDs': grpc.unary_unary_rpc_method_handler(
+            servicer.GetEntityIDs,
+            request_deserializer=milvus__pb2.HGetEntityIDsParam.FromString,
+            response_serializer=milvus__pb2.HEntityIDs.SerializeToString,
+        ),
+        'DeleteEntitiesByID': grpc.unary_unary_rpc_method_handler(
+            servicer.DeleteEntitiesByID,
+            request_deserializer=milvus__pb2.HDeleteByIDParam.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
     }

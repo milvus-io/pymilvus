@@ -3,6 +3,7 @@ import pytest
 from milvus import Milvus
 
 
+@pytest.mark.skip
 class TestPing:
     def test_ping_normal(self, gip):
         client = Milvus(*gip)

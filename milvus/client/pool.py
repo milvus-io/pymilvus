@@ -5,9 +5,10 @@ import threading
 import time
 from collections import defaultdict
 
+from . import __version__
 from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
-from milvus.client.exceptions import ConnectionPoolError
+from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
 
 
 class Duration:
@@ -31,7 +32,7 @@ class Duration:
 
 
 class ConnectionRecord:
-    def __init__(self, uri, recycle, handler="GRPC", conn_id=-1, **kwargs):
+    def __init__(self, uri, handler="GRPC", conn_id=-1, pre_ping=False, **kwargs):
         '''
         @param uri server uri
         @param recycle int, time period to recycle connection.
@@ -39,14 +40,15 @@ class ConnectionRecord:
         '''
         self._conn_id = conn_id
         self._uri = uri
-        self.recycle = recycle
+        # self.recycle = recycle
+        self._pre_ping = pre_ping
         self._last_use_time = time.time()
         self._kw = kwargs
 
         if handler == "GRPC":
-            self._connection = GrpcHandler(uri=uri)
+            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping)
         elif handler == "HTTP":
-            self._connection = HttpHandler(uri=uri)
+            self._connection = HttpHandler(uri=uri, pre_ping=self._pre_ping)
         else:
             raise ValueError("Unknown handler type. Use GRPC or HTTP")
 
@@ -54,18 +56,18 @@ class ConnectionRecord:
         ''' Return a available connection. If connection is out-of-date,
         return new one.
         '''
-        if self._kw.get("pre_ping", False):
-            self._connection.connect(None, None, uri=self._uri, timeout=2)
+        self._last_use_time = time.time()
+        if self._pre_ping:
+            self._connection.ping(timeout=2)
         return self._connection
 
 
 class ConnectionPool:
-    def __init__(self, uri, pool_size=10, recycle=-1, wait_timeout=10, **kwargs):
+    def __init__(self, uri, pool_size=10, wait_timeout=10, try_connect=False, **kwargs):
         # Asynchronous queue to store connection
-        self._pool = queue.Queue()
+        self._pool = queue.Queue(maxsize=pool_size)
         self._uri = uri
         self._pool_size = pool_size
-        self._recycle = recycle
         self._wait_timeout = wait_timeout
 
         # Record used connection number.
@@ -73,9 +75,24 @@ class ConnectionPool:
         self._condition = threading.Condition()
         self._kw = kwargs
 
-        #
         self.durations = defaultdict(list)
 
+        self._try_connect = try_connect
+        self._prepare()
+
+    def _prepare(self):
+        conn = self.fetch()
+        with self._condition:
+            if self._try_connect:
+                conn.client().ping()
+            status, version = conn.client().server_version(timeout=1)
+            if not status.OK():
+                raise NotConnectError("Cannot check server version: {}".format(status.message))
+            if version not in ('0.9.0',):
+                raise VersionError(
+                    "Version of python SDK({}) not match that of server{}, excepted is 0.9.0.".format(__version__,
+                                                                                                      version))
+        conn.close()
 
     def _inc_used(self):
         with self._condition:
@@ -102,7 +119,7 @@ class ConnectionPool:
 
     def _create_connection(self):
         with self._condition:
-            conn = ConnectionRecord(self._uri, self._recycle, conn_id=self._used_conn - 1, **self._kw)
+            conn = ConnectionRecord(self._uri, conn_id=self._used_conn - 1, **self._kw)
             return ScopedConnection(self, conn)
 
     def _inc_connection(self):
@@ -162,6 +179,21 @@ class ConnectionPool:
             self._pool.put(conn, False)
         except queue.Full:
             pass
+    #
+    # def terminate(self):
+    #     with self._condition:
+    #         while True:
+    #             if self._used_conn > 0:
+    #                 try:
+    #                     conn = self._pool.get(timeout=self._wait_timeout)
+    #                     conn.__del__()
+    #                     self._used_conn -= 1
+    #                 except:
+    #                     pass
+    #             else:
+    #                 break
+    #
+    #         self._pool = None
 
 
 class ScopedConnection:
@@ -176,6 +208,9 @@ class ScopedConnection:
 
     def __enter__(self):
         return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     def __del__(self):
         self.close()
@@ -194,10 +229,13 @@ class ScopedConnection:
         return self._connection._conn_id
 
     def close(self):
+        self._closed = True
+        if not self._pool:
+            return
+
         self._connection and self._pool.release(self._connection)
         self._connection = None
         if self._duration:
             self._duration.stop()
             self._pool.record_duration(self._connection, self._duration)
         self._duration = None
-        self._closed = True

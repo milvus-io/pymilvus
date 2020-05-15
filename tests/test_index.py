@@ -13,7 +13,7 @@ class TestCreateIndex:
                                              (IndexType.IVF_FLAT, {"nlist": 1024}),
                                              (IndexType.IVF_SQ8, {"nlist": 1024}),
                                              (IndexType.IVF_SQ8_H, {"nlist": 1024}),
-                                             (IndexType.IVF_PQ, {"m": 12, "nlist": 1024}),
+                                             (IndexType.IVF_PQ, {"m": 16, "nlist": 1024}),
                                              (IndexType.HNSW, {"M": 16, "efConstruction": 500}),
                                              (IndexType.RNSG, {"search_length": 45, "out_degree": 50,
                                                                "candidate_pool_size": 300, "knng": 100}),
@@ -30,12 +30,17 @@ class TestCreateIndex:
         status = gcon.create_index(gvector, index, param)
         assert status.OK()
 
-    def test_create_index_async(self, gcon, gvector):
+    def test_create_index_async(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
         future = gcon.create_index(gvector, IndexType.IVFLAT, params={"nlist": 1024}, _async=True)
         status = future.result()
         assert status.OK()
 
-    def test_create_index_async_callback(self, gcon, gvector):
+    def test_create_index_async_callback(self, gcon, gvector, ghandler):
+        if ghandler == "HTTP":
+            pytest.skip("HTTP handler not support async")
+
         def cb(status):
             assert status.OK()
 
@@ -53,23 +58,23 @@ class TestCreateIndex:
 
 
 class TestDescribeIndex:
-    def test_describe_index_normal(self, gcon, gvector):
+    def test_get_index_info_normal(self, gcon, gvector):
         status = gcon.create_index(gvector, IndexType.IVFLAT, params={"nlist": 1024})
         assert status.OK()
 
-        status, index = gcon.describe_index(gvector)
+        status, index = gcon.get_index_info(gvector)
         assert status.OK()
         assert index.collection_name == gvector
         assert index.index_type == IndexType.IVFLAT
         assert index.params == {"nlist": 1024}
 
     @pytest.mark.parametrize("collection", [123, None, []])
-    def test_describe_index_invalid_name(self, collection, gcon):
+    def test_get_index_info_invalid_name(self, collection, gcon):
         with pytest.raises(ParamError):
-            gcon.describe_index(collection)
+            gcon.get_index_info(collection)
 
-    def test_describe_index_non_existent(self, gcon):
-        status, _ = gcon.describe_index("non_existent")
+    def test_get_index_info_non_existent(self, gcon):
+        status, _ = gcon.get_index_info("non_existent")
         assert not status.OK()
 
 

@@ -119,34 +119,32 @@ class TopKQueryResult:
         Returns:
 
         """
-        # import pdb; pdb.set_trace()
         self._nq = _raw.row_num
 
-        # if self._nq == 0:
-        #     return
-
         id_list = list(_raw.ids)
-        id_col = len(id_list) // self._nq if self._nq > 0 else 0
+        dis_list = list(_raw.distances)
+        if len(id_list) != len(dis_list):
+            raise ParamError("number of id not match distance ")
 
-        if id_col == 0:
+        col = len(id_list) // self._nq if self._nq > 0 else 0
+
+        if col == 0:
             return
 
-        for i in range(0, len(id_list), id_col):
-            self._id_array.append(id_list[i: i + id_col])
-
-        dis_list = list(_raw.distances)
-        dis_col = len(dis_list) // self._nq
-        for j in range(0, len(dis_list), dis_col):
-            self._dis_array.append(dis_list[j: j + dis_col])
+        for i in range(0, len(id_list), col):
+            k = i + col
+            for j in range(i, i + col):
+                if id_list[j] == -1:
+                    k = j
+                    break
+            self._id_array.append(id_list[i: k])
+            self._dis_array.append(dis_list[i: k])
 
         if len(self._id_array) != self._nq or \
                 len(self._dis_array) != self._nq:
             raise ParamError("Result parse error.")
 
-        if id_col != dis_col:
-            raise ParamError("Result parse error.")
-
-        self._topk = id_col
+        self._topk = col
 
     @property
     def id_array(self):
@@ -256,7 +254,7 @@ class TopKQueryResult2:
 
         for row_result in js["result"]:
             row_ = [QueryResult(int(result["id"]), float(result["distance"]))
-                    for result in row_result]
+                    for result in row_result if float(result["id"]) != -1]
 
             self._results.append(row_)
 
