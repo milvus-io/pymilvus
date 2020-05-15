@@ -34,9 +34,6 @@ def deprecated(func):
 def check_connect(func):
     @functools.wraps(func)
     def inner(self, *args, **kwargs):
-        # if not self.connected():
-        #     raise NotConnectError('Please connect to the server first')
-
         return func(self, *args, **kwargs)
 
     return inner
@@ -79,7 +76,6 @@ def _set_uri(host, port, uri, handler="GRPC"):
 
 class Milvus:
     def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
-        self._name = kwargs.get('name', None)
         self._uri = None
         self._status = None
         self._connected = False
@@ -94,88 +90,43 @@ class Milvus:
         self._hooks = collections.defaultdict()
 
     def __enter__(self):
-        return self._pool.fetch()
+        self._conn = self._pool.fetch()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-        # self.__conn.close()
-        # self._stub = None
-        # self._status = None
-
-    # def __getattr__(self, item):
-    #     if item == "add_vectors":
-    #         return self.insert
-    #     if item == "search_vectors":
-    #         return self.search
-    #     # if item == "search_vectors_in_files":
-    #     #     return self.search_in_files
-    #
-    #     if item in self._kw.keys():
-    #         return self._kw.get(item, None)
-    #     raise AttributeError("Attribute {} not exists".format(item))
+        self._conn.close()
+        self._conn = None
 
     def __del__(self):
         return self.close()
 
-    # def _init(self, host, port, uri, **kwargs):
-    #     handler = kwargs.get("handler", "GRPC")
-    #     self._uri = self._set_uri(host, port, uri, handler)
-    #     self._stub = GrpcHandler(None, None, uri=self._uri)
-    #     if len(self._hooks) > 0:
-    #         self._stub.set_hook(**self._hooks)
-
     def _connection(self):
         return self._pool.fetch()
 
-    # def _get_connection
-
+    @deprecated
     def set_hook(self, **kwargs):
+        """
+        Deprecated
+        """
         # TODO: may remove it.
         if self._stub:
             return self._stub.set_hook(**kwargs)
 
         self._hooks.update(kwargs)
 
-    # @property
-    # def status(self):
-    #     return self._handler.status
-    # pass
-    #
-    # def connected(self):
-    #     return True
-
-    @property
-    def name(self):
-        return self._name
-
     @property
     def handler(self):
         return self._handler
 
-    # def ping(self, timeout=2):
-    #     """
-    #     Check if server is accessible
-    #
-    #     """
-    #     if self.handler == "GRPC":
-    #         from .grpc_handler import set_uri, connect
-    #         _addr = set_uri(None, None, self._uri)
-    #         return connect(_addr, timeout)
-    #     if self.handler == "HTTP":
-    #         self._stub.connect()
-    #
-    #     return True
-
     @deprecated
     def connect(self, host=None, port=None, uri=None, timeout=2):
+        """
+        Deprecated
+        """
         if self.connected() and self._connected:
             return Status(message="You have already connected {} !".format(self._uri),
                           code=Status.CONNECT_FAILED)
 
-        # if (host or port or uri) or not self._uri:
-        #     kw = copy.deepcopy(self._kw)
-        #     kw.pop('uri', None)
-        #     self._init(host, port, uri, **kw)
         if self._stub is None:
             self._init(host, port, uri, handler=self._handler)
 
@@ -186,14 +137,22 @@ class Milvus:
 
     @deprecated
     def connected(self):
+        """
+        Deprecated
+        """
         return True if self._status and self._status.OK() else False
 
     @deprecated
     def disconnect(self):
+        """
+        Deprecated
+        """
         pass
-    #
+
     def close(self):
-        # self._pool.terminate()
+        """
+        Close client instance
+        """
         self._pool = None
 
     def client_version(self):
@@ -221,15 +180,15 @@ class Milvus:
 
     def server_version(self, timeout=10):
         """
-       Returns the version of the Milvus server.
+        Returns the version of the Milvus server.
 
-       :return:
+        :return:
            Status: Whether the operation is successful.
 
            str : Version of the Milvus server.
 
-       :rtype: (Status, str)
-       """
+        :rtype: (Status, str)
+        """
 
         return self._cmd("version", timeout)
 
@@ -319,6 +278,7 @@ class Milvus:
         :returns: (Status, table_schema)
             Status: indicate if query is successful
             table_schema: return when operation is successful
+
         :rtype: (Status, TableSchema)
         """
         check_pass_param(collection_name=collection_name)
@@ -345,12 +305,12 @@ class Milvus:
     @check_connect
     def list_collections(self, timeout=10):
         """
-        Returns information of all collections.
+        Returns collection list.
 
         :return:
             Status: indicate if this operation is successful
 
-            collections: list of table names, return when operation
+            collections: list of collection names, return when operation
                     is successful
         :rtype:
             (Status, list[str])
@@ -360,7 +320,16 @@ class Milvus:
 
     @check_connect
     def get_collection_stats(self, collection_name, timeout=10):
-        # TODO: need check collection_name here
+        """
+        Returns collection statistics information
+
+        :return:
+            Status: indicate if this operation is successful
+
+            statistics: statistics information
+        :rtype:
+            (Status, dict)
+        """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.show_collection_info(collection_name, timeout)
@@ -371,7 +340,7 @@ class Milvus:
         Loads a collection for caching.
 
         :type collection_name: str
-        :param collection_name: table to preload
+        :param collection_name: collection to load
 
         :returns:
             Status:  indicate if invoke is successful
@@ -386,7 +355,7 @@ class Milvus:
         Deletes a collection by name.
 
         :type  collection_name: str
-        :param collection_name: Name of the table being deleted
+        :param collection_name: Name of the collection being deleted
 
         :return: Status, indicate if operation is successful
         :rtype: Status
@@ -443,6 +412,19 @@ class Milvus:
 
     @check_connect
     def get_entity_by_id(self, collection_name, ids, timeout=None):
+        """
+        Returns raw vectors according to ids.
+
+        :param collection_name: Name of the collection
+        :type collection_name: str
+
+        :param ids: list of vector id
+        :type ids: list
+
+        :returns:
+            Status: indicate if invoke is successful
+
+        """
         check_pass_param(collection_name=collection_name, ids=ids)
 
         with self._connection() as handler:
@@ -551,6 +533,20 @@ class Milvus:
 
     @check_connect
     def has_partition(self, collection_name, partition_tag):
+        """
+        Check if specified partition exists.
+
+        :param collection_name: target table name.
+        :type  collection_name: str
+
+        :param partition_tag: partition tag.
+        :type  partition_tag: str
+
+        :return:
+            Status: Whether the operation is successful.
+            exists: If specified partition exists
+
+        """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
         with self._connection() as handler:
             return handler.has_partition(collection_name, partition_tag)
@@ -635,19 +631,6 @@ class Milvus:
         with self._connection() as handler:
             return handler.search(collection_name, top_k, query_records, partition_tags, params, timeout, **kwargs)
 
-    # @deprecated
-    # @check_connect
-    # def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
-    #     check_pass_param(collection_name=collection_name, topk=top_k, ids=ids)
-    #     partition_tags is not None and check_pass_param(partition_tag_array=partition_tags)
-    #
-    #     params = dict() if params is None else params
-    #     if not isinstance(params, dict):
-    #         raise ParamError("Params must be a dictionary type")
-    #
-    #     with self._connection() as handler:
-    #         return handler.search_by_ids(collection_name, ids, top_k, partition_tags, params, timeout, **kwargs)
-
     @check_connect
     def search_in_segment(self, collection_name, file_ids, query_records, top_k, params=None, timeout=None, **kwargs):
         """
@@ -693,6 +676,14 @@ class Milvus:
         """
         Deletes vectors in a collection by vector ID.
 
+        :param collection_name: Name of the collection.
+        :type  collection_name: str
+
+        :param id_array: list of vector id
+        :type  id_array: list[int]
+
+        :return:
+            Status: Whether the operation is successful.
         """
         check_pass_param(collection_name=collection_name, ids=id_array)
         with self._connection() as handler:
@@ -754,11 +745,3 @@ class Milvus:
 
         return self._cmd(cmd)
 
-    # In old version of pymilvus, some methods are different from the new.
-    # apply alternative method name for compatibility
-
-    # get_collection_row_count = count_collection
-    # delete_collection = drop_collection
-    # add_vectors = insert
-    # search_vectors = search
-    # search_vectors_in_files = search_in_files
