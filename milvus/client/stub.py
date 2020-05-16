@@ -76,6 +76,7 @@ def _set_uri(host, port, uri, handler="GRPC"):
 
 class Milvus:
     def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
+        self._name = kwargs.get('name', None)
         self._uri = None
         self._status = None
         self._connected = False
@@ -113,6 +114,10 @@ class Milvus:
             return self._stub.set_hook(**kwargs)
 
         self._hooks.update(kwargs)
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def handler(self):
