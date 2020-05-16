@@ -4,14 +4,8 @@
 # and execute a vector similarity search.
 import datetime
 import sys
-
-sys.path.append(".")
-from functools import partial
 import random
-import threading
-import time
-from milvus import Milvus, IndexType, MetricType, Status
-from milvus.client.abstract import TopKQueryResult
+from milvus import Milvus, IndexType, MetricType
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.

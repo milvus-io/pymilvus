@@ -4,9 +4,6 @@
 # and execute a vector similarity search.
 
 import datetime
-import sys
-
-sys.path.append(".")
 import random
 import threading
 import time
