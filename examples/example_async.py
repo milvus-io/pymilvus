@@ -5,6 +5,7 @@
 import datetime
 import sys
 import random
+import time
 from milvus import Milvus, IndexType, MetricType
 
 # Milvus server IP address and port.
@@ -18,7 +19,7 @@ _DIM = 128  # dimension of vector
 
 def main():
     # Specify server addr when create milvus client instance
-    milvus = Milvus(_HOST, _PORT)
+    milvus = Milvus(_HOST, _PORT, try_connect=True)
 
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_async_collection_'
@@ -65,7 +66,6 @@ def main():
     # Or invoke result() to get results:
     #   insert_future = milvus.insert(collection_name=collection_name, records=vectors, _async=True)
     #   status, ids = insert_future.result()
-
     insert_future.done()
 
     # Flush collection  inserted data to disk.

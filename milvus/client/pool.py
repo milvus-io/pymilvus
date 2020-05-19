@@ -10,6 +10,8 @@ from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
 
+support_versions = ('0.9.0', '0.9.1')
+
 
 class Duration:
     def __init__(self):
@@ -63,12 +65,14 @@ class ConnectionRecord:
 
 
 class ConnectionPool:
-    def __init__(self, uri, pool_size=10, wait_timeout=10, try_connect=False, **kwargs):
+    def __init__(self, uri, pool_size=10, wait_timeout=10, try_connect=True, **kwargs):
         # Asynchronous queue to store connection
         self._pool = queue.Queue(maxsize=pool_size)
         self._uri = uri
         self._pool_size = pool_size
         self._wait_timeout = wait_timeout
+        if try_connect:
+            self._max_retry = kwargs.get("max_retry", 3)
 
         # Record used connection number.
         self._used_conn = 0
@@ -84,14 +88,16 @@ class ConnectionPool:
         conn = self.fetch()
         with self._condition:
             if self._try_connect:
-                conn.client().ping()
+                conn.client().ping(max_retry=self._max_retry)
+
             status, version = conn.client().server_version(timeout=1)
             if not status.OK():
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
-            if version not in ('0.9.0',):
+            if version not in support_versions:
                 raise VersionError(
-                    "Version of python SDK({}) not match that of server{}, excepted is 0.9.0.".format(__version__,
-                                                                                                      version))
+                    "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
+                                                                                                  version,
+                                                                                                  support_versions))
         conn.close()
 
     def _inc_used(self):

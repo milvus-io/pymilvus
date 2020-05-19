@@ -2,7 +2,6 @@ import abc
 import threading
 
 from .abstract import TopKQueryResult
-from .exceptions import FutureTimeoutError
 from .types import Status
 
 
@@ -93,7 +92,8 @@ class Future(AbstractFuture):
         with self._condition:
             # future not finished. wait callback being called.
             to = kwargs.get("timeout", None)
-            self._response = self._future.result(timeout=to)
+            if not self._future.done() or not self._response:
+                self._response = self._future.result(timeout=to)
             # if not self._done and not self._canceled:
             #     to = kwargs.get("timeout", None)
             #     self._condition.wait(to)
@@ -111,7 +111,7 @@ class Future(AbstractFuture):
         if self._results:
             return self._results
         else:
-            self.on_response(self._response)
+            return self.on_response(self._response)
 
     def cancel(self):
         with self._condition:

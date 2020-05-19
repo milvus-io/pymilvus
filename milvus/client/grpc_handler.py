@@ -174,11 +174,21 @@ class GrpcHandler(ConnectIntf):
 
             self._search_file_hook = _search_file_hook
 
-    def ping(self, timeout=2):
+    def ping(self, max_retry=3, timeout=2):
+        ft = grpc.channel_ready_future(self._channel)
+        retry = max_retry
         try:
-            ft = grpc.channel_ready_future(self._channel)
-            ft.result(timeout=timeout)
-            return True
+            while retry > 0:
+                try:
+                    print("try connect ... ")
+                    ft.result(timeout=timeout)
+                    return True
+                except:
+                    retry -= 1
+                    if retry > 0:
+                        continue
+                    else:
+                        raise
         except grpc.FutureTimeoutError:
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
         except grpc.RpcError as e:
