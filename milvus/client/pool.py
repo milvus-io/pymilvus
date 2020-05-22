@@ -10,7 +10,7 @@ from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
 
-support_versions = ('0.9.0', '0.9.1')
+support_versions = ('0.9.0', '0.9.1', '0.10.0')
 
 
 class Duration:

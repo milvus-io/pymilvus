@@ -180,7 +180,6 @@ class GrpcHandler(ConnectIntf):
         try:
             while retry > 0:
                 try:
-                    print("try connect ... ")
                     ft.result(timeout=timeout)
                     return True
                 except:
