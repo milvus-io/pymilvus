@@ -254,7 +254,8 @@ class Milvus:
 
     @check_connect
     def create_hybrid_collection(self, collection_name, fields, timeout=10):
-        return self._stub.create_hybrid_collection(collection_name, fields, timeout)
+        with self._connection() as handler:
+            return handler.create_hybrid_collection(collection_name, fields, timeout)
 
     @check_connect
     def has_collection(self, collection_name, timeout=10):
@@ -421,7 +422,8 @@ class Milvus:
 
     @check_connect
     def insert_hybrid(self, collection_name, entities, vector_entities, ids=None, partition_tag=None, params=None):
-        return self._stub.insert_hybrid(collection_name, entities, vector_entities, ids, partition_tag, params)
+        with self._connection() as handler:
+            return handler.insert_hybrid(collection_name, entities, vector_entities, ids, partition_tag, params)
 
     def get_entity_by_id(self, collection_name, ids, timeout=None):
         """
@@ -441,6 +443,11 @@ class Milvus:
 
         with self._connection() as handler:
             return handler.get_vectors_by_ids(collection_name, ids, timeout=timeout)
+
+    def get_hybrid_entity_by_id(self, collection_name, ids):
+        check_pass_param(collection_name=collection_name, ids=ids)
+        with self._connection() as handler:
+            return handler.get_hybrid_entity_by_id(collection_name, ids)
 
     @check_connect
     def list_id_in_segment(self, collection_name, segment_name, timeout=None):
@@ -645,7 +652,8 @@ class Milvus:
 
     @check_connect
     def search_hybrid(self, collection_name, query_entities, partition_tags=None, params=None, **kwargs):
-        return self._stub.search_hybrid(collection_name, query_entities, partition_tags, params, **kwargs)
+        with self._connection() as handler:
+            return handler.search_hybrid(collection_name, query_entities, partition_tags, params, **kwargs)
 
     @check_connect
     def search_in_segment(self, collection_name, file_ids, query_records, top_k, params=None, timeout=None, **kwargs):

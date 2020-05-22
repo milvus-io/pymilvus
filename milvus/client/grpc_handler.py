@@ -9,7 +9,7 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, TopKQueryResult, CollectionInfo
+from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, TopKQueryResult, HEntitySet
 from .prepare import Prepare
 from .types import MetricType, Status
 from .check import (
@@ -21,7 +21,7 @@ from .check import (
 from .asynch import SearchFuture, InsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
 
 from .hooks import BaseSearchHook
-from .client_hooks import SearchHook
+from .client_hooks import SearchHook, HybridSearchHook
 from .exceptions import ParamError, NotConnectError
 from ..settings import DefaultConfig as config
 from . import __version__
@@ -111,6 +111,7 @@ class GrpcHandler(ConnectIntf):
 
         # client hook
         self._search_hook = SearchHook()
+        self._hybrid_search_hook = HybridSearchHook()
         self._search_file_hook = SearchHook()
 
         # set server uri if object is initialized with parameter
@@ -522,6 +523,15 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason), []
 
     @error_handler([])
+    def get_hybrid_entity_by_id(self, collection_name, ids):
+        request = grpc_types.VectorsIdentity(collection_name=collection_name, id_array=ids)
+        response = self._stub.GetEntityByID(request)
+
+        if response.status.error_code == 0:
+            return Status(), HEntitySet(response)
+        return Status(response.status.error_code, response.status.reason), []
+
+    @error_handler([])
     def get_vector_ids(self, collection_name, segment_name, timeout=10):
         request = grpc_types.GetVectorIDsParam(collection_name=collection_name, segment_name=segment_name)
 
@@ -749,7 +759,7 @@ class GrpcHandler(ConnectIntf):
                           message=response.status.reason), []
 
         return Status(message='Search vectors successfully!'), \
-               self._search_hook.handle_response(response)
+               self._hybrid_search_hook.handle_response(response)
 
     @error_handler(None)
     def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):

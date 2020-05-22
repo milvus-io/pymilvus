@@ -118,38 +118,37 @@ class Prepare:
                 if len(values) != _len:
                     raise ValueError("Length is not equal")
 
-        item_bytes = bytearray()
         for entity in entities:
             entity_param.field_names.append(entity["field_name"])
             values = entity["field_values"]
             if isinstance(values, list):
                 if isinstance(values[0], int):
-                    item_bytes += struct.pack(str(len(values)) + 'q', *values)
+                    entity_param.attr_data.add(int_value=values)
                 elif isinstance(values[0], float):
-                    item_bytes += struct.pack(str(len(values)) + 'd', *values)
+                    entity_param.attr_data.add(double_value=values)
                 else:
                     raise ValueError("Field item must be int or float")
             else:
                 raise ValueError("Field values must be a list")
-        entity_param.attr_records = bytes(item_bytes)
+        # entity_param.attr_records = bytes(item_bytes)
         entity_param.row_num = _len
         # vectors
         # entity.field_names.append(vector_field)
         for vector_entity in vector_entities:
             entity_param.field_names.append(vector_entity["field_name"])
-            vector_field = grpc_types.VectorFieldValue()
+            vector_field = grpc_types.VectorFieldRecord()
             vectors = vector_entity["field_values"]
             for vector in vectors:
                 if isinstance(vector, bytes):
-                    vector_field.value.append(grpc_types.RowRecord(binary_data=vector))
+                    vector_field.value.add(binary_data=vector)
                 else:
-                    vector_field.value.append(grpc_types.RowRecord(float_data=vector))
-            entity_param.result_values.append(grpc_types.FieldValue(vector_value=vector_field))
+                    vector_field.value.add(float_data=vector)
+            entity_param.vector_data.append(vector_field)
 
         h_param = grpc_types.HInsertParam(
             collection_name=collection_name,
             partition_tag=tag,
-            entities=entity_param
+            entity=entity_param
         )
 
         if ids:
@@ -194,10 +193,6 @@ class Prepare:
 
     @classmethod
     def search_hybrid_param(cls, collection_name, query_entities, partition_tags, params):
-        _param = grpc_types.HSearchParam(
-            collection_name=collection_name,
-            partition_tag_array=partition_tags
-        )
 
         def term_query(node):
             if len(node) > 1:
@@ -211,17 +206,15 @@ class Prepare:
                                                    value_num=len(v["values"]),
                                                    # boost=node["boost"]
                                                    )
-                item_bytes = bytearray()
                 if isinstance(vs, list):
                     if isinstance(vs[0], int):
-                        item_bytes += struct.pack(str(len(vs)) + 'q', *vs)
+                        _term_param.int_value[:] = vs
                     elif isinstance(vs[0], float):
-                        item_bytes += struct.pack(str(len(vs)) + 'd', *vs)
+                        _term_param.double_value[:] = vs
                     else:
                         raise ValueError("Field item must be int or float")
                 else:
                     raise ValueError("Field values must be a list")
-                _term_param.values = bytes(item_bytes)
                 return _term_param
 
         def range_query(node):
@@ -263,11 +256,14 @@ class Prepare:
                 bqr = grpc_types.BooleanQuery(occur=BoolOccurMap[key])
                 for query in node:
                     if "term" in query:
-                        bqr.general_query.append(grpc_types.GeneralQuery(term_query=term_query(query["term"])))
+                        # bqr.general_query.append(grpc_types.GeneralQuery(term_query=term_query(query["term"])))
+                        bqr.general_query.add(term_query=term_query(query["term"]))
                     elif "range" in query:
-                        bqr.general_query.append(grpc_types.GeneralQuery(range_query=range_query(query["range"])))
+                        # bqr.general_query.append(grpc_types.GeneralQuery(range_query=range_query(query["range"])))
+                        bqr.general_query.add(range_query=range_query(query["range"]))
                     elif "vector" in query:
-                        bqr.general_query.append(grpc_types.GeneralQuery(vector_query=vector_query(query["vector"])))
+                        # bqr.general_query.append(grpc_types.GeneralQuery(vector_query=vector_query(query["vector"])))
+                        bqr.general_query.add(vector_query=vector_query(query["vector"]))
                     else:
                         raise ValueError("Unknown ")
 
@@ -315,13 +311,23 @@ class Prepare:
             #         bq = grpc_types.BooleanQuery(occur=BoolOccurMap[k])
             #         vqq.general_query.append(grpc_types.GeneralQuery(boolean_query=bq))
 
+        _param = grpc_types.HSearchParam(
+            collection_name=collection_name,
+            partition_tag_array=partition_tags
+        )
+
         _param.general_query.CopyFrom(gene_node(None, query_entities["bool"]))
+
+        for k, v in query_entities.items():
+            if k == "bool":
+                continue
+            _param.extra_params.add(key=k, value=ujson.dumps(v))
 
         # import pdb;pdb.set_trace()
         # grpc_types.GeneralQuery(boolean_query=bool_node(query_entities))
-        params = params or dict()
-        params_str = ujson.dumps(params)
-        _param.extra_params.add(key="params", value=params_str)
+        # params = params or dict()
+        # params_str = ujson.dumps(params)
+        # _param.extra_params.add(key="params", value=params_str)
 
         return _param
 

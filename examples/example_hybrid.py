@@ -27,11 +27,6 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 def main():
     milvus = Milvus(_HOST, _PORT)
 
-    # Check if server is accessible
-    if not milvus.ping():
-        print("Server is unreachable")
-        sys.exit(0)
-
     num = 1000
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_hybrid_collection_{}'.format(num)
@@ -75,27 +70,24 @@ def main():
                 },
                 {
                     "vector": {
-                        "Vec": {"topk": 10, "query": vec[: 10], "params": {"nprobe": 10}}
+                        "Vec": {"topk": 10, "query": vec[: 1], "params": {"nprobe": 10}}
                     }
                 }
             ],
-            "should": [
-                {
-                    "term": {
-                        "C": {"values": [33, 40]}
-                    }
-                },
-                {
-                    "vector": {
-                        "Vec": {"topk": 1, "query": vec[10: 12], "params": {"nprobe": 1}}
-                    }
-                }
-            ]
-        }
+        },
+        # "fields": []
     }
     status, results = milvus.search_hybrid(collection_name, query_hybrid)
     print(status)
-    print(results)
+
+    field_names = results.field_names()
+    print("Field\t\tValue")
+    for r in results:
+        for rr in r:
+            for field in field_names:
+                print(f"{field}\t\t{rr.get(field)}")
+
+    status, entities = milvus.get_hybrid_entity_by_id(collection_name, ids[:2])
 
 
 if __name__ == '__main__':

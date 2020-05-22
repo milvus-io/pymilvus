@@ -9,6 +9,23 @@ from .check import check_pass_param
 from .types import IndexType
 
 
+class LoopBase(object):
+    def __init__(self):
+        self.__index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        while self.__index < self.__len__():
+            self.__index += 1
+            return self.__getitem__(self.__index - 1)
+
+        # iterate stop, raise Exception
+        self.__index = 0
+        raise StopIteration()
+
+
 class CollectionSchema:
     def __init__(self, collection_name, dimension, index_file_size, metric_type):
         """
@@ -307,6 +324,154 @@ class TopKQueryResult2:
 
         return "[\n%s\n]" % ",\n".join(str_out_list)
 
+
+class HybridEntityResult:
+    def __init__(self, filed_names, entity_id, entity, vector, distance):
+        self._field_names = filed_names
+        self._id = entity_id
+        self._entity = entity
+        self._vector = vector
+        self._distance = distance
+
+    def __getattr__(self, item):
+        index = self._field_names.index(item)
+        if index < len(self._entity):
+            return self._entity[index]
+        if index == len(self._entity):
+            return list(self._vector.float_data) if len(self._vector.float_data) > 0 else bytes(self._vector.binary_data)
+
+        raise ValueError("Out of range ... ")
+
+    # def __getitem__(self, item):
+    #     return self._entity.__getitem__(item)
+
+    def get(self, field):
+        return self.__getattr__(field)
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def distance(self):
+        return self._distance
+
+
+class HybridRawResult(LoopBase):
+    def __init__(self, field_names, ids, entities, vectors, distances):
+        super().__init__()
+        self._field_names = field_names
+        self._ids = ids
+        self._vectors = vectors
+        self._entities = entities
+        self._distances = distances
+
+    def __len__(self):
+        return len(self._ids)
+
+    def __getitem__(self, item):
+        if isinstance(item, slice):
+            _start = item.start or 0
+            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
+            _step = item.step or 1
+
+            elements = []
+            for i in range(_start, _end, _step):
+                elements.append(self.__getitem__(i))
+            return elements
+
+        item_entities = [e[item] for e in self._entities]
+
+        return HybridEntityResult(self._field_names, self._ids[item], item_entities, self._vectors[item], self._distances[item])
+        # if item in self._field_names:
+        #     index = self._field_names[item]
+
+
+class HybridResult(LoopBase):
+
+    def __init__(self, raw, **kwargs):
+        super().__init__()
+        self._raw = raw
+
+    def __len__(self):
+        return self._raw.row_num
+
+    def __getitem__(self, item):
+        if isinstance(item, slice):
+            _start = item.start or 0
+            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
+            _step = item.step or 1
+
+            elements = []
+            for i in range(_start, _end, _step):
+                elements.append(self.__getitem__(i))
+            return elements
+
+        seg_size = len(self._raw.distance) // self.row_num()
+        seg_start = item * seg_size
+        seg_end = min((item + 1) * seg_size, len(self._raw.distance))
+
+        entities = self._raw.entity
+
+        slice_entity = lambda e, start, end: e.int_value[start: end] if len(e.int_value) > 0 else e.double_value[start: end]
+        seg_ids = self._raw.entity.entity_id[seg_start: seg_end]
+        seg_entities = [slice_entity(e, seg_start, seg_end) for e in entities.attr_data]
+        seg_vectors = self._raw.entity.vector_data[0].value[seg_start: seg_end]
+        seg_distances = self._raw.distance[seg_start: seg_end]
+        return HybridRawResult(self.field_names(), seg_ids, seg_entities, seg_vectors, seg_distances)
+
+    def field_names(self):
+        return list(self._raw.entity.field_names)
+
+    def row_num(self):
+        return self._raw.row_num
+
+
+class HEntity:
+    def __init__(self, field_names, attr_records, vector):
+        self._field_names = field_names
+        self._attr_records = attr_records
+        self._vector = vector
+
+    def get(self, field):
+        index = self._field_names.index(field)
+        if index < len(self._attr_records):
+            return self._attr_records[index]
+
+        if index == len(self._attr_records):
+            return self._vector
+
+        raise ValueError("Out of range ... ")
+
+
+class HEntitySet(LoopBase):
+    def __init__(self, raw):
+        super().__init__()
+        self._raw = raw
+
+    def __len__(self):
+        return self._raw.row_num
+
+    def __getitem__(self, item):
+        if isinstance(item, slice):
+            _start = item.start or 0
+            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
+            _step = item.step or 1
+
+            elements = []
+            for i in range(_start, _end, _step):
+                elements.append(self.__getitem__(i))
+            return elements
+
+        slice_entity = lambda e, index: e.int_value[index] if len(e.int_value) > 0 else e.double_value[index]
+        attr_records = [slice_entity(e, item) for e in self._raw.attr_data]
+        vector = self._raw.vector_data[0].value[item]
+
+        return HEntity(self.field_names, attr_records, vector)
+
+    @property
+    def field_names(self):
+        return list(self._raw.field_names)
 
 class IndexParam:
     """
