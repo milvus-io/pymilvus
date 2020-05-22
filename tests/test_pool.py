@@ -1,6 +1,8 @@
 import threading
 
-from milvus import Milvus
+import pytest
+
+from milvus import Milvus, NotConnectError, VersionError
 from milvus.client.pool import ConnectionPool
 
 
@@ -30,3 +32,10 @@ class TestPool:
             thread = threading.Thread(target=run, args=(client,))
             thread.start()
             thread_list.append(thread)
+
+    def test_pool_args(self):
+        with pytest.raises(NotConnectError):
+            ConnectionPool(uri="tcp://123.456.780.0:9999", pool_size=10, try_connect=True)
+
+        with pytest.raises(NotConnectError):
+            ConnectionPool(uri="tcp://123.456.780.0:9999", pool_size=10, try_connect=False)

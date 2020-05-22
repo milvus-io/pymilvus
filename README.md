@@ -6,7 +6,7 @@
 
 Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code to this project, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md) first.
 
-For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.10/index.html).
+For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.11/index.html).
 
 
 <!-- TOC -->
@@ -69,12 +69,13 @@ The following collection shows Milvus versions and recommended pymilvus versions
 | 0.7.0 | 0.2.8 |
 | 0.7.1 | 0.2.9 |
 | 0.8.0 | 0.2.10 |
+| 0.9.0 | 0.2.11 |
 
 
 You can install a specific version of pymilvus by:
 
 ```shell
-$ pip install pymilvus==0.2.10
+$ pip install pymilvus==0.2.11
 ```
 
 You can upgrade `pymilvus` to the latest version by:
@@ -98,12 +99,11 @@ Refer to [examples](/examples) for more example programs.
    >>> from milvus import Milvus, IndexType, MetricType, Status
    ```
 
-2. Connect to Milvus server by using one of the following methods:
+2. Create a client to Milvus server by using one of the following methods:
 
    ```python
    # Connect to Milvus server
    >>> client = Milvus(host='localhost', port='19530')
-   >>> client.connect()
    ```
 
    > Note: In the above code, default values are used for `host` and `port` parameters. Feel free to change them to the IP address and port you set for Milvus server.
@@ -148,11 +148,11 @@ You can split collections into partitions by partition tags for improved search 
 >>> client.create_partition(collection_name='test01', partition_tag='tag01')
 ```
 
-Use `show_partitions()` to verify whether the partition is created.
+Use `list_partitions()` to verify whether the partition is created.
 
 ```python
 # Show partitions
->>> client.show_partitions(collection_name='test01')
+>>> client.list_partitions(collection_name='test01')
 ```
 
 ### Drop a partition
@@ -204,40 +204,34 @@ Use `show_partitions()` to verify whether the partition is created.
 
    ```python
    # Insert vectors
-   >>> client.insert(collection_name='test01', records=vectors)
+   >>> status, inserted_vector_ids = client.insert(collection_name='test01', records=vectors)
    ```
 
    Alternatively, you can also provide user-defined vector ids:
 
    ```python
    >>> vector_ids = [id for id in range(20)]
-   >>> client.insert(collection_name='test01', records=vectors, ids=vector_ids)
+   >>> status, inserted_vector_ids = client.insert(collection_name='test01', records=vectors, ids=vector_ids)
    ```
 
 ### Insert vectors in a partition
 
 ```python
->>> client.insert('test01', vectors, partition_tag="tag01")
+>>> status, inserted_vector_ids = client.insert('test01', vectors, partition_tag="tag01")
 ```
 
-To verify the vectors you have inserted, use `get_vector_by_id()`. Assume you have a vector with the following ID.
+To verify the vectors you have inserted, use `get_vector_by_id()`. Assume you have vector with the following ID.
 
 ```python
->>> status, vector = client.get_vector_by_id(collection_name='test01', vector_id=0)
+>>> status, vector = client.get_entity_by_id(collection_name='test01', ids=inserted_vector_ids[:10])
 ```
 
 ### Delete vectors by ID
 
-Assume you have some vectors with the following IDs:
-
-```python
->>> ids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
-```
-
 You can delete these vectors by:
 
 ```python
->>> client.delete_by_id('test01', ids)
+>>> client.delete_entity_by_id('test01', inserted_vector_ids[:10])
 ```
 
 ## Flush data in one or multiple collections to disk
@@ -285,8 +279,8 @@ A segment is a data file that Milvus automatically creates by merging inserted v
 
 > Note: If you do not specify `partition_tags`, Milvus searches the whole collection.
 
-## Disconnect from the Milvus server
+## close client
 
 ```python
->>> client.disconnect()
+>>> client.close()
 ```

@@ -15,7 +15,7 @@ table_name = 'multi_task'
 
 
 def add_vector_task(milvus, vector):
-    status, ids = milvus.add_vectors(table_name=table_name, records=vector)
+    status, ids = milvus.insert(table_name=table_name, records=vector)
 
     assert status.OK(), "add vectors failed"
     assert len(ids) == len(vector)
@@ -57,20 +57,18 @@ def test_run(gcon):
     thread_pool_add_vector(gmilvus, p, vectors)
 
     time.sleep(1.5)
-    _, gcount = gmilvus.count_collection(table_name)
+    _, gcount = gmilvus.count_entities(table_name)
     print(gcount)
 
 
 def test_mult_insert():
     def multi_thread_opr(client, collection_name, utid):
         table_param = {
-            'collection_name': table_name,
+            'collection_name': collection_name,
             'dimension': 64
         }
 
         vectors = [[random.random() for _ in range(64)] for _ in range(10000)]
-
-        client.connect()
         client.create_collection(table_param)
 
         client.insert(table_name, vectors)

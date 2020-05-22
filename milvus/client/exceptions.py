@@ -28,13 +28,19 @@ class ConnectionPoolError(ConnectError):
     """
 
 
-class DeprecatedError(AttributeError):
-    """
-    API is deprecated
-    """
-
-
 class FutureTimeoutError(TimeoutError):
     """
     Future timeout
+    """
+
+
+class DeprecatedError(AttributeError):
+    """
+    Deprecated
+    """
+
+
+class VersionError(AttributeError):
+    """
+    Version not match
     """

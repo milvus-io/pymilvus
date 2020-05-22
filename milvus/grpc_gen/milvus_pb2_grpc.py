@@ -70,6 +70,11 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.PartitionParam.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
+        self.HasPartition = channel.unary_unary(
+            '/milvus.grpc.MilvusService/HasPartition',
+            request_serializer=milvus__pb2.PartitionParam.SerializeToString,
+            response_deserializer=milvus__pb2.BoolReply.FromString,
+        )
         self.ShowPartitions = channel.unary_unary(
             '/milvus.grpc.MilvusService/ShowPartitions',
             request_serializer=milvus__pb2.CollectionName.SerializeToString,
@@ -85,10 +90,10 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.InsertParam.SerializeToString,
             response_deserializer=milvus__pb2.VectorIds.FromString,
         )
-        self.GetVectorByID = channel.unary_unary(
-            '/milvus.grpc.MilvusService/GetVectorByID',
-            request_serializer=milvus__pb2.VectorIdentity.SerializeToString,
-            response_deserializer=milvus__pb2.VectorData.FromString,
+        self.GetVectorsByID = channel.unary_unary(
+            '/milvus.grpc.MilvusService/GetVectorsByID',
+            request_serializer=milvus__pb2.VectorsIdentity.SerializeToString,
+            response_deserializer=milvus__pb2.VectorsData.FromString,
         )
         self.GetVectorIDs = channel.unary_unary(
             '/milvus.grpc.MilvusService/GetVectorIDs',
@@ -343,6 +348,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def HasPartition(self, request, context):
+        """*
+        @brief This method is used to test partition existence.
+
+        @param PartitionParam, target partition.
+
+        @return BoolReply
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def ShowPartitions(self, request, context):
         """*
         @brief This method is used to show partition information
@@ -379,13 +396,13 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GetVectorByID(self, request, context):
+    def GetVectorsByID(self, request, context):
         """*
-        @brief This method is used to get vector data by id.
+        @brief This method is used to get vectors data by id array.
 
-        @param VectorIdentity, target vector id.
+        @param VectorsIdentity, target vector id array.
 
-        @return VectorData
+        @return VectorsData
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -665,6 +682,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.PartitionParam.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
+        'HasPartition': grpc.unary_unary_rpc_method_handler(
+            servicer.HasPartition,
+            request_deserializer=milvus__pb2.PartitionParam.FromString,
+            response_serializer=milvus__pb2.BoolReply.SerializeToString,
+        ),
         'ShowPartitions': grpc.unary_unary_rpc_method_handler(
             servicer.ShowPartitions,
             request_deserializer=milvus__pb2.CollectionName.FromString,
@@ -680,10 +702,10 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.InsertParam.FromString,
             response_serializer=milvus__pb2.VectorIds.SerializeToString,
         ),
-        'GetVectorByID': grpc.unary_unary_rpc_method_handler(
-            servicer.GetVectorByID,
-            request_deserializer=milvus__pb2.VectorIdentity.FromString,
-            response_serializer=milvus__pb2.VectorData.SerializeToString,
+        'GetVectorsByID': grpc.unary_unary_rpc_method_handler(
+            servicer.GetVectorsByID,
+            request_deserializer=milvus__pb2.VectorsIdentity.FromString,
+            response_serializer=milvus__pb2.VectorsData.SerializeToString,
         ),
         'GetVectorIDs': grpc.unary_unary_rpc_method_handler(
             servicer.GetVectorIDs,

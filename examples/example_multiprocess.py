@@ -29,11 +29,10 @@ def _generate_vectors(_dim, _num):
 
 def prepare_collection(_collection_name):
     def _create_collection(_collection_param):
-        milvus = Milvus()
-        milvus.connect(**server_config)
+        milvus = Milvus(**server_config)
         status, ok = milvus.has_collection(_collection_name)
         if ok:
-            print("Table {} found, now going to delete it".format(_collection_name))
+            print("Collection {} found, now going to delete it".format(_collection_name))
             status = milvus.drop_collection(_collection_name)
             if not status.OK():
                 raise Exception("Delete collection error")
@@ -47,8 +46,7 @@ def prepare_collection(_collection_name):
         status = milvus.create_collection(param)
         if not status.OK():
             print("Create collection {} failed".format(_collection_name))
-
-        milvus.disconnect()
+        milvus.close()
 
     # generate a process to run func `_create_collection`. A exception will be raised if
     # func `_create_collection` run in main process
@@ -62,14 +60,14 @@ def multi_insert(_collection_name):
     process_list = []
 
     def _add():
-        milvus = Milvus()
-        status = milvus.connect(**server_config)
+        milvus = Milvus(**server_config)
 
         vectors = _generate_vectors(128, 10000)
         print('\n\tPID: {}, insert {} vectors'.format(os.getpid(), 10000))
-        status, _ = milvus.add_vectors(_collection_name, vectors)
-
-        milvus.disconnect()
+        status, _ = milvus.insert(_collection_name, vectors)
+        if not status.OK():
+            print("PID {} insert failed: {}".format(os.getpid(), status.message))
+        milvus.close()
 
     for i in range(10):
         p = Process(target=_add)
@@ -84,12 +82,15 @@ def multi_insert(_collection_name):
 
 
 def validate_insert(_collection_name):
-    milvus = Milvus()
-    milvus.connect(**server_config)
-
-    status, count = milvus.count_collection(_collection_name)
+    milvus = Milvus(**server_config)
+    milvus.flush([_collection_name])
+    status, count = milvus.count_entities(_collection_name)
     assert count == 10 * 10000, "Insert validate fail. Vectors num is not matched."
-    milvus.disconnect()
+
+    # drop collcetion
+    print("Drop collection ...")
+    milvus.drop_collection(_collection_name)
+    milvus.close()
 
 
 def main(_collection_name):

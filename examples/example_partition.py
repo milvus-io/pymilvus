@@ -22,16 +22,14 @@ def main():
     # You may need to change _HOST and _PORT accordingly
     param = {'host': _HOST, 'port': _PORT}
 
+    # You can create a instance specified server addr and
+    # invoke rpc method directly
     client = Milvus(**param)
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'demo_partition_collection'
     partition_tag = "random"
 
-    status, ok = client.has_collection(collection_name)
-    # if collection exists, then drop it
-    if status.OK() and ok:
-        client.drop_collection(collection_name)
-
+    # create collection
     param = {
         'collection_name': collection_name,
         'dimension': _DIM,
@@ -42,16 +40,16 @@ def main():
     client.create_collection(param)
 
     # Show collections in Milvus server
-    _, collections = client.show_collections()
+    _, collections = client.list_collections()
 
     # Describe collection
-    _, collection = client.describe_collection(collection_name)
+    _, collection = client.get_collection_info(collection_name)
     print(collection)
 
     # create partition
     client.create_partition(collection_name, partition_tag=partition_tag)
     # display partitions
-    _, partitions = client.show_partitions(collection_name)
+    _, partitions = client.list_partitions(collection_name)
 
     # 10000 vectors with 16 dimension
     # element per dimension is float32 type
@@ -67,7 +65,7 @@ def main():
     time.sleep(6)
 
     # Get demo_collection row count
-    status, num = client.count_collection(collection_name)
+    status, num = client.count_entities(collection_name)
 
     # create index of vectors, search more rapidly
     index_param = {
@@ -80,7 +78,7 @@ def main():
     status = client.create_index(collection_name, IndexType.IVF_FLAT, index_param)
 
     # describe index, get information of index
-    status, index = client.describe_index(collection_name)
+    status, index = client.get_index_info(collection_name)
     print(index)
 
     # Use the top 10 vectors for similarity search
@@ -112,15 +110,12 @@ def main():
     # print results
     print(results)
 
-    # Delete partition. You can also invoke `drop_collection()`, so that all of partitions belongs to
+    # Drop partition. You can also invoke `drop_collection()`, so that all of partitions belongs to
     # designated collections will be deleted.
-    # status = client.drop_partition(collection_name, partition_tag)
+    status = client.drop_partition(collection_name, partition_tag)
 
     # Delete collection. All of partitions of this collection will be dropped.
     status = client.drop_collection(collection_name)
-
-    # Disconnect from Milvus
-    # status = client.disconnect()
 
 
 if __name__ == '__main__':
