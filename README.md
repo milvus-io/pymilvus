@@ -37,6 +37,7 @@ For detailed SDK documentation, refer to [API Documentation](https://milvus-io.g
     - [Search vectors in a collection](#search-vectors-in-a-collection)
     - [Search vectors in a partition](#search-vectors-in-a-partition)
 - [Disconnect from the Milvus server](#disconnect-from-the-milvus-server)
+- [FAQ](#faq)
 
 <!-- /TOC -->
 
@@ -284,3 +285,9 @@ A segment is a data file that Milvus automatically creates by merging inserted v
 ```python
 >>> client.close()
 ```
+
+## FAQ
+
+> I'm getting random "socket operation on non-socket" errors from gRPC when connecting to Milvus from an application served on Gunicorn
+
+Make sure to set the environment variable `GRPC_ENABLE_FORK_SUPPORT=1`. For reference, see https://zhuanlan.zhihu.com/p/136619485
