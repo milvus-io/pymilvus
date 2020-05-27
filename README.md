@@ -280,7 +280,7 @@ A segment is a data file that Milvus automatically creates by merging inserted v
 
 > Note: If you do not specify `partition_tags`, Milvus searches the whole collection.
 
-## close client
+## Disconnect from the Milvus server
 
 ```python
 >>> client.close()
