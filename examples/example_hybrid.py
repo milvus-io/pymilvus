@@ -14,8 +14,8 @@ from milvus import DataType, RangeType
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
-# _HOST = '192.168.1.113'
-_HOST = '127.0.0.1'
+_HOST = '192.168.1.113'
+# _HOST = '127.0.0.1'
 _PORT = '19530'  # default value
 
 # Vector parameters
@@ -54,6 +54,7 @@ def main():
     print("Insert done. {}".format(status))
     status = milvus.flush([collection_name])
     print("Flush: {}".format(status))
+    time.sleep(3)
 
     query_hybrid = {
         "bool": {
@@ -82,12 +83,14 @@ def main():
 
     field_names = results.field_names()
     print("Field\t\tValue")
-    for r in results:
-        for rr in r:
+    for ri, r in enumerate(results):
+        for rri, rr in enumerate(r):
             for field in field_names:
-                print(f"{field}\t\t{rr.get(field)}")
+                print(f"[{ri}] [{rri}] {field}\t\t{rr.get(field)}")
 
+    print("Get entity by id")
     status, entities = milvus.get_hybrid_entity_by_id(collection_name, ids[:2])
+    print("Get entity done .")
 
 
 if __name__ == '__main__':

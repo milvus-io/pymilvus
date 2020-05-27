@@ -15,7 +15,8 @@ from milvus.client.abstract import TopKQueryResult
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
-_HOST = '127.0.0.1'
+# _HOST = '127.0.0.1'
+_HOST = '192.168.1.113'
 _PORT = '19530'  # default value
 # _PORT = '19121'  # default http value
 
