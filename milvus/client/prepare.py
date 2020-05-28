@@ -82,6 +82,10 @@ class Prepare:
         return _param
 
     @classmethod
+    def reload_param(cls, collection_name, segment_ids):
+        return grpc_types.ReLoadSegmentsParam(collection_name=collection_name, segment_id_array=segment_ids)
+
+    @classmethod
     def insert_param(cls, collection_name, vectors, partition_tag, ids=None, params=None, **kwargs):
         if ids is None:
             _param = grpc_types.InsertParam(collection_name=collection_name, partition_tag=partition_tag)

@@ -1,5 +1,8 @@
 # pymilvus 0.2.12(TBD)
 
+## New Feature
+- \#213 - Add new API called 'reload_segments' temporarily
+
 
 # pymilvus 0.2.11(2020-05-15)
 

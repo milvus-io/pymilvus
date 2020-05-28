@@ -360,6 +360,12 @@ class Milvus:
             return handler.preload_collection(collection_name, timeout)
 
     @check_connect
+    def reload_segments(self, collection_name, segment_ids):
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.reload_segments(collection_name, segment_ids)
+
+    @check_connect
     def drop_collection(self, collection_name, timeout=10):
         """
         Deletes a collection by name.

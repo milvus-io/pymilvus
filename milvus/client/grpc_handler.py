@@ -131,7 +131,7 @@ class GrpcHandler(ConnectIntf):
 
     def _setup(self, host, port, uri, pre_ping=False):
         """
-        Create a grpc channel and a stub
+        Create a grpc channel and a stue
 
         :raises: NotConnectError
 
@@ -418,6 +418,13 @@ class GrpcHandler(ConnectIntf):
 
         collection_name = Prepare.collection_name(collection_name)
         status = self._stub.PreloadCollection.future(collection_name).result(timeout=timeout)
+        return Status(code=status.error_code, message=status.reason)
+
+    @error_handler()
+    def reload_segments(self, collection_name, segment_ids, timeout=10):
+        file_ids = list(map(int_or_str, segment_ids))
+        request = Prepare.reload_param(collection_name, file_ids)
+        status = self._stub.ReloadSegments.future(request).result(timeout=timeout)
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
