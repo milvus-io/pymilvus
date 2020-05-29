@@ -2,7 +2,6 @@ import abc
 import threading
 
 from .abstract import TopKQueryResult
-from .exceptions import FutureTimeoutError
 from .types import Status
 
 
@@ -43,6 +42,7 @@ class Future(AbstractFuture):
         self._canceled = False
         self._done = False
         self._response = None
+        self._results = None
         self._exception = None
 
         self.__init()
@@ -73,12 +73,12 @@ class Future(AbstractFuture):
                 # If user specify done callback function, execute it.
                 try:
                     self._response = future.result()
+                    self._results = self.on_response(self._response)
                     if self._done_cb:
-                        results = self.on_response(self._response)
-                        if isinstance(results, tuple):
-                            self._done_cb(*self.on_response(self._response))
+                        if isinstance(self._results, tuple):
+                            self._done_cb(*self._results)
                         else:
-                            self._done_cb(self.on_response(self._response))
+                            self._done_cb(self._results)
                 except Exception as e:
                     self._exception = e
                 finally:
@@ -92,7 +92,8 @@ class Future(AbstractFuture):
         with self._condition:
             # future not finished. wait callback being called.
             to = kwargs.get("timeout", None)
-            self._response = self._future.result(timeout=to)
+            if not self._future.done() or not self._response:
+                self._response = self._future.result(timeout=to)
             # if not self._done and not self._canceled:
             #     to = kwargs.get("timeout", None)
             #     self._condition.wait(to)
@@ -107,7 +108,10 @@ class Future(AbstractFuture):
             # just return response object received from gRPC
             return self._response
 
-        return self.on_response(self._response)
+        if self._results:
+            return self._results
+        else:
+            return self.on_response(self._response)
 
     def cancel(self):
         with self._condition:

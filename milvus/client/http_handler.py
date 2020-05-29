@@ -131,11 +131,23 @@ class HttpHandler(ConnectIntf):
     def status(self):
         return self._status
 
-    def ping(self, timeout=1):
+    def ping(self, max_retry=3, timeout=1):
+        if self._uri is None:
+            self._uri = self._set_uri(None, None)
+        retry = max_retry
+
+        response = None
         try:
-            if self._uri is None:
-                self._uri = self._set_uri(None, None)
-            response = rq.get(self._uri + "/state", timeout=timeout)
+            while retry > 0:
+                try:
+                    response = rq.get(self._uri + "/state", timeout=timeout)
+                    return True
+                except:
+                    retry -= 1
+                    if retry > 0:
+                        continue
+                    else:
+                        raise
         except:
             raise NotConnectError("Cannot get server status")
         try:

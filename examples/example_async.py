@@ -4,14 +4,9 @@
 # and execute a vector similarity search.
 import datetime
 import sys
-
-sys.path.append(".")
-from functools import partial
 import random
-import threading
 import time
-from milvus import Milvus, IndexType, MetricType, Status
-from milvus.client.abstract import TopKQueryResult
+from milvus import Milvus, IndexType, MetricType
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
@@ -71,7 +66,6 @@ def main():
     # Or invoke result() to get results:
     #   insert_future = milvus.insert(collection_name=collection_name, records=vectors, _async=True)
     #   status, ids = insert_future.result()
-
     insert_future.done()
 
     # Flush collection  inserted data to disk.
