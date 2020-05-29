@@ -1,4 +1,10 @@
-# pymilvus 0.2.12(TBD)
+# pymilvus 0.2.12(2020-05-29)
+
+## Bug
+- \215 - Fix 'ping() got an unexpected keyword argument 'max_retry' when using http handler'
+
+## Improvement
+- \#216 Optimize checking matched version behavior
 
 
 # pymilvus 0.2.11(2020-05-15)

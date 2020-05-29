@@ -6,7 +6,7 @@
 
 Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code to this project, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md) first.
 
-For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.11/index.html).
+For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.12/index.html).
 
 
 <!-- TOC -->
@@ -70,12 +70,13 @@ The following collection shows Milvus versions and recommended pymilvus versions
 | 0.7.1 | 0.2.9 |
 | 0.8.0 | 0.2.10 |
 | 0.9.0 | 0.2.11 |
+| 0.9.1 | 0.2.12 |
 
 
 You can install a specific version of pymilvus by:
 
 ```shell
-$ pip install pymilvus==0.2.11
+$ pip install pymilvus==0.2.12
 ```
 
 You can upgrade `pymilvus` to the latest version by:

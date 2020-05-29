@@ -10,7 +10,13 @@ from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
 
-support_versions = ('0.9.0', '0.9.1', '0.10.0')
+support_versions = '0.9.x'
+
+
+def _is_version_match(version):
+    version_prefix = version.split(".")
+    support_version_prefix = support_versions.split(".")
+    return version_prefix[0] == support_version_prefix[0] and version_prefix[1] == support_version_prefix[1]
 
 
 class Duration:
@@ -93,9 +99,9 @@ class ConnectionPool:
             status, version = conn.client().server_version(timeout=1)
             if not status.OK():
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
-            if version not in support_versions:
+            if not _is_version_match(version):
                 raise VersionError(
-                    "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
+                    "Version of python SDK(v{}) not match that of server v{}, excepted is v{}".format(__version__,
                                                                                                   version,
                                                                                                   support_versions))
         conn.close()
