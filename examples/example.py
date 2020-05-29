@@ -3,18 +3,10 @@
 # insert 10 vectors, 
 # and execute a vector similarity search.
 
-import datetime
-import sys
-
-sys.path.append(".")
 import random
-import threading
-import time
-
 import numpy as np
 
 from milvus import Milvus, IndexType, MetricType, Status
-from milvus.client.abstract import TopKQueryResult
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
@@ -60,10 +52,12 @@ def main():
     # vectors should be a 2-D array
     vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
     # You can also use numpy to generate random vectors:
-    #    vectors = np.random.rand(10000, _DIM).astype(np.float32)
+    #   vectors = np.random.rand(10000, _DIM).astype(np.float32)
 
     # Insert vectors into demo_collection, return status and vectors id list
     status, ids = milvus.insert(collection_name=collection_name, records=vectors)
+    # if not status.OK():
+    #     print("Insert failed: {}".format(status))
 
     # Flush collection  inserted data to disk.
     milvus.flush([collection_name])

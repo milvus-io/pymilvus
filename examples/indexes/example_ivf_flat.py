@@ -8,7 +8,6 @@ if __name__ == '__main__':
     collection_name = "milvus_demo_ivf_flat"
 
     client = Milvus()
-    client.connect()
 
     # create collection: dimension is 128, metric type is L2
     gen_collection(client, collection_name, 128, MetricType.L2)
@@ -49,5 +48,4 @@ if __name__ == '__main__':
     # drop collection
     client.drop_collection(collection_name)
 
-    # disconnect from server
-    # client.disconnect()
+    client.close()
