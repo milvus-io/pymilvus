@@ -1,3 +1,9 @@
+# pymilvus 0.3.0(TBD)
+
+## New Feature
+- \#220 -  Add sdk statistics badges
+
+
 # pymilvus 0.2.12(2020-05-29)
 
 ## Bug
