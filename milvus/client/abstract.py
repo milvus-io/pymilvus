@@ -138,6 +138,12 @@ class TopKQueryResult:
         """
         self._nq = _raw.row_num
 
+        if self._nq == 0:
+            return
+
+        self._id_array = [list() for _ in range(self._nq)]
+        self._dis_array = [list() for _ in range(self._nq)]
+
         id_list = list(_raw.ids)
         dis_list = list(_raw.distances)
         if len(id_list) != len(dis_list):
@@ -148,14 +154,14 @@ class TopKQueryResult:
         if col == 0:
             return
 
-        for i in range(0, len(id_list), col):
+        for si, i in enumerate(range(0, len(id_list), col)):
             k = i + col
             for j in range(i, i + col):
                 if id_list[j] == -1:
                     k = j
                     break
-            self._id_array.append(id_list[i: k])
-            self._dis_array.append(dis_list[i: k])
+            self._id_array[si].extend(id_list[i: k])
+            self._dis_array[si].extend(dis_list[i: k])
 
         if len(self._id_array) != self._nq or \
                 len(self._dis_array) != self._nq:
