@@ -34,7 +34,7 @@ class Duration:
 
 
 class ConnectionRecord:
-    def __init__(self, uri, handler="GRPC", conn_id=-1, pre_ping=False, **kwargs):
+    def __init__(self, uri, handler="GRPC", conn_id=-1, pre_ping=True, **kwargs):
         '''
         @param uri server uri
         @param recycle int, time period to recycle connection.

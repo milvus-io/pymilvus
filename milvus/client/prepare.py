@@ -2,6 +2,8 @@ import copy
 import struct
 import ujson
 
+from .exceptions import ParamError
+
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 
@@ -196,7 +198,7 @@ class Prepare:
         return search_param
 
     @classmethod
-    def search_hybrid_param(cls, collection_name, query_entities, partition_tags, params):
+    def search_hybrid_pb_param(cls, collection_name, query_entities, partition_tags, params):
 
         def term_query(node):
             if len(node) > 1:
@@ -315,7 +317,7 @@ class Prepare:
             #         bq = grpc_types.BooleanQuery(occur=BoolOccurMap[k])
             #         vqq.general_query.append(grpc_types.GeneralQuery(boolean_query=bq))
 
-        _param = grpc_types.HSearchParam(
+        _param = grpc_types.HSearchParamPB(
             collection_name=collection_name,
             partition_tag_array=partition_tags
         )
@@ -334,6 +336,53 @@ class Prepare:
         # _param.extra_params.add(key="params", value=params_str)
 
         return _param
+
+    @classmethod
+    def search_hybrid_param(cls, collection_name, vector_params, dsl, partition_tags, params):
+        # def replace_range_item(d):
+        #     if not isinstance(d, dict):
+        #         return
+        #
+        #     if "range" not in d:
+        #         for ki, vi in d.itmes():
+        #             replace_range_item(vi)
+        #     else:
+        #         range = d["range"]
+        #         for ki, vi in range.itmes():
+        #             ranges = vi["values"]
+        #             for kii, vii in ranges.items():
+        #                 ranges.pop(kii)
+        #                 ranges[int(kii)] = vii
+        #         return
+
+        # dsl_out = copy.deepcopy(dsl)
+        # replace_range_item(dsl_out)
+
+        dsl_str = dsl if isinstance(dsl, str) else ujson.dumps(dsl)
+        hybrid_param = grpc_types.HSearchParam(collection_name=collection_name,
+                                               partition_tag_array=partition_tags or [],
+                                               dsl=dsl_str)
+
+        for v_p in vector_params:
+            if "vector" not in v_p:
+                raise ParamError("Vector param must contains key \'vector\'")
+            # TODO: may need to copy vector_params
+            query_vectors = v_p.pop("vector")
+            json_ = ujson.dumps(v_p)
+
+            vector_param = grpc_types.VectorParam(json=json_)
+            for vector in query_vectors:
+                if isinstance(vector, bytes):
+                    vector_param.row_record.add(binary_data=vector)
+                else:
+                    vector_param.row_record.add(float_data=vector)
+            hybrid_param.vector_param.append(vector_param)
+
+        _params = params or dict()
+        for k, v in _params.items():
+            hybrid_param.extra_params.add(key=k, value=ujson.dumps(v))
+
+        return hybrid_param
 
     @classmethod
     def search_by_ids_param(cls, collection_name, ids, top_k, partition_tag_array, params):

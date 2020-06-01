@@ -657,9 +657,14 @@ class Milvus:
             return handler.search(collection_name, top_k, query_records, partition_tags, params, timeout, **kwargs)
 
     @check_connect
-    def search_hybrid(self, collection_name, query_entities, partition_tags=None, params=None, **kwargs):
+    def search_hybrid_pb(self, collection_name, query_entities, partition_tags=None, params=None, **kwargs):
         with self._connection() as handler:
-            return handler.search_hybrid(collection_name, query_entities, partition_tags, params, **kwargs)
+            return handler.search_hybrid_pb(collection_name, query_entities, partition_tags, params, **kwargs)
+
+    @check_connect
+    def search_hybrid(self, collection_name, vector_params, dsl, partition_tags=None, params=None, **kwargs):
+        with self._connection() as handler:
+            return handler.search_hybrid(collection_name, vector_params, dsl, partition_tags, params, **kwargs)
 
     @check_connect
     def search_in_segment(self, collection_name, file_ids, query_records, top_k, params=None, timeout=None, **kwargs):

@@ -190,10 +190,15 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.HInsertParam.SerializeToString,
             response_deserializer=milvus__pb2.HEntityIDs.FromString,
         )
+        self.HybridSearchPB = channel.unary_unary(
+            '/milvus.grpc.MilvusService/HybridSearchPB',
+            request_serializer=milvus__pb2.HSearchParamPB.SerializeToString,
+            response_deserializer=milvus__pb2.HQueryResult.FromString,
+        )
         self.HybridSearch = channel.unary_unary(
             '/milvus.grpc.MilvusService/HybridSearch',
             request_serializer=milvus__pb2.HSearchParam.SerializeToString,
-            response_deserializer=milvus__pb2.TopKQueryResult.FromString,
+            response_deserializer=milvus__pb2.HQueryResult.FromString,
         )
         self.HybridSearchInSegments = channel.unary_unary(
             '/milvus.grpc.MilvusService/HybridSearchInSegments',
@@ -202,7 +207,7 @@ class MilvusServiceStub(object):
         )
         self.GetEntityByID = channel.unary_unary(
             '/milvus.grpc.MilvusService/GetEntityByID',
-            request_serializer=milvus__pb2.HEntityIdentity.SerializeToString,
+            request_serializer=milvus__pb2.VectorsIdentity.SerializeToString,
             response_deserializer=milvus__pb2.HEntity.FromString,
         )
         self.GetEntityIDs = channel.unary_unary(
@@ -606,9 +611,16 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def HybridSearchPB(self, request, context):
+        # missing associated documentation comment in .proto file
+        pass
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def HybridSearch(self, request, context):
-        """TODO(yukun): will change to HQueryResult
-        """
+        # missing associated documentation comment in .proto file
+        pass
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -819,10 +831,15 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.HInsertParam.FromString,
             response_serializer=milvus__pb2.HEntityIDs.SerializeToString,
         ),
+        'HybridSearchPB': grpc.unary_unary_rpc_method_handler(
+            servicer.HybridSearchPB,
+            request_deserializer=milvus__pb2.HSearchParamPB.FromString,
+            response_serializer=milvus__pb2.HQueryResult.SerializeToString,
+        ),
         'HybridSearch': grpc.unary_unary_rpc_method_handler(
             servicer.HybridSearch,
             request_deserializer=milvus__pb2.HSearchParam.FromString,
-            response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
+            response_serializer=milvus__pb2.HQueryResult.SerializeToString,
         ),
         'HybridSearchInSegments': grpc.unary_unary_rpc_method_handler(
             servicer.HybridSearchInSegments,
@@ -831,7 +848,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         ),
         'GetEntityByID': grpc.unary_unary_rpc_method_handler(
             servicer.GetEntityByID,
-            request_deserializer=milvus__pb2.HEntityIdentity.FromString,
+            request_deserializer=milvus__pb2.VectorsIdentity.FromString,
             response_serializer=milvus__pb2.HEntity.SerializeToString,
         ),
         'GetEntityIDs': grpc.unary_unary_rpc_method_handler(
