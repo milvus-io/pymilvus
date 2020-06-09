@@ -131,7 +131,7 @@ class HttpHandler(ConnectIntf):
     def status(self):
         return self._status
 
-    def ping(self, timeout=1):
+    def ping(self, max_retry=3, timeout=1):
         try:
             if self._uri is None:
                 self._uri = self._set_uri(None, None)
@@ -376,6 +376,10 @@ class HttpHandler(ConnectIntf):
         return Status(code=js["code"], message=js["message"])
 
     @handle_error()
+    def reload_segments(self, collection_name, segment_ids, timeout=10):
+        raise NotImplementedError("Not implemented in http server")
+
+    @handle_error()
     def drop_collection(self, table_name, timeout):
         url = self._uri + "/collections/" + table_name
         response = rq.delete(url, timeout=timeout)
@@ -435,10 +439,15 @@ class HttpHandler(ConnectIntf):
             if not list(vectors):
                 return Status(), []
 
-            vector = list(vectors[0]["vector"])
-            if bin_vector:
-                return Status(), bytes(vector)
-            return Status(), vector
+            vector_results = []
+            for vector_res in vectors:
+                vector = list(vector_res["vector"])
+                if bin_vector:
+                    vector_results.append(bytes(vector))
+                else:
+                    vector_results.append(vector)
+                    # return Status(),
+            return Status(), vector_results
 
         return Status(result["code"], result["message"]), None
 

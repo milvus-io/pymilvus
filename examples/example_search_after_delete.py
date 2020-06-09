@@ -6,7 +6,7 @@ from milvus import *
 if __name__ == '__main__':
     collection_name_ = "test_collection_search_after_delete_11"
 
-    client = Milvus(host="192.168.1.57", port=19535)
+    client = Milvus(host="192.168.1.57", port=19531)
     client.create_collection({"collection_name": collection_name_, "dimension": 128})
 
     del_vecs = []

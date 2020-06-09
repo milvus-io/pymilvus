@@ -18,6 +18,10 @@ class TestGetVectorByID:
 
         status, vec = gcon.get_entity_by_id(gcollection, ids_out[0:10])
         assert status.OK()
+        assert len(vec) == 10
+
+        for v in vec:
+            assert len(v) == 128
 
     @pytest.mark.parametrize("v_id", [None, "", [], {"a": 1}, (1, 2)])
     def test_get_entity_by_id_invalid_id(self, v_id, gcon):
