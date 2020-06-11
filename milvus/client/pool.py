@@ -78,7 +78,7 @@ class ConnectionRecord:
 
 
 class ConnectionPool:
-    def __init__(self, uri, pool_size=10, wait_timeout=10, try_connect=True, **kwargs):
+    def __init__(self, uri, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
         # Asynchronous queue to store connection
         self._pool = queue.Queue(maxsize=pool_size)
         self._uri = uri
@@ -106,7 +106,7 @@ class ConnectionPool:
                 # LOGGER.debug("Try connect server {}".format(self._uri))
                 conn.client().ping()
 
-            status, version = conn.client().server_version(timeout=10)
+            status, version = conn.client().server_version(timeout=30)
             if not status.OK():
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
             if not _is_version_match(version):
@@ -204,7 +204,7 @@ class ConnectionPool:
 
 
 class SingleConnectionPool:
-    def __init__(self, uri, pool_size=10, wait_timeout=10, try_connect=True, **kwargs):
+    def __init__(self, uri, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
         # Asynchronous queue to store connection
         self._uri = uri
         self._conn = None
@@ -229,7 +229,7 @@ class SingleConnectionPool:
             if self._try_connect:
                 self._conn.client().ping()
 
-            status, version = self._conn.client().server_version(timeout=10)
+            status, version = self._conn.client().server_version(timeout=30)
             if not status.OK():
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
             if not _is_version_match(version):

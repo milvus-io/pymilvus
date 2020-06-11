@@ -197,7 +197,7 @@ class GrpcHandler(ConnectIntf):
 
             self._search_file_hook = _search_file_hook
 
-    def ping(self, timeout=10):
+    def ping(self, timeout=30):
         ft = grpc.channel_ready_future(self._channel)
         retry = self._max_retry
         try:
@@ -229,7 +229,7 @@ class GrpcHandler(ConnectIntf):
         """
         return self._uri
 
-    def server_version(self, timeout=10):
+    def server_version(self, timeout=30):
         """
         Provide server version
 
@@ -242,7 +242,7 @@ class GrpcHandler(ConnectIntf):
         """
         return self._cmd(cmd='version', timeout=timeout)
 
-    def server_status(self, timeout=10):
+    def server_status(self, timeout=30):
         """
         Provide server status
 
@@ -256,7 +256,7 @@ class GrpcHandler(ConnectIntf):
         return self._cmd(cmd='status', timeout=timeout)
 
     @error_handler(None)
-    def _cmd(self, cmd, timeout=10):
+    def _cmd(self, cmd, timeout=30):
         cmd = Prepare.cmd(cmd)
         rf = self._stub.Cmd.future(cmd, wait_for_ready=True, timeout=timeout)
         # rf = self._stub.Cmd.future(cmd, metadata=(('request_id', str(self._get_request_id())),), wait_for_ready=True, timeout=timeout)
@@ -268,7 +268,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.status.error_code, message=response.status.reason), None
 
     @error_handler()
-    def create_collection(self, collection_name, dimension, index_file_size, metric_type, param, timeout=10):
+    def create_collection(self, collection_name, dimension, index_file_size, metric_type, param, timeout=30):
         """
         Create collection
 
@@ -302,7 +302,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def create_hybrid_collection(self, collection_name, fields, timeout=10):
+    def create_hybrid_collection(self, collection_name, fields, timeout=30):
         collection_schema = Prepare.collection_hybrid_schema(collection_name, fields)
         response = self._stub.CreateHybridCollection(collection_schema)
         if response.error_code == 0:
@@ -311,7 +311,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler(False)
-    def has_collection(self, collection_name, timeout=10, **kwargs):
+    def has_collection(self, collection_name, timeout=30, **kwargs):
         """
 
         This method is used to test collection existence.
@@ -338,7 +338,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=reply.status.error_code, message=reply.status.reason), False
 
     @error_handler(None)
-    def describe_collection(self, collection_name, timeout=10, **kwargs):
+    def describe_collection(self, collection_name, timeout=30, **kwargs):
         """
         Show collection information
 
@@ -392,7 +392,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.status.error_code, message=response.status.reason), None
 
     @error_handler([])
-    def show_collections(self, timeout=10):
+    def show_collections(self, timeout=30):
         """
         Show all collections information in database
 
@@ -415,7 +415,7 @@ class GrpcHandler(ConnectIntf):
         return Status(response.status.error_code, message=response.status.reason), []
 
     @error_handler(None)
-    def show_collection_info(self, collection_name, timeout=10):
+    def show_collection_info(self, collection_name, timeout=30):
         request = grpc_types.CollectionName(collection_name=collection_name)
 
         rf = self._stub.ShowCollectionInfo.future(request, wait_for_ready=True, timeout=timeout)
@@ -446,7 +446,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def reload_segments(self, collection_name, segment_ids, timeout=10):
+    def reload_segments(self, collection_name, segment_ids, timeout=30):
         file_ids = list(map(int_or_str, segment_ids))
         request = Prepare.reload_param(collection_name, file_ids)
         status = self._stub.ReloadSegments.future(request, wait_for_ready=True, timeout=timeout).result()
@@ -537,7 +537,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason), []
 
     @error_handler([])
-    def get_vectors_by_ids(self, collection_name, ids, timeout=10):
+    def get_vectors_by_ids(self, collection_name, ids, timeout=30):
         request = grpc_types.VectorsIdentity(collection_name=collection_name, id_array=ids)
 
         rf = self._stub.GetVectorsByID.future(request, wait_for_ready=True, timeout=timeout)
@@ -564,7 +564,7 @@ class GrpcHandler(ConnectIntf):
         return Status(response.status.error_code, response.status.reason), []
 
     @error_handler([])
-    def get_vector_ids(self, collection_name, segment_name, timeout=10):
+    def get_vector_ids(self, collection_name, segment_name, timeout=30):
         request = grpc_types.GetVectorIDsParam(collection_name=collection_name, segment_name=segment_name)
 
         rf = self._stub.GetVectorIDs.future(request, wait_for_ready=True, timeout=timeout)
@@ -613,7 +613,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def describe_index(self, collection_name, timeout=10):
+    def describe_index(self, collection_name, timeout=30):
         """
         Show index information of designated collection
 
@@ -643,7 +643,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason), None
 
     @error_handler()
-    def drop_index(self, collection_name, timeout=10):
+    def drop_index(self, collection_name, timeout=30):
         """
         drop index from index file
 
@@ -664,7 +664,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
-    def create_partition(self, collection_name, partition_tag, timeout=10):
+    def create_partition(self, collection_name, partition_tag, timeout=30):
         """
         create a specific partition under designated collection. After done, the meta file in
         milvus server update partition information, you can perform actions about partitions
@@ -693,7 +693,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler(False)
-    def has_partition(self, collection_name, partition_tag, timeout=10):
+    def has_partition(self, collection_name, partition_tag, timeout=30):
         request = Prepare.partition_param(collection_name, partition_tag)
         rf = self._stub.HasPartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
@@ -702,7 +702,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason), response.bool_reply
 
     @error_handler([])
-    def show_partitions(self, collection_name, timeout=10):
+    def show_partitions(self, collection_name, timeout=30):
         """
         Show all partitions under designated collection.
 
@@ -731,7 +731,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason), []
 
     @error_handler()
-    def drop_partition(self, collection_name, partition_tag, timeout=10):
+    def drop_partition(self, collection_name, partition_tag, timeout=30):
         """
         Drop specific partition under designated collection.
 

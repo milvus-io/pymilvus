@@ -85,7 +85,8 @@ class Milvus:
         _uri = kwargs.get('uri', None)
         pool_uri = _set_uri(host, port, _uri, self._handler)
         pool_kwargs = _pool_args(handler=handler, **kwargs)
-        self._pool = SingleConnectionPool(pool_uri, **pool_kwargs)
+        # self._pool = SingleConnectionPool(pool_uri, **pool_kwargs)
+        self._pool = ConnectionPool(pool_uri, **pool_kwargs)
         # store extra key-words arguments
         self._kw = kwargs
         self._hooks = collections.defaultdict()
@@ -170,7 +171,7 @@ class Milvus:
         """
         return __version__
 
-    def server_status(self, timeout=10):
+    def server_status(self, timeout=30):
         """
         Returns the status of the Milvus server.
 
@@ -183,7 +184,7 @@ class Milvus:
         """
         return self._cmd("status", timeout)
 
-    def server_version(self, timeout=10):
+    def server_version(self, timeout=30):
         """
         Returns the version of the Milvus server.
 
@@ -198,14 +199,14 @@ class Milvus:
         return self._cmd("version", timeout)
 
     @check_connect
-    def _cmd(self, cmd, timeout=10):
+    def _cmd(self, cmd, timeout=30):
         check_pass_param(cmd=cmd)
 
         with self._connection() as handler:
             return handler._cmd(cmd, timeout)
 
     @check_connect
-    def create_collection(self, param, timeout=10):
+    def create_collection(self, param, timeout=30):
         """
         Creates a collection.
 
@@ -253,12 +254,12 @@ class Milvus:
             return handler.create_collection(collection_name, dim, index_file_size, metric_type, collection_param, timeout)
 
     @check_connect
-    def create_hybrid_collection(self, collection_name, fields, timeout=10):
+    def create_hybrid_collection(self, collection_name, fields, timeout=30):
         with self._connection() as handler:
             return handler.create_hybrid_collection(collection_name, fields, timeout)
 
     @check_connect
-    def has_collection(self, collection_name, timeout=10):
+    def has_collection(self, collection_name, timeout=30):
         """
 
         Checks whether a collection exists.
@@ -278,7 +279,7 @@ class Milvus:
             return handler.has_collection(collection_name, timeout)
 
     @check_connect
-    def get_collection_info(self, collection_name, timeout=10):
+    def get_collection_info(self, collection_name, timeout=30):
         """
         Returns information of a collection.
 
@@ -296,7 +297,7 @@ class Milvus:
             return handler.describe_collection(collection_name, timeout)
 
     @check_connect
-    def count_entities(self, collection_name, timeout=10):
+    def count_entities(self, collection_name, timeout=30):
         """
         Returns the number of vectors in a collection.
 
@@ -313,7 +314,7 @@ class Milvus:
             return handler.count_collection(collection_name, timeout)
 
     @check_connect
-    def list_collections(self, timeout=10):
+    def list_collections(self, timeout=30):
         """
         Returns collection list.
 
@@ -329,7 +330,7 @@ class Milvus:
             return handler.show_collections(timeout)
 
     @check_connect
-    def get_collection_stats(self, collection_name, timeout=10):
+    def get_collection_stats(self, collection_name, timeout=30):
         """
         Returns collection statistics information
 
@@ -366,7 +367,7 @@ class Milvus:
             return handler.reload_segments(collection_name, segment_ids)
 
     @check_connect
-    def drop_collection(self, collection_name, timeout=10):
+    def drop_collection(self, collection_name, timeout=30):
         """
         Deletes a collection by name.
 
@@ -496,7 +497,7 @@ class Milvus:
             return handler.create_index(collection_name, _index_type, params, timeout, **kwargs)
 
     @check_connect
-    def get_index_info(self, collection_name, timeout=10):
+    def get_index_info(self, collection_name, timeout=30):
         """
         Show index information of a collection.
 
@@ -514,7 +515,7 @@ class Milvus:
             return handler.describe_index(collection_name, timeout)
 
     @check_connect
-    def drop_index(self, collection_name, timeout=10):
+    def drop_index(self, collection_name, timeout=30):
         """
         Removes an index.
 
@@ -532,7 +533,7 @@ class Milvus:
             return handler.drop_index(collection_name, timeout)
 
     @check_connect
-    def create_partition(self, collection_name, partition_tag, timeout=10):
+    def create_partition(self, collection_name, partition_tag, timeout=30):
         """
         create a partition for a collection. 
 
@@ -577,7 +578,7 @@ class Milvus:
             return handler.has_partition(collection_name, partition_tag)
 
     @check_connect
-    def list_partitions(self, collection_name, timeout=10):
+    def list_partitions(self, collection_name, timeout=30):
         """
         Show all partitions in a collection.
 
@@ -598,7 +599,7 @@ class Milvus:
             return handler.show_partitions(collection_name, timeout)
 
     @check_connect
-    def drop_partition(self, collection_name, partition_tag, timeout=10):
+    def drop_partition(self, collection_name, partition_tag, timeout=30):
         """
         Deletes a partition in a collection.
 
