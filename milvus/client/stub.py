@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from . import __version__
 from .types import IndexType, MetricType, Status
 from .check import check_pass_param, is_legal_host, is_legal_port
-from .pool import ConnectionPool
+from .pool import ConnectionPool, SingleConnectionPool
 from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from .exceptions import ParamError, NotConnectError, DeprecatedError
@@ -42,7 +42,7 @@ def check_connect(func):
 def _pool_args(**kwargs):
     pool_kwargs = dict()
     for k, v in kwargs.items():
-        if k in ("pool_size", "wait_timeout", "handler", "try_connect", "pre_ping"):
+        if k in ("pool_size", "wait_timeout", "handler", "try_connect", "pre_ping", "max_retry"):
             pool_kwargs[k] = v
 
     return pool_kwargs
@@ -85,7 +85,7 @@ class Milvus:
         _uri = kwargs.get('uri', None)
         pool_uri = _set_uri(host, port, _uri, self._handler)
         pool_kwargs = _pool_args(handler=handler, **kwargs)
-        self._pool = ConnectionPool(pool_uri, **pool_kwargs)
+        self._pool = SingleConnectionPool(pool_uri, **pool_kwargs)
         # store extra key-words arguments
         self._kw = kwargs
         self._hooks = collections.defaultdict()
@@ -250,7 +250,7 @@ class Milvus:
                          metric_type=metric_type)
 
         with self._connection() as handler:
-            return handler.create_collection(collection_name, dim, index_file_size, metric_type, collection_param)
+            return handler.create_collection(collection_name, dim, index_file_size, metric_type, collection_param, timeout)
 
     @check_connect
     def create_hybrid_collection(self, collection_name, fields, timeout=10):

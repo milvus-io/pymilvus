@@ -162,7 +162,7 @@ class TestCountCollection:
         assert not status.OK()
 
 
-class TestCollectinInfo:
+class TestCollectinStats:
     def test_get_collection_stats_normal(self, gcon, gvector):
         status, info = gcon.get_collection_stats(gvector)
         # import pdb;pdb.set_trace()

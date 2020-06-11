@@ -76,28 +76,28 @@ def set_uri(host, port, uri):
     return "{}:{}".format(str(_host), str(_port))
 
 
-def connect(addr, timeout):
-    channel = grpc.insecure_channel(
-        addr,
-        options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
-                 (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
-    )
-    try:
-        ft = grpc.channel_ready_future(channel)
-        ft.result(timeout=timeout)
-        return True
-    except grpc.FutureTimeoutError:
-        raise NotConnectError('Fail connecting to server on {}. Timeout'.format(addr))
-    except grpc.RpcError as e:
-        raise NotConnectError("Connect error: <{}>".format(e))
-    # Unexpected error
-    except Exception as e:
-        raise NotConnectError("Error occurred when trying to connect server:\n"
-                              "\t<{}>".format(str(e)))
-    finally:
-        ft.cancel()
-        ft.__del__()
-        channel.__del__()
+# def connect(addr, timeout):
+#     channel = grpc.insecure_channel(
+#         addr,
+#         options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
+#                  (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
+#     )
+#     try:
+#         ft = grpc.channel_ready_future(channel)
+#         ft.result(timeout=timeout)
+#         return True
+#     except grpc.FutureTimeoutError:
+#         raise NotConnectError('Fail connecting to server on {}. Timeout'.format(addr))
+#     except grpc.RpcError as e:
+#         raise NotConnectError("Connect error: <{}>".format(e))
+#     # Unexpected error
+#     except Exception as e:
+#         raise NotConnectError("Error occurred when trying to connect server:\n"
+#                               "\t<{}>".format(str(e)))
+#     finally:
+#         ft.cancel()
+#         ft.__del__()
+#         channel.__del__()
 
 
 class GrpcHandler(ConnectIntf):
@@ -108,6 +108,8 @@ class GrpcHandler(ConnectIntf):
         self.status = None
         self._connected = False
         self._pre_ping = pre_ping
+        # if self._pre_ping:
+        self._max_retry = kwargs.get("max_retry", 3)
 
         # client hook
         self._search_hook = SearchHook()
@@ -140,7 +142,9 @@ class GrpcHandler(ConnectIntf):
         self._channel = grpc.insecure_channel(
             self._uri,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
-                     (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
+                     (cygrpc.ChannelArgKey.max_receive_message_length, -1),
+                     (b'grpc.enable_retries', 1)]
+                     # (b'grpc.enable_http_proxy', 0)]
         )
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
         self.status = Status()
@@ -175,9 +179,9 @@ class GrpcHandler(ConnectIntf):
 
             self._search_file_hook = _search_file_hook
 
-    def ping(self, max_retry=3, timeout=2):
+    def ping(self, timeout=10):
         ft = grpc.channel_ready_future(self._channel)
-        retry = max_retry
+        retry = self._max_retry
         try:
             while retry > 0:
                 try:
@@ -185,9 +189,11 @@ class GrpcHandler(ConnectIntf):
                     return True
                 except:
                     retry -= 1
+                    LOGGER.debug("Retry connect addr <{}> {} times".format(self._uri, self._max_retry - retry))
                     if retry > 0:
                         continue
                     else:
+                        LOGGER.error("Retry to connect server {} failed.".format(self._uri))
                         raise
         except grpc.FutureTimeoutError:
             raise NotConnectError('Fail connecting to server on {}. Timeout'.format(self._uri))
@@ -234,8 +240,8 @@ class GrpcHandler(ConnectIntf):
     @error_handler(None)
     def _cmd(self, cmd, timeout=10):
         cmd = Prepare.cmd(cmd)
-        rf = self._stub.Cmd.future(cmd)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.Cmd.future(cmd, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
         if response.status.error_code == 0:
             return Status(message='Success!'), response.string_reply
@@ -267,8 +273,8 @@ class GrpcHandler(ConnectIntf):
 
         collection_schema = Prepare.collection_schema(collection_name, dimension, index_file_size, metric_type, param)
 
-        rf = self._stub.CreateCollection.future(collection_schema)
-        status = rf.result(timeout=timeout)
+        rf = self._stub.CreateCollection.future(collection_schema, wait_for_ready=True, timeout=timeout)
+        status = rf.result()
         rf.__del__()
         if status.error_code == 0:
             return Status(message='Create collection successfully!')
@@ -304,8 +310,8 @@ class GrpcHandler(ConnectIntf):
 
         collection_name = Prepare.collection_name(collection_name)
 
-        rf = self._stub.HasCollection.future(collection_name)
-        reply = rf.result(timeout=timeout)
+        rf = self._stub.HasCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
+        reply = rf.result()
         rf.__del__()
         if reply.status.error_code == 0:
             return Status(), reply.bool_reply
@@ -326,8 +332,8 @@ class GrpcHandler(ConnectIntf):
         :rtype: (Status, TableSchema)
         """
         collection_name = Prepare.collection_name(collection_name)
-        rf = self._stub.DescribeCollection.future(collection_name)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.DescribeCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
 
         if response.status.error_code == 0:
@@ -358,8 +364,8 @@ class GrpcHandler(ConnectIntf):
 
         collection_name = Prepare.collection_name(collection_name)
 
-        rf = self._stub.CountCollection.future(collection_name)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.CountCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
         if response.status.error_code == 0:
             return Status(message='Success!'), response.collection_row_count
@@ -381,8 +387,8 @@ class GrpcHandler(ConnectIntf):
         """
 
         cmd = Prepare.cmd('show_collections')
-        rf = self._stub.ShowCollections.future(cmd)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.ShowCollections.future(cmd, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
         if response.status.error_code == 0:
             return Status(message='Show collections successfully!'), \
@@ -393,8 +399,8 @@ class GrpcHandler(ConnectIntf):
     def show_collection_info(self, collection_name, timeout=10):
         request = grpc_types.CollectionName(collection_name=collection_name)
 
-        rf = self._stub.ShowCollectionInfo.future(request)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.ShowCollectionInfo.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
         rpc_status = response.status
 
@@ -417,14 +423,14 @@ class GrpcHandler(ConnectIntf):
         """
 
         collection_name = Prepare.collection_name(collection_name)
-        status = self._stub.PreloadCollection.future(collection_name).result(timeout=timeout)
+        status = self._stub.PreloadCollection.future(collection_name, wait_for_ready=True, timeout=timeout).result()
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
     def reload_segments(self, collection_name, segment_ids, timeout=10):
         file_ids = list(map(int_or_str, segment_ids))
         request = Prepare.reload_param(collection_name, file_ids)
-        status = self._stub.ReloadSegments.future(request).result(timeout=timeout)
+        status = self._stub.ReloadSegments.future(request, wait_for_ready=True, timeout=timeout).result()
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
@@ -441,8 +447,8 @@ class GrpcHandler(ConnectIntf):
 
         collection_name = Prepare.collection_name(collection_name)
 
-        rf = self._stub.DropCollection.future(collection_name)
-        status = rf.result(timeout=timeout)
+        rf = self._stub.DropCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
+        status = rf.result()
         rf.__del__()
         if status.error_code == 0:
             return Status(message='Delete collection successfully!')
@@ -490,12 +496,12 @@ class GrpcHandler(ConnectIntf):
         body = insert_param if insert_param \
             else Prepare.insert_param(collection_name, records, partition_tag, ids, params)
 
-        rf = self._stub.Insert.future(body, timeout=timeout)
+        rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
         if kwargs.get("_async", False) is True:
             cb = kwargs.get("_callback", None)
             return InsertFuture(rf, cb)
 
-        response = rf.result(timeout=timeout)
+        response = rf.result()
         rf.__del__()
         if response.status.error_code == 0:
             return Status(message='Add vectors successfully!'), list(response.vector_id_array)
@@ -515,8 +521,8 @@ class GrpcHandler(ConnectIntf):
     def get_vectors_by_ids(self, collection_name, ids, timeout=10):
         request = grpc_types.VectorsIdentity(collection_name=collection_name, id_array=ids)
 
-        rf = self._stub.GetVectorsByID.future(request)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.GetVectorsByID.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
         status = response.status
         if status.error_code == 0:
@@ -542,8 +548,8 @@ class GrpcHandler(ConnectIntf):
     def get_vector_ids(self, collection_name, segment_name, timeout=10):
         request = grpc_types.GetVectorIDsParam(collection_name=collection_name, segment_name=segment_name)
 
-        rf = self._stub.GetVectorIDs.future(request)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.GetVectorIDs.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
 
         if response.status.error_code == 0:
@@ -576,11 +582,11 @@ class GrpcHandler(ConnectIntf):
         """
         index_param = Prepare.index_param(collection_name, index_type, params)
         # status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
-        future = self._stub.CreateIndex.future(index_param, timeout=timeout)
+        future = self._stub.CreateIndex.future(index_param, wait_for_ready=True, timeout=timeout)
         if kwargs.get('_async', False):
             cb = kwargs.get("_callback", None)
             return CreateIndexFuture(future, cb)
-        status = future.result(timeout=timeout)
+        status = future.result()
         future.__del__()
 
         if status.error_code == 0:
@@ -603,8 +609,8 @@ class GrpcHandler(ConnectIntf):
 
         collection_name = Prepare.collection_name(collection_name)
 
-        rf = self._stub.DescribeIndex.future(collection_name)
-        index_param = rf.result(timeout=timeout)
+        rf = self._stub.DescribeIndex.future(collection_name, wait_for_ready=True, timeout=timeout)
+        index_param = rf.result()
         rf.__del__()
 
         status = index_param.status
@@ -632,8 +638,8 @@ class GrpcHandler(ConnectIntf):
         """
 
         collection_name = Prepare.collection_name(collection_name)
-        rf = self._stub.DropIndex.future(collection_name)
-        status = rf.result(timeout=timeout)
+        rf = self._stub.DropIndex.future(collection_name, wait_for_ready=True, timeout=timeout)
+        status = rf.result()
         rf.__del__()
         # status = self._stub.DropIndex.future(collection_name).result(timeout=timeout)
         return Status(code=status.error_code, message=status.reason)
@@ -662,16 +668,16 @@ class GrpcHandler(ConnectIntf):
 
         """
         request = Prepare.partition_param(collection_name, partition_tag)
-        rf = self._stub.CreatePartition.future(request)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.CreatePartition.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler(False)
     def has_partition(self, collection_name, partition_tag, timeout=10):
         request = Prepare.partition_param(collection_name, partition_tag)
-        rf = self._stub.HasPartition.future(request)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.HasPartition.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
         status = response.status
         return Status(code=status.error_code, message=status.reason), response.bool_reply
@@ -694,8 +700,8 @@ class GrpcHandler(ConnectIntf):
         """
         request = Prepare.collection_name(collection_name)
 
-        rf = self._stub.ShowPartitions.future(request)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.ShowPartitions.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
         # response = self._stub.ShowPartitions.future(request).result(timeout=timeout)
         status = response.status
@@ -725,8 +731,8 @@ class GrpcHandler(ConnectIntf):
         """
         request = grpc_types.PartitionParam(collection_name=collection_name, tag=partition_tag)
 
-        rf = self._stub.DropPartition.future(request)
-        response = rf.result(timeout=timeout)
+        rf = self._stub.DropPartition.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
         rf.__del__()
         # response = self._stub.DropPartition.future(request).result(timeout=timeout)
         return Status(code=response.error_code, message=response.reason)
@@ -737,7 +743,7 @@ class GrpcHandler(ConnectIntf):
 
         self._search_hook.pre_search()
         if kwargs.get("_async", False) is True:
-            future = self._stub.Search.future(request, timeout=timeout)
+            future = self._stub.Search.future(request, wait_for_ready=True, timeout=timeout)
 
             func = kwargs.get("_callback", None)
             return SearchFuture(future, func)
@@ -784,12 +790,12 @@ class GrpcHandler(ConnectIntf):
     def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
         request = Prepare.search_by_ids_param(collection_name, ids, top_k, partition_tags, params)
         if kwargs.get("_async", False) is True:
-            future = self._stub.SearchByID.future(request, timeout=timeout)
+            future = self._stub.SearchByID.future(request, wait_for_ready=True, timeout=timeout)
 
             func = kwargs.get("_callback", None)
             return SearchFuture(future, func)
 
-        ft = self._stub.SearchByID.future(request, timeout)
+        ft = self._stub.SearchByID.future(request, wait_for_ready=True, timeout=timeout)
         response = ft.result()
         ft.__del__()
         self._search_hook.aft_search()
@@ -846,12 +852,12 @@ class GrpcHandler(ConnectIntf):
         self._search_file_hook.pre_search()
 
         if kwargs.get("_async", False) is True:
-            future = self._stub.SearchInFiles.future(infos, timeout=timeout)
+            future = self._stub.SearchInFiles.future(infos, wait_for_ready=True, timeout=timeout)
 
             func = kwargs.get("_callback", None)
             return SearchFuture(future, func)
 
-        ft = self._stub.SearchInFiles.future(infos, timeout)
+        ft = self._stub.SearchInFiles.future(infos, wait_for_ready=True, timeout=timeout)
         response = ft.result()
         ft.__del__()
         self._search_file_hook.aft_search()
@@ -870,8 +876,8 @@ class GrpcHandler(ConnectIntf):
     def delete_by_id(self, collection_name, id_array, timeout=None):
         request = Prepare.delete_by_id_param(collection_name, id_array)
 
-        rf = self._stub.DeleteByID.future(request)
-        status = rf.result(timeout=timeout)
+        rf = self._stub.DeleteByID.future(request, wait_for_ready=True, timeout=timeout)
+        status = rf.result()
         rf.__del__()
         # status = self._stub.DeleteByID.future(request).result(timeout=timeout)
         return Status(code=status.error_code, message=status.reason)
@@ -879,22 +885,22 @@ class GrpcHandler(ConnectIntf):
     @error_handler()
     def flush(self, collection_name_array, timeout=None, **kwargs):
         request = Prepare.flush_param(collection_name_array)
-        future = self._stub.Flush.future(request, timeout=timeout)
+        future = self._stub.Flush.future(request, wait_for_ready=True, timeout=timeout)
         if kwargs.get("_async", False):
             cb = kwargs.get("_callback", None)
             return FlushFuture(future, cb)
-        response = future.result(timeout=timeout)
+        response = future.result()
         future.__del__()
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler()
     def compact(self, collection_name, timeout, **kwargs):
         request = Prepare.compact_param(collection_name)
-        future = self._stub.Compact.future(request, timeout=timeout)
+        future = self._stub.Compact.future(request, wait_for_ready=True, timeout=timeout)
         if kwargs.get("_async", False):
             cb = kwargs.get("_callback", None)
             return CompactFuture(future, cb)
-        response = future.result(timeout=timeout)
+        response = future.result()
         future.__del__()
         return Status(code=response.error_code, message=response.reason)
 

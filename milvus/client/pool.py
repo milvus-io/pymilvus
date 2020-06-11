@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 
+import logging
 import queue
 import threading
 import time
@@ -10,7 +11,19 @@ from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
 
-support_versions = ('0.9.0', '0.9.1', '0.10.0')
+support_versions = ('0.9.x', '0.10.x')
+
+
+def _is_version_match(version):
+    version_prefix = version.split(".")
+    for support_version in support_versions:
+        support_version_prefix = support_version.split(".")
+        if version_prefix[0] == support_version_prefix[0] and version_prefix[1] == support_version_prefix[1]:
+            return True
+    return False
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Duration:
@@ -48,7 +61,7 @@ class ConnectionRecord:
         self._kw = kwargs
 
         if handler == "GRPC":
-            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping)
+            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping, **self._kw)
         elif handler == "HTTP":
             self._connection = HttpHandler(uri=uri, pre_ping=self._pre_ping)
         else:
@@ -71,8 +84,8 @@ class ConnectionPool:
         self._uri = uri
         self._pool_size = pool_size
         self._wait_timeout = wait_timeout
-        if try_connect:
-            self._max_retry = kwargs.get("max_retry", 3)
+        # if try_connect:
+        #     self._max_retry = kwargs.get("max_retry", 3)
 
         # Record used connection number.
         self._used_conn = 0
@@ -82,18 +95,21 @@ class ConnectionPool:
         self.durations = defaultdict(list)
 
         self._try_connect = try_connect
+        # if self._try_connect:
+        #     self._max_retry = kwargs
         self._prepare()
 
     def _prepare(self):
         conn = self.fetch()
         with self._condition:
             if self._try_connect:
-                conn.client().ping(max_retry=self._max_retry)
+                # LOGGER.debug("Try connect server {}".format(self._uri))
+                conn.client().ping()
 
-            status, version = conn.client().server_version(timeout=1)
+            status, version = conn.client().server_version(timeout=10)
             if not status.OK():
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
-            if version not in support_versions:
+            if not _is_version_match(version):
                 raise VersionError(
                     "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
                                                                                                   version,
@@ -185,21 +201,48 @@ class ConnectionPool:
             self._pool.put(conn, False)
         except queue.Full:
             pass
-    #
-    # def terminate(self):
-    #     with self._condition:
-    #         while True:
-    #             if self._used_conn > 0:
-    #                 try:
-    #                     conn = self._pool.get(timeout=self._wait_timeout)
-    #                     conn.__del__()
-    #                     self._used_conn -= 1
-    #                 except:
-    #                     pass
-    #             else:
-    #                 break
-    #
-    #         self._pool = None
+
+
+class SingleConnectionPool:
+    def __init__(self, uri, pool_size=10, wait_timeout=10, try_connect=True, **kwargs):
+        # Asynchronous queue to store connection
+        self._uri = uri
+        self._conn = None
+        self._pool_size = pool_size
+        self._wait_timeout = wait_timeout
+
+        # Record used connection number.
+        self._condition = threading.Condition()
+        self._kw = kwargs
+
+        self.durations = defaultdict(list)
+
+        self._try_connect = try_connect
+        # if self._try_connect:
+        #     self._max_retry = kwargs
+        self._prepare()
+
+    def _prepare(self):
+        conn = ConnectionRecord(self._uri, conn_id=0, **self._kw)
+        self._conn = ScopedConnection(self, conn)
+        with self._condition:
+            if self._try_connect:
+                self._conn.client().ping()
+
+            status, version = self._conn.client().server_version(timeout=10)
+            if not status.OK():
+                raise NotConnectError("Cannot check server version: {}".format(status.message))
+            if not _is_version_match(version):
+                raise VersionError(
+                    "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
+                                                                                                  version,
+                                                                                                  support_versions))
+
+    def fetch(self):
+        return self._conn
+
+    def release(self, conn):
+        pass
 
 
 class ScopedConnection:

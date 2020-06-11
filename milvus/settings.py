@@ -38,8 +38,8 @@ class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
         return self.format_col(message_str, level_name=record.levelname)
 
 
-LOG_LEVEL = 'WARNING'
-# LOG_LEVEL = 'INFO'
+# LOG_LEVEL = 'WARNING'
+LOG_LEVEL = 'DEBUG'
 
 LOGGING = {
     'version': 1,
@@ -47,6 +47,7 @@ LOGGING = {
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'level': LOG_LEVEL,
         },
     },
     'loggers': {

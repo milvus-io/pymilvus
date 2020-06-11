@@ -63,6 +63,9 @@ MetricName2ValueMap = {
 }
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 def handle_error(returns=tuple()):
     def decorator(func):
         @functools.wraps(func)
@@ -90,6 +93,7 @@ class HttpHandler(ConnectIntf):
         _uri = kwargs.get("uri", None)
 
         self._uri = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
+        self._max_retry = kwargs.get("max_retry", 3)
 
     def __enter__(self):
         self.ping()
@@ -99,7 +103,7 @@ class HttpHandler(ConnectIntf):
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def _set_uri(self, host, port, **kwargs):
+    def _set_uri(self, host, port, uri):
         """
         Set server network address
 
@@ -111,8 +115,7 @@ class HttpHandler(ConnectIntf):
             _host = host
         elif port is None:
             try:
-                _uri = kwargs.get("uri", None)
-                _uri = urlparse(_uri) if _uri else urlparse(config.HTTP_URI)
+                _uri = urlparse(uri) if uri else urlparse(config.HTTP_URI)
                 _host = _uri.hostname
                 _port = _uri.port
             except (AttributeError, ValueError, TypeError) as e:
@@ -131,20 +134,34 @@ class HttpHandler(ConnectIntf):
     def status(self):
         return self._status
 
-    def ping(self, max_retry=3, timeout=1):
+    def ping(self, timeout=10):
+        if self._uri is None:
+            self._uri = self._set_uri(None, None, None)
+        logging.info("Connecting server {}".format(self._uri))
+        retry = self._max_retry
         try:
-            if self._uri is None:
-                self._uri = self._set_uri(None, None)
-            response = rq.get(self._uri + "/state", timeout=timeout)
+            while retry > 0:
+                try:
+                    response = rq.get(self._uri + "/state", timeout=timeout)
+                    return True
+                except:
+                    retry -= 1
+                    if retry > 0:
+                        continue
+                    else:
+                        raise
         except:
+            LOGGER.error("Cannot connect server {}".format(self._uri))
             raise NotConnectError("Cannot get server status")
-        try:
-            js = response.json()
-            return Status(js["code"], js["message"])
-        except ValueError:
-            pass
 
-        return Status(Status.UNEXPECTED_ERROR, "Error occurred when parse response.")
+        LOGGER.info("Connected server {}".format(self._uri))
+        # try:
+        #     js = response.json()
+        #     return Status(js["code"], js["message"])
+        # except ValueError:
+        #     pass
+        #
+        # return Status(Status.UNEXPECTED_ERROR, "Error occurred when parse response.")
 
     def set_hook(self, **kwargs):
         pass
