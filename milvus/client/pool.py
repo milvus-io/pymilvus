@@ -224,7 +224,7 @@ class SingleConnectionPool:
 
     def _prepare(self):
         conn = ConnectionRecord(self._uri, conn_id=0, **self._kw)
-        self._conn = ScopedConnection(self, conn)
+        self._conn = SingleScopedConnection(conn)
         with self._condition:
             if self._try_connect:
                 self._conn.client().ping()
@@ -238,11 +238,41 @@ class SingleConnectionPool:
                                                                                                   version,
                                                                                                   support_versions))
 
+    def record_duration(self, conn, duration):
+        pass
+
     def fetch(self):
         return self._conn
 
     def release(self, conn):
         pass
+
+
+class SingleScopedConnection:
+    def __init__(self, conn):
+        self._conn = conn
+
+    def __getattr__(self, item):
+        return getattr(self.client(), item)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def __del__(self):
+        self.close()
+
+    def connection(self):
+        return self._conn
+
+    def client(self):
+        conn = self.connection()
+        return conn.connection()
+
+    def close(self):
+        self._conn = None
 
 
 class ScopedConnection:
