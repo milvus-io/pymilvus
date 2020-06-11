@@ -61,7 +61,7 @@ class ConnectionRecord:
         self._kw = kwargs
 
         if handler == "GRPC":
-            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping, **self._kw)
+            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping, conn_id=conn_id, **self._kw)
         elif handler == "HTTP":
             self._connection = HttpHandler(uri=uri, pre_ping=self._pre_ping)
         else:
@@ -72,8 +72,8 @@ class ConnectionRecord:
         return new one.
         '''
         self._last_use_time = time.time()
-        if self._pre_ping:
-            self._connection.ping()
+        # if self._pre_ping:
+        #     self._connection.ping()
         return self._connection
 
 

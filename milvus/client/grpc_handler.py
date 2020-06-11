@@ -31,22 +31,27 @@ LOGGER = logging.getLogger(__name__)
 
 def error_handler(*rargs):
     def wrapper(func):
-        def handler(*args, **kwargs):
+        def handler(self, *args, **kwargs):
+            record_dict = {}
             try:
-                me = args[0]
-                if me._pre_ping:
-                    me.ping()
-                return func(*args, **kwargs)
+                record_dict["API start"] = str(datetime.datetime.now())
+                if self._pre_ping:
+                    self.ping()
+                record_dict["RPC start"] = str(datetime.datetime.now())
+                return func(self, *args, **kwargs)
             except grpc.FutureTimeoutError as e:
-                LOGGER.error("{}\nRequest timeout: {}".format(func.__name__, e))
+                record_dict["RPC timeout"] = str(datetime.datetime.now())
+                LOGGER.error("\n{}\nRequest timeout: {}\n\t{}".format(func.__name__, e, record_dict))
                 status = Status(Status.UNEXPECTED_ERROR, message='Request timeout')
                 return status if not rargs else tuple([status]) + rargs
             except grpc.RpcError as e:
-                LOGGER.error("{}\nRpc error: {}".format(func.__name__, e))
+                record_dict["RPC error"] = str(datetime.datetime.now())
+                LOGGER.error("\n{}\nRpc error: {}\n\t{}".format(func.__name__, e, record_dict))
                 status = Status(e.code(), message='Error occurred. {}'.format(e.details()))
                 return status if not rargs else tuple([status]) + rargs
             except Exception as e:
-                LOGGER.error("{}\nExcepted error: {}".format(func.__name__, e))
+                record_dict["Exception"] = str(datetime.datetime.now())
+                LOGGER.error("{}\nExcepted error: {}\n\t{}".format(func.__name__, e, record_dict))
                 raise e
 
         return handler
@@ -111,6 +116,13 @@ class GrpcHandler(ConnectIntf):
         # if self._pre_ping:
         self._max_retry = kwargs.get("max_retry", 3)
 
+        # record
+        self._id = kwargs.get("conn_id", 0)
+
+        # condition
+        self._condition = threading.Condition()
+        self._request_id = 0
+
         # client hook
         self._search_hook = SearchHook()
         self._hybrid_search_hook = HybridSearchHook()
@@ -152,6 +164,12 @@ class GrpcHandler(ConnectIntf):
     def _pre_request(self):
         if self._pre_ping:
             self.ping()
+
+    def _get_request_id(self):
+        with self._condition:
+            _id = self._request_id
+            self._request_id += 1
+            return _id
 
     def set_hook(self, **kwargs):
         """
@@ -241,6 +259,7 @@ class GrpcHandler(ConnectIntf):
     def _cmd(self, cmd, timeout=10):
         cmd = Prepare.cmd(cmd)
         rf = self._stub.Cmd.future(cmd, wait_for_ready=True, timeout=timeout)
+        # rf = self._stub.Cmd.future(cmd, metadata=(('request_id', str(self._get_request_id())),), wait_for_ready=True, timeout=timeout)
         response = rf.result()
         rf.__del__()
         if response.status.error_code == 0:
@@ -292,7 +311,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.error_code, message=response.reason)
 
     @error_handler(False)
-    def has_collection(self, collection_name, timeout=10):
+    def has_collection(self, collection_name, timeout=10, **kwargs):
         """
 
         This method is used to test collection existence.
@@ -319,7 +338,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=reply.status.error_code, message=reply.status.reason), False
 
     @error_handler(None)
-    def describe_collection(self, collection_name, timeout=10):
+    def describe_collection(self, collection_name, timeout=10, **kwargs):
         """
         Show collection information
 
@@ -349,7 +368,7 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.status.error_code, message=response.status.reason), None
 
     @error_handler(None)
-    def count_collection(self, collection_name, timeout=30):
+    def count_collection(self, collection_name, timeout=30, **kwargs):
         """
         obtain vector number in collection
 
