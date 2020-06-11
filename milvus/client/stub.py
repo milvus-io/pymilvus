@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from . import __version__
 from .types import IndexType, MetricType, Status
 from .check import check_pass_param, is_legal_host, is_legal_port
-from .pool import ConnectionPool, SingleConnectionPool
+from .pool import ConnectionPool, SingleConnectionPool, SingletonThreadPool
 from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from .exceptions import ParamError, NotConnectError, DeprecatedError
@@ -75,7 +75,7 @@ def _set_uri(host, port, uri, handler="GRPC"):
 
 
 class Milvus:
-    def __init__(self, host=None, port=None, handler="GRPC", **kwargs):
+    def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", **kwargs):
         self._name = kwargs.get('name', None)
         self._uri = None
         self._status = None
@@ -86,7 +86,15 @@ class Milvus:
         pool_uri = _set_uri(host, port, _uri, self._handler)
         pool_kwargs = _pool_args(handler=handler, **kwargs)
         # self._pool = SingleConnectionPool(pool_uri, **pool_kwargs)
-        self._pool = ConnectionPool(pool_uri, **pool_kwargs)
+        if pool == "QueuePool":
+            self._pool = ConnectionPool(pool_uri, **pool_kwargs)
+        elif pool == "SingletonThread":
+            self._pool = SingletonThreadPool(pool_uri, **pool_kwargs)
+        elif pool == "Singleton":
+            self._pool = SingleConnectionPool(pool_uri, **pool_kwargs)
+        else:
+            raise ParamError("Unknown pool value: {}".format(pool))
+
         # store extra key-words arguments
         self._kw = kwargs
         self._hooks = collections.defaultdict()

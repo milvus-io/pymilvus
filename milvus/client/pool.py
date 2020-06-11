@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 
 import logging
+import os
 import queue
 import threading
 import time
@@ -202,6 +203,57 @@ class ConnectionPool:
         except queue.Full:
             pass
 
+
+class SingletonThreadPool:
+    def __init__(self, uri, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
+        # Asynchronous queue to store connection
+        self._uri = uri
+        self._conn = None
+        self._pool_size = pool_size
+        self._wait_timeout = wait_timeout
+
+        #
+        self._local = threading.local()
+
+        # Record used connection number.
+        self._kw = kwargs
+
+        self.durations = defaultdict(list)
+
+        self._try_connect = try_connect
+        # if self._try_connect:
+        #     self._max_retry = kwargs
+        self._prepare()
+
+    def _prepare(self):
+        conn = self.fetch()
+        if self._try_connect:
+            conn.client().ping()
+
+        status, version = conn.client().server_version(timeout=30)
+        if not status.OK():
+            raise NotConnectError("Cannot check server version: {}".format(status.message))
+        if not _is_version_match(version):
+            raise VersionError(
+                "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
+                                                                                              version,
+                                                                                              support_versions))
+
+    def record_duration(self, conn, duration):
+        pass
+
+    def fetch(self):
+        try:
+            conn = self._local.conn
+        except AttributeError:
+            t_ident = threading.get_ident()
+            conn = ConnectionRecord(self._uri, conn_id=t_ident, **self._kw)
+            self._local.conn = conn
+
+        return SingleScopedConnection(conn)
+
+    def release(self, conn):
+        pass
 
 class SingleConnectionPool:
     def __init__(self, uri, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
