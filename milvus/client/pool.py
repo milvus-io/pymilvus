@@ -73,7 +73,7 @@ class ConnectionRecord:
         '''
         self._last_use_time = time.time()
         if self._pre_ping:
-            self._connection.ping(timeout=2)
+            self._connection.ping()
         return self._connection
 
 
@@ -111,7 +111,7 @@ class ConnectionPool:
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
             if not _is_version_match(version):
                 raise VersionError(
-                    "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
+                    "Version of python SDK(v{}) not match that of server v{}, excepted is v{}".format(__version__,
                                                                                                   version,
                                                                                                   support_versions))
         conn.close()
