@@ -155,7 +155,8 @@ class GrpcHandler(ConnectIntf):
             self._uri,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1),
-                     (b'grpc.enable_retries', 1)]
+                     (b'grpc.enable_retries', 1),
+                     ('grpc.keepalive_time_ms', 55000)]
                      # (b'grpc.enable_http_proxy', 0)]
         )
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
