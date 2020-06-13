@@ -157,7 +157,7 @@ class GrpcHandler(ConnectIntf):
             self._uri,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1),
-                     (b'grpc.enable_retries', 1),
+                     ('grpc.enable_retries', 1),
                      ('grpc.keepalive_time_ms', 55000)]
                      # (b'grpc.enable_http_proxy', 0)]
         )
@@ -627,7 +627,7 @@ class GrpcHandler(ConnectIntf):
             return Status(message="Successfully"), \
                    IndexParam(index_param.collection_name,
                               index_param.index_type,
-                              index_param.extra_params)
+                              index_param.extra_params[0].value)
 
         return Status(code=status.error_code, message=status.reason), None
 
