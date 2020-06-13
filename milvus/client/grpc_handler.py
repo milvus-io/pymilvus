@@ -41,18 +41,20 @@ def error_handler(*rargs):
                 return func(self, *args, **kwargs)
             except grpc.FutureTimeoutError as e:
                 record_dict["RPC timeout"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nRequest timeout: {}\n\t{}".format(self.server_address(), func.__name__, e, record_dict))
+                LOGGER.error("\nAddr [{}] {}\nRequest timeout: {}\n\t{}".format(self.server_address, func.__name__, e, record_dict))
                 status = Status(Status.UNEXPECTED_ERROR, message='Request timeout')
                 return status if not rargs else tuple([status]) + rargs
             except grpc.RpcError as e:
                 record_dict["RPC error"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nRpc error: {}\n\t{}".format(self.server_address(), func.__name__, e, record_dict))
+
+                LOGGER.error("\nAddr [{}] {}\nRpc error: {}\n\t{}".format(self.server_address, func.__name__, e, record_dict))
                 status = Status(e.code(), message='Error occurred. {}'.format(e.details()))
                 return status if not rargs else tuple([status]) + rargs
             except Exception as e:
                 record_dict["Exception"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nExcepted error: {}\n\t{}".format(self.server_address(), func.__name__, e, record_dict))
-                raise e
+                LOGGER.error("\nAddr [{}] {}\nExcepted error: {}\n\t{}".format(self.server_address, func.__name__, e, record_dict))
+                status = Status(Status.UNEXPECTED_ERROR, message=str(e))
+                return status if not rargs else tuple([status]) + rargs
 
         return handler
 
@@ -260,7 +262,6 @@ class GrpcHandler(ConnectIntf):
     def _cmd(self, cmd, timeout=30):
         cmd = Prepare.cmd(cmd)
         rf = self._stub.Cmd.future(cmd, wait_for_ready=True, timeout=timeout)
-        # rf = self._stub.Cmd.future(cmd, metadata=(('request_id', str(self._get_request_id())),), wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.status.error_code == 0:
             return Status(message='Success!'), response.string_reply
