@@ -18,7 +18,7 @@ _DIM = 128  # dimension of vector
 
 def main():
     # Specify server addr when create milvus client instance
-    milvus = Milvus(_HOST, _PORT, try_connect=True)
+    milvus = Milvus(_HOST, _PORT)
 
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_async_collection_'

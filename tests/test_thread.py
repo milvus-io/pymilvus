@@ -63,13 +63,13 @@ def test_run(gcon):
 
 def test_mult_insert(gcon):
     def multi_thread_opr(client, collection_name, utid):
-        table_param = {
+        collection_param = {
             'collection_name': collection_name,
             'dimension': 64
         }
 
         vectors = [[random.random() for _ in range(64)] for _ in range(10000)]
-        status = client.create_collection(table_param)
+        status = client.create_collection(collection_param)
         assert status.OK()
 
         status, _ = client.insert(table_name, vectors)

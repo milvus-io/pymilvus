@@ -7,12 +7,12 @@ import random
 import numpy as np
 
 from milvus import Milvus, IndexType, MetricType, Status
-from milvus.client.abstract import TopKQueryResult
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
 _PORT = '19530'  # default value
+# _PORT = '19121'  # default http value
 
 # Vector parameters
 _DIM = 128  # dimension of vector
