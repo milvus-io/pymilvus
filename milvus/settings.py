@@ -39,7 +39,7 @@ class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
 
 
 LOG_LEVEL = 'WARNING'
-# LOG_LEVEL = 'INFO'
+# LOG_LEVEL = 'DEBUG'
 
 LOGGING = {
     'version': 1,
@@ -47,6 +47,7 @@ LOGGING = {
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'level': LOG_LEVEL,
         },
     },
     'loggers': {

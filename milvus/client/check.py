@@ -223,8 +223,8 @@ def is_legal_partition_tag_array(tag_array):
     return True
 
 
-def _raise_param_error(param_name):
-    raise ParamError("{} is illegal".format(param_name))
+def _raise_param_error(param_name, param_value):
+    raise ParamError("`{}` value {} is illegal".format(param_name, param_value))
 
 
 def check_pass_param(*args, **kwargs):
@@ -234,42 +234,42 @@ def check_pass_param(*args, **kwargs):
     for key, value in kwargs.items():
         if key in ("collection_name",):
             if not is_legal_table_name(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key == "dimension":
             if not is_legal_dimension(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key in ("index_type",):
             if not is_legal_index_type(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key == "index_file_size":
             if not is_legal_index_size(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key == "metric_type":
             if not is_legal_metric_type(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key in ("topk", "top_k"):
             if not is_legal_topk(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key in ("ids",):
             if not is_legal_ids(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key in ("nprobe",):
             if not is_legal_nprobe(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key in ("nlist",):
             if not is_legal_nlist(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key in ("cmd",):
             if not is_legal_cmd(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key in ("partition_tag",):
             if not is_legal_partition_tag(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key in ("partition_tag_array",):
             if not is_legal_partition_tag_array(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         elif key in ("records",):
             if not is_legal_records(value):
-                _raise_param_error(key)
+                _raise_param_error(key, value)
         else:
             raise ParamError("unknown param `{}`".format(key))

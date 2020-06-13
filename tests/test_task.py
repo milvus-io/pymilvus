@@ -143,13 +143,13 @@ class TestCmd:
 
 class TestConfig:
     def test_get_config(self, gcon):
-        status, value = gcon.get_config("cache_config", "cpu_cache_capacity")
+        status, value = gcon.get_config("cache", "cache_size")
         assert status.OK()
 
     def test_set_config(self, gcon):
-        status, value = gcon.get_config("cache_config", "cpu_cache_capacity")
+        status, value = gcon.get_config("cache", "cache_size")
         assert status.OK()
 
-        status, reply = gcon.set_config("cache_config", "cpu_cache_capacity", value)
+        status, reply = gcon.set_config("cache", "cache_size", value)
         assert status.OK()
 

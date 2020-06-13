@@ -24,7 +24,7 @@ def main():
     # Specify server addr when create milvus client instance
     # milvus client instance maintain a connection pool, param
     # `pool_size` specify the max connection num.
-    milvus = Milvus(_HOST, _PORT, pool_size=10)
+    milvus = Milvus(_HOST, _PORT)
 
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_collection_'
@@ -50,18 +50,18 @@ def main():
     # 10000 vectors with 128 dimension
     # element per dimension is float32 type
     # vectors should be a 2-D array
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10000)]
+    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10)]
+    print(vectors)
     # You can also use numpy to generate random vectors:
     #   vectors = np.random.rand(10000, _DIM).astype(np.float32)
 
     # Insert vectors into demo_collection, return status and vectors id list
     status, ids = milvus.insert(collection_name=collection_name, records=vectors)
-    # if not status.OK():
-    #     print("Insert failed: {}".format(status))
+    if not status.OK():
+        print("Insert failed: {}".format(status))
 
     # Flush collection  inserted data to disk.
     milvus.flush([collection_name])
-
     # Get demo_collection row count
     status, result = milvus.count_entities(collection_name)
 

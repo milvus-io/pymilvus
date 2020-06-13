@@ -1,7 +1,12 @@
-# pymilvus 0.3.0(TBD)
+# pymilvus 0.2.13(2020-06-13)
 
 ## New Feature
-- \#220 -  Add sdk statistics badges
+- \#220 - Add sdk statistics badges
+- \#224 - Add option 'grpc.keepalive_time_ms' in grpc channel
+
+## Bug
+- \#218 - Fix retults by 'get_entity_by_id' with HTTP
+- \#222 - Fix protobuf import failed
 
 
 # pymilvus 0.2.12(2020-05-29)
@@ -11,6 +16,9 @@
 
 ## Improvement
 - \#216 Optimize checking matched version behavior
+
+## New Feature
+- \#213 - Add new API called 'reload_segments'
 
 
 # pymilvus 0.2.11(2020-05-15)

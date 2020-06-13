@@ -98,3 +98,30 @@ class MetricType(IntEnum):
 
     def __str__(self):
         return self._name_
+
+
+class DataType(IntEnum):
+    NULL = 0
+    INT8 = 1
+    INT16 = 2
+    INT32 = 3
+    INT64 = 4
+
+    STRING = 20
+
+    BOOL = 30
+
+    FLOAT = 40
+    DOUBLE = 41
+
+    VECTOR = 100
+    UNKNOWN = 9999
+
+
+class RangeType(IntEnum):
+    LT = 0   # less than
+    LTE = 1  # less than or equal
+    EQ = 2   # equal
+    GT = 3   # greater than
+    GTE = 4  # greater than or equal
+    NE = 5   # not equal
