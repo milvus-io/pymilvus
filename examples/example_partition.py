@@ -2,7 +2,6 @@
 # create a vector table, 
 # insert 10 vectors, 
 # and execute a vector similarity search.
-import sys
 import random
 from milvus import Milvus, IndexType, MetricType
 import time

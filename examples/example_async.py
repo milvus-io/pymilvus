@@ -5,7 +5,6 @@
 import datetime
 import sys
 import random
-import time
 from milvus import Milvus, IndexType, MetricType
 
 # Milvus server IP address and port.

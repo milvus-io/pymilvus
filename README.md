@@ -132,7 +132,8 @@ Refer to [examples](/examples) for more example programs.
 
    ```python
    # Create a collection
-   >>> client.create_collection(param)
+   >>> status = client.create_collection(param)
+   >>> status
    Status(code=0, message='Create collection successfully!')
    ```
 
@@ -140,7 +141,8 @@ Refer to [examples](/examples) for more example programs.
 
 ```python
 # Drop collection
->>> client.drop_collection(collection_name='test01')
+>>> status = client.drop_collection(collection_name='test01')
+>>> status
 Status(code=0, message='Delete collection successfully!')
 ```
 
@@ -152,7 +154,8 @@ You can split collections into partitions by partition tags for improved search 
 
 ```python
 # Create partition
->>> client.create_partition(collection_name='test01', partition_tag='tag01')
+>>> status = client.create_partition(collection_name='test01', partition_tag='tag01')
+>>> status
 Status(code=0, message='OK')
 ```
 
@@ -168,7 +171,7 @@ Use `list_partitions()` to verify whether the partition is created.
 ### Drop a partition
 
 ```python
->>> client.drop_partition(collection_name='test01', partition_tag='tag01')
+>>> status = client.drop_partition(collection_name='test01', partition_tag='tag01')
 Status(code=0, message='OK')
 ```
 
@@ -189,14 +192,14 @@ Status(code=0, message='OK')
 
    ```python
    # Create index
-   >>> client.create_index('test01', IndexType.IVF_FLAT, ivf_param)
+   >>> status = client.create_index('test01', IndexType.IVF_FLAT, ivf_param)
    Status(code=0, message='Build index successfully!')
    ```
 
 ### Drop an index
 
 ```python
->>> client.drop_index('test01')
+>>> status = client.drop_index('test01')
 Status(code=0, message='OK')
 ```
 
@@ -246,7 +249,8 @@ To verify the vectors you have inserted, use `get_vector_by_id()`. Assume you ha
 You can delete these vectors by:
 
 ```python
->>> client.delete_entity_by_id('test01', inserted_vector_ids[:10])
+>>> status = client.delete_entity_by_id('test01', inserted_vector_ids[:10])
+>>> status
 Status(code=0, message='OK')
 ```
 
@@ -255,7 +259,8 @@ Status(code=0, message='OK')
 When performing operations related to data changes, you can flush the data from memory to disk to avoid possible data loss. Milvus also supports automatic flushing, which runs at a fixed interval to flush the data in all collections to disk. You can use the [Milvus server configuration file](https://milvus.io/docs/reference/milvus_config.md) to set the interval.
 
 ```python
->>> client.flush(['test01'])
+>>> status = client.flush(['test01'])
+>>> status
 Status(code=0, message='OK')
 ```
 
@@ -264,7 +269,8 @@ Status(code=0, message='OK')
 A segment is a data file that Milvus automatically creates by merging inserted vector data. A collection can contain multiple segments. If some vectors are deleted from a segment, the space taken by the deleted vectors cannot be released automatically. You can compact segments in a collection to release space.
 
 ```python
->>> client.compact(collection_name='test01')
+>>> status = client.compact(collection_name='test01')
+>>> status
 Status(code=0, message='OK')
 ```
 
