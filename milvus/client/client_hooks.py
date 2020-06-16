@@ -1,5 +1,5 @@
 from .hooks import BaseSearchHook
-from .abstract import TopKQueryResult, HybridResult
+from .abstract import QueryResult
 
 
 class SearchHook(BaseSearchHook):
@@ -8,10 +8,10 @@ class SearchHook(BaseSearchHook):
         """
         use class `TopKQueryResult` to deal with response from server
         """
-        return TopKQueryResult(_response)
+        return QueryResult(_response)
 
 
 class HybridSearchHook(BaseSearchHook):
 
     def handle_response(self, _response):
-        return HybridResult(_response)
+        return QueryResult(_response)

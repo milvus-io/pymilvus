@@ -1,3 +1,4 @@
+import abc
 import copy
 import struct
 import ujson
@@ -7,7 +8,7 @@ from .exceptions import ParamError
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 
-from .types import RangeType
+from .types import RangeType, DataType
 
 BoolOccurMap = {
     "must": grpc_types.MUST,
@@ -33,356 +34,188 @@ class Prepare:
         return grpc_types.CollectionName(collection_name=collection_name)
 
     @classmethod
-    def collection_schema(cls, collection_name, dimension, index_file_size, metric_type, param):
+    def collection_schema(cls, collection_name, fields):
         """
         :type param: dict
         :param param: (Required)
 
-            `example param={'collection_name': 'name',
-                            'dimension': 16,
-                            'index_file_size': 1024
-                            'metric_type': MetricType.L2
-                            }`
+            ` {"fields": [
+                    {"field": "A", "type": DataType.INT64, "index": {"name":"", "type":"", "params": {..}}}
+                    {"field": "B", "type": DataType.INT64},
+                    {"field": "C", "type": DataType.INT64},
+                    {"field": "Vec", "type": DataType.BINARY_VECTOR,
+                     "params": {"metric_type": MetricType.L2, "dimension": 128}}
+                ],
+            "segment_size": 100}`
 
         :return: ttypes.TableSchema object
         """
 
-        _param = grpc_types.CollectionSchema(status=status_pb2.Status(error_code=0, reason='Client'),
-                                             collection_name=collection_name,
-                                             dimension=dimension,
-                                             index_file_size=index_file_size,
-                                             metric_type=metric_type)
+        if not isinstance(fields, dict):
+            raise ParamError("Param fields must be a dict")
 
-        if param:
-            param_str = ujson.dumps(param)
-            _param.extra_params.add(key="params", value=param_str)
+        if "fields" not in fields:
+            raise ParamError("Param fields must contains key 'fields'")
 
-        return _param
+        schema = grpc_types.Mapping(collection_name=collection_name)
 
-    @classmethod
-    def collection_hybrid_schema(cls, collection_name, fields):
-        _param = grpc_types.Mapping(
-            collection_name=collection_name
-        )
+        extra_params = dict()
+        for fk, fv in fields.items():
+            if fk != "fields":
+                extra_params[fk] = fv
+                continue
+            for field in fv:
+                field_param = grpc_types.FieldParam()
+                field_param.name = field["field"]
 
-        for field in fields:
-            if "data_type" in field:
-                ft = grpc_types.FieldType(data_type=int(field["data_type"]))
-                # ft.data_type = int(v["data_type"])
-            elif "dimension" in field:
-                ft = grpc_types.FieldType(vector_param=grpc_types.VectorFieldParam(dimension=field["dimension"]))
-                # ft.vector_param = grpc_types.VectorFieldParam(dimension=v["dimension"])
-            else:
-                raise ValueError("Collection field not support {}".format(field))
-            field_param = grpc_types.FieldParam(name=field["field_name"], type=ft)
-            extra_params = field.get("extra_params", None)
-            if extra_params:
-                u = ujson.dumps(extra_params)
-                field_param.extra_params.add(key="params", value=u)
-            _param.fields.append(field_param)
+                ftype = field["type"]
+                if not isinstance(ftype, (int, DataType)):
+                    raise ParamError("'type' type is invalid, use DataType")
 
-        return _param
+                field_param.type = int(DataType(ftype))
+                if "index" in field:
+                    index_field = copy.deepcopy(field["index"])
+                    index_name = index_field["index_name"]
+                    index_field.pop("index_name")
+                    field_param.index_params.add(key=index_name, value=ujson.dumps(index_field))
+
+                if "params" in field:
+                    field_param.extra_params.add(key="params", value=ujson.dumps(field["params"]))
+
+                schema.fields.append(field_param)
+
+        schema.extra_params.add(key="params", value=ujson.dumps(extra_params))
+        return schema
 
     @classmethod
     def reload_param(cls, collection_name, segment_ids):
         return grpc_types.ReLoadSegmentsParam(collection_name=collection_name, segment_id_array=segment_ids)
 
     @classmethod
-    def insert_param(cls, collection_name, vectors, partition_tag, ids=None, params=None, **kwargs):
+    def insert_param(cls, collection_name, entities, partition_tag, ids=None, params=None, **kwargs):
         if ids is None:
             _param = grpc_types.InsertParam(collection_name=collection_name, partition_tag=partition_tag)
         else:
             _param = grpc_types.InsertParam(
                 collection_name=collection_name,
-                row_id_array=ids,
+                entity_id_array=ids,
                 partition_tag=partition_tag)
 
-        for vector in vectors:
-            if isinstance(vector, bytes):
-                _param.row_record_array.add(binary_data=vector)
-            else:
-                _param.row_record_array.add(float_data=vector)
+        for entity in entities:
+            type = entity.get("type", None)
+            if type is None:
+                raise ParamError("param entities must contain type")
+
+            if not isinstance(type, DataType):
+                raise ParamError("Param type must be type of DataType")
+
+            values = entity.get("values", None)
+            if values is None:
+                raise ParamError("Param entities must contain values")
+
+            field_param = grpc_types.FieldValue(field_name=entity["field"])
+            if type in (DataType.INT8, DataType.INT16, DataType.INT32):
+                field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int32_value=values))
+            elif type in (DataType.INT64, ):
+                field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int64_value=values))
+            elif type in (DataType.FLOAT, ):
+                field_param.attr_record.CopyFrom(grpc_types.AttrRecord(float_value=values))
+            elif type in (DataType.DOUBLE, ):
+                field_param.attr_record.CopyFrom(grpc_types.AttrRecord(double_value=values))
+            elif type in (DataType.VECTOR,):
+                records = grpc_types.VectorRecord()
+                for vector in values:
+                    records.records.add(float_data=vector)
+                field_param.vector_record.CopyFrom(records)
+            elif type in (DataType.BINARY_VECTOR,):
+                records = grpc_types.VectorRecord()
+                for vector in values:
+                    records.records.add(binary_data=vector)
+                field_param.vector_record.CopyFrom(records)
+
+            _param.fields.append(field_param)
 
         params = params or dict()
-        params_str = ujson.dumps(params)
-        _param.extra_params.add(key="params", value=params_str)
+        _param.extra_params.add(key="params", value=ujson.dumps(params))
 
         return _param
 
     @classmethod
-    def insert_hybrid_param(cls, collection_name, tag, entities, vector_entities, ids=None, params=None):
-        entity_param = grpc_types.HEntity()
-
-        _len = -1
-        for entity in entities:
-            values = entity["field_values"]
-            if not isinstance(values, list):
-                raise ValueError("Field values must be a list")
-            if _len == -1:
-                _len = len(values)
-            else:
-                if len(values) != _len:
-                    raise ValueError("Length is not equal")
-
-        for entity in entities:
-            entity_param.field_names.append(entity["field_name"])
-            values = entity["field_values"]
-            if isinstance(values, list):
-                if isinstance(values[0], int):
-                    entity_param.attr_data.add(int_value=values)
-                elif isinstance(values[0], float):
-                    entity_param.attr_data.add(double_value=values)
-                else:
-                    raise ValueError("Field item must be int or float")
-            else:
-                raise ValueError("Field values must be a list")
-        # entity_param.attr_records = bytes(item_bytes)
-        entity_param.row_num = _len
-        # vectors
-        # entity.field_names.append(vector_field)
-        for vector_entity in vector_entities:
-            entity_param.field_names.append(vector_entity["field_name"])
-            vector_field = grpc_types.VectorFieldRecord()
-            vectors = vector_entity["field_values"]
-            for vector in vectors:
-                if isinstance(vector, bytes):
-                    vector_field.value.add(binary_data=vector)
-                else:
-                    vector_field.value.add(float_data=vector)
-            entity_param.vector_data.append(vector_field)
-
-        h_param = grpc_types.HInsertParam(
-            collection_name=collection_name,
-            partition_tag=tag,
-            entity=entity_param
-        )
-
-        if ids:
-            h_param.entity_id_array[:] = ids
-        params = params or dict()
-        params_str = ujson.dumps(params)
-        h_param.extra_params.add(key="params", value=params_str)
-        return h_param
+    def get_entity_by_id_param(cls, collection_name, ids, fields):
+        return grpc_types.EntityIdentity(collection_name=collection_name, id_array=ids, field_names=fields)
 
     @classmethod
-    def index_param(cls, collection_name, index_type, params):
-
-        _param = grpc_types.IndexParam(status=status_pb2.Status(error_code=0, reason='Client'),
-                                       collection_name=collection_name,
-                                       index_type=index_type)
-        params = params or dict()
-        params_str = ujson.dumps(params)
-        _param.extra_params.add(key="params", value=params_str)
+    def index_param(cls, collection_name, field_name, index_name, params):
+        _param = grpc_types.IndexParam(collection_name=collection_name, field_name=field_name,
+                                       index_name=index_name)
+        if params:
+            _param.extra_params.add(key="params", value=ujson.dumps(params))
+            # _param.extra_params.add(key="index_type", value=params["index_type"])
+            # _param.extra_params.add(key="params", value=ujson.dumps(params["params"]))
 
         return _param
 
     @classmethod
-    def search_param(cls, collection_name, topk, query_records, partitions, params):
+    def search_param(cls, collection_name, query_entities, partition_tags=None, fields=None, **kwargs):
+        if not isinstance(query_entities, (dict,)):
+            raise ParamError("Invalid query format. 'query_entities' must be a dict")
+
+        duplicated_entities = copy.deepcopy(query_entities)
 
         search_param = grpc_types.SearchParam(
-            collection_name=collection_name,
-            topk=topk,
-            partition_tag_array=partitions
-        )
-
-        for vector in query_records:
-            if isinstance(vector, bytes):
-                search_param.query_record_array.add(binary_data=vector)
-            else:
-                search_param.query_record_array.add(float_data=vector)
-
-        params = params or dict()
-        params_str = ujson.dumps(params)
-        search_param.extra_params.add(key="params", value=params_str)
-
-        return search_param
-
-    @classmethod
-    def search_hybrid_pb_param(cls, collection_name, query_entities, partition_tags, params):
-
-        def term_query(node):
-            if len(node) > 1:
-                raise Exception()
-            for k, v in node.items():
-                vs = v.get("values", None)
-                if not vs:
-                    raise ValueError("Key values is missing")
-
-                _term_param = grpc_types.TermQuery(field_name=k,
-                                                   value_num=len(v["values"]),
-                                                   # boost=node["boost"]
-                                                   )
-                if isinstance(vs, list):
-                    if isinstance(vs[0], int):
-                        _term_param.int_value[:] = vs
-                    elif isinstance(vs[0], float):
-                        _term_param.double_value[:] = vs
-                    else:
-                        raise ValueError("Field item must be int or float")
-                else:
-                    raise ValueError("Field values must be a list")
-                return _term_param
-
-        def range_query(node):
-            if len(node) > 1:
-                raise Exception("Item size > 1")
-            for name, query in node.items():
-                _range_param = grpc_types.RangeQuery(field_name=name,
-                                                     # boost=node["boost"]
-                                                     )
-                for k, v in query["ranges"].items():
-                    ope = RangeOperatorMap[k]
-                    _range_param.operand.add(operator=ope, operand=str(v))
-
-                return _range_param
-
-        def vector_query(node):
-            if len(node) > 1:
-                raise Exception("Item size > 1")
-            for name, query in node.items():
-                _vector_param = grpc_types.VectorQuery(field_name=name,
-                                                       # query_boost=node["boost"],
-                                                       topk=query["topk"]
-                                                       )
-                for vector in query["query"]:
-                    if isinstance(vector, bytes):
-                        _vector_param.records.add(binary_data=vector)
-                    else:
-                        _vector_param.records.add(float_data=vector)
-
-                _extra_param = query.get("params", None)
-
-                _extra_param = _extra_param or dict()
-                params_str = ujson.dumps(_extra_param)
-                _vector_param.extra_params.add(key="params", value=params_str)
-                return _vector_param
-
-        def gene_node(key, node):
-            if isinstance(node, list):
-                bqr = grpc_types.BooleanQuery(occur=BoolOccurMap[key])
-                for query in node:
-                    if "term" in query:
-                        # bqr.general_query.append(grpc_types.GeneralQuery(term_query=term_query(query["term"])))
-                        bqr.general_query.add(term_query=term_query(query["term"]))
-                    elif "range" in query:
-                        # bqr.general_query.append(grpc_types.GeneralQuery(range_query=range_query(query["range"])))
-                        bqr.general_query.add(range_query=range_query(query["range"]))
-                    elif "vector" in query:
-                        # bqr.general_query.append(grpc_types.GeneralQuery(vector_query=vector_query(query["vector"])))
-                        bqr.general_query.add(vector_query=vector_query(query["vector"]))
-                    else:
-                        raise ValueError("Unknown ")
-
-                return grpc_types.GeneralQuery(boolean_query=bqr)
-
-            keys = node.keys()
-            sq = {"must", "must_not", "should"}
-            if len(keys) + len(sq) > len(set(keys) | sq):
-                gqs = list()
-                for k, v in node.items():
-                    gq = gene_node(k, v)
-                    gqs.append(gq)
-                if len(gqs) == 1:
-                    return gqs[0]
-
-                bq0 = grpc_types.BooleanQuery(occur=grpc_types.INVALID)
-                for g in gqs:
-                    bq0.general_query.append(g)
-                return grpc_types.GeneralQuery(boolean_query=bq0)
-
-            # bqr = grpc_types.BooleanQuery(occur=BoolOccurMap[key])
-            # for k, v in node.items():
-            #     field_name = node["field_name"]
-            #     if k == "term":
-            #         bqr.general_query.append(grpc_types.GeneralQuery(term_query=term_query(v)))
-            #     elif k == "range":
-            #         bqr.general_query.append(grpc_types.GeneralQuery(range_query=range_query(v)))
-            #     elif k == "vector":
-            #         bqr.general_query.append(grpc_types.GeneralQuery(vector_query=vector_query(v)))
-            #     else:
-            #         raise ValueError("Unknown ")
-            #
-            # return grpc_types.GeneralQuery(boolean_query=bqr)
-
-            # if len(node) == 1:
-            #     for k, v in node.items():
-            #         if k in ("must", "must_not", "should"):
-            #             bq = grpc_types.BooleanQuery(occur=BoolOccurMap[k])
-            #
-            # for k, v in node.items():
-            #     if k in ("must", "must_not", "should"):
-            #         len(node) == 1:
-            #         vqq = grpc_types.BooleanQuery(occur=grpc_types.INVALID)
-            #     if k in ("must", "must_not", "should"):
-            #         bq = grpc_types.BooleanQuery(occur=BoolOccurMap[k])
-            #         vqq.general_query.append(grpc_types.GeneralQuery(boolean_query=bq))
-
-        _param = grpc_types.HSearchParamPB(
             collection_name=collection_name,
             partition_tag_array=partition_tags
         )
 
-        _param.general_query.CopyFrom(gene_node(None, query_entities["bool"]))
+        vector_placeholders = dict()
 
-        for k, v in query_entities.items():
-            if k == "bool":
-                continue
-            _param.extra_params.add(key=k, value=ujson.dumps(v))
+        def extract_vectors_param(param, placeholders):
+            if not isinstance(param, (dict, list)):
+                return
 
-        # import pdb;pdb.set_trace()
-        # grpc_types.GeneralQuery(boolean_query=bool_node(query_entities))
-        # params = params or dict()
-        # params_str = ujson.dumps(params)
-        # _param.extra_params.add(key="params", value=params_str)
-
-        return _param
-
-    @classmethod
-    def search_hybrid_param(cls, collection_name, vector_params, dsl, partition_tags, params):
-        # def replace_range_item(d):
-        #     if not isinstance(d, dict):
-        #         return
-        #
-        #     if "range" not in d:
-        #         for ki, vi in d.itmes():
-        #             replace_range_item(vi)
-        #     else:
-        #         range = d["range"]
-        #         for ki, vi in range.itmes():
-        #             ranges = vi["values"]
-        #             for kii, vii in ranges.items():
-        #                 ranges.pop(kii)
-        #                 ranges[int(kii)] = vii
-        #         return
-
-        # dsl_out = copy.deepcopy(dsl)
-        # replace_range_item(dsl_out)
-
-        dsl_str = dsl if isinstance(dsl, str) else ujson.dumps(dsl)
-        hybrid_param = grpc_types.HSearchParam(collection_name=collection_name,
-                                               partition_tag_array=partition_tags or [],
-                                               dsl=dsl_str)
-
-        for v_p in vector_params:
-            if "vector" not in v_p:
-                raise ParamError("Vector param must contains key \'vector\'")
-            # TODO: may need to copy vector_params
-            query_vectors = v_p.pop("vector")
-            json_ = ujson.dumps(v_p)
-
-            vector_param = grpc_types.VectorParam(json=json_)
-            for vector in query_vectors:
-                if isinstance(vector, bytes):
-                    vector_param.row_record.add(binary_data=vector)
+            if isinstance(param, dict):
+                if "vector" in param:
+                    # TODO: Here may not replace ph
+                    ph = "place_holder_" + str(len(placeholders))
+                    placeholders[ph] = param["vector"]
+                    param["vector"] = ph
+                    return
                 else:
-                    vector_param.row_record.add(float_data=vector)
-            hybrid_param.vector_param.append(vector_param)
+                    for k, v in param.items():
+                        extract_vectors_param(v, placeholders)
 
-        _params = params or dict()
-        for k, v in _params.items():
-            hybrid_param.extra_params.add(key=k, value=ujson.dumps(v))
+            if isinstance(param, list):
+                for item in param:
+                    extract_vectors_param(item, placeholders)
 
-        return hybrid_param
+        extract_vectors_param(duplicated_entities, vector_placeholders)
+        search_param.dsl = ujson.dumps(duplicated_entities)
+
+        for pk, pv in vector_placeholders.items():
+
+            vector_param = grpc_types.VectorParam()
+            for ppk, ppv in pv.items():
+                if "query" not in ppv:
+                    raise ParamError("param vector must contain 'query'")
+                query = ppv["query"]
+                for vec in query:
+                    if isinstance(vec, bytes):
+                        vector_param.row_record.records.add(binary_data=vec)
+                    else:
+                        vector_param.row_record.records.add(float_data=vec)
+
+                ppv.pop("query")
+                vector_param.json = ujson.dumps({pk: pv})
+                # pv["query"] = query
+                search_param.vector_param.append(vector_param)
+                break
+
+        field_list = fields or list()
+        params = {"fields": field_list}
+
+        search_param.extra_params.add(key="params", value=ujson.dumps(params))
+
+        return search_param
 
     @classmethod
     def search_by_ids_param(cls, collection_name, ids, top_k, partition_tag_array, params):
@@ -399,12 +232,11 @@ class Prepare:
         return _param
 
     @classmethod
-    def search_vector_in_files_param(cls, collection_name, query_records, topk, ids, params):
-        _search_param = Prepare.search_param(collection_name, topk, query_records,
-                                             partitions=None, params=params)
+    def search_vector_in_files_param(cls, collection_name, segment_ids, query_entities, fields, params):
+        _search_param = Prepare.search_param(collection_name, query_entities, None, fields, params)
 
         return grpc_types.SearchInFilesParam(
-            file_id_array=ids,
+            file_id_array=segment_ids,
             search_param=_search_param
         )
 

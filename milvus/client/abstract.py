@@ -1,10 +1,11 @@
+import abc
 import ujson
 
 from ..client.exceptions import ParamError
 
 from .check import check_pass_param
 
-from .types import IndexType
+from .types import IndexType, DataType
 
 
 class LoopBase(object):
@@ -14,6 +15,19 @@ class LoopBase(object):
     def __iter__(self):
         return self
 
+    def __getitem__(self, item):
+        if isinstance(item, slice):
+            _start = item.start or 0
+            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
+            _step = item.step or 1
+
+            elements = []
+            for i in range(_start, _end, _step):
+                elements.append(self.get__item(i))
+            return elements
+
+        return self.get__item(item)
+
     def __next__(self):
         while self.__index < self.__len__():
             self.__index += 1
@@ -22,467 +36,284 @@ class LoopBase(object):
         # iterate stop, raise Exception
         self.__index = 0
         raise StopIteration()
+
+    @abc.abstractmethod
+    def get__item(self, item):
+        raise NotImplementedError()
+
+
+class FieldSchema:
+    def __init__(self, raw):
+        self._raw = raw
+
+        #
+        self.name = None
+        self.type = DataType.UNKNOWN
+        self.indexes = list()
+        self.params = dict()
+
+        ##
+        self.__pack(self._raw)
+
+    def __pack(self, raw):
+        self.name = raw.name
+        self.type = DataType(int(raw.type))
+
+        for kv in raw.extra_params:
+            if kv.key == "params":
+                self.params = ujson.loads(kv.value)
+
+        for ikv in raw.index_params:
+            index_dict = ujson.loads(ikv.value)
+            index_dict["index_name"] = ikv.key
+
+            self.indexes.append(index_dict)
+
+    def dict(self):
+        _dict = dict()
+        _dict["field"] = self.name
+        _dict["type"] = self.type
+        _dict["params"] = self.params
+        _dict["indexes"] = self.indexes
+        return _dict
 
 
 class CollectionSchema:
-    def __init__(self, collection_name, dimension, index_file_size, metric_type):
-        """
-        Table Schema
+    def __init__(self, raw):
+        self._raw = raw
 
-        :type  table_name: str
-        :param table_name: (Required) name of table
+        #
+        self.collection_name = None
+        self.params = dict()
+        self.fields = list()
 
-            `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
+        #
+        self.__pack(self._raw)
 
-        :type  dimension: int64
-        :param dimension: (Required) dimension of vector
+    def __pack(self, raw):
+        self.collection_name = raw.collection_name
+        self.params = dict()
+        for kv in raw.extra_params:
+            par = ujson.loads(kv.value)
+            self.params.update(par)
+            # self.params[kv.key] = kv.value
 
-        :type  index_file_size: int64
-        :param index_file_size: (Optional) max size of files which store index
+        for f in raw.fields:
+            self.fields.append(FieldSchema(f))
 
-        :type  metric_type: MetricType
-        :param metric_type: (Optional) vectors metric type
+    def dict(self):
+        _dict = dict()
+        _dict["fields"] = [f.dict() for f in self.fields]
+        for k, v in self.params.items():
+            _dict[k] = v
 
-            `MetricType`: 1-L2, 2-IP
-
-        """
-        check_pass_param(collection_name=collection_name, dimension=dimension,
-                         index_file_size=index_file_size, metric_type=metric_type)
-
-        self.collection_name = collection_name
-        self.dimension = dimension
-        self.index_file_size = index_file_size
-        self.metric_type = metric_type
-
-    def __repr__(self):
-        attr_list = ['%s=%r' % (key, value) for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+        return _dict
 
 
-class QueryResult:
-
-    def __init__(self, _id, _distance):
-        self.id = _id
-        self.distance = _distance
+class Entity:
+    def __init__(self, entity_id, data_types, field_names, field_values):
+        self._id = entity_id
+        self._types = data_types
+        self._field_names = field_names
+        self._field_values = field_values
 
     def __str__(self):
-        return "Result(id={}, distance={})".format(self.id, self.distance)
-
-
-class RowQueryResult:
-    def __init__(self, _id_list, _dis_list):
-        self._id_list = _id_list or []
-        self._dis_list = _dis_list or []
-
-        # Iterator index
-        self.__index = 0
-
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
-            _step = item.step or 1
-
-            elements = []
-            for i in range(_start, _end, _step):
-                elements.append(self.__getitem__(i))
-            return elements
-
-        return QueryResult(self._id_list[item], self._dis_list[item])
-
-    def __len__(self):
-        return len(self._id_list)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        while self.__index < self.__len__():
-            self.__index += 1
-            return self.__getitem__(self.__index - 1)
-
-        # iterate stop, raise Exception
-        self.__index = 0
-        raise StopIteration()
-
-
-class TopKQueryResult:
-    """
-    TopK query results, shown as 2-D array
-
-    This Class unpack response from server, store ids and distances separately.
-    """
-
-    def __init__(self, raw_source, **kwargs):
-        self._raw = raw_source
-        self._nq = 0
-        self._topk = 0
-        self._id_array = []
-        self._dis_array = []
-
-        ##
-        self.__index = 0
-
-        self._unpack(self._raw)
-
-    def _unpack(self, _raw):
-        """
-
-        Args:
-            _raw:
-
-        Returns:
-
-        """
-        self._nq = _raw.row_num
-
-        if self._nq == 0:
-            return
-
-        self._id_array = [list() for _ in range(self._nq)]
-        self._dis_array = [list() for _ in range(self._nq)]
-
-        id_list = list(_raw.ids)
-        dis_list = list(_raw.distances)
-        if len(id_list) != len(dis_list):
-            raise ParamError("number of id not match distance ")
-
-        len_ = len(id_list)
-        col = len_ // self._nq if self._nq > 0 else 0
-
-        if col == 0:
-            return
-
-        if len_ % col != 0:
-            raise ValueError("Search result is not aligned. (row_num={}, len of ids={})".format(_raw.row_num, len_))
-
-        for si, i in enumerate(range(0, len_, col)):
-            k = min(i + col, len_)
-            for j in range(i, k):
-                if id_list[j] == -1:
-                    k = j
-                    break
-            self._id_array[si].extend(id_list[i: k])
-            self._dis_array[si].extend(dis_list[i: k])
-
-        if len(self._id_array) != self._nq or \
-                len(self._dis_array) != self._nq:
-            raise ParamError("Result parse error.")
-
-        self._topk = col
-
-    @property
-    def id_array(self):
-        """
-        Id array, it's a 2-D array.
-        """
-        return self._id_array
-
-    @property
-    def distance_array(self):
-        """
-        Distance array, it's a 2-D array
-        """
-        return self._dis_array
-
-    @property
-    def shape(self):
-        """
-        getter. return result shape, format as (row, column).
-
-        """
-        return self._nq, self._topk
-
-    @property
-    def raw(self):
-        """
-        getter. return the raw result response
-
-        """
-        return self._raw
-
-    def __len__(self):
-        return self._nq
-
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
-            _step = item.step or 1
-
-            elements = []
-            for i in range(_start, _end, _step):
-                elements.append(self.__getitem__(i))
-            return elements
-
-        return RowQueryResult(self._id_array[item], self._dis_array[item])
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        while self.__index < self.__len__():
-            self.__index += 1
-            return self.__getitem__(self.__index - 1)
-
-        # iterate stop, raise Exception
-        self.__index = 0
-        raise StopIteration()
-
-    def __repr__(self):
-        """
-        :return:
-        """
-
-        lam = lambda x: "(id:{}, distance:{})".format(x.id, x.distance)
-
-        if self.__len__() > 5:
-            middle = ''
-
-            ll = self[:3]
-            for topk in ll:
-                if len(topk) > 5:
-                    middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
-                    middle += ",\n   ..."
-                    middle += "\n   %s ]\n\n" % lam(topk[-1])
-                else:
-                    middle = middle + " [ %s ] \n" % ",\n   ".join(map(lam, topk))
-
-            spaces = """        ......
-            ......"""
-
-            ahead = "[\n%s%s\n]" % (middle, spaces)
-            return ahead
-
-        # self.__len__() < 5
-        str_out_list = []
-        for i in range(self.__len__()):
-            str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
-
-        return "[\n%s\n]" % ",\n".join(str_out_list)
-
-
-class TopKQueryResult2:
-    def __init__(self, raw_source, **kwargs):
-        self._raw = raw_source
-        self._nq = 0
-        self._topk = 0
-        self._results = []
-
-        self.__index = 0
-
-        self._unpack(self._raw)
-
-    def _unpack(self, raw_resources):
-        js = raw_resources.json()
-        self._nq = js["num"]
-
-        for row_result in js["result"]:
-            row_ = [QueryResult(int(result["id"]), float(result["distance"]))
-                    for result in row_result if float(result["id"]) != -1]
-
-            self._results.append(row_)
-
-    @property
-    def shape(self):
-        return len(self._results), len(self._results[0]) if len(self._results) > 0 else 0
-
-    def __len__(self):
-        return len(self._results)
-
-    def __getitem__(self, item):
-        return self._results.__getitem__(item)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        while self.__index < self.__len__():
-            self.__index += 1
-            return self.__getitem__(self.__index - 1)
-
-        self.__index = 0
-        raise StopIteration()
-
-    def __repr__(self):
-        lam = lambda x: "(id:{}, distance:{})".format(x.id, x.distance)
-
-        if self.__len__() > 5:
-            middle = ''
-
-            ll = self[:3]
-            for topk in ll:
-                if len(topk) > 5:
-                    middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
-                    middle += ",\n   ..."
-                    middle += "\n   %s ]\n\n" % lam(topk[-1])
-                else:
-                    middle = middle + " [ %s ] \n" % ",\n   ".join(map(lam, topk))
-
-            spaces = """        ......
-                    ......"""
-
-            ahead = "[\n%s%s\n]" % (middle, spaces)
-            return ahead
-
-        # self.__len__() < 5
-        str_out_list = []
-        for i in range(self.__len__()):
-            str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
-
-        return "[\n%s\n]" % ",\n".join(str_out_list)
-
-
-class HybridEntityResult:
-    def __init__(self, filed_names, entity_id, entity, vector, distance):
-        self._field_names = filed_names
-        self._id = entity_id
-        self._entity = entity
-        self._vector = vector
-        self._distance = distance
+        str_ = "(\tid: {} \n\tname\t\tvalue"
+        for name, value in zip(self._field_names, self._field_values):
+            str_ += "\t{}\t\t{}\n".format(name, value)
+
+        return str_
 
     def __getattr__(self, item):
-        index = self._field_names.index(item)
-        if index < len(self._entity):
-            return self._entity[index]
-        if index == len(self._entity):
-            return list(self._vector.float_data) if len(self._vector.float_data) > 0 else bytes(
-                self._vector.binary_data)
-
-        raise ValueError("Out of range ... ")
-
-    # def __getitem__(self, item):
-    #     return self._entity.__getitem__(item)
-
-    def get(self, field):
-        return self.__getattr__(field)
+        return self.value_of_field(item)
 
     @property
     def id(self):
         return self._id
 
     @property
-    def distance(self):
-        return self._distance
-
-
-class HybridRawResult(LoopBase):
-    def __init__(self, field_names, ids, entities, vectors, distances):
-        super().__init__()
-        self._field_names = field_names
-        self._ids = ids
-        self._vectors = vectors
-        self._entities = entities
-        self._distances = distances
-
-    def __len__(self):
-        return len(self._ids)
-
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
-            _step = item.step or 1
-
-            elements = []
-            for i in range(_start, _end, _step):
-                elements.append(self.__getitem__(i))
-            return elements
-
-        item_entities = [e[item] for e in self._entities]
-
-        return HybridEntityResult(self._field_names, self._ids[item], item_entities, self._vectors[item],
-                                  self._distances[item])
-        # if item in self._field_names:
-        #     index = self._field_names[item]
-
-
-class HybridResult(LoopBase):
-
-    def __init__(self, raw, **kwargs):
-        super().__init__()
-        self._raw = raw
-
-    def __len__(self):
-        return self._raw.row_num
-
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
-            _step = item.step or 1
-
-            elements = []
-            for i in range(_start, _end, _step):
-                elements.append(self.__getitem__(i))
-            return elements
-
-        seg_size = len(self._raw.distance) // self.row_num()
-        seg_start = item * seg_size
-        seg_end = min((item + 1) * seg_size, len(self._raw.distance))
-
-        entities = self._raw.entity
-
-        slice_entity = lambda e, start, end: e.int_value[start: end] if len(e.int_value) > 0 else e.double_value[
-                                                                                                  start: end]
-        seg_ids = self._raw.entity.entity_id[seg_start: seg_end]
-        seg_entities = [slice_entity(e, seg_start, seg_end) for e in entities.attr_data]
-        seg_vectors = self._raw.entity.vector_data[0].value[seg_start: seg_end]
-        seg_distances = self._raw.distance[seg_start: seg_end]
-        return HybridRawResult(self.field_names(), seg_ids, seg_entities, seg_vectors, seg_distances)
-
-    def field_names(self):
-        return list(self._raw.entity.field_names)
-
-    def row_num(self):
-        return self._raw.row_num
-
-
-class HEntity:
-    def __init__(self, field_names, attr_records, vector):
-        self._field_names = field_names
-        self._attr_records = attr_records
-        self._vector = vector
+    def fields(self):
+        return self._field_names
 
     def get(self, field):
-        index = self._field_names.index(field)
-        if index < len(self._attr_records):
-            return self._attr_records[index]
+        return self.value_of_field(field)
 
-        if index == len(self._attr_records):
-            return self._vector
+    def value_of_field(self, field):
+        if field not in self._field_names:
+            raise ValueError("entity not contain field {}".format(field))
 
-        raise ValueError("Out of range ... ")
+        i = self._field_names.index(field)
+        return self._field_values[i]
+
+    def type_of_field(self, field):
+        if field not in self._field_names:
+            raise ValueError("entity not contain field {}".format(field))
+
+        i = self._field_names.index(field)
+        return self._types[i]
 
 
-class HEntitySet(LoopBase):
+class Entities(LoopBase):
     def __init__(self, raw):
         super().__init__()
         self._raw = raw
+        self._ids = list(self._raw.ids)
+        self._valid_raw = []
 
     def __len__(self):
-        return self._raw.row_num
+        return len(self._raw.ids)
 
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
-            _step = item.step or 1
+    def get__item(self, item):
+        if not self._ids:
+            self._ids = list(self._raw.ids)
 
-            elements = []
-            for i in range(_start, _end, _step):
-                elements.append(self.__getitem__(i))
-            return elements
+        if not self._valid_raw:
+            self._valid_raw = list(self._raw.valid_row)
 
-        slice_entity = lambda e, index: e.int_value[index] if len(e.int_value) > 0 else e.double_value[index]
-        attr_records = [slice_entity(e, item) for e in self._raw.attr_data]
-        vector = self._raw.vector_data[0].value[item]
+        # if
+        if not self._valid_raw:
+            return Entity(self._ids[item], [], [], [])
 
-        return HEntity(self.field_names, attr_records, vector)
+        if not self._valid_raw[item]:
+            return None
+
+        fatal_item = sum([1 for v in self._valid_raw[:item] if v])
+
+        field_types = list()
+        field_names = list()
+        field_values = list()
+        for field in self._raw.fields:
+            type = DataType(int(field.type))
+            if type in (DataType.INT8, DataType.INT16, DataType.INT32):
+                slice_value = field.attr_record.int32_value[fatal_item]
+            elif type in (DataType.INT64,):
+                slice_value = field.attr_record.int64_value[fatal_item]
+            elif type in (DataType.FLOAT,):
+                slice_value = field.attr_record.float_value[fatal_item]
+            elif type in (DataType.DOUBLE,):
+                slice_value = field.attr_record.double_value[fatal_item]
+            elif type in (DataType.VECTOR,):
+                slice_value = list(field.vector_record.records[item].float_data)
+            elif type in (DataType.BINARY_VECTOR,):
+                slice_value = bytes(field.vector_record.records[item].binary_data)
+            else:
+                raise ParamError("Unknown field type {}".format(type))
+
+            field_types.append(type)
+            field_names.append(field.field_name)
+            field_values.append(slice_value)
+
+        # values = [fv[item] for fv in field_values]
+        return Entity(self._ids[item], field_types, field_names, field_values)
 
     @property
-    def field_names(self):
-        return list(self._raw.field_names)
+    def ids(self):
+        return self._ids
+
+    def dict(self):
+        entity_list = list()
+        for field in self._raw.fields:
+            type = DataType(int(field.type))
+            if type in (DataType.INT8, DataType.INT16, DataType.INT32):
+                values = list(field.attr_record.int32_value)
+            elif type in (DataType.INT64,):
+                values = list(field.attr_record.int64_value)
+            elif type in (DataType.FLOAT,):
+                values = list(field.attr_record.float_value)
+            elif type in (DataType.DOUBLE,):
+                values = list(field.attr_record.double_value)
+            elif type in (DataType.VECTOR,):
+                # values = list(field.vector_record.records[item].float_data)
+                values = [list(record.float_data) for record in field.vector_record.records]
+            elif type in (DataType.BINARY_VECTOR,):
+                values = [bytes(record.binary_data) for record in field.vector_record.records]
+            else:
+                raise ParamError("Unknown field type {}".format(type))
+
+            entity_list.append({"field": field.field_name, "values": values, "type": type})
+
+        return entity_list
+
+
+class ItemQueryResult:
+    def __init__(self, entity, distance, score):
+        self._entity = entity
+        self._dis = distance
+        self._score = score
+
+    def __str__(self):
+        str_ = "(distance: {}, score: {}, entity: {})".format(self._dis, self._score, self._entity)
+        return str_
+
+    @property
+    def entity(self):
+        return self._entity
+
+    @property
+    def id(self):
+        return self._entity.id
+
+    @property
+    def distance(self):
+        return self._dis
+
+    @property
+    def score(self):
+        return self._score
+
+
+class RawQueryResult(LoopBase):
+    def __init__(self, entity_list, distance_list, score_list):
+        super().__init__()
+        self._entities = entity_list
+        self._distances = distance_list
+        self._scores = score_list
+
+    def __len__(self):
+        return len(self._entities)
+
+    def get__item(self, item):
+        score = self._scores[item] if self._scores else None
+        return ItemQueryResult(self._entities[item], self._distances[item], score)
+
+    @property
+    def ids(self):
+        return [e.id for e in self._entities]
+
+    @property
+    def distances(self):
+        return self._distances
+
+
+class QueryResult(LoopBase):
+    def __init__(self, raw):
+        super().__init__()
+        self._raw = raw
+        self._nq = self._raw.row_num
+        self._topk = len(self._raw.distances) // self._nq if self._nq > 0 else 0
+        self._entities = Entities(self._raw.entities)
+
+    def __len__(self):
+        return self._nq
+
+    def __len(self):
+        return self._nq
+
+    def _pack(self, raw):
+        pass
+
+    def get__item(self, item):
+        dis_len = len(self._raw.distances)
+        topk = dis_len // self._nq
+        start = item * topk
+        end = (item + 1) * topk
+        slice_score = list(self._raw.scores)[start: end] if dis_len > 0 else []
+        slice_distances = list(self._raw.distances)[start: end] if dis_len > 0 else []
+
+        slice_entity = self._entities[start: end]
+
+        return RawQueryResult(slice_entity, slice_distances, slice_score)
+
 
 
 class IndexParam:

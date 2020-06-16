@@ -100,6 +100,13 @@ class MetricType(IntEnum):
         return self._name_
 
 
+# class MetricType:
+#     INVALID = "INVALID"
+#     L2 = "L2"
+#     IP = "IP"
+#     HAMMING = "HAMMING"
+
+
 class DataType(IntEnum):
     NULL = 0
     INT8 = 1
@@ -115,6 +122,7 @@ class DataType(IntEnum):
     DOUBLE = 41
 
     VECTOR = 100
+    BINARY_VECTOR = 101
     UNKNOWN = 9999
 
 

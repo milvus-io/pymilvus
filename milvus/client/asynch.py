@@ -1,7 +1,8 @@
 import abc
 import threading
 
-from .abstract import TopKQueryResult
+from .abstract import QueryResult
+from .exceptions import BaseException
 from .types import Status
 
 
@@ -75,8 +76,10 @@ class Future(AbstractFuture):
                     if self._done_cb:
                         if isinstance(self._results, tuple):
                             self._done_cb(*self._results)
-                        else:
+                        elif self._results is not None:
                             self._done_cb(self._results)
+                        else:
+                            self._done_cb()
                 except Exception as e:
                     self._exception = e
                 finally:
@@ -102,6 +105,7 @@ class Future(AbstractFuture):
 
             self._condition.notify_all()
 
+        self.exception()
         if kwargs.get("raw", False) is True:
             # just return response object received from gRPC
             return self._response
@@ -142,30 +146,39 @@ class SearchFuture(Future):
 
     def on_response(self, response):
         if response.status.error_code == 0:
-            return Status(message='Search successfully!'), TopKQueryResult(response)
+            return QueryResult(response)
 
-        return Status(code=response.status.error_code, message=response.status.reason), None
+        status = response.status
+        raise BaseException(status.error_code, status.reason)
 
 
 class InsertFuture(Future):
     def on_response(self, response):
         status = response.status
         if status.error_code == 0:
-            return Status(message='Add vectors successfully!'), list(response.vector_id_array)
+            return list(response.entity_id_array)
 
-        return Status(code=status.error_code, message=status.reason), []
+        status = response.status
+        raise BaseException(status.error_code, status.reason)
 
 
 class CreateIndexFuture(Future):
     def on_response(self, response):
-        return Status(code=response.error_code, message=response.reason)
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
+
+        return Status(response.error_code, response.reason)
 
 
 class CompactFuture(Future):
     def on_response(self, response):
-        return Status(code=response.error_code, message=response.reason)
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
+
+        return Status(response.error_code, response.reason)
 
 
 class FlushFuture(Future):
     def on_response(self, response):
-        return Status(code=response.error_code, message=response.reason)
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)

@@ -12,9 +12,7 @@ from . import __version__
 from .types import IndexType, MetricType, Status
 from .check import check_pass_param, is_legal_host, is_legal_port
 from .pool import ConnectionPool, SingleConnectionPool, SingletonThreadPool
-from .grpc_handler import GrpcHandler
-from .http_handler import HttpHandler
-from .exceptions import ParamError, NotConnectError, DeprecatedError
+from .exceptions import ParamError, DeprecatedError
 
 from ..settings import DefaultConfig as config
 
@@ -113,17 +111,6 @@ class Milvus:
     def _connection(self):
         return self._pool.fetch()
 
-    @deprecated
-    def set_hook(self, **kwargs):
-        """
-        Deprecated
-        """
-        # TODO: may remove it.
-        if self._stub:
-            return self._stub.set_hook(**kwargs)
-
-        self._hooks.update(kwargs)
-
     @property
     def name(self):
         return self._name
@@ -131,37 +118,6 @@ class Milvus:
     @property
     def handler(self):
         return self._handler
-
-    @deprecated
-    def connect(self, host=None, port=None, uri=None, timeout=2):
-        """
-        Deprecated
-        """
-        if self.connected() and self._connected:
-            return Status(message="You have already connected {} !".format(self._uri),
-                          code=Status.CONNECT_FAILED)
-
-        if self._stub is None:
-            self._init(host, port, uri, handler=self._handler)
-
-        if self.ping(timeout):
-            self._status = Status(message="Connected")
-            self._connected = True
-            return self._status
-
-    @deprecated
-    def connected(self):
-        """
-        Deprecated
-        """
-        return True if self._status and self._status.OK() else False
-
-    @deprecated
-    def disconnect(self):
-        """
-        Deprecated
-        """
-        pass
 
     def close(self):
         """
@@ -213,58 +169,58 @@ class Milvus:
         with self._connection() as handler:
             return handler._cmd(cmd, timeout)
 
+    # @check_connect
+    # def create_collection(self, param, timeout=30):
+    #     """
+    #     Creates a collection.
+    #
+    #     :type  collection_name: str
+    #     :param collection_name: collection name.
+    #
+    #     :param fields: field params.
+    #     :type  fields: dict
+    #         ` [
+    #                 {"field_name": "A", "data_type": DataType.INT64},
+    #                 {"field_name": "B", "data_type": DataType.INT64},
+    #                 {"field_name": "C", "data_type": DataType.INT64},
+    #                 {"field_name": "Vec", "dimension": 128, "extra_params": {"index_file_size": 100, "metric_type": MetricType.L2}}
+    #         ]`
+    #
+    #     :return: Whether the operation is successful.
+    #     :rtype: Status
+    #     """
+    #     if not isinstance(param, dict):
+    #         raise ParamError('Param type incorrect, expect {} but get {} instead'
+    #                          .format(type(dict), type(param)))
+    #
+    #     collection_param = copy.deepcopy(param)
+    #
+    #     if 'collection_name' not in collection_param:
+    #         raise ParamError('collection_name is required')
+    #     collection_name = collection_param["collection_name"]
+    #     collection_param.pop('collection_name')
+    #
+    #     if 'dimension' not in collection_param:
+    #         raise ParamError('dimension is required')
+    #     dim = collection_param["dimension"]
+    #     collection_param.pop("dimension")
+    #
+    #     index_file_size = collection_param.get('index_file_size', 1024)
+    #     collection_param.pop('index_file_size', None)
+    #
+    #     metric_type = collection_param.get('metric_type', MetricType.L2)
+    #     collection_param.pop('metric_type', None)
+    #
+    #     check_pass_param(collection_name=collection_name, dimension=dim, index_file_size=index_file_size,
+    #                      metric_type=metric_type)
+    #
+    #     with self._connection() as handler:
+    #         return handler.create_collection(collection_name, dim, index_file_size, metric_type, collection_param, timeout)
+
     @check_connect
-    def create_collection(self, param, timeout=30):
-        """
-        Creates a collection.
-
-        :type  param: dict
-        :param param: Information needed to create a collection.
-
-                `param={'collection_name': 'name',
-                                'dimension': 16,
-                                'index_file_size': 1024 (default)，
-                                'metric_type': Metric_type.L2 (default)
-                                }`
-
-        :param timeout: Timeout in seconds.
-        :type  timeout: double
-
-        :return: Whether the operation is successful.
-        :rtype: Status
-        """
-        if not isinstance(param, dict):
-            raise ParamError('Param type incorrect, expect {} but get {} instead'
-                             .format(type(dict), type(param)))
-
-        collection_param = copy.deepcopy(param)
-
-        if 'collection_name' not in collection_param:
-            raise ParamError('collection_name is required')
-        collection_name = collection_param["collection_name"]
-        collection_param.pop('collection_name')
-
-        if 'dimension' not in collection_param:
-            raise ParamError('dimension is required')
-        dim = collection_param["dimension"]
-        collection_param.pop("dimension")
-
-        index_file_size = collection_param.get('index_file_size', 1024)
-        collection_param.pop('index_file_size', None)
-
-        metric_type = collection_param.get('metric_type', MetricType.L2)
-        collection_param.pop('metric_type', None)
-
-        check_pass_param(collection_name=collection_name, dimension=dim, index_file_size=index_file_size,
-                         metric_type=metric_type)
-
+    def create_collection(self, collection_name, fields, timeout=30):
         with self._connection() as handler:
-            return handler.create_collection(collection_name, dim, index_file_size, metric_type, collection_param, timeout)
-
-    @check_connect
-    def create_hybrid_collection(self, collection_name, fields, timeout=30):
-        with self._connection() as handler:
-            return handler.create_hybrid_collection(collection_name, fields, timeout)
+            return handler.create_collection(collection_name, fields, timeout)
 
     @check_connect
     def has_collection(self, collection_name, timeout=30):
@@ -390,7 +346,7 @@ class Milvus:
             return handler.drop_collection(collection_name, timeout)
 
     @check_connect
-    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
+    def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
         """
         Insert vectors to a collection.
 
@@ -422,25 +378,20 @@ class Milvus:
             with self._connection() as handler:
                 return handler.insert(None, None, timeout=timeout, **kwargs)
 
-        check_pass_param(collection_name=collection_name, records=records)
-        partition_tag is not None and check_pass_param(partition_tag=partition_tag)
-        if ids is not None:
-            check_pass_param(ids=ids)
-            if len(records) != len(ids):
-                raise ParamError("length of vectors do not match that of ids")
-
-        params = params or dict()
-        if not isinstance(params, dict):
-            raise ParamError("Params must be a dictionary type")
+        # check_pass_param(collection_name=collection_name, records=records)
+        # partition_tag is not None and check_pass_param(partition_tag=partition_tag)
+        # if ids is not None:
+        #     check_pass_param(ids=ids)
+        #     if len(records) != len(ids):
+        #         raise ParamError("length of vectors do not match that of ids")
+        #
+        # params = params or dict()
+        # if not isinstance(params, dict):
+        #     raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.insert(collection_name, records, ids, partition_tag, params, timeout, **kwargs)
+            return handler.insert(collection_name, entities, ids, partition_tag, params, timeout, **kwargs)
 
-    @check_connect
-    def insert_hybrid(self, collection_name, entities, vector_entities, ids=None, partition_tag=None, params=None):
-        with self._connection() as handler:
-            return handler.insert_hybrid(collection_name, entities, vector_entities, ids, partition_tag, params)
-
-    def get_entity_by_id(self, collection_name, ids, timeout=None):
+    def get_entity_by_id(self, collection_name, ids, fields=None, timeout=None):
         """
         Returns raw vectors according to ids.
 
@@ -457,12 +408,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name, ids=ids)
 
         with self._connection() as handler:
-            return handler.get_vectors_by_ids(collection_name, ids, timeout=timeout)
-
-    def get_hybrid_entity_by_id(self, collection_name, ids):
-        check_pass_param(collection_name=collection_name, ids=ids)
-        with self._connection() as handler:
-            return handler.get_hybrid_entity_by_id(collection_name, ids)
+            return handler.get_entities_by_ids(collection_name, ids, fields, timeout=timeout)
 
     @check_connect
     def list_id_in_segment(self, collection_name, segment_name, timeout=None):
@@ -472,7 +418,7 @@ class Milvus:
             return handler.get_vector_ids(collection_name, segment_name, timeout)
 
     @check_connect
-    def create_index(self, collection_name, index_type=None, params=None, timeout=None, **kwargs):
+    def create_index(self, collection_name, field_name, index_name, params, timeout=None, **kwargs):
         """
         Creates index for a collection.
 
@@ -495,15 +441,16 @@ class Milvus:
 
         :return: Whether the operation is successful.
         """
-        _index_type = IndexType.FLAT if index_type is None else index_type
-        check_pass_param(collection_name=collection_name, index_type=_index_type)
+        # _index_type = IndexType.FLAT if index_type is None else index_type
+        # check_pass_param(collection_name=collection_name, index_type=_index_type)
 
         params = params or dict()
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.create_index(collection_name, _index_type, params, timeout, **kwargs)
+            return handler.create_index(collection_name, field_name, index_name, params, timeout, **kwargs)
 
+    @deprecated
     @check_connect
     def get_index_info(self, collection_name, timeout=30):
         """
@@ -523,7 +470,7 @@ class Milvus:
             return handler.describe_index(collection_name, timeout)
 
     @check_connect
-    def drop_index(self, collection_name, timeout=30):
+    def drop_index(self, collection_name, field_name, index_name, timeout=30):
         """
         Removes an index.
 
@@ -538,7 +485,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name)
 
         with self._connection() as handler:
-            return handler.drop_index(collection_name, timeout)
+            return handler.drop_index(collection_name, field_name, index_name, timeout)
 
     @check_connect
     def create_partition(self, collection_name, partition_tag, timeout=30):
@@ -629,7 +576,7 @@ class Milvus:
             return handler.drop_partition(collection_name, partition_tag, timeout)
 
     @check_connect
-    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, timeout=None, **kwargs):
+    def search(self, collection_name, query_entities, partition_tags=None, fields=None, timeout=None, **kwargs):
         """
         Search vectors in a collection.
 
@@ -655,28 +602,18 @@ class Milvus:
         :rtype: (Status, TopKQueryResult)
 
         """
-        check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
-        if partition_tags is not None:
-            check_pass_param(partition_tag_array=partition_tags)
+        # check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
+        # if partition_tags is not None:
+        #     check_pass_param(partition_tag_array=partition_tags)
 
-        params = dict() if params is None else params
-        if not isinstance(params, dict):
-            raise ParamError("Params must be a dictionary type")
+        # params = dict() if params is None else params
+        # if not isinstance(params, dict):
+        #     raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.search(collection_name, top_k, query_records, partition_tags, params, timeout, **kwargs)
+            return handler.search(collection_name, query_entities, partition_tags, fields, timeout=timeout, **kwargs)
 
     @check_connect
-    def search_hybrid_pb(self, collection_name, query_entities, partition_tags=None, params=None, **kwargs):
-        with self._connection() as handler:
-            return handler.search_hybrid_pb(collection_name, query_entities, partition_tags, params, **kwargs)
-
-    @check_connect
-    def search_hybrid(self, collection_name, vector_params, dsl, partition_tags=None, params=None, **kwargs):
-        with self._connection() as handler:
-            return handler.search_hybrid(collection_name, vector_params, dsl, partition_tags, params, **kwargs)
-
-    @check_connect
-    def search_in_segment(self, collection_name, file_ids, query_records, top_k, params=None, timeout=None, **kwargs):
+    def search_in_segment(self, collection_name, segment_ids, query_entities, params=None, fields=None, timeout=None, **kwargs):
         """
         Searches for vectors in specific segments of a collection.
 
@@ -706,17 +643,16 @@ class Milvus:
 
         :rtype: (Status, TopKQueryResult)
         """
-        check_pass_param(collection_name=collection_name, topk=top_k, records=query_records, ids=file_ids)
+        # check_pass_param(collection_name=collection_name, segment_ids, query_entities, params, timeout)
 
         params = dict() if params is None else params
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.search_in_files(collection_name, file_ids,
-                                           query_records, top_k, params, timeout, **kwargs)
+            return handler.search_in_files(collection_name, segment_ids, query_entities, fields, params, timeout, **kwargs)
 
     @check_connect
-    def delete_entity_by_id(self, collection_name, id_array, timeout=None):
+    def delete_entity_by_id(self, collection_name, ids, timeout=None):
         """
         Deletes vectors in a collection by vector ID.
 
@@ -729,9 +665,9 @@ class Milvus:
         :return:
             Status: Whether the operation is successful.
         """
-        check_pass_param(collection_name=collection_name, ids=id_array)
+        check_pass_param(collection_name=collection_name, ids=ids)
         with self._connection() as handler:
-            return handler.delete_by_id(collection_name, id_array, timeout)
+            return handler.delete_by_id(collection_name, ids, timeout)
 
     @check_connect
     def flush(self, collection_name_array=None, timeout=None, **kwargs):

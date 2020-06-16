@@ -230,9 +230,7 @@ class SingletonThreadPool:
         if self._try_connect:
             conn.client().ping()
 
-        status, version = conn.client().server_version(timeout=30)
-        if not status.OK():
-            raise NotConnectError("Cannot check server version: {}".format(status.message))
+        version = conn.client().server_version(timeout=30)
         if not _is_version_match(version):
             raise VersionError(
                 "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
@@ -254,6 +252,7 @@ class SingletonThreadPool:
 
     def release(self, conn):
         pass
+
 
 class SingleConnectionPool:
     def __init__(self, uri, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
