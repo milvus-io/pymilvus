@@ -39,7 +39,7 @@ For detailed SDK documentation, refer to [API Documentation](https://milvus-io.g
   - [Search vectors in collections/partitions](#search-vectors-in-collectionspartitions)
     - [Search vectors in a collection](#search-vectors-in-a-collection)
     - [Search vectors in a partition](#search-vectors-in-a-partition)
-  - [close client](#close-client)
+  - [Close client](#close-client)
   - [FAQ](#faq)
 
 <!-- /TOC -->
@@ -312,7 +312,7 @@ Status(code=0, message='OK')
 
 > Note: If you do not specify `partition_tags`, Milvus searches the whole collection.
 
-## close client
+## Close client
 
 ```python
 >>> client.close()
