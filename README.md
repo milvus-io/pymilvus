@@ -129,7 +129,7 @@ Refer to [examples](/examples) for more example programs.
    >>> param = {'collection_name':'test01', 'dimension':128, 'index_file_size':1024, 'metric_type':MetricType.L2}
    ```
 
-2. Create collection `test01` with dimension size as 256, size of the data file for Milvus to automatically create indexes as 1024, and metric type as Euclidean distance (L2).
+2. Create collection `test01` with dimension size as 128, size of the data file for Milvus to automatically create indexes as 1024, and metric type as Euclidean distance (L2).
 
    ```python
    # Create a collection
@@ -208,12 +208,12 @@ Status(code=0, message='OK')
 
 ### Insert vectors in a collection
 
-1. Generate 20 vectors of 256 dimension.
+1. Generate 20 vectors of 128 dimension.
 
    ```python
    >>> import random
    >>> dim = 128
-   # Generate 20 vectors of 256 dimension
+   # Generate 20 vectors of 128 dimension
    >>> vectors = [[random.random() for _ in range(dim)] for _ in range(20)]
    ```
 
