@@ -14,33 +14,33 @@ For detailed SDK documentation, refer to [API Documentation](https://milvus-io.g
 
 <!-- TOC -->
 
-- [New features](#new-features)
-- [Get started](#get-started)
+- [Milvus Python SDK](#milvus-python-sdk)
+  - [Get started](#get-started)
     - [Prerequisites](#prerequisites)
     - [Install pymilvus](#install-pymilvus)
     - [Examples](#examples)
-- [Basic operations](#basic-operations)
-- [Connect to the Milvus server](#connect-to-the-milvus-server)
-- [Create/Drop collections](#createdrop-collections)
+  - [Basic operations](#basic-operations)
+  - [Connect to the Milvus server](#connect-to-the-milvus-server)
+  - [Create/Drop collections](#createdrop-collections)
     - [Create a collection](#create-a-collection)
     - [Drop a collection](#drop-a-collection)
-- [Create/Drop partitions in a collection](#createdrop-partitions-in-a-collection)
+  - [Create/Drop partitions in a collection](#createdrop-partitions-in-a-collection)
     - [Create a partition](#create-a-partition)
     - [Drop a partition](#drop-a-partition)
-- [Create/Drop indexes in a collection](#createdrop-indexes-in-a-collection)
+  - [Create/Drop indexes in a collection](#createdrop-indexes-in-a-collection)
     - [Create an index](#create-an-index)
     - [Drop an index](#drop-an-index)
-- [Insert/Delete vectors in collections/partitions](#insertdelete-vectors-in-collectionspartitions)
+  - [Insert/Delete vectors in collections/partitions](#insertdelete-vectors-in-collectionspartitions)
     - [Insert vectors in a collection](#insert-vectors-in-a-collection)
     - [Insert vectors in a partition](#insert-vectors-in-a-partition)
     - [Delete vectors by ID](#delete-vectors-by-id)
-- [Flush data in one or multiple collections to disk](#flush-data-in-one-or-multiple-collections-to-disk)
-- [Compact all segments in a collection](#compact-all-segments-in-a-collection)
-- [Search vectors in collections/partitions](#search-vectors-in-collectionspartitions)
+  - [Flush data in one or multiple collections to disk](#flush-data-in-one-or-multiple-collections-to-disk)
+  - [Compact all segments in a collection](#compact-all-segments-in-a-collection)
+  - [Search vectors in collections/partitions](#search-vectors-in-collectionspartitions)
     - [Search vectors in a collection](#search-vectors-in-a-collection)
     - [Search vectors in a partition](#search-vectors-in-a-partition)
-- [Disconnect from the Milvus server](#disconnect-from-the-milvus-server)
-- [FAQ](#faq)
+  - [close client](#close-client)
+  - [FAQ](#faq)
 
 <!-- /TOC -->
 
@@ -208,12 +208,12 @@ Status(code=0, message='OK')
 
 ### Insert vectors in a collection
 
-1. Generate 20 vectors of 256 dimension.
+1. Generate 20 vectors of 128 dimension.
 
    ```python
    >>> import random
    >>> dim = 128
-   # Generate 20 vectors of 256 dimension
+   # Generate 20 vectors of 128 dimension
    >>> vectors = [[random.random() for _ in range(dim)] for _ in range(20)]
    ```
 
