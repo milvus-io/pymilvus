@@ -149,14 +149,15 @@ class TopKQueryResult:
         if len(id_list) != len(dis_list):
             raise ParamError("number of id not match distance ")
 
-        col = len(id_list) // self._nq if self._nq > 0 else 0
+        len_ = len(id_list)
+        col = len_ // self._nq if self._nq > 0 else 0
 
         if col == 0:
             return
 
-        for si, i in enumerate(range(0, len(id_list), col)):
-            k = i + col
-            for j in range(i, i + col):
+        for si, i in enumerate(range(0, len_, col)):
+            k = min(i + col, len_)
+            for j in range(i, k):
                 if id_list[j] == -1:
                     k = j
                     break
