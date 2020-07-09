@@ -155,6 +155,9 @@ class TopKQueryResult:
         if col == 0:
             return
 
+        if len_ % col != 0:
+            raise ValueError("Search result is not aligned. (row_num={}, len of ids={})".format(_raw.row_num, len_))
+
         for si, i in enumerate(range(0, len_, col)):
             k = min(i + col, len_)
             for j in range(i, k):
@@ -345,7 +348,8 @@ class HybridEntityResult:
         if index < len(self._entity):
             return self._entity[index]
         if index == len(self._entity):
-            return list(self._vector.float_data) if len(self._vector.float_data) > 0 else bytes(self._vector.binary_data)
+            return list(self._vector.float_data) if len(self._vector.float_data) > 0 else bytes(
+                self._vector.binary_data)
 
         raise ValueError("Out of range ... ")
 
@@ -389,7 +393,8 @@ class HybridRawResult(LoopBase):
 
         item_entities = [e[item] for e in self._entities]
 
-        return HybridEntityResult(self._field_names, self._ids[item], item_entities, self._vectors[item], self._distances[item])
+        return HybridEntityResult(self._field_names, self._ids[item], item_entities, self._vectors[item],
+                                  self._distances[item])
         # if item in self._field_names:
         #     index = self._field_names[item]
 
@@ -420,7 +425,8 @@ class HybridResult(LoopBase):
 
         entities = self._raw.entity
 
-        slice_entity = lambda e, start, end: e.int_value[start: end] if len(e.int_value) > 0 else e.double_value[start: end]
+        slice_entity = lambda e, start, end: e.int_value[start: end] if len(e.int_value) > 0 else e.double_value[
+                                                                                                  start: end]
         seg_ids = self._raw.entity.entity_id[seg_start: seg_end]
         seg_entities = [slice_entity(e, seg_start, seg_end) for e in entities.attr_data]
         seg_vectors = self._raw.entity.vector_data[0].value[seg_start: seg_end]
@@ -479,6 +485,7 @@ class HEntitySet(LoopBase):
     @property
     def field_names(self):
         return list(self._raw.field_names)
+
 
 class IndexParam:
     """

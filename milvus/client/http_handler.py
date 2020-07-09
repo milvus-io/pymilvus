@@ -563,20 +563,15 @@ class HttpHandler(ConnectIntf):
         return Status(Status(js["code"], js["message"])), []
 
     @handle_error(returns=(False,))
-    def has_partition(self, collection_name, tag):
+    def has_partition(self, collection_name, tag, timeout=30):
         url = self._uri + "/collections/{}/partitions".format(collection_name)
-        request = {
-            "filter": {
-                "partition_tag": tag
-            }
-        }
-        payload = ujson.dumps(request)
 
-        response = rq.get(url, data=payload)
+        response = rq.get(url, timeout=timeout)
         if response.status_code == 200:
             result = response.json()
             if result["count"] > 0:
-                return Status(), True
+                partitions = [p["partition_tag"] for p in list(result["partitions"])]
+                return Status(), tag in partitions
             return Status(), False
 
         js = response.json()
