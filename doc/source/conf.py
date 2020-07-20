@@ -22,7 +22,7 @@ copyright = '2020, Milvus'
 author = 'Milvus'
 
 # The full version, including alpha/beta/rc tags
-release = '0.2.9'
+release = '0.2.14'
 
 
 # -- General configuration ---------------------------------------------------
