@@ -85,6 +85,8 @@ class ConnectionPool:
         self._uri = uri
         self._pool_size = pool_size
         self._wait_timeout = wait_timeout
+        # if try_connect:
+        #     self._max_retry = kwargs.get("max_retry", 3)
 
         # Record used connection number.
         self._used_conn = 0

@@ -15,7 +15,7 @@ _PORT = '19530'  # default value
 # _PORT = '19121'  # default http value
 
 # Vector parameters
-_DIM = 128  # dimension of vector
+_DIM = 8  # dimension of vector
 
 _INDEX_FILE_SIZE = 32  # max file size of stored index
 

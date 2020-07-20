@@ -1,3 +1,9 @@
+# pymilvus 0.2.14(2020-07-20)
+
+## Bug
+- \#237 - Fix wrong result on 'has_partition' with http handler
+
+
 # pymilvus 0.2.13(2020-06-13)
 
 ## New Feature

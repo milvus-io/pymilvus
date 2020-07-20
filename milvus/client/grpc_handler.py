@@ -46,7 +46,6 @@ def error_handler(*rargs):
                 return status if not rargs else tuple([status]) + rargs
             except grpc.RpcError as e:
                 record_dict["RPC error"] = str(datetime.datetime.now())
-
                 LOGGER.error("\nAddr [{}] {}\nRpc error: {}\n\t{}".format(self.server_address, func.__name__, e, record_dict))
                 status = Status(e.code(), message='Error occurred. {}'.format(e.details()))
                 return status if not rargs else tuple([status]) + rargs

@@ -63,6 +63,7 @@ def test_run(gcon):
 
 def test_mult_insert(gcon):
     def multi_thread_opr(client, collection_name, utid):
+
         collection_param = {
             'collection_name': collection_name,
             'dimension': 64
