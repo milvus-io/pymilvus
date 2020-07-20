@@ -1,8 +1,7 @@
-# pymilvus 0.2.14(TBD)
-- \#237 - Fix wrong result on 'has_partition' with http handler
+# pymilvus 0.2.14(2020-07-20)
 
-## New Feature
-- \#220 - Add sdk statistics badges
+## Bug
+- \#237 - Fix wrong result on 'has_partition' with http handler
 
 
 # pymilvus 0.2.13(2020-06-13)
