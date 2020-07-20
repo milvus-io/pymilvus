@@ -4,11 +4,13 @@ from unittest import mock
 
 import grpc
 import pytest
-from grpc._channel import _UnaryUnaryMultiCallable as uum
+from grpc._channel import _UnaryUnaryMultiCallable as Uum
 
 from milvus import Milvus, MetricType, IndexType, ParamError
 
 from factorys import collection_schema_factory
+
+from utils import MockGrpcError
 
 
 class TestCreateCollection:
@@ -101,17 +103,28 @@ class TestCreateCollection:
         with pytest.raises(ParamError):
             gcon.create_collection(collection_param)
 
-    # @mock.patch("grpc._channel._UnaryUnaryMultiCallable")
-    # def test_create_collection_exception(self, mock_future, gcon):
-    #     mock_future.future = mock.Mock(side_effect=grpc.FutureTimeoutError())
-    #     collection_param = {
-    #         "collection_name": "test_create_collection_exception",
-    #         "dimension": 128,
-    #         "metric_type": MetricType.L2,
-    #         "index_file_size": 10
-    #     }
-    #     with pytest.raises(Exception):
-    #         gcon.create_collection(collection_param)
+    def test_create_collection_exception(self, gcon):
+        collection_param = {
+            "collection_name": "test_create_collection_exceptions",
+            "dimension": 128,
+            "metric_type": MetricType.L2,
+            "index_file_size": 10
+        }
+
+        mock_grpc_timeout = mock.MagicMock(side_effect=grpc.FutureTimeoutError())
+        with mock.patch.object(Uum, 'future', mock_grpc_timeout):
+            status = gcon.create_collection(collection_param)
+            assert not status.OK()
+
+        mock_grpc_error = mock.MagicMock(side_effect=MockGrpcError())
+        with mock.patch.object(Uum, 'future', mock_grpc_error):
+            status = gcon.create_collection(collection_param)
+            assert not status.OK()
+
+        mock_exception = mock.MagicMock(side_effect=Exception("error"))
+        with mock.patch.object(Uum, 'future', mock_exception):
+            status = gcon.create_collection(collection_param)
+            assert not status.OK()
 
 
 class TestHasCollection:
@@ -165,7 +178,6 @@ class TestCountCollection:
 class TestCollectinStats:
     def test_get_collection_stats_normal(self, gcon, gvector):
         status, info = gcon.get_collection_stats(gvector)
-        # import pdb;pdb.set_trace()
         assert status.OK()
         assert info["row_count"] == 10000
 

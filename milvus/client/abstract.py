@@ -1,7 +1,5 @@
 import ujson
 
-from google.protobuf.pyext._message import RepeatedCompositeContainer
-
 from ..client.exceptions import ParamError
 
 from .check import check_pass_param
@@ -518,10 +516,10 @@ class IndexParam:
         self._collection_name = collection_name
         self._index_type = index_type
 
-        if isinstance(params, RepeatedCompositeContainer):
-            self._params = ujson.loads(params[0].value)
-        else:
-            self._params = params
+        # if isinstance(params, RepeatedCompositeContainer):
+        #     self._params = ujson.loads(params[0].value)
+        # else:
+        self._params = ujson.loads(params)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key.lstrip('_'), value)

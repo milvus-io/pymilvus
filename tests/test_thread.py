@@ -61,21 +61,24 @@ def test_run(gcon):
     print(gcount)
 
 
-def test_mult_insert():
+def test_mult_insert(gcon):
     def multi_thread_opr(client, collection_name, utid):
-        table_param = {
+
+        collection_param = {
             'collection_name': collection_name,
             'dimension': 64
         }
 
         vectors = [[random.random() for _ in range(64)] for _ in range(10000)]
-        client.create_collection(table_param)
+        status = client.create_collection(collection_param)
+        assert status.OK()
 
-        client.insert(table_name, vectors)
+        status, _ = client.insert(table_name, vectors)
+        assert status.OK()
 
     thread_list = []
     for i in range(10):
-        t = threading.Thread(target=multi_thread_opr, args=("multi_table_{}".format(random.randint(0, 10000)), i))
+        t = threading.Thread(target=multi_thread_opr, args=(gcon, "multi_table_{}".format(random.randint(0, 10000)), i))
         t.start()
         thread_list.append(t)
 

@@ -48,9 +48,7 @@ class Future(AbstractFuture):
         self.__init()
 
     def __del__(self):
-        self._future.__del__()
         self._future = None
-        # self._future.__del__()
 
     @abc.abstractmethod
     def on_response(self, response):

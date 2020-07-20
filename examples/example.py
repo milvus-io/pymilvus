@@ -3,22 +3,16 @@
 # insert 10 vectors, 
 # and execute a vector similarity search.
 
-import datetime
 import random
-import threading
-import time
-
 import numpy as np
 
 from milvus import Milvus, IndexType, MetricType, Status
-from milvus.client.abstract import TopKQueryResult
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
 _HOST = '127.0.0.1'
-# _HOST = '192.168.1.113'
-# _PORT = '19530'  # default value
-_PORT = '19121'  # default http value
+_PORT = '19530'  # default value
+# _PORT = '19121'  # default http value
 
 # Vector parameters
 _DIM = 8  # dimension of vector
@@ -30,7 +24,7 @@ def main():
     # Specify server addr when create milvus client instance
     # milvus client instance maintain a connection pool, param
     # `pool_size` specify the max connection num.
-    milvus = Milvus(_HOST, _PORT, pool_size=10, handler="HTTP")
+    milvus = Milvus(_HOST, _PORT)
 
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_collection_'
@@ -62,14 +56,12 @@ def main():
     #   vectors = np.random.rand(10000, _DIM).astype(np.float32)
 
     # Insert vectors into demo_collection, return status and vectors id list
-    # status, ids = milvus.insert(collection_name=collection_name, records=vectors)
-    # if not status.OK():
-    #     print("Insert failed: {}".format(status))
+    status, ids = milvus.insert(collection_name=collection_name, records=vectors)
+    if not status.OK():
+        print("Insert failed: {}".format(status))
 
     # Flush collection  inserted data to disk.
     milvus.flush([collection_name])
-    import sys
-    sys.exit(1)
     # Get demo_collection row count
     status, result = milvus.count_entities(collection_name)
 

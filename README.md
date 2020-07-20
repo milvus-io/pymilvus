@@ -40,6 +40,7 @@ For detailed SDK documentation, refer to [API Documentation](https://milvus-io.g
     - [Search vectors in a collection](#search-vectors-in-a-collection)
     - [Search vectors in a partition](#search-vectors-in-a-partition)
 - [Disconnect from the Milvus server](#disconnect-from-the-milvus-server)
+- [FAQ](#faq)
 
 <!-- /TOC -->
 
@@ -74,12 +75,14 @@ The following collection shows Milvus versions and recommended pymilvus versions
 | 0.8.0 | 0.2.10 |
 | 0.9.0 | 0.2.11 |
 | 0.9.1 | 0.2.12 |
+| 0.10.0 | 0.2.13 |
+| 0.10.1 | 0.2.14 |
 
 
 You can install a specific version of pymilvus by:
 
 ```shell
-$ pip install pymilvus==0.2.12
+$ pip install pymilvus==0.2.14
 ```
 
 You can upgrade `pymilvus` to the latest version by:
@@ -127,18 +130,22 @@ Refer to [examples](/examples) for more example programs.
    >>> param = {'collection_name':'test01', 'dimension':128, 'index_file_size':1024, 'metric_type':MetricType.L2}
    ```
 
-2. Create collection `test01` with dimension size as 256, size of the data file for Milvus to automatically create indexes as 1024, and metric type as Euclidean distance (L2).
+2. Create collection `test01` with dimension size as 128, size of the data file for Milvus to automatically create indexes as 1024, and metric type as Euclidean distance (L2).
 
    ```python
    # Create a collection
-   >>> client.create_collection(param)
+   >>> status = client.create_collection(param)
+   >>> status
+   Status(code=0, message='Create collection successfully!')
    ```
 
 ### Drop a collection
 
 ```python
 # Drop collection
->>> client.drop_collection(collection_name='test01')
+>>> status = client.drop_collection(collection_name='test01')
+>>> status
+Status(code=0, message='Delete collection successfully!')
 ```
 
 ## Create/Drop partitions in a collection
@@ -149,20 +156,25 @@ You can split collections into partitions by partition tags for improved search 
 
 ```python
 # Create partition
->>> client.create_partition(collection_name='test01', partition_tag='tag01')
+>>> status = client.create_partition(collection_name='test01', partition_tag='tag01')
+>>> status
+Status(code=0, message='OK')
 ```
 
 Use `list_partitions()` to verify whether the partition is created.
 
 ```python
 # Show partitions
->>> client.list_partitions(collection_name='test01')
+>>> status, partitions = client.list_partitions(collection_name='test01')
+>>> partitions
+[(collection_name='test01', tag='_default'), (collection_name='test01', tag='tag01')]
 ```
 
 ### Drop a partition
 
 ```python
->>> client.drop_partition(collection_name='test01', partition_tag='tag01')
+>>> status = client.drop_partition(collection_name='test01', partition_tag='tag01')
+Status(code=0, message='OK')
 ```
 
 ## Create/Drop indexes in a collection
@@ -175,32 +187,34 @@ Use `list_partitions()` to verify whether the partition is created.
 
    ```python
    # Prepare index param
-   >>> ivf_param = {'nlist': 16384}
+   >>> ivf_param = {'nlist': 4096}
    ```
 
 2. Create an index for the collection.
 
    ```python
    # Create index
-   >>> client.create_index('test01', IndexType.IVF_FLAT, ivf_param)
+   >>> status = client.create_index('test01', IndexType.IVF_FLAT, ivf_param)
+   Status(code=0, message='Build index successfully!')
    ```
 
 ### Drop an index
 
 ```python
->>> client.drop_index('test01')
+>>> status = client.drop_index('test01')
+Status(code=0, message='OK')
 ```
 
 ## Insert/Delete vectors in collections/partitions
 
 ### Insert vectors in a collection
 
-1. Generate 20 vectors of 256 dimension.
+1. Generate 20 vectors of 128 dimension.
 
    ```python
    >>> import random
    >>> dim = 128
-   # Generate 20 vectors of 256 dimension
+   # Generate 20 vectors of 128 dimension
    >>> vectors = [[random.random() for _ in range(dim)] for _ in range(20)]
    ```
 
@@ -209,6 +223,8 @@ Use `list_partitions()` to verify whether the partition is created.
    ```python
    # Insert vectors
    >>> status, inserted_vector_ids = client.insert(collection_name='test01', records=vectors)
+   >>> inserted_vector_ids 
+   [1592028661511657000, 1592028661511657001, 1592028661511657002, 1592028661511657003, 1592028661511657004, 1592028661511657005, 1592028661511657006, 1592028661511657007, 1592028661511657008, 1592028661511657009, 1592028661511657010, 1592028661511657011, 1592028661511657012, 1592028661511657013, 1592028661511657014, 1592028661511657015, 1592028661511657016, 1592028661511657017, 1592028661511657018, 1592028661511657019]
    ```
 
    Alternatively, you can also provide user-defined vector ids:
@@ -235,7 +251,9 @@ To verify the vectors you have inserted, use `get_vector_by_id()`. Assume you ha
 You can delete these vectors by:
 
 ```python
->>> client.delete_entity_by_id('test01', inserted_vector_ids[:10])
+>>> status = client.delete_entity_by_id('test01', inserted_vector_ids[:10])
+>>> status
+Status(code=0, message='OK')
 ```
 
 ## Flush data in one or multiple collections to disk
@@ -243,7 +261,9 @@ You can delete these vectors by:
 When performing operations related to data changes, you can flush the data from memory to disk to avoid possible data loss. Milvus also supports automatic flushing, which runs at a fixed interval to flush the data in all collections to disk. You can use the [Milvus server configuration file](https://milvus.io/docs/reference/milvus_config.md) to set the interval.
 
 ```python
->>> client.flush(['test01'])
+>>> status = client.flush(['test01'])
+>>> status
+Status(code=0, message='OK')
 ```
 
 ## Compact all segments in a collection
@@ -251,7 +271,9 @@ When performing operations related to data changes, you can flush the data from 
 A segment is a data file that Milvus automatically creates by merging inserted vector data. A collection can contain multiple segments. If some vectors are deleted from a segment, the space taken by the deleted vectors cannot be released automatically. You can compact segments in a collection to release space.
 
 ```python
->>> client.compact(collection_name='test01')
+>>> status = client.compact(collection_name='test01')
+>>> status
+Status(code=0, message='OK')
 ```
 
 ## Search vectors in collections/partitions
@@ -270,7 +292,15 @@ A segment is a data file that Milvus automatically creates by merging inserted v
 # create 5 vectors of 32-dimension
 >>> q_records = [[random.random() for _ in range(dim)] for _ in range(5)]
 # search vectors
->>> client.search(collection_name='test01', query_records=q_records, top_k=2, params=search_param)
+>>> status, results = client.search(collection_name='test01', query_records=q_records, top_k=2, params=search_param)
+>>> results
+[
+[(id:1592028661511657012, distance:19.450458526611328), (id:1592028661511657017, distance:20.13418197631836)],
+[(id:1592028661511657012, distance:19.12230682373047), (id:1592028661511657018, distance:20.221458435058594)],
+[(id:1592028661511657014, distance:20.423980712890625), (id:1592028661511657016, distance:20.984281539916992)],
+[(id:1592028661511657018, distance:18.37057876586914), (id:1592028661511657019, distance:19.366962432861328)],
+[(id:1592028661511657013, distance:19.522361755371094), (id:1592028661511657010, distance:20.304216384887695)]
+]
 ```
 
 ### Search vectors in a partition
@@ -288,3 +318,9 @@ A segment is a data file that Milvus automatically creates by merging inserted v
 ```python
 >>> client.close()
 ```
+
+## FAQ
+
+> I'm getting random "socket operation on non-socket" errors from gRPC when connecting to Milvus from an application served on Gunicorn
+
+Make sure to set the environment variable `GRPC_ENABLE_FORK_SUPPORT=1`. For reference, see https://zhuanlan.zhihu.com/p/136619485

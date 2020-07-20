@@ -1,6 +1,5 @@
 # This program demos how to use binary vectors in milvus.
 import random
-import time
 import sys
 
 import numpy as np
