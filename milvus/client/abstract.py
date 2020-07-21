@@ -315,7 +315,6 @@ class QueryResult(LoopBase):
         return RawQueryResult(slice_entity, slice_distances, slice_score)
 
 
-
 class IndexParam:
     """
     Index Param
