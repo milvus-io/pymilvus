@@ -304,7 +304,7 @@ class QueryResult(LoopBase):
 
     def get__item(self, item):
         dis_len = len(self._raw.distances)
-        topk = dis_len // self._nq
+        topk = dis_len // self._nq if self._nq > 0 else 0
         start = item * topk
         end = (item + 1) * topk
         slice_score = list(self._raw.scores)[start: end] if dis_len > 0 else []
