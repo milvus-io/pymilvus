@@ -138,6 +138,8 @@ class Future(AbstractFuture):
             self._condition.notify_all()
 
     def exception(self):
+        if not self._future.done():
+            self._future.exception()
         if self._exception:
             raise self._exception
 

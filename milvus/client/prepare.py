@@ -122,7 +122,7 @@ class Prepare:
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(float_value=values))
             elif type in (DataType.DOUBLE, ):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(double_value=values))
-            elif type in (DataType.VECTOR,):
+            elif type in (DataType.FLOAT_VECTOR,):
                 records = grpc_types.VectorRecord()
                 for vector in values:
                     records.records.add(float_data=vector)
@@ -132,6 +132,8 @@ class Prepare:
                 for vector in values:
                     records.records.add(binary_data=vector)
                 field_param.vector_record.CopyFrom(records)
+            else:
+                raise ParamError("Unknown data type.")
 
             _param.fields.append(field_param)
 

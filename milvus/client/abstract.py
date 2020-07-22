@@ -222,7 +222,7 @@ class Entities(LoopBase):
                 values = list(field.attr_record.float_value)
             elif type in (DataType.DOUBLE,):
                 values = list(field.attr_record.double_value)
-            elif type in (DataType.VECTOR,):
+            elif type in (DataType.FLOAT_VECTOR,):
                 # values = list(field.vector_record.records[item].float_data)
                 values = [list(record.float_data) for record in field.vector_record.records]
             elif type in (DataType.BINARY_VECTOR,):
