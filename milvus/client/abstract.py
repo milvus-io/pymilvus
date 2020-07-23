@@ -192,7 +192,7 @@ class Entities(LoopBase):
                 slice_value = field.attr_record.float_value[fatal_item]
             elif type in (DataType.DOUBLE,):
                 slice_value = field.attr_record.double_value[fatal_item]
-            elif type in (DataType.VECTOR,):
+            elif type in (DataType.FLOAT_VECTOR,):
                 slice_value = list(field.vector_record.records[item].float_data)
             elif type in (DataType.BINARY_VECTOR,):
                 slice_value = bytes(field.vector_record.records[item].binary_data)
