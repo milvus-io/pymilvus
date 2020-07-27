@@ -32,7 +32,7 @@ def main():
 
     collection_param = {
         "fields": [
-            {"field": "A", "type": DataType.INT16},
+            {"field": "A", "type": DataType.INT32},
             {"field": "B", "type": DataType.INT32},
             {"field": "C", "type": DataType.INT64},
             {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dimension": 128, "metric_type": "L2"}}
@@ -58,7 +58,7 @@ def main():
     A_list = [random.randint(0, 255) for _ in range(num)]
     vec = [[random.random() for _ in range(128)] for _ in range(num)]
     hybrid_entities = [
-        {"field": "A", "values": A_list, "type": DataType.INT16},
+        {"field": "A", "values": A_list, "type": DataType.INT32},
         {"field": "B", "values": A_list, "type": DataType.INT32},
         {"field": "C", "values": A_list, "type": DataType.INT64},
         {"field": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR}
@@ -68,6 +68,8 @@ def main():
     milvus.flush([collection_name])
     print("Flush ... ")
     time.sleep(3)
+
+    milvus.delete_entity_by_id(collection_name, ids[:10])
 
     # print("Get entity be id start ...... ")
     # entities = milvus.get_entity_by_id(collection_name, ids[:1])
