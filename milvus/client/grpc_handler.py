@@ -444,8 +444,8 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(code=status.error_code, message=status.reason)
 
     @error_handler([])
-    def get_vector_ids(self, collection_name, segment_name, timeout=30):
-        request = grpc_types.GetEntityIDsParam(collection_name=collection_name, segment_name=segment_name)
+    def get_vector_ids(self, collection_name, segment_id, timeout=30):
+        request = grpc_types.GetEntityIDsParam(collection_name=collection_name, segment_id=segment_id)
 
         rf = self._stub.GetEntityIDs.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()

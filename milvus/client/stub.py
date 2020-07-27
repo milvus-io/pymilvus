@@ -513,7 +513,7 @@ class Milvus:
             return handler.create_partition(collection_name, partition_tag, timeout)
 
     @check_connect
-    def has_partition(self, collection_name, partition_tag):
+    def has_partition(self, collection_name, partition_tag, timeout=30):
         """
         Check if specified partition exists.
 
@@ -530,7 +530,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
         with self._connection() as handler:
-            return handler.has_partition(collection_name, partition_tag)
+            return handler.has_partition(collection_name, partition_tag, timeout)
 
     @check_connect
     def list_partitions(self, collection_name, timeout=30):
