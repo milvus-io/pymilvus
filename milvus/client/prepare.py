@@ -114,7 +114,8 @@ class Prepare:
                 raise ParamError("Param entities must contain values")
 
             field_param = grpc_types.FieldValue(field_name=entity["field"])
-            if type in (DataType.INT8, DataType.INT16, DataType.INT32):
+            if type in (DataType.INT32,):
+            # if type in (DataType.INT8, DataType.INT16, DataType.INT32,):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int32_value=values))
             elif type in (DataType.INT64, ):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int64_value=values))

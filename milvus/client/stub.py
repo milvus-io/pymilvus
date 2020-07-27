@@ -324,6 +324,7 @@ class Milvus:
         with self._connection() as handler:
             return handler.preload_collection(collection_name, timeout)
 
+    @deprecated
     @check_connect
     def reload_segments(self, collection_name, segment_ids):
         check_pass_param(collection_name=collection_name)

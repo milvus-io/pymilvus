@@ -184,7 +184,8 @@ class Entities(LoopBase):
         field_values = list()
         for field in self._raw.fields:
             type = DataType(int(field.type))
-            if type in (DataType.INT8, DataType.INT16, DataType.INT32):
+            if type in (DataType.INT32,):
+            # if type in (DataType.INT8, DataType.INT16, DataType.INT32):
                 slice_value = field.attr_record.int32_value[fatal_item]
             elif type in (DataType.INT64,):
                 slice_value = field.attr_record.int64_value[fatal_item]
@@ -214,7 +215,8 @@ class Entities(LoopBase):
         entity_list = list()
         for field in self._raw.fields:
             type = DataType(int(field.type))
-            if type in (DataType.INT8, DataType.INT16, DataType.INT32):
+            if type in (DataType.INT32,):
+            # if type in (DataType.INT8, DataType.INT16, DataType.INT32):
                 values = list(field.attr_record.int32_value)
             elif type in (DataType.INT64,):
                 values = list(field.attr_record.int64_value)
