@@ -110,8 +110,8 @@ class MetricType(IntEnum):
 class DataType(IntEnum):
     NULL = 0
     BOOL = 1
-    INT8 = 2
-    INT16 = 3
+    # INT8 = 2
+    # INT16 = 3
     INT32 = 4
     INT64 = 5
 

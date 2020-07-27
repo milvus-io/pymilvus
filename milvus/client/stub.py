@@ -411,11 +411,11 @@ class Milvus:
             return handler.get_entities_by_ids(collection_name, ids, fields, timeout=timeout)
 
     @check_connect
-    def list_id_in_segment(self, collection_name, segment_name, timeout=None):
+    def list_id_in_segment(self, collection_name, segment_id, timeout=None):
         check_pass_param(collection_name=collection_name)
-        check_pass_param(collection_name=segment_name)
+        check_pass_param(collection_name=segment_id)
         with self._connection() as handler:
-            return handler.get_vector_ids(collection_name, segment_name, timeout)
+            return handler.get_vector_ids(collection_name, segment_id, timeout)
 
     @check_connect
     def create_index(self, collection_name, field_name, index_name, params, timeout=None, **kwargs):
