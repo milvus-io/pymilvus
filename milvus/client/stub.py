@@ -713,7 +713,7 @@ class Milvus:
         Gets Milvus configurations.
 
         """
-        cmd = "get_config {}.{}".format(parent_key, child_key)
+        cmd = "GET {}.{}".format(parent_key, child_key)
 
         return self._cmd(cmd)
 
@@ -722,7 +722,7 @@ class Milvus:
         Sets Milvus configurations.
 
         """
-        cmd = "set_config {}.{} {}".format(parent_key, child_key, value)
+        cmd = "SET {}.{} {}".format(parent_key, child_key, value)
 
         return self._cmd(cmd)
 
