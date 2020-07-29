@@ -414,7 +414,7 @@ class Milvus:
     @check_connect
     def list_id_in_segment(self, collection_name, segment_id, timeout=None):
         check_pass_param(collection_name=collection_name)
-        check_pass_param(collection_name=segment_id)
+        check_pass_param(ids=[segment_id])
         with self._connection() as handler:
             return handler.get_vector_ids(collection_name, segment_id, timeout)
 

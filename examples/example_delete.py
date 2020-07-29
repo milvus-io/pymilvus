@@ -64,9 +64,9 @@ def main():
     ]
 
     ids = milvus.insert(collection_name, hybrid_entities)
-    milvus.flush([collection_name])
-    print("Flush ... ")
-    time.sleep(3)
+    # milvus.flush([collection_name])
+    # print("Flush ... ")
+    # time.sleep(3)
 
     milvus.delete_entity_by_id(collection_name, ids[:1])
     milvus.flush([collection_name])
