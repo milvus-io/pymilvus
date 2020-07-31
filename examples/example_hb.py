@@ -35,7 +35,7 @@ def main():
             {"field": "A", "type": DataType.INT16},
             {"field": "B", "type": DataType.INT32},
             {"field": "C", "type": DataType.INT64},
-            {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, "metric_type": "L2"}}
+            {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
         ],
         "segment_size": 100
     }
@@ -74,7 +74,7 @@ def main():
     # et = entities.dict()
 
     print("Create index ......")
-    milvus.create_index(collection_name, "Vec", "ivf_flat", {"index_type": "IVF_FLAT", "nlist": 100})
+    milvus.create_index(collection_name, "Vec", {"index_type": "IVF_FLAT", "nlist": 100, "metric_type": "L2"})
     print("Create index done.")
 
     info = milvus.get_collection_info(collection_name)

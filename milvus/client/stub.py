@@ -419,7 +419,7 @@ class Milvus:
             return handler.get_vector_ids(collection_name, segment_id, timeout)
 
     @check_connect
-    def create_index(self, collection_name, field_name, index_name, params, timeout=None, **kwargs):
+    def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         """
         Creates index for a collection.
 
@@ -449,7 +449,7 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.create_index(collection_name, field_name, index_name, params, timeout, **kwargs)
+            return handler.create_index(collection_name, field_name, params, timeout, **kwargs)
 
     @deprecated
     @check_connect

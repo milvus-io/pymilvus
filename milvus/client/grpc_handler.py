@@ -456,8 +456,8 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(response.status.error_code, response.status.reason)
 
     @error_handler()
-    def create_index(self, collection_name, field_name, index_name, params, timeout=None, **kwargs):
-        index_param = Prepare.index_param(collection_name, field_name, index_name, params)
+    def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
+        index_param = Prepare.index_param(collection_name, field_name, params)
         future = self._stub.CreateIndex.future(index_param, wait_for_ready=True, timeout=timeout)
         if kwargs.get('_async', False):
             cb = kwargs.get("_callback", None)

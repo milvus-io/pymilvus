@@ -148,9 +148,8 @@ class Prepare:
         return grpc_types.EntityIdentity(collection_name=collection_name, id_array=ids, field_names=fields)
 
     @classmethod
-    def index_param(cls, collection_name, field_name, index_name, params):
-        _param = grpc_types.IndexParam(collection_name=collection_name, field_name=field_name,
-                                       index_name=index_name)
+    def index_param(cls, collection_name, field_name, params):
+        _param = grpc_types.IndexParam(collection_name=collection_name, field_name=field_name)
         if params:
             _param.extra_params.add(key="params", value=ujson.dumps(params))
             # _param.extra_params.add(key="index_type", value=params["index_type"])
