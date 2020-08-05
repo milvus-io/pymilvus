@@ -2,6 +2,8 @@
 # create a vector collection,
 # insert 10 vectors,
 # and execute a vector similarity search.
+
+import copy
 import datetime
 import sys
 
@@ -25,7 +27,7 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 def main():
     milvus = Milvus(_HOST, _PORT)
 
-    num = random.randint(1, 100)
+    num = random.randint(100000, 100000 + 2)
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_hybrid_collection_{}'.format(num)
 
@@ -40,6 +42,8 @@ def main():
     }
     milvus.create_collection(collection_name, collection_param)
 
+    milvus.create_partition(collection_name, "p_01")
+    milvus.create_partition(collection_name, "p_02")
     # milvus.create_partition(collection_name, "p_01", timeout=1800)
     # pars = milvus.list_partitions(collection_name)
     # ok = milvus.has_partition(collection_name, "p_01", timeout=1800)
@@ -62,24 +66,29 @@ def main():
         {"field": "C", "values": A_list, "type": DataType.INT64},
         {"field": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR}
     ]
-
-    ids = milvus.insert(collection_name, hybrid_entities)
+    hybrid_entities2 = copy.deepcopy(hybrid_entities)
+    ids0 = milvus.insert(collection_name, hybrid_entities, partition_tag="p_01")
+    ids1 = milvus.insert(collection_name, hybrid_entities2, partition_tag="p_02")
     milvus.flush([collection_name])
     print("Flush ... ")
-    # time.sleep(3)
 
-    milvus.delete_entity_by_id(collection_name, ids[:1])
+    milvus.delete_entity_by_id(collection_name, [ids0[0], ids1[0]])
+    print("After delete")  # , flush async")
     milvus.flush([collection_name])
-    print("Get entity be id start ...... ")
-    entities = milvus.get_entity_by_id(collection_name, ids[:1])
-    et = entities.dict()
-    milvus.delete_entity_by_id(collection_name, ids[1:2])
-    milvus.flush([collection_name])
+    # print("flush async")
+    # time.sleep(3)
+    # t0 = time.time()
+    # milvus.drop_partition(collection_name, "p_01")
+    # print("Drop partition success, waiting for delete done ... | ", time.time() - t0, " s")
+    # ff.result()
+    # sys.exit(0)
 
     print("Create index ......")
-    milvus.create_index(collection_name, "Vec", {"index_type": "IVF_FLAT", "nlist": 100})
     milvus.create_index(collection_name, "Vec", {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 100}})
     print("Create index done.")
+
+    count = milvus.count_entities(collection_name)
+    assert count == num * 2 - 2
 
     info = milvus.get_collection_info(collection_name)
     query_hybrid = {

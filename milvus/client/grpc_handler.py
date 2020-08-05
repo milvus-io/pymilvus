@@ -470,9 +470,9 @@ class GrpcHandler(AbsMilvus):
         return Status(status.error_code, status.reason)
 
     @error_handler()
-    def drop_index(self, collection_name, field_name, index_name, timeout=30):
+    def drop_index(self, collection_name, field_name, timeout=30):
         # TODO: TODO
-        request = Prepare.index_param(collection_name, field_name, index_name, None)
+        request = Prepare.index_param(collection_name, field_name, None)
         rf = self._stub.DropIndex.future(request, wait_for_ready=True, timeout=timeout)
         status = rf.result()
         if status.error_code != 0:
@@ -668,8 +668,8 @@ class GrpcHandler(AbsMilvus):
             raise BaseException(response.error_code, response.reason)
 
     @error_handler()
-    def compact(self, collection_name, timeout, **kwargs):
-        request = Prepare.compact_param(collection_name)
+    def compact(self, collection_name, threshold, timeout, **kwargs):
+        request = Prepare.compact_param(collection_name, threshold)
         future = self._stub.Compact.future(request, wait_for_ready=True, timeout=timeout)
         if kwargs.get("_async", False):
             cb = kwargs.get("_callback", None)

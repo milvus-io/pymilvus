@@ -5,7 +5,7 @@ import "status.proto";
 package milvus.grpc;
 
 /**
- * @brief field data type
+ * @brief Field data type
  */
 enum DataType {
     NONE = 0;
@@ -22,11 +22,10 @@ enum DataType {
 
     VECTOR_BINARY = 100;
     VECTOR_FLOAT = 101;
-    VECTOR = 200;
 }
 
 /**
- * @brief general usage
+ * @brief General usage
  */
 message KeyValuePair {
     string key = 1;
@@ -49,6 +48,14 @@ message CollectionNameList {
 }
 
 /**
+ * @brief Field name
+ */
+message FieldName {
+    string collection_name = 1;
+    string field_name = 2;
+}
+
+/**
  * @brief Collection mapping
  */
 message Mapping {
@@ -67,7 +74,7 @@ message MappingList {
 }
 
 /**
- * @brief Params of partition
+ * @brief Parameters of partition
  */
 message PartitionParam {
     string collection_name = 1;
@@ -83,7 +90,7 @@ message PartitionList {
 }
 
 /**
- * @brief Vector row record inserted
+ * @brief Vector row record
  */
 message VectorRowRecord {
     repeated float float_data = 1;             //float vector data
@@ -91,7 +98,7 @@ message VectorRowRecord {
 }
 
 /**
- * @brief Attribute record inserted
+ * @brief Attribute record
  */
 message AttrRecord {
     repeated int32 int32_value = 1;
@@ -118,7 +125,7 @@ message FieldValue {
 }
 
 /**
- * @brief Params to be inserted
+ * @brief Parameters for insert action
  */
 message InsertParam {
     string collection_name = 1;
@@ -137,7 +144,7 @@ message EntityIds {
 }
 
 /**
- * @brief Search vector params
+ * @brief Search vector parameters
  */
 message VectorParam {
     string json = 1;
@@ -145,7 +152,7 @@ message VectorParam {
 }
 
 /**
- * @brief Params for searching
+ * @brief Parameters for search action
  */
 message SearchParam {
     string collection_name = 1;
@@ -156,30 +163,11 @@ message SearchParam {
 }
 
 /**
- * @brief Params for searching vector in files
+ * @brief Parameters for searching in segments
  */
-message SearchInFilesParam {
+message SearchInSegmentParam {
     repeated string file_id_array = 1;
     SearchParam search_param = 2;
-}
-
-/**
- * @brief Params for searching vector by ID
- */
-message SearchByIDParam {
-    string collection_name = 1;
-    repeated string partition_tag_array = 2;
-    repeated int64 id_array = 3;
-    int64 topk = 4;
-    repeated KeyValuePair extra_params = 5;
-}
-
-/**
- * @brief Params for reloading segments
- */
-message ReLoadSegmentsParam {
-    string collection_name = 1;
-    repeated string segment_id_array = 2;
 }
 
 /**
@@ -193,7 +181,7 @@ message Entities {
 }
 
 /**
- * @brief Query result params
+ * @brief Query result
  */
 message QueryResult {
     Status status = 1;
@@ -229,7 +217,7 @@ message CollectionRowCount {
 }
 
 /**
- * @brief Give server Command
+ * @brief Server command parameters
  */
 message Command {
     string cmd = 1;
@@ -237,7 +225,18 @@ message Command {
 
 /**
  * @brief Index params
- * @index_type: 0-invalid, 1-idmap, 2-ivflat, 3-ivfsq8, 4-nsgmix
+ * @collection_name: target collection
+ * @field_name: target field
+ * @index_name: a name for index provided by user, unique within this field
+ * @extra_params: index parameters in json format
+ *    for vector field:
+ *        extra_params["index_type"] = one of the values: IDMAP, IVFLAT, IVFSQ8, NSGMIX, IVFSQ8H,
+ *                                                        PQ, HNSW, HNSW_SQ8NM, ANNOY
+ *        extra_params["metric_type"] = one of the values: L2, IP, HAMMING, JACCARD, TANIMOTO
+ *                                                         SUBSTRUCTURE, SUPERSTRUCTURE
+ *        extra_params["params"] = extra parameters for index, for example ivflat: {nlist: 2048}
+ *    for structured field:
+ *        extra_params["index_type"] = one of the values: SORTED
  */
 message IndexParam {
     Status status = 1;
@@ -248,14 +247,22 @@ message IndexParam {
 }
 
 /**
- * @brief Flush params
+ * @brief Parameters for flush action
  */
 message FlushParam {
     repeated string collection_name_array = 1;
 }
 
 /**
- * @brief Flush params
+ * @brief Parameters for flush action
+ */
+message CompactParam {
+    string collection_name = 1;
+    double threshold = 2;
+}
+
+/**
+ * @brief Parameters for deleting entities by id
  */
 message DeleteByIDParam {
     string collection_name = 1;
@@ -263,7 +270,36 @@ message DeleteByIDParam {
 }
 
 /**
- * @brief collection information
+ * @brief Return collection stats
+ * @json_info: collection stats in json format, typically, the format is like:
+ *     {
+ *        row_count: xxx,
+ *        data_size: xxx,
+ *        partitions: [
+ *          {
+ *            tag: xxx,
+ *            id: xxx,
+ *            row_count: xxx,
+ *            data_size: xxx,
+ *            segments: [
+ *              {
+ *                 id: xxx,
+ *                 row_count: xxx,
+ *                 data_size: xxx,
+ *                 files: [
+ *                    {
+ *                       field: xxx,
+ *                       name: xxx,
+ *                       index_type: xxx,
+ *                       path: xxx,
+ *                       data_size: xxx,
+ *                    }
+ *                 ]
+ *              }
+ *            ]
+ *          }
+ *        ]
+ *     }
  */
 message CollectionInfo {
     Status status = 1;
@@ -271,7 +307,7 @@ message CollectionInfo {
 }
 
 /**
- * @brief get entity ids from a segment parameters
+ * @brief Parameters for returning entities id of a segment
  */
 message GetEntityIDsParam {
     string collection_name = 1;
@@ -288,11 +324,16 @@ message EntityIdentity {
 }
 
 /********************************************SearchPB interface***************************************************/
-
+/**
+ * @brief Vector field parameters
+ */
 message VectorFieldParam {
     int64 dimension = 1;
 }
 
+/**
+ * @brief Field type
+ */
 message FieldType {
     oneof value {
         DataType data_type = 1;
@@ -300,6 +341,9 @@ message FieldType {
     }
 }
 
+/**
+ * @brief Field parameters
+ */
 message FieldParam {
     uint64 id = 1;
     string name = 2;
@@ -308,6 +352,9 @@ message FieldParam {
     repeated KeyValuePair extra_params = 5;
 }
 
+/**
+ * @brief Vector field record
+ */
 message VectorFieldRecord {
     repeated VectorRowRecord value = 1;
 }
@@ -440,7 +487,7 @@ service MilvusService {
      *
      * @param CollectionName, collection name is going to be deleted.
      *
-     * @return CollectionNameList
+     * @return Status
      */
     rpc DropCollection(CollectionName) returns (Status) {}
 
@@ -456,16 +503,16 @@ service MilvusService {
     /**
      * @brief This method is used to describe index
      *
-     * @param CollectionName, target collection name.
+     * @param IndexParam, target index.
      *
      * @return IndexParam
      */
-    rpc DescribeIndex(CollectionName) returns (IndexParam) {}
+    rpc DescribeIndex(IndexParam) returns (IndexParam) {}
 
     /**
      * @brief This method is used to drop index
      *
-     * @param CollectionName, target collection name.
+     * @param IndexParam, target field. if the IndexParam.field_name is empty, will drop all index of the collection
      *
      * @return Status
      */
@@ -544,22 +591,13 @@ service MilvusService {
     rpc Search(SearchParam) returns (QueryResult) {}
 
     /**
-     * @brief This method is used to query vector by id.
-     *
-     * @param SearchByIDParam, search parameters.
-     *
-     * @return TopKQueryResult
-     */
-    rpc SearchByID(SearchByIDParam) returns (QueryResult) {}
-
-    /**
      * @brief This method is used to query vector in specified files.
      *
-     * @param SearchInFilesParam, search in files paremeters.
+     * @param SearchInSegmentParam, target segments to search.
      *
      * @return TopKQueryResult
      */
-    rpc SearchInFiles(SearchInFilesParam) returns (QueryResult) {}
+    rpc SearchInSegment(SearchInSegmentParam) returns (QueryResult) {}
 
     /**
      * @brief This method is used to give the server status.
@@ -589,15 +627,6 @@ service MilvusService {
     rpc PreloadCollection(CollectionName) returns (Status) {}
 
     /**
-     * @brief This method is used to reload collection segments
-     *
-     * @param ReLoadSegmentsParam, target segments information.
-     *
-     * @return Status
-     */
-    rpc ReloadSegments(ReLoadSegmentsParam) returns (Status) {}
-
-    /**
      * @brief This method is used to flush buffer into storage.
      *
      * @param FlushParam, flush parameters
@@ -609,11 +638,11 @@ service MilvusService {
     /**
      * @brief This method is used to compact collection
      *
-     * @param CollectionName, target collection name.
+     * @param CompactParam, compact parameters
      *
      * @return Status
      */
-    rpc Compact(CollectionName) returns (Status) {}
+    rpc Compact(CompactParam) returns (Status) {}
 
     /********************************New Interface********************************************/
 

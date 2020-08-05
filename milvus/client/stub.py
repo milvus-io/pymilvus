@@ -471,7 +471,7 @@ class Milvus:
             return handler.describe_index(collection_name, timeout)
 
     @check_connect
-    def drop_index(self, collection_name, field_name, index_name, timeout=30):
+    def drop_index(self, collection_name, field_name, timeout=30):
         """
         Removes an index.
 
@@ -486,7 +486,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name)
 
         with self._connection() as handler:
-            return handler.drop_index(collection_name, field_name, index_name, timeout)
+            return handler.drop_index(collection_name, field_name, timeout)
 
     @check_connect
     def create_partition(self, collection_name, partition_tag, timeout=30):
@@ -682,7 +682,7 @@ class Milvus:
 
         if collection_name_array in (None, []):
             with self._connection() as handler:
-                return handler.flush([], timeout)
+                return handler.flush([], timeout, **kwargs)
 
         if not isinstance(collection_name_array, list):
             raise ParamError("Collection name array must be type of list")
@@ -696,7 +696,7 @@ class Milvus:
             return handler.flush(collection_name_array, timeout, **kwargs)
 
     @check_connect
-    def compact(self, collection_name, timeout=None, **kwargs):
+    def compact(self, collection_name, threshold=0.2, timeout=None, **kwargs):
         """
         Compacts segments in a collection. This function is recommended after deleting vectors.
 
@@ -706,7 +706,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.compact(collection_name, timeout, **kwargs)
+            return handler.compact(collection_name, threshold, timeout, **kwargs)
 
     def get_config(self, parent_key, child_key):
         """

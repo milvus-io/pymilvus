@@ -151,7 +151,10 @@ class Prepare:
     def index_param(cls, collection_name, field_name, params):
         _param = grpc_types.IndexParam(collection_name=collection_name, field_name=field_name)
         if params:
-            _param.extra_params.add(key="params", value=ujson.dumps(params))
+            for k, v in params.items():
+                val = v if isinstance(v, str) else ujson.dumps(v)
+                _param.extra_params.add(key=k, value=val)
+            # _param.extra_params.add(key="params", value=ujson.dumps(params))
             # _param.extra_params.add(key="index_type", value=params["index_type"])
             # _param.extra_params.add(key="params", value=ujson.dumps(params["params"]))
 
@@ -263,5 +266,5 @@ class Prepare:
         return grpc_types.FlushParam(collection_name_array=collection_names)
 
     @classmethod
-    def compact_param(cls, collection_name):
-        return grpc_types.CollectionName(collection_name=collection_name)
+    def compact_param(cls, collection_name, threshold):
+        return grpc_types.CompactParam(collection_name=collection_name, threshold=threshold)

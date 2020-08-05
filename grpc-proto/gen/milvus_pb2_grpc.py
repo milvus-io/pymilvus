@@ -57,7 +57,7 @@ class MilvusServiceStub(object):
         )
     self.DescribeIndex = channel.unary_unary(
         '/milvus.grpc.MilvusService/DescribeIndex',
-        request_serializer=milvus__pb2.CollectionName.SerializeToString,
+        request_serializer=milvus__pb2.IndexParam.SerializeToString,
         response_deserializer=milvus__pb2.IndexParam.FromString,
         )
     self.DropIndex = channel.unary_unary(
@@ -105,14 +105,9 @@ class MilvusServiceStub(object):
         request_serializer=milvus__pb2.SearchParam.SerializeToString,
         response_deserializer=milvus__pb2.QueryResult.FromString,
         )
-    self.SearchByID = channel.unary_unary(
-        '/milvus.grpc.MilvusService/SearchByID',
-        request_serializer=milvus__pb2.SearchByIDParam.SerializeToString,
-        response_deserializer=milvus__pb2.QueryResult.FromString,
-        )
-    self.SearchInFiles = channel.unary_unary(
-        '/milvus.grpc.MilvusService/SearchInFiles',
-        request_serializer=milvus__pb2.SearchInFilesParam.SerializeToString,
+    self.SearchInSegment = channel.unary_unary(
+        '/milvus.grpc.MilvusService/SearchInSegment',
+        request_serializer=milvus__pb2.SearchInSegmentParam.SerializeToString,
         response_deserializer=milvus__pb2.QueryResult.FromString,
         )
     self.Cmd = channel.unary_unary(
@@ -130,11 +125,6 @@ class MilvusServiceStub(object):
         request_serializer=milvus__pb2.CollectionName.SerializeToString,
         response_deserializer=status__pb2.Status.FromString,
         )
-    self.ReloadSegments = channel.unary_unary(
-        '/milvus.grpc.MilvusService/ReloadSegments',
-        request_serializer=milvus__pb2.ReLoadSegmentsParam.SerializeToString,
-        response_deserializer=status__pb2.Status.FromString,
-        )
     self.Flush = channel.unary_unary(
         '/milvus.grpc.MilvusService/Flush',
         request_serializer=milvus__pb2.FlushParam.SerializeToString,
@@ -142,7 +132,7 @@ class MilvusServiceStub(object):
         )
     self.Compact = channel.unary_unary(
         '/milvus.grpc.MilvusService/Compact',
-        request_serializer=milvus__pb2.CollectionName.SerializeToString,
+        request_serializer=milvus__pb2.CompactParam.SerializeToString,
         response_deserializer=status__pb2.Status.FromString,
         )
     self.SearchPB = channel.unary_unary(
@@ -234,7 +224,7 @@ class MilvusServiceServicer(object):
 
     @param CollectionName, collection name is going to be deleted.
 
-    @return CollectionNameList
+    @return Status
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
@@ -256,7 +246,7 @@ class MilvusServiceServicer(object):
     """*
     @brief This method is used to describe index
 
-    @param CollectionName, target collection name.
+    @param IndexParam, target index.
 
     @return IndexParam
     """
@@ -268,7 +258,7 @@ class MilvusServiceServicer(object):
     """*
     @brief This method is used to drop index
 
-    @param CollectionName, target collection name.
+    @param IndexParam, target field. if the IndexParam.field_name is empty, will drop all index of the collection
 
     @return Status
     """
@@ -372,23 +362,11 @@ class MilvusServiceServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def SearchByID(self, request, context):
-    """*
-    @brief This method is used to query vector by id.
-
-    @param SearchByIDParam, search parameters.
-
-    @return TopKQueryResult
-    """
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
-
-  def SearchInFiles(self, request, context):
+  def SearchInSegment(self, request, context):
     """*
     @brief This method is used to query vector in specified files.
 
-    @param SearchInFilesParam, search in files paremeters.
+    @param SearchInSegmentParam, target segments to search.
 
     @return TopKQueryResult
     """
@@ -432,18 +410,6 @@ class MilvusServiceServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def ReloadSegments(self, request, context):
-    """*
-    @brief This method is used to reload collection segments
-
-    @param ReLoadSegmentsParam, target segments information.
-
-    @return Status
-    """
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
-
   def Flush(self, request, context):
     """*
     @brief This method is used to flush buffer into storage.
@@ -460,7 +426,7 @@ class MilvusServiceServicer(object):
     """*
     @brief This method is used to compact collection
 
-    @param CollectionName, target collection name.
+    @param CompactParam, compact parameters
 
     @return Status
     """
@@ -521,7 +487,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
       ),
       'DescribeIndex': grpc.unary_unary_rpc_method_handler(
           servicer.DescribeIndex,
-          request_deserializer=milvus__pb2.CollectionName.FromString,
+          request_deserializer=milvus__pb2.IndexParam.FromString,
           response_serializer=milvus__pb2.IndexParam.SerializeToString,
       ),
       'DropIndex': grpc.unary_unary_rpc_method_handler(
@@ -569,14 +535,9 @@ def add_MilvusServiceServicer_to_server(servicer, server):
           request_deserializer=milvus__pb2.SearchParam.FromString,
           response_serializer=milvus__pb2.QueryResult.SerializeToString,
       ),
-      'SearchByID': grpc.unary_unary_rpc_method_handler(
-          servicer.SearchByID,
-          request_deserializer=milvus__pb2.SearchByIDParam.FromString,
-          response_serializer=milvus__pb2.QueryResult.SerializeToString,
-      ),
-      'SearchInFiles': grpc.unary_unary_rpc_method_handler(
-          servicer.SearchInFiles,
-          request_deserializer=milvus__pb2.SearchInFilesParam.FromString,
+      'SearchInSegment': grpc.unary_unary_rpc_method_handler(
+          servicer.SearchInSegment,
+          request_deserializer=milvus__pb2.SearchInSegmentParam.FromString,
           response_serializer=milvus__pb2.QueryResult.SerializeToString,
       ),
       'Cmd': grpc.unary_unary_rpc_method_handler(
@@ -594,11 +555,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
           request_deserializer=milvus__pb2.CollectionName.FromString,
           response_serializer=status__pb2.Status.SerializeToString,
       ),
-      'ReloadSegments': grpc.unary_unary_rpc_method_handler(
-          servicer.ReloadSegments,
-          request_deserializer=milvus__pb2.ReLoadSegmentsParam.FromString,
-          response_serializer=status__pb2.Status.SerializeToString,
-      ),
       'Flush': grpc.unary_unary_rpc_method_handler(
           servicer.Flush,
           request_deserializer=milvus__pb2.FlushParam.FromString,
@@ -606,7 +562,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
       ),
       'Compact': grpc.unary_unary_rpc_method_handler(
           servicer.Compact,
-          request_deserializer=milvus__pb2.CollectionName.FromString,
+          request_deserializer=milvus__pb2.CompactParam.FromString,
           response_serializer=status__pb2.Status.SerializeToString,
       ),
       'SearchPB': grpc.unary_unary_rpc_method_handler(
