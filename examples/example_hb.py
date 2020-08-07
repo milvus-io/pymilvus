@@ -37,7 +37,7 @@ def main():
             {"field": "C", "type": DataType.INT64},
             {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
         ],
-        "segment_size": 100
+        "segment_row_count": 100
     }
     milvus.create_collection(collection_name, collection_param)
 
