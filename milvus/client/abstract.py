@@ -26,6 +26,9 @@ class LoopBase(object):
                 elements.append(self.get__item(i))
             return elements
 
+        if item >= self.__len__():
+            raise IndexError("Index out of range")
+
         return self.get__item(item)
 
     def __next__(self):
@@ -157,15 +160,25 @@ class Entities(LoopBase):
     def __init__(self, raw):
         super().__init__()
         self._raw = raw
-        self._ids = list(self._raw.ids)
+        self._ids = self._filtered_ids(list(self._raw.ids))
         self._valid_raw = []
 
     def __len__(self):
-        return len(self._raw.ids)
+        return len(self._ids)
+
+    def _filtered_ids(self, pre_ids):
+        ids = list()
+        for id_ in pre_ids:
+            if id_ != -1:
+                ids.append(id_)
+            else:
+                break
+
+        return ids
 
     def get__item(self, item):
         if not self._ids:
-            self._ids = list(self._raw.ids)
+            self._ids = self._filtered_ids(list(self._raw.ids))
 
         if not self._valid_raw:
             self._valid_raw = list(self._raw.valid_row)
