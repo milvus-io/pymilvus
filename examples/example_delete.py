@@ -40,6 +40,8 @@ def main():
     }
     milvus.create_collection(collection_name, collection_param)
 
+    milvus.compact(collection_name)
+
     # milvus.create_partition(collection_name, "p_01", timeout=1800)
     # pars = milvus.list_partitions(collection_name)
     # ok = milvus.has_partition(collection_name, "p_01", timeout=1800)
