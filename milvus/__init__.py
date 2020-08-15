@@ -12,6 +12,6 @@ from .client.exceptions import (
 )
 from .client import __version__
 
-__all__ = ['Milvus', 'Prepare', 'Status', 'IndexType', 'MetricType',
+__all__ = ['Milvus', 'Prepare', 'Status', 'DataType',
            'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError',
            '__version__']

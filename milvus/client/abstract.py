@@ -66,17 +66,20 @@ class FieldSchema:
             if kv.key == "params":
                 self.params = ujson.loads(kv.value)
 
+        index_dict = dict()
         for ikv in raw.index_params:
-            index_dict = ujson.loads(ikv.value)
-            index_dict["index_name"] = ikv.key
+            if ikv.key != "params":
+                index_dict[ikv.key] = ikv.value
+            else:
+                index_dict[ikv.key] = ujson.loads(ikv.value)
 
-            self.indexes.append(index_dict)
+        self.indexes.append(index_dict)
 
     def dict(self):
         _dict = dict()
         _dict["field"] = self.name
         _dict["type"] = self.type
-        _dict["params"] = self.params
+        _dict["params"] = self.params or dict()
         _dict["indexes"] = self.indexes
         return _dict
 
