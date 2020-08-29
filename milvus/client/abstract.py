@@ -163,35 +163,38 @@ class Entities(LoopBase):
     def __init__(self, raw):
         super().__init__()
         self._raw = raw
-        self._ids = self._filtered_ids(list(self._raw.ids))
+        self._flat_ids = list(self._raw.ids)
         self._valid_raw = []
 
     def __len__(self):
-        return len(self._ids)
+        return len(self._flat_ids)
 
-    def _filtered_ids(self, pre_ids):
-        ids = list()
-        for id_ in pre_ids:
-            if id_ != -1:
-                ids.append(id_)
-            else:
-                break
-
-        return ids
+    # def _filtered_ids(self, pre_ids):
+    #     ids = list()
+    #     for id_ in pre_ids:
+    #         if id_ != -1:
+    #             ids.append(id_)
+    #         else:
+    #             break
+    #
+    #     return ids
 
     def get__item(self, item):
-        if not self._ids:
-            self._ids = self._filtered_ids(list(self._raw.ids))
-
+        # import pdb;pdb.set_trace()
+        # if not self._flat_ids:
+        #     self._ids = self._filtered_ids(list(self._raw.ids))
         if not self._valid_raw:
             self._valid_raw = list(self._raw.valid_row)
 
         # if
         if not self._valid_raw:
-            return Entity(self._ids[item], [], [], [])
+            return Entity(self._flat_ids[item], [], [], [])
 
         if not self._valid_raw[item]:
             return None
+
+        if self._flat_ids[item] == -1:
+            return Entity(-1, [], [], [])
 
         fatal_item = sum([1 for v in self._valid_raw[:item] if v])
 
@@ -221,11 +224,11 @@ class Entities(LoopBase):
             field_values.append(slice_value)
 
         # values = [fv[item] for fv in field_values]
-        return Entity(self._ids[item], field_types, field_names, field_values)
+        return Entity(self._flat_ids[item], field_types, field_names, field_values)
 
     @property
     def ids(self):
-        return self._ids
+        return self._flat_ids
 
     def dict(self):
         entity_list = list()
@@ -325,10 +328,19 @@ class QueryResult(LoopBase):
         topk = dis_len // self._nq if self._nq > 0 else 0
         start = item * topk
         end = (item + 1) * topk
+
+        slice_entity = list()
+        for it in range(start, end):
+            entity = self._entities[it]
+            if entity.id == -1:
+                break
+
+            slice_entity.append(entity)
+
+        end = start + len(slice_entity)
+
         slice_score = list(self._raw.scores)[start: end] if dis_len > 0 else []
         slice_distances = list(self._raw.distances)[start: end] if dis_len > 0 else []
-
-        slice_entity = self._entities[start: end]
 
         return RawQueryResult(slice_entity, slice_distances, slice_score)
 

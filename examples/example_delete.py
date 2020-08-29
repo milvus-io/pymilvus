@@ -25,7 +25,8 @@ _INDEX_FILE_SIZE = 32  # max file size of stored index
 def main():
     milvus = Milvus(_HOST, _PORT)
 
-    num = random.randint(1, 100)
+    # num = random.randint(1, 100000)
+    num = 200000
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_hybrid_collection_{}'.format(num)
 
@@ -79,12 +80,12 @@ def main():
     milvus.flush([collection_name])
 
     print("Create index ......")
-    milvus.create_index(collection_name, "Vec", {"index_type": "IVF_FLAT", "nlist": 100})
     milvus.create_index(collection_name, "Vec", {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 100}})
     print("Create index done.")
 
     info = milvus.get_collection_info(collection_name)
-    query_hybrid = {
+    query_hybrid = \
+    {
         "bool": {
             "must": [
                 {
@@ -100,7 +101,7 @@ def main():
                 {
                     "vector": {
                         "Vec": {
-                            "topk": 10, "query": vec[: 1], "params": {"nprobe": 10}
+                            "topk": 10, "query": vec[: 10000], "params": {"nprobe": 10}
                         }
                     }
                 }
@@ -116,12 +117,17 @@ def main():
     #     print("ids", r.ids)
     #     print("distances", r.distances)
 
+    t0 = time.time()
+    count = 0
     results = milvus.search(collection_name, query_hybrid, fields=["B"])
     for r in list(results):
-        print("ids", r.ids)
-        print("distances", r.distances)
+        # print("ids", r.ids)
+        # print("distances", r.distances)
         for rr in r:
-            print(rr.entity.get("B"))
+            count += 1
+            # print(rr.entity.get("B"))
+
+    print("Search cost {} s".format(time.time() - t0))
 
     # for result in results:
     #     for r in result:
@@ -146,3 +152,26 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# {
+#     "fields": [
+#         {"field": "A", "type": DataType.INT32},
+#         {"field": "B", "type": DataType.INT32},
+#         {"field": "C", "type": DataType.INT64},
+#         {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, "metric_type": "L2"}}
+#     ],
+#     "segment_size": 100
+# }
+
+[
+    {"field": "A", "values": A_list, "type": DataType.INT32},
+    {"field": "B", "values": A_list, "type": DataType.INT32},
+    {"field": "C", "values": A_list, "type": DataType.INT64},
+    {"field": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR}
+]
+
+{
+    "index_type": "IVF_FLAT",
+    "metric_type": "L2",
+    "params": {"nlist": 100}
+}

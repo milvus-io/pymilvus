@@ -12,7 +12,7 @@ from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
 
-support_versions = ('0.9.x', '0.10.x')
+support_versions = ('0.11.x',)
 
 
 def _is_version_match(version):

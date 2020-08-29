@@ -381,8 +381,8 @@ class Milvus:
 
         # check_pass_param(collection_name=collection_name, records=records)
         # partition_tag is not None and check_pass_param(partition_tag=partition_tag)
-        # if ids is not None:
-        #     check_pass_param(ids=ids)
+        if ids is not None:
+            check_pass_param(ids=ids)
         #     if len(records) != len(ids):
         #         raise ParamError("length of vectors do not match that of ids")
         #
