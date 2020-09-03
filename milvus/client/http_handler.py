@@ -278,7 +278,7 @@ class HttpHandler(ConnectIntf):
                 return Status(message='Create table successfully!')
 
             js = response.json()
-            return Status(Status(js["code"], js["message"]))
+            return Status(js["code"], js["message"])
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
@@ -294,7 +294,7 @@ class HttpHandler(ConnectIntf):
                 return Status(), False
 
             js = response.json()
-            return Status(Status(js["code"], js["message"])), False
+            return Status(js["code"], js["message"]), False
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e))
 
@@ -309,7 +309,7 @@ class HttpHandler(ConnectIntf):
             if response.status_code == 200:
                 return Status(), js["count"]
 
-            return Status(Status(js["code"], js["message"])), None
+            return Status(js["code"], js["message"]), None
         except Exception as e:
             return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
 
@@ -335,7 +335,7 @@ class HttpHandler(ConnectIntf):
 
             return Status(message='Describe table successfully!'), table
 
-        return Status(Status(js["code"], js["message"])), None
+        return Status(js["code"], js["message"]), None
 
     @handle_error(returns=([],))
     def show_collections(self, timeout):
@@ -373,7 +373,7 @@ class HttpHandler(ConnectIntf):
 
         if response.text:
             result = response.json()
-            return Status(Status(result["code"], result["message"])), None
+            return Status(result["code"], result["message"]), None
 
         return Status(Status.UNEXPECTED_ERROR, "Response is empty"), None
 
@@ -434,7 +434,7 @@ class HttpHandler(ConnectIntf):
             ids = [int(item) for item in list(js["ids"])]
             return Status(message='Add vectors successfully!'), ids
 
-        return Status(Status(js["code"], js["message"])), []
+        return Status(js["code"], js["message"]), []
 
     @handle_error(returns=(None,))
     def get_vectors_by_ids(self, collection_name, ids, timeout):
@@ -540,7 +540,7 @@ class HttpHandler(ConnectIntf):
             return Status()
 
         js = response.json()
-        return Status(Status(js["code"], js["message"]))
+        return Status(js["code"], js["message"])
 
     @handle_error(returns=([],))
     def show_partitions(self, table_name, timeout):
@@ -561,7 +561,7 @@ class HttpHandler(ConnectIntf):
 
             return Status(), partition_list
 
-        return Status(Status(js["code"], js["message"])), []
+        return Status(js["code"], js["message"]), []
 
     @handle_error(returns=(False,))
     def has_partition(self, collection_name, tag, timeout=30):
@@ -576,7 +576,7 @@ class HttpHandler(ConnectIntf):
             return Status(), False
 
         js = response.json()
-        return Status(Status(js["code"], js["message"])), False
+        return Status(js["code"], js["message"]), False
 
     @handle_error()
     def drop_partition(self, collection_name, partition_tag, timeout=10):
@@ -591,7 +591,7 @@ class HttpHandler(ConnectIntf):
             return Status()
 
         js = response.json()
-        return Status(Status(js["code"], js["message"]))
+        return Status(js["code"], js["message"])
 
     @handle_error(returns=(None,))
     def search(self, collection_name, top_k, query_records, partition_tags=None, search_params=None, timeout=None, **kwargs):
@@ -641,7 +641,7 @@ class HttpHandler(ConnectIntf):
             return Status(), TopKQueryResult2(response)
 
         js = response.json()
-        return Status(Status(js["code"], js["message"])), None
+        return Status(js["code"], js["message"]), None
 
     @handle_error(returns=(None,))
     def search_in_files(self, collection_name, file_ids, query_records, top_k, search_params, timeout, **kwargs):
@@ -668,7 +668,7 @@ class HttpHandler(ConnectIntf):
             return Status(), TopKQueryResult2(response)
 
         js = response.json()
-        return Status(Status(js["code"], js["message"])), None
+        return Status(js["code"], js["message"]), None
 
     @handle_error()
     def delete_by_id(self, table_name, id_array, timeout=None):
