@@ -29,7 +29,7 @@ def main():
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_collection_'
 
-    status, ok = milvus.has_collection(collection_name)
+    ok = milvus.has_collection(collection_name)
     if not ok:
         param = {
             'collection_name': collection_name,

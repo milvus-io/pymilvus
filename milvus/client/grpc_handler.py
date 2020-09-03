@@ -9,7 +9,7 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, TopKQueryResult, HEntitySet
+from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, Entities, QueryResult
 from .prepare import Prepare
 from .types import MetricType, Status
 from .check import (
@@ -18,11 +18,12 @@ from .check import (
     is_legal_port,
 )
 
+from .abs_client import AbsMilvus
 from .asynch import SearchFuture, InsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
 
 from .hooks import BaseSearchHook
 from .client_hooks import SearchHook, HybridSearchHook
-from .exceptions import ParamError, NotConnectError
+from .exceptions import *
 from ..settings import DefaultConfig as config
 from . import __version__
 
@@ -39,21 +40,27 @@ def error_handler(*rargs):
                     self.ping()
                 record_dict["RPC start"] = str(datetime.datetime.now())
                 return func(self, *args, **kwargs)
+            except BaseException as e:
+                LOGGER.error("Error: {}".format(e))
+                if e.code == Status.ILLEGAL_COLLECTION_NAME:
+                    raise IllegalCollectionNameException(e.code, e.message)
+                if e.code == Status.COLLECTION_NOT_EXISTS:
+                    raise CollectionNotExistException(e.code, e.message)
+
+                raise e
+
             except grpc.FutureTimeoutError as e:
                 record_dict["RPC timeout"] = str(datetime.datetime.now())
                 LOGGER.error("\nAddr [{}] {}\nRequest timeout: {}\n\t{}".format(self.server_address, func.__name__, e, record_dict))
-                status = Status(Status.UNEXPECTED_ERROR, message='Request timeout')
-                return status if not rargs else tuple([status]) + rargs
+                raise e
             except grpc.RpcError as e:
                 record_dict["RPC error"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nRpc error: {}\n\t{}".format(self.server_address, func.__name__, e, record_dict))
-                status = Status(e.code(), message='Error occurred. {}'.format(e.details()))
-                return status if not rargs else tuple([status]) + rargs
+                LOGGER.error("RPC error: {}\n\t{}".format(e, record_dict))
+                raise e
             except Exception as e:
                 record_dict["Exception"] = str(datetime.datetime.now())
                 LOGGER.error("\nAddr [{}] {}\nExcepted error: {}\n\t{}".format(self.server_address, func.__name__, e, record_dict))
-                status = Status(Status.UNEXPECTED_ERROR, message=str(e))
-                return status if not rargs else tuple([status]) + rargs
+                raise e
 
         return handler
 
@@ -82,31 +89,7 @@ def set_uri(host, port, uri):
     return "{}:{}".format(str(_host), str(_port))
 
 
-# def connect(addr, timeout):
-#     channel = grpc.insecure_channel(
-#         addr,
-#         options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
-#                  (cygrpc.ChannelArgKey.max_receive_message_length, -1)]
-#     )
-#     try:
-#         ft = grpc.channel_ready_future(channel)
-#         ft.result(timeout=timeout)
-#         return True
-#     except grpc.FutureTimeoutError:
-#         raise NotConnectError('Fail connecting to server on {}. Timeout'.format(addr))
-#     except grpc.RpcError as e:
-#         raise NotConnectError("Connect error: <{}>".format(e))
-#     # Unexpected error
-#     except Exception as e:
-#         raise NotConnectError("Error occurred when trying to connect server:\n"
-#                               "\t<{}>".format(str(e)))
-#     finally:
-#         ft.cancel()
-#         ft.__del__()
-#         channel.__del__()
-
-
-class GrpcHandler(ConnectIntf):
+class GrpcHandler(AbsMilvus):
     def __init__(self, host=None, port=None, pre_ping=True, **kwargs):
         self._channel = None
         self._stub = None
@@ -158,7 +141,6 @@ class GrpcHandler(ConnectIntf):
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1),
                      ('grpc.enable_retries', 1),
                      ('grpc.keepalive_time_ms', 55000)]
-                     # (b'grpc.enable_http_proxy', 0)]
         )
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
         self.status = Status()
@@ -262,52 +244,19 @@ class GrpcHandler(ConnectIntf):
         cmd = Prepare.cmd(cmd)
         rf = self._stub.Cmd.future(cmd, wait_for_ready=True, timeout=timeout)
         response = rf.result()
-        if response.status.error_code == 0:
-            return Status(message='Success!'), response.string_reply
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
 
-        return Status(code=response.status.error_code, message=response.status.reason), None
+        return response.string_reply
 
     @error_handler()
-    def create_collection(self, collection_name, dimension, index_file_size, metric_type, param, timeout=30):
-        """
-        Create collection
-
-        :type  param: dict or TableSchema
-        :param param: Provide collection information to be created
-
-                `example param={'collection_name': 'name',
-                                'dimension': 16,
-                                'index_file_size': 1024 (default)，
-                                'metric_type': Metric_type.L2 (default)
-                                }`
-
-                `OR using Prepare.collection_schema to create param`
-
-        :param timeout: timeout, The unit is seconds
-        :type  timeout: double
-
-        :return: Status, indicate if operation is successful
-        :rtype: Status
-        """
-
-        collection_schema = Prepare.collection_schema(collection_name, dimension, index_file_size, metric_type, param)
-
+    def create_collection(self, collection_name, fields, timeout=30):
+        collection_schema = Prepare.collection_schema(collection_name, fields)
         rf = self._stub.CreateCollection.future(collection_schema, wait_for_ready=True, timeout=timeout)
         status = rf.result()
-        if status.error_code == 0:
-            return Status(message='Create collection successfully!')
-
-        LOGGER.error(status)
-        return Status(code=status.error_code, message=status.reason)
-
-    @error_handler()
-    def create_hybrid_collection(self, collection_name, fields, timeout=30):
-        collection_schema = Prepare.collection_hybrid_schema(collection_name, fields)
-        response = self._stub.CreateHybridCollection(collection_schema)
-        if response.error_code == 0:
-            return Status(message='Create collection successfully!')
-
-        return Status(code=response.error_code, message=response.reason)
+        if status.error_code != 0:
+            LOGGER.error(status)
+            raise BaseException(status.error_code, status.reason)
 
     @error_handler(False)
     def has_collection(self, collection_name, timeout=30, **kwargs):
@@ -331,83 +280,41 @@ class GrpcHandler(ConnectIntf):
         rf = self._stub.HasCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
         reply = rf.result()
         if reply.status.error_code == 0:
-            return Status(), reply.bool_reply
+            return reply.bool_reply
 
-        return Status(code=reply.status.error_code, message=reply.status.reason), False
+        raise BaseException(reply.status.error_code, reply.status.reason)
 
     @error_handler(None)
     def describe_collection(self, collection_name, timeout=30, **kwargs):
-        """
-        Show collection information
-
-        :type  collection_name: str
-        :param collection_name: which collection to be shown
-
-        :returns: (Status, collection_schema)
-            Status: indicate if query is successful
-            collection_schema: return when operation is successful
-        :rtype: (Status, TableSchema)
-        """
         collection_name = Prepare.collection_name(collection_name)
         rf = self._stub.DescribeCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
         response = rf.result()
 
         if response.status.error_code == 0:
-            collection = CollectionSchema(
-                collection_name=response.collection_name,
-                dimension=response.dimension,
-                index_file_size=response.index_file_size,
-                metric_type=MetricType(response.metric_type)
-            )
-            return Status(message='Describe collection successfully!'), collection
+            return CollectionSchema(raw=response).dict()
 
         LOGGER.error(response.status)
-        return Status(code=response.status.error_code, message=response.status.reason), None
+        raise BaseException(response.status.error_code, response.status.reason)
 
     @error_handler(None)
     def count_collection(self, collection_name, timeout=30, **kwargs):
-        """
-        obtain vector number in collection
-
-        :type  collection_name: str
-        :param collection_name: target collection name.
-
-        :returns:
-            Status: indicate if operation is successful
-
-            res: int, collection row count
-        """
-
         collection_name = Prepare.collection_name(collection_name)
 
         rf = self._stub.CountCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.status.error_code == 0:
-            return Status(message='Success!'), response.collection_row_count
+            return response.collection_row_count
 
-        return Status(code=response.status.error_code, message=response.status.reason), None
+        raise BaseException(response.status.error_code, response.status.reason)
 
     @error_handler([])
     def show_collections(self, timeout=30):
-        """
-        Show all collections information in database
-
-        :return:
-            Status: indicate if this operation is successful
-
-            collections: list of collection names, return when operation
-                    is successful
-        :rtype:
-            (Status, list[str])
-        """
-
         cmd = Prepare.cmd('show_collections')
         rf = self._stub.ShowCollections.future(cmd, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.status.error_code == 0:
-            return Status(message='Show collections successfully!'), \
-                   [name for name in response.collection_names if len(name) > 0]
-        return Status(response.status.error_code, message=response.status.reason), []
+            return [name for name in response.collection_names if len(name) > 0]
+        raise BaseException(response.status.error_code, message=response.status.reason)
 
     @error_handler(None)
     def show_collection_info(self, collection_name, timeout=30):
@@ -419,9 +326,9 @@ class GrpcHandler(ConnectIntf):
 
         if rpc_status.error_code == 0:
             json_info = response.json_info
-            return Status(), {} if not json_info else ujson.loads(json_info)
+            return {} if not json_info else ujson.loads(json_info)
 
-        return Status(rpc_status.error_code, rpc_status.reason), None
+        raise BaseException(rpc_status.error_code, rpc_status.reason)
 
     @error_handler()
     def preload_collection(self, collection_name, timeout=None):
@@ -437,14 +344,16 @@ class GrpcHandler(ConnectIntf):
 
         collection_name = Prepare.collection_name(collection_name)
         status = self._stub.PreloadCollection.future(collection_name, wait_for_ready=True, timeout=timeout).result()
-        return Status(code=status.error_code, message=status.reason)
+        if status.error_code != 0:
+            raise BaseException(status.error_code, status.reason)
 
     @error_handler()
     def reload_segments(self, collection_name, segment_ids, timeout=30):
         file_ids = list(map(int_or_str, segment_ids))
         request = Prepare.reload_param(collection_name, file_ids)
         status = self._stub.ReloadSegments.future(request, wait_for_ready=True, timeout=timeout).result()
-        return Status(code=status.error_code, message=status.reason)
+        if status.error_code != 0:
+            raise BaseException(status.error_code, status.reason)
 
     @error_handler()
     def drop_collection(self, collection_name, timeout=20):
@@ -462,12 +371,13 @@ class GrpcHandler(ConnectIntf):
 
         rf = self._stub.DropCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
         status = rf.result()
-        if status.error_code == 0:
-            return Status(message='Delete collection successfully!')
-        return Status(code=status.error_code, message=status.reason)
+        if status.error_code != 0:
+            raise BaseException(status.error_code, status.reason)
+
+        return Status(status.error_code, status.reason)
 
     @error_handler([])
-    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
+    def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
         """
         Add vectors to collection
 
@@ -506,8 +416,9 @@ class GrpcHandler(ConnectIntf):
             raise ParamError("The value of key 'insert_param' is invalid")
 
         body = insert_param if insert_param \
-            else Prepare.insert_param(collection_name, records, partition_tag, ids, params)
+            else Prepare.insert_param(collection_name, entities, partition_tag, ids, params)
 
+        # rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
         rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
         if kwargs.get("_async", False) is True:
             cb = kwargs.get("_callback", None)
@@ -515,168 +426,67 @@ class GrpcHandler(ConnectIntf):
 
         response = rf.result()
         if response.status.error_code == 0:
-            return Status(message='Add vectors successfully!'), list(response.vector_id_array)
+            return list(response.entity_id_array)
 
-        return Status(code=response.status.error_code, message=response.status.reason), []
-
-    @error_handler([])
-    def insert_hybrid(self, collection_name, entities, vector_entities, ids=None, tag=None, params=None):
-        insert_param = Prepare.insert_hybrid_param(collection_name, tag, entities, vector_entities, ids, params)
-        response = self._stub.InsertEntity(insert_param)
-        status = response.status
-        if status.error_code == 0:
-            return Status(message='Insert successfully!'), list(response.entity_id_array)
-        return Status(code=status.error_code, message=status.reason), []
+        raise BaseException(response.status.error_code, response.status.reason)
 
     @error_handler([])
-    def get_vectors_by_ids(self, collection_name, ids, timeout=30):
-        request = grpc_types.VectorsIdentity(collection_name=collection_name, id_array=ids)
+    def get_entities_by_ids(self, collection_name, ids, fields, timeout=30):
+        request = Prepare.get_entity_by_id_param(collection_name, ids, fields)
 
-        rf = self._stub.GetVectorsByID.future(request, wait_for_ready=True, timeout=timeout)
+        rf = self._stub.GetEntityByID.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         status = response.status
         if status.error_code == 0:
-            status = Status(message="Obtain vector successfully")
-            vectors = list()
-            for datas in response.vectors_data:
-                vector = bytes(datas.binary_data) or list(datas.float_data)
-                vectors.append(vector)
-            return status, vectors
+            # TODO: handler response
+            return Entities(response)
 
-        return Status(code=status.error_code, message=status.reason), []
+        raise BaseException(code=status.error_code, message=status.reason)
 
     @error_handler([])
-    def get_hybrid_entity_by_id(self, collection_name, ids):
-        request = grpc_types.VectorsIdentity(collection_name=collection_name, id_array=ids)
-        response = self._stub.GetEntityByID(request)
+    def get_vector_ids(self, collection_name, segment_id, timeout=30):
+        request = grpc_types.GetEntityIDsParam(collection_name=collection_name, segment_id=segment_id)
 
-        if response.status.error_code == 0:
-            return Status(), HEntitySet(response)
-        return Status(response.status.error_code, response.status.reason), []
-
-    @error_handler([])
-    def get_vector_ids(self, collection_name, segment_name, timeout=30):
-        request = grpc_types.GetVectorIDsParam(collection_name=collection_name, segment_name=segment_name)
-
-        rf = self._stub.GetVectorIDs.future(request, wait_for_ready=True, timeout=timeout)
+        rf = self._stub.GetEntityIDs.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
 
         if response.status.error_code == 0:
-            return Status(), list(response.vector_id_array)
-        return Status(response.status.error_code, response.status.reason), []
+            return list(response.entity_id_array)
+
+        raise BaseException(response.status.error_code, response.status.reason)
 
     @error_handler()
-    def create_index(self, collection_name, index_type=None, params=None, timeout=None, **kwargs):
-        """
-        build vectors of specific collection and create vector index
-
-        :param collection_name: collection used to crete index.
-        :type collection_name: str
-        :param index: index params
-        :type index: dict
-
-            index_param can be None
-
-            `example (default) param={'index_type': IndexType.FLAT,
-                            'nlist': 16384}`
-
-        :param timeout: grpc request timeout.
-
-            if `timeout` = -1, method invoke a synchronous call, waiting util grpc response
-            else method invoke a asynchronous call, timeout work here
-
-        :type  timeout: int
-
-        :return: Status, indicate if operation is successful
-        """
-        index_param = Prepare.index_param(collection_name, index_type, params)
-        # status = self._stub.CreateIndex.future(index_param).result(timeout=timeout)
+    def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
+        index_param = Prepare.index_param(collection_name, field_name, params)
         future = self._stub.CreateIndex.future(index_param, wait_for_ready=True, timeout=timeout)
         if kwargs.get('_async', False):
             cb = kwargs.get("_callback", None)
             return CreateIndexFuture(future, cb)
         status = future.result()
 
-        if status.error_code == 0:
-            return Status(message='Build index successfully!')
-        return Status(code=status.error_code, message=status.reason)
+        if status.error_code != 0:
+            raise BaseException(status.error_code, status.reason)
+
+        return Status(status.error_code, status.reason)
 
     @error_handler()
-    def describe_index(self, collection_name, timeout=30):
-        """
-        Show index information of designated collection
-
-        :type collection_name: str
-        :param collection_name: collection name been queried
-
-        :returns:
-            Status:  indicate if query is successful
-            IndexSchema:
-
-        """
-
-        collection_name = Prepare.collection_name(collection_name)
-
-        rf = self._stub.DescribeIndex.future(collection_name, wait_for_ready=True, timeout=timeout)
-        index_param = rf.result()
-
-        status = index_param.status
-
-        if status.error_code == 0:
-            return Status(message="Successfully"), \
-                   IndexParam(index_param.collection_name,
-                              index_param.index_type,
-                              index_param.extra_params[0].value)
-
-        return Status(code=status.error_code, message=status.reason), None
-
-    @error_handler()
-    def drop_index(self, collection_name, timeout=30):
-        """
-        drop index from index file
-
-        :param collection_name: target collection name.
-        :type collection_name: str
-
-        :return:
-            Status: indicate if operation is successful
-
-        ：:rtype: Status
-        """
-
-        collection_name = Prepare.collection_name(collection_name)
-        rf = self._stub.DropIndex.future(collection_name, wait_for_ready=True, timeout=timeout)
+    def drop_index(self, collection_name, field_name, timeout=30):
+        # TODO: TODO
+        request = Prepare.index_param(collection_name, field_name, None)
+        rf = self._stub.DropIndex.future(request, wait_for_ready=True, timeout=timeout)
         status = rf.result()
-        # status = self._stub.DropIndex.future(collection_name).result(timeout=timeout)
-        return Status(code=status.error_code, message=status.reason)
+        if status.error_code != 0:
+            raise BaseException(status.error_code, status.reason)
+
+        return Status(status.error_code, status.reason)
 
     @error_handler()
     def create_partition(self, collection_name, partition_tag, timeout=30):
-        """
-        create a specific partition under designated collection. After done, the meta file in
-        milvus server update partition information, you can perform actions about partitions
-        with partition tag.
-
-        :param collection_name: target collection name.
-        :type  collection_name: str
-
-        :param partition_name: name of target partition under designated collection.
-        :type  partition_name: str
-
-        :param partition_tag: tag name of target partition under designated collection.
-        :type  partition_tag: str
-
-        :param timeout: time waiting for response.
-        :type  timeout: int
-
-        :return:
-            Status: indicate if operation is successful
-
-        """
         request = Prepare.partition_param(collection_name, partition_tag)
         rf = self._stub.CreatePartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
-        return Status(code=response.error_code, message=response.reason)
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
 
     @error_handler(False)
     def has_partition(self, collection_name, partition_tag, timeout=30):
@@ -684,35 +494,22 @@ class GrpcHandler(ConnectIntf):
         rf = self._stub.HasPartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         status = response.status
-        return Status(code=status.error_code, message=status.reason), response.bool_reply
+        if status.error_code == 0:
+            return response.bool_reply
+
+        raise BaseException(status.error_code, status.reason)
 
     @error_handler([])
     def show_partitions(self, collection_name, timeout=30):
-        """
-        Show all partitions under designated collection.
-
-        :param collection_name: target collection name.
-        :type  collection_name: str
-
-        :param timeout: time waiting for response.
-        :type  timeout: int
-
-        :return:
-            Status: indicate if operation is successful
-            partition_list:
-
-        """
         request = Prepare.collection_name(collection_name)
 
         rf = self._stub.ShowPartitions.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
-        # response = self._stub.ShowPartitions.future(request).result(timeout=timeout)
         status = response.status
         if status.error_code == 0:
-            partition_list = [PartitionParam(collection_name, p) for p in response.partition_tag_array]
-            return Status(), partition_list
+            return [p for p in response.partition_tag_array]
 
-        return Status(code=status.error_code, message=status.reason), []
+        raise BaseException(status.error_code, status.reason)
 
     @error_handler()
     def drop_partition(self, collection_name, partition_tag, timeout=30):
@@ -736,20 +533,22 @@ class GrpcHandler(ConnectIntf):
 
         rf = self._stub.DropPartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
-        # response = self._stub.DropPartition.future(request).result(timeout=timeout)
-        return Status(code=response.error_code, message=response.reason)
+
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
+
+        return Status(response.error_code, response.reason)
 
     @error_handler(None)
-    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, timeout=None, **kwargs):
-        request = Prepare.search_param(collection_name, top_k, query_records, partition_tags, params)
-
+    def search(self, collection_name, query_entities, partition_tags=None, fields=None, **kwargs):
+        request = Prepare.search_param(collection_name, query_entities, partition_tags, fields)
         self._search_hook.pre_search()
+        to = kwargs.get("timeout", None)
+        ft = self._stub.Search.future(request, wait_for_ready=True, timeout=to)
         if kwargs.get("_async", False) is True:
-            future = self._stub.Search.future(request, wait_for_ready=True, timeout=timeout)
-
             func = kwargs.get("_callback", None)
-            return SearchFuture(future, func)
-        ft = self._stub.Search.future(request)
+            return SearchFuture(ft, func)
+
         response = ft.result()
         self._search_hook.aft_search()
 
@@ -757,35 +556,12 @@ class GrpcHandler(ConnectIntf):
             return response
 
         if response.status.error_code != 0:
-            return Status(code=response.status.error_code,
-                          message=response.status.reason), []
+            raise BaseException(response.status.error_code, response.status.reason)
 
-        resutls = self._search_hook.handle_response(response)
-        return Status(message='Search vectors successfully!'), resutls
+        # TODO: handler response
+        # resutls = self._search_hook.handle_response(response)
 
-    @error_handler(None)
-    def search_hybrid_pb(self, collection_name, query_entities, partition_tags, params=None, **kwargs):
-        request = Prepare.search_hybrid_pb_param(collection_name, query_entities, partition_tags, params)
-        response = self._stub.HybridSearchPB(request)
-
-        if response.status.error_code != 0:
-            return Status(code=response.status.error_code,
-                          message=response.status.reason), []
-
-        return Status(message='Search vectors successfully!'), \
-               self._hybrid_search_hook.handle_response(response)
-
-    @error_handler(None)
-    def search_hybrid(self, collection_name, vector_params, dsl, partition_tags=None, params=None, **kwargs):
-        request = Prepare.search_hybrid_param(collection_name, vector_params, dsl, partition_tags, params)
-        response = self._stub.HybridSearch(request)
-
-        if response.status.error_code != 0:
-            return Status(code=response.status.error_code,
-                          message=response.status.reason), []
-
-        return Status(message='Search vectors successfully!'), \
-               self._hybrid_search_hook.handle_response(response)
+        return QueryResult(response)
 
     @error_handler(None)
     def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
@@ -807,11 +583,12 @@ class GrpcHandler(ConnectIntf):
             return Status(code=response.status.error_code,
                           message=response.status.reason), []
 
-        return Status(message='Search vectors successfully!'), \
-               self._search_hook.handle_response(response)
+        # return Status(message='Search vectors successfully!'), \
+        #        self._search_hook.handle_response(response)
+        return QueryResult(response)
 
     @error_handler(None)
-    def search_in_files(self, collection_name, file_ids, query_records, top_k, params, timeout=None, **kwargs):
+    def search_in_files(self, collection_name, segment_ids, query_entities, fields, params=None, timeout=None, **kwargs):
         """
         Query vectors in a collection, in specified files.
 
@@ -844,10 +621,8 @@ class GrpcHandler(ConnectIntf):
         :rtype: (Status, TopKQueryResult)
         """
 
-        file_ids = list(map(int_or_str, file_ids))
-        infos = Prepare.search_vector_in_files_param(
-            collection_name, query_records, top_k, file_ids, params
-        )
+        file_ids = list(map(int_or_str, segment_ids))
+        infos = Prepare.search_vector_in_files_param(collection_name, file_ids, query_entities, fields, params=params)
 
         self._search_file_hook.pre_search()
 
@@ -865,11 +640,9 @@ class GrpcHandler(ConnectIntf):
             return response
 
         if response.status.error_code != 0:
-            return Status(code=response.status.error_code,
-                          message=response.status.reason), []
+            raise BaseException(response.status.error_code, response.status.reason)
 
-        return Status(message='Search vectors successfully!'), \
-               self._search_file_hook.handle_response(response)
+        return QueryResult(response)
 
     @error_handler()
     def delete_by_id(self, collection_name, id_array, timeout=None):
@@ -878,7 +651,10 @@ class GrpcHandler(ConnectIntf):
         rf = self._stub.DeleteByID.future(request, wait_for_ready=True, timeout=timeout)
         status = rf.result()
         # status = self._stub.DeleteByID.future(request).result(timeout=timeout)
-        return Status(code=status.error_code, message=status.reason)
+        if status.error_code != 0:
+            raise BaseException(status.error_code, status.reason)
+
+        return Status(status.error_code, status.reason)
 
     @error_handler()
     def flush(self, collection_name_array, timeout=None, **kwargs):
@@ -888,22 +664,26 @@ class GrpcHandler(ConnectIntf):
             cb = kwargs.get("_callback", None)
             return FlushFuture(future, cb)
         response = future.result()
-        return Status(code=response.error_code, message=response.reason)
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
 
     @error_handler()
-    def compact(self, collection_name, timeout, **kwargs):
-        request = Prepare.compact_param(collection_name)
+    def compact(self, collection_name, threshold, timeout, **kwargs):
+        request = Prepare.compact_param(collection_name, threshold)
         future = self._stub.Compact.future(request, wait_for_ready=True, timeout=timeout)
         if kwargs.get("_async", False):
             cb = kwargs.get("_callback", None)
             return CompactFuture(future, cb)
         response = future.result()
-        return Status(code=response.error_code, message=response.reason)
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
+
+        return Status(response.error_code, response.reason)
 
     def set_config(self, parent_key, child_key, value):
-        cmd = "set_config {}.{} {}".format(parent_key, child_key, value)
+        cmd = "SET {}.{} {}".format(parent_key, child_key, value)
         return self._cmd(cmd)
 
     def get_config(self, parent_key, child_key):
-        cmd = "get_config {}.{}".format(parent_key, child_key)
+        cmd = "GEt {}.{}".format(parent_key, child_key)
         return self._cmd(cmd)

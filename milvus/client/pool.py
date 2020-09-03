@@ -12,7 +12,7 @@ from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
 
-support_versions = ('0.9.x', '0.10.x')
+support_versions = ('0.11.x',)
 
 
 def _is_version_match(version):
@@ -85,8 +85,6 @@ class ConnectionPool:
         self._uri = uri
         self._pool_size = pool_size
         self._wait_timeout = wait_timeout
-        # if try_connect:
-        #     self._max_retry = kwargs.get("max_retry", 3)
 
         # Record used connection number.
         self._used_conn = 0
@@ -230,9 +228,7 @@ class SingletonThreadPool:
         if self._try_connect:
             conn.client().ping()
 
-        status, version = conn.client().server_version(timeout=30)
-        if not status.OK():
-            raise NotConnectError("Cannot check server version: {}".format(status.message))
+        version = conn.client().server_version(timeout=30)
         if not _is_version_match(version):
             raise VersionError(
                 "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
@@ -254,6 +250,7 @@ class SingletonThreadPool:
 
     def release(self, conn):
         pass
+
 
 class SingleConnectionPool:
     def __init__(self, uri, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
