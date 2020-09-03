@@ -45,6 +45,15 @@ class LoopBase(object):
         raise NotImplementedError()
 
 
+class LoopCache(object):
+    def __init__(self):
+        self._array = []
+
+    def fill(self, index, obj):
+        if len(self._array) + 1 < index:
+            pass
+
+
 class FieldSchema:
     def __init__(self, raw):
         self._raw = raw
