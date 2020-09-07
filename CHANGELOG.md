@@ -1,3 +1,10 @@
+# pymilvus 0.3.0(TBD)
+
+## Bug
+
+## New Feature
+- \#245 - Add slice utils for inserting data
+
 # pymilvus 0.2.14(2020-07-20)
 
 ## Bug

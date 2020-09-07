@@ -120,7 +120,10 @@ class CollectionSchema:
         _dict = dict()
         _dict["fields"] = [f.dict() for f in self.fields]
         for k, v in self.params.items():
-            _dict[k] = v
+            if isinstance(v, DataType):
+                _dict[k] = v.value
+            else:
+                _dict[k] = v
 
         return _dict
 

@@ -9,6 +9,7 @@ sys.path.append(".")
 import random
 import time
 from milvus import Milvus, DataType
+from milvus import utils
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
@@ -26,9 +27,11 @@ def main():
     milvus = Milvus(_HOST, _PORT)
 
     # num = random.randint(1, 100000)
-    num = 200000
+    num = 100000
     # Create collection demo_collection if it dosen't exist.
-    collection_name = 'example_hybrid_collection_{}'.format(num)
+    collection_name = 'example_hybrid_collections_{}'.format(num)
+    if milvus.has_collection(collection_name):
+        milvus.drop_collection(collection_name)
 
     collection_param = {
         "fields": [
@@ -63,13 +66,15 @@ def main():
         {"field": "A", "values": A_list, "type": DataType.INT32},
         {"field": "B", "values": A_list, "type": DataType.INT32},
         {"field": "C", "values": A_list, "type": DataType.INT64},
-        {"field": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR}
+        {"field": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
     ]
 
-    ids = milvus.insert(collection_name, hybrid_entities)
+    for slice_e in utils.entities_slice(hybrid_entities):
+        ids = milvus.insert(collection_name, slice_e)
     milvus.flush([collection_name])
     print("Flush ... ")
     # time.sleep(3)
+    count = milvus.count_entities(collection_name)
 
     milvus.delete_entity_by_id(collection_name, ids[:1])
     milvus.flush([collection_name])
@@ -84,6 +89,10 @@ def main():
     print("Create index done.")
 
     info = milvus.get_collection_info(collection_name)
+    print(info)
+    stats = milvus.get_collection_stats(collection_name)
+    print("\nstats\n")
+    print(stats)
     query_hybrid = \
     {
         "bool": {
@@ -163,15 +172,3 @@ if __name__ == '__main__':
 #     "segment_size": 100
 # }
 
-[
-    {"field": "A", "values": A_list, "type": DataType.INT32},
-    {"field": "B", "values": A_list, "type": DataType.INT32},
-    {"field": "C", "values": A_list, "type": DataType.INT64},
-    {"field": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR}
-]
-
-{
-    "index_type": "IVF_FLAT",
-    "metric_type": "L2",
-    "params": {"nlist": 100}
-}
