@@ -31,15 +31,15 @@ For detailed SDK documentation, refer to [API Documentation](https://milvus-io.g
     - [Create an index](#create-an-index)
     - [Drop an index](#drop-an-index)
 - [Insert/Delete vectors in collections/partitions](#insertdelete-entities-in-collectionspartitions)
-    - [Insert vectors in a collection](#insert-entities-in-a-collection)
-    - [Insert vectors in a partition](#insert-entities-in-a-partition)
-    - [Delete vectors by ID](#delete-entities-by-id)
+    - [Insert entities in a collection](#insert-entities-in-a-collection)
+    - [Insert entities in a partition](#insert-entities-in-a-partition)
+    - [Delete entities by ID](#delete-entities-by-id)
 - [Flush data in one or multiple collections to disk](#flush-data-in-one-or-multiple-collections-to-disk)
 - [Compact all segments in a collection](#compact-all-segments-in-a-collection)
-- [Search vectors in collections/partitions](#search-entities-in-collectionspartitions)
-    - [Search vectors in a collection](#search-entities-in-a-collection)
-    - [Search vectors in a partition](#search-entities-in-a-partition)
-- [Disconnect from the Milvus server](#disconnect-from-the-milvus-server)
+- [Search entities in collections/partitions](#search-entities-in-collectionspartitions)
+    - [Search entities in a collection](#search-entities-in-a-collection)
+    - [Search entities in a partition](#search-entities-in-a-partition)
+- [Disconnect from the Milvus server](#close-client)
 - [FAQ](#faq)
 
 <!-- /TOC -->
@@ -141,12 +141,12 @@ Feel free to change them to the IP address and port you set for Milvus server.
 ...    ],
 ...    "segment_row_limit": 10,
 ...    "auto_id": True
-}
+... }
 ```
 
 2. Create collection `test01` with dimension of 128, size of the data file for Milvus to automatically
 create indexes as 4096. If `metric_type` isn't offered, default metric type is Euclidean distance (L2).
-For FLOAT_VECTOR field, `dim` is a must.
+For `FLOAT_VECTOR` field, `dim` is a must.
 
 ```python
 # Create a collection
@@ -248,7 +248,8 @@ Status(code=0, message='OK')
 
 ```python
 >>> import random
-num = 5000
+>>> num = 5000
+
 # Generate a list of integer.
 >>> list_of_int = [random.randint(0, 255) for _ in range(num)]
 # Generate 20 vectors of 128 dimension
@@ -266,21 +267,22 @@ num = 5000
 ]
 ```
 
-3. Insert the hybrid entities. If you create collections with `auto_id = True`,
-Milvus automatically generates IDs for the vectors.
+3. Insert the hybrid entities.
+
+If you create a new collection with `auto_id = True`, Milvus automatically generates IDs for the vectors.
 
 ```python
 # Insert vectors
 >>> ids = client.insert('test01', hybrid_entities)
 ```
 
-If you create collection with `auto_id = False`, you can have to provide user-defined vector ids:
+If you create a new collection with `auto_id = False`, you have to provide user-defined vector ids:
 
 ```python
 # Generate fake custom ids
 >>> vector_ids = [id for id in range(num)]
 # Insert to the non-auto-id collection
->>> ids = client.insert(collection_name='test01', hybrid_entities, ids=vector_ids)
+>>> ids = client.insert('test01', hybrid_entities, ids=vector_ids)
 ```
 
 **The examples below are based on collection with `auto_id = True`.**
@@ -334,9 +336,9 @@ Status(code=0, message='OK')
 
 ```python
 # This query_hybrid will search topk entities that are
-# close to vectors[0] searched by `IVF_FLAT` index with `nprobe = 10` and `metric_type = L2`
-# field "A" in [1, 2, 5]
-# field "B" greater than 1 less than 100
+# close to vectors[0] searched by `IVF_FLAT` index with `nprobe = 10` and `metric_type = L2`,
+# AND field "A" in [1, 2, 5],
+# AND field "B" greater than 1 less than 100
 >>> query_hybrid = {
 ...     "bool": {
 ...         "must":[
@@ -356,7 +358,7 @@ Status(code=0, message='OK')
 ... }
 
 ```
-A search without hybrid conditions would be like below
+A search without hybrid conditions with `IVF_FLAT` index would be like:
 
 ```python
 >>> query_hybrid = {
@@ -372,6 +374,24 @@ A search without hybrid conditions would be like below
 ... }
 
 ```
+
+A `FLAT` search doesn't need index params, so the query would be like:
+
+```python
+>>> query_hybrid = {
+...     "bool": {
+...         "must":[
+...             {
+...                 "vector": {
+...                    "Vec": {"topk": 10, "query": vectors[0], "metric_type": "L2"}
+...                 }
+...             }
+...         ]
+...     }
+... }
+
+```
+
 
 2. Search entities.
 
@@ -412,7 +432,7 @@ You can obtain ids, distances and fields by entities in results.
 
 > Note: If you do not specify `partition_tags`, Milvus searches the whole collection.
 
-## close client
+## Close client
 
 ```python
 >>> client.close()
