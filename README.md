@@ -132,14 +132,15 @@ Feel free to change them to the IP address and port you set for Milvus server.
 
 # create a collection of 4 fields, fields A, B and C are int type fields
 # and Vec is a float vector field.
+# segment_row_limit is default as 524288 if not specified
 >>> collection_param = {
 ...    "fields": [
 ...        {"field": "A", "type": DataType.INT32},
 ...        {"field": "B", "type": DataType.INT32},
 ...        {"field": "C", "type": DataType.INT64},
-...        {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, "metric_type": "L2"}}
+...        {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
 ...    ],
-...    "segment_row_limit": 10,
+...    "segment_row_limit": 4096,
 ...    "auto_id": True
 ... }
 ```
@@ -161,11 +162,11 @@ For `FLOAT_VECTOR` field, `dim` is a must.
     {'field': 'A', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
     {'field': 'C', 'type': <DataType.INT64: 5>, 'params': {}, 'indexes': [{}]},
     {'field': 'B', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
-    {'field': 'Vec', 'type': <DataType.FLOAT_VECTOR: 101>, 'params': {'dim': 128, 'metric_type': 'L2'},
+    {'field': 'Vec', 'type': <DataType.FLOAT_VECTOR: 101>, 'params': {'dim': 128},
      'indexes': [{}]}
     ],
  'auto_id': True,
- 'segment_row_limit': 10,
+ 'segment_row_limit': 4096
 }
 ```
 
@@ -189,7 +190,6 @@ Status(code=0, message='OK')
 ### Create a partition
 
 You can split collections into partitions by partition tags for improved search performance.
-Each partition is also a collection.
 
 ```python
 # Create partition
@@ -230,6 +230,24 @@ again after the vector insertion process is completed because some data files ma
 >>> status = client.create_index('test01', "Vec", {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 100}})
 >>> status
 Status(code=0, message='OK')   
+```
+
+2. You can check index info by `get_collection_info`
+
+```python
+>>> info = client.get_collection_info('test01')
+>>> info
+{'fields': [
+    {'field': 'A', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
+    {'field': 'C', 'type': <DataType.INT64: 5>, 'params': {}, 'indexes': [{}]},
+    {'field': 'B', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
+    {'field': 'Vec',
+        'type': <DataType.FLOAT_VECTOR: 101>,
+        'params': {'dim': 128, 'metric_type': 'L2'},
+        'indexes': [{'index_type': 'IVF_FLAT', 'metric_type': 'L2', 'params': {'nlist': 100}}]}],
+ 'auto_id': True,
+ 'segment_row_limit': 4096
+}
 ```
 
 ### Drop an index
@@ -296,7 +314,7 @@ If you create a new collection with `auto_id = False`, you have to provide user-
 To verify the entities you have inserted, use `get_entity_by_id()`. 
 
 ```python
->>> vector = client.get_entity_by_id(collection_name='test01', ids=inserted_vector_ids[:10])
+>>> entities = client.get_entity_by_id(collection_name='test01', ids=inserted_vector_ids[:10])
 ```
 
 ### Delete entities by ID
@@ -335,8 +353,8 @@ Status(code=0, message='OK')
 
 
 ```python
-# This query_hybrid will search topk entities that are
-# close to vectors[0] searched by `IVF_FLAT` index with `nprobe = 10` and `metric_type = L2`,
+# This query_hybrid will search topk `entities` that are
+# close to vectors[:1] searched by `IVF_FLAT` index with `nprobe = 10` and `metric_type = L2`,
 # AND field "A" in [1, 2, 5],
 # AND field "B" greater than 1 less than 100
 >>> query_hybrid = {
@@ -350,7 +368,7 @@ Status(code=0, message='OK')
 ...             },
 ...             {
 ...                 "vector": {
-...                    "Vec": {"topk": 10, "query": vectors[0], "metric_type": "L2", "params": {"nprobe": 10}}
+...                    "Vec": {"topk": 10, "query": vectors[:1], "metric_type": "L2", "params": {"nprobe": 10}}
 ...                 }
 ...             }
 ...         ]
@@ -366,7 +384,7 @@ A search without hybrid conditions with `IVF_FLAT` index would be like:
 ...         "must":[
 ...             {
 ...                 "vector": {
-...                    "Vec": {"topk": 10, "query": vectors[0], "metric_type": "L2", "params": {"nprobe": 10}}
+...                    "Vec": {"topk": 10, "query": vectors[:1], "metric_type": "L2", "params": {"nprobe": 10}}
 ...                 }
 ...             }
 ...         ]
