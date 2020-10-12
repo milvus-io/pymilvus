@@ -598,14 +598,14 @@ class AbsMilvus:
     """ Config
     """
 
-    def get_config(self, parent_key, child_key):
+    def get_config(self, key):
         """
         Gets Milvus configurations.
 
         """
         pass
 
-    def set_config(self, parent_key, child_key, value):
+    def set_config(self, key, value):
         """
         Sets Milvus configurations.
 

@@ -680,10 +680,10 @@ class GrpcHandler(AbsMilvus):
 
         return Status(response.error_code, response.reason)
 
-    def set_config(self, parent_key, child_key, value):
-        cmd = "SET {}.{} {}".format(parent_key, child_key, value)
+    def set_config(self, key, value):
+        cmd = "SET {} {}".format(key, value)
         return self._cmd(cmd)
 
-    def get_config(self, parent_key, child_key):
-        cmd = "GEt {}.{}".format(parent_key, child_key)
+    def get_config(self, key):
+        cmd = "GEt {}".format(key)
         return self._cmd(cmd)
