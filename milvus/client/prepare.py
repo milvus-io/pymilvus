@@ -73,11 +73,6 @@ class Prepare:
                     raise ParamError("'type' type is invalid, use DataType")
 
                 field_param.type = int(DataType(ftype))
-                if "index" in field:
-                    index_field = copy.deepcopy(field["index"])
-                    index_name = index_field["index_name"]
-                    index_field.pop("index_name")
-                    field_param.index_params.add(key=index_name, value=ujson.dumps(index_field))
 
                 if "params" in field:
                     field_param.extra_params.add(key="params", value=ujson.dumps(field["params"]))
