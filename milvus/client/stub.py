@@ -169,73 +169,34 @@ class Milvus:
         with self._connection() as handler:
             return handler._cmd(cmd, timeout)
 
-    # @check_connect
-    # def create_collection(self, param, timeout=30):
-    #     """
-    #     Creates a collection.
-    #
-    #     :type  collection_name: str
-    #     :param collection_name: collection name.
-    #
-    #     :param fields: field params.
-    #     :type  fields: dict
-    #         ` [
-    #                 {"field_name": "A", "data_type": DataType.INT64},
-    #                 {"field_name": "B", "data_type": DataType.INT64},
-    #                 {"field_name": "C", "data_type": DataType.INT64},
-    #                 {"field_name": "Vec", "dimension": 128, "extra_params": {"index_file_size": 100, "metric_type": MetricType.L2}}
-    #         ]`
-    #
-    #     :return: Whether the operation is successful.
-    #     :rtype: Status
-    #     """
-    #     if not isinstance(param, dict):
-    #         raise ParamError('Param type incorrect, expect {} but get {} instead'
-    #                          .format(type(dict), type(param)))
-    #
-    #     collection_param = copy.deepcopy(param)
-    #
-    #     if 'collection_name' not in collection_param:
-    #         raise ParamError('collection_name is required')
-    #     collection_name = collection_param["collection_name"]
-    #     collection_param.pop('collection_name')
-    #
-    #     if 'dimension' not in collection_param:
-    #         raise ParamError('dimension is required')
-    #     dim = collection_param["dimension"]
-    #     collection_param.pop("dimension")
-    #
-    #     index_file_size = collection_param.get('index_file_size', 1024)
-    #     collection_param.pop('index_file_size', None)
-    #
-    #     metric_type = collection_param.get('metric_type', MetricType.L2)
-    #     collection_param.pop('metric_type', None)
-    #
-    #     check_pass_param(collection_name=collection_name, dimension=dim, index_file_size=index_file_size,
-    #                      metric_type=metric_type)
-    #
-    #     with self._connection() as handler:
-    #         return handler.create_collection(collection_name, dim, index_file_size, metric_type, collection_param, timeout)
-
     @check_connect
     def create_collection(self, collection_name, fields, timeout=30):
+        '''
+        Creates a collection.
+
+        :param collection_name: The name of the collection. A collection name can only include
+        numbers, letters, and underscores, and must not begin with a number.
+        :type  str
+        :param fields: Field parameters.
+        :type  fields: str
+
+        :raises
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        '''
         with self._connection() as handler:
             return handler.create_collection(collection_name, fields, timeout)
 
     @check_connect
     def has_collection(self, collection_name, timeout=30):
         """
+        Checks whether a specified collection exists.
 
-        Checks whether a collection exists.
-
-        :param collection_name: Name of the collection to check.
+        :param collection_name: The name of the collection to check.
         :type  collection_name: str
-        :param timeout: Timeout in seconds.
-        :type  timeout: int
 
-        :return:
-            Status: indicate whether the operation is successful.
-            bool if given collection_name exists
+        :return: If specified collection exists
+        :rtype: bool
 
         """
         check_pass_param(collection_name=collection_name)
@@ -245,16 +206,15 @@ class Milvus:
     @check_connect
     def get_collection_info(self, collection_name, timeout=30):
         """
-        Returns information of a collection.
+        Returns information of a specified collection, including field
+        information of the collection and index information of fields.
 
+        :param collection_name: The name of the collection to describe.
         :type  collection_name: str
-        :param collection_name: Name of the collection to describe.
 
-        :returns: (Status, table_schema)
-            Status: indicate if query is successful
-            table_schema: return when operation is successful
+        :return: The information of collection to describe.
+        :rtype: dict
 
-        :rtype: (Status, TableSchema)
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -263,15 +223,14 @@ class Milvus:
     @check_connect
     def count_entities(self, collection_name, timeout=30):
         """
-        Returns the number of vectors in a collection.
+        Returns the number of entities in a specified collection.
 
+        :param collection_name: The name of the collection to count entities of.
         :type  collection_name: str
-        :param collection_name: target table name.
 
-        :returns:
-            Status: indicate if operation is successful
+        :return: The number of entities
+        :rtype: int
 
-            res: int, table row count
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -280,10 +239,9 @@ class Milvus:
     @check_connect
     def list_collections(self, timeout=30):
         """
-        Returns collection list.
+        Returns a list of all collection names.
 
         :return:
-            Status: indicate if this operation is successful
 
             collections: list of collection names, return when operation
                     is successful
