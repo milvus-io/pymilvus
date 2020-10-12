@@ -44,6 +44,12 @@ For detailed SDK documentation, refer to [API Documentation](https://milvus-io.g
 
 <!-- /TOC -->
 
+## New features
+
+- remove `get_index_info`, the index info can be obtained by `get_collection_info`
+
+- add `get_collection_stats`, more detailed collection stats.
+
 ## Get started
 
 ### Prerequisites
