@@ -66,7 +66,7 @@ class Prepare:
                 continue
             for field in fv:
                 field_param = grpc_types.FieldParam()
-                field_param.name = field["field"]
+                field_param.name = field["name"]
 
                 ftype = field["type"]
                 if not isinstance(ftype, (int, DataType)):
@@ -113,7 +113,7 @@ class Prepare:
             if values is None:
                 raise ParamError("Param entities must contain values")
 
-            field_param = grpc_types.FieldValue(field_name=entity["field"])
+            field_param = grpc_types.FieldValue(field_name=entity["name"])
             if type in (DataType.INT32,):
             # if type in (DataType.INT8, DataType.INT16, DataType.INT32,):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int32_value=values))
