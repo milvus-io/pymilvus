@@ -287,7 +287,7 @@ Status(code=0, message='OK')
    {"field": "A", "values": list_of_int, "type": DataType.INT32},
    {"field": "B", "values": list_of_int, "type": DataType.INT32},
    {"field": "C", "values": list_of_int, "type": DataType.INT64},
-   {"field": "Vec", "values": vectors, "type":DataType.FLOAT_VECTOR, "params": {"dim": 128}}
+   {"field": "Vec", "values": vectors, "type":DataType.FLOAT_VECTOR}
 ]
 ```
 
