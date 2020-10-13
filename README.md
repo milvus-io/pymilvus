@@ -141,10 +141,10 @@ Feel free to change them to the IP address and port you set for Milvus server.
 # segment_row_limit is default as 524288 if not specified
 >>> collection_param = {
 ...    "fields": [
-...        {"field": "A", "type": DataType.INT32},
-...        {"field": "B", "type": DataType.INT32},
-...        {"field": "C", "type": DataType.INT64},
-...        {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
+...        {"name": "A", "type": DataType.INT32},
+...        {"name": "B", "type": DataType.INT32},
+...        {"name": "C", "type": DataType.INT64},
+...        {"name": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
 ...    ],
 ...    "segment_row_limit": 4096,
 ...    "auto_id": True
@@ -165,10 +165,10 @@ For `FLOAT_VECTOR` field, `dim` is a must.
 >>> info = client.get_collection_info('test01')
 >>> info
 {'fields': [
-    {'field': 'A', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
-    {'field': 'C', 'type': <DataType.INT64: 5>, 'params': {}, 'indexes': [{}]},
-    {'field': 'B', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
-    {'field': 'Vec', 'type': <DataType.FLOAT_VECTOR: 101>, 'params': {'dim': 128},
+    {'name': 'A', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
+    {'name': 'C', 'type': <DataType.INT64: 5>, 'params': {}, 'indexes': [{}]},
+    {'name': 'B', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
+    {'name': 'Vec', 'type': <DataType.FLOAT_VECTOR: 101>, 'params': {'dim': 128},
      'indexes': [{}]}
     ],
  'auto_id': True,
@@ -244,10 +244,10 @@ Status(code=0, message='OK')
 >>> info = client.get_collection_info('test01')
 >>> info
 {'fields': [
-    {'field': 'A', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
-    {'field': 'C', 'type': <DataType.INT64: 5>, 'params': {}, 'indexes': [{}]},
-    {'field': 'B', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
-    {'field': 'Vec',
+    {'name': 'A', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
+    {'name': 'C', 'type': <DataType.INT64: 5>, 'params': {}, 'indexes': [{}]},
+    {'name': 'B', 'type': <DataType.INT32: 4>, 'params': {}, 'indexes': [{}]},
+    {'name': 'Vec',
         'type': <DataType.FLOAT_VECTOR: 101>,
         'params': {'dim': 128, 'metric_type': 'L2'},
         'indexes': [{'index_type': 'IVF_FLAT', 'metric_type': 'L2', 'params': {'nlist': 100}}]}],
@@ -284,10 +284,10 @@ Status(code=0, message='OK')
 
 ```python
 >>> hybrid_entities = [
-   {"field": "A", "values": list_of_int, "type": DataType.INT32},
-   {"field": "B", "values": list_of_int, "type": DataType.INT32},
-   {"field": "C", "values": list_of_int, "type": DataType.INT64},
-   {"field": "Vec", "values": vectors, "type":DataType.FLOAT_VECTOR}
+   {"name": "A", "values": list_of_int, "type": DataType.INT32},
+   {"name": "B", "values": list_of_int, "type": DataType.INT32},
+   {"name": "C", "values": list_of_int, "type": DataType.INT64},
+   {"name": "Vec", "values": vectors, "type":DataType.FLOAT_VECTOR}
 ]
 ```
 
