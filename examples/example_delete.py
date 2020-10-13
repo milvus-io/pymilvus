@@ -35,10 +35,10 @@ def main():
 
     collection_param = {
         "fields": [
-            {"field": "A", "type": DataType.INT32},
-            {"field": "B", "type": DataType.INT32},
-            {"field": "C", "type": DataType.INT64},
-            {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, "metric_type": "L2"}}
+            {"name": "A", "type": DataType.INT32},
+            {"name": "B", "type": DataType.INT32},
+            {"name": "C", "type": DataType.INT64},
+            {"name": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, "metric_type": "L2"}}
         ],
         "segment_size": 100
     }
@@ -63,10 +63,10 @@ def main():
     A_list = [random.randint(0, 255) for _ in range(num)]
     vec = [[random.random() for _ in range(128)] for _ in range(num)]
     hybrid_entities = [
-        {"field": "A", "values": A_list, "type": DataType.INT32},
-        {"field": "B", "values": A_list, "type": DataType.INT32},
-        {"field": "C", "values": A_list, "type": DataType.INT64},
-        {"field": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
+        {"name": "A", "values": A_list, "type": DataType.INT32},
+        {"name": "B", "values": A_list, "type": DataType.INT32},
+        {"name": "C", "values": A_list, "type": DataType.INT64},
+        {"name": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
     ]
 
     for slice_e in utils.entities_slice(hybrid_entities):

@@ -708,21 +708,21 @@ class Milvus:
         with self._connection() as handler:
             return handler.compact(collection_name, threshold, timeout, **kwargs)
 
-    def get_config(self, parent_key, child_key):
+    def get_config(self, key):
         """
         Gets Milvus configurations.
 
         """
-        cmd = "GET {}.{}".format(parent_key, child_key)
+        cmd = "GET {}".format(key)
 
         return self._cmd(cmd)
 
-    def set_config(self, parent_key, child_key, value):
+    def set_config(self, key, value):
         """
         Sets Milvus configurations.
 
         """
-        cmd = "SET {}.{} {}".format(parent_key, child_key, value)
+        cmd = "SET {} {}".format(key, value)
 
         return self._cmd(cmd)
 

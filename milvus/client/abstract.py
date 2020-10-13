@@ -86,7 +86,7 @@ class FieldSchema:
 
     def dict(self):
         _dict = dict()
-        _dict["field"] = self.name
+        _dict["name"] = self.name
         _dict["type"] = self.type
         _dict["params"] = self.params or dict()
         _dict["indexes"] = self.indexes
