@@ -312,32 +312,23 @@ class Milvus:
             with self._connection() as handler:
                 return handler.insert(None, None, timeout=timeout, **kwargs)
 
-        # check_pass_param(collection_name=collection_name, records=records)
-        # partition_tag is not None and check_pass_param(partition_tag=partition_tag)
         if ids is not None:
             check_pass_param(ids=ids)
-        #     if len(records) != len(ids):
-        #         raise ParamError("length of vectors do not match that of ids")
-        #
-        # params = params or dict()
-        # if not isinstance(params, dict):
-        #     raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
             return handler.insert(collection_name, entities, ids, partition_tag, params, timeout, **kwargs)
 
     def get_entity_by_id(self, collection_name, ids, fields=None, timeout=None):
         """
-        Returns raw vectors according to ids.
+        Returns the entities specified by given IDs.
 
-        :param collection_name: Name of the collection
-        :type collection_name: str
+        :param collection_name: The name of the collection to retrieve entities from.
+        :type  collection_name: str
 
-        :param ids: list of vector id
-        :type ids: list
+        :param ids: A list of IDs of the entities to retrieve.
+        :type ids: list[int]
 
-        :returns:
-            Status: indicate if invoke is successful
-
+        :return: The entities specified by given IDs.
+        :rtype: Entities
         """
         check_pass_param(collection_name=collection_name, ids=ids)
 
@@ -346,6 +337,17 @@ class Milvus:
 
     @check_connect
     def list_id_in_segment(self, collection_name, segment_id, timeout=None):
+        """
+        Returns all entity IDs in a specified segment.
+
+        :param collection_name: The name of the collection that contains the specified segment
+        :type  collection_name: str
+        :param segment_id: The ID of the segment. You can get segment IDs by calling the get_collection_stats() method.
+        :type  segment_id: int
+
+        :return: List of IDs in a specified segment.
+        :rtype: list[int]
+        """
         check_pass_param(collection_name=collection_name)
         check_pass_param(ids=[segment_id])
         with self._connection() as handler:
@@ -354,67 +356,35 @@ class Milvus:
     @check_connect
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         """
-        Creates index for a collection.
+        Creates an index for a field in a specified collection. Milvus does not support creating multiple
+        indexes for a field. In a scenario where the field already has an index, if you create another one
+        that is equivalent (in terms of type and parameters) to the existing one, the server returns this
+        index to the client; otherwise, the server replaces the existing index with the new one.
 
-        :param collection_name: Collection used to create index.
-        :type collection_name: str
-        :param index: index params
-        :type index: dict
+        :param collection_name: The name of the collection to create field indexes.
+        :type  collection_name: str
+        :param field_name: The name of the field to create an index for.
+        :type  field_name: str
+        :param params: Indexing parameters.
+        :type  params: dict
 
-            index_param can be None
-
-            `example (default) param={'index_type': IndexType.FLAT,
-                            'nlist': 16384}`
-
-        :param timeout: grpc request timeout.
-
-            if `timeout` = -1, method invoke a synchronous call, waiting util grpc response
-            else method invoke a asynchronous call, timeout work here
-
-        :type  timeout: int
-
-        :return: Whether the operation is successful.
         """
-        # _index_type = IndexType.FLAT if index_type is None else index_type
-        # check_pass_param(collection_name=collection_name, index_type=_index_type)
-
         params = params or dict()
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
             return handler.create_index(collection_name, field_name, params, timeout, **kwargs)
 
-    @deprecated
-    @check_connect
-    def get_index_info(self, collection_name, timeout=30):
-        """
-        Show index information of a collection.
-
-        :type collection_name: str
-        :param collection_name: table name been queried
-
-        :returns:
-            Status:  Whether the operation is successful.
-            IndexSchema:
-
-        """
-        check_pass_param(collection_name=collection_name)
-
-        with self._connection() as handler:
-            return handler.describe_index(collection_name, timeout)
-
     @check_connect
     def drop_index(self, collection_name, field_name, timeout=30):
         """
-        Removes an index.
+        Removes the index of a field in a specified collection.
 
-        :param collection_name: target collection name.
-        :type collection_name: str
+        :param collection_name: The name of the collection to remove the field index from.
+        :type  collection_name: str
+        :param field_name: The name of the field to remove the index of.
+        :type  field_name: str
 
-        :return:
-            Status: Whether the operation is successful.
-
-        ：:rtype: Status
         """
         check_pass_param(collection_name=collection_name)
 
@@ -424,22 +394,18 @@ class Milvus:
     @check_connect
     def create_partition(self, collection_name, partition_tag, timeout=30):
         """
-        create a partition for a collection. 
+        Creates a partition in a specified collection. You only need to import the
+        parameters of partition_tag to create a partition. A collection cannot hold
+        partitions of the same tag, whilst you can insert the same tag in different collections.
 
-        :param collection_name: Name of the collection.
+        :param collection_name: The name of the collection to create partitions in.
         :type  collection_name: str
 
-        :param partition_name: Name of the partition.
-        :type  partition_name: str
-
-        :param partition_tag: Name of the partition tag.
+        :param partition_tag: Name of the partition.
         :type  partition_tag: str
 
-        :param timeout: time waiting for response.
-        :type  timeout: int
-
-        :return:
-            Status: Whether the operation is successful.
+        :param partition_tag: The tag name of the partition.
+        :type  partition_tag: str
 
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
@@ -449,17 +415,16 @@ class Milvus:
     @check_connect
     def has_partition(self, collection_name, partition_tag, timeout=30):
         """
-        Check if specified partition exists.
+        Checks if a specified partition exists in a collection.
 
-        :param collection_name: target table name.
+        :param collection_name: The name of the collection to find the partition in.
         :type  collection_name: str
 
-        :param partition_tag: partition tag.
+        :param partition_tag: The tag name of the partition to check
         :type  partition_tag: str
 
-        :return:
-            Status: Whether the operation is successful.
-            exists: If specified partition exists
+        :return: Whether a specified partition exists in a collection.
+        :rtype: bool
 
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
@@ -469,17 +434,13 @@ class Milvus:
     @check_connect
     def list_partitions(self, collection_name, timeout=30):
         """
-        Show all partitions in a collection.
+        Returns a list of all partition tags in a specified collection.
 
-        :param collection_name: target table name.
+        :param collection_name: The name of the collection to retrieve partition tags from.
         :type  collection_name: str
 
-        :param timeout: time waiting for response.
-        :type  timeout: int
-
-        :return:
-            Status: Whether the operation is successful.
-            partition_list:
+        :return: A list of all partition tags in specified collection.
+        :rtype: list[str]
 
         """
         check_pass_param(collection_name=collection_name)
@@ -490,19 +451,13 @@ class Milvus:
     @check_connect
     def drop_partition(self, collection_name, partition_tag, timeout=30):
         """
-        Deletes a partition in a collection.
+        Deletes the specified partitions in a collection.
 
-        :param collection_name: Collection name.
+        :param collection_name: The name of the collection to delete partitions from.
         :type  collection_name: str
 
-        :param partition_tag: Partition name.
+        :param partition_tag: The tag name of the partition to delete.
         :type  partition_tag: str
-
-        :param timeout: time waiting for response.
-        :type  timeout: int
-
-        :return:
-            Status: Whether the operation is successful.
 
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
@@ -510,21 +465,19 @@ class Milvus:
             return handler.drop_partition(collection_name, partition_tag, timeout)
 
     @check_connect
-    def search(self, collection_name, query_entities, partition_tags=None, fields=None, timeout=None, **kwargs):
+    def search(self, collection_name, dsl, partition_tags=None, fields=None, timeout=None, **kwargs):
         """
-        Search vectors in a collection.
+        Searches a collection based on the given DSL clauses and returns query results.
 
-        :param collection_name: Name of the collection.
+        :param collection_name: The name of the collection to search.
         :type  collection_name: str
+        :param dsl: The DSL that defines the query.
+        :type  dsl: dict
+        :param partition_tags: The tags of partitions to search.
+        :type  partition_tags: list[str]
 
-        :param top_k: number of vertors which is most similar with query vectors
-        :type  top_k: int
-
-        :param nprobe: cell number of probe
-        :type  nprobe: int
-
-        :param query_records: vectors to query
-        :type  query_records: list[list[float32]]
+        :param fields: vectors to query
+        :type  fields: list[list[float32]]
 
         :param partition_tags: tags to search
         :type  partition_tags: list
@@ -544,10 +497,10 @@ class Milvus:
         # if not isinstance(params, dict):
         #     raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.search(collection_name, query_entities, partition_tags, fields, timeout=timeout, **kwargs)
+            return handler.search(collection_name, dsl, partition_tags, fields, timeout=timeout, **kwargs)
 
     @check_connect
-    def search_in_segment(self, collection_name, segment_ids, query_entities, params=None, fields=None, timeout=None, **kwargs):
+    def search_in_segment(self, collection_name, segment_ids, dsl, params=None, fields=None, timeout=None, **kwargs):
         """
         Searches for vectors in specific segments of a collection.
 
@@ -583,7 +536,7 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.search_in_files(collection_name, segment_ids, query_entities, fields, params, timeout, **kwargs)
+            return handler.search_in_files(collection_name, segment_ids, dsl, fields, params, timeout, **kwargs)
 
     @check_connect
     def delete_entity_by_id(self, collection_name, ids, timeout=None):
