@@ -301,25 +301,12 @@ class Milvus:
         :type  entities: list
         :param ids: The list of ids corresponding to the inserted entities.
         :type  ids: list[int]
-        :param partition_tag: The name of the partition to insert entities in. The default value is 
+        :param partition_tag: The name of the partition to insert entities in. The default value is
+         None. The server stores entities in the “_default” partition by default.
+        :type  partition_tag: str
 
-        :type  records: list[list[float]]
-
-                `example records: [[1.2345],[1.2345]]`
-
-                `OR using Prepare.records`
-
-        :param records: List of vectors to insert.
-
-        :type partition_tag: str or None.
-            If partition_tag is None, vectors will be inserted to the collection rather than partitions.
-
-        :param partition_tag: Tag of a partition.
-
-        :returns:
-            Status: Whether vectors are inserted successfully.
-            ids: IDs of the inserted vectors.
-        :rtype: (Status, list(int))
+        :return: list of ids of the inserted vectors.
+        :rtype: list[int]
         """
         if kwargs.get("insert_param", None) is not None:
             with self._connection() as handler:
