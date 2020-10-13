@@ -475,18 +475,11 @@ class Milvus:
         :type  dsl: dict
         :param partition_tags: The tags of partitions to search.
         :type  partition_tags: list[str]
+        :param fields: The fields to return in the search result
+        :type  fields: list[str]
 
-        :param fields: vectors to query
-        :type  fields: list[list[float32]]
-
-        :param partition_tags: tags to search
-        :type  partition_tags: list
-
-        :return
-            Status: Whether the operation is successful.
-            result: query result
-
-        :rtype: (Status, TopKQueryResult)
+        :return: Query result.
+        :rtype: QueryResult
 
         """
         # check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
@@ -502,33 +495,24 @@ class Milvus:
     @check_connect
     def search_in_segment(self, collection_name, segment_ids, dsl, params=None, fields=None, timeout=None, **kwargs):
         """
-        Searches for vectors in specific segments of a collection.
+        Searches in the specified segments of a collection.
 
-        The Milvus server stores vector data into multiple files. Searching for vectors in specific files is a
+        The Milvus server stores entity data into multiple files. Searching for entities in specific files is a
         method used in Mishards. Obtain more detail about Mishards, see
         <a href="https://github.com/milvus-io/milvus/tree/master/shards">
 
-        :type  collection_name: str
-        :param collection_name: table name been queried
+        :param collection_name: The name of the collection to search.
+        :type  collection_name: str:param collection_name: table name been queried
+        :param dsl: The DSL that defines the query.:type  collection_name: str
+        :type  dsl: dict
+        :param partition_tags: The tags of partitions to search.:type  file_ids: list[str] or list[int]
+        :type  partition_tags: list[str]:param file_ids: Specified files id array
+        :param fields: The fields to return in the search result
+        :type  fields: list[str]:type  query_records: list[list[float]]
 
-        :type  file_ids: list[str] or list[int]
-        :param file_ids: Specified files id array
+        :return: Query result.
 
-        :type  query_records: list[list[float]]
-        :param query_records: all vectors going to be queried
-
-        :param query_ranges: Optional ranges for conditional search.
-
-            If not specified, search in the whole table
-
-        :type  top_k: int
-        :param top_k: how many similar vectors will be searched
-
-        :returns:
-            Status:  indicate if query is successful
-            results: query result
-
-        :rtype: (Status, TopKQueryResult)
+        :rtype: QueryResult
         """
         # check_pass_param(collection_name=collection_name, segment_ids, query_entities, params, timeout)
 
@@ -541,16 +525,17 @@ class Milvus:
     @check_connect
     def delete_entity_by_id(self, collection_name, ids, timeout=None):
         """
-        Deletes vectors in a collection by vector ID.
+        Deletes the entities specified by a given list of IDs.
 
-        :param collection_name: Name of the collection.
+        :param collection_name:  The name of the collection to remove entities from.
         :type  collection_name: str
+        :param ids: A list of IDs of the entities to delete.
+        :type  ids: list[int]
 
-        :param id_array: list of vector id
-        :type  id_array: list[int]
-
-        :return:
-            Status: Whether the operation is successful.
+        :return: Status of delete request. The delete request will still execute successfully
+                 if Some of ids may not exist in specified collection, in this case the returned
+                 status will differ. NOte that in current version his is an EXPERIMENTAL function.
+        :rtype:  Status.
         """
         check_pass_param(collection_name=collection_name, ids=ids)
         with self._connection() as handler:
@@ -559,10 +544,13 @@ class Milvus:
     @check_connect
     def flush(self, collection_name_array=None, timeout=None, **kwargs):
         """
-        Flushes vector data in one collection or multiple collections to disk.
+        Flushes data in the specified collections from memory to disk. When you insert or delete data,
+        the server stores the data in the memory temporarily and then flushes it to the disk at fixed
+        intervals. Calling flush ensures that the newly inserted data is visible and the deleted data
+        is no longer recoverable.
 
-        :type  collection_name_array: list
-        :param collection_name: Name of one or multiple collections to flush.
+        :type  collection_name_array: An array of names of the collections to flush.
+        :param collection_name_array: list[str]
 
         """
 
@@ -584,11 +572,21 @@ class Milvus:
     @check_connect
     def compact(self, collection_name, threshold=0.2, timeout=None, **kwargs):
         """
-        Compacts segments in a collection. This function is recommended after deleting vectors.
-
+        Compacts a specified collection. After deleting some data in a segment, you can call
+        compact to free up the disk space occupied by the deleted data. Calling compact also
+        deletes empty segments, but does not merge segments.
+        
+        :param collection_name: The name of the collection to compact.
         :type  collection_name: str
-        :param collection_name: Name of the collections to compact.
+        :param threshold: The threshold for compact. When the percentage of deleted entities
+                          in a segment is below the threshold, the server skips this segment
+                          when compacting the collection. The default value is 0.2, range is
+                          [0, 1].
 
+        :return: Status of compact request. The compact request will still execute successfully
+                 if server skip some of collections, in this case the returned status will differ.
+                 Note that in current version his is an EXPERIMENTAL function.
+        :rtype:  Status.
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
