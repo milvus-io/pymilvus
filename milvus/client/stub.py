@@ -241,12 +241,8 @@ class Milvus:
         """
         Returns a list of all collection names.
 
-        :return:
-
-            collections: list of collection names, return when operation
-                    is successful
-        :rtype:
-            (Status, list[str])
+        :return: List of collection names, return when operation is successful
+        :rtype: list[str]
         """
         with self._connection() as handler:
             return handler.show_collections(timeout)
@@ -254,14 +250,15 @@ class Milvus:
     @check_connect
     def get_collection_stats(self, collection_name, timeout=30):
         """
-        Returns collection statistics information
+        Returns statistical information about a specified collection, including
+        the number of entities and the storage size of each segment of the collection.
 
-        :return:
-            Status: indicate if this operation is successful
+        :param collection_name: The name of the collection to get statistics about.
+        :type  collection_name: str
+        
+        :return: The collection stats.
 
-            statistics: statistics information
-        :rtype:
-            (Status, dict)
+        :rtype: dict
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -270,35 +267,24 @@ class Milvus:
     @check_connect
     def load_collection(self, collection_name, timeout=None):
         """
-        Loads a collection for caching.
+         Loads a specified collection from disk to memory.
 
-        :type collection_name: str
-        :param collection_name: collection to load
+        :param collection_name: The name of the collection to load.
+        :type  collection_name: str
 
-        :returns:
-            Status:  indicate if invoke is successful
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.preload_collection(collection_name, timeout)
 
-    @deprecated
-    @check_connect
-    def reload_segments(self, collection_name, segment_ids):
-        check_pass_param(collection_name=collection_name)
-        with self._connection() as handler:
-            return handler.reload_segments(collection_name, segment_ids)
-
     @check_connect
     def drop_collection(self, collection_name, timeout=30):
         """
-        Deletes a collection by name.
+        Deletes a specified collection.
 
+        :param collection_name: The name of the collection to delete.
         :type  collection_name: str
-        :param collection_name: Name of the collection being deleted
 
-        :return: Status, indicate if operation is successful
-        :rtype: Status
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -307,13 +293,15 @@ class Milvus:
     @check_connect
     def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
         """
-        Insert vectors to a collection.
+        Inserts entities in a specified collection.
 
-        :param ids: list of id
+        :param collection_name: The name of the collection to insert entities in.
+        :type  collection_name: str.
+        :param entities: The entities to insert.
+        :type  entities: list
+        :param ids: The list of ids corresponding to the inserted entities.
         :type  ids: list[int]
-
-        :type  collection_name: str
-        :param collection_name: Name of the collection to insert vectors to.
+        :param partition_tag: The name of the partition to insert entities in. The default value is 
 
         :type  records: list[list[float]]
 
