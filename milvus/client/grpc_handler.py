@@ -9,9 +9,9 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, Entities, QueryResult
+from .abstract import CollectionSchema, Entities, QueryResult
 from .prepare import Prepare
-from .types import MetricType, Status
+from .types import Status
 from .check import (
     int_or_str,
     is_legal_host,

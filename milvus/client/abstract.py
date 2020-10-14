@@ -5,7 +5,7 @@ from ..client.exceptions import ParamError
 
 from .check import check_pass_param
 
-from .types import IndexType, DataType
+from .types import DataType
 
 
 class LoopBase(object):

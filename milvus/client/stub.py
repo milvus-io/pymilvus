@@ -9,7 +9,7 @@ import threading
 from urllib.parse import urlparse
 
 from . import __version__
-from .types import IndexType, MetricType, Status
+from .types import Status
 from .check import check_pass_param, is_legal_host, is_legal_port
 from .pool import ConnectionPool, SingleConnectionPool, SingletonThreadPool
 from .exceptions import ParamError, DeprecatedError
