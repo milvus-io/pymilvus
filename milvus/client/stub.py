@@ -218,7 +218,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.describe_collection(collection_name, timeout)
+            return handler.get_collection_info(collection_name, timeout)
 
     @check_connect
     def count_entities(self, collection_name, timeout=30):
@@ -234,7 +234,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.count_collection(collection_name, timeout)
+            return handler.count_entities(collection_name, timeout)
 
     @check_connect
     def list_collections(self, timeout=30):
@@ -245,7 +245,7 @@ class Milvus:
         :rtype: list[str]
         """
         with self._connection() as handler:
-            return handler.show_collections(timeout)
+            return handler.list_collections(timeout)
 
     @check_connect
     def get_collection_stats(self, collection_name, timeout=30):
@@ -262,7 +262,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.show_collection_info(collection_name, timeout)
+            return handler.get_collection_stats(collection_name, timeout)
 
     @check_connect
     def load_collection(self, collection_name, timeout=None):
@@ -275,7 +275,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.preload_collection(collection_name, timeout)
+            return handler.load_collection(collection_name, timeout)
 
     @check_connect
     def drop_collection(self, collection_name, timeout=30):
@@ -333,7 +333,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name, ids=ids)
 
         with self._connection() as handler:
-            return handler.get_entities_by_ids(collection_name, ids, fields, timeout=timeout)
+            return handler.get_entity_by_id(collection_name, ids, fields, timeout=timeout)
 
     @check_connect
     def list_id_in_segment(self, collection_name, segment_id, timeout=None):
@@ -351,7 +351,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name)
         check_pass_param(ids=[segment_id])
         with self._connection() as handler:
-            return handler.get_vector_ids(collection_name, segment_id, timeout)
+            return handler.list_id_in_segment(collection_name, segment_id, timeout)
 
     @check_connect
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
@@ -446,7 +446,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name)
 
         with self._connection() as handler:
-            return handler.show_partitions(collection_name, timeout)
+            return handler.list_partitions(collection_name, timeout)
 
     @check_connect
     def drop_partition(self, collection_name, partition_tag, timeout=30):
@@ -482,13 +482,6 @@ class Milvus:
         :rtype: QueryResult
 
         """
-        # check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
-        # if partition_tags is not None:
-        #     check_pass_param(partition_tag_array=partition_tags)
-
-        # params = dict() if params is None else params
-        # if not isinstance(params, dict):
-        #     raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
             return handler.search(collection_name, dsl, partition_tags, fields, timeout=timeout, **kwargs)
 
@@ -520,7 +513,7 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.search_in_files(collection_name, segment_ids, dsl, fields, params, timeout, **kwargs)
+            return handler.search_in_segment(collection_name, segment_ids, dsl, fields, params, timeout, **kwargs)
 
     @check_connect
     def delete_entity_by_id(self, collection_name, ids, timeout=None):
@@ -539,7 +532,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name, ids=ids)
         with self._connection() as handler:
-            return handler.delete_by_id(collection_name, ids, timeout)
+            return handler.delete_entity_by_id(collection_name, ids, timeout)
 
     @check_connect
     def flush(self, collection_name_array=None, timeout=None, **kwargs):
