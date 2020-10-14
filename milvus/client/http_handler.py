@@ -8,59 +8,15 @@ import struct
 
 import requests as rq
 
-from .abstract import ConnectIntf, IndexParam, CollectionSchema, PartitionParam
+from .abstract import ConnectIntf, CollectionSchema
 from .check import is_legal_host, is_legal_port
 from .exceptions import NotConnectError, ParamError
-from .types import Status, IndexType, MetricType
+from .types import Status
 
 from ..settings import DefaultConfig as config
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
-
-IndexValue2NameMap = {
-    IndexType.INVALID: "INVALID",
-    IndexType.FLAT: "FLAT",
-    IndexType.IVFLAT: "IVFFLAT",
-    IndexType.IVF_SQ8: "IVFSQ8",
-    IndexType.IVF_SQ8H: "IVFSQ8H",
-    IndexType.IVF_PQ: "IVFPQ",
-    IndexType.RNSG: "RNSG",
-    IndexType.HNSW: "HNSW",
-    IndexType.ANNOY: "ANNOY"
-}
-
-IndexName2ValueMap = {
-    "INVALID": IndexType.INVALID,
-    "FLAT": IndexType.FLAT,
-    "IVFFLAT": IndexType.IVFLAT,
-    "IVFSQ8": IndexType.IVF_SQ8,
-    "IVFSQ8H": IndexType.IVF_SQ8H,
-    "IVFPQ": IndexType.IVF_PQ,
-    "RNSG": IndexType.RNSG,
-    "HNSW": IndexType.HNSW,
-    "ANNOY": IndexType.ANNOY
-}
-
-MetricValue2NameMap = {
-    MetricType.L2: "L2",
-    MetricType.IP: "IP",
-    MetricType.HAMMING: "HAMMING",
-    MetricType.JACCARD: "JACCARD",
-    MetricType.TANIMOTO: "TANIMOTO",
-    MetricType.SUBSTRUCTURE: "SUBSTRUCTURE",
-    MetricType.SUPERSTRUCTURE: "SUPERSTRUCTURE"
-}
-
-MetricName2ValueMap = {
-    "L2": MetricType.L2,
-    "IP": MetricType.IP,
-    "HAMMING": MetricType.HAMMING,
-    "JACCARD": MetricType.JACCARD,
-    "TANIMOTO": MetricType.TANIMOTO,
-    "SUBSTRUCTURE": MetricType.SUBSTRUCTURE,
-    "SUPERSTRUCTURE": MetricType.SUPERSTRUCTURE
-}
 
 
 LOGGER = logging.getLogger(__name__)
@@ -260,13 +216,11 @@ class HttpHandler(ConnectIntf):
 
     @handle_error()
     def create_collection(self, collection_name, dimension, index_file_size, metric_type, params=None, timeout=10):
-        metric = MetricValue2NameMap.get(metric_type, None)
-
         table_param = {
             "collection_name": collection_name,
             "dimension": dimension,
             "index_file_size": index_file_size,
-            "metric_type": metric
+            "metric_type": metric_type
         }
 
         data = ujson.dumps(table_param)
@@ -324,14 +278,11 @@ class HttpHandler(ConnectIntf):
 
         js = response.json()
         if response.status_code == 200:
-            metric_map = dict()
-            _ = [metric_map.update({i.name: i.value}) for i in MetricType if i.value > 0]
-
-            table = CollectionSchema(
-                collection_name=js["collection_name"],
-                dimension=js["dimension"],
-                index_file_size=js["index_file_size"],
-                metric_type=metric_map[js["metric_type"]])
+            table = CollectionSchema(js)
+                # collection_name=js["collection_name"],
+                # dimension=js["dimension"],
+                # index_file_size=js["index_file_size"],
+                # metric_type=[js["metric_type"]])
 
             return Status(message='Describe table successfully!'), table
 
@@ -442,7 +393,7 @@ class HttpHandler(ConnectIntf):
             return status, None
         metric = table_schema.metric_type
 
-        bin_vector = metric in list(MetricType.__members__.values())[3:]
+        # bin_vector = metric in list(MetricType.__members__.values())[3:]
 
         url = self._uri + "/collections/{}/vectors".format(collection_name)
         ids_list = list(map(str, ids))
@@ -459,7 +410,7 @@ class HttpHandler(ConnectIntf):
             vector_results = []
             for vector_res in vectors:
                 vector = list(vector_res["vector"])
-                if bin_vector:
+                if metric.startswith("BIN"):
                     vector_results.append(bytes(vector))
                 else:
                     vector_results.append(vector)
@@ -484,9 +435,8 @@ class HttpHandler(ConnectIntf):
     def create_index(self, table_name, index_type, index_params, timeout):
         url = self._uri + "/collections/{}/indexes".format(table_name)
 
-        index = IndexValue2NameMap.get(index_type)
         request = dict()
-        request["index_type"] = index
+        request["index_type"] = index_type
         request["params"] = index_params
         data = ujson.dumps(request)
         headers = {"Content-Type": "application/json"}
@@ -510,8 +460,7 @@ class HttpHandler(ConnectIntf):
         js = response.json()
 
         if response.status_code == 200:
-            index_type = IndexName2ValueMap.get(js["index_type"])
-            return Status(), IndexParam(table_name, index_type, js["params"])
+            return Status(), js
 
         return Status(js["code"], js["message"]), None
 
@@ -554,9 +503,7 @@ class HttpHandler(ConnectIntf):
 
         js = response.json()
         if response.status_code == 200:
-            partition_list = \
-                [PartitionParam(table_name, item["partition_tag"])
-                 for item in js["partitions"]]
+            partition_list = [item["partition_tag"] for item in js["partitions"]]
 
             return Status(), partition_list
 

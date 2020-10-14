@@ -9,9 +9,9 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import ConnectIntf, CollectionSchema, IndexParam, PartitionParam, Entities, QueryResult
+from .abstract import CollectionSchema, Entities, QueryResult
 from .prepare import Prepare
-from .types import MetricType, Status
+from .types import Status
 from .check import (
     int_or_str,
     is_legal_host,
@@ -285,7 +285,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(reply.status.error_code, reply.status.reason)
 
     @error_handler(None)
-    def describe_collection(self, collection_name, timeout=30, **kwargs):
+    def get_collection_info(self, collection_name, timeout=30, **kwargs):
         collection_name = Prepare.collection_name(collection_name)
         rf = self._stub.DescribeCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
         response = rf.result()
@@ -297,7 +297,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(response.status.error_code, response.status.reason)
 
     @error_handler(None)
-    def count_collection(self, collection_name, timeout=30, **kwargs):
+    def count_entities(self, collection_name, timeout=30, **kwargs):
         collection_name = Prepare.collection_name(collection_name)
 
         rf = self._stub.CountCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
@@ -308,7 +308,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(response.status.error_code, response.status.reason)
 
     @error_handler([])
-    def show_collections(self, timeout=30):
+    def list_collections(self, timeout=30):
         cmd = Prepare.cmd('show_collections')
         rf = self._stub.ShowCollections.future(cmd, wait_for_ready=True, timeout=timeout)
         response = rf.result()
@@ -317,7 +317,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(response.status.error_code, message=response.status.reason)
 
     @error_handler(None)
-    def show_collection_info(self, collection_name, timeout=30):
+    def get_collection_stats(self, collection_name, timeout=30):
         request = grpc_types.CollectionName(collection_name=collection_name)
 
         rf = self._stub.ShowCollectionInfo.future(request, wait_for_ready=True, timeout=timeout)
@@ -331,7 +331,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(rpc_status.error_code, rpc_status.reason)
 
     @error_handler()
-    def preload_collection(self, collection_name, timeout=None):
+    def load_collection(self, collection_name, timeout=None):
         """
         Load collection to cache in advance
 
@@ -431,7 +431,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(response.status.error_code, response.status.reason)
 
     @error_handler([])
-    def get_entities_by_ids(self, collection_name, ids, fields, timeout=30):
+    def get_entity_by_id(self, collection_name, ids, fields, timeout=30):
         request = Prepare.get_entity_by_id_param(collection_name, ids, fields)
 
         rf = self._stub.GetEntityByID.future(request, wait_for_ready=True, timeout=timeout)
@@ -444,7 +444,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(code=status.error_code, message=status.reason)
 
     @error_handler([])
-    def get_vector_ids(self, collection_name, segment_id, timeout=30):
+    def list_id_in_segment(self, collection_name, segment_id, timeout=30):
         request = grpc_types.GetEntityIDsParam(collection_name=collection_name, segment_id=segment_id)
 
         rf = self._stub.GetEntityIDs.future(request, wait_for_ready=True, timeout=timeout)
@@ -500,7 +500,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(status.error_code, status.reason)
 
     @error_handler([])
-    def show_partitions(self, collection_name, timeout=30):
+    def list_partitions(self, collection_name, timeout=30):
         request = Prepare.collection_name(collection_name)
 
         rf = self._stub.ShowPartitions.future(request, wait_for_ready=True, timeout=timeout)
@@ -588,7 +588,7 @@ class GrpcHandler(AbsMilvus):
         return QueryResult(response)
 
     @error_handler(None)
-    def search_in_files(self, collection_name, segment_ids, query_entities, fields, params=None, timeout=None, **kwargs):
+    def search_in_segment(self, collection_name, segment_ids, query_entities, fields, params=None, timeout=None, **kwargs):
         """
         Query vectors in a collection, in specified files.
 
@@ -645,7 +645,7 @@ class GrpcHandler(AbsMilvus):
         return QueryResult(response)
 
     @error_handler()
-    def delete_by_id(self, collection_name, id_array, timeout=None):
+    def delete_entity_by_id(self, collection_name, id_array, timeout=None):
         request = Prepare.delete_by_id_param(collection_name, id_array)
 
         rf = self._stub.DeleteByID.future(request, wait_for_ready=True, timeout=timeout)
