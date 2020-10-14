@@ -117,30 +117,6 @@ def is_legal_index_size(index_size):
     return isinstance(index_size, int)
 
 
-# def is_legal_metric_type(metric_type):
-#     if isinstance(metric_type, (int, MetricType)):
-#         try:
-#             return MetricType(metric_type) != MetricType.INVALID
-#         except ValueError:
-#             return False
-#
-#     return False
-
-
-# def is_legal_index_type(index_type):
-#     if isinstance(index_type, int):
-#         try:
-#             index_type = IndexType(index_type)
-#         except ValueError:
-#             return False
-#
-#     if isinstance(index_type, IndexType):
-#         if index_type != IndexType.INVALID:
-#             return True
-#
-#     return False
-
-
 def is_legal_table_name(table_name):
     return isinstance(table_name, str) and len(table_name) > 0
 
@@ -237,15 +213,9 @@ def check_pass_param(*args, **kwargs):
         elif key == "dimension":
             if not is_legal_dimension(value):
                 _raise_param_error(key, value)
-        # elif key in ("index_type",):
-        #     if not is_legal_index_type(value):
-        #         _raise_param_error(key, value)
         elif key == "index_file_size":
             if not is_legal_index_size(value):
                 _raise_param_error(key, value)
-        # elif key == "metric_type":
-        #     if not is_legal_metric_type(value):
-        #         _raise_param_error(key, value)
         elif key in ("topk", "top_k"):
             if not is_legal_topk(value):
                 _raise_param_error(key, value)

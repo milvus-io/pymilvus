@@ -8,7 +8,7 @@ import struct
 
 import requests as rq
 
-from .abstract import ConnectIntf, IndexParam, CollectionSchema, PartitionParam
+from .abstract import ConnectIntf, CollectionSchema
 from .check import is_legal_host, is_legal_port
 from .exceptions import NotConnectError, ParamError
 from .types import Status
@@ -460,7 +460,7 @@ class HttpHandler(ConnectIntf):
         js = response.json()
 
         if response.status_code == 200:
-            return Status(), IndexParam(table_name, js["index_type"], js["params"])
+            return Status(), js
 
         return Status(js["code"], js["message"]), None
 
@@ -503,9 +503,7 @@ class HttpHandler(ConnectIntf):
 
         js = response.json()
         if response.status_code == 200:
-            partition_list = \
-                [PartitionParam(table_name, item["partition_tag"])
-                 for item in js["partitions"]]
+            partition_list = [item["partition_tag"] for item in js["partitions"]]
 
             return Status(), partition_list
 
