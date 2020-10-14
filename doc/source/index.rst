@@ -10,12 +10,7 @@ Welcome to pymilvus's documentation!
    :maxdepth: 8
    :caption: Contents:
 
-   assets
-   hooks
-   types
-   status
-   results
-   exceptions
+   api
    param
 
 
