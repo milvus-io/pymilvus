@@ -7,6 +7,7 @@
 
 ## Improvement
 - \#253 - Update config getter/setter
+- \#258 - Remove surplus class IndexType, MetricType
 
 
 # pymilvus 0.2.14(2020-07-20)
