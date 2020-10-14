@@ -66,7 +66,7 @@ def main():
         {"name": "A", "values": A_list, "type": DataType.INT32},
         {"name": "B", "values": A_list, "type": DataType.INT32},
         {"name": "C", "values": A_list, "type": DataType.INT64},
-        {"name": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
+        {"name": "Vec", "values": vec, "type": DataType.FLOAT_VECTOR}
     ]
 
     for slice_e in utils.entities_slice(hybrid_entities):
