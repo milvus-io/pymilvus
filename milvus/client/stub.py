@@ -179,6 +179,7 @@ class Milvus:
         :type  fields: str
 
         :raises:
+            RpcError: If grpc encounter an error
             ParamError: If parameters are invalid
             BaseException: If the return result from server is not ok
         '''
@@ -196,6 +197,10 @@ class Milvus:
         :return: If specified collection exists
         :rtype: bool
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -213,6 +218,10 @@ class Milvus:
         :return: The information of collection to describe.
         :rtype: dict
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -229,6 +238,10 @@ class Milvus:
         :return: The number of entities
         :rtype: int
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -241,6 +254,11 @@ class Milvus:
 
         :return: List of collection names, return when operation is successful
         :rtype: list[str]
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.list_collections(timeout)
@@ -255,8 +273,12 @@ class Milvus:
         :type  collection_name: str
         
         :return: The collection stats.
-
         :rtype: dict
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -270,6 +292,10 @@ class Milvus:
         :param collection_name: The name of the collection to load.
         :type  collection_name: str
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -283,6 +309,10 @@ class Milvus:
         :param collection_name: The name of the collection to delete.
         :type  collection_name: str
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -305,6 +335,11 @@ class Milvus:
 
         :return: list of ids of the inserted vectors.
         :rtype: list[int]
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         if kwargs.get("insert_param", None) is not None:
             with self._connection() as handler:
@@ -327,6 +362,11 @@ class Milvus:
 
         :return: The entities specified by given IDs.
         :rtype: Entities
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, ids=ids)
 
@@ -345,6 +385,11 @@ class Milvus:
 
         :return: List of IDs in a specified segment.
         :rtype: list[int]
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         check_pass_param(ids=[segment_id])
@@ -366,6 +411,10 @@ class Milvus:
         :param params: Indexing parameters.
         :type  params: dict
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         params = params or dict()
         if not isinstance(params, dict):
@@ -383,6 +432,10 @@ class Milvus:
         :param field_name: The name of the field to remove the index of.
         :type  field_name: str
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
 
@@ -405,6 +458,10 @@ class Milvus:
         :param partition_tag: The tag name of the partition.
         :type  partition_tag: str
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
         with self._connection() as handler:
@@ -424,6 +481,10 @@ class Milvus:
         :return: Whether a specified partition exists in a collection.
         :rtype: bool
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
         with self._connection() as handler:
@@ -440,6 +501,10 @@ class Milvus:
         :return: A list of all partition tags in specified collection.
         :rtype: list[str]
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
 
@@ -457,6 +522,10 @@ class Milvus:
         :param partition_tag: The tag name of the partition to delete.
         :type  partition_tag: str
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
         with self._connection() as handler:
@@ -479,6 +548,10 @@ class Milvus:
         :return: Query result.
         :rtype: QueryResult
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.search(collection_name, dsl, partition_tags, fields, timeout=timeout, **kwargs)
@@ -496,14 +569,18 @@ class Milvus:
         :type  collection_name: str:param collection_name: table name been queried
         :param dsl: The DSL that defines the query.:type  collection_name: str
         :type  dsl: dict
-        :param partition_tags: The tags of partitions to search.:type  file_ids: list[str] or list[int]
+        :param partition_tags: The tags of partitions to search.
         :type  partition_tags: list[str]:param file_ids: Specified files id array
         :param fields: The fields to return in the search result
         :type  fields: list[str]:type  query_records: list[list[float]]
 
         :return: Query result.
-
         :rtype: QueryResult
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         # check_pass_param(collection_name=collection_name, segment_ids, query_entities, params, timeout)
 
@@ -527,6 +604,11 @@ class Milvus:
                  if Some of ids may not exist in specified collection, in this case the returned
                  status will differ. NOte that in current version his is an EXPERIMENTAL function.
         :rtype:  Status.
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, ids=ids)
         with self._connection() as handler:
@@ -543,6 +625,10 @@ class Milvus:
         :type  collection_name_array: An array of names of the collections to flush.
         :param collection_name_array: list[str]
 
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
 
         if collection_name_array in (None, []):
@@ -578,6 +664,11 @@ class Milvus:
                  if server skip some of collections, in this case the returned status will differ.
                  Note that in current version his is an EXPERIMENTAL function.
         :rtype:  Status.
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:

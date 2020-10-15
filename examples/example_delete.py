@@ -15,7 +15,7 @@ from milvus import utils
 # You may need to change _HOST and _PORT accordingly.
 # _HOST = '192.168.1.113'
 _HOST = '127.0.0.1'
-_PORT = '19530'  # default value
+_PORT = '19540'  # default value
 
 # Vector parameters
 _DIM = 128  # dimension of vector
@@ -27,7 +27,7 @@ def main():
     milvus = Milvus(_HOST, _PORT)
 
     # num = random.randint(1, 100000)
-    num = 100000
+    num = 1000
     # Create collection demo_collection if it dosen't exist.
     collection_name = 'example_hybrid_collections_{}'.format(num)
     if milvus.has_collection(collection_name):
@@ -38,9 +38,9 @@ def main():
             {"name": "A", "type": DataType.INT32},
             {"name": "B", "type": DataType.INT32},
             {"name": "C", "type": DataType.INT64},
-            {"name": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, "metric_type": "L2"}}
+            {"name": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}
         ],
-        "segment_size": 100
+        "segment_row_limit": 1000000
     }
     milvus.create_collection(collection_name, collection_param)
 
@@ -110,7 +110,7 @@ def main():
                 {
                     "vector": {
                         "Vec": {
-                            "topk": 10, "query": vec[: 10000], "params": {"nprobe": 10}
+                            "topk": 10, "query": vec[: 10], "metric_type": "L2"
                         }
                     }
                 }
@@ -161,14 +161,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# {
-#     "fields": [
-#         {"field": "A", "type": DataType.INT32},
-#         {"field": "B", "type": DataType.INT32},
-#         {"field": "C", "type": DataType.INT64},
-#         {"field": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, "metric_type": "L2"}}
-#     ],
-#     "segment_size": 100
-# }
 

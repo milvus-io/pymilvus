@@ -55,7 +55,7 @@ def error_handler(*rargs):
                 raise e
             except grpc.RpcError as e:
                 record_dict["RPC error"] = str(datetime.datetime.now())
-                LOGGER.error("RPC error: {}\n\t{}".format(e, record_dict))
+                LOGGER.error("\nAddr [{}] {}\nRPC error: {}\n\t{}".format(self.server_address, func.__name__, e, record_dict))
                 raise e
             except Exception as e:
                 record_dict["Exception"] = str(datetime.datetime.now())
@@ -98,7 +98,7 @@ class GrpcHandler(AbsMilvus):
         self._connected = False
         self._pre_ping = pre_ping
         # if self._pre_ping:
-        self._max_retry = kwargs.get("max_retry", 3)
+        self._max_retry = kwargs.get("max_retry", 5)
 
         # record
         self._id = kwargs.get("conn_id", 0)
@@ -181,7 +181,9 @@ class GrpcHandler(AbsMilvus):
 
             self._search_file_hook = _search_file_hook
 
-    def ping(self, timeout=30):
+    def ping(self):
+        begin_timeout = 1
+        timeout = begin_timeout
         ft = grpc.channel_ready_future(self._channel)
         retry = self._max_retry
         try:
@@ -193,6 +195,7 @@ class GrpcHandler(AbsMilvus):
                     retry -= 1
                     LOGGER.debug("Retry connect addr <{}> {} times".format(self._uri, self._max_retry - retry))
                     if retry > 0:
+                        timeout *= 2
                         continue
                     else:
                         LOGGER.error("Retry to connect server {} failed.".format(self._uri))
@@ -260,21 +263,6 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler(False)
     def has_collection(self, collection_name, timeout=30, **kwargs):
-        """
-
-        This method is used to test collection existence.
-
-        :param collection_name: collection name is going to be tested.
-        :type  collection_name: str
-        :param timeout: time waiting for server response
-        :type  timeout: int
-
-        :return:
-            Status: indicate if vectors inserted successfully
-            bool if given collection_name exists
-
-        """
-
         collection_name = Prepare.collection_name(collection_name)
 
         rf = self._stub.HasCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
@@ -332,16 +320,6 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler()
     def load_collection(self, collection_name, timeout=None):
-        """
-        Load collection to cache in advance
-
-        :type collection_name: str
-        :param collection_name: collection to preload
-
-        :returns:
-            Status:  indicate if invoke is successful
-        """
-
         collection_name = Prepare.collection_name(collection_name)
         status = self._stub.PreloadCollection.future(collection_name, wait_for_ready=True, timeout=timeout).result()
         if status.error_code != 0:
@@ -357,16 +335,6 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler()
     def drop_collection(self, collection_name, timeout=20):
-        """
-        Delete collection with collection_name
-
-        :type  collection_name: str
-        :param collection_name: Name of the collection being deleted
-
-        :return: Status, indicate if operation is successful
-        :rtype: Status
-        """
-
         collection_name = Prepare.collection_name(collection_name)
 
         rf = self._stub.DropCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
@@ -378,38 +346,6 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler([])
     def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
-        """
-        Add vectors to collection
-
-        :param ids: list of id
-        :type  ids: list[int]
-
-        :type  collection_name: str
-        :param collection_name: collection name been inserted
-
-        :type  records: list[list[float]]
-
-                `example records: [[1.2345],[1.2345]]`
-
-                `OR using Prepare.records`
-
-        :param records: list of vectors been inserted
-
-        :type partition_tag: str or None.
-            If partition_tag is None, vectors will be inserted into collection rather than partitions.
-
-        :param partition_tag: the tag string of collection
-
-        :type
-
-        :type  timeout: int
-        :param timeout: time waiting for server response
-
-        :returns:
-            Status: indicate if vectors inserted successfully
-            ids: list of id, after inserted every vector is given a id
-        :rtype: (Status, list(int))
-        """
         insert_param = kwargs.get('insert_param', None)
 
         if insert_param and not isinstance(insert_param, grpc_types.InsertParam):
@@ -513,22 +449,6 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler()
     def drop_partition(self, collection_name, partition_tag, timeout=30):
-        """
-        Drop specific partition under designated collection.
-
-        :param collection_name: target collection name.
-        :type  collection_name: str
-
-        :param partition_tag: tag name of specific partition
-        :type  partition_tag: str
-
-        :param timeout: time waiting for response.
-        :type  timeout: int
-
-        :return:
-            Status: indicate if operation is successful
-
-        """
         request = grpc_types.PartitionParam(collection_name=collection_name, tag=partition_tag)
 
         rf = self._stub.DropPartition.future(request, wait_for_ready=True, timeout=timeout)
@@ -589,38 +509,6 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler(None)
     def search_in_segment(self, collection_name, segment_ids, dsl, fields, timeout=None, **kwargs):
-        """
-        Query vectors in a collection, in specified files.
-
-        The server store vector data into multiple files if the size of vectors
-        exceeds file size threshold. It is supported to search in several files
-        by specifying file ids. However, these file ids are stored in db in server,
-        and python sdk doesn't apply any APIs get them at client. It's a specific
-        method used in shards. Obtain more detail about milvus shards, see
-        <a href="https://github.com/milvus-io/milvus/tree/0.6.0/shards">
-
-        :type  collection_name: str
-        :param collection_name: collection name been queried
-
-        :type  file_ids: list[str] or list[int]
-        :param file_ids: Specified files id array
-
-        :type  query_records: list[list[float]]
-        :param query_records: all vectors going to be queried
-
-        :param query_ranges: Optional ranges for conditional search.
-            If not specified, search in the whole collection
-
-        :type  top_k: int
-        :param top_k: how many similar vectors will be searched
-
-        :returns:
-            Status:  indicate if query is successful
-            results: query result
-
-        :rtype: (Status, TopKQueryResult)
-        """
-
         file_ids = list(map(int_or_str, segment_ids))
         infos = Prepare.search_vector_in_files_param(collection_name, file_ids, dsl, fields)
 
