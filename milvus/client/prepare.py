@@ -149,9 +149,6 @@ class Prepare:
             for k, v in params.items():
                 val = v if isinstance(v, str) else ujson.dumps(v)
                 _param.extra_params.add(key=k, value=val)
-            # _param.extra_params.add(key="params", value=ujson.dumps(params))
-            # _param.extra_params.add(key="index_type", value=params["index_type"])
-            # _param.extra_params.add(key="params", value=ujson.dumps(params["params"]))
 
         return _param
 
