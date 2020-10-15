@@ -293,7 +293,7 @@ class RawQueryResult(LoopBase):
         self._scores = score_list
 
     def __len__(self):
-        return len(self._entities)
+        return sum([1 for e in self._entities if e and e.id != -1])
 
     def get__item(self, item):
         score = self._scores[item] if self._scores else None
@@ -334,7 +334,7 @@ class QueryResult(LoopBase):
         slice_entity = list()
         for it in range(start, end):
             entity = self._entities[it]
-            if entity.id == -1:
+            if not entity or entity.id == -1:
                 break
 
             slice_entity.append(entity)
