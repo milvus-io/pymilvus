@@ -182,9 +182,6 @@ class Entities(LoopBase):
         return len(self._flat_ids)
 
     def get__item(self, item):
-        # import pdb;pdb.set_trace()
-        # if not self._flat_ids:
-        #     self._ids = self._filtered_ids(list(self._raw.ids))
         if not self._valid_raw:
             self._valid_raw = list(self._raw.valid_row)
 
@@ -206,7 +203,6 @@ class Entities(LoopBase):
         for field in self._raw.fields:
             type = DataType(int(field.type))
             if type in (DataType.INT32,):
-            # if type in (DataType.INT8, DataType.INT16, DataType.INT32):
                 slice_value = field.attr_record.int32_value[fatal_item]
             elif type in (DataType.INT64,):
                 slice_value = field.attr_record.int64_value[fatal_item]
@@ -225,7 +221,6 @@ class Entities(LoopBase):
             field_names.append(field.field_name)
             field_values.append(slice_value)
 
-        # values = [fv[item] for fv in field_values]
         return Entity(self._flat_ids[item], field_types, field_names, field_values)
 
     @property
@@ -237,7 +232,6 @@ class Entities(LoopBase):
         for field in self._raw.fields:
             type = DataType(int(field.type))
             if type in (DataType.INT32,):
-            # if type in (DataType.INT8, DataType.INT16, DataType.INT32):
                 values = list(field.attr_record.int32_value)
             elif type in (DataType.INT64,):
                 values = list(field.attr_record.int64_value)
@@ -246,7 +240,6 @@ class Entities(LoopBase):
             elif type in (DataType.DOUBLE,):
                 values = list(field.attr_record.double_value)
             elif type in (DataType.FLOAT_VECTOR,):
-                # values = list(field.vector_record.records[item].float_data)
                 values = [list(record.float_data) for record in field.vector_record.records]
             elif type in (DataType.BINARY_VECTOR,):
                 values = [bytes(record.binary_data) for record in field.vector_record.records]
@@ -265,8 +258,7 @@ class ItemQueryResult:
         self._score = score
 
     def __str__(self):
-        str_ = "(distance: {}, score: {}, entity: {})".format(self._dis, self._score, self._entity)
-        return str_
+        return "(distance: {}, score: {}, entity: {})".format(self._dis, self._score, self._entity)
 
     @property
     def entity(self):

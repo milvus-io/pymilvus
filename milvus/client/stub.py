@@ -1,10 +1,8 @@
 # -*- coding: UTF-8 -*-
 
 import collections
-import copy
 import functools
 import logging
-import threading
 
 from urllib.parse import urlparse
 
