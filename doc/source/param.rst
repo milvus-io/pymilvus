@@ -1,10 +1,5 @@
-pymilvus index params
-=====================
-
-
-Module Contents
----------------
-This module briefly illustrate parameters of each type of index. You can find detail example in `index examples <https://github.com/milvus-io/pymilvus/blob/master/examples/indexes>`_.
+Index params
+=============
 
 
 Index
