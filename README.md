@@ -82,13 +82,13 @@ The following collection shows Milvus versions and recommended pymilvus versions
 | 0.9.0 | 0.2.11 |
 | 0.9.1 | 0.2.12 |
 | 0.10.0 | 0.2.13 |
-| 0.10.1 | 0.2.14 |
+| >=0.10.1, <0.11.0 | 0.2.14 |
 
 
 You can install a specific version of pymilvus by:
 
 ```shell
-$ pip install pymilvus==0.2.14
+$ pip install pymilvus==0.3.0
 ```
 
 You can upgrade `pymilvus` to the latest version by:
@@ -359,11 +359,11 @@ Status(code=0, message='OK')
 
 
 ```python
-# This query_hybrid will search topk `entities` that are
+# This dsl will search topk `entities` that are
 # close to vectors[:1] searched by `IVF_FLAT` index with `nprobe = 10` and `metric_type = L2`,
 # AND field "A" in [1, 2, 5],
 # AND field "B" greater than 1 less than 100
->>> query_hybrid = {
+>>> dsl = {
 ...     "bool": {
 ...         "must":[
 ...             {
@@ -385,7 +385,7 @@ Status(code=0, message='OK')
 A search without hybrid conditions with `IVF_FLAT` index would be like:
 
 ```python
->>> query_hybrid = {
+>>> dsl = {
 ...     "bool": {
 ...         "must":[
 ...             {
@@ -402,7 +402,7 @@ A search without hybrid conditions with `IVF_FLAT` index would be like:
 A `FLAT` search doesn't need index params, so the query would be like:
 
 ```python
->>> query_hybrid = {
+>>> dsl = {
 ...     "bool": {
 ...         "must":[
 ...             {
@@ -423,7 +423,7 @@ With `fields=["B"]`, not only can you get entity ids and distances, but also val
 
 ```python
 # search entities and get entity field B back
->>> results = client.search('test01', query_hybrid, fields=["B"])
+>>> results = client.search('test01', dsl, fields=["B"])
 ```
 
 You can obtain ids, distances and fields by entities in results.
@@ -442,7 +442,7 @@ You can obtain ids, distances and fields by entities in results.
 # Or you can get them one by one by entity
 >>> a_id = entity.id
 >>> a_distance = entity.distance
->>> a_field = entity.entity.B
+>>> a_field = entity.entity.B # (getattr(entity.entity, "B"))
 ```
 
 > Note: If you don't provide fields in search, you will only get ids and distances.
@@ -451,7 +451,7 @@ You can obtain ids, distances and fields by entities in results.
 
 ```python
 # Search entities in a partition `tag01`
->>> client.search(collection_name='test01', query_entities=query_hybrid, partition_tags=['tag01'])
+>>> client.search(collection_name='test01', dsl=dsl, partition_tags=['tag01'])
 ```
 
 > Note: If you do not specify `partition_tags`, Milvus searches the whole collection.
