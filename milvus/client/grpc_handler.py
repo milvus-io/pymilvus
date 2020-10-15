@@ -588,7 +588,7 @@ class GrpcHandler(AbsMilvus):
         return QueryResult(response)
 
     @error_handler(None)
-    def search_in_segment(self, collection_name, segment_ids, query_entities, fields, params=None, timeout=None, **kwargs):
+    def search_in_segment(self, collection_name, segment_ids, dsl, fields, timeout=None, **kwargs):
         """
         Query vectors in a collection, in specified files.
 
@@ -622,7 +622,7 @@ class GrpcHandler(AbsMilvus):
         """
 
         file_ids = list(map(int_or_str, segment_ids))
-        infos = Prepare.search_vector_in_files_param(collection_name, file_ids, query_entities, fields, params=params)
+        infos = Prepare.search_vector_in_files_param(collection_name, file_ids, dsl, fields)
 
         self._search_file_hook.pre_search()
 

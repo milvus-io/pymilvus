@@ -180,7 +180,7 @@ class Milvus:
         :param fields: Field parameters.
         :type  fields: str
 
-        :raises
+        :raises:
             ParamError: If parameters are invalid
             BaseException: If the return result from server is not ok
         '''
@@ -486,7 +486,7 @@ class Milvus:
             return handler.search(collection_name, dsl, partition_tags, fields, timeout=timeout, **kwargs)
 
     @check_connect
-    def search_in_segment(self, collection_name, segment_ids, dsl, params=None, fields=None, timeout=None, **kwargs):
+    def search_in_segment(self, collection_name, segment_ids, dsl, fields=None, timeout=None, **kwargs):
         """
         Searches in the specified segments of a collection.
 
@@ -509,11 +509,11 @@ class Milvus:
         """
         # check_pass_param(collection_name=collection_name, segment_ids, query_entities, params, timeout)
 
-        params = dict() if params is None else params
-        if not isinstance(params, dict):
-            raise ParamError("Params must be a dictionary type")
+        # params = dict() if params is None else params
+        # if not isinstance(params, dict):
+        #     raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.search_in_segment(collection_name, segment_ids, dsl, fields, params, timeout, **kwargs)
+            return handler.search_in_segment(collection_name, segment_ids, dsl, fields, timeout, **kwargs)
 
     @check_connect
     def delete_entity_by_id(self, collection_name, ids, timeout=None):
