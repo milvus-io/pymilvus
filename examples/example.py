@@ -1,5 +1,3 @@
-# This program demos how to connect to Milvus vector database
-
 import random
 from pprint import pprint
 
@@ -7,8 +5,8 @@ from milvus import Milvus, DataType
 
 # ------
 # Setup:
-#    First of all, you need a runing Milvus. By default, Milvus runs on localhost in port 19530.
-#    Then, you can use pymilvus to connect to the server, You can change the _HOST and _PORT accordingly.
+#    First of all, you need a runing Milvus(0.11.x). By default, Milvus runs on localhost in port 19530.
+#    Then, you can use pymilvus(0.3.x) to connect to the server, You can change the _HOST and _PORT accordingly.
 # ------
 _HOST = '127.0.0.1'
 _PORT = '19530'
@@ -28,11 +26,14 @@ if collection_name in client.list_collections():
 # Basic create collection:
 #     `auto_id` in the parameter is set to false so that we can provide our own unique ids.
 #     `embedding` in the `fields` is float vector with dimension of 8.
-#     For more information you can refer to the pymilvus documentation.
+#     For all fields, you can provide custom infos in "params" like {"unit": "minute"}
+#     For FLOAT_VECTOR and BINARY_VECTOR, "dim" is a must in "params". 
+#     For more information you can refer to the pymilvus 
+#     documentation (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
 # ------
 collection_param = {
     "fields": [
-        #  Milvus doesn't support String data type now, but we are considering supporting it in the future.
+        #  Milvus doesn't support string type now, but we are considering supporting it soon.
         #  {"name": "film_name", "type": DataType.STRING},
         {"name": "duration", "type": DataType.INT32, "params": {"unit": "minute"}},
         {"name": "release_year", "type": DataType.INT32},
@@ -67,21 +68,21 @@ pprint(partitions)
 # ------
 The_Lord_of_the_Rings = [
     {
-        "film": "The_Fellowship_of_the_Ring",
+        "title": "The_Fellowship_of_the_Ring",
         "id": 1,
         "duration": 208,
         "release_year": 2001,
         "embedding": [random.random() for _ in range(8)]
     },
     {
-        "film": "The_Two_Towers",
+        "title": "The_Two_Towers",
         "id": 2,
         "duration": 226,
         "release_year": 2002,
         "embedding": [random.random() for _ in range(8)]
     },
     {
-        "film": "The_Return_of_the_King",
+        "title": "The_Return_of_the_King",
         "id": 3,
         "duration": 252,
         "release_year": 2003,
@@ -100,6 +101,7 @@ release_years = [k.get("release_year") for k in The_Lord_of_the_Rings]
 embeddings = [k.get("embedding") for k in The_Lord_of_the_Rings]
 
 hybrid_entities = [
+    # Milvus doesn't support string type yet, so we cannot insert "title".
     {"name": "duration", "values": durations, "type": DataType.INT32},
     {"name": "release_year", "values": release_years, "type": DataType.INT32},
     {"name": "embedding", "values": embeddings, "type": DataType.FLOAT_VECTOR},
@@ -148,9 +150,13 @@ for film in films:
 # Basic hybrid search entities:
 #      Getting films by id is not enough, we are going to get films based on vector similarities.
 #      Let's say we have a film with its `embedding` and we want to find `top3` films that are most similar
-#      with it. And there are some conditions for the results. We want to obtain films that are:
+#      with it by L2 distance. And there are some conditions for the results. We want to obtain films that are:
 #      `released in year` 2002 or 2003,
 #      `duration` of the films larger than 250 minutes.
+#
+#      "range" includes "GT"(>), "LT"(<), "LTE"(<=), "GTE"(>=), "NE"(!=), "EQ"(==).
+#      There are more options other than "must", for instance "should", for more information, you can refer to
+#      pymilvus documentation (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
 # ------
 query_embedding = [random.random() for _ in range(8)]
 query_hybrid = {
@@ -160,6 +166,7 @@ query_hybrid = {
                 "term": {"release_year": [2002, 2003]}
             },
             {
+                # "GT" for greater than
                 "range": {"duration": {"GT": 250}}
             },
             {
@@ -173,7 +180,7 @@ query_hybrid = {
 
 # ------
 # Basic hybrid search entities:
-#     And we want to get all the fields back in reasults, so fields = ["duration", "release_year", "embedding"]
+#     And we want to get all the fields back in reasults, so fields = ["duration", "release_year", "embedding"].
 #     If searching successfully, results will be returned.
 #     `results` have `nq`(number of queries) seperate results, since we only query for 1 film, The length of
 #     `results` is 1.
@@ -215,7 +222,7 @@ print("There are {} entities after delete films with 1, 2".format(counts_in_coll
 # Basic delete:
 #     You can drop partitions we create, and drop the collection we create.
 # ------
-client.drop_partition(collection_name)
+client.drop_partition(collection_name, partition_tag='American')
 if collection_name in client.list_collections():
     client.drop_collection(collection_name)
 
