@@ -602,7 +602,7 @@ class Milvus:
 
         :return: Status of delete request. The delete request will still execute successfully
                  if Some of ids may not exist in specified collection, in this case the returned
-                 status will differ. NOte that in current version his is an EXPERIMENTAL function.
+                 status will differ. Note that in current version his is an EXPERIMENTAL function.
         :rtype:  Status.
 
         :raises:
