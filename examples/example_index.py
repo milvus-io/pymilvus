@@ -9,6 +9,8 @@ the data are from Movlens `ml-latest-small` data except id and embedding, those 
 We will be using `films.csv` to demenstrate how can we build index and search by index on Milvus.
 We assuming you have read `example.py` and have a basic conception about how to communicate with Milvus using
 pymilvus
+
+This example is runable for Milvus(0.11.x) and pymilvus(0.3.x).
 """
 import random
 import csv
@@ -47,8 +49,8 @@ client.create_collection(collection_name, collection_param)
 #     to make Milvus build index right away, we need to insert number of entities larger than
 #     `segment_row_limit`
 #
-#     We are going to use data in `films.csv` so you can checkout the stucture. And we need to group
-#     data with same fields together, so here is a example of how we obtain the data in files and transferm
+#     We are going to use data in `films.csv` so you can checkout the structure. And we need to group
+#     data with same fields together, so here is a example of how we obtain the data in files and transfer
 #     them into what we need.
 # ------
 
@@ -112,7 +114,7 @@ pprint(info)
 # ------
 # Basic hybrid search entities:
 #     If we want to use index, the specific index params need to be provided, in our case, the "params"
-#     should be "nprobe", if no "params" given, Milvus will complain about it and raise a excption.
+#     should be "nprobe", if no "params" given, Milvus will complain about it and raise a exception.
 # ------
 query_embedding = [random.random() for _ in range(8)]
 query_hybrid = {
