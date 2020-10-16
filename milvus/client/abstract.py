@@ -129,11 +129,12 @@ class CollectionSchema:
 
 
 class Entity:
-    def __init__(self, entity_id, data_types, field_names, field_values):
+    def __init__(self, entity_id, entity_fatal_offset, data_types, field_names, raw):
         self._id = entity_id
+        self._fatal_id = entity_fatal_offset
         self._types = data_types
         self._field_names = field_names
-        self._field_values = field_values
+        self._raw = raw
 
     def __str__(self):
         str_ = "(\tid: {} \n\tname\t\tvalue"
@@ -157,11 +158,32 @@ class Entity:
         return self.value_of_field(field)
 
     def value_of_field(self, field):
-        if field not in self._field_names:
+        if field not in self._field_names or not self._raw:
             raise ValueError("entity not contain field {}".format(field))
 
         i = self._field_names.index(field)
-        return self._field_values[i]
+        type_ = self._types[i]
+
+        for fd in self._raw.fields:
+            if fd.field_name != field or type_ != DataType(int(fd.type)):
+                continue
+
+            if type_ in (DataType.INT32,):
+                return fd.attr_record.int32_value[self._fatal_id]
+            elif type_ in (DataType.INT64,):
+                return fd.attr_record.int64_value[self._fatal_id]
+            elif type_ in (DataType.FLOAT,):
+                return fd.attr_record.float_value[self._fatal_id]
+            elif type_ in (DataType.DOUBLE,):
+                return fd.attr_record.double_value[self._fatal_id]
+            elif type_ in (DataType.FLOAT_VECTOR,):
+                return list(fd.vector_record.records[self._fatal_id].float_data)
+            elif type_ in (DataType.BINARY_VECTOR,):
+                return bytes(fd.vector_record.records[self._fatal_id].binary_data)
+            else:
+                raise ParamError("Unknown field type {}".format(type_))
+
+        raise IndexError("Unknown field {}".format(field))
 
     def type_of_field(self, field):
         if field not in self._field_names:
@@ -175,58 +197,39 @@ class Entities(LoopBase):
     def __init__(self, raw):
         super().__init__()
         self._raw = raw
-        self._flat_ids = list(self._raw.ids)
-        self._valid_raw = []
+
+        self._flat_ids = list()
+        self._valid_raw = list()
+        self._field_types = list()
+        self._field_names = list()
+
+        #
+        self._extract(self._raw)
 
     def __len__(self):
         return len(self._flat_ids)
 
-    def get__item(self, item):
-        # import pdb;pdb.set_trace()
-        # if not self._flat_ids:
-        #     self._ids = self._filtered_ids(list(self._raw.ids))
-        if not self._valid_raw:
-            self._valid_raw = list(self._raw.valid_row)
+    def _extract(self, raw):
+        self._flat_ids = list(raw.ids)
+        self._valid_raw = list(raw.valid_row)
+        for field in raw.fields:
+            self._field_types.append(DataType(int(field.type)))
+            self._field_names.append(field.field_name)
 
+    def get__item(self, item):
         # if
         if not self._valid_raw:
-            return Entity(self._flat_ids[item], [], [], [])
+            return Entity(self._flat_ids[item], -1, [], [], None)
 
         if not self._valid_raw[item]:
             return None
 
         if self._flat_ids[item] == -1:
-            return Entity(-1, [], [], [])
+            return Entity(-1, -1, [], [], None)
 
         fatal_item = sum([1 for v in self._valid_raw[:item] if v])
 
-        field_types = list()
-        field_names = list()
-        field_values = list()
-        for field in self._raw.fields:
-            type = DataType(int(field.type))
-            if type in (DataType.INT32,):
-            # if type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                slice_value = field.attr_record.int32_value[fatal_item]
-            elif type in (DataType.INT64,):
-                slice_value = field.attr_record.int64_value[fatal_item]
-            elif type in (DataType.FLOAT,):
-                slice_value = field.attr_record.float_value[fatal_item]
-            elif type in (DataType.DOUBLE,):
-                slice_value = field.attr_record.double_value[fatal_item]
-            elif type in (DataType.FLOAT_VECTOR,):
-                slice_value = list(field.vector_record.records[item].float_data)
-            elif type in (DataType.BINARY_VECTOR,):
-                slice_value = bytes(field.vector_record.records[item].binary_data)
-            else:
-                raise ParamError("Unknown field type {}".format(type))
-
-            field_types.append(type)
-            field_names.append(field.field_name)
-            field_values.append(slice_value)
-
-        # values = [fv[item] for fv in field_values]
-        return Entity(self._flat_ids[item], field_types, field_names, field_values)
+        return Entity(self._flat_ids[item], fatal_item, self._field_types, self._field_names, self._raw)
 
     @property
     def ids(self):
@@ -237,7 +240,6 @@ class Entities(LoopBase):
         for field in self._raw.fields:
             type = DataType(int(field.type))
             if type in (DataType.INT32,):
-            # if type in (DataType.INT8, DataType.INT16, DataType.INT32):
                 values = list(field.attr_record.int32_value)
             elif type in (DataType.INT64,):
                 values = list(field.attr_record.int64_value)
@@ -246,7 +248,6 @@ class Entities(LoopBase):
             elif type in (DataType.DOUBLE,):
                 values = list(field.attr_record.double_value)
             elif type in (DataType.FLOAT_VECTOR,):
-                # values = list(field.vector_record.records[item].float_data)
                 values = [list(record.float_data) for record in field.vector_record.records]
             elif type in (DataType.BINARY_VECTOR,):
                 values = [bytes(record.binary_data) for record in field.vector_record.records]
@@ -265,8 +266,7 @@ class ItemQueryResult:
         self._score = score
 
     def __str__(self):
-        str_ = "(distance: {}, score: {}, entity: {})".format(self._dis, self._score, self._entity)
-        return str_
+        return "(distance: {}, score: {}, entity: {})".format(self._dis, self._score, self._entity)
 
     @property
     def entity(self):

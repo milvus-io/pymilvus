@@ -5,7 +5,7 @@ import pytest
 
 # local application imports
 from factorys import gen_unique_str, fake, records_factory
-from milvus import Milvus, IndexType, MetricType
+from milvus import Milvus
 
 default_host = "127.0.0.1"
 default_grpc_port = 19530

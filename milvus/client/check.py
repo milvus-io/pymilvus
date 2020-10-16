@@ -1,6 +1,5 @@
 import sys
 import datetime
-import numpy as np
 from urllib.parse import urlparse
 
 from .exceptions import ParamError
@@ -63,34 +62,34 @@ def is_legal_numpy_array(array):
     return False if array is None or array.size == 0 else True
 
 
-def is_legal_records(value):
-    param_error = ParamError('A vector must be a non-empty, 2-dimensional array and '
-                             'must contain only elements with the float data type or the bytes data type.')
-
-    if isinstance(value, np.ndarray):
-        if not is_legal_numpy_array(value):
-            raise param_error
-
-        return True
-
-    if not isinstance(value, list) or len(value) == 0:
-        raise param_error
-
-    if isinstance(value[0], bytes):
-        check_func = is_legal_bin_vector
-    elif isinstance(value[0], list):
-        check_func = is_legal_vector
-    else:
-        raise param_error
-
-    _dim = len(value[0])
-    for record in value:
-        if not check_func(record):
-            raise param_error
-        if _dim != len(record):
-            raise ParamError('Whole vectors must have the same dimension')
-
-    return True
+# def is_legal_records(value):
+#     param_error = ParamError('A vector must be a non-empty, 2-dimensional array and '
+#                              'must contain only elements with the float data type or the bytes data type.')
+#
+#     if isinstance(value, np.ndarray):
+#         if not is_legal_numpy_array(value):
+#             raise param_error
+#
+#         return True
+#
+#     if not isinstance(value, list) or len(value) == 0:
+#         raise param_error
+#
+#     if isinstance(value[0], bytes):
+#         check_func = is_legal_bin_vector
+#     elif isinstance(value[0], list):
+#         check_func = is_legal_vector
+#     else:
+#         raise param_error
+#
+#     _dim = len(value[0])
+#     for record in value:
+#         if not check_func(record):
+#             raise param_error
+#         if _dim != len(record):
+#             raise ParamError('Whole vectors must have the same dimension')
+#
+#     return True
 
 
 def int_or_str(item):
@@ -237,8 +236,8 @@ def check_pass_param(*args, **kwargs):
         elif key in ("partition_tag_array",):
             if not is_legal_partition_tag_array(value):
                 _raise_param_error(key, value)
-        elif key in ("records",):
-            if not is_legal_records(value):
-                _raise_param_error(key, value)
+        # elif key in ("records",):
+        #     if not is_legal_records(value):
+        #         _raise_param_error(key, value)
         else:
             raise ParamError("unknown param `{}`".format(key))

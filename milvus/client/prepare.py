@@ -149,9 +149,6 @@ class Prepare:
             for k, v in params.items():
                 val = v if isinstance(v, str) else ujson.dumps(v)
                 _param.extra_params.add(key=k, value=val)
-            # _param.extra_params.add(key="params", value=ujson.dumps(params))
-            # _param.extra_params.add(key="index_type", value=params["index_type"])
-            # _param.extra_params.add(key="params", value=ujson.dumps(params["params"]))
 
         return _param
 
@@ -232,8 +229,8 @@ class Prepare:
         return _param
 
     @classmethod
-    def search_vector_in_files_param(cls, collection_name, segment_ids, query_entities, fields, params):
-        _search_param = Prepare.search_param(collection_name, query_entities, None, fields, params)
+    def search_vector_in_files_param(cls, collection_name, segment_ids, dsl, fields):
+        _search_param = Prepare.search_param(collection_name, dsl, None, fields)
 
         return grpc_types.SearchInFilesParam(
             file_id_array=segment_ids,
