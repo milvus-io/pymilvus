@@ -26,7 +26,7 @@ if collection_name in client.list_collections():
 
 # ------
 # Basic create collection:
-#     `auto_id` in the parameter is set to true so that we can provide our own unique ids.
+#     `auto_id` in the parameter is set to false so that we can provide our own unique ids.
 #     `embedding` in the `fields` is float vector with dimension of 8.
 #     For more information you can refer to the pymilvus documentation.
 # ------
@@ -51,7 +51,7 @@ client.create_partition(collection_name, "American")
 # ------
 # Basic create collection:
 #     You can check the collection info and partitions we've created by `get_collection_info` and
-#     `list_partitions`
+#     `list_partitions`, you will get something like this:
 # ------
 collection = client.get_collection_info(collection_name)
 pprint(collection)
@@ -114,7 +114,7 @@ print("Films are inserted and the ids are: {}".format(ids))
 
 # ------
 # Basic insert entities:
-#     After insert entities into collection, we need to flush collection to make sure its on disk
+#     After insert entities into collection, we need to flush collection to make sure its on disk,
 #     so that we are able to retrive it.
 # ------
 before_flush_counts = client.count_entities(collection_name)
@@ -123,18 +123,34 @@ after_flush_counts = client.count_entities(collection_name)
 print("There are {} films in collection `{}` before flush".format(before_flush_counts, collection_name))
 print("There are {} films in collection `{}` after flush".format(after_flush_counts, collection_name))
 
-# present collection statistics info
+# ------
+# Basic insert entities:
+#     We can get the detail of collection statistics info by `get_collection_stats`
+# ------
 info = client.get_collection_stats(collection_name)
 pprint(info)
 
-# Obtain entities by providing ids
-films = client.get_entity_by_id(collection_name, ids=[1, 2])
+# ------
+# Basic search entities:
+#     Now that we have 3 films inserted into our collection, it's time to obtain them.
+#     We can get films by ids, if milvus can't find entity for a given id, `None` will be returned.
+#     In the case we provide below, we will only get 1 film with id=1 and the other is `None`
+# ------
+films = client.get_entity_by_id(collection_name, ids=[1, 200])
 for film in films:
-    print(" > id: {}, duration: {}m, release_years: {}, embedding: {}"
-          .format(film.id, film.duration, film.release_year, film.embedding))
+    if film is not None:
+        print(" > id: {},\n > duration: {}m,\n > release_years: {},\n > embedding: {}"
+              .format(film.id, film.duration, film.release_year, film.embedding))
 
-# search
-vectors = [[random.random() for _ in range(8)], ]
+# ------
+# Basic hybrid search entities:
+#      Getting films by id is not enough, we are going to get films based on vector similarities.
+#      Let's say we have a film with its `embedding` and we want to find `top3` films that are most similar
+#      with it. And there are some conditions for the results. We want to obtain films that were:
+#      `released in year` 2002 or 2003,
+#      `duration` of the films larger than 250 minutes.
+# ------
+query_embedding = [random.random() for _ in range(8)]
 query_hybrid = {
     "bool": {
         "must": [
@@ -142,19 +158,32 @@ query_hybrid = {
                 "term": {"release_year": [2002, 2003]}
             },
             {
-                "range": {"duration": {"GT": 0}}
+                "range": {"duration": {"GT": 250}}
             },
             {
                 "vector": {
-                    "embedding": {"topk": 3, "query": vectors, "metric_type": "L2"}
+                    "embedding": {"topk": 3, "query": [query_embedding], "metric_type": "L2"}
                 }
             }
         ]
     }
 }
 
+# ------
+# Basic hybrid search entities:
+#     And we want to get all the fields back in reasults, so fields = ["duration", "release_year", "embedding"]
+#     If we search successfully, a results will be returned.
+#     `results` have `nq`(number of queries) seperate results, since we only query for 1 film, The length of
+#     `results` is 1.
+#     We ask for top 3 in-return, but our condition is too strict while the database is too small, so we can
+#     only get 1 film, which means length of `entities` in below is also 1.
+#
+#     Now we've gotten the results, and known it's a 1 x 1 structure, how can we get ids, distances and fields?
+#     It's very simple, for every `topk_film`, it has three properties: `id, distance and entity`.
+#     All fields are stored in `entity`, so you can finally obtain these data as below:
+#     And the result should be film with id = 3.
+# ------
 results = client.search(collection_name, query_hybrid, fields=["duration", "release_year", "embedding"])
-print(results)
 for entities in results:
     for topk_film in entities:
         current_entity = topk_film.entity
@@ -166,64 +195,29 @@ for entities in results:
         print("- duration: {}".format(current_entity.duration))
         print("- embedding: {}".format(current_entity.embedding))
 
+# ------
+# Basic delete:
+#     Now let's see how to delete things in Milvus.
+#     You can simply delete entities by their ids.
+# ------
 client.delete_entity_by_id(collection_name, ids=[1, 2])
-# flush is important
-client.flush()
+client.flush()  # flush is important
 result = client.get_entity_by_id(collection_name, ids=[1, 2])
-counts = sum([1 for entity in result if entity is not None])
-print("Get {} entities by id 1, 2".format(counts))
-counts = client.count_entities(collection_name)
-print("There are {} entities in the collection".format(counts))
 
+counts_delete = sum([1 for entity in result if entity is not None])
+counts_in_collection = client.count_entities(collection_name)
+print("Get {} entities by id 1, 2".format(counts_delete))
+print("There are {} entities after delete films with 1, 2".format(counts_in_collection))
 
-#  # create index of vectors,search more rapidly
-#  index_param =   {
-#      'nlist': 2048
-#  }
-#
-#  # Create ivflat index in demo_collection
-#  # You can search vectors without creating index. however, Creating index help to
-#  # search faster
-#  print("Creating index: {}".format(index_param))
-#  status = client.create_index(collection_name, IndexType.IVF_FLAT, index_param)
-#
-#  # describe index, get information of index
-#  status, index = client.get_index_info(collection_name)
-#  print(index)
-#
-#  # Use the top 10 vectors for similarity search
-#  query_vectors = vectors[0:10]
-#
-#  # execute vector similarity search
-#  search_param = {
-#      "nprobe": 16
-#  }
-#
-#  print("Searching ... ")
-#
-#  param = {
-#      'collection_name': collection_name,
-#      'query_records': query_vectors,
-#      'top_k': 1,
-#      'params': search_param,
-#  }
-#
-#  status, results = client.search(**param)
-#  if status.OK():
-#      # indicate search result
-#      # also use by:
-#      #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
-#      if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
-#          print('Query result is correct')
-#      else:
-#          print('Query result isn\'t correct')
-#
-#      # print results
-#      print(results)
-#  else:
-#      print("Search failed. ", status)
-#
-#  # Delete demo_collection
-#  status = client.drop_collection(collection_name)
+# ------
+# Basic delete:
+#     You can drop partitions we create, and drop the collection we create.
+# ------
+client.drop_partition(collection_name)
 if collection_name in client.list_collections():
     client.drop_collection(collection_name)
+
+# ------
+# Summary:
+#     Now we've went through all basic communications pymilvus can do with Milvus server, hope it's helpful!
+# ------
