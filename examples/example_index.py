@@ -4,7 +4,7 @@ This is an example of creating index
 We will be using films.csv file, You can obtain it from here
 (https://raw.githubusercontent.com/milvus-io/pymilvus/0.3.0/examples/films.csv)
 There are 4 coloumns in films.csv, they are `id`, `title`, `release_year` and `embedding`, all
-the data are from Movlens `ml-latest-small` data except id and embedding, those two columns are fake values.
+the data are from MovieLens `ml-latest-small` data except id and embedding, those two columns are fake values.
 
 We will be using `films.csv` to demenstrate how can we build index and search by index on Milvus.
 We assuming you have read `example.py` and have a basic conception about how to communicate with Milvus using
