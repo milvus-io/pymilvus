@@ -32,6 +32,8 @@ if collection_name in client.list_collections():
 # ------
 collection_param = {
     "fields": [
+        #  Milvus doesn't support String data type now, but we are considering supporting it in the future.
+        #  {"name": "film_name", "type": DataType.STRING},
         {"name": "duration", "type": DataType.INT32, "params": {"unit": "minute"}},
         {"name": "release_year", "type": DataType.INT32},
         {"name": "embedding", "type": DataType.FLOAT_VECTOR, "params": {"dim": 8}},
@@ -51,7 +53,7 @@ client.create_partition(collection_name, "American")
 # ------
 # Basic create collection:
 #     You can check the collection info and partitions we've created by `get_collection_info` and
-#     `list_partitions`, you will get something like this:
+#     `list_partitions`
 # ------
 collection = client.get_collection_info(collection_name)
 pprint(collection)
@@ -146,7 +148,7 @@ for film in films:
 # Basic hybrid search entities:
 #      Getting films by id is not enough, we are going to get films based on vector similarities.
 #      Let's say we have a film with its `embedding` and we want to find `top3` films that are most similar
-#      with it. And there are some conditions for the results. We want to obtain films that were:
+#      with it. And there are some conditions for the results. We want to obtain films that are:
 #      `released in year` 2002 or 2003,
 #      `duration` of the films larger than 250 minutes.
 # ------
@@ -172,7 +174,7 @@ query_hybrid = {
 # ------
 # Basic hybrid search entities:
 #     And we want to get all the fields back in reasults, so fields = ["duration", "release_year", "embedding"]
-#     If we search successfully, a results will be returned.
+#     If searching successfully, results will be returned.
 #     `results` have `nq`(number of queries) seperate results, since we only query for 1 film, The length of
 #     `results` is 1.
 #     We ask for top 3 in-return, but our condition is too strict while the database is too small, so we can
