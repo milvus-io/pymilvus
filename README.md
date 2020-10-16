@@ -9,7 +9,7 @@
 
 Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code to this project, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md) first.
 
-For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.2.14/index.html).
+For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
 
 
 <!-- TOC -->
@@ -83,6 +83,7 @@ The following collection shows Milvus versions and recommended pymilvus versions
 | 0.9.1 | 0.2.12 |
 | 0.10.0 | 0.2.13 |
 | >=0.10.1, <0.11.0 | 0.2.14 |
+| 0.11.0 | 0.3.0 |
 
 
 You can install a specific version of pymilvus by:
@@ -442,7 +443,7 @@ You can obtain ids, distances and fields by entities in results.
 # Or you can get them one by one by entity
 >>> a_id = entity.id
 >>> a_distance = entity.distance
->>> a_field = entity.entity.B # (getattr(entity.entity, "B"))
+>>> a_field = entity.entity.B # getattr(entity.entity, "B")
 ```
 
 > Note: If you don't provide fields in search, you will only get ids and distances.
