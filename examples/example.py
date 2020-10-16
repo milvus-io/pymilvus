@@ -154,7 +154,7 @@ for film in films:
 #      `released in year` 2002 or 2003,
 #      `duration` of the films larger than 250 minutes.
 #
-#      "range" includes "GT"(>), "LT"(<), "LTE"(<=), "GTE"(>=), "NE"(!=), "EQ"(==).
+#      "range" includes "GT"(>), "LT"(<), "LTE"(<=), "GTE"(>=).
 #      There are more options other than "must", for instance "should", for more information, you can refer to
 #      pymilvus documentation (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
 # ------
