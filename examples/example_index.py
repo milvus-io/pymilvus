@@ -162,5 +162,5 @@ if collection_name in client.list_collections():
 
 # ------
 # Summary:
-#     Now we've went through all basic communications pymilvus can do with Milvus server, hope it's helpful!
+#     Now we've went through some basic build index operations, hope it's helpful!
 # ------
