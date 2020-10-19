@@ -1,14 +1,14 @@
 """
 This is an example of creating index
 
-We will be using films.csv file, You can obtain it from here
+We will be using `films.csv` file, You can obtain it from here
 (https://raw.githubusercontent.com/milvus-io/pymilvus/0.3.0/examples/films.csv)
-There are 4 coloumns in films.csv, they are `id`, `title`, `release_year` and `embedding`, all
-the data are from MovieLens `ml-latest-small` data except id and embedding, those two columns are fake values.
+There are 4 coloumns in films.csv, they are `id`, `title`, `release_year` and `embedding`,
+all the data are from MovieLens `ml-latest-small` data except id and embedding, those two are fake values.
 
 We will be using `films.csv` to demenstrate how can we build index and search by index on Milvus.
-We assuming you have read `example.py` and have a basic conception about how to communicate with Milvus using
-pymilvus
+We assuming you have went through `example.py` and have a basic conception about how to communicate with
+Milvus by pymilvus.
 
 This example is runable for Milvus(0.11.x) and pymilvus(0.3.x).
 """
@@ -44,10 +44,9 @@ client.create_collection(collection_name, collection_param)
 #     Now that we have a collection in Milvus with `segment_row_limit` 4096, we can create index or
 #     insert entities.
 #
-#     We can execute `create_index` BEFORE we insert any entites or AFTER. However Milvus won't actually
+#     We can call `create_index` BEFORE we insert any entites or AFTER. However Milvus won't actually
 #     start build index task if the segment row count is smaller than `segment_row_limit`. So if we want
-#     to make Milvus build index right away, we need to insert number of entities larger than
-#     `segment_row_limit`
+#     to make Milvus build index, we need to insert number of entities larger than `segment_row_limit`.
 #
 #     We are going to use data in `films.csv` so you can checkout the structure. And we need to group
 #     data with same fields together, so here is a example of how we obtain the data in files and transfer
@@ -90,15 +89,15 @@ print(" > There are {} films in collection `{}` after flush".format(after_flush_
 
 # ------
 # Basic create index:
-#     Now that we have insert all the films into Milvus, we are going to build index with these datas.
+#     Now that we have inserted all the films into Milvus, we are going to build index with these data.
 #
-#     While build index, we have to indicate which `field` to build index for, the `index_type`,
+#     While building index, we have to indicate which `field` to build index for, the `index_type`,
 #     `metric_type` and params for the specific index type. In our case, we want to build a `IVF_FLAT`
 #     index, so the specific params are "nlist". See pymilvus documentation
 #     (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html) for `index_type` we
-#     support and the params accordingly
+#     support and the params accordingly.
 #
-#     If there are already index for a collection and you run `create_index` with different params the
+#     If there are already index for a collection and you call `create_index` with different params, the
 #     older index will be replaced by new one.
 # ------
 client.create_index(collection_name, "embedding",
@@ -106,7 +105,7 @@ client.create_index(collection_name, "embedding",
 
 # ------
 # Basic create index:
-#     We can get the detail of the index  by `get_collection_info`
+#     We can get the detail of the index  by `get_collection_info`.
 # ------
 info = client.get_collection_info(collection_name)
 pprint(info)
@@ -153,7 +152,7 @@ for entities in results:
 
 # ------
 # Basic delete index:
-#     You can drop index we create
+#     You can drop index for a field.
 # ------
 client.drop_index(collection_name, "embedding")
 
