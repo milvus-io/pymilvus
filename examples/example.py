@@ -24,11 +24,11 @@ if collection_name in client.list_collections():
 
 # ------
 # Basic create collection:
-#     `auto_id` in the parameter is set to false so that we can provide our own unique ids.
+#     `auto_id` in the parameter is set to `False` so that we can provide our own unique ids.
 #     `embedding` in the `fields` is float vector with dimension of 8.
 #     For all fields, you can provide custom infos in "params" like {"unit": "minute"}
-#     For FLOAT_VECTOR and BINARY_VECTOR, "dim" is a must in "params". 
-#     For more information you can refer to the pymilvus 
+#     For FLOAT_VECTOR and BINARY_VECTOR, "dim" is a must in "params".
+#     For more information you can refer to the pymilvus
 #     documentation (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
 # ------
 collection_param = {
