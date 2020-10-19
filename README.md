@@ -260,7 +260,7 @@ Status(code=0, message='OK')
 ### Drop an index
 
 ```python
-# Drop an index of a spacific field "Vec"
+# Drop an index of a specific field "Vec"
 >>> status = client.drop_index('test01', "Vec")
 Status(code=0, message='OK')
 ```
