@@ -7,9 +7,11 @@ Leaf query clauses
 Leaf query clauses look for a particular value in a particular field. Currently milvus support `term`, `range`, `vector` queries.
   term: term query matches the entities which corresponding field value are in the specified list. The format is `term: [$value1, $value2, ...]`
   range: range query matches the entities which corresponding field value are in the specified range. The supported range types are:
-         "GT", "GTE", "LT", "LTE".
+         "GT"(greater than), "GTE"(greater than or equal), "LT"(less than), "LTE"(less than or equal).
   vector: vector query only take effect on vector fields, and approximately search nearest vectors. The format should be:
-            {"topk": $topk, "query": $vectors, "params": {...}, "metric_type": $metric}
+            {"topk": $topk, "query": $vectors, "params": {...}, "metric_type": $metric}.
+          here, "topk" is the number of approximately nearest top-k entities for each query vector. "query" is a list of query vectors.
+          "params" is search parameters, and "metric_type" indicates which distance computation type to be used to
 
 Compound query clauses
 Currently, milvus only support boolean query, i.e. `bool`. There are three occurrence types:
