@@ -12,6 +12,7 @@ Welcome to pymilvus's documentation!
    :caption: Contents:
 
    api
+   query
 
 
 
