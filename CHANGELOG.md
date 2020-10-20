@@ -1,4 +1,9 @@
-# pymilvus 0.3.0(TBD)
+# pymilvus 0.3.1(TBD)
+
+## Bug
+
+
+# pymilvus 0.3.0(2020-10-16)
 
 ## Bug
 
