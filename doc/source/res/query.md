@@ -40,7 +40,7 @@ Currently, milvus only support boolean query, i.e. `bool`. There are three types
 
 **Examples**
 
-Here is some examples:
+Here are some examples:
 
 * Example 1
 
@@ -113,7 +113,7 @@ The dsl clause abide by the follow rules:
   * vector query cannot belong must and must_not. The follow clauses are not permitted:
 
 ```json
-   # This is a invalid clause because `vector` is under `should`
+   # This is an invalid clause because `vector` is under `should`
    {
       "should": {
          "vector": {...}, 
@@ -123,6 +123,7 @@ The dsl clause abide by the follow rules:
 ```
 
 ```json
+   # This is an invalid clause because `vector` is under `must_not`
    {
       "must_not": {
          "vector": {...},
@@ -135,6 +136,7 @@ The dsl clause abide by the follow rules:
   * bool query cannot have a should or must_not clause directly. The follow clauses are not permitted:
 
 ```json
+   # This is an invalid clause because `` is under `must_not`
    {
       "bool": {
          "should": {...}
