@@ -24,17 +24,19 @@ if collection_name in client.list_collections():
 
 # ------
 # Basic create collection:
-#     `auto_id` in the parameter is set to `False` so that we can provide our own unique ids.
-#     `embedding` in the `fields` is float vector with dimension of 8.
-#     For all fields, you can provide custom infos in "params" like {"unit": "minute"}
-#     For FLOAT_VECTOR and BINARY_VECTOR, "dim" is a must in "params".
+#     For a specific field, you can provide extra infos by a dictionary with `key = "params"`. If the field
+#     has a type of `FLOAT_VECTOR` and `BINARY_VECTOR`, "dim" must be provided in extra infos. Otherwise
+#     you can provide customed infos like `{"unit": "minutes"}` for you own need.
+#
+#     In our case, the extra infos in "duration" field means the unit of "duration" field is "minutes".
+#     And `auto_id` in the parameter is set to `False` so that we can provide our own unique ids.
 #     For more information you can refer to the pymilvus
 #     documentation (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
 # ------
 collection_param = {
     "fields": [
         #  Milvus doesn't support string type now, but we are considering supporting it soon.
-        #  {"name": "film_name", "type": DataType.STRING},
+        #  {"name": "title", "type": DataType.STRING},
         {"name": "duration", "type": DataType.INT32, "params": {"unit": "minute"}},
         {"name": "release_year", "type": DataType.INT32},
         {"name": "embedding", "type": DataType.FLOAT_VECTOR, "params": {"dim": 8}},
@@ -56,9 +58,11 @@ client.create_partition(collection_name, "American")
 #     You can check the collection info and partitions we've created by `get_collection_info` and
 #     `list_partitions`
 # ------
+print("--------get collection info--------")
 collection = client.get_collection_info(collection_name)
 pprint(collection)
 partitions = client.list_partitions(collection_name)
+print("\n----------list partitions----------")
 pprint(partitions)
 
 # ------
@@ -113,6 +117,7 @@ hybrid_entities = [
 #     If succeed, ids we provide will be returned.
 # ------
 ids = client.insert(collection_name, hybrid_entities, ids, partition_tag="American")
+print("\n----------insert----------")
 print("Films are inserted and the ids are: {}".format(ids))
 
 
@@ -124,6 +129,7 @@ print("Films are inserted and the ids are: {}".format(ids))
 before_flush_counts = client.count_entities(collection_name)
 client.flush([collection_name])
 after_flush_counts = client.count_entities(collection_name)
+print("\n----------flush----------")
 print("There are {} films in collection `{}` before flush".format(before_flush_counts, collection_name))
 print("There are {} films in collection `{}` after flush".format(after_flush_counts, collection_name))
 
@@ -132,6 +138,7 @@ print("There are {} films in collection `{}` after flush".format(after_flush_cou
 #     We can get the detail of collection statistics info by `get_collection_stats`
 # ------
 info = client.get_collection_stats(collection_name)
+print("\n----------get collection stats----------")
 pprint(info)
 
 # ------
@@ -141,6 +148,7 @@ pprint(info)
 #     In the case we provide below, we will only get 1 film with id=1 and the other is `None`
 # ------
 films = client.get_entity_by_id(collection_name, ids=[1, 200])
+print("\n----------get entity by id = 1, id = 200----------")
 for film in films:
     if film is not None:
         print(" > id: {},\n > duration: {}m,\n > release_years: {},\n > embedding: {}"
@@ -150,13 +158,16 @@ for film in films:
 # Basic hybrid search entities:
 #      Getting films by id is not enough, we are going to get films based on vector similarities.
 #      Let's say we have a film with its `embedding` and we want to find `top3` films that are most similar
-#      with it by L2 distance. And there are some conditions for the results. We want to obtain films that are:
-#      `released in year` 2002 or 2003,
-#      `duration` of the films larger than 250 minutes.
+#      with it by L2 distance.
+#      Other than vector similarities, we also want to obtain films that:
+#        `released year` term in 2002 or 2003,
+#        `duration` larger than 250 minutes.
 #
-#      "range" includes "GT"(>), "LT"(<), "LTE"(<=), "GTE"(>=).
-#      There are more options other than "must", for instance "should", for more information, you can refer to
-#      pymilvus documentation (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
+#      Milvus provides Query DSL(Domain Specific Language) to support structured data filtering in queries.
+#      For now milvus suppots TermQuery and RangeQuery, they are structured as below.
+#      For more information about the meaning and other options about "must" and "bool",
+#      please refer to DSL chapter of our pymilvus documentation
+#      (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
 # ------
 query_embedding = [random.random() for _ in range(8)]
 query_hybrid = {
@@ -193,10 +204,10 @@ query_hybrid = {
 #     And the result should be film with id = 3.
 # ------
 results = client.search(collection_name, query_hybrid, fields=["duration", "release_year", "embedding"])
+print("\n----------search----------")
 for entities in results:
     for topk_film in entities:
         current_entity = topk_film.entity
-        print("==")
         print("- id: {}".format(topk_film.id))
         print("- distance: {}".format(topk_film.distance))
 
@@ -215,6 +226,7 @@ result = client.get_entity_by_id(collection_name, ids=[1, 2])
 
 counts_delete = sum([1 for entity in result if entity is not None])
 counts_in_collection = client.count_entities(collection_name)
+print("\n----------delete id = 1, id = 2----------")
 print("Get {} entities by id 1, 2".format(counts_delete))
 print("There are {} entities after delete films with 1, 2".format(counts_in_collection))
 
