@@ -11,9 +11,16 @@ Welcome to pymilvus's documentation!
    :maxdepth: 8
    :caption: Contents:
 
+   install
+   tutorial
    api
+   param
+   results
    query
-
+   changes
+   faq
+   contribute
+   about
 
 
 Indices and tables
