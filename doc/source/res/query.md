@@ -6,10 +6,10 @@ Inspired by ElasticSearch, Milvus provides a Query DSL(Domain Specific Language)
 
 Leaf query clauses look for a particular value in a particular field. Currently milvus support `term`, `range`, `vector` queries.
 
-  * term: term query matches the entities which corresponding field value are in the specified list. The format is `term: [$value1, $value2, ...]`
+  * term: term query matches the entities whose specified field value are in the specified list. The format is `"term": {"$field": [$value1, $value2, ...]}`
 
 
-  * range: range query matches the entities which corresponding field value are in the specified range. The supported range types are:
+  * range: range query matches the entities whose specified field value are under the specified range. The format is `"range": {"$field": {"$range-type": $value1 ... }}`. The supported range types are:
 
     - "GT"(greater than)
     - "GTE"(greater than or equal)
@@ -17,15 +17,16 @@ Leaf query clauses look for a particular value in a particular field. Currently 
     - "LTE"(less than or equal).
 
 
-  * vector: vector query only take effect on vector fields, and approximately search nearest vectors. The format should be `{"topk": $topk, "query": $vectors, "params": {...}, "metric_type": $metric}`.
+  * vector: vector query only takes effect on vector fields, and approximately search nearest vectors. The format should be `{"topk": $topk, "query": $vectors, "params": {...}, "metric_type": $metric}`.
 
-    here, "topk" is the number of approximately nearest top-k entities for each query vector. "query" is a list of query vectors. "params" is search parameters, and "metric_type" indicates which distance computation type to be used.
+    Here, "topk" is the number of approximately nearest top-k entities for each query vector. "query" is a list of query vectors. "params" is search parameters, and "metric_type" indicates which distance computation type to be used.
+    "metric_type" is not necessary if it is specified when creating index.
 
 Note that, the `term` and `range` query act as filter queries for `vector` query, they are pre-filtered.
 
 **Compound query clauses**
 
-Currently, milvus only support boolean query, i.e. `bool`. There are three occurrence types:
+Currently, milvus only support boolean query, i.e. `bool`. There are three types:
 
 +--------------------------+---------------------------------------------------------------------+
 | Occurrence types         | Description                                                         |
@@ -39,7 +40,7 @@ Currently, milvus only support boolean query, i.e. `bool`. There are three occur
 
 
 
-The three occurrence types allow the follow rules:
+The three types abide by the follow rules:
 
   * vector query cannot belong must and must_not. The follow clauses are not permitted:
 
@@ -96,13 +97,13 @@ The three occurrence types allow the follow rules:
 
 ```json
    {
-   "bool": {
-      "must": {
-         "term": {...}, 
-         "range": {...}
+      "bool": {
+         "must": {
+            "term": {...}, 
+            "range": {...}
+         }
       }
    }
-}
 ```
 
 
