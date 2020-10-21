@@ -228,7 +228,7 @@ Status(code=0, message='OK')
 > Note: In production, it is recommended to create indexes before inserting vectors into the collection.
 Index is automatically built when vectors are being imported. However, you need to create the same index
 again after the vector insertion process is completed because some data files may not meet the
-`index_row_limit` and index will not be automatically built for these data files.
+`segment_row_limit` and index will not be automatically built for these data files.
 
 1. Create an index of `IVF_FLAT` with `nlist = 100` for the collection.
 
