@@ -210,27 +210,15 @@ dsl2 = {
     "bool": {
         "must": [
             {
-                "must": [
-                    {
-                        "should": [
-                            {
-                                "term": {"release_year": [2003, 2005]}
-                            },
-                            {
-                                "range": {"duration": {"GT": 100}}
-                            }
-                        ]
-                    }
-                ]
+                "term": {"release_year": [2003, 2005]}
             },
             {
-                "must": [
-                    {
-                        "vector": {
-                            "embedding": {"topk": 1, "query": [query_embedding2], "metric_type": "L2"}
-                        }
-                    }
-                ]
+                "range": {"duration": {"GT": 100}}
+            },
+            {
+                "vector": {
+                    "embedding": {"topk": 1, "query": [query_embedding2], "metric_type": "L2"}
+                }
             }
         ]
     }
@@ -250,10 +238,10 @@ dsl2 = {
 #     All fields are stored in `entity`, so you can finally obtain these data as below:
 #     And the result should be film with id = 3.
 # ------
-search_future1 = client.search(collection_name, dsl1, _async=True)
+# search_future1 = client.search(collection_name, dsl1, _async=True)
 search_future2 = client.search(collection_name, dsl2, _async=True)
 
-results1 = search_future1.result()
+# results1 = search_future1.result()
 results2 = search_future2.result()
 
 print("\n----------search----------")
