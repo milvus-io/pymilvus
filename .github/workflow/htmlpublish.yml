@@ -1,0 +1,25 @@
+name: Html-Publish
+
+# Run this workflow every time a new commit pushed to master repository
+on: push
+
+jobs:
+  # Set the job key. The key is displayed as the job name
+  # when a job name is not provided
+  html-publish:
+    # Name the Job
+    name: Publish html base
+    # Set the type of machine to run on
+    runs-on: ubuntu-18.04
+
+    steps:
+      # Checks out a copy of your repository on the ubuntu-18.04 machine
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Runs the Html-Publish action
+      - name: Run Html-Publish
+        uses: github/html-publish@v3
+        env:
+          DEFAULT_BRANCH: master
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
