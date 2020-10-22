@@ -1,7 +1,11 @@
 name: Html-Publish
 
 # Run this workflow every time a new commit pushed to master repository
-on: push
+on:
+  push:
+    paths:
+      - 'milvus/client/stub.py'
+      - 'doc/**'
 
 jobs:
   # Set the job key. The key is displayed as the job name
