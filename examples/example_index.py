@@ -6,7 +6,7 @@ We will be using `films.csv` file, You can obtain it from here
 There are 4 coloumns in films.csv, they are `id`, `title`, `release_year` and `embedding`,
 all the data are from MovieLens `ml-latest-small` data except id and embedding, those two are fake values.
 
-We will be using `films.csv` to demenstrate how can we build index and search by index on Milvus.
+We will be using `films.csv` to demonstrate how can we build index and search by index on Milvus.
 We assuming you have went through `example.py` and have a basic conception about how to communicate with
 Milvus by pymilvus.
 

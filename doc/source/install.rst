@@ -40,7 +40,7 @@ If you want to exit the virtualenv ``venv``, you can use ``deactivate``.
 Installing a spacific PyMilvus version
 ======================================
 
-Here we assuming you are already in a virtual environment.
+Here we assume you are already in a virtual environment.
 
 Suitable PyMilvus version is depended on Milvus version your are using. See `install pymilvus <https://github.com/milvus-io/pymilvus#install-pymilvus>`_ for recommended pymilvus version.
 
