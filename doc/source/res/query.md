@@ -71,41 +71,6 @@ In this example, client wants to match the results which must be satisfied with:
 For each query vector, the results are sorted by distance in descending order.
 
 
-* Example 2
-
-```json
-   {
-       "bool": {
-          "must": [
-             {
-                "should": [
-                   {
-                      "term": {"A": [1, 2, 5]}
-                   },
-                   {
-                      "range": {"B": {"GT": 1, "LT": 100}}
-                   }
-                ]
-             },
-             {
-                "must": [
-                   {
-                      "vector": {
-                         "Vec": {"topk": 10, "query": [0.1, 0.2], "metric_type": "L2", "params": {"nprobe": 10}}
-                      }
-                   }
-                ]
-             }
-          ]
-       }
-   }
-```
-
-In this example, client wants to match the results which should be satisfied with one of the follow condition:
-   * field "A" value is in the set {1, 2, 5};
-   * field "B" value is in the range (1, 100);
-   
-
 **Constraints**   
    
 The dsl clause abide by the follow rules:
