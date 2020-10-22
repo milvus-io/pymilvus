@@ -136,7 +136,7 @@ The dsl clause abide by the follow rules:
   * bool query cannot have a should or must_not clause directly. The follow clauses are not permitted:
 
 ```json
-   # This is an invalid clause because `` is under `must_not`
+   # This is an invalid clause because `should` is under `bool`
    {
       "bool": {
          "should": {...}
@@ -145,6 +145,7 @@ The dsl clause abide by the follow rules:
 ```
 
 ```json
+   # This is an invalid clause because `must_not` is under `bool`
    {
       "bool": {
          "must_not": {...}
@@ -155,6 +156,7 @@ The dsl clause abide by the follow rules:
   * a leaf query cannot combine with compound query in the same clause. The follow clause is not permitted:
 
 ```json
+   # This is an invalid clause because `must` is side by side with `term`
    {
       "bool": {
          "must": {...}, 
@@ -165,8 +167,8 @@ The dsl clause abide by the follow rules:
 
   * The whole clause must and can only contain a vector query. The follow clauses are not permitted:
 
-
 ```json
+   # This is an invalid clause because `vector` not exists.
    {
       "bool": {
          "must": {

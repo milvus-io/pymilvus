@@ -3,6 +3,7 @@
 ## Bug
 - \#284 - Remove parameter error for 'index_row_limit'
 
+
 # pymilvus 0.3.0(2020-10-16)
 
 ## Bug
