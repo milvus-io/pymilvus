@@ -1,5 +1,5 @@
 ============
-CONTRIBUTING
+Contributing
 ============
 
 Contributing is warmly welcomed. You can contribute to PyMilvus project by opening issues and submitting pull
