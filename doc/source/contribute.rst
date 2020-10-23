@@ -59,6 +59,6 @@ If you already have an existing local repository, always update it before you st
 Contributing Guideline
 ======================
 
-1. add unittests for your codes
-2. pass pylint check
+1. Add unittests for your codes
+2. Pass pylint check
 3. For docs, run ``make html`` to see if runable.
