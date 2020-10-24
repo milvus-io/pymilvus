@@ -1,11 +1,15 @@
 # Pycharm IDE
 /.idea
+
+# Cache files
 *.pyc
+**/__pycache__/
+
+# Setup files
 dist
 doc/build/
 *.egg
 *.egg-info
-**/__pycache__/
 /build/
 .remember
 .env
@@ -19,4 +23,3 @@ examples/example_test.py
 .codecov.yml
 assets/
 TODO
-/.github
