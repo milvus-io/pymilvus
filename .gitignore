@@ -22,10 +22,12 @@ htmlcov/
 *.swp
 temp/
 
+# Env files
+.env
+
 # Local files
 /build/
 .remember
-.env
 debug/
 assets/
 TODO
