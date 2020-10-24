@@ -1,0 +1,70 @@
+name: Html-Publish
+
+# Run this workflow every time a new commit pushed to master repository
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'milvus/client/stub.py'
+      - 'doc/**'
+
+jobs:
+  html-publish:
+    name: Publish html base
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        python-version: [3.5, 3.6, 3.7, 3.8]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: pymilvus
+      - name: Set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Make html
+        working-directory: pymilvus/doc
+        run: |
+          make html
+          echo 'Make html successfully'
+
+
+#jobs:
+#  # Set the job key. The key is displayed as the job name
+#  # when a job name is not provided
+#  html-publish:
+#    # Name the Job
+#    name: Publish html base
+#    # Set the type of machine to run on
+#    runs-on: ubuntu-18.04
+#    strategy:
+#      matrix:
+#        python-version: [3.5, 3.6, 3.7, 3.8]
+#
+#    steps:
+#      # Checks out a copy of your repository on the ubuntu-18.04 machine
+#      - name: Checkout code
+#        uses: actions/checkout@v2
+#
+#      # Runs the Html-Publish action
+#      - name: Setup Html-Publish
+#        uses: github/html-publish@v3
+#        with:
+#          python-version: ${{ matrix.python-version }}
+#        run: |
+#          apt update
+#          apt install git
+#          python -m pip install --upgrade pip
+#          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+#      - name: Run Html-Publish
+#        run: |
+#          cd doc
+#          make html
+#
+#
+#        env:
+#          DEFAULT_BRANCH: master
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
