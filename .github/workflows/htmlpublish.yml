@@ -2,7 +2,7 @@ name: Html-Publish
 
 # Run this workflow every time a new commit pushed to master repository
 on:
-  pull_request:
+  push:
     branches:
       - master
     paths:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8]
+        python-version: [3.6]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install requirements 
+      - name: Install requirements
         run: |
           pip install -r pymilvus/requirements.txt
       - name: Make html
