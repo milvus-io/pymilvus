@@ -2,7 +2,7 @@ name: Html-Publish
 
 # Run this workflow every time a new commit pushed to master repository
 on:
-  push:
+  pull_request:
     branches:
       - master
     paths:
