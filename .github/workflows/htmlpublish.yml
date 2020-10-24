@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install requirements 
+      - name: Install requirements
         run: |
           pip install -r pymilvus/requirements.txt
       - name: Make html
