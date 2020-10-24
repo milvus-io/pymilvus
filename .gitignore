@@ -5,21 +5,27 @@
 *.pyc
 **/__pycache__/
 
-# Setup files
+# Python setup files
 dist
-doc/build/
 *.egg
 *.egg-info
+
+# Setup files
+doc/build/
+
+# Codecov files
+.coverage
+.codecov.yml
+htmlcov/
+
+# Temp files
+*.swp
+temp/
+
+# Local files
 /build/
 .remember
 .env
-temp/
-*.swp
-.coverage
-htmlcov/
 debug/
-milvus/client/wrapper.py
-examples/example_test.py
-.codecov.yml
 assets/
 TODO
