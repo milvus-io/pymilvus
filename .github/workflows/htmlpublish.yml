@@ -57,14 +57,14 @@ jobs:
       - name: Commit html files
         working-directory: milvus-io.github.io
         run: |
-          git config --local user.email "python.doc.html.action@github.com"
-          git config --local user.name "GitHub Action"
-          git commit -sm "Add changes" -a
+          git config --local user.email "milvus-ci-robot@zilliz.com"
+          git config --local user.name "sre-ci-robot"
+          git commit -sm "Update python doc html for version ${pymilvus_version}" -a
       - name: Push milvus-io.github.io
         uses: ad-m/github-push-action@v0.6.0
         with:
           directory: milvus-io.github.io
           repository: milvus-io/milvus-io.github.io
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GH_PUSH_SECRETS }}
           branch: master
 
