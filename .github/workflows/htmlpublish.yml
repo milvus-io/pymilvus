@@ -6,6 +6,7 @@ on:
     branches:
       - master
     paths:
+      - '.github/workflows/**'
       - 'milvus/client/stub.py'
       - 'doc/**'
 
@@ -63,8 +64,8 @@ jobs:
       - name: Push milvus-io.github.io
         uses: ad-m/github-push-action@v0.6.0
         with:
+          github_token: ${{ secrets.GH_PUSH_SECRETS }}
           directory: milvus-io.github.io
           repository: milvus-io/milvus-io.github.io
-          github_token: ${{ secrets.GH_PUSH_SECRETS }}
           branch: master
 
