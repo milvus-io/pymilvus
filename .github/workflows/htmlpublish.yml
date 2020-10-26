@@ -64,7 +64,7 @@ jobs:
       - name: Push milvus-io.github.io
         uses: ad-m/github-push-action@v0.6.0
         with:
-          github_token: ${{ secrets.GH_PUSH_SECRETS }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           directory: milvus-io.github.io
           repository: milvus-io/milvus-io.github.io
           branch: master
