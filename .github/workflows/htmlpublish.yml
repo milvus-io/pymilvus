@@ -67,9 +67,9 @@ jobs:
           API_TOKEN_GITHUB: ${{ secrets.GH_PUSH_SECRETS }}
         with:
           source-directory: 'milvus-io.github.io'
-            destination-github-username: 'sre-ci-robot'
-            destination-repository-username: 'milvus-io'
-            destination-repository-name: 'milvus-io.github.io'
-            user-email: milvus-ci-robot@zilliz.com
-            target-branch: master
+          destination-github-username: 'sre-ci-robot'
+          destination-repository-username: 'milvus-io'
+          destination-repository-name: 'milvus-io.github.io'
+          user-email: milvus-ci-robot@zilliz.com
+          target-branch: master
 
