@@ -21,7 +21,7 @@ The results object can be iterated, so you can traverse the results in two-level
 
 >>> for raw_result in results:
 ...     for result in raw_result:
-...         id = result.id  #
+...         id = result.id  # result id
 ...         distance = result.distance
 
 You can obtain field values in the results object, but first you need to specify fields you wanted before search:
