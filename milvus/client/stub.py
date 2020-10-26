@@ -178,6 +178,7 @@ class Milvus:
         :param fields: Field parameters.
         :type  fields: str
         :param timeout:
+        :type  timeout: float
 
         :raises:
             RpcError: If grpc encounter an error
