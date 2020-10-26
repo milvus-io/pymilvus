@@ -2,7 +2,7 @@ name: Html-Publish
 
 # Run this workflow every time a new commit pushed to master repository
 on:
-  push:
+  pull_request:
     branches:
       - master
     paths:
@@ -28,6 +28,14 @@ jobs:
       - name: Install requirements
         run: |
           pip install -r pymilvus/requirements.txt
+      - name: Extract sdk version
+        shell: python
+        run: |
+          import sys
+          sys.path.append("./pymilvus")
+          import milvus
+          version = milvus.__version__
+          print(f"pymilvus version is {version}")
       - name: Make html
         working-directory: pymilvus/doc
         run: |
