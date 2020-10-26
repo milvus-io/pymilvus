@@ -17,7 +17,7 @@ you can invoke like this:
 >>> id = results[i][j].id
 >>> distance = results[i][j].distance
 
-The results object can be iterated, so you can traverse the results in two-level loop:
+The results object can be iterated, so you can traverse the results with two-level loop:
 
 >>> for raw_result in results:
 ...     for result in raw_result:
