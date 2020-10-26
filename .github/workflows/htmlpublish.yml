@@ -31,13 +31,16 @@ jobs:
       - name: Extract sdk version
         shell: python
         run: |
+          import os
           import sys
           sys.path.append("./pymilvus")
           import milvus
           version = milvus.__version__
           print(f"pymilvus version is {version}")
+          os.system(f'echo "pymilvus_version={version}" >> $GITHUB_ENV')
       - name: Make html
         working-directory: pymilvus/doc
         run: |
           make html
           echo 'Make html successfully'
+          echo "pymilvus version is ${pymilvus_version}"
