@@ -44,8 +44,6 @@ jobs:
           make html
           echo 'Make html successfully'
           echo "pymilvus version is ${pymilvus_version}"
-#      - name: Update milvus-io.github.io
-#        uses:
       - name: Pull milvus-io.github.io code
         uses: actions/checkout@v2
         with:
@@ -63,9 +61,9 @@ jobs:
           git config --local user.name "GitHub Action"
           git commit -sm "Add changes" -a
       - name: Push milvus-io.github.io
-        working-directory: milvus-io.github.io
         uses: ad-m/github-push-action@v0.6.0
         with:
+          directory: milvus-io.github.io
           github_token: ${{ secrets.GITHUB_TOKEN }}
-            branch: master
+          branch: master
 
