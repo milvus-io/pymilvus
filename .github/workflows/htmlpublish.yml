@@ -62,7 +62,7 @@ jobs:
           git config --local user.name "sre-ci-robot"
           git commit -sm "Update python doc html for version ${pymilvus_version}" -a
       - name: Push milvus-io.github.io
-        uses: cpina/github-action-push-to-another-repository@v1.1
+        uses: cpina/github-action-push-to-another-repository@master
         env:
           API_TOKEN_GITHUB: ${{ secrets.GH_PUSH_SECRETS }}
         with:
