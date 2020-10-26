@@ -44,3 +44,21 @@ jobs:
           make html
           echo 'Make html successfully'
           echo "pymilvus version is ${pymilvus_version}"
+#      - name: Update milvus-io.github.io
+#        uses:
+      - name: Pull milvus-io.github.io code
+        uses: actions/checkout@v2
+        with:
+          repository: milvus-io/milvus-io.github.io
+          path: milvus-io.github.io
+      - name: Update milvus-io.github.io html files
+        run: |
+          rm -rf milvus-io.github.io/milvus-sdk-python/pythondoc/v${pymilvus_version}
+          mkdir milvus-io.github.io/milvus-sdk-python/pythondoc/v${pymilvus_version}
+          mv pymilvus/doc/build/html/* milvus-io.github.io/milvus-sdk-python/pythondoc/v${pymilvus_version}
+      - name: Commit html files
+        working-directory: milvus-io.github.io
+        run: |
+          git config --local user.email "python.doc.html.action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -sm "Add changes" -a
