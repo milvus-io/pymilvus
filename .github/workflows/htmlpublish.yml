@@ -62,3 +62,10 @@ jobs:
           git config --local user.email "python.doc.html.action@github.com"
           git config --local user.name "GitHub Action"
           git commit -sm "Add changes" -a
+      - name: Push milvus-io.github.io
+        working-directory: milvus-io.github.io
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+            branch: master
+
