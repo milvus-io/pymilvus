@@ -103,7 +103,7 @@ If you want to go further into Milvus with indexes, it's recommended to check ou
 [example_index.py](https://github.com/milvus-io/pymilvus/blob/master/examples/example_index.py).
 
 If you're already known about indexes from `example_index.py`, and you want a full lists of params supported
-by PyMilvus, you check out [Index params](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/param.html)
+by PyMilvus, you check out [Index params](https://pymilvus.readthedocs.io/en/latest/param.html)
 chapter of the PyMilvus documentation.
 
 Further more, if you want to get a thorough view of indexes, check our official website for
@@ -277,7 +277,7 @@ that are most similar with it.
 
 We need to prepare query DSL(Domain Specific Language) for this search, for more information about dos and don't
 for Query DSL , please refer to PyMilvus documentation
-[Query DSL](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/query.html) chapter.
+[Query DSL](https://pymilvus.readthedocs.io/en/latest/query.html) chapter.
 
 ```python
 >>> query = {
@@ -303,7 +303,7 @@ have provided in the `"fields"` can be obtained finally.
 
 The returned `results` is a 1 * 2 structure, 1 for 1 entity querying, 2 for top 2. For more clarity, we obtain
 the film as below. If you want to know how to deal with search result in a better way, you can refer to
-[search result](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/results.html) in PyMilvus doc.
+[search result](https://pymilvus.readthedocs.io/en/latest/results.html) in PyMilvus doc.
 
 ```python
 >>> entities = results[0]
@@ -311,7 +311,7 @@ the film as below. If you want to know how to deal with search result in a bette
 >>> film_2 = entities[1]
 ```
 
-Then how do we get ids, distances and fields? It's simple as below.
+Then how do we get ids, distances and fields? It's as below.
 
 > Because embeddings are randomly generated, so the retrieved film id, distance and field may differ.
 
@@ -332,7 +332,7 @@ Then how do we get ids, distances and fields? It's simple as below.
 
 Milvus can also search entities back by vector similarity combined with fields filtering. Again we will be
 using query DSL, please refer to PyMilvus documentation
-[Query DSL](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/query.html) for more information.
+[Query DSL](https://pymilvus.readthedocs.io/en/latest/query.html) for more information.
 
 For the same `film_A`, now we also want to search back top2 most similar films, but with one more condition: 
 the release year of films searched back should be the same as `film_A`. Here is how we organize query DSL.
@@ -388,7 +388,7 @@ that are most similar with `film_A`, and we want the `release_year` of entities 
 This query will only get 1 film back too, because there is only 1 film whose release year is larger than 2002.
 
 Again, for more information about query DSL, please refer to our documentation 
-[Query DSL](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/query.html).
+[Query DSL](https://pymilvus.readthedocs.io/en/latest/query.html).
 
 ## Deletion
 Finally, let's move on to deletion in Milvus. We can delete entities by ID, we can drop a whole partition
