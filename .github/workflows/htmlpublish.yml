@@ -72,8 +72,8 @@ jobs:
 #        env:
 #          INPUT_GITHUB_TOKEN: ${{ secrets.GH_PUSH_SECRETS }}
         with:
-#          github_token: ${{ secrets.GH_PUSH_SECRETS }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GH_PUSH_SECRETS }}
+#          github_token: ${{ secrets.GITHUB_TOKEN }}
           directory: milvus-io.github.io
           repository: milvus-io/milvus-io.github.io
           branch: master
