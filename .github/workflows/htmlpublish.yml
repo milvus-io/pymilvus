@@ -68,7 +68,7 @@ jobs:
         run: |
           git commit -sm "Update python doc html for version ${pymilvus_version}" -a
       - name: Push milvus-io.github.io
-        uses: ad-m/github-push-action@v0.6.0
+        uses: BossZou/github-push-action@master
 #        env:
 #          INPUT_GITHUB_TOKEN: ${{ secrets.GH_PUSH_SECRETS }}
         with:
