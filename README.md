@@ -6,6 +6,7 @@
 [![Downloads](https://pepy.tech/badge/pymilvus/month)](https://pepy.tech/project/pymilvus/month)
 [![Downloads](https://pepy.tech/badge/pymilvus/week)](https://pepy.tech/project/pymilvus/week)
 [![license](https://img.shields.io/hexpm/l/plug.svg?color=green)](https://github.com/milvus-io/pymilvus/blob/master/LICENSE)
+[![Documentation Status](https://readthedocs.org/projects/pymilvus/badge/?version=latest)](https://pymilvus.readthedocs.io/en/latest/?badge=latest)
 
 Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code to this project, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md) first.
 
