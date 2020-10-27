@@ -73,7 +73,7 @@ jobs:
           github_token: ${{ secrets.GH_PUSH_SECRETS }}
           directory: milvus-io.github.io
           repository: milvus-io/milvus-io.github.io
-          branch: master
+          branch: 0.3.0
 
 #      - name: Push milvus-io.github.io
 #        uses: cpina/github-action-push-to-another-repository@v1.1
