@@ -3,6 +3,9 @@
 ## Bug
 - \#284 - Remove parameter error for 'index_row_limit'
 
+## New Feature
+- \312 - Add doc badge
+
 
 # pymilvus 0.3.0(2020-10-16)
 
