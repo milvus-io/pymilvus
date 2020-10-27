@@ -278,7 +278,7 @@ Status(code=0, message='OK')
 
 # Generate a list of integer.
 >>> list_of_int = [random.randint(0, 255) for _ in range(num)]
-# Generate 20 vectors of 128 dimension
+# Generate 5000 vectors of 128 dimension
 >>> vectors = [[random.random() for _ in range(128)] for _ in range(num)]
 ```
 
