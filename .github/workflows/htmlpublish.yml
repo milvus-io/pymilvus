@@ -67,13 +67,14 @@ jobs:
           git commit -sm "Update python doc html for version ${pymilvus_version}" -a
       - name: Push milvus-io.github.io
         uses: ad-m/github-push-action@v0.6.0
-        env:
-          INPUT_GITHUB_TOKEN: ${{ secrets.GH_PUSH_SECRETS }}
+#        env:
+#          INPUT_GITHUB_TOKEN: ${{ secrets.GH_PUSH_SECRETS }}
         with:
-          github_token: ${{ secrets.GH_PUSH_SECRETS }}
+#          github_token: ${{ secrets.GH_PUSH_SECRETS }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           directory: milvus-io.github.io
           repository: milvus-io/milvus-io.github.io
-          branch: 0.3.0
+          branch: master
 
 #      - name: Push milvus-io.github.io
 #        uses: cpina/github-action-push-to-another-repository@v1.1
