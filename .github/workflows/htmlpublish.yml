@@ -20,8 +20,8 @@ jobs:
     steps:
       - name: Git environments
         run: |
-          git config --local user.email "milvus-ci-robot@zilliz.com"
-          git config --local user.name "sre-ci-robot"
+          git config --global user.email "milvus-ci-robot@zilliz.com"
+          git config --global user.name "sre-ci-robot"
       - name: Checkout code
         uses: actions/checkout@v2
         with:
