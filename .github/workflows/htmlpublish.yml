@@ -21,6 +21,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
+          persist-credentials: false
+          fetch-depth: 0
           path: pymilvus
       - name: Set up python
         uses: actions/setup-python@v2
@@ -48,6 +50,8 @@ jobs:
       - name: Pull milvus-io.github.io code
         uses: actions/checkout@v2
         with:
+          persist-credentials: false
+          fetch-depth: 0
           repository: milvus-io/milvus-io.github.io
           path: milvus-io.github.io
       - name: Update milvus-io.github.io html files
