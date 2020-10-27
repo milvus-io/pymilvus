@@ -62,14 +62,24 @@ jobs:
           git config --local user.name "sre-ci-robot"
           git commit -sm "Update python doc html for version ${pymilvus_version}" -a
       - name: Push milvus-io.github.io
-        uses: cpina/github-action-push-to-another-repository@v1.1
+        uses: ad-m/github-push-action@v0.6.0
         env:
-          API_TOKEN_GITHUB: ${{ secrets.GH_PUSH_SECRETS }}
+          INPUT_GITHUB_TOKEN: ${{ secrets.GH_PUSH_SECRETS }}
         with:
-          source-directory: 'milvus-io.github.io'
-          destination-github-username: 'milvus-io'
-#          destination-repository-username: 'milvus-io'
-          destination-repository-name: 'milvus-io.github.io'
-          user-email: milvus-ci-robot@zilliz.com
-          target-branch: master
+          github_token: ${{ secrets.GH_PUSH_SECRETS }}
+          directory: milvus-io.github.io
+          repository: milvus-io/milvus-io.github.io
+          branch: master
+
+#      - name: Push milvus-io.github.io
+#        uses: cpina/github-action-push-to-another-repository@v1.1
+#        env:
+#          API_TOKEN_GITHUB: ${{ secrets.GH_PUSH_SECRETS }}
+#        with:
+#          source-directory: 'milvus-io.github.io'
+#          destination-github-username: 'milvus-io'
+##          destination-repository-username: 'milvus-io'
+#          destination-repository-name: 'milvus-io.github.io'
+#          user-email: milvus-ci-robot@zilliz.com
+#          target-branch: master
 
