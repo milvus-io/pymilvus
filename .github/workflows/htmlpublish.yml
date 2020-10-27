@@ -18,10 +18,14 @@ jobs:
       matrix:
         python-version: [3.6]
     steps:
+      - name: Git environments
+        run: |
+          git config --local user.email "milvus-ci-robot@zilliz.com"
+          git config --local user.name "sre-ci-robot"
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          persist-credentials: false
+          token: ${{ secrets.GH_PUSH_SECRETS }}
           fetch-depth: 0
           path: pymilvus
       - name: Set up python
@@ -50,7 +54,7 @@ jobs:
       - name: Pull milvus-io.github.io code
         uses: actions/checkout@v2
         with:
-          persist-credentials: false
+          token: ${{ secrets.GH_PUSH_SECRETS }}
           fetch-depth: 0
           repository: milvus-io/milvus-io.github.io
           path: milvus-io.github.io
@@ -62,8 +66,6 @@ jobs:
       - name: Commit html files
         working-directory: milvus-io.github.io
         run: |
-          git config --local user.email "milvus-ci-robot@zilliz.com"
-          git config --local user.name "sre-ci-robot"
           git commit -sm "Update python doc html for version ${pymilvus_version}" -a
       - name: Push milvus-io.github.io
         uses: ad-m/github-push-action@v0.6.0
