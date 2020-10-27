@@ -76,7 +76,7 @@ For each query vector, the results are sorted by distance in descending order.
    
 The dsl clause abide by the follow rules:
 
-  * vector query cannot belong must and must_not. The follow clauses are not permitted:
+  * vector query cannot belong should and must_not. The follow clauses are not permitted:
 
 ```json
    # This is an invalid clause because `vector` is under `should`
