@@ -3,14 +3,14 @@ This is an example of creating index
 
 We will be using `films.csv` file, You can obtain it from here
 (https://raw.githubusercontent.com/milvus-io/pymilvus/0.3.0/examples/films.csv)
-There are 4 coloumns in films.csv, they are `id`, `title`, `release_year` and `embedding`,
+There are 4 columns in films.csv, they are `id`, `title`, `release_year` and `embedding`,
 all the data are from MovieLens `ml-latest-small` data except id and embedding, those two are fake values.
 
 We will be using `films.csv` to demonstrate how can we build index and search by index on Milvus.
 We assuming you have went through `example.py` and have a basic conception about how to communicate with
 Milvus by pymilvus.
 
-This example is runable for Milvus(0.11.x) and pymilvus(0.3.x).
+This example is runnable for Milvus(0.11.x) and pymilvus(0.3.x).
 """
 import random
 import csv
@@ -44,7 +44,7 @@ client.create_collection(collection_name, collection_param)
 #     Now that we have a collection in Milvus with `segment_row_limit` 4096, we can create index or
 #     insert entities.
 #
-#     We can call `create_index` BEFORE we insert any entites or AFTER. However Milvus won't actually
+#     We can call `create_index` BEFORE we insert any entities or AFTER. However Milvus won't actually
 #     start build index task if the segment row count is smaller than `segment_row_limit`. So if we want
 #     to make Milvus build index, we need to insert number of entities larger than `segment_row_limit`.
 #
