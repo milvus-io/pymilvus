@@ -61,4 +61,4 @@ Contributing Guideline
 
 1. Add unittests for your codes
 2. Pass pylint check
-3. For docs, run ``make html`` to see if runable.
+3. For documentations, `` cd doc ``, then run ``make html`` to see if runable.
