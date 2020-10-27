@@ -1,5 +1,5 @@
 ===============
-Search Results
+Search results
 ===============
 
 
