@@ -2,6 +2,10 @@
 
 ## Bug
 - \#284 - Remove parameter error for 'index_row_limit'
+- \#311 - Fix incorrect comment about inserting data in README.md
+
+## New Feature
+- \312 - Add doc badge
 
 
 # pymilvus 0.3.0(2020-10-16)

@@ -7,6 +7,7 @@ Inspired by ElasticSearch, Milvus provides a Query DSL(Domain Specific Language)
 Leaf query clauses look for a particular value in a particular field. Currently milvus support `term`, `range`, `vector` queries.
 
   * <b>term</b>: term query matches the entities whose specified field value are in the specified list. The format is `"term": {"$field": [$value1, $value2, ...]}`
+    or `"term": {"$field": {"values"; [$value1, $value2, ...]}}`
 
 
   * <b>range</b>: range query matches the entities whose specified field value are under the specified range. The format is `"range": {"$field": {"$range-type": $value1 ... }}`. The supported range types are:
