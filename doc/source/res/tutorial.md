@@ -278,17 +278,17 @@ for Query DSL , please refer to PyMilvus documentation
 [Query DSL](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/query.html) chapter.
 
 ```python
-query = {
-    "bool": {
-        "must": [
-            {
-                "vector": {
-                    "embedding": {"topk": 2, "query": [film_A.get("embedding")], "metric_type": "L2"}
-                }
-            }
-        ]
-    }
-}
+>>> query = {
+...     "bool": {
+...         "must": [
+...             {
+...                 "vector": {
+...                     "embedding": {"topk": 2, "query": [film_A.get("embedding")], "metric_type": "L2"}
+...                 }
+...             }
+...         ]
+...     }
+... }
 ```
 
 Then we are able to search by this query.
@@ -296,11 +296,11 @@ Then we are able to search by this query.
 have provided in the `"fields"` can be obtained finally.
 
 ```python
-results = client.search(collection_name, query, fields=["release_year"])
+>>> results = client.search(collection_name, query, fields=["release_year"])
 ```
 
 The returned `results` is a 1 * 2 structure, 1 for 1 entity querying, 2 for top 2. For more clarity, we obtain
-the film as below. If you want to know how to deal with search result, you can refer to
+the film as below. If you want to know how to deal with search result in a better way, you can refer to
 [search result](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/results.html) in PyMilvus doc.
 
 ```python
@@ -309,8 +309,85 @@ the film as below. If you want to know how to deal with search result, you can r
 >>> film_2 = entities[1]
 ```
 
+Then how do we get ids, distances and fields? It's simple as below.
 
-### Get Entities filtered by fields.
+> Because embeddings are randomly generated, so the retreved film id, distance and field may differ.
+
+```python
+# id
+>>> film_1.id
+3
+# distance
+>>> film_1.distance
+0.3749755918979645
+
+# fields
+>>> film_1.entity.release_year
+2003
+```
+
+### Search Entities filtered by fields.
+
+Milvus can also search entities back by vector similarity combined with fields filtering. Again we will be
+using query DSL, please refer to PyMilvus documentation
+[Query DSL](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/query.html) for more information.
+
+For the same `film_A`, now we also want to search back top2 most similiar films, but with one more condition: 
+the release year of films searched back should be the same as `film_A`. Here is how we orgnize query DSL.
+
+```python
+>>> query_hybrid = {
+...     "bool": {
+...         "must": [
+...             {
+...                 "term": {"release_year": [film_A.get("release_year")]}
+...             },
+...             {
+...                 "vector": {
+...                     "embedding": {"topk": 2, "query": [film_A.get("embedding")], "metric_type": "L2"}
+...                 }
+...             }
+...         ]
+...     }
+... }
+```
+
+Then we'll do seach as above. This time we will only get 1 film back because there is only 1 film whose release
+year is 2002, the same as `film_A`. You can confirm it by `len()`.
+
+```python
+>>> results = client.search(collection_name, query_hybrid, fields=["release_year"])
+>>> len(results[0])
+1
+```
+
+We are also able to search back entities with fields in specific range like below, we want to get top 2 films
+that are most similar with `film_A`, and we want the `release_year` of entities returned must be larger than
+`film_A`'s `release_year`
+
+```python
+>>> query_hybrid = {
+...     "bool": {
+...         "must": [
+...             {
+...                 # "GT" for greater than
+...                 "range": {"release_year": {"GT": film_A.get("release_year")}}
+...             },
+...             {
+...                 "vector": {
+...                     "embedding": {"topk": 2, "query": [film_A.get("embedding")], "metric_type": "L2"}
+...                 }
+...             }
+...         ]
+...     }
+... }
+```
+
+This query will only get 1 film back too, because there is only 1 film whose release year is larger than 2002.
+
+Again, for more information about query DSL, please refer to our documentation 
+[Query DSL](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/query.html).
+
 ## Deletion
   ### Delete Entities by ID
   ### Compact
