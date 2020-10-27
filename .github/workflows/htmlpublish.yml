@@ -1,70 +1,70 @@
-name: Html-Publish
-
-# Run this workflow every time a new commit pushed to master repository
-on:
-  pull_request:
-    branches:
-      - master
-    paths:
-      - 'milvus/client/stub.py'
-      - 'doc/**'
-
-jobs:
-  html-publish:
-    name: Publish html base
-    runs-on: ubuntu-18.04
-    strategy:
-      matrix:
-        python-version: [3.6]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          path: pymilvus
-      - name: Set up python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install requirements
-        run: |
-          pip install -r pymilvus/requirements.txt
-      - name: Extract sdk version
-        shell: python
-        run: |
-          import os
-          import sys
-          sys.path.append("./pymilvus")
-          import milvus
-          version = milvus.__version__
-          print(f"pymilvus version is {version}")
-          os.system(f'echo "pymilvus_version={version}" >> $GITHUB_ENV')
-      - name: Make html
-        working-directory: pymilvus/doc
-        run: |
-          make html
-          echo 'Make html successfully'
-          echo "pymilvus version is ${pymilvus_version}"
-      - name: Pull milvus-io.github.io code
-        uses: actions/checkout@v2
-        with:
-          repository: milvus-io/milvus-io.github.io
-          path: milvus-io.github.io
-      - name: Update milvus-io.github.io html files
-        run: |
-          rm -rf milvus-io.github.io/milvus-sdk-python/pythondoc/v${pymilvus_version}
-          mkdir milvus-io.github.io/milvus-sdk-python/pythondoc/v${pymilvus_version}
-          mv pymilvus/doc/build/html/* milvus-io.github.io/milvus-sdk-python/pythondoc/v${pymilvus_version}
-      - name: Commit html files
-        working-directory: milvus-io.github.io
-        run: |
-          git config --local user.email "python.doc.html.action@github.com"
-          git config --local user.name "GitHub Action"
-          git commit -sm "Add changes" -a
-      - name: Push milvus-io.github.io
-        uses: ad-m/github-push-action@v0.6.0
-        with:
-          directory: milvus-io.github.io
-          repository: milvus-io/milvus-io.github.io
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: master
-
+#name: Html-Publish
+#
+## Run this workflow every time a new commit pushed to master repository
+#on:
+#  pull_request:
+#    branches:
+#      - master
+#    paths:
+#      - 'milvus/client/stub.py'
+#      - 'doc/**'
+#
+#jobs:
+#  html-publish:
+#    name: Publish html base
+#    runs-on: ubuntu-18.04
+#    strategy:
+#      matrix:
+#        python-version: [3.6]
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v2
+#        with:
+#          path: pymilvus
+#      - name: Set up python
+#        uses: actions/setup-python@v2
+#        with:
+#          python-version: ${{ matrix.python-version }}
+#      - name: Install requirements
+#        run: |
+#          pip install -r pymilvus/requirements.txt
+#      - name: Extract sdk version
+#        shell: python
+#        run: |
+#          import os
+#          import sys
+#          sys.path.append("./pymilvus")
+#          import milvus
+#          version = milvus.__version__
+#          print(f"pymilvus version is {version}")
+#          os.system(f'echo "pymilvus_version={version}" >> $GITHUB_ENV')
+#      - name: Make html
+#        working-directory: pymilvus/doc
+#        run: |
+#          make html
+#          echo 'Make html successfully'
+#          echo "pymilvus version is ${pymilvus_version}"
+#      - name: Pull milvus-io.github.io code
+#        uses: actions/checkout@v2
+#        with:
+#          repository: milvus-io/milvus-io.github.io
+#          path: milvus-io.github.io
+#      - name: Update milvus-io.github.io html files
+#        run: |
+#          rm -rf milvus-io.github.io/milvus-sdk-python/pythondoc/v${pymilvus_version}
+#          mkdir milvus-io.github.io/milvus-sdk-python/pythondoc/v${pymilvus_version}
+#          mv pymilvus/doc/build/html/* milvus-io.github.io/milvus-sdk-python/pythondoc/v${pymilvus_version}
+#      - name: Commit html files
+#        working-directory: milvus-io.github.io
+#        run: |
+#          git config --local user.email "python.doc.html.action@github.com"
+#          git config --local user.name "GitHub Action"
+#          git commit -sm "Add changes" -a
+#      - name: Push milvus-io.github.io
+#        uses: ad-m/github-push-action@v0.6.0
+#        with:
+#          directory: milvus-io.github.io
+#          repository: milvus-io/milvus-io.github.io
+#          github_token: ${{ secrets.GITHUB_TOKEN }}
+#          branch: master
+#
