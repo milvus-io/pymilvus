@@ -7,17 +7,18 @@ Installing via pip
 
 PyMilvus is in `PYPI <https://pypi.org/project/pymilvus/>`_.
 
-PyMilvus only suport python3(>= 3.5), usually it's ok to install PyMilvus like below.
+PyMilvus only support python3(>= 3.5), usually, it's ok to install PyMilvus like below.
 
 .. code-block:: shell
    
    $ python3 -m pip install pymilvus
 
-Installing in an virtual environment
+Installing in a virtual environment
 ====================================
 
-It is recommended to use PyMilvus in an virtul environment, so modules and environment won't be conflicted.
-We use ``virtualenv`` as an example to demenstrate how to install and using PyMilvus in an virtual environment.
+It's recommended to use PyMilvus in a virtual environment, Using virtual environment allows you to avoid
+installing Python packages globally which could break system tools or other projects.
+We use ``virtualenv`` as an example to demonstrate how to install and using PyMilvus in a virtual environment.
 See `virtualenv <https://virtualenv.pypa.io/en/latest/>`_ for more information about why and how.
 
 
@@ -37,14 +38,14 @@ If you want to exit the virtualenv ``venv``, you can use ``deactivate``.
    $ 
 
 
-Installing a spacific PyMilvus version
+Installing a specific PyMilvus version
 ======================================
 
 Here we assume you are already in a virtual environment.
 
-Suitable PyMilvus version is depended on Milvus version your are using. See `install pymilvus <https://github.com/milvus-io/pymilvus#install-pymilvus>`_ for recommended pymilvus version.
+Suitable PyMilvus version depends Milvus version you are using. See `install pymilvus <https://github.com/milvus-io/pymilvus#install-pymilvus>`_ for recommended pymilvus version.
 
-If you want to install a spacific verison of PyMilvus:
+If you want to install a specific version of PyMilvus:
 
 .. code-block:: shell
    
@@ -55,3 +56,16 @@ If you want to upgrade PyMilvus into newest version:
 .. code-block:: shell
    
    (venv) $ pip install --upgrade pymilvus
+
+
+
+Installing from source
+======================
+
+This will install the latest PyMilvus into your virtual environment. 
+
+.. code-block:: shell
+   
+   (venv) $ git clone git@github.com:milvus-io/pymilvus.git
+   (venv) $ cd pymilvus
+   (venv) $ python setup.py install
