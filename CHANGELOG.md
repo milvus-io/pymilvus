@@ -5,7 +5,8 @@
 - \#311 - Fix incorrect comment about inserting data in README.md
 
 ## New Feature
-- \312 - Add doc badge
+- \#312 - Add doc badge
+- \#319 - Support auto merge PR after reviewed
 
 
 # pymilvus 0.3.0(2020-10-16)
