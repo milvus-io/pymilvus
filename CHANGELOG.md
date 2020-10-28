@@ -8,6 +8,10 @@
 - \#312 - Add doc badge
 - \#319 - Support auto merge PR after reviewed
 
+## Improvement
+- \#279 - Add doc `Changes` chapter of pymilvus documentation
+- \#280 - Add doc `About This Documentation` chapter of documentation
+
 
 # pymilvus 0.3.0(2020-10-16)
 
