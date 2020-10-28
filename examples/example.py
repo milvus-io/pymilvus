@@ -5,7 +5,7 @@ from milvus import Milvus, DataType
 
 # ------
 # Setup:
-#    First of all, you need a runing Milvus(0.11.x). By default, Milvus runs on localhost in port 19530.
+#    First of all, you need a running Milvus(0.11.x). By default, Milvus runs on localhost in port 19530.
 #    Then, you can use pymilvus(0.3.x) to connect to the server, You can change the _HOST and _PORT accordingly.
 # ------
 _HOST = '127.0.0.1'
@@ -15,7 +15,7 @@ client = Milvus(_HOST, _PORT)
 # ------
 # Basic create collection:
 #     You already have a Milvus instance running, and pymilvus connecting to Milvus.
-#     The first thing we will do is to create a collection `demo_films`. Incase we've already had a collection
+#     The first thing we will do is to create a collection `demo_films`. In case we've already had a collection
 #     named `demo_films`, we drop it before we create.
 # ------
 collection_name = 'demo_films'
@@ -24,12 +24,14 @@ if collection_name in client.list_collections():
 
 # ------
 # Basic create collection:
-#     `auto_id` in the parameter is set to false so that we can provide our own unique ids.
-#     `embedding` in the `fields` is float vector with dimension of 8.
-#     For all fields, you can provide custom infos in "params" like {"unit": "minute"}
-#     For FLOAT_VECTOR and BINARY_VECTOR, "dim" is a must in "params". 
-#     For more information you can refer to the pymilvus 
-#     documentation (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
+#     For a specific field, you can provide extra infos by a dictionary with `key = "params"`. If the field
+#     has a type of `FLOAT_VECTOR` and `BINARY_VECTOR`, "dim" must be provided in extra infos. Otherwise
+#     you can provide customized infos like `{"unit": "minutes"}` for you own need.
+#
+#     In our case, the extra infos in "duration" field means the unit of "duration" field is "minutes".
+#     And `auto_id` in the parameter is set to `False` so that we can provide our own unique ids.
+#     For more information you can refer to the pymilvus
+#     documentation (https://pymilvus.readthedocs.io/en/latest/).
 # ------
 collection_param = {
     "fields": [
@@ -63,7 +65,7 @@ pprint(partitions)
 
 # ------
 # Basic insert entities:
-#     We have three films of The_Lord_of_the_Rings serises here with their id, duration release_year
+#     We have three films of The_Lord_of_the_Rings series here with their id, duration release_year
 #     and fake embeddings to be inserted. They are listed below to give you a overview of the structure.
 # ------
 The_Lord_of_the_Rings = [
@@ -119,7 +121,7 @@ print("Films are inserted and the ids are: {}".format(ids))
 # ------
 # Basic insert entities:
 #     After insert entities into collection, we need to flush collection to make sure its on disk,
-#     so that we are able to retrive it.
+#     so that we are able to retrieve it.
 # ------
 before_flush_counts = client.count_entities(collection_name)
 client.flush([collection_name])
@@ -154,9 +156,11 @@ for film in films:
 #      `released in year` 2002 or 2003,
 #      `duration` of the films larger than 250 minutes.
 #
-#      "range" includes "GT"(>), "LT"(<), "LTE"(<=), "GTE"(>=).
-#      There are more options other than "must", for instance "should", for more information, you can refer to
-#      pymilvus documentation (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
+#      Milvus provides Query DSL(Domain Specific Language) to support structured data filtering in queries.
+#      For now milvus supports TermQuery and RangeQuery, they are structured as below.
+#      For more information about the meaning and other options about "must" and "bool",
+#      please refer to DSL chapter of our pymilvus documentation
+#      (https://pymilvus.readthedocs.io/en/latest/).
 # ------
 query_embedding = [random.random() for _ in range(8)]
 query_hybrid = {
@@ -180,9 +184,9 @@ query_hybrid = {
 
 # ------
 # Basic hybrid search entities:
-#     And we want to get all the fields back in reasults, so fields = ["duration", "release_year", "embedding"].
+#     And we want to get all the fields back in results, so fields = ["duration", "release_year", "embedding"].
 #     If searching successfully, results will be returned.
-#     `results` have `nq`(number of queries) seperate results, since we only query for 1 film, The length of
+#     `results` have `nq`(number of queries) separate results, since we only query for 1 film, The length of
 #     `results` is 1.
 #     We ask for top 3 in-return, but our condition is too strict while the database is too small, so we can
 #     only get 1 film, which means length of `entities` in below is also 1.
