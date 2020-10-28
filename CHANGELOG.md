@@ -9,6 +9,7 @@
 - \#319 - Support auto merge PR after reviewed
 
 ## Improvement
+- \#277 - Add doc `FAQ` chapter of pymilvus documentation
 - \#279 - Add doc `Changes` chapter of pymilvus documentation
 - \#280 - Add doc `About This Documentation` chapter of documentation
 
