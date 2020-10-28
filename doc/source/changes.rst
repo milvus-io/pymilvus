@@ -1,5 +1,5 @@
 ============
-Chang logs
+Change logs
 ============
 
 
