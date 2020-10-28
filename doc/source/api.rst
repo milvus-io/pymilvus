@@ -66,6 +66,7 @@ Methods
 | `compact() <#milvus.Milvus.compact>`_                                | Compact specified collection.                                          |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 
+
 APIs
 -----
 
@@ -74,7 +75,7 @@ APIs
    :members: create_collection, has_collection, get_collection_info, count_entities, list_collections,
              get_collection_stats, load_collection, drop_collection, insert, get_entity_by_id, list_id_in_segment,
              create_index, drop_index, create_partition, has_partition, list_partitions, drop_partition,
-             search, search_in_segment, delete_entity_by_id, flush,compact
+             search, search_in_segment, delete_entity_by_id, flush, compact
 
 
 
