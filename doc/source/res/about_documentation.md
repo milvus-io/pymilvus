@@ -3,15 +3,18 @@ This documentation is generated using the Sphinx documentation generator. The so
 located in the *doc/* directory of the pymilvus distribution. To generate the docs locally run the following command
 under directory *doc/*:
 
-```
->>> make html
+```shell
+$ make html
 ```
 
-The documentation should be generated under directory *build/html*. To view it, you can open *index.html* in your browser
-or run a web server in that directory:
+The documentation should be generated under directory *build/html*.
 
-```
-python3 -m http.server
+To preview it, you can open *index.html* in your browser
+
+Or run a web server in that directory:
+
+```shell
+$ python3 -m http.server
 ```
 
 Then open your browser to <http://localhost:8000> .
