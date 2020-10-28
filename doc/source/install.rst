@@ -1,6 +1,6 @@
-====================
-Installing/Upgrading
-====================
+============
+Installation
+============
 
 Installing via pip
 ==================
