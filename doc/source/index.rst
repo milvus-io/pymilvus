@@ -14,7 +14,7 @@ every thing you need to know about PyMilvus.
     A quick start to use PyMilvus.
 
 :doc:`api`
-    The complete API documentation, organized by module.
+    The complete API documentation.
 
 :doc:`param`
     Index params.
@@ -26,16 +26,16 @@ every thing you need to know about PyMilvus.
     How to deal with search results.
 
 :doc:`changes`
-    Changes in PyMilvus.
+    Changes in the latest PyMilvus.
 
 :doc:`contribute`
-    Method of contribution, bug shooting and 
+    Method of contribution, bug shooting and contribution guide.
 
 :doc:`faq`
     Some questions that come up often.
 
 :doc:`about`
-    About this documentation.
+    How this documentation is generated.
 
 
 .. toctree::
