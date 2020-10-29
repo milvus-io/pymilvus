@@ -490,4 +490,3 @@ Finally, you can drop an entire collection.
 
 >>> client.drop_collection(collection_name)
 Status(code=0, message='OK')
-
