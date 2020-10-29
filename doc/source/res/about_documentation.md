@@ -9,7 +9,7 @@ $ make html
 
 The documentation should be generated under directory *build/html*.
 
-To preview it, you can open *index.html* in your browser
+To preview it, you can open *index.html* in your browser.
 
 Or run a web server in that directory:
 
@@ -17,4 +17,4 @@ Or run a web server in that directory:
 $ python3 -m http.server
 ```
 
-Then open your browser to <http://localhost:8000> .
+Then open your browser to <http://localhost:8000>.

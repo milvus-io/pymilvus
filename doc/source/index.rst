@@ -1,4 +1,4 @@
-Welcome to pymilvus's documentation!
+Welcome to PyMilvus's documentation!
 ====================================
 
 Overview
@@ -17,7 +17,7 @@ every thing you need to know about PyMilvus.
     The complete API documentation.
 
 :doc:`param`
-    Index params.
+    Index and relevant parameters.
 
 :doc:`query`
     Query Domain Specific Language(DSL).

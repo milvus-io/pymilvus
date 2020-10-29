@@ -7,7 +7,7 @@ Installing via pip
 
 PyMilvus is in the `Python Package Index <https://pypi.org/project/pymilvus/>`_.
 
-PyMilvus only support python3(>= 3.5), usually, it's ok to install PyMilvus like below.
+PyMilvus only support python3(>= 3.6), usually, it's ok to install PyMilvus like below.
 
 .. code-block:: shell
    
@@ -16,7 +16,7 @@ PyMilvus only support python3(>= 3.5), usually, it's ok to install PyMilvus like
 Installing in a virtual environment
 ====================================
 
-It's recommended to use PyMilvus in a virtual environment, Using virtual environment allows you to avoid
+It's recommended to use PyMilvus in a virtual environment, using virtual environment allows you to avoid
 installing Python packages globally which could break system tools or other projects.
 We use ``virtualenv`` as an example to demonstrate how to install and using PyMilvus in a virtual environment.
 See `virtualenv <https://virtualenv.pypa.io/en/latest/>`_ for more information about why and how.
@@ -65,13 +65,13 @@ This will install the latest PyMilvus into your virtual environment.
 
 .. code-block:: shell
    
-   (venv) $ git clone git@github.com:milvus-io/pymilvus.git
-   (venv) $ cd pymilvus
-   (venv) $ python setup.py install
+   (venv) $ pip install git+https://github.com/milvus-io/pymilvus.git
 
 Verifying installation
 ======================
 
 Your installation is correct if the following command in the Python shell doesn't raise an exception.
 
->>> from milvus import Milvus, DataType
+.. code-block:: shell
+   
+   (venv) $ python -c "from milvus import Milvus, DataType"
