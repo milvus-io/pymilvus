@@ -34,8 +34,16 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    'sphinx_copybutton',
     'm2r',
 ]
+
+
+# Copy button configuration for python and shell
+# regexp for:
+# ">>> ", "... ", "$ ", "In [digit]", "(char) $ "
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: |\(.\) \$ " 
+copybutton_prompt_is_regexp = True
 
 # Add any source suffix
 source_suffix = ['.rst', '.md']
