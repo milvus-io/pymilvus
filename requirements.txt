@@ -53,6 +53,7 @@ six==1.14.0
 sklearn==0.0
 snowballstemmer==2.0.0
 Sphinx==2.3.1
+sphinx-copybutton==0.3.0
 sphinx-rtd-theme==0.4.3
 sphinxcontrib-applehelp==1.0.1
 sphinxcontrib-devhelp==1.0.1
@@ -69,4 +70,3 @@ wcwidth==0.1.8
 webencodings==0.5.1
 wrapt==1.11.2
 zipp==2.0.0
-sphinx-copybutton=0.3.0
