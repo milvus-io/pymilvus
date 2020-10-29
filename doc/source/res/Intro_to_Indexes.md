@@ -6,8 +6,6 @@ To learn how to choose an appropriate index for your application scenarios, plea
 
 To learn how to choose an appropriate index for a metric, see [Distance Metrics](https://www.milvus.io/docs/v0.11.0/metric.md).
 
-Link to [anchor](#ivfflat) in markdown.
-
 - [IVF_FLAT](#ivfflat)
 - [BIN_IVF_FLAT](#binivfflat)
 - [IVF_PQ](#ivfpq)
