@@ -104,6 +104,10 @@ def records_factory(dimension, nq):
     return [[random.random() for _ in range(dimension)] for _ in range(nq)]
 
 
+def integer_factory(nq):
+    return [random.randint(0, 128) for _ in range(nq)]
+
+
 def time_it(func):
     @wraps(func)
     def inner(*args, **kwrgs):

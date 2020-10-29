@@ -6,7 +6,7 @@ import grpc
 import pytest
 from grpc._channel import _UnaryUnaryMultiCallable as Uum
 
-from milvus import Milvus, MetricType, IndexType, ParamError
+from milvus import Milvus, ParamError
 
 from factorys import collection_schema_factory
 

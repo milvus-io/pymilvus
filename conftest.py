@@ -1,25 +1,31 @@
-import time
 
 # Third party imports
 import pytest
 
 # local application imports
-from factorys import gen_unique_str, fake, records_factory
-from milvus import Milvus
+from factorys import gen_unique_str, fake, records_factory, integer_factory
+from milvus import Milvus, DataType
+
 
 default_host = "127.0.0.1"
 default_grpc_port = 19530
 default_http_port = 19121
+default_vector_dim = 128
+
+
+Field_Vector = "Vec"
+Field_Integer = "int"
 
 
 def pytest_addoption(parser):
     parser.addoption("--ip", action="store", default=default_host)
     parser.addoption("--handler", action="store", default="GRPC")
     parser.addoption("--port", action="store", default=default_grpc_port)
+    parser.addoption("--dim", action="store", default=default_vector_dim)
 
 
 @pytest.fixture(scope="module")
-def gip(request):
+def host(request):
     ip_ = request.config.getoption("--ip")
     port_ = request.config.getoption("--port")
 
@@ -27,43 +33,28 @@ def gip(request):
 
 
 @pytest.fixture(scope="module")
-def ghandler(request):
-    handler_ = request.config.getoption("--handler")
-    return handler_
+def handler(request):
+    return request.config.getoption("--handler")
+
+
+@pytest.fixture(scope='module')
+def dim(request):
+    return request.config.getoption("--dim")
 
 
 @pytest.fixture(scope="module")
-def connect(request, ghandler):
+def connect(request, handler):
     ip = request.config.getoption("--ip")
     handler = request.config.getoption("--handler")
     port_default = default_http_port if handler == "HTTP" else default_grpc_port
     port = request.config.getoption("--port", default=port_default)
 
-    client = Milvus(host=ip, port=port, handler=ghandler)
-    # milvus.connect()
+    client = Milvus(host=ip, port=port, handler=handler)
 
     def fin():
         try:
             client.close()
         except:
-            pass
-
-    request.addfinalizer(fin)
-    return client
-
-
-@pytest.fixture(scope="module")
-def gcon(request, ghandler):
-    ip = request.config.getoption("--ip")
-    port = request.config.getoption("--port")
-    client = Milvus(host=ip, port=port, handler=ghandler)
-
-    def fin():
-        try:
-            client.close()
-            pass
-        except Exception as e:
-            print(e)
             pass
 
     request.addfinalizer(fin)
@@ -79,55 +70,74 @@ def args(request):
 
 
 @pytest.fixture(scope="function")
-def table(request, connect):
-    ori_table_name = getattr(request.module, "table_id", "test")
-    table_name = gen_unique_str(ori_table_name)
-    dim = getattr(request.module, "dim", "128")
-    param = {'collection_name': table_name,
-             'dimension': dim,
-             'index_type': IndexType.IVFLAT,
-             'metric_type': MetricType.L2
-             }
-    connect.create_collection(param)
+def vcollection(request, connect, dim):
+    ori_collection_name = getattr(request.module, "collection_id", "test")
+    collection_name = gen_unique_str(ori_collection_name)
+    collection_param = {
+        "fields": [
+            {"name": Field_Vector, "type": DataType.FLOAT_VECTOR, "params": {"dim": dim}},
+        ],
+        "segment_row_limit": 8192,
+        "auto_id": False
+    }
+
+    connect.create_collection(collection_name, collection_param)
 
     def teardown():
-        connect.drop_collection(table_name)
+        connect.drop_collection(collection_name)
 
     request.addfinalizer(teardown)
 
-    return table_name
+    return collection_name
 
 
 @pytest.fixture(scope="function")
-def gcollection(request, gcon):
-    table_name = fake.collection_name()
-    dim = getattr(request.module, "dim", 128)
+def hvcollection(request, connect, dim):
+    collection_name = fake.collection_name()
+    collection_param = {
+        "fields": [
+            {"name": Field_Integer, "type": DataType.INT64},
+            {"name": Field_Vector, "type": DataType.FLOAT_VECTOR, "params": {"dim": dim}},
+        ],
+        "segment_row_limit": 8192,
+        "auto_id": False
+    }
 
-    param = {'collection_name': table_name,
-             'dimension': dim,
-             'index_file_size': 1024,
-             'metric_type': MetricType.L2
-             }
-    gcon.create_collection(param)
-    gcon.flush([table_name])
+    connect.create_collection(collection_name, collection_param)
 
     def teardown():
-        status, table_names = gcon.list_collections()
+        status, table_names = connect.list_collections()
         for name in table_names:
-            gcon.drop_collection(name)
+            connect.drop_collection(name)
 
     request.addfinalizer(teardown)
 
-    return table_name
+    return collection_name
 
 
 @pytest.fixture(scope='function')
-def gvector(request, gcon, gcollection):
-    dim = getattr(request.module, 'dim', 128)
+def vrecords(request, connect, vcollection, dim):
 
-    records = records_factory(dim, 10000)
+    vectors = records_factory(dim, 10000)
 
-    gcon.insert(gcollection, records)
-    gcon.flush([gcollection])
+    entities = [
+        {"name": Field_Vector, "values": vectors, "type": DataType.FLOAT_VECTOR}
+    ]
+    connect.insert(vcollection, entities)
 
-    return gcollection
+    return vcollection
+
+
+@pytest.fixture(scope='function')
+def ivrecords(request, connect, hvcollection, dim):
+
+    vectors = records_factory(dim, 10000)
+    integers = integer_factory(10000)
+
+    entities = [
+        {"name": Field_Integer, "values": integers, "type": DataType.INT64},
+        {"name": Field_Vector, "values": vectors, "type": DataType.FLOAT_VECTOR}
+    ]
+    connect.insert(vcollection, entities)
+
+    return hvcollection

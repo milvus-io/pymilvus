@@ -176,7 +176,7 @@ class Milvus:
         numbers, letters, and underscores, and must not begin with a number.
         :type  str
         :param fields: Field parameters.
-        :type  fields: str
+        :type  fields: dict
 
         :raises:
             RpcError: If grpc encounter an error
