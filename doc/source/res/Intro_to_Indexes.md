@@ -149,6 +149,7 @@ vector_query = {
 **IVF_SQ8** does scalar quantization for each vector placed in the unit based on IVF. Scalar quantization converts each dimension of the original vector from a 4-byte floating-point number to a 1-byte unsigned integer, so the IVF_SQ8 index file occupies much less space than the IVF_FLAT index file. However, scalar quantization results in a loss of accuracy during searching vectors.
 
 - building parameters:
+  
   **nlist**: Number of cluster units.
 
 ```python
@@ -196,7 +197,9 @@ The query method is as follows:
 
 - building parameters:
 
-  **nlist**: Number of cluster units.
+building parameters:
+
+**nlist**: Number of cluster units.
 
 ```python
 # IVF_SQ8_HYBRID
@@ -363,7 +366,7 @@ vector_query = {
 .. _rhnswsq:
 ## RHNSW_SQ
 
-**RHNSW_SQ** is a variant index type combining IVF_SQ and HNSW. It first uses SQ to quantize the vector, then uses HNSW to quantize the SQ quantization result to get the index.
+**RHNSW_SQ** is a variant index type combining SQ and HNSW. It first uses SQ to quantize the vector, then uses HNSW to quantize the SQ quantization result to get the index.
 
 - building parameters:
 
@@ -417,13 +420,13 @@ The query process is similar to the graph building process. It starts from the n
 
 - building parameters:
 
-	**search_length**: Number of query iterations.
+  **search_length**: Number of query iterations.
 
-	**out_degree**: Maximum out-degree of the node.
+  **out_degree**: Maximum out-degree of the node.
 
-	**candidate_pool_size**: Candidate pool size of the node.
+  **candidate_pool_size**: Candidate pool size of the node.
 
-	**knng**: Number of nearest neighbors
+  **knng**: Number of nearest neighbors
 
 ```python
 # RNSG
