@@ -15,17 +15,17 @@ Open Issues
 To request a new feature, report a bug or ask a question, it's recommended for you to **open an issue**.
 
 For a feature
-    you can tell us why you need it and we will decide whether to implement it soon.
+    You can tell us why you need it and we will decide whether to implement it soon.
     If we think it's a good improvement, we will make it a feature request and start to work on it. It's
     also welcomed for you to open an issue with your PR as a solution.
 
 For a bug
-    you need to tell us as much information as possible, better start with our
+    You need to tell us as much information as possible, better start with our
     `bug report template <https://github.com/milvus-io/pymilvus/issues/new?assignees=&labels=&template=bug_report.md&title=%5BBUG%5D>`_.
     With information, we can reproduce the bug easily and solve it later.
 
 For a question
-    it's welcomed to ask any questions about PyMilvus and Milvus, we are pleased to communicate with you.
+    It's welcomed to ask any questions about PyMilvus and Milvus, we are pleased to communicate with you.
 
 Submit Pull Requests
 ====================
@@ -69,8 +69,10 @@ Contribution guideline
 .. todo:
    More details aout tests and pylint check .
 
-1. Add unit tests for your codes
-2. Pass pylint check
-3. For documentations
+1. Update CHANGELOG.md
+2. Add unit tests for your codes
+3. Pass pylint check
+4. For documentations
+
 You need to enter the ``doc`` directory and run ``make html``, please refer to
 `About this documentations <https://pymilvus.readthedocs.io/en/latest/about.html>`_.
