@@ -10,6 +10,6 @@
     - [get_entity_by_id()](api.html#milvus.Milvus.get_entity_by_id)
 
   * Add passing parameter `threshold` in API [compact()](api.html#milvus.Milvus.compact)
-  * Raise exception if the status of returned values from server is not OK for whole APIs.
+  * Raise exception if the status of returned values from server is not OK for all the APIs.
   * Remove parameter `status` in return values of APIs except [compact()](api.html#milvus.Milvus.compact) and 
     [delete_entity_by_id()](api.html#milvus.Milvus.delete_entity_by_id) where status is reserved experimentally.
