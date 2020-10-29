@@ -55,7 +55,7 @@ For detailed SDK documentation, refer to [API Documentation](https://pymilvus.re
 
 ### Prerequisites
 
-pymilvus only supports Python 3.5 or higher.
+pymilvus only supports Python 3.6 or higher.
 
 ### Install pymilvus
 
