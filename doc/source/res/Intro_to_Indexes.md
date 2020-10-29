@@ -110,7 +110,7 @@ IVF_PQ quantizes the product of vectors, and then performs IVF index clustering.
 
   **nlist**: Number of cluster units.
 
-  **m**: Number of factors of product quantization. CPU-only Milvus: `m ≡ dim (mod m)`; GPU-enabled Milvus: `m` ∈ {1, 2, 3, 4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 96}, and (dim / m) ∈ {1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32}. (`m` x 1024) ≥ `MaxSharedMemPerBlock` of your graphics card.
+  **m**: Number of factors of product quantization. **CPU-only** Milvus: `m ≡ dim (mod m)`; **GPU-enabled** Milvus: `m` ∈ {1, 2, 3, 4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 96}, and (dim / m) ∈ {1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32}. (`m` x 1024) ≥ `MaxSharedMemPerBlock` of your graphics card.
 
 ```python
 # IVF_PQ
