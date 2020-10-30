@@ -75,3 +75,6 @@ Your installation is correct if the following command in the Python shell doesn'
 .. code-block:: shell
    
    (venv) $ python -c "from milvus import Milvus, DataType"
+
+.. sectionauthor::
+   `Yangxuan@milvus <https://github.com/XuanYang-cn>`_

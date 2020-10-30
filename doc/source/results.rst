@@ -41,4 +41,5 @@ or
 >>> value_A = results[i][j].entity.value_of_field('A')
 
 
-
+.. sectionauthor::
+   `Bosszou@milvus <https://github.com/BossZou>`_

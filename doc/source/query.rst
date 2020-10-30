@@ -6,13 +6,7 @@ Like as ElasticSearch, Milvus provides a Query DSL(Domain Specific Language) con
 Leaf query clauses
 Leaf query clauses look for a particular value in a particular field. Currently milvus support `term`, `range`, `vector` queries.
 
-Compound query clauses
-Currently, milvus only support boolean query, i.e. `bool`. There are three occurrence types:
+.. mdinclude:: res/query.md
 
-+--------------------------+----------------------------------+
-| Occurrence types         | Description                      |
-+==========================+==================================+
-| must                     | milvus client                    |
-+--------------------------+----------------------------------+
-| must                     | milvus client                    |
-+--------------------------+----------------------------------+
+.. sectionauthor::
+   `Bosszou@milvus <https://github.com/BossZou>`_
