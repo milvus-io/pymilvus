@@ -140,7 +140,7 @@ For each query vector, the results are sorted by distance in descending order.
 
 * **Example 2**
 
-   In this example, we demonstrate writing a dsl with `should query`. Assume that the target collection
+   In this example, we demonstrate writing a dsl with `should` query. Assume that the target collection
    contains two scalar field named `rating` and `release_year`, and a vector field named `embedding`
    with dim 2. We require the result satisfy the conditions as follows:
 
