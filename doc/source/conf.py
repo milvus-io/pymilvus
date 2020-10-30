@@ -23,6 +23,7 @@ author = 'Milvus'
 
 # The full version, including alpha/beta/rc tags
 release = '0.3.0'
+show_authors = True
 
 
 # -- General configuration ---------------------------------------------------

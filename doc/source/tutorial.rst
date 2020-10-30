@@ -490,3 +490,6 @@ Finally, you can drop an entire collection.
 
 >>> client.drop_collection(collection_name)
 Status(code=0, message='OK')
+
+.. sectionauthor::
+   `Yangxuan@milvus <https://github.com/XuanYang-cn>`_
