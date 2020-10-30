@@ -52,7 +52,7 @@ Here are some examples:
 
 To satisfy condition 1, we need a ``term`` query which is:
 
-```json
+```python
 term_query = {
     "term": {
         "A": [1, 2, 5]
@@ -62,7 +62,7 @@ term_query = {
 
 To satisfy condition 2, we need a `range` query which is:
 
-```json
+```python
 range_query = {
     "range": {
         "B": {
@@ -75,7 +75,7 @@ range_query = {
 
 Besides, we want to find the results which are top 10 most approximate vectors compared with *[0.1, 0.2]* in the filtered results. So a possible `vector` query is like:
 
-```json
+```python
 vector_query = {
     "vector": {
         "topk": 10,
@@ -92,7 +92,7 @@ To satisfy the two conditions at the same time, we need a boolean query `must` ,
 
 According to the above, we can output the dsl:
 
-```json
+```python
 dsl = {
     "bool": {
         "must": [term_query, range_query, vector_query]
@@ -102,7 +102,7 @@ dsl = {
 
 The full view is:
 
-```json
+```python
 {
     "bool": {
         "must":[
@@ -150,7 +150,7 @@ For each query vector, the results are sorted by distance in descending order.
 To satisfy condition 1, we will use `should` query including a `range` query and a `term` query
 as below.
 
-```json
+```python
 range_query = {
     "range": {
         "rating": {"gte": 8.0}
@@ -168,7 +168,7 @@ should_query = { "should": [ range_query, term_query ] }
 
 This is a typical vector query.
 
-```json
+```python
 vector_query = {
     "vector": {
         "topk": 10,
@@ -183,7 +183,7 @@ vector_query = {
 
 If we want to combine these two querys, the recommended pattern is:
 
-```json
+```python
 dsl = {
     "bool": {
         "must": [
@@ -197,7 +197,7 @@ dsl = {
 
 The full view is:
 
-```json
+```python
 {
     "bool": {
         "must": [
@@ -247,7 +247,7 @@ The full view is:
 
 * `vector` query cannot belong `should` and `must_not`. The follow clauses are not permitted:
 
-```json
+```python
    # This is an invalid clause because `vector` is under `should`
    {
       "should": [
@@ -257,7 +257,7 @@ The full view is:
    }
 ```
 
-```json
+```python
    # This is an invalid clause because `vector` is under `must_not`
    {
       "must_not": [
@@ -270,7 +270,7 @@ The full view is:
 
   * `bool` query cannot have a `should` or `must_not` clause directly. The follow clauses are not permitted:
 
-```json
+```python
    # This is an invalid clause because `should` is under `bool`
    {
       "bool": {
@@ -279,7 +279,7 @@ The full view is:
    }
 ```
 
-```json
+```python
    # This is an invalid clause because `must_not` is under `bool`
    {
       "bool": {
@@ -290,7 +290,7 @@ The full view is:
 
   * A leaf query cannot combine with compound query in the same clause. The follow clause is not permitted:
 
-```json
+```python
    # This is an invalid clause because `must` is side by side with `term`
    {
       "bool": {
@@ -302,7 +302,7 @@ The full view is:
 
   * The whole clause must and can only contain a `vector` query. The follow clauses are not permitted:
 
-```json
+```python
    # This is an invalid clause because `vector` not exists.
    {
       "bool": {
@@ -318,7 +318,7 @@ The full view is:
    }
 ```
 
-```json
+```python
 # This is an invalid clause because there are `vector` queries.
 {
     "bool": {
