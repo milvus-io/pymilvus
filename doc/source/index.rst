@@ -41,7 +41,7 @@ every thing you need to know about PyMilvus.
 .. toctree::
    :hidden:
    :maxdepth: 8
-   :caption: Contents:
+   :caption: Table of Contents
 
    install
    tutorial
@@ -55,9 +55,7 @@ every thing you need to know about PyMilvus.
    about
 
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. sectionauthor::
+   `Bosszou@milvus <https://github.com/BossZou>`_, 
+   `Godchen@milvus <https://github.com/godchen0212>`_, 
+   `Yangxuan@milvus <https://github.com/XuanYang-cn>`_

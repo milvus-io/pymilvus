@@ -17,3 +17,6 @@ How to fix the error when I install PyMilvus on Windows?
 ========================================================
 
 Try installing PyMilvus in a Conda environment.
+
+.. sectionauthor::
+   `Yangxuan@milvus <https://github.com/XuanYang-cn>`_

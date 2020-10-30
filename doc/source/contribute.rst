@@ -76,3 +76,6 @@ Contribution guideline
 
 You need to enter the ``doc`` directory and run ``make html``, please refer to
 `About this documentations <https://pymilvus.readthedocs.io/en/latest/about.html>`_.
+
+.. sectionauthor::
+   `Yangxuan@milvus <https://github.com/XuanYang-cn>`_
