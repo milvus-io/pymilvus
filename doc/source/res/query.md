@@ -1,7 +1,7 @@
 
 Inspired by ElasticSearch, Milvus provides a Query DSL(Domain Specific Language) consisting of two types of clauses to define queries:
 
-**Leaf query clauses**
+## Leaf query clauses
 
 Leaf query clauses look for a particular value in a particular field. Currently milvus support `term`, `range`, `vector` queries.
 
@@ -23,7 +23,7 @@ Leaf query clauses look for a particular value in a particular field. Currently 
 
 Note that, the `term` and `range` query act as filter queries for `vector` query, they are pre-filtered.
 
-**Compound query clauses**
+## Compound query clauses
 
 Currently, milvus only support boolean query, i.e. `bool`. There are three types:
 
@@ -37,17 +37,17 @@ Currently, milvus only support boolean query, i.e. `bool`. There are three types
 | should        | At least one query in the clause must appear in matching entities             |
 +---------------+-------------------------------------------------------------------------------+
 
-**Examples**
+## Examples
 
 Here are some examples:
 
-* Example 1
+* **Example 1**
 
-In this example, we demonstrate write a dsl. Assume that the target collection contains two scalar field named 'A' and 'B',
- and a vector field named 'Vec' with dim 2. We require the result satisfy the conditions as follows:
+   In this example, we demonstrate write a dsl. Assume that the target collection contains two scalar field named 'A' and 'B',
+   and a vector field named 'Vec' with dim 2. We require the result satisfy the conditions as follows:
 
-   1. The value of field 'A' is in [1, 2, 5]
-   2. The value of field 'B' is in the range between 1 and 100.
+    1. The value of field 'A' is in [1, 2, 5]
+    2. The value of field 'B' is in the range between 1 and 100.
 
 To satisfy condition 1, we need a ``term`` query which is:
 
@@ -140,11 +140,13 @@ The full view is:
 For each query vector, the results are sorted by distance in descending order.
 
 
-**Constraints**   
+## Constraints
 
-The dsl clause abide by the follow rules:
+.. caution::
+   The dsl clause abide by the follow rules.
 
-  * `vector` query cannot belong `should` and `must_not`. The follow clauses are not permitted:
+
+* `vector` query cannot belong `should` and `must_not`. The follow clauses are not permitted:
 
 ```json
    # This is an invalid clause because `vector` is under `should`
