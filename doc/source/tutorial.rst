@@ -17,7 +17,7 @@ Before we start, there are some prerequisites.
 Make sure that:
 
 - You have a running Milvus instance.
-- PyMilvus is correctly `installed <https://pymilvus.readthedocs.io/en/latest/install.html>`_.
+- PyMilvus is correctly `installed <https://pymilvus.readthedocs.io/en/0.3.0/install.html>`_.
 
 Connect to Milvus
 =================
@@ -134,7 +134,7 @@ If you want to go further into Milvus with indexes, it's recommended to check ou
 `example_index.py <https://github.com/milvus-io/pymilvus/blob/master/examples/example_index.py>`_.
 
 If you're already known about indexes from ``example_index.py``, and you want a full lists of params supported
-by PyMilvus, you check out `Index <https://pymilvus.readthedocs.io/en/latest/param.html>`_
+by PyMilvus, you check out `Index <https://pymilvus.readthedocs.io/en/0.3.0/param.html>`_
 chapter of the PyMilvus documentation.
 
 Further more, if you want to get a thorough view of indexes, check our official website for
@@ -330,7 +330,7 @@ that are most similar with it.
 
 We need to prepare query DSL(Domain Specific Language) for this search, for more information about does and
 don'ts for Query DSL , please refer to PyMilvus documentation
-`Query DSL <https://pymilvus.readthedocs.io/en/latest/query.html>`_ chapter.
+`Query DSL <https://pymilvus.readthedocs.io/en/0.3.0/query.html>`_ chapter.
 
 .. todo:
    change dsl structure.
@@ -361,7 +361,7 @@ Then we can search by this dsl.
 
 The returned ``results`` is a 1 * 2 structure, 1 for 1 entity querying, 2 for top 2. For more clarity, we obtain
 the film as below. If you want to know how to deal with search result in a better way, you can refer to
-`search result <https://pymilvus.readthedocs.io/en/latest/results.html>`_ in PyMilvus doc.
+`search result <https://pymilvus.readthedocs.io/en/0.3.0/results.html>`_ in PyMilvus doc.
 
 >>> entities = results[0]
 >>> film_1 = entities[0]
@@ -387,7 +387,7 @@ Search Entities filtered by fields.
 
 Milvus can also search entities back by vector similarity combined with fields filtering. Again we will be
 using query DSL, please refer to PyMilvus documentation
-`Query DSL <https://pymilvus.readthedocs.io/en/latest/query.html>`_ for more information.
+`Query DSL <https://pymilvus.readthedocs.io/en/0.3.0/query.html>`_ for more information.
 
 For the same ``film_A``, now we also want to search back top 2 most similar films, but with one more condition: 
 the release year of films searched back should be the same as ``film_A``. Here is how we organize query DSL.
@@ -447,7 +447,7 @@ that are most similar with ``film_A``, and we want the ``release_year`` of entit
 This query will only get 1 film back too, because there is only 1 film whose release year is larger than 2002.
 
 Again, for more information about query DSL, please refer to our documentation 
-`Query DSL <https://pymilvus.readthedocs.io/en/latest/query.html>`_.
+`Query DSL <https://pymilvus.readthedocs.io/en/0.3.0/query.html>`_.
 
 Deletion
 ========
