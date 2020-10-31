@@ -3,8 +3,6 @@ import ujson
 
 from ..client.exceptions import ParamError
 
-from .check import check_pass_param
-
 from .types import DataType
 
 

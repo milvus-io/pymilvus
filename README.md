@@ -6,10 +6,11 @@
 [![Downloads](https://pepy.tech/badge/pymilvus/month)](https://pepy.tech/project/pymilvus/month)
 [![Downloads](https://pepy.tech/badge/pymilvus/week)](https://pepy.tech/project/pymilvus/week)
 [![license](https://img.shields.io/hexpm/l/plug.svg?color=green)](https://github.com/milvus-io/pymilvus/blob/master/LICENSE)
+[![Documentation Status](https://readthedocs.org/projects/pymilvus/badge/?version=latest)](https://pymilvus.readthedocs.io/en/latest/?badge=latest)
 
 Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code to this project, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md) first.
 
-For detailed SDK documentation, refer to [API Documentation](https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
+For detailed SDK documentation, refer to [API Documentation](https://pymilvus.readthedocs.io/en/0.3.0/).
 
 
 <!-- TOC -->
@@ -54,7 +55,7 @@ For detailed SDK documentation, refer to [API Documentation](https://milvus-io.g
 
 ### Prerequisites
 
-pymilvus only supports Python 3.5 or higher.
+pymilvus only supports Python 3.6 or higher.
 
 ### Install pymilvus
 
@@ -228,7 +229,7 @@ Status(code=0, message='OK')
 > Note: In production, it is recommended to create indexes before inserting vectors into the collection.
 Index is automatically built when vectors are being imported. However, you need to create the same index
 again after the vector insertion process is completed because some data files may not meet the
-`index_file_size` and index will not be automatically built for these data files.
+`segment_row_limit` and index will not be automatically built for these data files.
 
 1. Create an index of `IVF_FLAT` with `nlist = 100` for the collection.
 
@@ -277,7 +278,7 @@ Status(code=0, message='OK')
 
 # Generate a list of integer.
 >>> list_of_int = [random.randint(0, 255) for _ in range(num)]
-# Generate 20 vectors of 128 dimension
+# Generate 5000 vectors of 128 dimension
 >>> vectors = [[random.random() for _ in range(128)] for _ in range(num)]
 ```
 

@@ -1,9 +1,10 @@
-==========
-Query DSL
-==========
+=========
+Changelog
+=========
 
 
-.. mdinclude:: res/query.md
+.. mdinclude:: res/chang_log.md
 
 .. sectionauthor::
    `Bosszou@milvus <https://github.com/BossZou>`_
+

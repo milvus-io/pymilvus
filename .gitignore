@@ -1,22 +1,33 @@
 # Pycharm IDE
 /.idea
+
+# Cache files
 *.pyc
+**/__pycache__/
+
+# Python setup files
 dist
-doc/build/
 *.egg
 *.egg-info
-**/__pycache__/
+
+# Setup files
+doc/build/
+
+# Codecov files
+.coverage
+.codecov.yml
+htmlcov/
+
+# Temp files
+*.swp
+temp/
+
+# Env files
+.env
+
+# Local files
 /build/
 .remember
-.env
-temp/
-*.swp
-.coverage
-htmlcov/
 debug/
-milvus/client/wrapper.py
-examples/example_test.py
-.codecov.yml
 assets/
 TODO
-/.github

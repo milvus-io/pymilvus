@@ -1,3 +1,11 @@
+"""
+This is an example to demonstrate how to invoke milvus client APIs asynchronously.
+
+There are partial APIs allowed to be invoked asynchronously, they are: insert(), create_index(),
+search(), flush() and compact().
+
+This example is runnable for milvus(0.11.x) and pymilvus(0.3.x).
+"""
 import random
 from pprint import pprint
 
@@ -5,7 +13,7 @@ from milvus import Milvus, DataType
 
 # ------
 # Setup:
-#    First of all, you need a running Milvus(0.11.x). By default, Milvus runs on localhost in port 19530.
+#    First of all, you need a runing Milvus(0.11.x). By default, Milvus runs on localhost in port 19530.
 #    Then, you can use pymilvus(0.3.x) to connect to the server, You can change the _HOST and _PORT accordingly.
 # ------
 _HOST = '127.0.0.1'
@@ -26,12 +34,12 @@ if collection_name in client.list_collections():
 # Basic create collection:
 #     For a specific field, you can provide extra infos by a dictionary with `key = "params"`. If the field
 #     has a type of `FLOAT_VECTOR` and `BINARY_VECTOR`, "dim" must be provided in extra infos. Otherwise
-#     you can provide customized infos like `{"unit": "minutes"}` for you own need.
+#     you can provide customed infos like `{"unit": "minutes"}` for you own need.
 #
 #     In our case, the extra infos in "duration" field means the unit of "duration" field is "minutes".
 #     And `auto_id` in the parameter is set to `False` so that we can provide our own unique ids.
 #     For more information you can refer to the pymilvus
-#     documentation (https://pymilvus.readthedocs.io/en/latest/).
+#     documentation (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
 # ------
 collection_param = {
     "fields": [
@@ -54,22 +62,11 @@ client.create_collection(collection_name, collection_param)
 client.create_partition(collection_name, "American")
 
 # ------
-# Basic create collection:
-#     You can check the collection info and partitions we've created by `get_collection_info` and
-#     `list_partitions`
-# ------
-print("--------get collection info--------")
-collection = client.get_collection_info(collection_name)
-pprint(collection)
-partitions = client.list_partitions(collection_name)
-print("\n----------list partitions----------")
-pprint(partitions)
-
-# ------
 # Basic insert entities:
-#     We have three films of The_Lord_of_the_Rings series here with their id, duration release_year
-#     and fake embeddings to be inserted. They are listed below to give you a overview of the structure.
+#     We have two films groups of The_Lord_of_the_Rings series and Batman series here with their id, duration
+#     release_year and fake embeddings to be inserted. They are listed below to give you a overview of the structure.
 # ------
+
 The_Lord_of_the_Rings = [
     {
         "title": "The_Fellowship_of_the_Ring",
@@ -94,65 +91,94 @@ The_Lord_of_the_Rings = [
     }
 ]
 
-# ------
-# Basic insert entities:
-#     To insert these films into Milvus, we have to group values from the same field together like below.
-#     Then these grouped data are used to create `hybrid_entities`.
-# ------
-ids = [k.get("id") for k in The_Lord_of_the_Rings]
-durations = [k.get("duration") for k in The_Lord_of_the_Rings]
-release_years = [k.get("release_year") for k in The_Lord_of_the_Rings]
-embeddings = [k.get("embedding") for k in The_Lord_of_the_Rings]
-
-hybrid_entities = [
-    # Milvus doesn't support string type yet, so we cannot insert "title".
-    {"name": "duration", "values": durations, "type": DataType.INT32},
-    {"name": "release_year", "values": release_years, "type": DataType.INT32},
-    {"name": "embedding", "values": embeddings, "type": DataType.FLOAT_VECTOR},
+Batmans = [
+    {
+        "title": "Batman_Begins",
+        "id": 4,
+        "duration": 140,
+        "release_year": 2005,
+        "embedding": [random.random() for _ in range(8)]
+    },
+    {
+        "title": "Batman_The_Dark_Knight",
+        "id": 5,
+        "duration": 152,
+        "release_year": 2008,
+        "embedding": [random.random() for _ in range(8)]
+    },
+    {
+        "title": "Batman_The_Dark_Knight_Rises",
+        "id": 6,
+        "duration": 165,
+        "release_year": 2012,
+        "embedding": [random.random() for _ in range(8)]
+    }
 ]
 
+
 # ------
 # Basic insert entities:
-#     We insert the `hybrid_entities` into our collection, into partition `American`, with ids we provide.
-#     If succeed, ids we provide will be returned.
+#     To insert two films groups into Milvus, we provide a function to change these groups to object can be passed
+#     directly. we have to group values from the same field together like below.
+#     Then these grouped data are used to create `hybrid_entities`.
 # ------
-ids = client.insert(collection_name, hybrid_entities, ids, partition_tag="American")
-print("\n----------insert----------")
-print("Films are inserted and the ids are: {}".format(ids))
 
+def columnar_entities(entities):
+    ids = [k.get("id") for k in entities]
+    durations = [k.get("duration") for k in entities]
+    release_years = [k.get("release_year") for k in entities]
+    embeddings = [k.get("embedding") for k in entities]
+
+    return ids, [
+        # Milvus doesn't support string type yet, so we cannot insert "title".
+        {"name": "duration", "values": durations, "type": DataType.INT32},
+        {"name": "release_year", "values": release_years, "type": DataType.INT32},
+        {"name": "embedding", "values": embeddings, "type": DataType.FLOAT_VECTOR},
+    ]
+
+
+rings_ids, rings_entities = columnar_entities(The_Lord_of_the_Rings)
+batman_ids, batman_entities = columnar_entities(Batmans)
+
+# ------
+# Basic insert entities:
+#     We insert the `rings_entities` into our collection, into partition `American`, with ids we provide.
+#     Here, we pass parameter '_async=True' to insert data asynchronously, and return a `Future` object which
+#     has method `result()` to obtain result values and `done()` to wait util the invoked function(here is insert())
+#     exit.
+# ------
+
+print("\n----------insert rings films----------")
+insert_future = client.insert(collection_name, rings_entities, rings_ids, partition_tag="American", _async=True)
+insert_future.result()
+
+
+# ------
+# Basic insert entities:
+#     We insert the `batman_entities` into our collection, into partition `American`, with ids we provide.
+#     Here, we pass parameter '_async=True' to insert data asynchronously, pass parameters '_callback=batman_insert_cb'
+#     to provide callback function which could be called if data was inserted successfully.
+#
+#     The passing parameters of callback function are return values of insert().
+# ------
+
+def batman_insert_cb(inserted_ids):
+    print("Films about Batman are inserted and the ids are: {}".format(inserted_ids))
+
+
+insert_future = client.insert(collection_name, batman_entities, batman_ids, partition_tag="American", _async=True,
+                              _callback=batman_insert_cb)
+insert_future.done()
 
 # ------
 # Basic insert entities:
 #     After insert entities into collection, we need to flush collection to make sure its on disk,
-#     so that we are able to retrieve it.
+#     so that we are able to retrive it.
 # ------
-before_flush_counts = client.count_entities(collection_name)
-client.flush([collection_name])
-after_flush_counts = client.count_entities(collection_name)
+
 print("\n----------flush----------")
-print("There are {} films in collection `{}` before flush".format(before_flush_counts, collection_name))
-print("There are {} films in collection `{}` after flush".format(after_flush_counts, collection_name))
-
-# ------
-# Basic insert entities:
-#     We can get the detail of collection statistics info by `get_collection_stats`
-# ------
-info = client.get_collection_stats(collection_name)
-print("\n----------get collection stats----------")
-pprint(info)
-
-# ------
-# Basic search entities:
-#     Now that we have 3 films inserted into our collection, it's time to obtain them.
-#     We can get films by ids, if milvus can't find entity for a given id, `None` will be returned.
-#     In the case we provide below, we will only get 1 film with id=1 and the other is `None`
-# ------
-films = client.get_entity_by_id(collection_name, ids=[1, 200])
-print("\n----------get entity by id = 1, id = 200----------")
-for film in films:
-    if film is not None:
-        print(" > id: {},\n > duration: {}m,\n > release_years: {},\n > embedding: {}"
-              .format(film.id, film.duration, film.release_year, film.embedding))
+flush_future = client.flush([collection_name], _async=True)
+flush_future.result()
 
 # ------
 # Basic hybrid search entities:
@@ -164,13 +190,13 @@ for film in films:
 #        `duration` larger than 250 minutes.
 #
 #      Milvus provides Query DSL(Domain Specific Language) to support structured data filtering in queries.
-#      For now milvus supports TermQuery and RangeQuery, they are structured as below.
+#      For now milvus suppots TermQuery and RangeQuery, they are structured as below.
 #      For more information about the meaning and other options about "must" and "bool",
 #      please refer to DSL chapter of our pymilvus documentation
-#      (https://pymilvus.readthedocs.io/en/latest/).
+#      (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html).
 # ------
 query_embedding = [random.random() for _ in range(8)]
-query_hybrid = {
+dsl = {
     "bool": {
         "must": [
             {
@@ -182,7 +208,7 @@ query_hybrid = {
             },
             {
                 "vector": {
-                    "embedding": {"topk": 3, "query": [query_embedding], "metric_type": "L2"}
+                    "embedding": {"topk": 1, "query": [query_embedding], "metric_type": "L2"}
                 }
             }
         ]
@@ -191,9 +217,9 @@ query_hybrid = {
 
 # ------
 # Basic hybrid search entities:
-#     And we want to get all the fields back in results, so fields = ["duration", "release_year", "embedding"].
+#     And we want to get all the fields back in reasults, so fields = ["duration", "release_year", "embedding"].
 #     If searching successfully, results will be returned.
-#     `results` have `nq`(number of queries) separate results, since we only query for 1 film, The length of
+#     `results` have `nq`(number of queries) seperate results, since we only query for 1 film, The length of
 #     `results` is 1.
 #     We ask for top 3 in-return, but our condition is too strict while the database is too small, so we can
 #     only get 1 film, which means length of `entities` in below is also 1.
@@ -202,33 +228,26 @@ query_hybrid = {
 #     It's very simple, for every `topk_film`, it has three properties: `id, distance and entity`.
 #     All fields are stored in `entity`, so you can finally obtain these data as below:
 #     And the result should be film with id = 3.
+#
+#      Here, we pass parameter '_async=True' to insert data asynchronously, and return a `Future` object.
 # ------
-results = client.search(collection_name, query_hybrid, fields=["duration", "release_year", "embedding"])
 print("\n----------search----------")
-for entities in results:
-    for topk_film in entities:
-        current_entity = topk_film.entity
-        print("- id: {}".format(topk_film.id))
-        print("- distance: {}".format(topk_film.distance))
+search_future = client.search(collection_name, dsl, _async=True)
+search_results = search_future.result()
 
-        print("- release_year: {}".format(current_entity.release_year))
-        print("- duration: {}".format(current_entity.duration))
-        print("- embedding: {}".format(current_entity.embedding))
 
 # ------
 # Basic delete:
 #     Now let's see how to delete things in Milvus.
 #     You can simply delete entities by their ids.
+#
+#     After deleted, we invoke compact collection in a asynchronous way.
 # ------
-client.delete_entity_by_id(collection_name, ids=[1, 2])
-client.flush()  # flush is important
-result = client.get_entity_by_id(collection_name, ids=[1, 2])
-
-counts_delete = sum([1 for entity in result if entity is not None])
-counts_in_collection = client.count_entities(collection_name)
 print("\n----------delete id = 1, id = 2----------")
-print("Get {} entities by id 1, 2".format(counts_delete))
-print("There are {} entities after delete films with 1, 2".format(counts_in_collection))
+client.delete_entity_by_id(collection_name, ids=[1, 4])
+client.flush()  # flush is important
+compact_future = client.compact(collection_name, _async=True)
+compact_future.result()
 
 # ------
 # Basic delete:
