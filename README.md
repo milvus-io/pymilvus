@@ -10,7 +10,7 @@
 
 Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code to this project, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md) first.
 
-For detailed SDK documentation, refer to [API Documentation](https://pymilvus.readthedocs.io/en/latest/).
+For detailed SDK documentation, refer to [API Documentation](https://pymilvus.readthedocs.io/en/0.3.0/).
 
 
 <!-- TOC -->
