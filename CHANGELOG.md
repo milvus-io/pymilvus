@@ -1,29 +1,20 @@
-# pymilvus 0.3.1(TBD)
+# pymilvus 0.3.0(2020-10-16)
 
 ## Bug
 - \#284 - Remove parameter error for 'index_row_limit'
 - \#311 - Fix incorrect comment about inserting data in README.md
 
 ## New Feature
+- \#245 - Add slice utils for inserting data
 - \#312 - Add doc badge
 - \#319 - Support auto merge PR after reviewed
 
 ## Improvement
+- \#253 - Update config getter/setter
+- \#258 - Remove surplus class IndexType, MetricType
 - \#277 - Add doc `FAQ` chapter of pymilvus documentation
 - \#279 - Add doc `Changes` chapter of pymilvus documentation
 - \#280 - Add doc `About This Documentation` chapter of documentation
-
-
-# pymilvus 0.3.0(2020-10-16)
-
-## Bug
-
-## New Feature
-- \#245 - Add slice utils for inserting data
-
-## Improvement
-- \#253 - Update config getter/setter
-- \#258 - Remove surplus class IndexType, MetricType
 
 
 # pymilvus 0.2.14(2020-07-20)

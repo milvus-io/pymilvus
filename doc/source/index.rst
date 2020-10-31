@@ -43,6 +43,8 @@ every thing you need to know about PyMilvus.
    :maxdepth: 8
    :caption: Table of Contents
 
+   install
+   tutorial
    api
    param
    query
