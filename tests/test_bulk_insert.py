@@ -84,6 +84,28 @@ class TestBulkInsert:
         with pytest.raises(BaseError):
             connect.bulk_insert(hvcollection, entities)
 
+    def test_bulk_insert_with_wrong_scalar_type_then_correct_type(self, connect, hvcollection, dim):
+        vectors = records_factory(dim, 10000)
+        integers = integer_factory(10000)
+
+        entities = [
+            {"name": "Vec", "values": vectors},
+            {"name": "Int", "values": integers, "type": DataType.FLOAT}
+        ]
+
+        with pytest.raises(BaseError):
+            connect.bulk_insert(hvcollection, entities)
+
+        entities = [
+            {"name": "Vec", "values": vectors},
+            {"name": "Int", "values": integers, "type": DataType.INT64}
+        ]
+
+        try:
+            connect.bulk_insert(hvcollection, entities)
+        except Exception as e:
+            pytest.fail("Unexpected MyError: {}".format(str(e)))
+
     def test_bulk_insert_with_collection_non_exist(self, connect, hvcollection, dim):
         collection = hvcollection + "_c1"
         vectors = records_factory(dim, 1)
