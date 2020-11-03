@@ -209,7 +209,7 @@ class GrpcHandler(AbsMilvus):
 
         :rtype: (Status, str)
         """
-        return self._cmd(cmd='version', timeout=timeout)
+        return self.cmd(cmd='version', timeout=timeout)
 
     def server_status(self, timeout=30):
         """
