@@ -1,4 +1,4 @@
-# pymilvus 0.3.1(TBD)
+# pymilvus 0.4.0(TBD)
 
 ## Bug
 - \#284 - Remove parameter error for 'index_row_limit'
@@ -7,11 +7,15 @@
 ## New Feature
 - \#312 - Add doc badge
 - \#319 - Support auto merge PR after reviewed
+- \#344 - Add pylint check
+- \#345 - Do not support python 3.5.x any more
+- \#346 - Change method insert() to bulk_insert()
 
 ## Improvement
 - \#277 - Add doc `FAQ` chapter of pymilvus documentation
 - \#279 - Add doc `Changes` chapter of pymilvus documentation
 - \#280 - Add doc `About This Documentation` chapter of documentation
+- \#343 - Change exception 'BaseException' to 'BaseError'
 
 
 # pymilvus 0.3.0(2020-10-16)

@@ -49,6 +49,9 @@ class VersionError(AttributeError):
 class BaseError(Exception):
 
     def __init__(self, code, message):
+        # Call the base class constructor with the parameters it needs
+        super(BaseError, self).__init__(message)
+
         self._code = code
         self._message = message
 
@@ -65,25 +68,20 @@ class BaseError(Exception):
 
 
 class CollectionExistException(BaseError):
-    def __init__(self, code, message):
-        super().__init__(code, message)
+    pass
 
 
 class CollectionNotExistException(BaseError):
-    def __init__(self, code, message):
-        super().__init__(code, message)
+    pass
 
 
 class InvalidDimensionException(BaseError):
-    def __init__(self, code, message):
-        super().__init__(code, message)
+    pass
 
 
 class InvalidMetricTypeException(BaseError):
-    def __init__(self, code, message):
-        super().__init__(code, message)
+    pass
 
 
 class IllegalCollectionNameException(BaseError):
-    def __init__(self, code, message):
-        super().__init__(code, message)
+    pass

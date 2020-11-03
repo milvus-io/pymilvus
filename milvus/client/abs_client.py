@@ -39,9 +39,6 @@ class AbsMilvus:
     def _cmd(self, cmd, timeout=30):
         pass
 
-    """ Collection
-    """
-
     def create_collection(self, collection_name, fields, timeout=30):
         """
         Creates a collection.
@@ -52,7 +49,7 @@ class AbsMilvus:
         :param fields: field params.
         :type  fields: list, field num limitation : 32
             ` {"fields": [
-                    {"field": "A", "type": DataType.INT64, "index": {"name":"", "type":"", "params": {..}}}
+                    {"field": "A", "type": DataType.INT64}
                     {"field": "B", "type": DataType.INT64},
                     {"field": "C", "type": DataType.INT64},
                     {"field": "Vec", "type": DataType.BINARY_VECTOR,
@@ -164,10 +161,7 @@ class AbsMilvus:
         """
         pass
 
-    """ Index
-    """
-
-    def create_index(self, collection_name, field_name, index_name, params, timeout=None, **kwargs):
+    def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         """
         Creates index for a collection.
 
@@ -230,7 +224,7 @@ class AbsMilvus:
     #     """
     #     pass
 
-    def drop_index(self, collection_name, field_name, index_name, timeout=30):
+    def drop_index(self, collection_name, field_name, timeout=30):
         """
         Removes an index.
 
@@ -250,9 +244,6 @@ class AbsMilvus:
 
         """
         pass
-
-    """ Partition
-    """
 
     def create_partition(self, collection_name, partition_tag, timeout=30):
         """
@@ -281,7 +272,7 @@ class AbsMilvus:
         """
         pass
 
-    def has_partition(self, collection_name, partition_tag):
+    def has_partition(self, collection_name, partition_tag, timeout=30):
         """
         Check if specified partition exists.
 
@@ -348,9 +339,6 @@ class AbsMilvus:
         """
         pass
 
-    """ CRUD
-    """
-
     def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None):
         """
         Insert vectors to a collection.
@@ -371,7 +359,8 @@ class AbsMilvus:
         :param collection_name: Name of the collection to insert entities to.
 
         :type partition_tag: str or None.
-            If partition_tag is None, entities will be inserted to the collection rather than partitions.
+            If partition_tag is None, entities will be inserted to the collection
+            rather than partitions.
 
         :param partition_tag: Tag of a partition.
 
@@ -389,7 +378,7 @@ class AbsMilvus:
         """
         pass
 
-    def delete_entity_by_id(self, collection_name, ids, timeout=None):
+    def delete_entity_by_id(self, collection_name, id_array, timeout=None):
         """
         Deletes entitiess in a collection by entity ID.
 
@@ -413,7 +402,7 @@ class AbsMilvus:
         """
         pass
 
-    def get_entity_by_id(self, collection_name, ids, fields=None, timeout=None):
+    def get_entity_by_id(self, collection_name, ids, fields, timeout=30):
         """
         Returns raw vectors according to ids.
 
@@ -438,7 +427,7 @@ class AbsMilvus:
         """
         pass
 
-    def list_id_in_segment(self, collection_name, segment_name, timeout=None):
+    def list_id_in_segment(self, collection_name, segment_id, timeout=30):
         """
         :returns:
             ids: list[int]
@@ -450,32 +439,13 @@ class AbsMilvus:
         """
         pass
 
-    def search(self, collection_name, query_entities, partition_tags=None, fields=None, **kwargs):
+    def search(self, collection_name, dsl, partition_tags=None, fields=None, **kwargs):
         """
         :param collection_name:
         :type  collection_name: str
 
         :param query_entities:
         :type  query_entities: dict
-        TODO: update example
-
-             `{
-                 "bool": {
-                     "must": [
-                         {"term": {"A": {"values": [1, 2, 5]}}},
-                         {"range": {"B": {"ranges": {"GT": 1, "LT": 100}}}},
-                         {"vector": {"Vec": {"topk": 10, "query": vec[: 1], "params": {"index_name": Indextype.IVF_FLAT, "nprobe": 10}}}}
-                     ],
-                 },
-             }`
-            OR
-             `{
-                 "bool": {
-                     "must": [
-                         {"vector": {"Vec": {"topk": 10, "query": vec[: 1], "params": {"index_name": Indextype.IVF_FLAT, "nprobe": 10}}}}
-                     ],
-                 },
-             }`
 
         :param partition_tags: partition tag list
         :type  partition_tags: list[str]
@@ -497,7 +467,7 @@ class AbsMilvus:
         """
         pass
 
-    def search_in_segment(self, collection_name, segment_ids, query_entities, params=None, timeout=None):
+    def search_in_segment(self, collection_name, segment_ids, dsl, fields, timeout=None, **kwargs):
         """
         :param collection_name:
         :type  collection_name: str
@@ -525,9 +495,6 @@ class AbsMilvus:
         """
         pass
 
-    """ Memory
-    """
-
     def load_collection(self, collection_name, timeout=None):
         """
         Loads a collection for cache.
@@ -545,7 +512,7 @@ class AbsMilvus:
         """
         pass
 
-    def reload_segments(self, collection_name, segment_ids):
+    def reload_segments(self, collection_name, segment_ids, timeout=30):
         """
             Load segment delete docs to cache
 
@@ -559,7 +526,7 @@ class AbsMilvus:
         """
         pass
 
-    def flush(self, collection_names=None, timeout=None, **kwargs):
+    def flush(self, collection_name_array, timeout=None, **kwargs):
         """
         Flushes vector data in one collection or multiple collections to disk.
 
@@ -576,7 +543,7 @@ class AbsMilvus:
         """
         pass
 
-    def compact(self, collection_name, timeout=None, **kwargs):
+    def compact(self, collection_name, threshold, timeout, **kwargs):
         """
         Compacts segments in a collection. This function is recommended after deleting vectors.
 
@@ -594,9 +561,6 @@ class AbsMilvus:
 
         """
         pass
-
-    """ Config
-    """
 
     def get_config(self, key):
         """

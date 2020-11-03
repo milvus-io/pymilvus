@@ -1,6 +1,8 @@
 import abc
 import threading
 
+import grpc
+
 from .abstract import QueryResult
 from .exceptions import BaseError
 from .types import Status
@@ -112,8 +114,8 @@ class Future(AbstractFuture):
 
         if self._results:
             return self._results
-        else:
-            return self.on_response(self._response)
+
+        return self.on_response(self._response)
 
     def cancel(self):
         with self._condition:
@@ -132,7 +134,7 @@ class Future(AbstractFuture):
             if self._future and not self._future.done():
                 try:
                     self._future.result()
-                except Exception as e:
+                except (grpc.RpcError, grpc.FutureTimeoutError) as e:
                     self._exception = e
 
             self._condition.notify_all()

@@ -6,7 +6,7 @@ from ..client.exceptions import ParamError
 from .types import DataType
 
 
-class LoopBase(object):
+class LoopBase:
     def __init__(self):
         self.__index = 0
 
@@ -43,7 +43,7 @@ class LoopBase(object):
         raise NotImplementedError()
 
 
-class LoopCache(object):
+class LoopCache:
     def __init__(self):
         self._array = []
 
@@ -168,18 +168,18 @@ class Entity:
 
             if type_ in (DataType.INT32,):
                 return fd.attr_record.int32_value[self._fatal_id]
-            elif type_ in (DataType.INT64,):
+            if type_ in (DataType.INT64,):
                 return fd.attr_record.int64_value[self._fatal_id]
-            elif type_ in (DataType.FLOAT,):
+            if type_ in (DataType.FLOAT,):
                 return fd.attr_record.float_value[self._fatal_id]
-            elif type_ in (DataType.DOUBLE,):
+            if type_ in (DataType.DOUBLE,):
                 return fd.attr_record.double_value[self._fatal_id]
-            elif type_ in (DataType.FLOAT_VECTOR,):
+            if type_ in (DataType.FLOAT_VECTOR,):
                 return list(fd.vector_record.records[self._fatal_id].float_data)
-            elif type_ in (DataType.BINARY_VECTOR,):
+            if type_ in (DataType.BINARY_VECTOR,):
                 return bytes(fd.vector_record.records[self._fatal_id].binary_data)
-            else:
-                raise ParamError("Unknown field type {}".format(type_))
+
+            raise ParamError("Unknown field type {}".format(type_))
 
         raise IndexError("Unknown field {}".format(field))
 
@@ -227,7 +227,8 @@ class Entities(LoopBase):
 
         fatal_item = sum([1 for v in self._valid_raw[:item] if v])
 
-        return Entity(self._flat_ids[item], fatal_item, self._field_types, self._field_names, self._raw)
+        return Entity(self._flat_ids[item], fatal_item,
+                      self._field_types, self._field_names, self._raw)
 
     @property
     def ids(self):
@@ -236,18 +237,18 @@ class Entities(LoopBase):
     def dict(self):
         entity_list = list()
         for field in self._raw.fields:
-            type = DataType(int(field.type))
-            if type in (DataType.INT32,):
+            type_ = DataType(int(field.type))
+            if type_ in (DataType.INT32,):
                 values = list(field.attr_record.int32_value)
-            elif type in (DataType.INT64,):
+            elif type_ in (DataType.INT64,):
                 values = list(field.attr_record.int64_value)
-            elif type in (DataType.FLOAT,):
+            elif type_ in (DataType.FLOAT,):
                 values = list(field.attr_record.float_value)
-            elif type in (DataType.DOUBLE,):
+            elif type_ in (DataType.DOUBLE,):
                 values = list(field.attr_record.double_value)
-            elif type in (DataType.FLOAT_VECTOR,):
+            elif type_ in (DataType.FLOAT_VECTOR,):
                 values = [list(record.float_data) for record in field.vector_record.records]
-            elif type in (DataType.BINARY_VECTOR,):
+            elif type_ in (DataType.BINARY_VECTOR,):
                 values = [bytes(record.binary_data) for record in field.vector_record.records]
             else:
                 raise ParamError("Unknown field type {}".format(type))
