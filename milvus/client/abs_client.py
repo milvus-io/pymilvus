@@ -68,7 +68,7 @@ class AbsMilvus:
         """
         pass
 
-    def has_collection(self, collection_name, timeout=30):
+    def has_collection(self, collection_name, timeout=30, **kwargs):
         """
 
         Checks whether a collection exists.
@@ -85,7 +85,7 @@ class AbsMilvus:
         """
         pass
 
-    def get_collection_info(self, collection_name, timeout=30):
+    def get_collection_info(self, collection_name, timeout=30, **kwargs):
         """
         Returns information of a collection.
         Returned information should contain field info and index info of each field
@@ -102,7 +102,7 @@ class AbsMilvus:
         """
         pass
 
-    def count_entities(self, collection_name, timeout=30):
+    def count_entities(self, collection_name, timeout=30, **kwargs):
         """
         Returns the number of entities in target collection.
 
