@@ -2,7 +2,7 @@ import abc
 import threading
 
 from .abstract import QueryResult
-from .exceptions import BaseException
+from .exceptions import BaseError
 from .types import Status
 
 
@@ -151,7 +151,7 @@ class SearchFuture(Future):
             return QueryResult(response)
 
         status = response.status
-        raise BaseException(status.error_code, status.reason)
+        raise BaseError(status.error_code, status.reason)
 
 
 class InsertFuture(Future):
@@ -161,13 +161,13 @@ class InsertFuture(Future):
             return list(response.entity_id_array)
 
         status = response.status
-        raise BaseException(status.error_code, status.reason)
+        raise BaseError(status.error_code, status.reason)
 
 
 class CreateIndexFuture(Future):
     def on_response(self, response):
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)
 
         return Status(response.error_code, response.reason)
 
@@ -175,7 +175,7 @@ class CreateIndexFuture(Future):
 class CompactFuture(Future):
     def on_response(self, response):
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)
 
         return Status(response.error_code, response.reason)
 
@@ -183,4 +183,4 @@ class CompactFuture(Future):
 class FlushFuture(Future):
     def on_response(self, response):
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)

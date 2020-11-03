@@ -64,10 +64,10 @@ class AbsMilvus:
             None
 
         :raises:
-            CollectionExistException(BaseException)
-            InvalidDimensionException(BaseException)
-            InvalidMetricTypeException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionExistException(BaseError)
+            InvalidDimensionException(BaseError)
+            InvalidMetricTypeException(BaseError)
+            IllegalCollectionNameException(BaseError)
         """
         pass
 
@@ -83,7 +83,7 @@ class AbsMilvus:
             bool
 
         :raises:
-            IllegalCollectionNameException(BaseException)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
@@ -100,8 +100,8 @@ class AbsMilvus:
             TableSchema
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
         """
         pass
 
@@ -116,8 +116,8 @@ class AbsMilvus:
             count: int, count of entities
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
         """
         pass
 
@@ -141,8 +141,8 @@ class AbsMilvus:
             statistics: statistics information
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
@@ -160,7 +160,7 @@ class AbsMilvus:
                 - DROPPED
 
         :raises:
-            IllegalCollectionNameException(BaseException)
+            IllegalCollectionNameException(BaseError)
         """
         pass
 
@@ -195,12 +195,12 @@ class AbsMilvus:
                 - CREATED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            IllegalFieldNameException(BaseException)
-            IllegalIndexNameException(BaseException)
-            InvalidIndexParamsException(BaseException)
-            InvalidIndexTypeException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            IllegalFieldNameException(BaseError)
+            IllegalIndexNameException(BaseError)
+            InvalidIndexParamsException(BaseError)
+            InvalidIndexTypeException(BaseError)
         """
         pass
 
@@ -222,10 +222,10 @@ class AbsMilvus:
     #         IndexSchema:
     #
     #     :raises:
-    #         CollectionNotExistException(BaseException)
-    #         IllegalCollectionNameException(BaseException)
-    #         IllegalFieldNameException(BaseException)
-    #         IllegalIndexNameException(BaseException)
+    #         CollectionNotExistException(BaseError)
+    #         IllegalCollectionNameException(BaseError)
+    #         IllegalFieldNameException(BaseError)
+    #         IllegalIndexNameException(BaseError)
     #
     #     """
     #     pass
@@ -243,10 +243,10 @@ class AbsMilvus:
                 - DROPPED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            IllegalFieldNameException(BaseException)
-            IllegalIndexNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            IllegalFieldNameException(BaseError)
+            IllegalIndexNameException(BaseError)
 
         """
         pass
@@ -273,10 +273,10 @@ class AbsMilvus:
                 - CREATED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            IllegalPartitionTagException(BaseException)
-            ExceedPartitionMaxLimitException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            IllegalPartitionTagException(BaseError)
+            ExceedPartitionMaxLimitException(BaseError)
 
         """
         pass
@@ -296,10 +296,10 @@ class AbsMilvus:
             exists: bool, if specified partition exists
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            IllegalPartitionTagEixception(BaseException)
-            ExceedPartitionMaxLimitException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            IllegalPartitionTagEixception(BaseError)
+            ExceedPartitionMaxLimitException(BaseError)
 
         """
         pass
@@ -318,8 +318,8 @@ class AbsMilvus:
             partition_list: list[str]
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
@@ -340,10 +340,10 @@ class AbsMilvus:
                 - DROPPED
 
         :raises:
-            IllegalCollectionNameException(BaseException)
-            CollectionNotExistException(BaseException)
-            PartitionTagNotExistException(BaseException)
-            IllegalPartitionTagException(BaseException)
+            IllegalCollectionNameException(BaseError)
+            CollectionNotExistException(BaseError)
+            PartitionTagNotExistException(BaseError)
+            IllegalPartitionTagException(BaseError)
 
         """
         pass
@@ -379,13 +379,13 @@ class AbsMilvus:
             ids: list[int]
 
        :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            InvalidRowRecordException(BaseException)
-            InvalidVectorIdException(BaseException)
-            PartitionTagNotExistException(BaseException)
-            InvalidPartitionTagException(BaseException)
-            FieldsNotMatchException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            InvalidRowRecordException(BaseError)
+            InvalidVectorIdException(BaseError)
+            PartitionTagNotExistException(BaseError)
+            InvalidPartitionTagException(BaseError)
+            FieldsNotMatchException(BaseError)
         """
         pass
 
@@ -405,10 +405,10 @@ class AbsMilvus:
                 - DELETED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            InvalidEntityIdException(BaseException)
-            LimitMaxIdException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            InvalidEntityIdException(BaseError)
+            LimitMaxIdException(BaseError)
 
         """
         pass
@@ -431,9 +431,9 @@ class AbsMilvus:
                 `
 
         :raises:
-            CollectionNotExistException(BaseException)
-            InvalidEntityIdException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            InvalidEntityIdException(BaseError)
+            IllegalCollectionNameException(BaseError)
             TODO: exception for field not match
         """
         pass
@@ -444,8 +444,8 @@ class AbsMilvus:
             ids: list[int]
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
@@ -487,12 +487,12 @@ class AbsMilvus:
             result: query result
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            InvalidTopkException(BaseException)
-            InvalidSearchParamException(BaseException)
-            PartitionTagNotExistException(BaseException)
-            InvalidPartitionTagException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            InvalidTopkException(BaseError)
+            InvalidSearchParamException(BaseError)
+            PartitionTagNotExistException(BaseError)
+            InvalidPartitionTagException(BaseError)
 
         """
         pass
@@ -515,12 +515,12 @@ class AbsMilvus:
             result: query result
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            InvalidTopkException(BaseException)
-            InvalidSearchParamException(BaseException)
-            PartitionTagNotExistException(BaseException)
-            InvalidPartitionTagException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            InvalidTopkException(BaseError)
+            InvalidSearchParamException(BaseError)
+            PartitionTagNotExistException(BaseError)
+            InvalidPartitionTagException(BaseError)
 
         """
         pass
@@ -539,8 +539,8 @@ class AbsMilvus:
             None
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
@@ -553,8 +553,8 @@ class AbsMilvus:
             None
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
@@ -570,8 +570,8 @@ class AbsMilvus:
             None
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
@@ -589,8 +589,8 @@ class AbsMilvus:
                 - COMPACTED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass

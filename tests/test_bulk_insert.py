@@ -5,7 +5,7 @@ from unittest import mock
 
 from grpc._channel import _UnaryUnaryMultiCallable as Uum
 
-from milvus import Milvus, DataType, BaseException
+from milvus import Milvus, DataType, BaseError
 
 from factorys import fake, records_factory, integer_factory
 from utils import MockGrpcError
@@ -81,10 +81,10 @@ class TestBulkInsert:
             {"name": "Int", "values": integers, "type": sd}
         ]
 
-        with pytest.raises(BaseException):
+        with pytest.raises(BaseError):
             connect.bulk_insert(hvcollection, entities)
 
-    def test_bulk_insert_with_collecton_non_exist(self, connect, hvcollection, dim):
+    def test_bulk_insert_with_collection_non_exist(self, connect, hvcollection, dim):
         collection = hvcollection + "_c1"
         vectors = records_factory(dim, 1)
         integers = integer_factory(1)
@@ -94,7 +94,7 @@ class TestBulkInsert:
             {"name": "Int", "values": integers}
         ]
 
-        with pytest.raises(BaseException):
+        with pytest.raises(BaseError):
             connect.bulk_insert(collection, entities)
 
     def test_create_collection_exception(self, connect, hvcollection, dim):

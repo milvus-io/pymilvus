@@ -40,7 +40,7 @@ def error_handler(*rargs):
                     self.ping()
                 record_dict["RPC start"] = str(datetime.datetime.now())
                 return func(self, *args, **kwargs)
-            except BaseException as e:
+            except BaseError as e:
                 LOGGER.error("Error: {}".format(e))
                 if e.code == Status.ILLEGAL_COLLECTION_NAME:
                     raise IllegalCollectionNameException(e.code, e.message)
@@ -248,7 +248,7 @@ class GrpcHandler(AbsMilvus):
         rf = self._stub.Cmd.future(cmd, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise BaseError(response.status.error_code, response.status.reason)
 
         return response.string_reply
 
@@ -259,7 +259,7 @@ class GrpcHandler(AbsMilvus):
         status = rf.result()
         if status.error_code != 0:
             LOGGER.error(status)
-            raise BaseException(status.error_code, status.reason)
+            raise BaseError(status.error_code, status.reason)
 
     @error_handler(False)
     def has_collection(self, collection_name, timeout=30, **kwargs):
@@ -270,7 +270,7 @@ class GrpcHandler(AbsMilvus):
         if reply.status.error_code == 0:
             return reply.bool_reply
 
-        raise BaseException(reply.status.error_code, reply.status.reason)
+        raise BaseError(reply.status.error_code, reply.status.reason)
 
     @error_handler(None)
     def get_collection_info(self, collection_name, timeout=30, **kwargs):
@@ -282,7 +282,7 @@ class GrpcHandler(AbsMilvus):
             return CollectionSchema(raw=response).dict()
 
         LOGGER.error(response.status)
-        raise BaseException(response.status.error_code, response.status.reason)
+        raise BaseError(response.status.error_code, response.status.reason)
 
     @error_handler(None)
     def count_entities(self, collection_name, timeout=30, **kwargs):
@@ -293,7 +293,7 @@ class GrpcHandler(AbsMilvus):
         if response.status.error_code == 0:
             return response.collection_row_count
 
-        raise BaseException(response.status.error_code, response.status.reason)
+        raise BaseError(response.status.error_code, response.status.reason)
 
     @error_handler([])
     def list_collections(self, timeout=30):
@@ -302,7 +302,7 @@ class GrpcHandler(AbsMilvus):
         response = rf.result()
         if response.status.error_code == 0:
             return [name for name in response.collection_names if len(name) > 0]
-        raise BaseException(response.status.error_code, message=response.status.reason)
+        raise BaseError(response.status.error_code, message=response.status.reason)
 
     @error_handler(None)
     def get_collection_stats(self, collection_name, timeout=30):
@@ -316,14 +316,14 @@ class GrpcHandler(AbsMilvus):
             json_info = response.json_info
             return {} if not json_info else ujson.loads(json_info)
 
-        raise BaseException(rpc_status.error_code, rpc_status.reason)
+        raise BaseError(rpc_status.error_code, rpc_status.reason)
 
     @error_handler()
     def load_collection(self, collection_name, timeout=None):
         collection_name = Prepare.collection_name(collection_name)
         status = self._stub.PreloadCollection.future(collection_name, wait_for_ready=True, timeout=timeout).result()
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise BaseError(status.error_code, status.reason)
 
     @error_handler()
     def reload_segments(self, collection_name, segment_ids, timeout=30):
@@ -331,7 +331,7 @@ class GrpcHandler(AbsMilvus):
         request = Prepare.reload_param(collection_name, file_ids)
         status = self._stub.ReloadSegments.future(request, wait_for_ready=True, timeout=timeout).result()
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise BaseError(status.error_code, status.reason)
 
     @error_handler()
     def drop_collection(self, collection_name, timeout=20):
@@ -340,7 +340,7 @@ class GrpcHandler(AbsMilvus):
         rf = self._stub.DropCollection.future(collection_name, wait_for_ready=True, timeout=timeout)
         status = rf.result()
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise BaseError(status.error_code, status.reason)
 
         return Status(status.error_code, status.reason)
 
@@ -364,7 +364,7 @@ class GrpcHandler(AbsMilvus):
         if response.status.error_code == 0:
             return list(response.entity_id_array)
 
-        raise BaseException(response.status.error_code, response.status.reason)
+        raise BaseError(response.status.error_code, response.status.reason)
 
     @error_handler([])
     def get_entity_by_id(self, collection_name, ids, fields, timeout=30):
@@ -377,7 +377,7 @@ class GrpcHandler(AbsMilvus):
             # TODO: handler response
             return Entities(response)
 
-        raise BaseException(code=status.error_code, message=status.reason)
+        raise BaseError(code=status.error_code, message=status.reason)
 
     @error_handler([])
     def list_id_in_segment(self, collection_name, segment_id, timeout=30):
@@ -389,7 +389,7 @@ class GrpcHandler(AbsMilvus):
         if response.status.error_code == 0:
             return list(response.entity_id_array)
 
-        raise BaseException(response.status.error_code, response.status.reason)
+        raise BaseError(response.status.error_code, response.status.reason)
 
     @error_handler()
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
@@ -401,7 +401,7 @@ class GrpcHandler(AbsMilvus):
         status = future.result()
 
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise BaseError(status.error_code, status.reason)
 
         return Status(status.error_code, status.reason)
 
@@ -412,7 +412,7 @@ class GrpcHandler(AbsMilvus):
         rf = self._stub.DropIndex.future(request, wait_for_ready=True, timeout=timeout)
         status = rf.result()
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise BaseError(status.error_code, status.reason)
 
         return Status(status.error_code, status.reason)
 
@@ -422,7 +422,7 @@ class GrpcHandler(AbsMilvus):
         rf = self._stub.CreatePartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)
 
     @error_handler(False)
     def has_partition(self, collection_name, partition_tag, timeout=30):
@@ -433,7 +433,7 @@ class GrpcHandler(AbsMilvus):
         if status.error_code == 0:
             return response.bool_reply
 
-        raise BaseException(status.error_code, status.reason)
+        raise BaseError(status.error_code, status.reason)
 
     @error_handler([])
     def list_partitions(self, collection_name, timeout=30):
@@ -445,7 +445,7 @@ class GrpcHandler(AbsMilvus):
         if status.error_code == 0:
             return [p for p in response.partition_tag_array]
 
-        raise BaseException(status.error_code, status.reason)
+        raise BaseError(status.error_code, status.reason)
 
     @error_handler()
     def drop_partition(self, collection_name, partition_tag, timeout=30):
@@ -455,7 +455,7 @@ class GrpcHandler(AbsMilvus):
         response = rf.result()
 
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)
 
         return Status(response.error_code, response.reason)
 
@@ -476,7 +476,7 @@ class GrpcHandler(AbsMilvus):
             return response
 
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise BaseError(response.status.error_code, response.status.reason)
 
         # TODO: handler response
         # resutls = self._search_hook.handle_response(response)
@@ -528,7 +528,7 @@ class GrpcHandler(AbsMilvus):
             return response
 
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise BaseError(response.status.error_code, response.status.reason)
 
         return QueryResult(response)
 
@@ -540,7 +540,7 @@ class GrpcHandler(AbsMilvus):
         status = rf.result()
         # status = self._stub.DeleteByID.future(request).result(timeout=timeout)
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise BaseError(status.error_code, status.reason)
 
         return Status(status.error_code, status.reason)
 
@@ -553,7 +553,7 @@ class GrpcHandler(AbsMilvus):
             return FlushFuture(future, cb)
         response = future.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)
 
     @error_handler()
     def compact(self, collection_name, threshold, timeout, **kwargs):
@@ -564,7 +564,7 @@ class GrpcHandler(AbsMilvus):
             return CompactFuture(future, cb)
         response = future.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)
 
         return Status(response.error_code, response.reason)
 

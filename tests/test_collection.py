@@ -4,7 +4,7 @@ import grpc
 import pytest
 from grpc._channel import _UnaryUnaryMultiCallable as Uum
 
-from milvus import DataType, BaseException
+from milvus import DataType, BaseError
 
 from factorys import collection_name_factory
 
@@ -37,7 +37,7 @@ class TestCreateCollection:
 
         try:
             connect.create_collection(collection_name, collection_param)
-            with pytest.raises(BaseException):
+            with pytest.raises(BaseError):
                 connect.create_collection(collection_name, collection_param)
         except Exception as e:
             pytest.fail("Unexpected MyError: ".format(str(e)))
@@ -88,7 +88,7 @@ class TestCreateCollection:
             "segment_row_limit": srl
         }
 
-        with pytest.raises(BaseException):
+        with pytest.raises(BaseError):
             connect.create_collection(collection_name, collection_param)
 
     @pytest.mark.parametrize("srl", [None, "123"])
@@ -101,7 +101,7 @@ class TestCreateCollection:
             "segment_row_limit": srl
         }
 
-        with pytest.raises(BaseException):
+        with pytest.raises(BaseError):
             connect.create_collection(collection_name, collection_param)
 
     @pytest.mark.parametrize("autoid", [True, False])
