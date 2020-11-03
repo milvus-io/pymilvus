@@ -97,18 +97,25 @@ The_Lord_of_the_Rings = [
 # ------
 # Basic insert entities:
 #     To insert these films into Milvus, we have to group values from the same field together like below.
-#     Then these grouped data are used to create `hybrid_entities`.
+#     Then these grouped data are used to create `bulk_entities`.
 # ------
 ids = [k.get("id") for k in The_Lord_of_the_Rings]
 durations = [k.get("duration") for k in The_Lord_of_the_Rings]
 release_years = [k.get("release_year") for k in The_Lord_of_the_Rings]
 embeddings = [k.get("embedding") for k in The_Lord_of_the_Rings]
 
-hybrid_entities = [
+# ------
+# Basic insert entities:
+#     Each item in `bulk_entities` represents a field, and must contains keys 'name' and 'values'.
+#     It is allowed but not necessary to specify type of field by adding key 'type' in each item,
+#     for example:
+#           '{"name": "duration", "values": durations, "type": DataType.INT32}'
+# ------
+bulk_entities = [
     # Milvus doesn't support string type yet, so we cannot insert "title".
-    {"name": "duration", "values": durations, "type": DataType.INT32},
-    {"name": "release_year", "values": release_years, "type": DataType.INT32},
-    {"name": "embedding", "values": embeddings, "type": DataType.FLOAT_VECTOR},
+    {"name": "duration", "values": durations},
+    {"name": "release_year", "values": release_years},
+    {"name": "embedding", "values": embeddings},
 ]
 
 # ------
@@ -116,7 +123,7 @@ hybrid_entities = [
 #     We insert the `hybrid_entities` into our collection, into partition `American`, with ids we provide.
 #     If succeed, ids we provide will be returned.
 # ------
-ids = client.bulk_insert(collection_name, hybrid_entities, ids, partition_tag="American")
+ids = client.bulk_insert(collection_name, bulk_entities, ids, partition_tag="American")
 print("\n----------insert----------")
 print("Films are inserted and the ids are: {}".format(ids))
 

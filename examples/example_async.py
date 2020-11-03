@@ -131,9 +131,9 @@ def columnar_entities(entities):
 
     return ids, [
         # Milvus doesn't support string type yet, so we cannot insert "title".
-        {"name": "duration", "values": durations, "type": DataType.INT32},
-        {"name": "release_year", "values": release_years, "type": DataType.INT32},
-        {"name": "embedding", "values": embeddings, "type": DataType.FLOAT_VECTOR},
+        {"name": "duration", "values": durations},
+        {"name": "release_year", "values": release_years},
+        {"name": "embedding", "values": embeddings},
     ]
 
 
@@ -166,7 +166,7 @@ def batman_insert_cb(inserted_ids):
     print("Films about Batman are inserted and the ids are: {}".format(inserted_ids))
 
 
-insert_future = client.insert(collection_name, batman_entities, batman_ids, partition_tag="American", _async=True,
+insert_future = client.bulk_insert(collection_name, batman_entities, batman_ids, partition_tag="American", _async=True,
                               _callback=batman_insert_cb)
 insert_future.done()
 

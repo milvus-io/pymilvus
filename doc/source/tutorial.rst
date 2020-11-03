@@ -199,14 +199,15 @@ Then we can create hybrid entities to insert into Milvus.
 ...     # Milvus doesn't support string type yet,
 ...     # so we cannot insert "title".
 ...     {
+...         # We can also specify the type of field "name", then add:
+...         #     "type": DataType.INT32
+...         # which must match that specified when creating collection.
 ...         "name": "release_year",
-...         "values": release_years,
-...         "type": DataType.INT32
+...         "values": release_years
 ...     },
 ...     {
 ...         "name": "embedding",
-...         "values": embeddings,
-...         "type": DataType.FLOAT_VECTOR
+...         "values": embeddings
 ...     },
 ... ]
 

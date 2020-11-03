@@ -142,3 +142,51 @@ class TestBulkInsert:
         with mock.patch.object(Uum, 'future', mock_exception):
             with pytest.raises(Exception):
                 connect.bulk_insert(hvcollection, entities)
+
+
+class TestBulkInsertAsync:
+    def test_bulk_insert_async_normal(self, connect, vcollection, dim):
+        vectors = records_factory(dim, 10000)
+        entities = [
+            {"name": "Vec", "values": vectors}
+        ]
+
+        try:
+            ft = connect.bulk_insert(vcollection, entities, _async=True)
+            ft.result()
+            ft.done()
+        except Exception as e:
+            pytest.fail("Unexpected MyError: {}".format(str(e)))
+
+    def test_bulk_insert_async_normal2(self, connect, hvcollection, dim):
+        vectors = records_factory(dim, 10000)
+        integers = integer_factory(10000)
+
+        entities = [
+            {"name": "Vec", "values": vectors},
+            {"name": "Int", "values": integers}
+        ]
+
+        try:
+            ft = connect.bulk_insert(hvcollection, entities, _async=True)
+            ft.result()
+            ft.done()
+        except Exception as e:
+            pytest.fail("Unexpected MyError: {}".format(str(e)))
+
+    def test_bulk_insert_async_callback(self, connect, vcollection, dim):
+        vectors = records_factory(dim, 10000)
+        entities = [
+            {"name": "Vec", "values": vectors}
+        ]
+
+        def icb(ids):
+            if len(ids) != 10000:
+                raise ValueError("Result id len is not equal to 10000")
+
+        try:
+            ft = connect.bulk_insert(vcollection, entities, _async=True, _callback=icb)
+            ft.result()
+            ft.done()
+        except Exception as e:
+            pytest.fail("Unexpected MyError: {}".format(str(e)))

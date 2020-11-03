@@ -16,7 +16,7 @@ from .check import (
 )
 
 from .abs_client import AbsMilvus
-from .asynch import SearchFuture, InsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
+from .asynch import SearchFuture, BulkInsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
 
 from .hooks import BaseSearchHook
 from .client_hooks import SearchHook, HybridSearchHook
@@ -354,7 +354,7 @@ class GrpcHandler(AbsMilvus):
         rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
         if kwargs.get("_async", False) is True:
             cb = kwargs.get("_callback", None)
-            return InsertFuture(rf, cb)
+            return BulkInsertFuture(rf, cb)
 
         response = rf.result()
         if response.status.error_code == 0:

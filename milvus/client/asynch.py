@@ -156,7 +156,7 @@ class SearchFuture(Future):
         raise BaseError(status.error_code, status.reason)
 
 
-class InsertFuture(Future):
+class BulkInsertFuture(Future):
     def on_response(self, response):
         status = response.status
         if status.error_code == 0:
