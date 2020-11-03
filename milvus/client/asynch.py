@@ -1,8 +1,10 @@
 import abc
 import threading
 
+import grpc
+
 from .abstract import QueryResult
-from .exceptions import BaseException
+from .exceptions import BaseError
 from .types import Status
 
 
@@ -112,8 +114,8 @@ class Future(AbstractFuture):
 
         if self._results:
             return self._results
-        else:
-            return self.on_response(self._response)
+
+        return self.on_response(self._response)
 
     def cancel(self):
         with self._condition:
@@ -132,7 +134,7 @@ class Future(AbstractFuture):
             if self._future and not self._future.done():
                 try:
                     self._future.result()
-                except Exception as e:
+                except (grpc.RpcError, grpc.FutureTimeoutError) as e:
                     self._exception = e
 
             self._condition.notify_all()
@@ -151,23 +153,23 @@ class SearchFuture(Future):
             return QueryResult(response)
 
         status = response.status
-        raise BaseException(status.error_code, status.reason)
+        raise BaseError(status.error_code, status.reason)
 
 
-class InsertFuture(Future):
+class BulkInsertFuture(Future):
     def on_response(self, response):
         status = response.status
         if status.error_code == 0:
             return list(response.entity_id_array)
 
         status = response.status
-        raise BaseException(status.error_code, status.reason)
+        raise BaseError(status.error_code, status.reason)
 
 
 class CreateIndexFuture(Future):
     def on_response(self, response):
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)
 
         return Status(response.error_code, response.reason)
 
@@ -175,7 +177,7 @@ class CreateIndexFuture(Future):
 class CompactFuture(Future):
     def on_response(self, response):
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)
 
         return Status(response.error_code, response.reason)
 
@@ -183,4 +185,4 @@ class CompactFuture(Future):
 class FlushFuture(Future):
     def on_response(self, response):
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseError(response.error_code, response.reason)

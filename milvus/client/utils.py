@@ -1,7 +1,22 @@
+from urllib.parse import urlparse
+
+from ..settings import DefaultConfig as config
+
 from ..grpc_gen import status_pb2
-from ..grpc_gen.milvus_pb2 import TopKQueryResult as Grpc_Result
-from ..client.abstract import TopKQueryResult
+from ..grpc_gen.milvus_pb2 import QueryResult as Grpc_Result
+from ..client.abstract import QueryResult
 from ..client.exceptions import ParamError
+
+
+def set_uri(uri):
+    try:
+        _uri = urlparse(uri) if uri else urlparse(config.GRPC_URI)
+        _host = _uri.hostname
+        _port = _uri.port
+    except (AttributeError, ValueError, TypeError) as e:
+        raise ParamError("uri is illegal: {}".format(e))
+
+    return "{}:{}".format(str(_host), str(_port))
 
 
 def merge_results(results_list, topk, *args, **kwargs):
@@ -43,7 +58,7 @@ def merge_results(results_list, topk, *args, **kwargs):
 
     for files_collection in results_list:
         if not isinstance(files_collection, Grpc_Result) and \
-                not isinstance(files_collection, TopKQueryResult):
+                not isinstance(files_collection, QueryResult):
             return ParamError("Result type is unknown.")
 
         row_num = files_collection.row_num
@@ -85,4 +100,4 @@ def merge_results(results_list, topk, *args, **kwargs):
         distances=dis_mrege_list
     )
 
-    return raw_result if raw else TopKQueryResult(raw_result)
+    return raw_result if raw else QueryResult(raw_result)

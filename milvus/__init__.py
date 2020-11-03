@@ -9,10 +9,10 @@ from .client.exceptions import (
     NotConnectError,
     RepeatingConnectError,
     VersionError,
-    BaseException
+    BaseError
 )
 from .client import __version__
 
 __all__ = ['Milvus', 'Prepare', 'Status', 'DataType',
-           'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'BaseException',
+           'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'BaseError',
            '__version__']

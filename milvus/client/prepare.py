@@ -1,12 +1,9 @@
-import abc
 import copy
-import struct
 import ujson
 
 from .exceptions import ParamError
 
 from ..grpc_gen import milvus_pb2 as grpc_types
-from ..grpc_gen import status_pb2
 
 from .types import RangeType, DataType
 
@@ -40,11 +37,11 @@ class Prepare:
         :param param: (Required)
 
             ` {"fields": [
-                    {"field": "A", "type": DataType.INT64, "index": {"name":"", "type":"", "params": {..}}}
+                    {"field": "A", "type": DataType.INT64}
                     {"field": "B", "type": DataType.INT64},
                     {"field": "C", "type": DataType.INT64},
                     {"field": "Vec", "type": DataType.BINARY_VECTOR,
-                     "params": {"metric_type": MetricType.L2, "dimension": 128}}
+                     "params": {"dimension": 128}}
                 ],
             "segment_size": 100}`
 
@@ -84,12 +81,15 @@ class Prepare:
 
     @classmethod
     def reload_param(cls, collection_name, segment_ids):
-        return grpc_types.ReLoadSegmentsParam(collection_name=collection_name, segment_id_array=segment_ids)
+        return grpc_types.ReLoadSegmentsParam(collection_name=collection_name,
+                                              segment_id_array=segment_ids)
 
     @classmethod
-    def insert_param(cls, collection_name, entities, partition_tag, ids=None, params=None, **kwargs):
+    def insert_param(cls, collection_name, entities, types, partition_tag,
+                     ids=None, params=None, **kwargs):
         if ids is None:
-            _param = grpc_types.InsertParam(collection_name=collection_name, partition_tag=partition_tag)
+            _param = grpc_types.InsertParam(collection_name=collection_name,
+                                            partition_tag=partition_tag)
         else:
             _param = grpc_types.InsertParam(
                 collection_name=collection_name,
@@ -97,11 +97,11 @@ class Prepare:
                 partition_tag=partition_tag)
 
         for entity in entities:
-            type = entity.get("type", None)
-            if type is None:
+            type_ = types.get(entity.get("name"), None)
+            if type_ is None:
                 raise ParamError("param entities must contain type")
 
-            if not isinstance(type, DataType):
+            if not isinstance(type_, DataType):
                 raise ParamError("Param type must be type of DataType")
 
             values = entity.get("values", None)
@@ -109,21 +109,20 @@ class Prepare:
                 raise ParamError("Param entities must contain values")
 
             field_param = grpc_types.FieldValue(field_name=entity["name"])
-            if type in (DataType.INT32,):
-            # if type in (DataType.INT8, DataType.INT16, DataType.INT32,):
+            if type_ in (DataType.INT32,):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int32_value=values))
-            elif type in (DataType.INT64, ):
+            elif type_ in (DataType.INT64, ):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int64_value=values))
-            elif type in (DataType.FLOAT, ):
+            elif type_ in (DataType.FLOAT, ):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(float_value=values))
-            elif type in (DataType.DOUBLE, ):
+            elif type_ in (DataType.DOUBLE, ):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(double_value=values))
-            elif type in (DataType.FLOAT_VECTOR,):
+            elif type_ in (DataType.FLOAT_VECTOR,):
                 records = grpc_types.VectorRecord()
                 for vector in values:
                     records.records.add(float_data=vector)
                 field_param.vector_record.CopyFrom(records)
-            elif type in (DataType.BINARY_VECTOR,):
+            elif type_ in (DataType.BINARY_VECTOR,):
                 records = grpc_types.VectorRecord()
                 for vector in values:
                     records.records.add(binary_data=vector)
@@ -140,7 +139,9 @@ class Prepare:
 
     @classmethod
     def get_entity_by_id_param(cls, collection_name, ids, fields):
-        return grpc_types.EntityIdentity(collection_name=collection_name, id_array=ids, field_names=fields)
+        return grpc_types.EntityIdentity(collection_name=collection_name,
+                                         id_array=ids,
+                                         field_names=fields)
 
     @classmethod
     def index_param(cls, collection_name, field_name, params):
@@ -153,7 +154,8 @@ class Prepare:
         return _param
 
     @classmethod
-    def search_param(cls, collection_name, query_entities, partition_tags=None, fields=None, **kwargs):
+    def search_param(cls, collection_name, query_entities,
+                     partition_tags=None, fields=None, **kwargs):
         if not isinstance(query_entities, (dict,)):
             raise ParamError("Invalid query format. 'query_entities' must be a dict")
 
@@ -177,9 +179,9 @@ class Prepare:
                     placeholders[ph] = param["vector"]
                     param["vector"] = ph
                     return
-                else:
-                    for k, v in param.items():
-                        extract_vectors_param(v, placeholders)
+
+                for _, v in param.items():
+                    extract_vectors_param(v, placeholders)
 
             if isinstance(param, list):
                 for item in param:
@@ -191,7 +193,7 @@ class Prepare:
         for pk, pv in vector_placeholders.items():
 
             vector_param = grpc_types.VectorParam()
-            for ppk, ppv in pv.items():
+            for _, ppv in pv.items():
                 if "query" not in ppv:
                     raise ParamError("param vector must contain 'query'")
                 query = ppv["query"]

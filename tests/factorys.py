@@ -1,5 +1,6 @@
 # STL imports
 import random
+import logging
 import string
 import time
 import datetime
@@ -8,17 +9,15 @@ import struct
 import sys
 from functools import wraps
 
-sys.path.append('.')
 # Third party imports
 import numpy as np
 import faker
 from faker.providers import BaseProvider
 
-# local application imports
-from milvus.client.types import IndexType, MetricType
+logging.getLogger('faker').setLevel(logging.ERROR)
 
+sys.path.append('.')
 # grpc
-from milvus.client.grpc_handler import Prepare as gPrepare
 from milvus.grpc_gen import milvus_pb2
 
 
@@ -90,18 +89,17 @@ class FakerProvider(BaseProvider):
 fake = faker.Faker()
 fake.add_provider(FakerProvider)
 
-def collection_schema_factory():
-    param = {
-        'collection_name': fake.collection_name(),
-        'dimension': random.randint(1, 999),
-        'index_file_size': 1024,
-        'metric_type': MetricType.L2
-    }
-    return param
+
+def collection_name_factory():
+    return fake.collection_name()
 
 
 def records_factory(dimension, nq):
     return [[random.random() for _ in range(dimension)] for _ in range(nq)]
+
+
+def integer_factory(nq):
+    return [random.randint(0, 128) for _ in range(nq)]
 
 
 def time_it(func):

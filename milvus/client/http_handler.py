@@ -1,19 +1,15 @@
-import copy
 import functools
 import json
 import logging
-import ujson
-from urllib.parse import urlparse
 import struct
 
 import requests as rq
+import ujson
 
-from .abstract import ConnectIntf, CollectionSchema
-from .check import is_legal_host, is_legal_port
-from .exceptions import NotConnectError, ParamError
+from .abstract import CollectionSchema
+from .exceptions import NotConnectError
 from .types import Status
-
-from ..settings import DefaultConfig as config
+from .utils import set_uri
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -41,14 +37,14 @@ def handle_error(returns=tuple()):
     return decorator
 
 
-class HttpHandler(ConnectIntf):
+class HttpHandler:
 
     def __init__(self, host=None, port=None, **kwargs):
         self._status = None
 
         _uri = kwargs.get("uri", None)
 
-        self._uri = (host or port or _uri) and self._set_uri(host, port, uri=_uri)
+        self._uri = (host or port or _uri) and set_uri(uri=_uri)
         self._max_retry = kwargs.get("max_retry", 3)
 
     def __enter__(self):
@@ -59,58 +55,33 @@ class HttpHandler(ConnectIntf):
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def _set_uri(self, host, port, uri):
-        """
-        Set server network address
-
-        :raises: ParamError
-
-        """
-        if host is not None:
-            _port = port if port is not None else config.HTTP_PORT
-            _host = host
-        elif port is None:
-            try:
-                _uri = urlparse(uri) if uri else urlparse(config.HTTP_URI)
-                _host = _uri.hostname
-                _port = _uri.port
-            except (AttributeError, ValueError, TypeError) as e:
-                raise ParamError("uri is illegal: {}".format(e))
-        else:
-            raise ParamError("Param is not complete. Please invoke as follow:\n"
-                             "\t(host = ${HOST}, port = ${PORT})\n"
-                             "\t(uri = ${URI})\n")
-
-        if not is_legal_host(_host) or not is_legal_port(_port):
-            raise ParamError("host or port is illeagl")
-
-        return "http://{}:{}".format(str(_host), str(_port))
-
     @property
     def status(self):
         return self._status
 
     def ping(self, timeout=10):
         if self._uri is None:
-            self._uri = self._set_uri(None, None, None)
-        logging.info("Connecting server {}".format(self._uri))
+            self._uri = set_uri(None)
+        logging.info("Connecting server {}", self._uri)
         retry = self._max_retry
         try:
             while retry > 0:
                 try:
-                    response = rq.get(self._uri + "/state", timeout=timeout)
+                    rq.get(self._uri + "/state", timeout=timeout)
                     return True
-                except:
+                except (rq.exceptions.Timeout,
+                        rq.exceptions.TooManyRedirects,
+                        rq.exceptions.RequestException):
                     retry -= 1
                     if retry > 0:
                         continue
-                    else:
-                        raise
+
+                    raise
         except:
-            LOGGER.error("Cannot connect server {}".format(self._uri))
+            LOGGER.error("Cannot connect server {}", self._uri)
             raise NotConnectError("Cannot get server status")
 
-        LOGGER.info("Connected server {}".format(self._uri))
+        LOGGER.info("Connected server {}", self._uri)
         # try:
         #     js = response.json()
         #     return Status(js["code"], js["message"])
@@ -124,7 +95,7 @@ class HttpHandler(ConnectIntf):
 
     def connect(self, host, port, uri, timeout):
         if self.connected():
-            return Status(message="You have already connected {} !".format(self._uri),
+            return Status(message=f"You have already connected {self._uri} !",
                           code=Status.CONNECT_FAILED)
 
         if (host or port or uri) or not self._uri:
@@ -161,11 +132,11 @@ class HttpHandler(ConnectIntf):
             if response.status_code == 200:
                 js = response.json()
                 return Status(), js["message"]
-            elif response.status_code == 400:
+            if response.status_code == 400:
                 js = response.json()
                 return Status(js["code"], js["message"]), None
-            else:
-                return Status(Status.UNEXPECTED_ERROR, response.reason)
+
+            return Status(Status.UNEXPECTED_ERROR, response.reason)
 
     def _get_config(self, cmd, timeout):
         if cmd.startswith("get_config"):
@@ -178,21 +149,24 @@ class HttpHandler(ConnectIntf):
                 js = response.json()
                 rc_parent = js.get(config_node[0], None)
                 if rc_parent is None:
-                    return Status(Status.UNEXPECTED_ERROR, "Config {} not supported".format(cmd_node[1]))
+                    return Status(Status.UNEXPECTED_ERROR,
+                                  "Config {} not supported".format(cmd_node[1]))
                 rc_child = rc_parent.get(config_node[1], None)
                 if rc_child is None:
-                    return Status(Status.UNEXPECTED_ERROR, "Config {} not supported".format(cmd_node[1]))
+                    return Status(Status.UNEXPECTED_ERROR,
+                                  "Config {} not supported".format(cmd_node[1]))
 
                 return Status(), rc_child
                 # return Status(), js["message"]
-            elif response.status_code == 400:
+
+            if response.status_code == 400:
                 js = response.json()
                 return Status(js["code"], js["message"]), None
-            else:
-                return Status(Status.UNEXPECTED_ERROR, response.reason)
+
+            return Status(Status.UNEXPECTED_ERROR, response.reason)
 
     @handle_error(returns=(None,))
-    def _cmd(self, cmd, timeout=10):
+    def cmd(self, cmd, timeout=10):
         if cmd.startswith("get_config"):
             return self._get_config(cmd, timeout)
         if cmd.startswith("set_config"):
@@ -215,7 +189,8 @@ class HttpHandler(ConnectIntf):
         return self._cmd("status", timeout)
 
     @handle_error()
-    def create_collection(self, collection_name, dimension, index_file_size, metric_type, params=None, timeout=10):
+    def create_collection(self, collection_name, dimension, index_file_size,
+                          metric_type, params=None, timeout=10):
         table_param = {
             "collection_name": collection_name,
             "dimension": dimension,
@@ -279,10 +254,6 @@ class HttpHandler(ConnectIntf):
         js = response.json()
         if response.status_code == 200:
             table = CollectionSchema(js)
-                # collection_name=js["collection_name"],
-                # dimension=js["dimension"],
-                # index_file_size=js["index_file_size"],
-                # metric_type=[js["metric_type"]])
 
             return Status(message='Describe table successfully!'), table
 
@@ -358,7 +329,7 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error(returns=([],))
-    def insert(self, table_name, records, ids, partition_tag, params, timeout, **kwargs):
+    def bulk_insert(self, table_name, records, ids, partition_tag, params, timeout, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(table_name)
 
         data_dict = dict()
@@ -421,8 +392,8 @@ class HttpHandler(ConnectIntf):
 
     @handle_error(returns=(None,))
     def get_vector_ids(self, table_name, segment_name, timeout):
-        # TODO: here specify page_size hard is stupid, need server support query string 'qll_required'
-        url = self._uri + "/collections/{}/segments/{}/ids?page_size=1000000".format(table_name, segment_name)
+        url = self._uri + \
+              "/collections/{}/segments/{}/ids?page_size=1000000".format(table_name, segment_name)
         response = rq.get(url, timeout=timeout)
         result = response.json()
 
@@ -540,7 +511,8 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error(returns=(None,))
-    def search(self, collection_name, top_k, query_records, partition_tags=None, search_params=None, timeout=None, **kwargs):
+    def search(self, collection_name, top_k, query_records, partition_tags=None,
+               search_params=None, timeout=None, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
 
         search_body = dict()
@@ -569,7 +541,8 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"]), None
 
     @handle_error(returns=(None,))
-    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, search_params=None, timeout=None, **kwargs):
+    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None,
+                      search_params=None, timeout=None, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
         body_dict = dict()
         body_dict["topk"] = top_k
@@ -592,7 +565,8 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"]), None
 
     @handle_error(returns=(None,))
-    def search_in_files(self, collection_name, file_ids, query_records, top_k, search_params, timeout, **kwargs):
+    def search_in_files(self, collection_name, file_ids, query_records,
+                        top_k, search_params, timeout, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
 
         body_dict = dict()

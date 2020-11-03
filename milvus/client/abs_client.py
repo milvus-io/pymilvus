@@ -39,9 +39,6 @@ class AbsMilvus:
     def _cmd(self, cmd, timeout=30):
         pass
 
-    """ Collection
-    """
-
     def create_collection(self, collection_name, fields, timeout=30):
         """
         Creates a collection.
@@ -52,7 +49,7 @@ class AbsMilvus:
         :param fields: field params.
         :type  fields: list, field num limitation : 32
             ` {"fields": [
-                    {"field": "A", "type": DataType.INT64, "index": {"name":"", "type":"", "params": {..}}}
+                    {"field": "A", "type": DataType.INT64}
                     {"field": "B", "type": DataType.INT64},
                     {"field": "C", "type": DataType.INT64},
                     {"field": "Vec", "type": DataType.BINARY_VECTOR,
@@ -64,14 +61,14 @@ class AbsMilvus:
             None
 
         :raises:
-            CollectionExistException(BaseException)
-            InvalidDimensionException(BaseException)
-            InvalidMetricTypeException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionExistException(BaseError)
+            InvalidDimensionException(BaseError)
+            InvalidMetricTypeException(BaseError)
+            IllegalCollectionNameException(BaseError)
         """
         pass
 
-    def has_collection(self, collection_name, timeout=30):
+    def has_collection(self, collection_name, timeout=30, **kwargs):
         """
 
         Checks whether a collection exists.
@@ -83,12 +80,12 @@ class AbsMilvus:
             bool
 
         :raises:
-            IllegalCollectionNameException(BaseException)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
 
-    def get_collection_info(self, collection_name, timeout=30):
+    def get_collection_info(self, collection_name, timeout=30, **kwargs):
         """
         Returns information of a collection.
         Returned information should contain field info and index info of each field
@@ -100,12 +97,12 @@ class AbsMilvus:
             TableSchema
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
         """
         pass
 
-    def count_entities(self, collection_name, timeout=30):
+    def count_entities(self, collection_name, timeout=30, **kwargs):
         """
         Returns the number of entities in target collection.
 
@@ -116,8 +113,8 @@ class AbsMilvus:
             count: int, count of entities
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
         """
         pass
 
@@ -141,8 +138,8 @@ class AbsMilvus:
             statistics: statistics information
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
@@ -160,14 +157,11 @@ class AbsMilvus:
                 - DROPPED
 
         :raises:
-            IllegalCollectionNameException(BaseException)
+            IllegalCollectionNameException(BaseError)
         """
         pass
 
-    """ Index
-    """
-
-    def create_index(self, collection_name, field_name, index_name, params, timeout=None, **kwargs):
+    def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         """
         Creates index for a collection.
 
@@ -195,12 +189,12 @@ class AbsMilvus:
                 - CREATED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            IllegalFieldNameException(BaseException)
-            IllegalIndexNameException(BaseException)
-            InvalidIndexParamsException(BaseException)
-            InvalidIndexTypeException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            IllegalFieldNameException(BaseError)
+            IllegalIndexNameException(BaseError)
+            InvalidIndexParamsException(BaseError)
+            InvalidIndexTypeException(BaseError)
         """
         pass
 
@@ -222,15 +216,15 @@ class AbsMilvus:
     #         IndexSchema:
     #
     #     :raises:
-    #         CollectionNotExistException(BaseException)
-    #         IllegalCollectionNameException(BaseException)
-    #         IllegalFieldNameException(BaseException)
-    #         IllegalIndexNameException(BaseException)
+    #         CollectionNotExistException(BaseError)
+    #         IllegalCollectionNameException(BaseError)
+    #         IllegalFieldNameException(BaseError)
+    #         IllegalIndexNameException(BaseError)
     #
     #     """
     #     pass
 
-    def drop_index(self, collection_name, field_name, index_name, timeout=30):
+    def drop_index(self, collection_name, field_name, timeout=30):
         """
         Removes an index.
 
@@ -243,16 +237,13 @@ class AbsMilvus:
                 - DROPPED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            IllegalFieldNameException(BaseException)
-            IllegalIndexNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            IllegalFieldNameException(BaseError)
+            IllegalIndexNameException(BaseError)
 
         """
         pass
-
-    """ Partition
-    """
 
     def create_partition(self, collection_name, partition_tag, timeout=30):
         """
@@ -273,15 +264,15 @@ class AbsMilvus:
                 - CREATED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            IllegalPartitionTagException(BaseException)
-            ExceedPartitionMaxLimitException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            IllegalPartitionTagException(BaseError)
+            ExceedPartitionMaxLimitException(BaseError)
 
         """
         pass
 
-    def has_partition(self, collection_name, partition_tag):
+    def has_partition(self, collection_name, partition_tag, timeout=30):
         """
         Check if specified partition exists.
 
@@ -296,10 +287,10 @@ class AbsMilvus:
             exists: bool, if specified partition exists
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            IllegalPartitionTagEixception(BaseException)
-            ExceedPartitionMaxLimitException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            IllegalPartitionTagEixception(BaseError)
+            ExceedPartitionMaxLimitException(BaseError)
 
         """
         pass
@@ -318,8 +309,8 @@ class AbsMilvus:
             partition_list: list[str]
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
@@ -340,16 +331,13 @@ class AbsMilvus:
                 - DROPPED
 
         :raises:
-            IllegalCollectionNameException(BaseException)
-            CollectionNotExistException(BaseException)
-            PartitionTagNotExistException(BaseException)
-            IllegalPartitionTagException(BaseException)
+            IllegalCollectionNameException(BaseError)
+            CollectionNotExistException(BaseError)
+            PartitionTagNotExistException(BaseError)
+            IllegalPartitionTagException(BaseError)
 
         """
         pass
-
-    """ CRUD
-    """
 
     def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None):
         """
@@ -371,7 +359,8 @@ class AbsMilvus:
         :param collection_name: Name of the collection to insert entities to.
 
         :type partition_tag: str or None.
-            If partition_tag is None, entities will be inserted to the collection rather than partitions.
+            If partition_tag is None, entities will be inserted to the collection
+            rather than partitions.
 
         :param partition_tag: Tag of a partition.
 
@@ -379,17 +368,17 @@ class AbsMilvus:
             ids: list[int]
 
        :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            InvalidRowRecordException(BaseException)
-            InvalidVectorIdException(BaseException)
-            PartitionTagNotExistException(BaseException)
-            InvalidPartitionTagException(BaseException)
-            FieldsNotMatchException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            InvalidRowRecordException(BaseError)
+            InvalidVectorIdException(BaseError)
+            PartitionTagNotExistException(BaseError)
+            InvalidPartitionTagException(BaseError)
+            FieldsNotMatchException(BaseError)
         """
         pass
 
-    def delete_entity_by_id(self, collection_name, ids, timeout=None):
+    def delete_entity_by_id(self, collection_name, id_array, timeout=None):
         """
         Deletes entitiess in a collection by entity ID.
 
@@ -405,15 +394,15 @@ class AbsMilvus:
                 - DELETED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            InvalidEntityIdException(BaseException)
-            LimitMaxIdException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            InvalidEntityIdException(BaseError)
+            LimitMaxIdException(BaseError)
 
         """
         pass
 
-    def get_entity_by_id(self, collection_name, ids, fields=None, timeout=None):
+    def get_entity_by_id(self, collection_name, ids, fields, timeout=30):
         """
         Returns raw vectors according to ids.
 
@@ -431,51 +420,32 @@ class AbsMilvus:
                 `
 
         :raises:
-            CollectionNotExistException(BaseException)
-            InvalidEntityIdException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            InvalidEntityIdException(BaseError)
+            IllegalCollectionNameException(BaseError)
             TODO: exception for field not match
         """
         pass
 
-    def list_id_in_segment(self, collection_name, segment_name, timeout=None):
+    def list_id_in_segment(self, collection_name, segment_id, timeout=30):
         """
         :returns:
             ids: list[int]
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
 
-    def search(self, collection_name, query_entities, partition_tags=None, fields=None, **kwargs):
+    def search(self, collection_name, dsl, partition_tags=None, fields=None, **kwargs):
         """
         :param collection_name:
         :type  collection_name: str
 
         :param query_entities:
         :type  query_entities: dict
-        TODO: update example
-
-             `{
-                 "bool": {
-                     "must": [
-                         {"term": {"A": {"values": [1, 2, 5]}}},
-                         {"range": {"B": {"ranges": {"GT": 1, "LT": 100}}}},
-                         {"vector": {"Vec": {"topk": 10, "query": vec[: 1], "params": {"index_name": Indextype.IVF_FLAT, "nprobe": 10}}}}
-                     ],
-                 },
-             }`
-            OR
-             `{
-                 "bool": {
-                     "must": [
-                         {"vector": {"Vec": {"topk": 10, "query": vec[: 1], "params": {"index_name": Indextype.IVF_FLAT, "nprobe": 10}}}}
-                     ],
-                 },
-             }`
 
         :param partition_tags: partition tag list
         :type  partition_tags: list[str]
@@ -487,17 +457,17 @@ class AbsMilvus:
             result: query result
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            InvalidTopkException(BaseException)
-            InvalidSearchParamException(BaseException)
-            PartitionTagNotExistException(BaseException)
-            InvalidPartitionTagException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            InvalidTopkException(BaseError)
+            InvalidSearchParamException(BaseError)
+            PartitionTagNotExistException(BaseError)
+            InvalidPartitionTagException(BaseError)
 
         """
         pass
 
-    def search_in_segment(self, collection_name, segment_ids, query_entities, params=None, timeout=None):
+    def search_in_segment(self, collection_name, segment_ids, dsl, fields, timeout=None, **kwargs):
         """
         :param collection_name:
         :type  collection_name: str
@@ -515,18 +485,15 @@ class AbsMilvus:
             result: query result
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
-            InvalidTopkException(BaseException)
-            InvalidSearchParamException(BaseException)
-            PartitionTagNotExistException(BaseException)
-            InvalidPartitionTagException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
+            InvalidTopkException(BaseError)
+            InvalidSearchParamException(BaseError)
+            PartitionTagNotExistException(BaseError)
+            InvalidPartitionTagException(BaseError)
 
         """
         pass
-
-    """ Memory
-    """
 
     def load_collection(self, collection_name, timeout=None):
         """
@@ -539,13 +506,13 @@ class AbsMilvus:
             None
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
 
-    def reload_segments(self, collection_name, segment_ids):
+    def reload_segments(self, collection_name, segment_ids, timeout=30):
         """
             Load segment delete docs to cache
 
@@ -553,13 +520,13 @@ class AbsMilvus:
             None
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
 
-    def flush(self, collection_names=None, timeout=None, **kwargs):
+    def flush(self, collection_name_array, timeout=None, **kwargs):
         """
         Flushes vector data in one collection or multiple collections to disk.
 
@@ -570,13 +537,13 @@ class AbsMilvus:
             None
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
 
-    def compact(self, collection_name, timeout=None, **kwargs):
+    def compact(self, collection_name, threshold, timeout, **kwargs):
         """
         Compacts segments in a collection. This function is recommended after deleting vectors.
 
@@ -589,14 +556,11 @@ class AbsMilvus:
                 - COMPACTED
 
         :raises:
-            CollectionNotExistException(BaseException)
-            IllegalCollectionNameException(BaseException)
+            CollectionNotExistException(BaseError)
+            IllegalCollectionNameException(BaseError)
 
         """
         pass
-
-    """ Config
-    """
 
     def get_config(self, key):
         """

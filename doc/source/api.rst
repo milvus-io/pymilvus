@@ -37,7 +37,7 @@ Methods
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `drop_collection() <#milvus.Milvus.drop_collection>`_                | drop a collection.                                                     |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `insert() <#milvus.Milvus.insert>`_                                  | insert entities into specified collection.                             |
+| `bulk_insert() <#milvus.Milvus.bulk_insert>`_                        | insert columnar entities into specified collection.                    |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `get_entity_by_id() <#milvus.Milvus.get_entity_by_id>`_              | Obtain entities by providing entity ids.                               |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
@@ -73,7 +73,7 @@ APIs
 
 .. autoclass:: milvus.Milvus
    :members: create_collection, has_collection, get_collection_info, count_entities, list_collections,
-             get_collection_stats, load_collection, drop_collection, insert, get_entity_by_id, list_id_in_segment,
+             get_collection_stats, load_collection, drop_collection, bulk_insert, get_entity_by_id, list_id_in_segment,
              create_index, drop_index, create_partition, has_partition, list_partitions, drop_partition,
              search, search_in_segment, delete_entity_by_id, flush, compact
 
