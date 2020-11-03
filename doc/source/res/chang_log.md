@@ -1,4 +1,8 @@
 **v0.4.0(Developing)**
+ * Change method insert() to bulk_insert(). After changed, it is not necessary to specify type of fields in parameter 'bulk_entities'
+ * Do not support python version 3.5.x any more
+ * Change exception class name from BaseException to BaseError
+ 
 
 **v0.3.0**
   * Incompatibly upgrade APIs for supporting hybrid functionality. The passing parameters of the following APIs has been changed:

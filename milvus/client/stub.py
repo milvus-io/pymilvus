@@ -329,15 +329,15 @@ class Milvus:
             return handler.drop_collection(collection_name, timeout)
 
     @check_connect
-    def bulk_insert(self, collection_name, entities, ids=None,
+    def bulk_insert(self, collection_name, bulk_entities, ids=None,
                     partition_tag=None, params=None, timeout=None, **kwargs):
         """
         Inserts columnar entities in a specified collection.
 
         :param collection_name: The name of the collection to insert entities in.
         :type  collection_name: str.
-        :param entities: The columnar entities to insert.
-        :type  entities: list
+        :param bulk_entities: The columnar entities to insert.
+        :type  bulk_entities: list
         :param ids: The list of ids corresponding to the inserted entities.
         :type  ids: list[int]
         :param partition_tag: The name of the partition to insert entities in. The default value is
@@ -364,14 +364,14 @@ class Milvus:
                 return handler.bulk_insert(None, None, timeout=timeout, **kwargs)
 
         copy_fields = copy.deepcopy(fields)
-        for c in entities:
+        for c in bulk_entities:
             if "type" in c:
                 copy_fields[c["name"]] = c["type"]
 
         if ids is not None:
             check_pass_param(ids=ids)
         with self._connection() as handler:
-            results = handler.bulk_insert(collection_name, entities, copy_fields,
+            results = handler.bulk_insert(collection_name, bulk_entities, copy_fields,
                                           ids, partition_tag, params, timeout, **kwargs)
             with self._cache_cv:
                 self._c_cache[collection_name] = copy_fields
