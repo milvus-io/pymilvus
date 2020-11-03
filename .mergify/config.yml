@@ -3,6 +3,7 @@ pull_request_rules:
       conditions:
         - "label=automerge"
         - "#approved-reviews-by>=1"
+        - "status-success=Code lint check"
       actions:
         merge:
           method: squash
