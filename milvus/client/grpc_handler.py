@@ -546,7 +546,7 @@ class GrpcHandler(AbsMilvus):
         if kwargs.get("_async", False):
             cb = kwargs.get("_callback", None)
             return FlushFuture(future, cb)
-        response = future.done()
+        response = future.result()
         if response.error_code != 0:
             raise BaseError(response.error_code, response.reason)
 
