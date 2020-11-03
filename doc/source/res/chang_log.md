@@ -1,3 +1,4 @@
+**v0.4.0(Developing)**
 
 **v0.3.0**
   * Incompatibly upgrade APIs for supporting hybrid functionality. The passing parameters of the following APIs has been changed:
