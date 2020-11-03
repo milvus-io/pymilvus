@@ -358,7 +358,7 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error(returns=([],))
-    def insert(self, table_name, records, ids, partition_tag, params, timeout, **kwargs):
+    def bulk_insert(self, table_name, records, ids, partition_tag, params, timeout, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(table_name)
 
         data_dict = dict()

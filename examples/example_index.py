@@ -80,7 +80,7 @@ hybrid_entities = [
 #     After preparing the data, we are going to insert them into our collection.
 #     The number of films inserted should be 8657.
 # ------
-ids = client.insert(collection_name, hybrid_entities, ids)
+ids = client.bulk_insert(collection_name, hybrid_entities, ids)
 
 client.flush([collection_name])
 after_flush_counts = client.count_entities(collection_name)

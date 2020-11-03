@@ -345,14 +345,14 @@ class GrpcHandler(AbsMilvus):
         return Status(status.error_code, status.reason)
 
     @error_handler([])
-    def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
+    def bulk_insert(self, collection_name, entities, types, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
         insert_param = kwargs.get('insert_param', None)
 
         if insert_param and not isinstance(insert_param, grpc_types.InsertParam):
             raise ParamError("The value of key 'insert_param' is invalid")
 
         body = insert_param if insert_param \
-            else Prepare.insert_param(collection_name, entities, partition_tag, ids, params)
+            else Prepare.insert_param(collection_name, entities, types, partition_tag, ids, params)
 
         # rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
         rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)

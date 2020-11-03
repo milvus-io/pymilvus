@@ -94,16 +94,6 @@ def collection_name_factory():
     return fake.collection_name()
 
 
-def collection_schema_factory():
-    param = {
-        'collection_name': fake.collection_name(),
-        'dimension': random.randint(1, 999),
-        'index_file_size': 1024,
-        'metric_type': MetricType.L2
-    }
-    return param
-
-
 def records_factory(dimension, nq):
     return [[random.random() for _ in range(dimension)] for _ in range(nq)]
 

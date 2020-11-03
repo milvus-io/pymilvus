@@ -116,7 +116,7 @@ hybrid_entities = [
 #     We insert the `hybrid_entities` into our collection, into partition `American`, with ids we provide.
 #     If succeed, ids we provide will be returned.
 # ------
-ids = client.insert(collection_name, hybrid_entities, ids, partition_tag="American")
+ids = client.bulk_insert(collection_name, hybrid_entities, ids, partition_tag="American")
 print("\n----------insert----------")
 print("Films are inserted and the ids are: {}".format(ids))
 

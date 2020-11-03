@@ -87,7 +87,7 @@ class Prepare:
         return grpc_types.ReLoadSegmentsParam(collection_name=collection_name, segment_id_array=segment_ids)
 
     @classmethod
-    def insert_param(cls, collection_name, entities, partition_tag, ids=None, params=None, **kwargs):
+    def insert_param(cls, collection_name, entities, types, partition_tag, ids=None, params=None, **kwargs):
         if ids is None:
             _param = grpc_types.InsertParam(collection_name=collection_name, partition_tag=partition_tag)
         else:
@@ -97,11 +97,11 @@ class Prepare:
                 partition_tag=partition_tag)
 
         for entity in entities:
-            type = entity.get("type", None)
-            if type is None:
+            type_ = types.get(entity.get("name"), None)
+            if type_ is None:
                 raise ParamError("param entities must contain type")
 
-            if not isinstance(type, DataType):
+            if not isinstance(type_, DataType):
                 raise ParamError("Param type must be type of DataType")
 
             values = entity.get("values", None)
@@ -109,21 +109,21 @@ class Prepare:
                 raise ParamError("Param entities must contain values")
 
             field_param = grpc_types.FieldValue(field_name=entity["name"])
-            if type in (DataType.INT32,):
+            if type_ in (DataType.INT32,):
             # if type in (DataType.INT8, DataType.INT16, DataType.INT32,):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int32_value=values))
-            elif type in (DataType.INT64, ):
+            elif type_ in (DataType.INT64, ):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int64_value=values))
-            elif type in (DataType.FLOAT, ):
+            elif type_ in (DataType.FLOAT, ):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(float_value=values))
-            elif type in (DataType.DOUBLE, ):
+            elif type_ in (DataType.DOUBLE, ):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(double_value=values))
-            elif type in (DataType.FLOAT_VECTOR,):
+            elif type_ in (DataType.FLOAT_VECTOR,):
                 records = grpc_types.VectorRecord()
                 for vector in values:
                     records.records.add(float_data=vector)
                 field_param.vector_record.CopyFrom(records)
-            elif type in (DataType.BINARY_VECTOR,):
+            elif type_ in (DataType.BINARY_VECTOR,):
                 records = grpc_types.VectorRecord()
                 for vector in values:
                     records.records.add(binary_data=vector)

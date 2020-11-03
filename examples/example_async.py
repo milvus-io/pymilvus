@@ -149,7 +149,7 @@ batman_ids, batman_entities = columnar_entities(Batmans)
 # ------
 
 print("\n----------insert rings films----------")
-insert_future = client.insert(collection_name, rings_entities, rings_ids, partition_tag="American", _async=True)
+insert_future = client.bulk_insert(collection_name, rings_entities, rings_ids, partition_tag="American", _async=True)
 insert_future.result()
 
 

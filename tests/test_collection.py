@@ -1,12 +1,10 @@
-# import sys
-# sys.path.append(".")
 from unittest import mock
 
 import grpc
 import pytest
 from grpc._channel import _UnaryUnaryMultiCallable as Uum
 
-from milvus import DataType, ParamError, BaseException
+from milvus import DataType, BaseException
 
 from factorys import collection_schema_factory, collection_name_factory
 

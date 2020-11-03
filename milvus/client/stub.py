@@ -1,8 +1,12 @@
 # -*- coding: UTF-8 -*-
 
 import collections
+import copy
 import functools
 import logging
+import threading
+
+from collections import defaultdict
 
 from urllib.parse import urlparse
 
@@ -94,6 +98,10 @@ class Milvus:
         # store extra key-words arguments
         self._kw = kwargs
         self._hooks = collections.defaultdict()
+
+        # cache collection_info
+        self._c_cache = defaultdict(dict)
+        self._cache_cv = threading.Condition()
 
     def __enter__(self):
         self._conn = self._pool.fetch()
@@ -319,13 +327,13 @@ class Milvus:
             return handler.drop_collection(collection_name, timeout)
 
     @check_connect
-    def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
+    def bulk_insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
         """
-        Inserts entities in a specified collection.
+        Inserts columnar entities in a specified collection.
 
         :param collection_name: The name of the collection to insert entities in.
         :type  collection_name: str.
-        :param entities: The entities to insert.
+        :param entities: The columnar entities to insert.
         :type  entities: list
         :param ids: The list of ids corresponding to the inserted entities.
         :type  ids: list[int]
@@ -341,14 +349,29 @@ class Milvus:
             ParamError: If parameters are invalid
             BaseException: If the return result from server is not ok
         """
+
+        fields = self._c_cache[collection_name]
+        if not fields:
+            info = self.get_collection_info(collection_name)
+            for field in info["fields"]:
+                fields[field["name"]] = field["type"]
+
         if kwargs.get("insert_param", None) is not None:
             with self._connection() as handler:
-                return handler.insert(None, None, timeout=timeout, **kwargs)
+                return handler.bulk_insert(None, None, timeout=timeout, **kwargs)
+
+        copy_fields = copy.deepcopy(fields)
+        for c in entities:
+            if "type" in c:
+                copy_fields[c["name"]] = c["type"]
 
         if ids is not None:
             check_pass_param(ids=ids)
         with self._connection() as handler:
-            return handler.insert(collection_name, entities, ids, partition_tag, params, timeout, **kwargs)
+            results = handler.bulk_insert(collection_name, entities, copy_fields, ids, partition_tag, params, timeout, **kwargs)
+            with self._cache_cv:
+                self._c_cache[collection_name] = copy_fields
+            return results
 
     def get_entity_by_id(self, collection_name, ids, fields=None, timeout=None):
         """
