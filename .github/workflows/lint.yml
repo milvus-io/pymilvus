@@ -1,4 +1,4 @@
-name: Html-Publish
+name: PyLint
 
 # Run this workflow every time a new commit pushed to master repository
 on:
