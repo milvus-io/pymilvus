@@ -69,7 +69,7 @@ for film in films:
     embeddings.append(list(map(float, film[3][1:][:-1].split(','))))
 
 
-bulk_entities = [
+entities = [
     {"name": "release_year", "values": release_years},
     {"name": "embedding", "values": embeddings},
 ]
@@ -80,7 +80,7 @@ bulk_entities = [
 #     After preparing the data, we are going to insert them into our collection.
 #     The number of films inserted should be 8657.
 # ------
-ids = client.bulk_insert(collection_name, bulk_entities, ids)
+ids = client.bulk_insert(collection_name, entities, ids)
 
 client.flush([collection_name])
 after_flush_counts = client.count_entities(collection_name)
