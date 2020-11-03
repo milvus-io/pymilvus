@@ -1,7 +1,14 @@
+import grpc
 import pytest
+
+from unittest import mock
+
+from grpc._channel import _UnaryUnaryMultiCallable as Uum
+
 from milvus import Milvus, DataType, BaseException
 
 from factorys import fake, records_factory, integer_factory
+from utils import MockGrpcError
 
 
 class TestBulkInsert:
@@ -89,3 +96,27 @@ class TestBulkInsert:
 
         with pytest.raises(BaseException):
             connect.bulk_insert(collection, entities)
+
+    def test_create_collection_exception(self, connect, hvcollection, dim):
+        vectors = records_factory(dim, 1)
+        integers = integer_factory(1)
+
+        entities = [
+            {"name": "Vec", "values": vectors},
+            {"name": "Int", "values": integers}
+        ]
+
+        mock_grpc_timeout = mock.MagicMock(side_effect=grpc.FutureTimeoutError())
+        with mock.patch.object(Uum, 'future', mock_grpc_timeout):
+            with pytest.raises(grpc.FutureTimeoutError):
+                connect.bulk_insert(hvcollection, entities)
+
+        mock_grpc_error = mock.MagicMock(side_effect=MockGrpcError())
+        with mock.patch.object(Uum, 'future', mock_grpc_error):
+            with pytest.raises(grpc.RpcError):
+                connect.bulk_insert(hvcollection, entities)
+
+        mock_exception = mock.MagicMock(side_effect=Exception("error"))
+        with mock.patch.object(Uum, 'future', mock_exception):
+            with pytest.raises(Exception):
+                connect.bulk_insert(hvcollection, entities)
