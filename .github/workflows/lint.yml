@@ -25,6 +25,6 @@ jobs:
         run: |
           pip install -r requirements.txt
       - name: Run pylint
-        shell: shell
+        shell: bash
         run: |
           pylint --rcfile=pylint.conf milvus/client
