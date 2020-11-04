@@ -77,7 +77,7 @@ class TestBulkInsert:
         integers = integer_factory(10000)
 
         entities = [
-            {"name": "Vec", "values": vectors},
+            {"name": "Vec", "values": vectors, "type": DataType.FLOAT_VECTOR},
             {"name": "Int", "values": integers, "type": sd}
         ]
 
@@ -89,7 +89,7 @@ class TestBulkInsert:
         integers = integer_factory(10000)
 
         entities = [
-            {"name": "Vec", "values": vectors},
+            {"name": "Vec", "values": vectors, "type": DataType.FLOAT_VECTOR},
             {"name": "Int", "values": integers, "type": DataType.FLOAT}
         ]
 
@@ -97,7 +97,7 @@ class TestBulkInsert:
             connect.bulk_insert(hvcollection, entities)
 
         entities = [
-            {"name": "Vec", "values": vectors},
+            {"name": "Vec", "values": vectors, "type": DataType.FLOAT_VECTOR},
             {"name": "Int", "values": integers, "type": DataType.INT64}
         ]
 
@@ -190,3 +190,26 @@ class TestBulkInsertAsync:
             ft.done()
         except Exception as e:
             pytest.fail("Unexpected MyError: {}".format(str(e)))
+
+    def test_bulk_insert_async_with_collection_non_exist(self, connect, hvcollection, dim):
+        collection = hvcollection + "_c1"
+        vectors = records_factory(dim, 1)
+        integers = integer_factory(1)
+
+        entities = [
+            {"name": "Vec", "values": vectors},
+            {"name": "Int", "values": integers}
+        ]
+
+        with pytest.raises(BaseError):
+            future = connect.bulk_insert(collection, entities, _async=True)
+            future.result()
+
+        entities = [
+            {"name": "Vec", "values": vectors, "type": DataType.FLOAT_VECTOR},
+            {"name": "Int", "values": integers, "type": DataType.INT64}
+        ]
+
+        future = connect.bulk_insert(collection, entities, _async=True)
+        with pytest.raises(BaseError):
+            future.result()

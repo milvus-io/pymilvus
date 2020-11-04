@@ -1,7 +1,6 @@
 # -*- coding: UTF-8 -*-
 
 import collections
-import copy
 import functools
 import logging
 import threading
@@ -353,28 +352,33 @@ class Milvus:
             BaseError: If the return result from server is not ok
         """
 
-        fields = self._c_cache[collection_name]
-        if not fields:
-            info = self.get_collection_info(collection_name)
-            for field in info["fields"]:
-                fields[field["name"]] = field["type"]
-
         if kwargs.get("insert_param", None) is not None:
             with self._connection() as handler:
                 return handler.bulk_insert(None, None, timeout=timeout, **kwargs)
 
-        copy_fields = copy.deepcopy(fields)
-        for c in bulk_entities:
-            if "type" in c:
-                copy_fields[c["name"]] = c["type"]
+        specified_num = sum([1 for field in bulk_entities if "type" in field])
+        if 0 < specified_num < len(bulk_entities):
+            raise ParamError("Some fields did not specify field type")
+
+        fields = dict()
+        if specified_num == 0:
+            fields = self._c_cache[collection_name]
+            if not fields:
+                info = self.get_collection_info(collection_name)
+                for field in info["fields"]:
+                    fields[field["name"]] = field["type"]
+        else:
+            # map(lambda x: fields[x["name"]] = x["type"], bulk_entities)
+            for bulk in bulk_entities:
+                fields[bulk["name"]] = bulk["type"]
 
         if ids is not None:
             check_pass_param(ids=ids)
         with self._connection() as handler:
-            results = handler.bulk_insert(collection_name, bulk_entities, copy_fields,
+            results = handler.bulk_insert(collection_name, bulk_entities, fields,
                                           ids, partition_tag, params, timeout, **kwargs)
             with self._cache_cv:
-                self._c_cache[collection_name] = copy_fields
+                self._c_cache[collection_name] = fields
             return results
 
     def get_entity_by_id(self, collection_name, ids, fields=None, timeout=None):

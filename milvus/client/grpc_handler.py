@@ -43,7 +43,7 @@ def error_handler(*rargs):
                 record_dict["RPC start"] = str(datetime.datetime.now())
                 return func(self, *args, **kwargs)
             except BaseError as e:
-                LOGGER.error("Error: {}", str(e))
+                LOGGER.error(f"Error: {e.message}")
                 if e.code == Status.ILLEGAL_COLLECTION_NAME:
                     raise IllegalCollectionNameException(e.code, e.message)
                 if e.code == Status.COLLECTION_NOT_EXISTS:
@@ -53,18 +53,18 @@ def error_handler(*rargs):
 
             except grpc.FutureTimeoutError as e:
                 record_dict["RPC timeout"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nRequest timeout: {}\n\t{}",
-                             self.server_address, func.__name__, e, record_dict)
+                LOGGER.error(f"\nAddr [{self.server_address}] {func.__name__}"
+                             f"\nRequest timeout: {e}\n\t{record_dict}")
                 raise e
             except grpc.RpcError as e:
                 record_dict["RPC error"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nRPC error: {}\n\t{}",
-                             self.server_address, func.__name__, e, record_dict)
+                LOGGER.error(f"\nAddr [{self.server_address}] {func.__name__}"
+                             f"\nRPC error: {e}\n\t{record_dict}")
                 raise e
             except Exception as e:
                 record_dict["Exception"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nExcepted error: {}\n\t{}",
-                             self.server_address, func.__name__, e, record_dict)
+                LOGGER.error(f"\nAddr [{self.server_address}] {func.__name__}"
+                             f"\nExcepted error: {e}\n\t{record_dict}")
                 raise e
 
         return handler

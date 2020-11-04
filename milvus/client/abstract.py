@@ -251,9 +251,9 @@ class Entities(LoopBase):
             elif type_ in (DataType.BINARY_VECTOR,):
                 values = [bytes(record.binary_data) for record in field.vector_record.records]
             else:
-                raise ParamError("Unknown field type {}".format(type))
+                raise ParamError("Unknown field type {}".format(type_))
 
-            entity_list.append({"field": field.field_name, "values": values, "type": type})
+            entity_list.append({"field": field.field_name, "values": values, "type": type_})
 
         return entity_list
 
