@@ -348,9 +348,20 @@ class GrpcHandler(AbsMilvus):
             raise ParamError("The value of key 'insert_param' is invalid")
 
         body = insert_param if insert_param \
-            else Prepare.insert_param(collection_name, entities, types, partition_tag, ids, params)
+            else Prepare.bulk_insert_param(collection_name, entities, types, partition_tag, ids, params)
+        rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
+        if kwargs.get("_async", False) is True:
+            cb = kwargs.get("_callback", None)
+            return BulkInsertFuture(rf, cb)
 
-        # rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
+        if response.status.error_code == 0:
+            return list(response.entity_id_array)
+
+        raise BaseError(response.status.error_code, response.status.reason)
+
+    def insert(self, collection_name, entities, copy_fields, partition_tag, params, timeout, **kwargs):
+        body = Prepare.insert_param(collection_name, entities, copy_fields, partition_tag, params, **kwargs)
         rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
         if kwargs.get("_async", False) is True:
             cb = kwargs.get("_callback", None)

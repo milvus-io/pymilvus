@@ -381,6 +381,30 @@ class Milvus:
                 self._c_cache[collection_name] = fields
             return results
 
+    def insert(self, collection_name, entities,
+               partition_tag=None, params=None, timeout=None, **kwargs):
+        fields = self._c_cache[collection_name]
+        if not fields:
+            info = self.get_collection_info(collection_name)
+            for field in info["fields"]:
+                fields[field["name"]] = field["type"]
+
+        if kwargs.get("insert_param", None) is not None:
+            with self._connection() as handler:
+                return handler.insert(None, None, timeout=timeout, **kwargs)
+
+        copy_fields = copy.deepcopy(fields)
+        # for c in bulk_entities:
+        #     if "type" in c:
+        #         copy_fields[c["name"]] = c["type"]
+
+        with self._connection() as handler:
+            results = handler.insert(collection_name, entities, copy_fields,
+                                     partition_tag, params, timeout, **kwargs)
+            with self._cache_cv:
+                self._c_cache[collection_name] = copy_fields
+            return results
+
     def get_entity_by_id(self, collection_name, ids, fields=None, timeout=None):
         """
         Returns the entities specified by given IDs.

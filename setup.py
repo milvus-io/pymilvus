@@ -11,7 +11,7 @@ with io.open("milvus/client/__init__.py", "rt", encoding="utf8") as f:
     version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
 
 setuptools.setup(
-    name="pymilvus-test",
+    name="pymilvus",
     version=version,
     description="Python Sdk for Milvus",
     long_description=README,

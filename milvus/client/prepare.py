@@ -1,4 +1,6 @@
 import copy
+from collections import defaultdict
+
 import ujson
 
 from .exceptions import ParamError
@@ -85,7 +87,7 @@ class Prepare:
                                               segment_id_array=segment_ids)
 
     @classmethod
-    def insert_param(cls, collection_name, entities, types, partition_tag,
+    def bulk_insert_param(cls, collection_name, entities, types, partition_tag,
                      ids=None, params=None, **kwargs):
         if ids is None:
             _param = grpc_types.InsertParam(collection_name=collection_name,
@@ -136,6 +138,49 @@ class Prepare:
         _param.extra_params.add(key="params", value=ujson.dumps(params))
 
         return _param
+
+    @classmethod
+    def insert_param(cls, collection_name, entities, types, partition_tag,
+                     params=None, **kwargs):
+        _param = grpc_types.InsertParam(collection_name=collection_name,
+                                        partition_tag=partition_tag)
+
+        records = defaultdict(list)
+        for entity in entities:
+            for ek, ev in entity.items():
+                records[ek].append(ev)
+
+        for name_, type_ in types.items():
+            if name_ not in records:
+                raise ParamError(f"Field {name_} is required")
+
+            field_param = grpc_types.FieldValue(field_name=name_)
+            if type_ in (DataType.INT32,):
+                field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int32_value=records[name_]))
+            elif type_ in (DataType.INT64,):
+                field_param.attr_record.CopyFrom(grpc_types.AttrRecord(int64_value=records[name_]))
+            elif type_ in (DataType.FLOAT,):
+                field_param.attr_record.CopyFrom(grpc_types.AttrRecord(float_value=records[name_]))
+            elif type_ in (DataType.DOUBLE,):
+                field_param.attr_record.CopyFrom(grpc_types.AttrRecord(double_value=records[name_]))
+            elif type_ in (DataType.FLOAT_VECTOR,):
+                records = grpc_types.VectorRecord()
+                for vector in records[name_]:
+                    records.records.add(float_data=vector)
+                field_param.vector_record.CopyFrom(records)
+            elif type_ in (DataType.BINARY_VECTOR,):
+                records = grpc_types.VectorRecord()
+                for vector in records[name_]:
+                    records.records.add(binary_data=vector)
+                field_param.vector_record.CopyFrom(records)
+            else:
+                raise ParamError("Unknown data type.")
+
+        params = params or dict()
+        _param.extra_params.add(key="params", value=ujson.dumps(params))
+
+        if "_id" in records:
+            _param.entity_id_array.CopyFrom(records["_ids"])
 
     @classmethod
     def get_entity_by_id_param(cls, collection_name, ids, fields):
