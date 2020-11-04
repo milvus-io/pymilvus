@@ -164,23 +164,27 @@ class Prepare:
             elif type_ in (DataType.DOUBLE,):
                 field_param.attr_record.CopyFrom(grpc_types.AttrRecord(double_value=records[name_]))
             elif type_ in (DataType.FLOAT_VECTOR,):
-                records = grpc_types.VectorRecord()
+                vr = grpc_types.VectorRecord()
                 for vector in records[name_]:
-                    records.records.add(float_data=vector)
-                field_param.vector_record.CopyFrom(records)
+                    vr.records.add(float_data=vector)
+                field_param.vector_record.CopyFrom(vr)
             elif type_ in (DataType.BINARY_VECTOR,):
-                records = grpc_types.VectorRecord()
+                vr = grpc_types.VectorRecord()
                 for vector in records[name_]:
-                    records.records.add(binary_data=vector)
-                field_param.vector_record.CopyFrom(records)
+                    vr.records.add(binary_data=vector)
+                field_param.vector_record.CopyFrom(vr)
             else:
                 raise ParamError("Unknown data type.")
+
+            _param.fields.append(field_param)
 
         params = params or dict()
         _param.extra_params.add(key="params", value=ujson.dumps(params))
 
         if "_id" in records:
-            _param.entity_id_array.CopyFrom(records["_ids"])
+            _param.entity_id_array.extend(records["_id"])
+
+        return _param
 
     @classmethod
     def get_entity_by_id_param(cls, collection_name, ids, fields):

@@ -383,6 +383,27 @@ class Milvus:
 
     def insert(self, collection_name, entities,
                partition_tag=None, params=None, timeout=None, **kwargs):
+        """
+        Inserts linear entities in a specified collection.
+
+        :param collection_name: The name of the collection to insert entities in.
+        :type  collection_name: str.
+        :param entities: The linear entities to insert.
+        :type  entities: list
+        :param partition_tag: The name of the partition to insert entities in. The default
+                              value is None. The server stores entities in the “_default”
+                              partition by default.
+        :type  partition_tag: str
+
+        :return: list of ids of the inserted vectors.
+        :rtype: list[int]
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseError: If the return result from server is not ok
+        """
+
         fields = self._c_cache[collection_name]
         if not fields:
             info = self.get_collection_info(collection_name)
@@ -393,16 +414,11 @@ class Milvus:
             with self._connection() as handler:
                 return handler.insert(None, None, timeout=timeout, **kwargs)
 
-        copy_fields = copy.deepcopy(fields)
-        # for c in bulk_entities:
-        #     if "type" in c:
-        #         copy_fields[c["name"]] = c["type"]
-
         with self._connection() as handler:
-            results = handler.insert(collection_name, entities, copy_fields,
+            results = handler.insert(collection_name, entities, fields,
                                      partition_tag, params, timeout, **kwargs)
             with self._cache_cv:
-                self._c_cache[collection_name] = copy_fields
+                self._c_cache[collection_name] = fields
             return results
 
     def get_entity_by_id(self, collection_name, ids, fields=None, timeout=None):
