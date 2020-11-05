@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        env:
+          message: ${{ github.event.head_commit.message }}
         with:
           path: pymilvus
       - name: Set up python
