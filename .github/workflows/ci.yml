@@ -29,7 +29,6 @@ jobs:
           echo "$GITHUB_CONTEXT"
           echo ${{ startsWith(github.event.head_commit.message, '[ci]') }}
       - name: Run server docker
-        # Ignore the failure of a step and avoid terminating the job.
         run: |
           cd pymilvus/.github/scripts/server
           docker-compose -f server.yml up -d
