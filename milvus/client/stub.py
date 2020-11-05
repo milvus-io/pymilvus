@@ -1,7 +1,6 @@
 # -*- coding: UTF-8 -*-
 
 import collections
-import copy
 import functools
 import logging
 import threading
@@ -353,6 +352,58 @@ class Milvus:
             BaseError: If the return result from server is not ok
         """
 
+        if kwargs.get("insert_param", None) is not None:
+            with self._connection() as handler:
+                return handler.bulk_insert(None, None, timeout=timeout, **kwargs)
+
+        specified_num = sum([1 for field in bulk_entities if "type" in field])
+        if 0 < specified_num < len(bulk_entities):
+            raise ParamError("Some fields did not specify field type")
+
+        fields = dict()
+        if specified_num == 0:
+            fields = self._c_cache[collection_name]
+            if not fields:
+                info = self.get_collection_info(collection_name)
+                for field in info["fields"]:
+                    fields[field["name"]] = field["type"]
+        else:
+            # map(lambda x: fields[x["name"]] = x["type"], bulk_entities)
+            for bulk in bulk_entities:
+                fields[bulk["name"]] = bulk["type"]
+
+        if ids is not None:
+            check_pass_param(ids=ids)
+        with self._connection() as handler:
+            results = handler.bulk_insert(collection_name, bulk_entities, fields,
+                                          ids, partition_tag, params, timeout, **kwargs)
+            with self._cache_cv:
+                self._c_cache[collection_name] = fields
+            return results
+
+    def insert(self, collection_name, entities,
+               partition_tag=None, params=None, timeout=None, **kwargs):
+        """
+        Inserts linear entities in a specified collection.
+
+        :param collection_name: The name of the collection to insert entities in.
+        :type  collection_name: str.
+        :param entities: The linear entities to insert.
+        :type  entities: list
+        :param partition_tag: The name of the partition to insert entities in. The default
+                              value is None. The server stores entities in the “_default”
+                              partition by default.
+        :type  partition_tag: str
+
+        :return: list of ids of the inserted vectors.
+        :rtype: list[int]
+
+        :raises:
+            RpcError: If grpc encounter an error
+            ParamError: If parameters are invalid
+            BaseError: If the return result from server is not ok
+        """
+
         fields = self._c_cache[collection_name]
         if not fields:
             info = self.get_collection_info(collection_name)
@@ -361,20 +412,13 @@ class Milvus:
 
         if kwargs.get("insert_param", None) is not None:
             with self._connection() as handler:
-                return handler.bulk_insert(None, None, timeout=timeout, **kwargs)
+                return handler.insert(None, None, timeout=timeout, **kwargs)
 
-        copy_fields = copy.deepcopy(fields)
-        for c in bulk_entities:
-            if "type" in c:
-                copy_fields[c["name"]] = c["type"]
-
-        if ids is not None:
-            check_pass_param(ids=ids)
         with self._connection() as handler:
-            results = handler.bulk_insert(collection_name, bulk_entities, copy_fields,
-                                          ids, partition_tag, params, timeout, **kwargs)
+            results = handler.insert(collection_name, entities, fields,
+                                     partition_tag, params, timeout, **kwargs)
             with self._cache_cv:
-                self._c_cache[collection_name] = copy_fields
+                self._c_cache[collection_name] = fields
             return results
 
     def get_entity_by_id(self, collection_name, ids, fields=None, timeout=None):

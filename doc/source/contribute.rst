@@ -67,12 +67,17 @@ Contribution guideline
 ======================
 
 .. todo:
-   More details aout tests and pylint check .
+   More details about tests and pylint check .
 
-1. Update CHANGELOG.md
-2. Add unit tests for your codes
-3. Pass pylint check
-4. For documentations
+**1. Update CHANGELOG.md**
+
+**2. Add unit tests for your codes**
+
+**3. Pass pylint check**
+
+In the root directory, run ``pylint --rcfile=pylint.conf milvus/client`` to make sure the rate is 10.
+
+**4. For documentations**
 
 You need to enter the ``doc`` directory and run ``make html``, please refer to
 `About this documentations <https://pymilvus.readthedocs.io/en/latest/about.html>`_.

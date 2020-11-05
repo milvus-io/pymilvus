@@ -43,7 +43,7 @@ def error_handler(*rargs):
                 record_dict["RPC start"] = str(datetime.datetime.now())
                 return func(self, *args, **kwargs)
             except BaseError as e:
-                LOGGER.error("Error: {}", str(e))
+                LOGGER.error(f"Error: {e.message}")
                 if e.code == Status.ILLEGAL_COLLECTION_NAME:
                     raise IllegalCollectionNameException(e.code, e.message)
                 if e.code == Status.COLLECTION_NOT_EXISTS:
@@ -53,18 +53,18 @@ def error_handler(*rargs):
 
             except grpc.FutureTimeoutError as e:
                 record_dict["RPC timeout"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nRequest timeout: {}\n\t{}",
-                             self.server_address, func.__name__, e, record_dict)
+                LOGGER.error(f"\nAddr [{self.server_address}] {func.__name__}"
+                             f"\nRequest timeout: {e}\n\t{record_dict}")
                 raise e
             except grpc.RpcError as e:
                 record_dict["RPC error"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nRPC error: {}\n\t{}",
-                             self.server_address, func.__name__, e, record_dict)
+                LOGGER.error(f"\nAddr [{self.server_address}] {func.__name__}"
+                             f"\nRPC error: {e}\n\t{record_dict}")
                 raise e
             except Exception as e:
                 record_dict["Exception"] = str(datetime.datetime.now())
-                LOGGER.error("\nAddr [{}] {}\nExcepted error: {}\n\t{}",
-                             self.server_address, func.__name__, e, record_dict)
+                LOGGER.error(f"\nAddr [{self.server_address}] {func.__name__}"
+                             f"\nExcepted error: {e}\n\t{record_dict}")
                 raise e
 
         return handler
@@ -348,9 +348,23 @@ class GrpcHandler(AbsMilvus):
             raise ParamError("The value of key 'insert_param' is invalid")
 
         body = insert_param if insert_param \
-            else Prepare.insert_param(collection_name, entities, types, partition_tag, ids, params)
+            else Prepare.bulk_insert_param(collection_name, entities,
+                                           types, partition_tag, ids, params)
+        rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
+        if kwargs.get("_async", False) is True:
+            cb = kwargs.get("_callback", None)
+            return BulkInsertFuture(rf, cb)
 
-        # rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
+        if response.status.error_code == 0:
+            return list(response.entity_id_array)
+
+        raise BaseError(response.status.error_code, response.status.reason)
+
+    def insert(self, collection_name, entities, copy_fields,
+               partition_tag, params, timeout, **kwargs):
+        body = Prepare.insert_param(collection_name, entities,
+                                    copy_fields, partition_tag, params, **kwargs)
         rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
         if kwargs.get("_async", False) is True:
             cb = kwargs.get("_callback", None)
@@ -546,7 +560,7 @@ class GrpcHandler(AbsMilvus):
         if kwargs.get("_async", False):
             cb = kwargs.get("_callback", None)
             return FlushFuture(future, cb)
-        response = future.done()
+        response = future.result()
         if response.error_code != 0:
             raise BaseError(response.error_code, response.reason)
 

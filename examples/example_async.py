@@ -69,22 +69,22 @@ client.create_partition(collection_name, "American")
 
 The_Lord_of_the_Rings = [
     {
-        "title": "The_Fellowship_of_the_Ring",
-        "id": 1,
+        # "title": "The_Fellowship_of_the_Ring",
+        "_id": 1,
         "duration": 208,
         "release_year": 2001,
         "embedding": [random.random() for _ in range(8)]
     },
     {
-        "title": "The_Two_Towers",
-        "id": 2,
+        # "title": "The_Two_Towers",
+        "_id": 2,
         "duration": 226,
         "release_year": 2002,
         "embedding": [random.random() for _ in range(8)]
     },
     {
-        "title": "The_Return_of_the_King",
-        "id": 3,
+        # "title": "The_Return_of_the_King",
+        "_id": 3,
         "duration": 252,
         "release_year": 2003,
         "embedding": [random.random() for _ in range(8)]
@@ -93,22 +93,22 @@ The_Lord_of_the_Rings = [
 
 Batmans = [
     {
-        "title": "Batman_Begins",
-        "id": 4,
+        # "title": "Batman_Begins",
+        "_id": 4,
         "duration": 140,
         "release_year": 2005,
         "embedding": [random.random() for _ in range(8)]
     },
     {
-        "title": "Batman_The_Dark_Knight",
-        "id": 5,
+        # "title": "Batman_The_Dark_Knight",
+        "_id": 5,
         "duration": 152,
         "release_year": 2008,
         "embedding": [random.random() for _ in range(8)]
     },
     {
-        "title": "Batman_The_Dark_Knight_Rises",
-        "id": 6,
+        # "title": "Batman_The_Dark_Knight_Rises",
+        "_id": 6,
         "duration": 165,
         "release_year": 2012,
         "embedding": [random.random() for _ in range(8)]
@@ -118,44 +118,20 @@ Batmans = [
 
 # ------
 # Basic insert entities:
-#     To insert two films groups into Milvus, we provide a function to change these groups to object can be passed
-#     directly. we have to group values from the same field together like below.
-#     Then these grouped data are used to create `hybrid_entities`.
-# ------
-
-def columnar_entities(entities):
-    ids = [k.get("id") for k in entities]
-    durations = [k.get("duration") for k in entities]
-    release_years = [k.get("release_year") for k in entities]
-    embeddings = [k.get("embedding") for k in entities]
-
-    return ids, [
-        # Milvus doesn't support string type yet, so we cannot insert "title".
-        {"name": "duration", "values": durations},
-        {"name": "release_year", "values": release_years},
-        {"name": "embedding", "values": embeddings},
-    ]
-
-
-rings_ids, rings_entities = columnar_entities(The_Lord_of_the_Rings)
-batman_ids, batman_entities = columnar_entities(Batmans)
-
-# ------
-# Basic insert entities:
-#     We insert the `rings_entities` into our collection, into partition `American`, with ids we provide.
+#     We insert the `The_Lord_of_the_Rings` into our collection, into partition `American`, with ids we provide.
 #     Here, we pass parameter '_async=True' to insert data asynchronously, and return a `Future` object which
 #     has method `result()` to obtain result values and `done()` to wait util the invoked function(here is insert())
 #     exit.
 # ------
 
 print("\n----------insert rings films----------")
-insert_future = client.bulk_insert(collection_name, rings_entities, rings_ids, partition_tag="American", _async=True)
+insert_future = client.insert(collection_name, The_Lord_of_the_Rings, partition_tag="American", _async=True)
 insert_future.result()
 
 
 # ------
 # Basic insert entities:
-#     We insert the `batman_entities` into our collection, into partition `American`, with ids we provide.
+#     We insert the `Batmans` into our collection, into partition `American`, with ids we provide.
 #     Here, we pass parameter '_async=True' to insert data asynchronously, pass parameters '_callback=batman_insert_cb'
 #     to provide callback function which could be called if data was inserted successfully.
 #
@@ -166,8 +142,8 @@ def batman_insert_cb(inserted_ids):
     print("Films about Batman are inserted and the ids are: {}".format(inserted_ids))
 
 
-insert_future = client.bulk_insert(collection_name, batman_entities, batman_ids, partition_tag="American", _async=True,
-                              _callback=batman_insert_cb)
+insert_future = client.insert(collection_name, Batmans, partition_tag="American",
+                              _async=True, _callback=batman_insert_cb)
 insert_future.done()
 
 # ------

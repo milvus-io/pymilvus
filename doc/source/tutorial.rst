@@ -187,6 +187,8 @@ structured in list of dictionary.
 Insert Entities
 ===============
 
+** Bulk insert**
+
 To insert entities into Milvus, we need to group data from the same field like below.
 
 >>> ids = [k.get("id") for k in The_Lord_of_the_Rings]
@@ -220,6 +222,40 @@ If the hybrid entities inserted successfully, ``ids`` we provided will be return
 
 >>> client.bulk_insert(collection_name, hybrid_entities, ids, partition_tag="American")
 [1, 2, 3]
+
+**Insert**
+Moreover, PyMilvus provide another method called ``insert`` to insert data. What's different from ``bulk_insert``,
+is that ``insert`` accept data with different structure. Here is an example to insert 3 entities with ``insert``.
+
+>>> Batmans = [
+...     {
+...         # "title": "Batman_Begins",
+...         #
+...         # Key '_id' represent th id of entity, and the name is fixed.
+...         # If value 'auto_id' is set as False when creating collection,
+...         # '_id' is essential.
+...         "_id": 4,
+...         "duration": 140,
+...         "release_year": 2005,
+...         "embedding": [random.random() for _ in range(8)]
+...     },
+...     {
+...         # "title": "Batman_The_Dark_Knight",
+...         "_id": 5,
+...         "duration": 152,
+...         "release_year": 2008,
+...         "embedding": [random.random() for _ in range(8)]
+...     },
+...     {
+...         # "title": "Batman_The_Dark_Knight_Rises",
+...         "_id": 6,
+...         "duration": 165,
+...         "release_year": 2012,
+...         "embedding": [random.random() for _ in range(8)]
+...     }
+... ]
+>>> client.insert(collection_name, Batmans, partition_tag="American")
+[4, 5, 6]
 
 Flush
 =====

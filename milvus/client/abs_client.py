@@ -339,7 +339,8 @@ class AbsMilvus:
         """
         pass
 
-    def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None):
+    def insert(self, collection_name, entities, copy_fields,
+               partition_tag, params, timeout, **kwargs):
         """
         Insert vectors to a collection.
 

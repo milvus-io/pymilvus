@@ -5,11 +5,12 @@
 - \#311 - Fix incorrect comment about inserting data in README.md
 
 ## New Feature
+- \#294, \#344 - Enable pylint
 - \#312 - Add doc badge
 - \#319 - Support auto merge PR after reviewed
 - \#333, \#346 - Change method insert() to bulk_insert()
-- \#344 - Add pylint check
 - \#345 - Do not support python 3.5.x any more
+- \#349 - Add new method insert()
 
 ## Improvement
 - \#277 - Add doc `FAQ` chapter of pymilvus documentation

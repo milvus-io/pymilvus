@@ -130,6 +130,41 @@ print("Films are inserted and the ids are: {}".format(ids))
 
 # ------
 # Basic insert entities:
+#     We can insert `The_Lord_of_the_Rings` directly.
+#     Here we define a group of data called `Batmans` in form  like `The_Lord_of_the_Rings`.
+#     Note that, milvus doesn't support string data, so we comment "title" key-value, and
+#     the key of id is required to be `_id`.
+# ------
+Batmans = [
+    {
+        # "title": "Batman_Begins",
+        "_id": 4,
+        "duration": 140,
+        "release_year": 2005,
+        "embedding": [random.random() for _ in range(8)]
+    },
+    {
+        # "title": "Batman_The_Dark_Knight",
+        "_id": 5,
+        "duration": 152,
+        "release_year": 2008,
+        "embedding": [random.random() for _ in range(8)]
+    },
+    {
+        # "title": "Batman_The_Dark_Knight_Rises",
+        "_id": 6,
+        "duration": 165,
+        "release_year": 2012,
+        "embedding": [random.random() for _ in range(8)]
+    }
+]
+
+ids = client.insert(collection_name, Batmans)
+print("\n----------insert batmans----------")
+print("Films are inserted and the ids are: {}".format(ids))
+
+# ------
+# Basic insert entities:
 #     After insert entities into collection, we need to flush collection to make sure its on disk,
 #     so that we are able to retrieve it.
 # ------
@@ -227,15 +262,15 @@ for entities in results:
 #     Now let's see how to delete things in Milvus.
 #     You can simply delete entities by their ids.
 # ------
-client.delete_entity_by_id(collection_name, ids=[1, 2])
+client.delete_entity_by_id(collection_name, ids=[1, 4])
 client.flush()  # flush is important
-result = client.get_entity_by_id(collection_name, ids=[1, 2])
+result = client.get_entity_by_id(collection_name, ids=[1, 4])
 
 counts_delete = sum([1 for entity in result if entity is not None])
 counts_in_collection = client.count_entities(collection_name)
-print("\n----------delete id = 1, id = 2----------")
-print("Get {} entities by id 1, 2".format(counts_delete))
-print("There are {} entities after delete films with 1, 2".format(counts_in_collection))
+print("\n----------delete id = 1, id = 4----------")
+print("Get {} entities by id 1, 4".format(counts_delete))
+print("There are {} entities after delete films with 1, 4".format(counts_in_collection))
 
 # ------
 # Basic delete:
