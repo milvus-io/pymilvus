@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install requirements
         run: |
-          echo startsWith(github.event.head_commit.message, '[ci]')
+          echo ${{ startsWith(github.event.head_commit.message, '[ci]') }}
           pip install -r pymilvus/requirements.txt
       - name: Run server docker
         # Ignore the failure of a step and avoid terminating the job.
