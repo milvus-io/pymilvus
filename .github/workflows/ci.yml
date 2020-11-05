@@ -26,7 +26,7 @@ jobs:
       - name: Install requirements
         run: |
           pip install -r pymilvus/requirements.txt
-          echo ${{ github.event.head_commit.id }}
+          echo ${{ toJson(github) }}
           echo ${{ startsWith(github.event.head_commit.message, '[ci]') }}
       - name: Run server docker
         # Ignore the failure of a step and avoid terminating the job.
