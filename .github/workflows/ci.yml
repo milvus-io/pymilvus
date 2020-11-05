@@ -26,13 +26,13 @@ jobs:
           pip install -r pymilvus/requirements.txt
       - name: Run server docker
         # Ignore the failure of a step and avoid terminating the job.
-        continue-on-error: true
+#        continue-on-error: true
         run: |
           cd pymilvus/.github/scripts/server
           docker-compose -f server.yml up -d
           cd -
       - name: Run unit test
-        continue-on-error: true
+#        continue-on-error: true
         shell: python
         run: |
           pytest

@@ -2,7 +2,7 @@ version: "2.3"
 services:
     milvus:
         restart: always
-        image: milvusdb/milvus:0.10.3-gpu-d091720-f962e8
+        image: milvusdb/milvus:0.11.0-cpu-d101620-4c44c0
         volumes:
             - ./milvus.yaml:/var/lib/milvus/conf/milvus.yaml
         ports:
