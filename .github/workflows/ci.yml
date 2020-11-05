@@ -26,8 +26,6 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: |
           pip install -r pymilvus/requirements.txt
-          echo "$GITHUB_CONTEXT"
-          echo ${{ startsWith(github.event.head_commit.message, '[ci]') }}
       - name: Run server docker
         run: |
           cd pymilvus/.github/scripts/server
