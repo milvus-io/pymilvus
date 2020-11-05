@@ -1,0 +1,9 @@
+version: "2.3"
+services:
+    milvus:
+        restart: always
+        image: milvusdb/milvus:0.10.3-gpu-d091720-f962e8
+        volumes:
+            - ./milvus.yaml:/var/lib/milvus/conf/milvus.yaml
+        ports:
+            - "0.0.0.0:19530:19530"
