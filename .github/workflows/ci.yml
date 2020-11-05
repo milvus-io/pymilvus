@@ -1,0 +1,27 @@
+name: PyLint
+
+# Run this workflow every time a new commit pushed to master repository
+on:
+  pull_request:
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8, 3.9]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt
+      - name: Run server docker
+        run: |
+          docker pull docker pull milvusdb/milvus:0.11.0-cpu-d101620-4c44c0
+          docker run -p 19530:19530 -d milvusdb/milvus:0.11.0-cpu-d101620-4c44c0
