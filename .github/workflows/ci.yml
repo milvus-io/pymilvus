@@ -15,8 +15,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        env:
-          message: ${{ github.event.head_commit.message }}
         with:
           path: pymilvus
       - name: Set up python
@@ -26,7 +24,7 @@ jobs:
       - name: Install requirements
         run: |
           pip install -r pymilvus/requirements.txt
-          echo ${{ toJson(github.event) }}
+          echo "${{ github.event.head_commit.message }}"
           echo ${{ startsWith(github.event.head_commit.message, '[ci]') }}
       - name: Run server docker
         # Ignore the failure of a step and avoid terminating the job.
