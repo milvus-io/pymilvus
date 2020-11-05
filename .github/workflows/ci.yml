@@ -4,10 +4,29 @@ name: Unit Test CI
 on: pull_request
 
 jobs:
+  head-commit:
+    name: Check Head Commit
+    runs-on: ubuntu-18.04
+    outputs:
+      status: ${{ steps.ci.outputs.test }}
+    steps:
+        name: Checkout code
+        uses: actions/checkout@v2
+      - id: ci
+        name: Read head commit
+        run: |
+          message = "$(git show-branch --no-name HEAD)"
+          cis = "[ci]"
+          if [[ "$message" == $cis.* ]]; then
+            echo "::set-output name=test::yes"
+          else
+            echo "::set-output name=test::no"
+          fi
   ci:
     name: CI
     runs-on: ubuntu-18.04
-    if: startsWith(github.event.head_commit.message, '[ci]')
+    needs: head-commit
+    if: needs.head-commit.outputs.status == 'yes'
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
