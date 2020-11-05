@@ -8,7 +8,7 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-18.04
-#    if: startsWith(github.event.head_commit.message, '[ci]')
+    if: startsWith($(git log --format=%B -n 1 ${{ github.event.after }}), '[ci]')
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
