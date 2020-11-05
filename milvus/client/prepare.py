@@ -184,7 +184,8 @@ class Prepare:
             records.pop("_id")
 
         if len(records) > 0:
-            raise ParamError(f"The fields {records.keys()} not exist in collection {collection_name}")
+            raise ParamError(f"The fields {records.keys()} not exist "
+                             f"in collection {collection_name}")
 
         params = params or dict()
         _param.extra_params.add(key="params", value=ujson.dumps(params))
