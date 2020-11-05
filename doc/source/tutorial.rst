@@ -187,7 +187,7 @@ structured in list of dictionary.
 Insert Entities
 ===============
 
-** Bulk insert**
+**Bulk insert**
 
 To insert entities into Milvus, we need to group data from the same field like below.
 
@@ -223,7 +223,9 @@ If the hybrid entities inserted successfully, ``ids`` we provided will be return
 >>> client.bulk_insert(collection_name, hybrid_entities, ids, partition_tag="American")
 [1, 2, 3]
 
+
 **Insert**
+
 Moreover, PyMilvus provide another method called ``insert`` to insert data. What's different from ``bulk_insert``,
 is that ``insert`` accept data with different structure. Here is an example to insert 3 entities with ``insert``.
 
