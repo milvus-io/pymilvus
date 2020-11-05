@@ -8,6 +8,7 @@ from unittest import mock
 from grpc._channel import _UnaryUnaryMultiCallable as Uum
 
 from milvus import Milvus, DataType, BaseError
+from milvus.client.exceptions import CollectionNotExistException
 
 from factorys import fake, records_factory, integer_factory, binary_records_factory
 from utils import MockGrpcError
@@ -99,7 +100,7 @@ class TestInsert:
     def test_insert_with_collection_non_exist(self, connect):
         collection_name = fake.collection_name()
 
-        with pytest.raises(BaseError):
+        with pytest.raises(CollectionNotExistException):
             connect.insert(collection_name, [{"A": 1, "V": [1]}])
 
     def test_insert_with_wrong_type_data(self, connect, hvcollection, dim):
@@ -119,6 +120,24 @@ class TestInsert:
 
         with pytest.raises(BaseError):
             connect.insert(hvcollection, entities)
+
+    def test_insert_with_exception(self, connect, hvcollection, dim):
+        insert_entities = [{"Int": 10, "Vec": records_factory(dim, 1)[0]}]
+
+        mock_grpc_timeout = mock.MagicMock(side_effect=grpc.FutureTimeoutError())
+        with mock.patch.object(Uum, 'future', mock_grpc_timeout):
+            with pytest.raises(grpc.FutureTimeoutError):
+                connect.insert(hvcollection, insert_entities)
+
+        mock_grpc_error = mock.MagicMock(side_effect=MockGrpcError())
+        with mock.patch.object(Uum, 'future', mock_grpc_error):
+            with pytest.raises(grpc.RpcError):
+                connect.insert(hvcollection, insert_entities)
+
+        mock_exception = mock.MagicMock(side_effect=Exception("error"))
+        with mock.patch.object(Uum, 'future', mock_exception):
+            with pytest.raises(Exception):
+                connect.insert(hvcollection, insert_entities)
 
 
 class TestInsertAsync:
