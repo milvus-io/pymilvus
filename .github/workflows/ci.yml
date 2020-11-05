@@ -35,7 +35,8 @@ jobs:
 #        continue-on-error: true
         shell: python
         run: |
-          pytest
+          cd pymilvus
+          python -m pytest
       - name: Clean server docker
         run: |
           cd pymilvus/.github/scripts/server
