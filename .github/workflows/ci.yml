@@ -29,7 +29,7 @@ jobs:
         continue-on-error: true
         run: |
           cd pymilvus/.github/scripts/server
-          docker-compose -f all_in_one.yml up -d
+          docker-compose -f server.yml up -d
           cd -
       - name: Run unit test
         continue-on-error: true
@@ -39,6 +39,6 @@ jobs:
       - name: Clean server docker
         run: |
           cd pymilvus/.github/scripts/server
-          docker-compose -f all_in_one.yml down
+          docker-compose -f server.yml down
           cd -
 
