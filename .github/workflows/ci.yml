@@ -1,4 +1,4 @@
-name: PyLint
+name: Unit Test CI
 
 # Run this workflow every time a new commit pushed to master repository
 on:
@@ -23,5 +23,5 @@ jobs:
           pip install -r requirements.txt
       - name: Run server docker
         run: |
-          docker pull docker pull milvusdb/milvus:0.11.0-cpu-d101620-4c44c0
+          docker pull milvusdb/milvus:0.11.0-cpu-d101620-4c44c0
           docker run -p 19530:19530 -d milvusdb/milvus:0.11.0-cpu-d101620-4c44c0
