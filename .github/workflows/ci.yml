@@ -33,7 +33,6 @@ jobs:
           cd -
       - name: Run unit test
 #        continue-on-error: true
-        shell: python
         run: |
           cd pymilvus
           python -m pytest
