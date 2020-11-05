@@ -7,7 +7,7 @@ from unittest import mock
 
 from grpc._channel import _UnaryUnaryMultiCallable as Uum
 
-from milvus import Milvus, DataType, BaseError
+from milvus import Milvus, DataType, BaseError, ParamError
 from milvus.client.exceptions import CollectionNotExistException
 
 from factorys import fake, records_factory, integer_factory, binary_records_factory
@@ -119,6 +119,17 @@ class TestInsert:
         entities.append({"Vec": vectors[9998]})
 
         with pytest.raises(BaseError):
+            connect.insert(hvcollection, entities)
+
+    def test_insert_with_mismatch_field(self, connect, hvcollection, dim):
+
+        entities = [{"Vec": records_factory(dim, 1)[0], "Int": 1, "Float": 0.2}]
+
+        with pytest.raises(ParamError):
+            connect.insert(hvcollection, entities)
+
+        entities = [{"Vec": records_factory(dim, 1)[0]}]
+        with pytest.raises(ParamError):
             connect.insert(hvcollection, entities)
 
     def test_insert_with_exception(self, connect, hvcollection, dim):

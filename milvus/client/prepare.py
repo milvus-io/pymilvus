@@ -177,12 +177,17 @@ class Prepare:
                 raise ParamError("Unknown data type.")
 
             _param.fields.append(field_param)
-
-        params = params or dict()
-        _param.extra_params.add(key="params", value=ujson.dumps(params))
+            records.pop(name_)
 
         if "_id" in records:
             _param.entity_id_array.extend(records["_id"])
+            records.pop("_id")
+
+        if len(records) > 0:
+            raise ParamError(f"The fields {records.keys()} not exist in collection {collection_name}")
+
+        params = params or dict()
+        _param.extra_params.add(key="params", value=ujson.dumps(params))
 
         return _param
 
