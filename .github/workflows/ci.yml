@@ -16,6 +16,7 @@ jobs:
         name: Read head commit
         run: |
           message = "$(git show-branch --no-name HEAD)"
+          echo "$message"
           cis = "[ci]"
           if [[ "$message" == $cis.* ]]; then
             echo "::set-output name=test::yes"
