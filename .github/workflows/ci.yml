@@ -12,6 +12,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Set env
+        run: |
+          apt-get update
+          apt install git tig
       - id: ci
         name: Read head commit
         run: |
