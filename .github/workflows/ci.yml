@@ -25,8 +25,10 @@ jobs:
           echo "$message"
           cis="[ci]"
           if [[ "$message" == $cis.* ]]; then
+            echo "Set test value as yes"
             echo "::set-output name=test::yes"
           else
+            echo "Set test value as no"
             echo "::set-output name=test::no"
           fi
   ci:
