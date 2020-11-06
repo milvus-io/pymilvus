@@ -25,7 +25,7 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-18.04
-    needs: head-commit
+    needs: check
     if: needs.check.outputs.status == 'yes'
     strategy:
       matrix:
