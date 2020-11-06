@@ -14,8 +14,8 @@ jobs:
         uses: actions/checkout@v2
       - name: Set env
         run: |
-          apt-get update
-          apt install git tig
+          sudo apt-get update
+          sudo apt install git tig
       - id: ci
         name: Read head commit
         run: |
