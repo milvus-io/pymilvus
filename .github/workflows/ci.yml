@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          repository: ${{ github.event.pull_request.head.ref }}
       - name: Set env
         run: |
           sudo apt-get update
