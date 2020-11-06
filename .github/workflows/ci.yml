@@ -19,9 +19,9 @@ jobs:
       - id: ci
         name: Read head commit
         run: |
-          message = "$(git log --format=%B -n 1  HEAD)"
+          message="$(git log --format=%B -n 1  HEAD)"
           echo "$message"
-          cis = "[ci]"
+          cis="[ci]"
           if [[ "$message" == $cis.* ]]; then
             echo "::set-output name=test::yes"
           else
