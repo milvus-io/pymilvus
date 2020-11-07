@@ -1,6 +1,6 @@
 name: Unit Test CI
 
-# Run this workflow every time a new commit pushed to master repository
+# Run this workflow every time a new commit pushed
 on: pull_request
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         shell: bash
         run: |
           message="$(git log --format=%B -n 1  ${{ github.event.pull_request.head.sha }})"
-          echo ${message}
+          echo "The last commit message is: ${message}"
           if [ ${#message}>=4 ]; then
             echo 'message length >=4'
             if [ "${message:0:4}" = '[ci]' ]; then
