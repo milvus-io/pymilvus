@@ -22,7 +22,7 @@ jobs:
         name: Read head commit
         shell: bash
         run: |
-          message=$(git log --format=%B -n 1  ${{ github.event.pull_request.head.sha }})
+          message="$(git log --format=%B -n 1  ${{ github.event.pull_request.head.sha }})"
           echo ${message}
           if [ ${#message}>=4 ]; then
             echo ${message:0:4}
