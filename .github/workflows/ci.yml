@@ -26,6 +26,7 @@ jobs:
           echo ${message}
           if [ ${#message}>=4 ]; then
             echo ${message:0:4}
+            echo ${message:0:4}=='[ci]'
           fi
           if [[ ${#message}>=4 && ${message:0:4}=='[ci]' ]]; then
             echo "Set test value as yes"
