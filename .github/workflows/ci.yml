@@ -25,15 +25,16 @@ jobs:
           message="$(git log --format=%B -n 1  ${{ github.event.pull_request.head.sha }})"
           echo ${message}
           if [ ${#message}>=4 ]; then
-            echo ${message:0:4}
+            echo 'message length >=4'
+            if [ "${message:0:4}" = '[ci]' ]; then
+              echo "Set test value as yes"
+              echo "::set-output name=test::yes"
+              exit 0
+            fi
           fi
-          if [[ ${#message}>=4 && "${message:0:4}" = '[ci]' ]]; then
-            echo "Set test value as yes"
-            echo "::set-output name=test::yes"
-          else
-            echo "Set test value as no"
-            echo "::set-output name=test::no"
-          fi
+
+          echo "Set test value as no"
+          echo "::set-output name=test::no"
   ci:
     name: CI
     runs-on: ubuntu-18.04
