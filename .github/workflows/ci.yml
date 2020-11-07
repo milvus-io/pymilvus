@@ -22,6 +22,7 @@ jobs:
         name: Read head commit
         run: |
           message=$(git log --format=%B -n 1  ${{ github.event.pull_request.head.sha }})
+          echo ${message}
           if [[ ${#message}>=4 && ${message:0:4}=='[ci]' ]]; then
             echo "Set test value as yes"
             echo "::set-output name=test::yes"
