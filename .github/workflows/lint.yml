@@ -1,11 +1,7 @@
 name: PyLint
 
 # Run this workflow every time a new commit pushed to master repository
-on:
-  pull_request:
-    paths:
-      - 'milvus/**'
-      - '!milvus/grpc_gen'
+on: pull_request
 
 jobs:
   code-lint:
