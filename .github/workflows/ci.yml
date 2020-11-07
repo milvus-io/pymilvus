@@ -20,9 +20,12 @@ jobs:
           sudo apt install git tig
       - id: ci
         name: Read head commit
+        shell: bash
         run: |
           message=$(git log --format=%B -n 1  ${{ github.event.pull_request.head.sha }})
           echo ${message}
+          if [ ${#message}>=4 ]; then
+            echo "the front 4 item is ${message:0:4}"
           if [[ ${#message}>=4 && ${message:0:4}=='[ci]' ]]; then
             echo "Set test value as yes"
             echo "::set-output name=test::yes"
