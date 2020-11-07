@@ -73,6 +73,8 @@ Contribution guideline
 
 **2. Add unit tests for your codes**
 
+To run unit test in github action, you need make sure the last commit message of PR starts with "[ci]".
+
 **3. Pass pylint check**
 
 In the root directory, run ``pylint --rcfile=pylint.conf milvus/client`` to make sure the rate is 10.
