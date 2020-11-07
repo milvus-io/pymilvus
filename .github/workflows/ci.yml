@@ -24,7 +24,7 @@ jobs:
           message="$(git log --format=%B -n 1  ${{ github.event.pull_request.head.sha }})"
           echo "$message"
           cis="[ci]"
-          if [[ "$message" == $cis.* ]]; then
+          if [[ "$message" == "\[ci\]"* ]]; then
             echo "Set test value as yes"
             echo "::set-output name=test::yes"
           else
