@@ -11,6 +11,7 @@
 - \#333, \#346 - Change method insert() to bulk_insert()
 - \#345 - Do not support python 3.5.x any more
 - \#349 - Add new method insert()
+- \#353 - Add CI test process in GitHub action
 
 ## Improvement
 - \#277 - Add doc `FAQ` chapter of pymilvus documentation
