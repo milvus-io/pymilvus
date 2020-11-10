@@ -135,9 +135,10 @@ class Entity:
         self._raw = raw
 
     def __str__(self):
-        str_ = "(\tid: {} \n\tname\t\tvalue"
-        for name, value in zip(self._field_names, self._field_values):
-            str_ += "\t{}\t\t{}\n".format(name, value)
+        str_ = "(\tid: {} \n\tname\t\tvalue\n".format(self._id)
+        for name in self._field_names:
+            value = self.value_of_field(name)
+            str_ += "\t{}\t\t{}".format(name, value)
 
         return str_
 
