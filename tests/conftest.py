@@ -84,7 +84,7 @@ def vcollection(request, connect, dim):
         "fields": [
             {"name": Field_Vector, "type": DataType.FLOAT_VECTOR, "params": {"dim": dim}},
         ],
-        "segment_row_limit": 8192,
+        "segment_row_limit": 100000,
         "auto_id": True
     }
 
@@ -106,7 +106,7 @@ def vicollection(request, connect, dim):
         "fields": [
             {"name": Field_Vector, "type": DataType.FLOAT_VECTOR, "params": {"dim": dim}},
         ],
-        "segment_row_limit": 8192,
+        "segment_row_limit": 100000,
         "auto_id": False
     }
 
@@ -128,7 +128,7 @@ def hvcollection(request, connect, dim):
             {"name": Field_Integer, "type": DataType.INT64},
             {"name": Field_Vector, "type": DataType.FLOAT_VECTOR, "params": {"dim": dim}},
         ],
-        "segment_row_limit": 8192,
+        "segment_row_limit": 100000,
         "auto_id": True
     }
 
@@ -152,7 +152,7 @@ def hvicollection(request, connect, dim):
             {"name": Field_Integer, "type": DataType.INT64},
             {"name": Field_Vector, "type": DataType.FLOAT_VECTOR, "params": {"dim": dim}},
         ],
-        "segment_row_limit": 8192,
+        "segment_row_limit": 100000,
         "auto_id": False
     }
 
@@ -176,7 +176,8 @@ def vrecords(request, connect, vcollection, dim):
     entities = [
         {"name": Field_Vector, "values": vectors, "type": DataType.FLOAT_VECTOR}
     ]
-    connect.insert(vcollection, entities)
+    connect.bulk_insert(vcollection, entities)
+    connect.flush([vcollection])
 
     return vcollection
 
@@ -192,9 +193,10 @@ def virecords(request, connect, vicollection, dim):
 
     ids = [i for i in range(10000)]
 
-    connect.insert(vcollection, entities, ids)
+    connect.bulk_insert(vicollection, entities, ids)
+    connect.flush([vicollection])
 
-    return vcollection
+    return vicollection
 
 
 @pytest.fixture(scope='function')
@@ -207,7 +209,8 @@ def ivrecords(request, connect, hvcollection, dim):
         {"name": Field_Integer, "values": integers, "type": DataType.INT64},
         {"name": Field_Vector, "values": vectors, "type": DataType.FLOAT_VECTOR}
     ]
-    connect.insert(vcollection, entities)
+    connect.bulk_insert(hvcollection, entities)
+    connect.flush([hvcollection])
 
     return hvcollection
 
@@ -223,6 +226,7 @@ def ivirecords(request, connect, hvicollection, dim):
         {"name": Field_Vector, "values": vectors, "type": DataType.FLOAT_VECTOR}
     ]
     ids = [i for i in range(10000)]
-    connect.insert(vcollection, entities, ids)
+    connect.bulk_insert(hvicollection, entities, ids)
+    connect.flush([hvicollection])
 
-    return hvcollection
+    return hvicollection
