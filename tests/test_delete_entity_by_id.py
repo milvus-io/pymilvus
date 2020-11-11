@@ -10,6 +10,7 @@ class TestDeleteEntityByID:
         ids = connect.list_id_in_segment(vrecords, segment_id)
         delete_ids = [ids[0], ids[10], ids[100]]
         connect.delete_entity_by_id(vrecords, delete_ids)
+        connect.flush([vrecords])
         entities = connect.get_entity_by_id(vrecords, delete_ids)
         for e in entities:
             assert e is None
