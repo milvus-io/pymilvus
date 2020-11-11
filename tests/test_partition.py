@@ -25,7 +25,7 @@ class TestListPartitions:
         for i in range(100):
             connect.create_partition(vcollection, f"p_{i}")
 
-        pars = connect.list_partitions(connect)
+        pars = connect.list_partitions(vcollection)
         assert len(pars) == 100 + 1
 
     def test_list_partitions_with_nonexist_collection(self, connect):
