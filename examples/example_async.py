@@ -4,7 +4,7 @@ This is an example to demonstrate how to invoke milvus client APIs asynchronousl
 There are partial APIs allowed to be invoked asynchronously, they are: insert(), create_index(),
 search(), flush() and compact().
 
-This example is runnable for milvus(0.11.x) and pymilvus(0.3.x).
+This example is runnable for milvus(0.11.x) and pymilvus(0.4.x)(developing).
 """
 import random
 from pprint import pprint
@@ -14,7 +14,8 @@ from milvus import Milvus, DataType
 # ------
 # Setup:
 #    First of all, you need a runing Milvus(0.11.x). By default, Milvus runs on localhost in port 19530.
-#    Then, you can use pymilvus(0.3.x) to connect to the server, You can change the _HOST and _PORT accordingly.
+#    Then, you can use pymilvus(0.4.x)(developing) to connect to the server, You can change the _HOST
+#    and _PORT accordingly.
 # ------
 _HOST = '127.0.0.1'
 _PORT = '19530'
