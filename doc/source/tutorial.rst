@@ -9,6 +9,10 @@ checkout `example.py <https://github.com/milvus-io/pymilvus/blob/master/examples
 or `hello milvus <https://milvus.io/docs/v0.11.0/example_code.md>`_ on milvus official website. It's a good recommended start to get started with Milvus and PyMilvus as well.
 
 
+.. note::
+   Here we use float vectors as example vector field data, if you want to learn example about binary vectors, see `binary vector example<https://github.com/milvus-io/pymilvus/blob/master/examples/example_binary.py>`_.
+
+
 Prerequisites
 =============
 

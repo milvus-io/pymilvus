@@ -94,7 +94,7 @@ print(" > There are {} films in collection `{}` after flush".format(after_flush_
 #     While building index, we have to indicate which `field` to build index for, the `index_type`,
 #     `metric_type` and params for the specific index type. In our case, we want to build a `IVF_FLAT`
 #     index, so the specific params are "nlist". See pymilvus documentation
-#     (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/index.html) for `index_type` we
+#     (https://milvus-io.github.io/milvus-sdk-python/pythondoc/v0.3.0/param.html) for `index_type` we
 #     support and the params accordingly.
 #
 #     If there are already index for a collection and you call `create_index` with different params, the
@@ -102,6 +102,16 @@ print(" > There are {} films in collection `{}` after flush".format(after_flush_
 # ------
 client.create_index(collection_name, "embedding",
                     {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 100}})
+
+
+# ------
+# Basic create index:
+#     Now we build index on field "release_year". The field is a scalar field, so we only need to specify
+#     `index_type`. More detailed scalar index see
+#     <a href="https://pymilvus.readthedocs.io/en/0.3.0/param.html#sorted">Scalar Index</a>.
+# ------
+client.create_index(collection_name, "release_year", {"index_type": "SORTED"})
+
 
 # ------
 # Basic create index:

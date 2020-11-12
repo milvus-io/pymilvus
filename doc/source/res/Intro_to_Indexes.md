@@ -1,4 +1,7 @@
-# Intro to Index
+
+[Milvus](https://github.com/milvus-io) support to create index for each type-different field of certain collection. For
+vector field which type can be chosen as ``FLOAT_VECTOR`` or ``BINARY_VECTOR`` we call indexes on it "vector index"; for 
+other field which type is numerical we call "scalar index". To learn how to create an index by python client, see method [create_index()](api.html#milvus.Milvus.create_index).
 
 For more detailed information about indexes, please refer to [Milvus documentation index chapter.](https://milvus.io/docs/v0.11.0/index.md)
 
@@ -6,8 +9,11 @@ To learn how to choose an appropriate index for your application scenarios, plea
 
 To learn how to choose an appropriate index for a metric, see [Distance Metrics](https://www.milvus.io/docs/v0.11.0/metric.md).
 
+## Vector Index
+
+### Float Vector Index
+
 - `IVF_FLAT`_
-- `BIN_IVF_FLAT`_
 - `IVF_PQ`_
 - `IVF_SQ8`_
 - `IVF_SQ8_HYBRID`_
@@ -17,7 +23,7 @@ To learn how to choose an appropriate index for a metric, see [Distance Metrics]
 - `RHNSW_SQ`_
 - `RNSG`_
 
-## IVF_FLAT
+#### IVF_FLAT
 
 **IVF** (*Inverted File*) is an index type based on quantization. It divides the points in space into `nlist`
 units by clustering method. During searching vectors, it compares the distances between the target vector
@@ -59,47 +65,7 @@ vector_query = {
 }
 ```
 
-## BIN_IVF_FLAT
-
-**BIN_IVF_FLAT** is a binary variant of IVF_FLAT.
-
-- building parameters:
-
-  **nlist**: Number of cluster units.
-
-```python
-# BIN_IVF_FLAT
-client.create_index(collection_name, field_name, {
-    "index_type": "BIN_IVF_FLAT",
-    "metric_type": "jaccard",  # one of jaccard, hamming, tanimoto
-    "params": {
-        "nlist": 100           # int. 1~65536
-    }
-})
-
-```
-
-- search parameters:
-
-  **nprobe**: Number of inverted file cell to probe.
-
-```python
-# BIN_IVF_FLAT
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "jaccard",  # one of jaccard, hamming, tanimoto
-        "params": {
-            "nprobe": 8            # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-        }
-    }
-}
-```
-
-
-
-## IVF_PQ
+#### IVF_PQ
 
 **PQ** (*Product Quantization*) uniformly decomposes the original high-dimensional vector space into
 Cartesian products of `m` low-dimensional vector spaces, and then quantizes the decomposed low-dimensional
@@ -146,7 +112,7 @@ vector_query = {
 }
 ```
 
-## IVF_SQ8
+#### IVF_SQ8
 
 **IVF_SQ8** does scalar quantization for each vector placed in the unit based on IVF. Scalar quantization
 converts each dimension of the original vector from a 4-byte floating-point number to a 1-byte unsigned integer,
@@ -186,7 +152,7 @@ vector_query = {
 }
 ```
 
-## IVF_SQ8_HYBRID
+#### IVF_SQ8_HYBRID
 
 Optimized version of IVF_SQ8 that requires both CPU and GPU to work. Unlike IVF_SQ8, IVF_SQ8H uses a GPU-based
 coarse quantizer, which greatly reduces time to quantize.
@@ -232,7 +198,7 @@ vector_query = {
 }
 ```
 
-## ANNOY
+#### ANNOY
 
 **ANNOY** (*Approximate Nearest Neighbors Oh Yeah*) is an index that uses a hyperplane to divide a
 high-dimensional space into multiple subspaces, and then stores them in a tree structure.
@@ -277,7 +243,7 @@ vector_query = {
 }
 ```
 
-## HNSW
+#### HNSW
 
 **HNSW** (*Hierarchical Navigable Small World Graph*) is a graph-based indexing algorithm. It builds a
 multi-layer navigation structure for an image according to certain rules. In this structure, the upper
@@ -325,7 +291,7 @@ vector_query = {
 }
 ```
 
-## RHNSW_PQ
+#### RHNSW_PQ
 
 **RHNSW_PQ** is a variant index type combining PQ and HNSW. It first uses PQ to quantize the vector,
 then uses HNSW to quantize the PQ quantization result to get the index.
@@ -369,7 +335,7 @@ vector_query = {
 }
 ```
 
-## RHNSW_SQ
+#### RHNSW_SQ
 
 **RHNSW_SQ** is a variant index type combining SQ and HNSW. It first uses SQ to quantize the vector, then uses HNSW to quantize the SQ quantization result to get the index.
 
@@ -409,7 +375,7 @@ vector_query = {
 }
 ```
 
-## RNSG
+#### RNSG
 
 **RNSG** (*Refined Navigating Spreading-out Graph*) is a graph-based indexing algorithm. It sets the center
 position of the whole image as a navigation point, and then uses a specific edge selection strategy to control
@@ -464,5 +430,66 @@ vector_query = {
         }
     }
 }
+```
+
+### Binary Vector Index
+
+- `BIN_IVF_FLAT`_
+
+#### BIN_IVF_FLAT
+
+**BIN_IVF_FLAT** is a binary variant of IVF_FLAT.
+
+- building parameters:
+
+  **nlist**: Number of cluster units.
+
+```python
+# BIN_IVF_FLAT
+client.create_index(collection_name, field_name, {
+    "index_type": "BIN_IVF_FLAT",
+    "metric_type": "jaccard",  # one of jaccard, hamming, tanimoto
+    "params": {
+        "nlist": 100           # int. 1~65536
+    }
+})
+
+```
+
+- search parameters:
+
+  **nprobe**: Number of inverted file cell to probe.
+
+```python
+# BIN_IVF_FLAT
+vector_query = {
+    "field_name": {
+        "topk": top_k,
+        "query": queries,
+        "metric_type": "jaccard",  # one of jaccard, hamming, tanimoto
+        "params": {
+            "nprobe": 8            # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
+        }
+    }
+}
+```
+
+
+## Scalar Index
+
+For scalar indexes, We only need specify them during creating, so there is no search parameters for them.
+
+- `SORTED`_
+
+### SORTED
+
+- building parameters: N/A
+
+```python
+# SORTED
+client.create_index(collection_name, field_name, {
+    "index_type": "SORTED",
+})
+
 ```
 
