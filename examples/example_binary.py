@@ -11,6 +11,7 @@ You can fina more detailed information about metric and index of binary vectors 
 This example is runnable for Milvus(0.11.x) and pymilvus(0.4.x)(developing).
 """
 import random
+import struct
 
 import numpy as np
 
@@ -62,33 +63,41 @@ client.create_partition(collection_name, "American")
 
 # ------
 # Basic insert entities:
-#     Here we use numpy to help generate binary vectors, because numpy allow to specify data type.
+#     PyMilvus receive `bytes` object as a vector, so we need to generate bytes from list.
 #
-#     We use a function random binary vectors, which parameters dim refer to dimension of vectors.
+#     Here we provide two function random binary vectors, which parameters dim refer to dimension of vectors.
 # ------
 def random_bin_vector(dim):
+    """
+    This function uses numpy to specify data structure, then convert to bytes
+    """
     # uint8 values range is [0, 256), so we specify the high range is 256.
     xb = np.random.randint(256, size=[1, (dim // 8)], dtype="uint8")
     return bytes(xb[0])
 
 
+def random_bin_vector2(dim):
+    """
+    This function uses struct.pack to pack as bytes
+    """
+    rs = [random.randint(0, 255) for _ in range(dim // 8)]
+    return struct.pack(f"={dim // 8}B", *rs)
+
+
 The_Lord_of_the_Rings = [
     {
-        # "title": "The_Fellowship_of_the_Ring",
         "_id": 1,
         "duration": 208,
         "release_year": 2001,
         "embedding": random_bin_vector(128)
     },
     {
-        # "title": "The_Two_Towers",
         "_id": 2,
         "duration": 226,
         "release_year": 2002,
         "embedding": random_bin_vector(128)
     },
     {
-        # "title": "The_Return_of_the_King",
         "_id": 3,
         "duration": 252,
         "release_year": 2003,
@@ -126,7 +135,7 @@ pprint(stats)
 #      please refer to DSL chapter of our pymilvus documentation
 #      (https://pymilvus.readthedocs.io/en/latest/).
 # ------
-query_embedding = random_bin_vector(128)
+query_embedding = random_bin_vector2(128)
 dsl = {
     "bool": {
         "must": [
