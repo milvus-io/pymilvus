@@ -434,6 +434,15 @@ vector_query = {
 
 ### Binary Vector Index
 
+The binary vector indexes are partially applicable for binary metrics, please refer to the table as follows:
+
++-------------------------+-------------------------------------------------+
+| Binary vector index     | Supported metrics                               |
++=========================+=================================================+
+| BIN_IVF_FLAT            | JACCARD, HAMMING, TANIMOTO                      |
++-------------------------+-------------------------------------------------+
+
+
 - `BIN_IVF_FLAT`_
 
 #### BIN_IVF_FLAT
@@ -448,7 +457,7 @@ vector_query = {
 # BIN_IVF_FLAT
 client.create_index(collection_name, field_name, {
     "index_type": "BIN_IVF_FLAT",
-    "metric_type": "jaccard",  # one of jaccard, hamming, tanimoto
+    "metric_type": "JACCARD",  # one of JACCARD, HAMMING, TANIMOTO
     "params": {
         "nlist": 100           # int. 1~65536
     }
@@ -466,7 +475,7 @@ vector_query = {
     "field_name": {
         "topk": top_k,
         "query": queries,
-        "metric_type": "jaccard",  # one of jaccard, hamming, tanimoto
+        "metric_type": "JACCARD",  # one of JACCARD, HAMMING, TANIMOTO
         "params": {
             "nprobe": 8            # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
         }
