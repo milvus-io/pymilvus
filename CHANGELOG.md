@@ -18,6 +18,7 @@
 - \#279 - Add doc `Changes` chapter of pymilvus documentation
 - \#280 - Add doc `About This Documentation` chapter of documentation
 - \#343 - Change exception 'BaseException' to 'BaseError'
+- \#359 - Add binary vectors example
 
 
 # pymilvus 0.3.0(2020-10-16)

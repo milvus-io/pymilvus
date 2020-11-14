@@ -6,7 +6,7 @@ from milvus import Milvus, DataType
 # ------
 # Setup:
 #    First of all, you need a running Milvus(0.11.x). By default, Milvus runs on localhost in port 19530.
-#    Then, you can use pymilvus(0.3.x) to connect to the server, You can change the _HOST and _PORT accordingly.
+#    Then, you can use pymilvus(0.4.x) to connect to the server, You can change the _HOST and _PORT accordingly.
 # ------
 _HOST = '127.0.0.1'
 _PORT = '19530'
