@@ -7,7 +7,7 @@ from unittest import mock
 
 from grpc._channel import _UnaryUnaryMultiCallable as Uum
 
-from milvus import Milvus, DataType, BaseError, ParamError
+from milvus import DataType, BaseError, ParamError
 from milvus.client.exceptions import CollectionNotExistException
 
 from factorys import fake, records_factory, integer_factory, binary_records_factory
