@@ -98,15 +98,11 @@ def records_factory(dimension, nq):
     return [[random.random() for _ in range(dimension)] for _ in range(nq)]
 
 
-def binary_records_factory(dimension, nq):
-    def binary_record(bsize):
-        s_m = "abcdefghijklmnopqrstuvwxyz"
-        s_list = [s_m[random.randint(0, 25)] for _ in range(bsize)]
-        s = "".join(s_list)
-        return bytes(s, encoding="ASCII")
-
-    bs = dimension // 8
-    return [binary_record(bs) for _ in range(nq)]
+def binary_records_factory(dim, nq):
+    # uint8 values range is [0, 256), so we specify the high range is 256.
+    xnb = np.random.randint(256, size=[nq, (dim // 8)], dtype="uint8")
+    xb = [bytes(b) for b in xnb]
+    return xb
 
 
 def integer_factory(nq):

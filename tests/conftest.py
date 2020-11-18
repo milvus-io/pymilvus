@@ -3,7 +3,7 @@
 import pytest
 
 # local application imports
-from factorys import gen_unique_str, fake, records_factory, integer_factory
+from factorys import gen_unique_str, fake, records_factory, integer_factory, binary_records_factory
 from milvus import Milvus, DataType
 
 
@@ -15,13 +15,6 @@ default_vector_dim = 128
 
 Field_Vector = "Vec"
 Field_Integer = "Int"
-
-#
-# def pytest_namespace():
-#     return {
-#         "field_vector": Field_Vector,
-#         "field_integer": Field_Integer
-#     }
 
 
 def pytest_addoption(parser):
@@ -78,6 +71,9 @@ def args(request):
 
 @pytest.fixture(scope="function")
 def vcollection(request, connect, dim):
+    """
+    vector only collection
+    """
     ori_collection_name = getattr(request.module, "collection_id", "test")
     collection_name = gen_unique_str(ori_collection_name)
     collection_param = {
@@ -99,7 +95,35 @@ def vcollection(request, connect, dim):
 
 
 @pytest.fixture(scope="function")
+def bvcollection(request, connect, dim):
+    """
+    binary vector only collection
+    """
+    ori_collection_name = getattr(request.module, "collection_id", "test")
+    collection_name = gen_unique_str(ori_collection_name)
+    collection_param = {
+        "fields": [
+            {"name": Field_Vector, "type": DataType.BINARY_VECTOR, "params": {"dim": dim}},
+        ],
+        "segment_row_limit": 2000000,
+        "auto_id": True
+    }
+
+    connect.create_collection(collection_name, collection_param)
+
+    def teardown():
+        connect.drop_collection(collection_name)
+
+    request.addfinalizer(teardown)
+
+    return collection_name
+
+
+@pytest.fixture(scope="function")
 def vicollection(request, connect, dim):
+    """
+    vector only collection with auto-id False
+    """
     ori_collection_name = getattr(request.module, "collection_id", "test")
     collection_name = gen_unique_str(ori_collection_name)
     collection_param = {
@@ -180,6 +204,20 @@ def vrecords(request, connect, vcollection, dim):
     connect.flush([vcollection])
 
     return vcollection
+
+
+@pytest.fixture(scope='function')
+def bvrecords(request, connect, bvcollection, dim):
+
+    vectors = binary_records_factory(dim, 10000)
+
+    entities = [
+        {"name": Field_Vector, "values": vectors}
+    ]
+    connect.bulk_insert(bvcollection, entities)
+    connect.flush([bvcollection])
+
+    return bvcollection
 
 
 @pytest.fixture(scope='function')
