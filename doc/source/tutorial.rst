@@ -76,15 +76,15 @@ collection_param
 
 In the ``collection_param``, there are 2 fields in ``fields``: ``embedding`` and ``release_year``.
 
-release_year:
-    The name of the first field is ``release_year``, and the type of it is ``DataType.INT32``,
-    it's a field to store release year of a film.
-
 embedding:
     The name of the second field is ``embedding``, the type of it is ``DataType.FLOAT_VECTOR``.
     It also has an extra parameter "params" with dimension 8. It's a float vector field to store
     embedding of a film. For a FLOAT_VECTOR, the **"dim" in "params" is required**. You can also add
     ``params`` in other types of field as in FLOAT_VECTOR field.
+
+release_year:
+    The name of the first field is ``release_year``, and the type of it is ``DataType.INT32``,
+    it's a field to store release year of a film.
 
 segment_row_limit
 -----------------
