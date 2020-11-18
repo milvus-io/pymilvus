@@ -37,7 +37,7 @@ jobs:
           echo "::set-output name=test::no"
   ci:
     name: CI
-    runs-on: ubuntu-18.04
+    runs-on: [ubuntu-18.04, ubuntu-20.04]
     needs: check
     if: needs.check.outputs.status == 'yes'
     strategy:
