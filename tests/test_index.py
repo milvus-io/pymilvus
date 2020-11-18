@@ -4,19 +4,16 @@ from milvus import BaseError
 
 
 class TestCreateIndex:
-    @pytest.mark.parametrize("index, param",
-                             [
-                                 ("IVF_FLAT", {"nlist": 512}),
-                                 ("IVF_PQ", {"nlist": 512, "m": 8}),
-                                 ("IVF_SQ8", {"nlist": 512}),
-                                 ("IVF_SQ8_HYBRID", {"nlist": 512}),
-                                 ("ANNOY", {"n_trees": 8}),
-                                 ("HNSW", {"M": 16, "efConstruction": 40}),
-                                 ("NSG", {"search_length": 60,
-                                           "out_degree": 30,
-                                           "candidate_pool_size": 300,
-                                           "knng": 50})
-                             ])
+    @pytest.mark.parametrize("index, param", [("IVF_FLAT", {"nlist": 512}),
+                                              ("IVF_PQ", {"nlist": 512, "m": 8}),
+                                              ("IVF_SQ8", {"nlist": 512}),
+                                              ("IVF_SQ8_HYBRID", {"nlist": 512}),
+                                              ("ANNOY", {"n_trees": 8}),
+                                              ("HNSW", {"M": 16, "efConstruction": 40}),
+                                              ("NSG", {"search_length": 60,
+                                                       "out_degree": 30,
+                                                       "candidate_pool_size": 300,
+                                                       "knng": 50})])
     def test_create_index_whole(self, index, param, connect, vrecords):
         mode_ = connect._cmd("mode")
         if mode_ == "CPU" and index in ("IVF_SQ8_HYBRID",):
@@ -27,15 +24,12 @@ class TestCreateIndex:
 
         connect.create_index(vrecords, "Vec", {"index_type": index, "metric_type": "L2", "params": param})
 
-    @pytest.mark.parametrize("index, param",
-                             [
-                                 ("IVF_PQ", {"nlist": 512, "m": 8}),
-                                 ("HNSW", {"M": 16, "efConstruction": 40}),
-                                 ("NSG", {"search_length": 60,
-                                          "out_degree": 30,
-                                          "candidate_pool_size": 300,
-                                          "knng": 50})
-                             ])
+    @pytest.mark.parametrize("index, param", [("IVF_PQ", {"nlist": 512, "m": 8}),
+                                              ("HNSW", {"M": 16, "efConstruction": 40}),
+                                              ("NSG", {"search_length": 60,
+                                                       "out_degree": 30,
+                                                       "candidate_pool_size": 300,
+                                                       "knng": 50})])
     def test_create_index_with_IP(self, index, param, connect, vrecords):
         mode_ = connect._cmd("mode")
         if mode_ == "CPU" and index in ("IVF_SQ8_HYBRID",):
@@ -54,6 +48,12 @@ class TestCreateIndex:
                                  {"index_type": index, "metric_type": metric, "params": {"nlist": 512}})
         except Exception as e:
             pytest.fail(f"Create index {index} with metric {metric} failed: {e}")
+
+    def test_create_index_scalar_index(self, connect, ivrecords):
+        try:
+            connect.create_index(ivrecords, "Int", {"index_type": "SORTED"})
+        except Exception as e:
+            pytest.fail(f"{e}")
 
     @pytest.mark.parametrize("index", ["BIN_IVF_FLAT"])
     @pytest.mark.parametrize("metric", ["SUPERSTRUCTURE", "SUBSTRUCTURE"])

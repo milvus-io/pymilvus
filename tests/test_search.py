@@ -3,13 +3,13 @@ import pytest
 from factorys import fake, records_factory, integer_factory
 
 
-def vector_dsl(topk, xq):
+def vector_dsl(topk, xq, metric="L2"):
     dsl = {
         "bool": {
             "must": [
                 {
                     "vector": {
-                        "Vec": {"topk": topk, "query": xq, "metric_type": "L2"}
+                        "Vec": {"topk": topk, "query": xq, "metric_type": metric}
                     }
                 }
             ]
@@ -20,10 +20,11 @@ def vector_dsl(topk, xq):
 
 
 class TestSearch:
-    def test_search_flat(self, connect, vrecords, dim):
+    @pytest.mark.parametrize("metric", ["L2", "IP"])
+    def test_search_flat(self, metric, connect, vrecords, dim):
         query_vectors = records_factory(dim, 10)
 
-        dsl = vector_dsl(10, query_vectors)
+        dsl = vector_dsl(10, query_vectors, metric)
 
         results = connect.search(vrecords, dsl)
         assert len(results) == 10

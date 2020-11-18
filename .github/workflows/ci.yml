@@ -5,7 +5,7 @@ on: pull_request
 
 jobs:
   check:
-    name: Check Head Commit
+    name: Check head commit
     runs-on: ubuntu-18.04
     outputs:
       status: ${{ steps.ci.outputs.test }}
