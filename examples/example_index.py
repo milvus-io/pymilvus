@@ -58,7 +58,7 @@ titles = []  # titles
 release_years = []  # release year
 embeddings = []  # embeddings
 films = []
-with open('films.csv', 'r') as csvfile:
+with open('films.csv', 'r', encoding='utf-8') as csvfile:
     reader = csv.reader(csvfile)
     films = [film for film in reader]
 
