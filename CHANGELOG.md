@@ -3,6 +3,7 @@
 ## Bug
 - \#284 - Remove parameter error for 'index_row_limit'
 - \#311 - Fix incorrect comment about inserting data in README.md
+- \#368 - Fix index doc wrong example and description
 
 ## New Feature
 - \#294, \#344 - Enable pylint

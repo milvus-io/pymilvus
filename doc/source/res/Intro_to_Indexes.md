@@ -21,7 +21,7 @@ To learn how to choose an appropriate index for a metric, see [Distance Metrics]
 - `HNSW`_
 - `RHNSW_PQ`_
 - `RHNSW_SQ`_
-- `RNSG`_
+- `NSG`_
 
 #### IVF_FLAT
 
@@ -264,7 +264,7 @@ In addition, you can use `efConstruction` (when building index) or `ef` (when se
 ```python
 # HNSW
 client.create_index(collection_name, field_name, {
-    "index_type": "IVF_FLAT",
+    "index_type": "HNSW",
     "metric_type": "L2",      # one of L2, IP
     "params": {
         "M": 16,              # int. 4~64
@@ -348,7 +348,7 @@ vector_query = {
 ```python
 # RHNSW_SQ
 client.create_index(collection_name, field_name, {
-    "index_type": "IVF_FLAT",
+    "index_type": "RHNSW_SQ",
     "metric_type": "L2",      # one of L2, IP
     "params": {
         "M": 16,              # int. 4~64
@@ -375,14 +375,14 @@ vector_query = {
 }
 ```
 
-#### RNSG
+#### NSG
 
-**RNSG** (*Refined Navigating Spreading-out Graph*) is a graph-based indexing algorithm. It sets the center
+**NSG** (*Refined Navigating Spreading-out Graph*) is a graph-based indexing algorithm. It sets the center
 position of the whole image as a navigation point, and then uses a specific edge selection strategy to control
 the out-degree of each point (less than or equal to `out_degree`). Therefore, it can reduce memory usage and
 quickly locate the target position nearby during searching vectors.
 
-The graph construction process of RNSG is as follows:
+The graph construction process of NSG is as follows:
 
 1. Find `knng` nearest neighbors for each point.
 2. Iterate at least `search_length` times based on `knng` nearest neighbor nodes to select `candidate_pool_size` possible nearest neighbor nodes.
@@ -401,9 +401,9 @@ The query process is similar to the graph building process. It starts from the n
   **knng**: Number of nearest neighbors
 
 ```python
-# RNSG
+# NSG
 client.create_index(collection_name, field_name, {
-    "index_type": "RNSG",
+    "index_type": "NSG",
     "metric_type": "L2",
     "params": {
         "search_length": 60,         # int. 10~300
@@ -419,7 +419,7 @@ client.create_index(collection_name, field_name, {
 	**search_length**: Number of query iterations
 
 ```python
-# RNSG
+# NSG
 vector_query = {
     "field_name": {
         "topk": top_k,
