@@ -21,51 +21,51 @@ Methods
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | API                                                                  | Description                                                            |
 +======================================================================+========================================================================+
-| `create_collection() <#milvus.Milvus.create_collection>`_            | Create a collection.                                                   |
+| `create_collection() <#milvus.Milvus.create_collection>`_            | Creates a collection.                                                  |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `has_collection() <#milvus.Milvus.has_collection>`_                  | Check if collection exists.                                            |
+| `has_collection() <#milvus.Milvus.has_collection>`_                  | Check if a collection exists.                                          |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `get_collection_info() <#milvus.Milvus.get_collection_info>`_        | Obtain collection information.                                         |
+| `get_collection_info() <#milvus.Milvus.get_collection_info>`_        | Retrieves information of a specified collection.                       |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `count_entities() <#milvus.Milvus.count_entities>`_                  | Obtain the number of entity in a collection.                           |
+| `count_entities() <#milvus.Milvus.count_entities>`_                  | Retrieves the number of entities in a collection.                      |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `list_collections() <#milvus.Milvus.list_collections>`_              | Get the list of collections.                                           |
+| `list_collections() <#milvus.Milvus.list_collections>`_              | Gets a list of collections.                                            |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `get_collection_stats() <#milvus.Milvus.get_collection_stats>`_      | Obtain collection statistics information.                              |
+| `get_collection_stats() <#milvus.Milvus.get_collection_stats>`_      | Retrieves collection statistics.                                       |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `load_collection() <#milvus.Milvus.load_collection>`_                | Load collection from disk to memory.                                   |
+| `load_collection() <#milvus.Milvus.load_collection>`_                | Loads a specified collection from storage to memory.                   |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `drop_collection() <#milvus.Milvus.drop_collection>`_                | drop a collection.                                                     |
+| `drop_collection() <#milvus.Milvus.drop_collection>`_                | Drops a collection.                                                    |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `bulk_insert() <#milvus.Milvus.bulk_insert>`_                        | insert columnar entities into specified collection.                    |
+| `bulk_insert() <#milvus.Milvus.bulk_insert>`_                        | inserts columnar entities to a specified collection.                   |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `insert() <#milvus.Milvus.insert>`_                                  | insert entities into specified collection.                             |
+| `insert() <#milvus.Milvus.insert>`_                                  | Inserts entities to a specified collection.                            |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `get_entity_by_id() <#milvus.Milvus.get_entity_by_id>`_              | Obtain entities by providing entity ids.                               |
+| `get_entity_by_id() <#milvus.Milvus.get_entity_by_id>`_              | Retrieves entities by entity ID.                                       |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `list_id_in_segment() <#milvus.Milvus.list_id_in_segment>`_          | Obtain the list of ids in specified segment.                           |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `create_index() <#milvus.Milvus.create_index>`_                      | Create an index on specified field.                                    |
+| `create_index() <#milvus.Milvus.create_index>`_                      | Creates an index for a specified field.                                |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `drop_index() <#milvus.Milvus.drop_index>`_                          | Drop index on specified field.                                         |
+| `drop_index() <#milvus.Milvus.drop_index>`_                          | Drops index from a specified field.                                    |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `create_partition() <#milvus.Milvus.create_partition>`_              | Create a partition under specified collection.                         |
+| `create_partition() <#milvus.Milvus.create_partition>`_              | Creates a partition in a specified collection.                         |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `has_partition() <#milvus.Milvus.has_partition>`_                    | Check if specified partition exists under a collection.                |
+| `has_partition() <#milvus.Milvus.has_partition>`_                    | Check if a partition exists in a specified collection.                 |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `list_partitions() <#milvus.Milvus.list_partitions>`_                | Obtain list of partitions under a collection.                          |
+| `list_partitions() <#milvus.Milvus.list_partitions>`_                | Retrieves a partition list from a specified collection.                |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `drop_partition() <#milvus.Milvus.drop_partition>`_                  | Drop specified partition under a collection.                           |
+| `drop_partition() <#milvus.Milvus.drop_partition>`_                  | Removes a specified partition from a collection.                       |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `search() <#milvus.Milvus.search>`_                                  | Search approximate nearest entities.                                   |
+| `search() <#milvus.Milvus.search>`_                                  | Search for approximate nearest entities.                               |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `search_in_segment() <#milvus.Milvus.search_in_segment>`_            | Search approximate nearest entities in specified segments.             |
+| `search_in_segment() <#milvus.Milvus.search_in_segment>`_            | Searches for approximate nearest entities in the specified segments.   |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `delete_entity_by_id() <#milvus.Milvus.delete_entity_by_id>`_        | Delete entities by providing entity ids.                               |
+| `delete_entity_by_id() <#milvus.Milvus.delete_entity_by_id>`_        | Deletes entities by entity ID.                                         |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `flush() <#milvus.Milvus.flush>`_                                    | Flush collection data from memory to storage.                          |
+| `flush() <#milvus.Milvus.flush>`_                                    | Flushes collection data from memory to storage.                        |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `compact() <#milvus.Milvus.compact>`_                                | Compact specified collection.                                          |
+| `compact() <#milvus.Milvus.compact>`_                                | Compacts a specified collection.                                       |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 
 
