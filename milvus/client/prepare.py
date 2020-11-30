@@ -150,6 +150,20 @@ class Prepare:
             for ek, ev in entity.items():
                 records[ek].append(ev)
 
+        field_num_in_server = len(types)
+        if "_id" in types:
+            field_num_in_server = len(types) - 1
+
+        field_num_in_entities = len(entities)
+        if "_id" in entities:
+            field_num_in_entities = len(entities) - 1
+
+        if field_num_in_entities != field_num_in_server:
+            keys_in_types = [key for key in types.keys() if key != "_id"]
+            keys_in_entities = [key for key in records.keys() if key != "_id"]
+            raise ParamError(f"The field is invalid. Expected are {keys_in_types}"
+                             f", but given are {keys_in_entities}")
+
         for name_, type_ in types.items():
             if name_ not in records:
                 raise ParamError(f"Field {name_} is required")
