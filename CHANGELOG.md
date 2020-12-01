@@ -5,6 +5,7 @@
 - \#311 - Fix incorrect comment about inserting data in README.md
 - \#368 - Fix index doc wrong example and description
 - \#371 - Fix wrong description in 'search_in_segment' method
+- \#374 - Raise exception when inserted entities fields mismatch that at server endpoint
 
 ## New Feature
 - \#294, \#344 - Enable pylint

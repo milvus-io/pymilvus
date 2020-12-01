@@ -24,6 +24,13 @@ class TestInsert:
         except Exception as e:
             pytest.fail(f"Unexpected MyError: {e}")
 
+    def test_insert_mimatch_field(self, connect, vcollection, dim):
+        vectors = records_factory(dim, 10000)
+        entities = [{"Vec": vector, "Int": index} for index, vector in enumerate(vectors)]
+
+        with pytest.raises(ParamError):
+            connect.insert(vcollection, entities)
+
     @pytest.mark.parametrize("scalar", [DataType.INT32, DataType.INT64, DataType.FLOAT, DataType.DOUBLE])
     @pytest.mark.parametrize("vec", [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR])
     def test_insert_scalar(self, scalar, vec, connect, dim):
