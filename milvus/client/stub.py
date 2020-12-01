@@ -642,11 +642,11 @@ class Milvus:
         see <a href="https://github.com/milvus-io/milvus/tree/master/shards">
 
         :param collection_name: The name of the collection to search.
-        :type  collection_name: str:param collection_name: table name been queried
-        :param dsl: The DSL that defines the query.:type  collection_name: str
+        :type  collection_name: str
+        :param segment_ids: The list of segment id to search.
+        :type  segment_ids: list[int]
+        :param dsl: The DSL that defines the query.
         :type  dsl: dict
-        :param partition_tags: The tags of partitions to search.
-        :type  partition_tags: list[str]:param file_ids: Specified files id array
         :param fields: The fields to return in the search result
         :type  fields: list[str]:type  query_records: list[list[float]]
 
