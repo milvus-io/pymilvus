@@ -154,11 +154,11 @@ class Prepare:
         if "_id" in types:
             field_num_in_server = len(types) - 1
 
-        field_num_in_entities = len(entities)
-        if "_id" in entities:
-            field_num_in_entities = len(entities) - 1
+        field_num_in_records = len(records)
+        if "_id" in records:
+            field_num_in_records = len(records) - 1
 
-        if field_num_in_entities != field_num_in_server:
+        if field_num_in_records != field_num_in_server:
             keys_in_types = [key for key in types.keys() if key != "_id"]
             keys_in_entities = [key for key in records.keys() if key != "_id"]
             raise ParamError(f"The field is invalid. Expected are {keys_in_types}"

@@ -4,6 +4,7 @@
 - \#284 - Remove parameter error for 'index_row_limit'
 - \#311 - Fix incorrect comment about inserting data in README.md
 - \#368 - Fix index doc wrong example and description
+- \#374 - Raise exception when inserted entities fields mismatch that at server endpoint
 
 ## New Feature
 - \#294, \#344 - Enable pylint
