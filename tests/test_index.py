@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from milvus import BaseError
@@ -85,3 +87,59 @@ class TestCreateIndex:
                     assert indexes[0]['params'] == {'nlist': 512}
         except Exception as e:
             pytest.fail(f"Create index or get collection info failed: {e}")
+
+
+class TestIndexInfo:
+    def test_index_info_with_flat_index(self, connect, vrecords):
+        info = connect.get_collection_info(vrecords)
+        for field in info['fields']:
+            if field['name'] == 'Vec':
+                indexes = field['indexes'][0]
+                assert not indexes
+                assert isinstance(indexes, dict)
+
+    def test_index_info_normal(self, connect, vrecords):
+        connect.create_index(vrecords, "Vec", {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 512}})
+        info = connect.get_collection_info(vrecords)
+        for field in info['fields']:
+            if field['name'] == 'Vec':
+                indexes = field['indexes'][0]
+                assert indexes['index_type'] == 'IVF_FLAT'
+                assert indexes['metric_type'] == 'L2'
+                assert indexes['params'] == {'nlist': 512}
+
+    def test_index_info_with_scalar_index(self, connect, ivrecords):
+        try:
+            connect.create_index(ivrecords, "Int", {"index_type": "SORTED"})
+            info = connect.get_collection_info(ivrecords)
+            for field in info['fields']:
+                if field['name'] == 'Int':
+                    indexes = field['indexes'][0]
+                    assert indexes['index_type'] == 'SORTED'
+        except Exception as e:
+            pytest.fail(f"{e}")
+
+
+class TestDropIndex:
+    def test_drop_index_flat(self, connect, vrecords):
+        connect.drop_index(vrecords, "Vec")
+
+    def test_drop_index_with_empty_collection(self, connect, vcollection):
+        connect.drop_index(vcollection, "Vec")
+
+    def test_drop_index_after_crated(self, connect, vrecords):
+        connect.create_index(vrecords, "Vec", {"index_type": "IVF_FLAT",
+                                               "metric_type": "L2",
+                                               "params": {"nlist": 512}})
+        time.sleep(0.1)
+
+        connect.drop_index(vrecords, "Vec")
+
+        info = connect.get_collection_info(vrecords)
+
+        for field in info['fields']:
+            if field['name'] == 'Vec':
+                indexes = field['indexes'][0]
+                assert not indexes
+                assert isinstance(indexes, dict)
+

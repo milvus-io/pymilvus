@@ -24,7 +24,27 @@ class TestInsert:
         except Exception as e:
             pytest.fail(f"Unexpected MyError: {e}")
 
-    def test_insert_mimatch_field(self, connect, vcollection, dim):
+    def test_insert_to_partition(self, connect, vcollection, dim):
+        count = 10000
+        entities = [{"Vec": vector} for vector in records_factory(dim, count)]
+        try:
+            connect.create_partition(vcollection, 'p_0')
+            connect.insert(vcollection, entities, partition_tag='p_0')
+            connect.flush([vcollection])
+        except Exception as e:
+            pytest.fail(f"Unexpected MyError: {e}")
+
+        stats = connect.get_collection_stats(vcollection)
+        for partition in stats['partitions']:
+            if partition['tag'] == '_default':
+                assert int(partition['row_count']) == 0
+                assert int(partition['segment_count']) == 0
+            elif partition['tag'] == 'p_0':
+                assert int(partition['row_count']) == count
+            else:
+                pytest.fail(f"Unknown partition {partition['tag']}")
+
+    def test_insert_mismatch_field(self, connect, vcollection, dim):
         vectors = records_factory(dim, 10000)
         entities = [{"Vec": vector, "Int": index} for index, vector in enumerate(vectors)]
 
