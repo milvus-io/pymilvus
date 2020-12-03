@@ -11,8 +11,9 @@ class TestCreatePartition:
             pytest.fail(f'Create partition {"p_1"} fail: {e}')
 
     def test_create_partition_exceed_limit(self, connect, vcollection):
+        partition_limit = int(connect.get_config("engine.max_partition_num"))
         with pytest.raises(BaseError):
-            for i in range(10000):
+            for i in range(partition_limit + 1):
                 connect.create_partition(vcollection, f"p_{i}")
 
     def test_create_partition_default_partition(self, connect, vcollection):
@@ -22,11 +23,12 @@ class TestCreatePartition:
 
 class TestListPartitions:
     def test_list_partitions_normal(self, connect, vcollection):
-        for i in range(100):
+        partition_limit = int(connect.get_config("engine.max_partition_num"))
+        for i in range(partition_limit - 1):
             connect.create_partition(vcollection, f"p_{i}")
 
         pars = connect.list_partitions(vcollection)
-        assert len(pars) == 100 + 1
+        assert len(pars) == partition_limit
 
     def test_list_partitions_with_nonexist_collection(self, connect):
         with pytest.raises(BaseError):

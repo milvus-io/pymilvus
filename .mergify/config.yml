@@ -4,7 +4,7 @@ pull_request_rules:
         - "label=automerge"
         - "#approved-reviews-by>=1"
         - "status-success=Code lint check"
-        - "status-success=Check Head Commit"
+        - "status-success=Check head commit"
         - "status-success=CI"
       actions:
         merge:

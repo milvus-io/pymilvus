@@ -5,7 +5,7 @@ on: pull_request
 
 jobs:
   check:
-    name: Check Head Commit
+    name: Check head commit
     runs-on: ubuntu-18.04
     outputs:
       status: ${{ steps.ci.outputs.test }}
@@ -37,7 +37,7 @@ jobs:
           echo "::set-output name=test::no"
   ci:
     name: CI
-    runs-on: ubuntu-18.04
+    runs-on: [ubuntu-18.04]
     needs: check
     if: needs.check.outputs.status == 'yes'
     strategy:
@@ -74,3 +74,41 @@ jobs:
           docker-compose -f server.yml down
           cd -
 
+  ci2:
+    name: CI2
+    runs-on: [ubuntu-20.04]
+    needs: check
+    if: needs.check.outputs.status == 'yes'
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: pymilvus
+      - name: Set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install requirements
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          pip install -r pymilvus/requirements.txt
+          cd pymilvus
+          echo ${{ github.event.after }}
+      - name: Run server docker
+        run: |
+          cd pymilvus/.github/scripts/server
+          docker-compose -f server.yml up -d
+          cd -
+      - name: Run unit test
+        run: |
+          cd pymilvus
+          python -m pytest
+      - name: Clean server docker
+        run: |
+          cd pymilvus/.github/scripts/server
+          docker-compose -f server.yml down
+          cd -

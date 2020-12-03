@@ -20,6 +20,7 @@
 - \#277 - Add doc `FAQ` chapter of pymilvus documentation
 - \#279 - Add doc `Changes` chapter of pymilvus documentation
 - \#280 - Add doc `About This Documentation` chapter of documentation
+- \#295 - Complete unittests for all rpc methods
 - \#343 - Change exception 'BaseException' to 'BaseError'
 - \#359 - Add binary vectors example
 
