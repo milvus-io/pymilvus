@@ -6,7 +6,6 @@ import struct
 import requests as rq
 import ujson
 
-from .abstract import CollectionSchema
 from .exceptions import NotConnectError
 from .types import Status
 from .utils import set_uri

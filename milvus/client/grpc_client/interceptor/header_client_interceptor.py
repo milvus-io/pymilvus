@@ -12,19 +12,16 @@ class _ClientCallDetails(
     pass
 
 
-def header_adder_interceptor(header, value):
+def header_adder_interceptor(metadata):
 
     def intercept_call(client_call_details, request_iterator, request_streaming,
                        response_streaming):
-        metadata = []
+        _metadata = []
         if client_call_details.metadata is not None:
-            metadata = list(client_call_details.metadata)
-        metadata.append((
-            header,
-            value,
-        ))
+            _metadata = list(client_call_details.metadata)
+        _metadata.extend(metadata)
         client_call_details = _ClientCallDetails(
-            client_call_details.method, client_call_details.timeout, metadata,
+            client_call_details.method, client_call_details.timeout, _metadata,
             client_call_details.credentials)
         return client_call_details, request_iterator, None
 

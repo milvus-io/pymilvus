@@ -1,24 +1,29 @@
+# bulitin package
 import datetime
 import logging
 import threading
 import ujson
 
+# thirdparty package
 import grpc
 from grpc._cython import cygrpc
+
+# same level
+from .interceptor import header_client_interceptor
 
 from .grpc_gen import milvus_pb2_grpc
 from .grpc_gen import milvus_pb2 as grpc_types
 from .grpc_prepare import Prepare
-from .interceptor import header_client_interceptor
+from .grpc_results import CollectionSchema, Entities, QueryResult
+from .asynch import SearchFuture, BulkInsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
 
-from ..abstract import CollectionSchema, Entities, QueryResult
+# superior level
 from ..types import Status
 from ..check import (
     int_or_str,
 )
 
 from ..abs_client import AbsMilvus
-from ..asynch import SearchFuture, BulkInsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
 
 from ..hooks import BaseSearchHook
 from ..client_hooks import SearchHook, HybridSearchHook
@@ -30,6 +35,7 @@ from ..exceptions import (
     ParamError
 )
 from ..utils import set_uri
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -129,7 +135,7 @@ class GrpcHandler(AbsMilvus):
                      ('grpc.keepalive_time_ms', 55000)]
         )
         header_adder_interceptor = header_client_interceptor.header_adder_interceptor(
-            'client_tag', self._client_tag)
+            [('client_tag', self._client_tag)])
         self._channel = grpc.intercept_channel(insecure_channel, header_adder_interceptor)
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
         self.status = Status()
