@@ -49,7 +49,7 @@ def connect(request, handler):
     port_default = default_http_port if handler == "HTTP" else default_grpc_port
     port = request.config.getoption("--port", default=port_default)
 
-    client = Milvus(host=ip, port=port, handler=handler, client_tag="yhz")
+    client = Milvus(host=ip, port=port, handler=handler, client_tag="pytest")
 
     def fin():
         try:

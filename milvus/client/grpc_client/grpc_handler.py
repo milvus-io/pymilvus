@@ -88,7 +88,7 @@ class GrpcHandler(AbsMilvus):
         self._connected = False
         self._pre_ping = pre_ping
 
-        self._client_tag = kwargs.get('client_tag', 'milvus')
+        self._client_tag = kwargs.get('client_tag', '')
         # if self._pre_ping:
         self._max_retry = kwargs.get("max_retry", 5)
 
