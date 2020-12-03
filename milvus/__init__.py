@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from .client import __version__
 from .client.stub import Milvus
-from .client.prepare import Prepare
-from .client.types import Status, DataType, RangeType
+from .client.types import Status, DataType
 from .client.exceptions import (
     ParamError,
     ConnectError,
@@ -11,8 +11,7 @@ from .client.exceptions import (
     VersionError,
     BaseError
 )
-from .client import __version__
 
-__all__ = ['Milvus', 'Prepare', 'Status', 'DataType',
+__all__ = ['Milvus', 'Status', 'DataType',
            'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'BaseError',
            '__version__']

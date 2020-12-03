@@ -3,26 +3,11 @@ from collections import defaultdict
 
 import ujson
 
-from .exceptions import ParamError
+from ..exceptions import ParamError
 
-from ..grpc_gen import milvus_pb2 as grpc_types
+from .grpc_gen import milvus_pb2 as grpc_types
 
-from .types import RangeType, DataType
-
-BoolOccurMap = {
-    "must": grpc_types.MUST,
-    "must_not": grpc_types.MUST_NOT,
-    "should": grpc_types.SHOULD
-}
-
-RangeOperatorMap = {
-    RangeType.LT: grpc_types.LT,
-    RangeType.LTE: grpc_types.LTE,
-    RangeType.EQ: grpc_types.EQ,
-    RangeType.GT: grpc_types.GT,
-    RangeType.GTE: grpc_types.GTE,
-    RangeType.NE: grpc_types.NE
-}
+from ..types import DataType
 
 
 class Prepare:
@@ -300,10 +285,10 @@ class Prepare:
         return _param
 
     @classmethod
-    def search_vector_in_files_param(cls, collection_name, segment_ids, dsl, fields):
+    def search_in_segment_param(cls, collection_name, segment_ids, dsl, fields):
         _search_param = Prepare.search_param(collection_name, dsl, None, fields)
 
-        return grpc_types.SearchInFilesParam(
+        return grpc_types.SearchInSegmentParam(
             file_id_array=segment_ids,
             search_param=_search_param
         )

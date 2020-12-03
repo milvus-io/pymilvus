@@ -40,7 +40,8 @@ def check_connect(func):
 def _pool_args(**kwargs):
     pool_kwargs = dict()
     for k, v in kwargs.items():
-        if k in ("pool_size", "wait_timeout", "handler", "try_connect", "pre_ping", "max_retry"):
+        if k in ("client_tag", "pool_size", "wait_timeout", "handler",
+                 "try_connect", "pre_ping", "max_retry"):
             pool_kwargs[k] = v
 
     return pool_kwargs
@@ -73,17 +74,18 @@ def _set_uri(host, port, uri, handler="GRPC"):
 
 
 class Milvus:
-    def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", **kwargs):
+    def __init__(self, host=None, port=None, **kwargs):
         self._name = kwargs.get('name', None)
         self._uri = None
         self._status = None
         self._connected = False
-        self._handler = handler
+        self._handler = kwargs.get("handler", "GRPC")
 
         _uri = kwargs.get('uri', None)
         pool_uri = _set_uri(host, port, _uri, self._handler)
-        pool_kwargs = _pool_args(handler=handler, **kwargs)
+        pool_kwargs = _pool_args(**kwargs)
         # self._pool = SingleConnectionPool(pool_uri, **pool_kwargs)
+        pool = kwargs.get("pool", "SingletonThread")
         if pool == "QueuePool":
             self._pool = ConnectionPool(pool_uri, **pool_kwargs)
         elif pool == "SingletonThread":

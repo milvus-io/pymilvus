@@ -7,7 +7,7 @@ import time
 from collections import defaultdict
 
 from . import __version__
-from .grpc_handler import GrpcHandler
+from .grpc_client import grpc_handler
 from .http_handler import HttpHandler
 from .exceptions import ConnectionPoolError, NotConnectError, VersionError
 
@@ -62,8 +62,8 @@ class ConnectionRecord:
         self._kw = kwargs
 
         if handler == "GRPC":
-            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping,
-                                           conn_id=conn_id, **self._kw)
+            self._connection = grpc_handler.GrpcHandler(uri=uri, pre_ping=self._pre_ping,
+                                                        conn_id=conn_id, **self._kw)
         elif handler == "HTTP":
             self._connection = HttpHandler(uri=uri, pre_ping=self._pre_ping)
         else:

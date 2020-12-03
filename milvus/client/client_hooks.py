@@ -1,5 +1,5 @@
 from .hooks import BaseSearchHook
-from .abstract import QueryResult
+from .grpc_client.grpc_results import QueryResult
 
 
 class SearchHook(BaseSearchHook):

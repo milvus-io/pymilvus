@@ -23,6 +23,9 @@
 - \#295 - Complete unittests for all rpc methods
 - \#343 - Change exception 'BaseException' to 'BaseError'
 - \#359 - Add binary vectors example
+- \#377 - Add client tag when create client instance
+- \#378 - Remove 'Prepare' from root `__init__.py`
+- \#379 - Modify search hook function from `on_response` to `raw_response`
 
 
 # pymilvus 0.3.0(2020-10-16)

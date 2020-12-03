@@ -1,33 +1,41 @@
+# bulitin package
 import datetime
 import logging
 import threading
 import ujson
 
+# thirdparty package
 import grpc
 from grpc._cython import cygrpc
 
-from ..grpc_gen import milvus_pb2_grpc
-from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import CollectionSchema, Entities, QueryResult
-from .prepare import Prepare
-from .types import Status
-from .check import (
+# same level
+from .interceptor import header_client_interceptor
+
+from .grpc_gen import milvus_pb2_grpc
+from .grpc_gen import milvus_pb2 as grpc_types
+from .grpc_prepare import Prepare
+from .grpc_results import CollectionSchema, Entities, QueryResult
+from .asynch import SearchFuture, BulkInsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
+
+# superior level
+from ..types import Status
+from ..check import (
     int_or_str,
 )
 
-from .abs_client import AbsMilvus
-from .asynch import SearchFuture, BulkInsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
+from ..abs_client import AbsMilvus
 
-from .hooks import BaseSearchHook
-from .client_hooks import SearchHook, HybridSearchHook
-from .exceptions import (
+from ..hooks import BaseSearchHook
+from ..client_hooks import SearchHook, HybridSearchHook
+from ..exceptions import (
     BaseError,
-    CollectionNotExistException,
-    IllegalCollectionNameException,
+    # CollectionNotExistException,
+    # IllegalCollectionNameException,
     NotConnectError,
     ParamError
 )
-from .utils import set_uri
+from ..utils import set_uri
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -44,11 +52,10 @@ def error_handler(*rargs):
                 return func(self, *args, **kwargs)
             except BaseError as e:
                 LOGGER.error(f"Error: {e.message}")
-                if e.code == Status.ILLEGAL_COLLECTION_NAME:
-                    raise IllegalCollectionNameException(e.code, e.message)
-                if e.code == Status.COLLECTION_NOT_EXISTS:
-                    raise CollectionNotExistException(e.code, e.message)
-
+                # if e.code == Status.ILLEGAL_COLLECTION_NAME:
+                #     raise IllegalCollectionNameException(e.code, e.message)
+                # if e.code == Status.COLLECTION_NOT_EXISTS:
+                #     raise CollectionNotExistException(e.code, e.message)
                 raise e
 
             except grpc.FutureTimeoutError as e:
@@ -80,6 +87,8 @@ class GrpcHandler(AbsMilvus):
         self.status = None
         self._connected = False
         self._pre_ping = pre_ping
+
+        self._client_tag = kwargs.get('client_tag', '')
         # if self._pre_ping:
         self._max_retry = kwargs.get("max_retry", 5)
 
@@ -117,13 +126,16 @@ class GrpcHandler(AbsMilvus):
 
         """
         self._uri = set_uri(uri)
-        self._channel = grpc.insecure_channel(
+        insecure_channel = grpc.insecure_channel(
             self._uri,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1),
                      ('grpc.enable_retries', 1),
                      ('grpc.keepalive_time_ms', 55000)]
         )
+        header_adder_interceptor = header_client_interceptor.header_adder_interceptor(
+            [('client_tag', self._client_tag)])
+        self._channel = grpc.intercept_channel(insecure_channel, header_adder_interceptor)
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
         self.status = Status()
 
@@ -483,7 +495,7 @@ class GrpcHandler(AbsMilvus):
         response = ft.result()
         self._search_hook.aft_search()
 
-        if self._search_hook.on_response():
+        if self._search_hook.raw_response():
             return response
 
         if response.status.error_code != 0:
@@ -519,21 +531,21 @@ class GrpcHandler(AbsMilvus):
     @error_handler(None)
     def search_in_segment(self, collection_name, segment_ids, dsl, fields, timeout=None, **kwargs):
         file_ids = list(map(int_or_str, segment_ids))
-        infos = Prepare.search_vector_in_files_param(collection_name, file_ids, dsl, fields)
+        infos = Prepare.search_in_segment_param(collection_name, file_ids, dsl, fields)
 
         self._search_file_hook.pre_search()
 
         if kwargs.get("_async", False) is True:
-            future = self._stub.SearchInFiles.future(infos, wait_for_ready=True, timeout=timeout)
+            future = self._stub.SearchInSegment.future(infos, wait_for_ready=True, timeout=timeout)
 
             func = kwargs.get("_callback", None)
             return SearchFuture(future, func)
 
-        ft = self._stub.SearchInFiles.future(infos, wait_for_ready=True, timeout=timeout)
+        ft = self._stub.SearchInSegment.future(infos, wait_for_ready=True, timeout=timeout)
         response = ft.result()
         self._search_file_hook.aft_search()
 
-        if self._search_file_hook.on_response():
+        if self._search_file_hook.raw_response():
             return response
 
         if response.status.error_code != 0:

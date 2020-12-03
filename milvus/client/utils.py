@@ -2,9 +2,9 @@ from urllib.parse import urlparse
 
 from ..settings import DefaultConfig as config
 
-from ..grpc_gen import status_pb2
-from ..grpc_gen.milvus_pb2 import QueryResult as Grpc_Result
-from ..client.abstract import QueryResult
+from .grpc_client.grpc_gen import status_pb2
+from .grpc_client.grpc_gen.milvus_pb2 import QueryResult as Grpc_Result
+from ..client.grpc_client.grpc_results import QueryResult
 from ..client.exceptions import ParamError
 
 

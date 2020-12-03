@@ -3,9 +3,10 @@ import threading
 
 import grpc
 
-from .abstract import QueryResult
-from .exceptions import BaseError
-from .types import Status
+from .grpc_results import QueryResult
+
+from ..exceptions import BaseError
+from ..types import Status
 
 
 class AbstractFuture:
