@@ -23,6 +23,7 @@
 - \#295 - Complete unittests for all rpc methods
 - \#343 - Change exception 'BaseException' to 'BaseError'
 - \#359 - Add binary vectors example
+- \#378 - Remove 'Prepare' from root `__init__.py`
 
 
 # pymilvus 0.3.0(2020-10-16)
