@@ -345,4 +345,3 @@ class QueryResult(LoopBase):
         slice_distances = list(self._raw.distances)[start: end] if dis_len > 0 else []
 
         return RawQueryResult(slice_entity, slice_distances, slice_score)
-

@@ -7,22 +7,7 @@ from ..exceptions import ParamError
 
 from .grpc_gen import milvus_pb2 as grpc_types
 
-from ..types import RangeType, DataType
-
-BoolOccurMap = {
-    "must": grpc_types.MUST,
-    "must_not": grpc_types.MUST_NOT,
-    "should": grpc_types.SHOULD
-}
-
-RangeOperatorMap = {
-    RangeType.LT: grpc_types.LT,
-    RangeType.LTE: grpc_types.LTE,
-    RangeType.EQ: grpc_types.EQ,
-    RangeType.GT: grpc_types.GT,
-    RangeType.GTE: grpc_types.GTE,
-    RangeType.NE: grpc_types.NE
-}
+from ..types import DataType
 
 
 class Prepare:

@@ -29,8 +29,8 @@ from ..hooks import BaseSearchHook
 from ..client_hooks import SearchHook, HybridSearchHook
 from ..exceptions import (
     BaseError,
-    CollectionNotExistException,
-    IllegalCollectionNameException,
+    # CollectionNotExistException,
+    # IllegalCollectionNameException,
     NotConnectError,
     ParamError
 )
@@ -52,11 +52,10 @@ def error_handler(*rargs):
                 return func(self, *args, **kwargs)
             except BaseError as e:
                 LOGGER.error(f"Error: {e.message}")
-                if e.code == Status.ILLEGAL_COLLECTION_NAME:
-                    raise IllegalCollectionNameException(e.code, e.message)
-                if e.code == Status.COLLECTION_NOT_EXISTS:
-                    raise CollectionNotExistException(e.code, e.message)
-
+                # if e.code == Status.ILLEGAL_COLLECTION_NAME:
+                #     raise IllegalCollectionNameException(e.code, e.message)
+                # if e.code == Status.COLLECTION_NOT_EXISTS:
+                #     raise CollectionNotExistException(e.code, e.message)
                 raise e
 
             except grpc.FutureTimeoutError as e:
@@ -496,7 +495,7 @@ class GrpcHandler(AbsMilvus):
         response = ft.result()
         self._search_hook.aft_search()
 
-        if self._search_hook.on_response():
+        if self._search_hook.raw_response():
             return response
 
         if response.status.error_code != 0:

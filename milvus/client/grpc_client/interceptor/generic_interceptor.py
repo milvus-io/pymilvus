@@ -6,6 +6,11 @@ class _GenericClientInterceptor(grpc.UnaryUnaryClientInterceptor,
                                 grpc.StreamUnaryClientInterceptor,
                                 grpc.StreamStreamClientInterceptor):
     def __init__(self, interceptor_function):
+        grpc.UnaryUnaryClientInterceptor.__init__(self)
+        grpc.UnaryStreamClientInterceptor.__init__(self)
+        grpc.StreamUnaryClientInterceptor.__init__(self)
+        grpc.StreamStreamClientInterceptor.__init__(self)
+
         self._fn = interceptor_function
 
     def intercept_unary_unary(self, continuation, client_call_details, request):

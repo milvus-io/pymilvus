@@ -127,7 +127,7 @@ class TestInsert:
     def test_insert_with_collection_non_exist(self, connect):
         collection_name = fake.collection_name()
 
-        with pytest.raises(CollectionNotExistException):
+        with pytest.raises(BaseError):
             connect.insert(collection_name, [{"A": 1, "V": [1]}])
 
     def test_insert_with_wrong_type_data(self, connect, hvcollection, dim):

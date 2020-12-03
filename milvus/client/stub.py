@@ -40,7 +40,8 @@ def check_connect(func):
 def _pool_args(**kwargs):
     pool_kwargs = dict()
     for k, v in kwargs.items():
-        if k in ("client_tag", "pool_size", "wait_timeout", "handler", "try_connect", "pre_ping", "max_retry"):
+        if k in ("client_tag", "pool_size", "wait_timeout", "handler",
+                 "try_connect", "pre_ping", "max_retry"):
             pool_kwargs[k] = v
 
     return pool_kwargs

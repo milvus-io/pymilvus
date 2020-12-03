@@ -28,7 +28,7 @@ class BaseSearchHook(AbstractHook):
         """
         pass
 
-    def on_response(self, *args, **kwargs):
+    def raw_response(self, *args, **kwargs):
         """
         Indicate if deal with response from server.
         return bool variables. False default

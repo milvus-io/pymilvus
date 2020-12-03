@@ -239,7 +239,7 @@ class HttpHandler:
 
             return Status(js["code"], js["message"]), None
         except Exception as e:
-            return Status(Status.UNEXPECTED_ERROR, message=str(e)), None
+            return Status(1, message=str(e)), None
 
     @handle_error(returns=(None,))
     def describe_collection(self, table_name, timeout):
@@ -248,13 +248,11 @@ class HttpHandler:
         response = rq.get(url, timeout=timeout)
 
         if response.status_code >= 500:
-            return Status(Status.UNEXPECTED_ERROR, response.reason), None
+            return Status(1, response.reason), None
 
         js = response.json()
         if response.status_code == 200:
-            table = CollectionSchema(js)
-
-            return Status(message='Describe table successfully!'), table
+            return Status(message='Describe table successfully!'), js
 
         return Status(js["code"], js["message"]), None
 
@@ -264,14 +262,14 @@ class HttpHandler:
 
         response = rq.get(url, params={"offset": 0, "page_size": 0}, timeout=timeout)
         if response.status_code != 200:
-            return Status(Status.UNEXPECTED_ERROR, response.reason), []
+            return Status(1, response.reason), []
 
         js = response.json()
         count = js["count"]
 
         response = rq.get(url, params={"offset": 0, "page_size": count}, timeout=timeout)
         if response.status_code != 200:
-            return Status(Status.UNEXPECTED_ERROR, response.reason), []
+            return Status(1, response.reason), []
 
         tables = []
         js = response.json()
@@ -290,13 +288,13 @@ class HttpHandler:
             return Status(), response.json()
 
         if response.status_code == 404:
-            return Status(Status.COLLECTION_NOT_EXISTS, "Collection not found"), None
+            return Status(1, "Collection not found"), None
 
         if response.text:
             result = response.json()
             return Status(result["code"], result["message"]), None
 
-        return Status(Status.UNEXPECTED_ERROR, "Response is empty"), None
+        return Status(1, "Response is empty"), None
 
     @handle_error()
     def preload_collection(self, table_name, timeout):
@@ -423,7 +421,7 @@ class HttpHandler:
         response = rq.get(url, timeout=timeout)
 
         if response.status_code >= 500:
-            return Status(Status.UNEXPECTED_ERROR,
+            return Status(1,
                           "Unexpected error.\n\tStatus code : {}, reason : {}"
                           .format(response.status_code, response.reason))
 
@@ -467,7 +465,7 @@ class HttpHandler:
 
         response = rq.get(url, params=query_data, timeout=timeout)
         if response.status_code >= 500:
-            return Status(Status.UNEXPECTED_ERROR,
+            return Status(1,
                           "Unexpected error. Status code : 500, reason: {}"
                           .format(response.reason)), None
 
