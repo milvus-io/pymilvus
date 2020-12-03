@@ -120,3 +120,10 @@ class TestSearch:
         assert results[0][0].distance < 1e-5
         assert results[0][1].distance < 1e-5
 
+
+class TestSearchDSL:
+    pass
+
+
+class TestSearchInSegment:
+    pass

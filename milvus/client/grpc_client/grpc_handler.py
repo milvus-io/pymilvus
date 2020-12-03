@@ -6,28 +6,30 @@ import ujson
 import grpc
 from grpc._cython import cygrpc
 
-from ..grpc_gen import milvus_pb2_grpc
-from ..grpc_gen import milvus_pb2 as grpc_types
-from .abstract import CollectionSchema, Entities, QueryResult
-from .prepare import Prepare
-from .types import Status
-from .check import (
+from .grpc_gen import milvus_pb2_grpc
+from .grpc_gen import milvus_pb2 as grpc_types
+from .interceptor import header_client_interceptor
+
+from ..abstract import CollectionSchema, Entities, QueryResult
+from ..prepare import Prepare
+from ..types import Status
+from ..check import (
     int_or_str,
 )
 
-from .abs_client import AbsMilvus
-from .asynch import SearchFuture, BulkInsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
+from ..abs_client import AbsMilvus
+from ..asynch import SearchFuture, BulkInsertFuture, CreateIndexFuture, CompactFuture, FlushFuture
 
-from .hooks import BaseSearchHook
-from .client_hooks import SearchHook, HybridSearchHook
-from .exceptions import (
+from ..hooks import BaseSearchHook
+from ..client_hooks import SearchHook, HybridSearchHook
+from ..exceptions import (
     BaseError,
     CollectionNotExistException,
     IllegalCollectionNameException,
     NotConnectError,
     ParamError
 )
-from .utils import set_uri
+from ..utils import set_uri
 
 LOGGER = logging.getLogger(__name__)
 
@@ -80,6 +82,8 @@ class GrpcHandler(AbsMilvus):
         self.status = None
         self._connected = False
         self._pre_ping = pre_ping
+
+        self._client_tag = kwargs.get('client_tag', '')
         # if self._pre_ping:
         self._max_retry = kwargs.get("max_retry", 5)
 
@@ -117,13 +121,16 @@ class GrpcHandler(AbsMilvus):
 
         """
         self._uri = set_uri(uri)
-        self._channel = grpc.insecure_channel(
+        insecure_channel = grpc.insecure_channel(
             self._uri,
             options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
                      (cygrpc.ChannelArgKey.max_receive_message_length, -1),
                      ('grpc.enable_retries', 1),
                      ('grpc.keepalive_time_ms', 55000)]
         )
+        header_adder_interceptor = header_client_interceptor.header_adder_interceptor(
+            'client_tag', self._client_tag)
+        self._channel = grpc.intercept_channel(insecure_channel, header_adder_interceptor)
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
         self.status = Status()
 
