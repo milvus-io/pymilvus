@@ -3,11 +3,11 @@ from collections import defaultdict
 
 import ujson
 
-from .exceptions import ParamError
+from ..exceptions import ParamError
 
-from ..grpc_gen import milvus_pb2 as grpc_types
+from .grpc_gen import milvus_pb2 as grpc_types
 
-from .types import RangeType, DataType
+from ..types import RangeType, DataType
 
 BoolOccurMap = {
     "must": grpc_types.MUST,

@@ -17,8 +17,6 @@ from faker.providers import BaseProvider
 logging.getLogger('faker').setLevel(logging.ERROR)
 
 sys.path.append('.')
-# grpc
-from milvus.grpc_gen import milvus_pb2
 
 
 def gen_vectors(num, dim):
@@ -58,20 +56,6 @@ def gen_long_str(num):
     for _ in range(num):
         char = random.choice('tomorrow')
         string += char
-
-
-def gen_one_binary(topk):
-    ids = [random.randrange(10000000, 99999999) for _ in range(topk)]
-    distances = [random.random() for _ in range(topk)]
-    return milvus_pb2.TopKQueryResult(struct.pack(str(topk) + 'l', *ids), struct.pack(str(topk) + 'd', *distances))
-
-
-def gen_nq_binaries(nq, topk):
-    return [gen_one_binary(topk) for _ in range(nq)]
-
-
-def fake_query_bin_result(nq, topk):
-    return gen_nq_binaries(nq, topk)
 
 
 class FakerProvider(BaseProvider):

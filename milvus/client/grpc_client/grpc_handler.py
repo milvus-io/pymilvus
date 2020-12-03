@@ -8,10 +8,10 @@ from grpc._cython import cygrpc
 
 from .grpc_gen import milvus_pb2_grpc
 from .grpc_gen import milvus_pb2 as grpc_types
+from .grpc_prepare import Prepare
 from .interceptor import header_client_interceptor
 
 from ..abstract import CollectionSchema, Entities, QueryResult
-from ..prepare import Prepare
 from ..types import Status
 from ..check import (
     int_or_str,
@@ -83,7 +83,7 @@ class GrpcHandler(AbsMilvus):
         self._connected = False
         self._pre_ping = pre_ping
 
-        self._client_tag = kwargs.get('client_tag', '')
+        self._client_tag = kwargs.get('client_tag', 'milvus')
         # if self._pre_ping:
         self._max_retry = kwargs.get("max_retry", 5)
 
