@@ -285,10 +285,10 @@ class Prepare:
         return _param
 
     @classmethod
-    def search_vector_in_files_param(cls, collection_name, segment_ids, dsl, fields):
+    def search_in_segment_param(cls, collection_name, segment_ids, dsl, fields):
         _search_param = Prepare.search_param(collection_name, dsl, None, fields)
 
-        return grpc_types.SearchInFilesParam(
+        return grpc_types.SearchInSegmentParam(
             file_id_array=segment_ids,
             search_param=_search_param
         )

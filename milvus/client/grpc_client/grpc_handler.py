@@ -531,21 +531,21 @@ class GrpcHandler(AbsMilvus):
     @error_handler(None)
     def search_in_segment(self, collection_name, segment_ids, dsl, fields, timeout=None, **kwargs):
         file_ids = list(map(int_or_str, segment_ids))
-        infos = Prepare.search_vector_in_files_param(collection_name, file_ids, dsl, fields)
+        infos = Prepare.search_in_segment_param(collection_name, file_ids, dsl, fields)
 
         self._search_file_hook.pre_search()
 
         if kwargs.get("_async", False) is True:
-            future = self._stub.SearchInFiles.future(infos, wait_for_ready=True, timeout=timeout)
+            future = self._stub.SearchInSegment.future(infos, wait_for_ready=True, timeout=timeout)
 
             func = kwargs.get("_callback", None)
             return SearchFuture(future, func)
 
-        ft = self._stub.SearchInFiles.future(infos, wait_for_ready=True, timeout=timeout)
+        ft = self._stub.SearchInSegment.future(infos, wait_for_ready=True, timeout=timeout)
         response = ft.result()
         self._search_file_hook.aft_search()
 
-        if self._search_file_hook.on_response():
+        if self._search_file_hook.raw_response():
             return response
 
         if response.status.error_code != 0:

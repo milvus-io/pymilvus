@@ -120,10 +120,170 @@ class TestSearch:
         assert results[0][0].distance < 1e-5
         assert results[0][1].distance < 1e-5
 
+    def test_search_async(self, connect, vrecords, dim):
+        topk = 10
+        xq = records_factory(dim, 10)
+        dsl = vector_dsl(topk, xq, "L2")
+
+        def search_cb(results):
+            assert results
+
+        try:
+            future0 = connect.search(vrecords, dsl, _async=True)
+            future0.result()
+
+            future1 = connect.search(vrecords, dsl, _async=True, _callback=search_cb)
+            future1.done()
+        except Exception as e:
+            pytest.fail(f"{e}")
+
 
 class TestSearchDSL:
-    pass
+    def test_search_single_vector_dsl(self, connect, vrecords, dim):
+        topk = 10
+        xq = records_factory(dim, 10)
+        metric = "L2"
+
+        dsl = {
+            "bool": {
+                "must": [
+                    {
+                        "vector": {
+                            "Vec": {"topk": topk, "query": xq, "metric_type": metric}
+                        }
+                    }
+                ]
+            }
+        }
+
+        try:
+            connect.search(vrecords, dsl)
+        except Exception as e:
+            pytest.fail(f"{e}")
+
+    def test_search_multi_condition_in_single_must(self, connect, ivrecords, dim):
+        topk = 10
+        xq = records_factory(dim, 10)
+        xi = integer_factory(2)
+        metric = "L2"
+
+        dsl = {
+            "bool": {
+                "must": [
+                    {
+                        "term": {"Int": xi}
+                    },
+                    {
+                        "vector": {
+                            "Vec": {"topk": topk, "query": xq, "metric_type": metric}
+                        }
+                    }
+                ]
+            }
+        }
+
+        try:
+            connect.search(ivrecords, dsl)
+        except Exception as e:
+            pytest.fail(f"{e}")
+
+    @pytest.mark.skip(reason="Bug in Milvus v0.11.0")
+    def test_search_multi_clause(self, connect, ivrecords, dim):
+        topk = 10
+        xq = records_factory(dim, 10)
+        xi = integer_factory(2)
+        metric = "L2"
+
+        dsl = {
+            "bool": {
+                "must": [
+                    {
+                        "must": [
+                            {
+                                "should": [
+                                    {
+                                        "term": {"Int": xi}
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "must": [
+                            {
+                                "vector": {
+                                    "Vec": {"topk": topk, "query": xq, "metric_type": metric}
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
+        try:
+            connect.search(ivrecords, dsl)
+        except Exception as e:
+            pytest.fail(f"{e}")
 
 
 class TestSearchInSegment:
-    pass
+
+    def get_all_segment_id(self, conn, collection, partition=None):
+        stats = conn.get_collection_stats(collection)
+
+        segment_ids = list()
+        for par in stats['partitions']:
+            if partition is not None and partition != par['tag']:
+                continue
+
+            segs = par['segments']
+            if segs:
+                for seg in segs:
+                    segment_ids.append(seg['id'])
+
+        return segment_ids
+
+    def test_search_in_segment(self, connect, vrecords, dim):
+        topk = 10
+        xq = records_factory(dim, 10)
+        dsl = vector_dsl(topk, xq, "L2")
+
+        segment_ids = self.get_all_segment_id(connect, vrecords)
+
+        try:
+            connect.search_in_segment(vrecords, segment_ids, dsl)
+        except Exception as e:
+            pytest.fail(f"{e}")
+
+    def test_search_in_segment_with_some_id_not_exist(self, connect, vrecords, dim):
+        topk = 10
+        xq = records_factory(dim, 10)
+        dsl = vector_dsl(topk, xq, "L2")
+
+        segment_ids = self.get_all_segment_id(connect, vrecords)
+        segment_ids.append(max(segment_ids) + 1)
+
+        try:
+            connect.search_in_segment(vrecords, segment_ids, dsl)
+        except Exception as e:
+            pytest.fail(f"{e}")
+
+    def test_search_in_segment_async(self, connect, vrecords, dim):
+        topk = 10
+        xq = records_factory(dim, 10)
+        dsl = vector_dsl(topk, xq, "L2")
+
+        def search_cb(results):
+            assert results
+
+        segment_ids = self.get_all_segment_id(connect, vrecords)
+
+        try:
+            future0 = connect.search_in_segment(vrecords, segment_ids, dsl, _async=True)
+            future0.result()
+
+            future1 = connect.search_in_segment(vrecords, segment_ids, dsl, _async=True, _callback=search_cb)
+            future1.done()
+        except Exception as e:
+            pytest.fail(f"{e}")
