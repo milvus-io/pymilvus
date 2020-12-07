@@ -43,7 +43,7 @@ Methods
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `get_entity_by_id() <#milvus.Milvus.get_entity_by_id>`_              | Retrieves entities by entity ID.                                       |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `list_id_in_segment() <#milvus.Milvus.list_id_in_segment>`_          | Obtains the list of ids in specified segment.                           |
+| `list_id_in_segment() <#milvus.Milvus.list_id_in_segment>`_          | Obtains the list of ids in a specified segment.                           |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `create_index() <#milvus.Milvus.create_index>`_                      | Creates an index for a specified field.                                |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
@@ -78,7 +78,6 @@ APIs
              get_collection_stats, load_collection, drop_collection, bulk_insert, insert, get_entity_by_id,
              list_id_in_segment, create_index, drop_index, create_partition, has_partition, list_partitions,
              drop_partition, search, search_in_segment, delete_entity_by_id, flush, compact
-
 
 
 
