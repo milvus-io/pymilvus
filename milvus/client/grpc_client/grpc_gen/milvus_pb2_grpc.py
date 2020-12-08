@@ -2,7 +2,6 @@
 import grpc
 
 from . import milvus_pb2 as milvus__pb2
-from . import status_pb2 as status__pb2
 
 
 class MilvusServiceStub(object):
@@ -18,7 +17,7 @@ class MilvusServiceStub(object):
         self.CreateCollection = channel.unary_unary(
             '/milvus.grpc.MilvusService/CreateCollection',
             request_serializer=milvus__pb2.Mapping.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.HasCollection = channel.unary_unary(
             '/milvus.grpc.MilvusService/HasCollection',
@@ -48,12 +47,12 @@ class MilvusServiceStub(object):
         self.DropCollection = channel.unary_unary(
             '/milvus.grpc.MilvusService/DropCollection',
             request_serializer=milvus__pb2.CollectionName.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.CreateIndex = channel.unary_unary(
             '/milvus.grpc.MilvusService/CreateIndex',
             request_serializer=milvus__pb2.IndexParam.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.DescribeIndex = channel.unary_unary(
             '/milvus.grpc.MilvusService/DescribeIndex',
@@ -63,12 +62,12 @@ class MilvusServiceStub(object):
         self.DropIndex = channel.unary_unary(
             '/milvus.grpc.MilvusService/DropIndex',
             request_serializer=milvus__pb2.IndexParam.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.CreatePartition = channel.unary_unary(
             '/milvus.grpc.MilvusService/CreatePartition',
             request_serializer=milvus__pb2.PartitionParam.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.HasPartition = channel.unary_unary(
             '/milvus.grpc.MilvusService/HasPartition',
@@ -83,7 +82,7 @@ class MilvusServiceStub(object):
         self.DropPartition = channel.unary_unary(
             '/milvus.grpc.MilvusService/DropPartition',
             request_serializer=milvus__pb2.PartitionParam.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.Insert = channel.unary_unary(
             '/milvus.grpc.MilvusService/Insert',
@@ -118,22 +117,22 @@ class MilvusServiceStub(object):
         self.DeleteByID = channel.unary_unary(
             '/milvus.grpc.MilvusService/DeleteByID',
             request_serializer=milvus__pb2.DeleteByIDParam.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.PreloadCollection = channel.unary_unary(
             '/milvus.grpc.MilvusService/PreloadCollection',
             request_serializer=milvus__pb2.CollectionName.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.Flush = channel.unary_unary(
             '/milvus.grpc.MilvusService/Flush',
             request_serializer=milvus__pb2.FlushParam.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.Compact = channel.unary_unary(
             '/milvus.grpc.MilvusService/Compact',
             request_serializer=milvus__pb2.CompactParam.SerializeToString,
-            response_deserializer=status__pb2.Status.FromString,
+            response_deserializer=milvus__pb2.Status.FromString,
         )
         self.SearchPB = channel.unary_unary(
             '/milvus.grpc.MilvusService/SearchPB',
@@ -448,7 +447,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'CreateCollection': grpc.unary_unary_rpc_method_handler(
             servicer.CreateCollection,
             request_deserializer=milvus__pb2.Mapping.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'HasCollection': grpc.unary_unary_rpc_method_handler(
             servicer.HasCollection,
@@ -478,12 +477,12 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'DropCollection': grpc.unary_unary_rpc_method_handler(
             servicer.DropCollection,
             request_deserializer=milvus__pb2.CollectionName.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'CreateIndex': grpc.unary_unary_rpc_method_handler(
             servicer.CreateIndex,
             request_deserializer=milvus__pb2.IndexParam.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'DescribeIndex': grpc.unary_unary_rpc_method_handler(
             servicer.DescribeIndex,
@@ -493,12 +492,12 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'DropIndex': grpc.unary_unary_rpc_method_handler(
             servicer.DropIndex,
             request_deserializer=milvus__pb2.IndexParam.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'CreatePartition': grpc.unary_unary_rpc_method_handler(
             servicer.CreatePartition,
             request_deserializer=milvus__pb2.PartitionParam.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'HasPartition': grpc.unary_unary_rpc_method_handler(
             servicer.HasPartition,
@@ -513,7 +512,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'DropPartition': grpc.unary_unary_rpc_method_handler(
             servicer.DropPartition,
             request_deserializer=milvus__pb2.PartitionParam.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'Insert': grpc.unary_unary_rpc_method_handler(
             servicer.Insert,
@@ -548,22 +547,22 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         'DeleteByID': grpc.unary_unary_rpc_method_handler(
             servicer.DeleteByID,
             request_deserializer=milvus__pb2.DeleteByIDParam.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'PreloadCollection': grpc.unary_unary_rpc_method_handler(
             servicer.PreloadCollection,
             request_deserializer=milvus__pb2.CollectionName.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'Flush': grpc.unary_unary_rpc_method_handler(
             servicer.Flush,
             request_deserializer=milvus__pb2.FlushParam.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'Compact': grpc.unary_unary_rpc_method_handler(
             servicer.Compact,
             request_deserializer=milvus__pb2.CompactParam.FromString,
-            response_serializer=status__pb2.Status.SerializeToString,
+            response_serializer=milvus__pb2.Status.SerializeToString,
         ),
         'SearchPB': grpc.unary_unary_rpc_method_handler(
             servicer.SearchPB,
