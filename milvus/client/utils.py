@@ -2,7 +2,7 @@ from urllib.parse import urlparse
 
 from ..settings import DefaultConfig as config
 
-from .grpc_client.grpc_gen import status_pb2
+from .grpc_client.grpc_gen import milvus_pb2
 from .grpc_client.grpc_gen.milvus_pb2 import QueryResult as Grpc_Result
 from ..client.grpc_client.grpc_results import QueryResult
 from ..client.exceptions import ParamError
@@ -43,7 +43,7 @@ def merge_results(results_list, topk, *args, **kwargs):
 
         return id_m_out, diss_m_out
 
-    status = status_pb2.Status(error_code=status_pb2.SUCCESS,
+    status = milvus_pb2.Status(error_code=0,
                                reason="Success")
 
     reverse = kwargs.get('reverse', False)

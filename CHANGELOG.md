@@ -26,6 +26,7 @@
 - \#377 - Add client tag when create client instance
 - \#378 - Remove 'Prepare' from root `__init__.py`
 - \#379 - Modify search hook function from `on_response` to `raw_response`
+- \#384 - Remove `status` from proto
 
 
 # pymilvus 0.3.0(2020-10-16)
