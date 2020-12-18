@@ -9,7 +9,7 @@ from collections import defaultdict
 from . import __version__
 from .grpc_client import grpc_handler
 from .http_handler import HttpHandler
-from .exceptions import ConnectionPoolError, NotConnectError, VersionError
+from .exceptions import ConnectionPoolError, VersionError
 
 support_versions = ('0.11.x',)
 
