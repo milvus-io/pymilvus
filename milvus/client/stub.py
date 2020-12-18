@@ -354,7 +354,7 @@ class Milvus:
             return handler.show_collection_info(collection_name, timeout)
 
     @check_connect
-    def load_collection(self, collection_name, timeout=None):
+    def load_collection(self, collection_name, partition_tags=None, timeout=None):
         """
         Loads a collection for caching.
 
@@ -366,7 +366,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.preload_collection(collection_name, timeout)
+            return handler.preload_collection(collection_name, partition_tags, timeout)
 
     @check_connect
     def reload_segments(self, collection_name, segment_ids):

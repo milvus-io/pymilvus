@@ -1,3 +1,9 @@
+# pymilvus 0.2.15(TBD)
+
+## New Feature
+- \392 - Upgrade method "load_collection" for milvus v0.10.5
+
+
 # pymilvus 0.2.14(2020-07-20)
 
 ## Bug

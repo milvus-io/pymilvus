@@ -127,7 +127,7 @@ class MilvusServiceStub(object):
         )
         self.PreloadCollection = channel.unary_unary(
             '/milvus.grpc.MilvusService/PreloadCollection',
-            request_serializer=milvus__pb2.CollectionName.SerializeToString,
+            request_serializer=milvus__pb2.PreloadCollectionParam.SerializeToString,
             response_deserializer=status__pb2.Status.FromString,
         )
         self.ReloadSegments = channel.unary_unary(
@@ -190,15 +190,10 @@ class MilvusServiceStub(object):
             request_serializer=milvus__pb2.HInsertParam.SerializeToString,
             response_deserializer=milvus__pb2.HEntityIDs.FromString,
         )
-        self.HybridSearchPB = channel.unary_unary(
-            '/milvus.grpc.MilvusService/HybridSearchPB',
-            request_serializer=milvus__pb2.HSearchParamPB.SerializeToString,
-            response_deserializer=milvus__pb2.HQueryResult.FromString,
-        )
         self.HybridSearch = channel.unary_unary(
             '/milvus.grpc.MilvusService/HybridSearch',
             request_serializer=milvus__pb2.HSearchParam.SerializeToString,
-            response_deserializer=milvus__pb2.HQueryResult.FromString,
+            response_deserializer=milvus__pb2.TopKQueryResult.FromString,
         )
         self.HybridSearchInSegments = channel.unary_unary(
             '/milvus.grpc.MilvusService/HybridSearchInSegments',
@@ -207,7 +202,7 @@ class MilvusServiceStub(object):
         )
         self.GetEntityByID = channel.unary_unary(
             '/milvus.grpc.MilvusService/GetEntityByID',
-            request_serializer=milvus__pb2.VectorsIdentity.SerializeToString,
+            request_serializer=milvus__pb2.HEntityIdentity.SerializeToString,
             response_deserializer=milvus__pb2.HEntity.FromString,
         )
         self.GetEntityIDs = channel.unary_unary(
@@ -492,9 +487,9 @@ class MilvusServiceServicer(object):
 
     def PreloadCollection(self, request, context):
         """*
-        @brief This method is used to preload collection
+        @brief This method is used to preload collection/partitions
 
-        @param CollectionName, target collection name.
+        @param PreloadCollectionParam, target collection/partitions.
 
         @return Status
         """
@@ -611,16 +606,9 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def HybridSearchPB(self, request, context):
-        # missing associated documentation comment in .proto file
-        pass
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def HybridSearch(self, request, context):
-        # missing associated documentation comment in .proto file
-        pass
+        """TODO(yukun): will change to HQueryResult
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -768,7 +756,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         ),
         'PreloadCollection': grpc.unary_unary_rpc_method_handler(
             servicer.PreloadCollection,
-            request_deserializer=milvus__pb2.CollectionName.FromString,
+            request_deserializer=milvus__pb2.PreloadCollectionParam.FromString,
             response_serializer=status__pb2.Status.SerializeToString,
         ),
         'ReloadSegments': grpc.unary_unary_rpc_method_handler(
@@ -831,15 +819,10 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             request_deserializer=milvus__pb2.HInsertParam.FromString,
             response_serializer=milvus__pb2.HEntityIDs.SerializeToString,
         ),
-        'HybridSearchPB': grpc.unary_unary_rpc_method_handler(
-            servicer.HybridSearchPB,
-            request_deserializer=milvus__pb2.HSearchParamPB.FromString,
-            response_serializer=milvus__pb2.HQueryResult.SerializeToString,
-        ),
         'HybridSearch': grpc.unary_unary_rpc_method_handler(
             servicer.HybridSearch,
             request_deserializer=milvus__pb2.HSearchParam.FromString,
-            response_serializer=milvus__pb2.HQueryResult.SerializeToString,
+            response_serializer=milvus__pb2.TopKQueryResult.SerializeToString,
         ),
         'HybridSearchInSegments': grpc.unary_unary_rpc_method_handler(
             servicer.HybridSearchInSegments,
@@ -848,7 +831,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
         ),
         'GetEntityByID': grpc.unary_unary_rpc_method_handler(
             servicer.GetEntityByID,
-            request_deserializer=milvus__pb2.VectorsIdentity.FromString,
+            request_deserializer=milvus__pb2.HEntityIdentity.FromString,
             response_serializer=milvus__pb2.HEntity.SerializeToString,
         ),
         'GetEntityIDs': grpc.unary_unary_rpc_method_handler(

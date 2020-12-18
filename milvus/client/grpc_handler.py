@@ -424,7 +424,7 @@ class GrpcHandler(ConnectIntf):
         return Status(rpc_status.error_code, rpc_status.reason), None
 
     @error_handler()
-    def preload_collection(self, collection_name, timeout=None):
+    def preload_collection(self, collection_name, partition_tags=None, timeout=None):
         """
         Load collection to cache in advance
 
@@ -435,8 +435,8 @@ class GrpcHandler(ConnectIntf):
             Status:  indicate if invoke is successful
         """
 
-        collection_name = Prepare.collection_name(collection_name)
-        status = self._stub.PreloadCollection.future(collection_name, wait_for_ready=True, timeout=timeout).result()
+        param = Prepare.preload_param(collection_name, partition_tags)
+        status = self._stub.PreloadCollection.future(param, wait_for_ready=True, timeout=timeout).result()
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()

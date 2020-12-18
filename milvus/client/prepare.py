@@ -84,6 +84,10 @@ class Prepare:
         return _param
 
     @classmethod
+    def preload_param(cls, collection_name, partition_tags):
+        return grpc_types.PreloadCollectionParam(collection_name=collection_name, partition_tag_array=partition_tags)
+
+    @classmethod
     def reload_param(cls, collection_name, segment_ids):
         return grpc_types.ReLoadSegmentsParam(collection_name=collection_name, segment_id_array=segment_ids)
 

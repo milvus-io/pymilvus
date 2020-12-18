@@ -114,6 +114,14 @@ message SearchByIDParam {
 }
 
 /**
+ * @brief Params for preload collection/partitions
+ */
+message PreloadCollectionParam {
+    string collection_name = 1;
+    repeated string partition_tag_array = 2;
+}
+
+/**
  * @brief Params for reloading segments
  */
 message ReLoadSegmentsParam {
@@ -261,17 +269,19 @@ message FieldParam {
     repeated KeyValuePair extra_params = 4;
 }
 
-message VectorFieldRecord {
+message VectorFieldValue {
     repeated RowRecord value = 1;
 }
 
 message FieldValue {
     oneof value {
-        int64 int64_value = 1;
-        double double_value = 2;
-        string string_value = 3;
-        bool  bool_value = 4;
-        VectorFieldRecord vector_value = 5;
+        int32 int32_value = 1;
+        int64 int64_value = 2;
+        float float_value = 3;
+        double double_value = 4;
+        string string_value = 5;
+        bool  bool_value = 6;
+        VectorFieldValue vector_value = 7;
     }
 }
 
@@ -293,11 +303,10 @@ message MappingList {
 
 message TermQuery {
     string field_name = 1;
-    repeated int64 int_value = 2;
-    repeated double double_value = 3;
-    int64 value_num = 4;
-    float boost = 5;
-    repeated KeyValuePair extra_params = 6;
+    bytes values = 2;
+    int64 value_num = 3;
+    float boost = 4;
+    repeated KeyValuePair extra_params = 5;
 }
 
 enum CompareOperator {
@@ -350,20 +359,7 @@ message GeneralQuery {
     }
 }
 
-message VectorParam {
-    string json = 1;
-    repeated RowRecord row_record = 2;
-}
-
 message HSearchParam {
-    string collection_name = 1;
-    repeated string partition_tag_array = 2;
-    repeated VectorParam vector_param = 3;
-    string dsl = 4;
-    repeated KeyValuePair extra_params = 5;
-}
-
-message HSearchParamPB {
     string collection_name = 1;
     repeated string partition_tag_array = 2;
     GeneralQuery general_query = 3;
@@ -372,46 +368,43 @@ message HSearchParamPB {
 
 message HSearchInSegmentsParam {
     repeated string segment_id_array = 1;
-    HSearchParamPB search_param = 2;
+    HSearchParam search_param = 2;
 }
 
 ///////////////////////////////////////////////////////////////////
 
 message AttrRecord {
-    repeated int64 int_value = 1;
-    repeated double double_value = 2;
+    repeated string value = 1;
 }
 
 message HEntity {
     Status status = 1;
-    repeated int64 entity_id = 2;
+    int64 entity_id = 2;
     repeated string field_names = 3;
-    repeated DataType data_types = 4;
+    bytes attr_records = 4;
     int64 row_num = 5;
-    repeated AttrRecord attr_data = 6;
-    repeated VectorFieldRecord vector_data = 7;
+    repeated FieldValue result_values = 6;
 }
 
 message HQueryResult {
     Status status = 1;
-    HEntity entity = 2;
+    repeated HEntity entities = 2;
     int64 row_num = 3;
     repeated float score = 4;
     repeated float distance = 5;
-    repeated KeyValuePair extra_params = 6;
 }
 
 message HInsertParam {
     string collection_name = 1;
     string partition_tag = 2;
-    HEntity entity = 3;
+    HEntity entities = 3;
     repeated int64 entity_id_array = 4;
     repeated KeyValuePair extra_params = 5;
 }
 
 message HEntityIdentity {
     string collection_name = 1;
-    repeated int64 id = 2;
+    int64 id = 2;
 }
 
 message HEntityIDs {
@@ -639,21 +632,21 @@ service MilvusService {
     rpc DeleteByID(DeleteByIDParam) returns (Status) {}
 
     /**
-     * @brief This method is used to preload collection
+     * @brief This method is used to preload collection/partitions
      *
-     * @param CollectionName, target collection name.
+     * @param PreloadCollectionParam, target collection/partitions.
      *
      * @return Status
      */
-    rpc PreloadCollection(CollectionName) returns (Status) {}
+    rpc PreloadCollection(PreloadCollectionParam) returns (Status) {}
 
     /**
-    * @brief This method is used to reload collection segments
-    *
-    * @param ReLoadSegmentsParam, target segments information.
-    *
-    * @return Status
-    */
+     * @brief This method is used to reload collection segments
+     *
+     * @param ReLoadSegmentsParam, target segments information.
+     *
+     * @return Status
+     */
     rpc ReloadSegments(ReLoadSegmentsParam) returns (Status) {}
 
     /**
@@ -694,23 +687,22 @@ service MilvusService {
 
     ///////////////////////////////////////////////////////////////////
 
-    //    rpc CreateIndex(IndexParam) returns (Status) {}
-    //
-    //    rpc DescribeIndex(CollectionName) returns (IndexParam) {}
-    //
-    //    rpc DropIndex(CollectionName) returns (Status) {}
+//    rpc CreateIndex(IndexParam) returns (Status) {}
+//
+//    rpc DescribeIndex(CollectionName) returns (IndexParam) {}
+//
+//    rpc DropIndex(CollectionName) returns (Status) {}
 
     ///////////////////////////////////////////////////////////////////
 
     rpc InsertEntity(HInsertParam) returns (HEntityIDs) {}
 
-    rpc HybridSearchPB(HSearchParamPB) returns (HQueryResult) {}
-
-    rpc HybridSearch(HSearchParam) returns (HQueryResult) {}
+    // TODO(yukun): will change to HQueryResult
+    rpc HybridSearch(HSearchParam) returns (TopKQueryResult) {}
 
     rpc HybridSearchInSegments(HSearchInSegmentsParam) returns (TopKQueryResult) {}
 
-    rpc GetEntityByID(VectorsIdentity) returns (HEntity) {}
+    rpc GetEntityByID(HEntityIdentity) returns (HEntity) {}
 
     rpc GetEntityIDs(HGetEntityIDsParam) returns (HEntityIDs) {}
 

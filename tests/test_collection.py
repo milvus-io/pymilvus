@@ -233,3 +233,15 @@ class TestLoadCollection:
     def test_load_collection_non_existent(self, gcon):
         status = gcon.load_collection("test_load_collection_non_existent")
         assert not status.OK()
+
+    def test_load_collection_with_partition(self, gcon, gvector):
+        status = gcon.load_collection(gvector, ["_default"])
+        assert status.OK()
+
+    def test_load_collection_with_partition_non_exist(self, gcon, gvector):
+        status = gcon.load_collection(gvector, ["_default", "AQAA"])
+        assert status.OK()
+
+    def test_load_collection_with_all_partition_non_exist(self, gcon, gvector):
+        status = gcon.load_collection(gvector, ["AQAA"])
+        assert not status.OK()
