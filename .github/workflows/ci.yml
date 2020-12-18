@@ -36,7 +36,7 @@ jobs:
           echo "Set test value as no"
           echo "::set-output name=test::no"
   ci:
-    name: CI
+    name: CI ubuntu-18.04
     runs-on: [ubuntu-18.04]
     needs: check
     if: needs.check.outputs.status == 'yes'
@@ -75,7 +75,7 @@ jobs:
           cd -
 
   ci2:
-    name: CI2
+    name: CI ubuntu-20.04
     runs-on: [ubuntu-20.04]
     needs: check
     if: needs.check.outputs.status == 'yes'
