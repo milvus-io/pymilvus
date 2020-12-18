@@ -6,6 +6,7 @@
 - \#368 - Fix index doc wrong example and description
 - \#371 - Fix wrong description in 'search_in_segment' method
 - \#374 - Raise exception when inserted entities fields mismatch that at server endpoint
+- \#390 - Fix "too many values to unpack" if pool parameter is set to "QueuePool" or "Singleton"
 
 ## New Feature
 - \#294, \#344 - Enable pylint

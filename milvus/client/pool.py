@@ -109,9 +109,7 @@ class ConnectionPool:
                 # LOGGER.debug("Try connect server {}".format(self._uri))
                 conn.client().ping()
 
-            status, version = conn.client().server_version(timeout=30)
-            if not status.OK():
-                raise NotConnectError("Cannot check server version: {}".format(status.message))
+            version = conn.client().server_version(timeout=30)
             if not _is_version_match(version):
                 raise VersionError(
                     "Version of python SDK(v{}) not match that of server v{}, "
@@ -280,9 +278,7 @@ class SingleConnectionPool:
             if self._try_connect:
                 self._conn.client().ping()
 
-            status, version = self._conn.client().server_version(timeout=30)
-            if not status.OK():
-                raise NotConnectError("Cannot check server version: {}".format(status.message))
+            version = self._conn.client().server_version(timeout=30)
             if not _is_version_match(version):
                 raise VersionError(
                     "Version of python SDK({}) not match that of server{}, "
