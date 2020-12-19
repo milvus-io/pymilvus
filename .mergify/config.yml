@@ -1,11 +1,22 @@
 pull_request_rules:
-    - name: Automatic merge on approval
+    - name: Automatic merge on approval after CI passed
       conditions:
-        - "label=automerge"
+        - "label=PR | automerge"
+        - "label=PR | trigger CI"
         - "#approved-reviews-by>=1"
         - "status-success=Code lint check"
-        - "status-success=Check head commit"
-        - "status-success=CI"
+        - "status-success=CI ubuntu-18.04"
+        - "status-success=CI ubuntu-20.04"
+      actions:
+        merge:
+          method: squash
+
+    - name: Automatic merge on approval
+      conditions:
+        - "label=PR | automerge"
+        - "label=PR | ignore CI"
+        - "#approved-reviews-by>=1"
+        - "status-success=Code lint check"
       actions:
         merge:
           method: squash
