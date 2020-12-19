@@ -308,6 +308,72 @@ class RawQueryResult(LoopBase):
         return self._distances
 
 
+class ItemQueryResult2:
+    def __init__(self, row_index, column_index, result, shape):
+        self._r_index = row_index
+        self._c_index = column_index
+        self._result = result
+        self._shape = shape
+        self._location = row_index * shape[1] + column_index
+
+    def __str__(self):
+        return "(distance: {}, score: {}, entity: {})"\
+            .format(self.distance, self.score, self.entity)
+
+    @property
+    def entity(self):
+        return self._result.entities[self._location]
+
+    @property
+    def id(self):
+        return self._result.raw.entities.ids[self._location]
+
+    @property
+    def distance(self):
+        return self._result.raw.distances[self._location]
+
+    @property
+    def score(self):
+        return self._result.raw.scores[self._location]
+
+
+class RawQueryResult2(LoopBase):
+    def __init__(self, index, result, raw_count, column_count):
+        super().__init__()
+        self._index = index
+        self._result = result
+        self._shape = (raw_count, column_count)
+        self._begin = self._index * self._shape[1]
+        self._end = self._begin + self._shape[1]
+        self._distances = result._distances[self._begin: self._end]
+
+        self._len = -1
+
+    def __len__(self):
+        if self._len == -1:
+            self._len = len(self.ids)
+
+        return self._len
+
+    def get__item(self, item):
+        return ItemQueryResult2(self._index, item, self._result, self._shape)
+
+    @property
+    def _entities(self):
+        return self._result.entities[self._begin: self._end]
+
+    @property
+    def ids(self):
+        start = self._index * self._shape[1]
+        return list([id_ for id_ in
+                     self._result.entities.ids[start: start + self._shape[1]] if id_ > -1])
+
+    @property
+    def distances(self):
+        start = self._index * self._shape[1]
+        return list(self._result.raw.distances[start, start + self._shape[1]])
+
+
 class QueryResult(LoopBase):
     def __init__(self, raw):
         super().__init__()
@@ -315,6 +381,7 @@ class QueryResult(LoopBase):
         self._nq = self._raw.row_num
         self._topk = len(self._raw.distances) // self._nq if self._nq > 0 else 0
         self._entities = Entities(self._raw.entities)
+        self._distances = list(raw.distances)
 
     def __len__(self):
         return self._nq
@@ -322,26 +389,16 @@ class QueryResult(LoopBase):
     def __len(self):
         return self._nq
 
-    def _pack(self, raw):
-        pass
-
     def get__item(self, item):
         dis_len = len(self._raw.distances)
         topk = dis_len // self._nq if self._nq > 0 else 0
-        start = item * topk
-        end = (item + 1) * topk
 
-        slice_entity = list()
-        for it in range(start, end):
-            entity = self._entities[it]
-            if not entity or entity.id == -1:
-                break
+        return RawQueryResult2(item, self, self._nq, topk)
 
-            slice_entity.append(entity)
+    @property
+    def raw(self):
+        return self._raw
 
-        end = start + len(slice_entity)
-
-        slice_score = list(self._raw.scores)[start: end] if dis_len > 0 else []
-        slice_distances = list(self._raw.distances)[start: end] if dis_len > 0 else []
-
-        return RawQueryResult(slice_entity, slice_distances, slice_score)
+    @property
+    def entities(self):
+        return self._entities

@@ -28,6 +28,7 @@
 - \#378 - Remove 'Prepare' from root `__init__.py`
 - \#379 - Modify search hook function from `on_response` to `raw_response`
 - \#384 - Remove `status` from proto
+- \#394 - Optimize search result object to improve performance during loop
 
 
 # pymilvus 0.3.0(2020-10-16)

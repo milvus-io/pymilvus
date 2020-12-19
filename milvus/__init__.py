@@ -13,5 +13,6 @@ from .client.exceptions import (
 )
 
 __all__ = ['Milvus', 'Status', 'DataType',
-           'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'BaseError',
+           'ParamError', 'ConnectError', 'NotConnectError',
+           'RepeatingConnectError', 'VersionError', 'BaseError',
            '__version__']
