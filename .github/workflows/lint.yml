@@ -23,4 +23,4 @@ jobs:
       - name: Run pylint
         shell: bash
         run: |
-          pylint --rcfile=pylint.conf milvus/client
+          pylint --rcfile=pylint.conf milvus/

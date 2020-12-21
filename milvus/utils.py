@@ -23,5 +23,7 @@ def entities_slice(entities):
         end = min(i + max_slice_row_count, row_count)
         slice_entities = list()
         for f in entities:
-            slice_entities.append({"name": f["name"], "values": f["values"][i: end], "type": f["type"]})
+            slice_entities.append({"name": f["name"],
+                                   "values": f["values"][i: end],
+                                   "type": f["type"]})
         yield slice_entities
