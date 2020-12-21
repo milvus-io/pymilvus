@@ -29,6 +29,9 @@ class Status:
         return isinstance(other, self.__class__) and self.code == other.code
 
     def __ne__(self, other):
+        if isinstance(other, int):
+            return self.code != other
+
         return self != other
 
     def OK(self):
