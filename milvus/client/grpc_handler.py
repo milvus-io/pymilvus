@@ -52,8 +52,7 @@ def error_handler(*rargs):
             except Exception as e:
                 record_dict["Exception"] = str(datetime.datetime.now())
                 LOGGER.error("\nAddr [{}] {}\nExcepted error: {}\n\t{}".format(self.server_address, func.__name__, e, record_dict))
-                status = Status(Status.UNEXPECTED_ERROR, message=str(e))
-                return status if not rargs else tuple([status]) + rargs
+                raise e
 
         return handler
 
