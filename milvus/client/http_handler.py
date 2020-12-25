@@ -378,11 +378,12 @@ class HttpHandler(ConnectIntf):
         return Status(Status.UNEXPECTED_ERROR, "Response is empty"), None
 
     @handle_error()
-    def preload_collection(self, table_name, timeout):
+    def preload_collection(self, table_name, partition_tags, timeout):
         url = self._uri + "/system/task"
         params = {"load": {"collection_name": table_name}}
+        if partition_tags:
+            params["load"]["partition_tags"] = partition_tags
         data = ujson.dumps(params)
-
 
         response = rq.put(url, data=data, timeout=timeout)
 

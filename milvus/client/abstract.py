@@ -516,10 +516,10 @@ class IndexParam:
         self._collection_name = collection_name
         self._index_type = index_type
 
-        # if isinstance(params, RepeatedCompositeContainer):
-        #     self._params = ujson.loads(params[0].value)
-        # else:
-        self._params = ujson.loads(params)
+        if not isinstance(params, dict):
+            self._params = ujson.loads(params)
+        else:
+            self._params = params
 
     def __str__(self):
         attr_list = ['%s=%r' % (key.lstrip('_'), value)
