@@ -3,11 +3,11 @@
 vector field which type can be chosen as ``FLOAT_VECTOR`` or ``BINARY_VECTOR`` we call indexes on it "vector index"; for 
 other field which type is numerical we call "scalar index". To learn how to create an index by python client, see method [create_index()](api.html#milvus.Milvus.create_index).
 
-For more detailed information about indexes, please refer to [Milvus documentation index chapter.](https://milvus.io/docs/v0.11.0/index.md)
+For more detailed information about indexes, please refer to [Milvus documentation index chapter.](https://milvus.io/docs/index.md)
 
 To learn how to choose an appropriate index for your application scenarios, please read [How to Select an Index in Milvus](https://medium.com/@milvusio/how-to-choose-an-index-in-milvus-4f3d15259212).
 
-To learn how to choose an appropriate index for a metric, see [Distance Metrics](https://www.milvus.io/docs/v0.11.0/metric.md).
+To learn how to choose an appropriate index for a metric, see [Distance Metrics](https://www.milvus.io/docs/metric.md).
 
 ## Vector Index
 

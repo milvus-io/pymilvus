@@ -6,7 +6,7 @@ In python sdk, we use `bytes` object as the structure of binary vectors, which l
 8 could be equal to the dimension value of a binary vector.
 
 You can fina more detailed information about metric and index of binary vectors at
-<a href="https://www.milvus.io/docs/v0.11.0/metric.md#binary">binary</a>
+<a href="https://www.milvus.io/docs/metric.md#binary">binary</a>
 
 This example is runnable for Milvus(0.11.x) and pymilvus(0.4.x)(developing).
 """

@@ -6,7 +6,7 @@ This is a basic introduction to Milvus by PyMilvus.
 
 For a runnable python script,
 checkout `example.py <https://github.com/milvus-io/pymilvus/blob/master/examples/example.py>`_ on PyMilvus Github,
-or `hello milvus <https://milvus.io/docs/v0.11.0/example_code.md>`_ on milvus official website. It's a good recommended start to get started with Milvus and PyMilvus as well.
+or `hello milvus <https://www.milvus.io/docs/example_code.md>`_ on milvus official website. It's a good recommended start to get started with Milvus and PyMilvus as well.
 
 
 .. note::
@@ -38,7 +38,7 @@ By default Milvus runs on localhost in port 19530, so you can use default value 
 >>> client = Milvus(host, port)
 
 After connecting, we can communicate with Milvus in the following ways. If you are confused about the
-terminology, see `Milvus Terminology <https://milvus.io/docs/v0.11.0/terms.md>`_ for explanations.
+terminology, see `Milvus Terminology <https://milvus.io/docs/terms.md>`_ for explanations.
 
 
 Collection
@@ -90,7 +90,7 @@ segment_row_limit
 -----------------
 
 Milvus controls the size of data segment according to the ``segment_row_limit``, you can refer
-`Storage Concepts <https://milvus.io/docs/v0.11.0/storage_concept.md>`_ for more information about segment and
+`Storage Concepts <https://milvus.io/docs/storage_concept.md>`_ for more information about segment and
 ``segment_row_limit``.
  
 auto_id
@@ -142,7 +142,7 @@ by PyMilvus, you check out `Index <https://pymilvus.readthedocs.io/en/latest/par
 chapter of the PyMilvus documentation.
 
 Further more, if you want to get a thorough view of indexes, check our official website for
-`Vector Index <https://milvus.io/docs/v0.11.0/index.md>`_.
+`Vector Index <https://milvus.io/docs/index.md>`_.
 
 Create Partition
 ================
@@ -268,7 +268,7 @@ Flush
 
 After successfully inserting 3 entities into Milvus, we can ``Flush`` data from memory to disk so that we can
 retrieve them. Milvus also performs an automatic flush with a fixed interval(1 second),
-see `Data Flushing <https://milvus.io/docs/v0.11.0/flush_python.md>`_.
+see `Data Flushing <https://milvus.io/docs/flush_python.md>`_.
 
 You can flush multiple collections at one time, so be aware the parameter is a list.
 
