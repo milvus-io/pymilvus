@@ -226,8 +226,8 @@ The full view is:
                             "embedding": {
                                 "topk": 10,
                                 "query": [[0.1, 0.2]],
+                                "metric_type": "L2",
                                 "params": {
-                                    "metric_type": "L2",
                                     "nprobe": 10
                                 }
                             }
