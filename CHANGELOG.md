@@ -1,7 +1,13 @@
-# pymilvus 0.2.15(TBD)
+# pymilvus 0.4.0(2021-01-21)
+
+## Improvement
+- \#345 - Do not support python 3.5.x any more
+
+
+# pymilvus 0.2.15(2021-01-06)
 
 ## New Feature
-- \392 - Upgrade method "load_collection" for milvus v0.10.5
+- \#392 - Upgrade method "load_collection" for milvus v0.10.5
 
 
 # pymilvus 0.2.14(2020-07-20)
