@@ -48,7 +48,7 @@ For detailed SDK documentation, refer to [API Documentation](https://milvus-io.g
 
 ### Prerequisites
 
-pymilvus only supports Python 3.5 or higher.
+pymilvus only supports Python 3.6 or higher.
 
 ### Install pymilvus
 
@@ -77,13 +77,13 @@ The following collection shows Milvus versions and recommended pymilvus versions
 | 0.9.1 | 0.2.12 |
 | 0.10.0 | 0.2.13 |
 | 0.10.1 - 0.10.4| 0.2.14 |
-| 0.10.5| 0.2.15 |
+| 0.10.5| 0.2.15, 0.4.0 |
 
 
 You can install a specific version of pymilvus by:
 
 ```shell
-$ pip install pymilvus==0.2.15
+$ pip install pymilvus==0.4.0
 ```
 
 You can upgrade `pymilvus` to the latest version by:

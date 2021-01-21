@@ -22,11 +22,10 @@ setuptools.setup(
     include_package_data=True,
     install_requires=["grpcio>=1.22.0", "grpcio-tools>=1.22.0", "requests>=2.22.0", "ujson>=1.35", "numpy>=1.16.3"],
     classifiers=[
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
 
-    python_requires='>=3.5'
+    python_requires='>=3.6'
 )
