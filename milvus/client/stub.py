@@ -56,11 +56,16 @@ def _set_uri(host, port, uri, handler="GRPC"):
     if host is not None:
         _port = port if port is not None else default_port
         _host = host
+        if handler == "HTTP":
+            _proto = "https" if _port == 443 else "http"
+        else:
+            _proto = "tcp"
     elif port is None:
         try:
             _uri = urlparse(uri) if uri else urlparse(default_uri)
             _host = _uri.hostname
             _port = _uri.port
+            _proto = _uri.scheme
         except (AttributeError, ValueError, TypeError) as e:
             raise ParamError("uri is illegal: {}".format(e))
     else:
@@ -71,7 +76,7 @@ def _set_uri(host, port, uri, handler="GRPC"):
     if not is_legal_host(_host) or not is_legal_port(_port):
         raise ParamError("host {} or port {} is illegal".format(_host, _port))
 
-    return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
+    return "{}://{}:{}".format(str(_proto), str(_host), str(_port))
 
 
 class Milvus:
@@ -543,7 +548,7 @@ class Milvus:
     @check_connect
     def create_partition(self, collection_name, partition_tag, timeout=30):
         """
-        create a partition for a collection. 
+        create a partition for a collection.
 
         :param collection_name: Name of the collection.
         :type  collection_name: str
@@ -788,4 +793,3 @@ class Milvus:
         cmd = "set_config {}.{} {}".format(parent_key, child_key, value)
 
         return self._cmd(cmd)
-

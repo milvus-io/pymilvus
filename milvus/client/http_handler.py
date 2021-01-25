@@ -113,11 +113,13 @@ class HttpHandler(ConnectIntf):
         if host is not None:
             _port = port if port is not None else config.HTTP_PORT
             _host = host
+            _proto = "https" if _port == 443 else "http"
         elif port is None:
             try:
                 _uri = urlparse(uri) if uri else urlparse(config.HTTP_URI)
                 _host = _uri.hostname
                 _port = _uri.port
+                _proto = _uri.scheme
             except (AttributeError, ValueError, TypeError) as e:
                 raise ParamError("uri is illegal: {}".format(e))
         else:
@@ -128,7 +130,7 @@ class HttpHandler(ConnectIntf):
         if not is_legal_host(_host) or not is_legal_port(_port):
             raise ParamError("host or port is illeagl")
 
-        return "http://{}:{}".format(str(_host), str(_port))
+        return "{}://{}:{}".format(str(_proto), str(_host), str(_port))
 
     @property
     def status(self):
