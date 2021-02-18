@@ -2,7 +2,7 @@
 /.idea
 *.pyc
 dist
-doc/build/
+docs/build/
 *.egg
 *.egg-info
 **/__pycache__/
