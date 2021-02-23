@@ -62,8 +62,9 @@ The following collection shows Milvus versions and recommended pymilvus versions
 
 |Milvus version| Recommended pymilvus version |
 |:-----:|:-----:|
-| 0.10.5| 0.2.15, 0.4.0 |
-| 0.10.1 - 0.10.4| 0.2.14 |
+| 0.10.6 | 0.4.0 |
+| 0.10.5 | 0.2.15, 0.4.0 |
+| 0.10.1 - 0.10.4 | 0.2.14 |
 | 0.10.0 | 0.2.13 |
 | 0.9.1 | 0.2.12 |
 | 0.9.0 | 0.2.11 |
