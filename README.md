@@ -77,8 +77,8 @@ The following collection shows Milvus versions and recommended pymilvus versions
 | 0.5.1 | 0.2.3 |
 | 0.5.0 | 0.2.3 |
 | 0.4.0 | 0.2.2 |
-| 0.3.1 | 0.1.25|
-| 0.3.0 | 0.1.13|
+| 0.3.1 | 0.1.25 |
+| 0.3.0 | 0.1.13 |
 
 
 You can install a specific version of pymilvus by:
