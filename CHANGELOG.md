@@ -1,3 +1,9 @@
+# pymilvus 1.0.0(TBD)
+
+## Improvement
+- \#424 - Prepare for 1.x
+
+
 # pymilvus 0.4.0(2021-01-21)
 
 ## Improvement
