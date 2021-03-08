@@ -18,11 +18,12 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'pymilvus'
-copyright = '2020, Milvus'
+copyright = '2021, Milvus'
 author = 'Milvus'
 
 # The full version, including alpha/beta/rc tags
-release = '0.2.14'
+release = '1.0.1'
+show_authors = True
 
 
 # -- General configuration ---------------------------------------------------
@@ -32,8 +33,21 @@ release = '0.2.14'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.viewcode'
+    'sphinx.ext.viewcode',
+    'sphinx.ext.githubpages',
+    'sphinx_copybutton',
+    'm2r',
 ]
+
+
+# Copy button configuration for python and shell
+# regexp for:
+# ">>> ", "... ", "$ ", "In [digit]", "(char) $ "
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: |\(.\) \$ " 
+copybutton_prompt_is_regexp = True
+
+# Add any source suffix
+source_suffix = ['.rst', '.md']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -57,6 +71,8 @@ exclude_patterns = []
 # a list of builtin themes.
 # html_theme = 'alabaster'
 html_theme = 'sphinx_rtd_theme'
+html_show_sphinx = False
+copyright = '2019-2021 Zilliz. All rights reserved.'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
