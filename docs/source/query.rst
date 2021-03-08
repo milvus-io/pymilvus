@@ -1,7 +1,6 @@
-===============
-Search results
-===============
-
+==========
+Query DSL
+==========
 
 
 .. sectionauthor::
