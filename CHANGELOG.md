@@ -1,4 +1,7 @@
-# pymilvus 1.0.x(TBD)
+# pymilvus 1.0.1(2021-03-08)
+
+## New Feature
+- \436 Update Pymilvus v1.0.x documentation frame
 
 ## New Feature
 - \#436 - Update PyMilvus v1.0.x documentation
