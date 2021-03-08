@@ -1,5 +1,8 @@
 # pymilvus 1.0.x(TBD)
 
+## New Feature
+- \#436 - Update PyMilvus v1.0.x documentation
+
 ## Task
 - \#432 - Remove hybrid APIs
 
