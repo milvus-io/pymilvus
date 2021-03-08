@@ -1,4 +1,10 @@
-# pymilvus 1.0.0(TBD)
+# pymilvus 1.0.x(TBD)
+
+## Task
+- \#432 - Remove hybrid APIs
+
+
+# pymilvus 1.0.0(2021-03-05)
 
 ## Improvement
 - \#424 - Prepare for 1.x
