@@ -1,7 +1,8 @@
 
-[Milvus](https://github.com/milvus-io) support to create index for each type-different field of certain collection. For
-vector field which type can be chosen as ``FLOAT_VECTOR`` or ``BINARY_VECTOR`` we call indexes on it "vector index"; for 
-other field which type is numerical we call "scalar index". To learn how to create an index by python client, see method [create_index()](api.html#milvus.Milvus.create_index).
+[Milvus](https://github.com/milvus-io) support to create index to accelerate vector approximate search. 
+
+To learn how to create an index by python client, see method [create_index()](api.html#milvus.Milvus.create_index) and 
+[index example](https://github.com/milvus-io/pymilvus/tree/1.0/examples) .
 
 For more detailed information about indexes, please refer to [Milvus documentation index chapter.](https://milvus.io/docs/index.md)
 
@@ -11,19 +12,45 @@ To learn how to choose an appropriate index for a metric, see [Distance Metrics]
 
 ## Vector Index
 
-### Float Vector Index
-
+- `FLAT`_
 - `IVF_FLAT`_
-- `IVF_PQ`_
 - `IVF_SQ8`_
-- `IVF_SQ8_HYBRID`_
-- `ANNOY`_
+- `IVF_SQ8_H`_
+- `IVF_PQ`_
 - `HNSW`_
-- `RHNSW_PQ`_
-- `RHNSW_SQ`_
-- `NSG`_
+- `ANNOY`_
+- `RNSG`_
 
-#### IVF_FLAT
+
+### FLAT
+If FLAT index is used, the vectors are stored in an array of float/binary data without any compression. during 
+searching vectors, all indexed vectors are decoded sequentially and compared to the query vectors.
+
+FLAT index provides 100% query recall rate. Compared to other indexes, it is the most efficient indexing method 
+when the number of queries is small.
+
+The inserted and index-inbuilt vectors and index-dropped vectors are regard as built with ``FLAT``.
+
+- building parameters: 
+  **N/A**
+  
+```python
+# FLAT
+client.create_index(collection_name, IndexType.FLAT)
+```
+
+- search parameters: 
+  **N/A**
+  
+```python
+# FLAT
+client.search(collection_name, 
+              query_vectors, 
+              1
+)
+```
+
+### IVF_FLAT
 
 **IVF** (*Inverted File*) is an index type based on quantization. It divides the points in space into `nlist`
 units by clustering method. During searching vectors, it compares the distances between the target vector
@@ -49,6 +76,13 @@ client.create_index(collection_name, IndexType.IVF_FLAT, {
 
 ```python
 # IVF_FLAT
+client.search(collection_name, 
+              query_vectors, 
+              1,
+              {
+                "nprobe": 8 # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
+              }
+)
 vector_query = {
     "field_name": {
         "topk": top_k,
@@ -61,13 +95,14 @@ vector_query = {
 }
 ```
 
-#### IVF_PQ
+### IVF_PQ
 
 **PQ** (*Product Quantization*) uniformly decomposes the original high-dimensional vector space into
 Cartesian products of `m` low-dimensional vector spaces, and then quantizes the decomposed low-dimensional
-vector spaces. Instead of calculating the distances between the target vector and the center of all the units,
-product quantization enables the calculation of distances between the target vector and the clustering center
-of each low-dimensional space and greatly reduces the time complexity and space complexity of the algorithm.
+vector spaces. In the end, each vector is stored in `m` × `nbits` bits. Instead of calculating the distances 
+between the target vector and the center of all the units, product quantization enables the calculation of 
+distances between the target vector and the clustering center of each low-dimensional space and greatly reduces
+the time complexity and space complexity of the algorithm.
 
 IVF_PQ performs IVF index clustering, and then quantizes the product of vectors. Its index file is even
 smaller than IVF_SQ8, but it also causes a loss of accuracy during searching.
@@ -78,16 +113,17 @@ smaller than IVF_SQ8, but it also causes a loss of accuracy during searching.
 
   **m**: Number of factors of product quantization. **CPU-only** Milvus: `m ≡ dim (mod m)`; **GPU-enabled** Milvus: `m` ∈ {1, 2, 3, 4, 8, 12, 16, 20, 24, 28, 32, 40, 48, 56, 64, 96}, and (dim / m) ∈ {1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32}. (`m` x 1024) ≥ `MaxSharedMemPerBlock` of your graphics card.
 
+  **nbits**: Number of bits in which each low-dimensional vector is stored.
+
 ```python
 # IVF_PQ
-client.create_index(collection_name, field_name, {
-    "index_type": "IVF_PQ",
-    "metric_type": "L2",  # one of L2, IP
-    "params": {
-        "nlist": 100,     # int. 1~65536
-        "m": 8
-    }
-})
+client.create_index(collection_name, 
+                    IndexType.IVF_PQ, 
+                    {
+                      "nlist": 100,     # int. 1~65536
+                      "m": 8            # int. 1~16. 8 by default
+                    }
+)
 ```
 
 - search parameters:
@@ -96,19 +132,17 @@ client.create_index(collection_name, field_name, {
 
 ```python
 # IVF_PQ
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "L2",  # one of L2, IP
-        "params": {
-            "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-        }
-    }
-}
+client.search(collection_name, 
+              query_vectors, 
+              1, 
+              {
+                "nprobe": 8 # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
+              }
+)
+
 ```
 
-#### IVF_SQ8
+### IVF_SQ8
 
 **IVF_SQ8** does scalar quantization for each vector placed in the unit based on IVF. Scalar quantization
 converts each dimension of the original vector from a 4-byte floating-point number to a 1-byte unsigned integer,
@@ -121,13 +155,12 @@ However, scalar quantization results in a loss of accuracy during searching vect
 
 ```python
 # IVF_SQ8
-client.create_index(collection_name, field_name, {
-    "index_type": "IVF_SQ8",
-    "metric_type": "L2",  # one of L2, IP
-    "params": {
-        "nlist": 100      # int. 1~65536
-    }
-})
+client.create_index(collection_name, 
+                    indextype.ivf_sq8, 
+                    {
+                      "nlist": 100      # int. 1~65536
+                    }
+)
 ```
 
 - search parameters:
@@ -136,21 +169,19 @@ client.create_index(collection_name, field_name, {
 
 ```python
 # IVF_SQ8
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "L2",  # one of L2, IP
-        "params": {
-            "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-        }
-    }
-}
+client.search(collection_name, 
+              query_vectors, 
+              1, 
+              {
+                "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
+              }
+)
+
 ```
 
-#### IVF_SQ8_HYBRID
+### IVF_SQ8_H
 
-Optimized version of IVF_SQ8 that requires both CPU and GPU to work. Unlike IVF_SQ8, IVF_SQ8H uses a GPU-based
+Optimized version of IVF_SQ8 that requires both CPU and GPU to work. Unlike IVF_SQ8, IVF_SQ8_H uses a GPU-based
 coarse quantizer, which greatly reduces time to quantize.
 
 IVF_SQ8H is an IVF_SQ8 index that optimizes query execution.
@@ -166,14 +197,13 @@ index file, and CPU handles the rest.
   **nlist**: Number of cluster units.
 
 ```python
-# IVF_SQ8_HYBRID
-client.create_index(collection_name, field_name, {
-    "index_type": "IVF_SQ8_HYBRID",
-    "metric_type": "L2",  # one of L2, IP
-    "params": {
-        "nlist": 100      # int. 1~65536
-    }
-})
+# IVF_SQ8_H
+client.create_index(collection_name, 
+                    IndexType.IVF_SQ8_H, 
+                    {
+                      "nlist": 100      # int. 1~65536
+                    }
+)
 ```
 
 - search parameters:
@@ -181,20 +211,17 @@ client.create_index(collection_name, field_name, {
   **nprobe**: Number of inverted file cell to probe.
 
 ```python
-# IVF_SQ8_HYBRID
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "L2",  # one of L2, IP
-        "params": {
-            "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-        }
-    }
-}
+# IVF_SQ8_H
+client.search(collection_name, 
+              query_vectors, 
+              1, 
+              {
+                "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
+              }
+)
 ```
 
-#### ANNOY
+### ANNOY
 
 **ANNOY** (*Approximate Nearest Neighbors Oh Yeah*) is an index that uses a hyperplane to divide a
 high-dimensional space into multiple subspaces, and then stores them in a tree structure.
@@ -212,13 +239,12 @@ all the dividing methods simultaneously to reduce the probability that the targe
 
 ```python
 # ANNOY
-client.create_index(collection_name, field_name, {
-    "index_type": "ANNOY",
-    "metric_type": "L2",  # one of L2, IP
-    "params": {
-        "n_trees": 8      # int. 1~1024
-    }
-})
+client.create_index(collection_name, 
+                    IndexType.IVF_SQ8, 
+                    {
+                      "n_trees": 8      # int. 1~1024
+                    }
+)
 ```
 
 - search parameters:
@@ -227,19 +253,16 @@ client.create_index(collection_name, field_name, {
 
 ```python
 # ANNOY
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "L2",  # one of L2, IP
-        "params": {
-            "search_k": -1    # int. {-1} U [top_k, n*n_trees], n represents vectors count.
-        }
-    }
-}
+client.search(collection_name, 
+              query_vectors, 
+              1, 
+              {
+                "search_k": -1    # int. {-1} U [top_k, n*n_trees], n represents vectors count.
+              }
+)
 ```
 
-#### HNSW
+### HNSW
 
 **HNSW** (*Hierarchical Navigable Small World Graph*) is a graph-based indexing algorithm. It builds a
 multi-layer navigation structure for an image according to certain rules. In this structure, the upper
@@ -259,14 +282,13 @@ In addition, you can use `efConstruction` (when building index) or `ef` (when se
 
 ```python
 # HNSW
-client.create_index(collection_name, field_name, {
-    "index_type": "HNSW",
-    "metric_type": "L2",      # one of L2, IP
-    "params": {
-        "M": 16,              # int. 4~64
-        "efConstruction": 40  # int. 8~512
-    }
-})
+client.create_index(collection_name, 
+                    indextype.ivf_sq8, 
+                    {
+                      "M": 16,              # int. 4~64
+                      "efConstruction": 40  # int. 8~512
+                    }
+)
 ```
 
 - search parameters:
@@ -275,105 +297,19 @@ client.create_index(collection_name, field_name, {
 
 ```python
 # HNSW
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "L2",  # one of L2, IP
-        "params": {
-            "ef": 64          # int. top_k~32768
-        }
-    }
-}
+client.search(collection_name, 
+              query_vectors, 
+              1, 
+              {
+                "ef": 64          # int. top_k~32768
+              }
+)
 ```
 
-#### RHNSW_PQ
 
-**RHNSW_PQ** is a variant index type combining PQ and HNSW. It first uses PQ to quantize the vector,
-then uses HNSW to quantize the PQ quantization result to get the index.
+### RNSG
 
-- building parameters:
-
-  **M**: Maximum degree of the node.
-
-  **efConstruction**: Take effect in stage of index construction.
-
-  **PQM**: m for PQ.
-
-```python
-# RHNSW_PQ
-client.create_index(collection_name, field_name, {
-    "index_type": "RHNSW_PQ",
-    "metric_type": "L2",
-    "params": {
-        "M": 16,               # int. 4~64
-        "efConstruction": 40,  # int. 8~512
-        "PQM": 8,              # int. CPU only. PQM = dim (mod m)
-    }
-})
-```
-
-- search parameters:
-
-  **ef**: Take the effect in stage of search scope, should be larger than `top_k`.
-
-```python
-# RHNSW_PQ
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "L2",  # one of L2, IP
-        "params": {
-            "ef": 64          # int. top_k~32768
-        }
-    }
-}
-```
-
-#### RHNSW_SQ
-
-**RHNSW_SQ** is a variant index type combining SQ and HNSW. It first uses SQ to quantize the vector, then uses HNSW to quantize the SQ quantization result to get the index.
-
-- building parameters:
-
-  **M**: Maximum degree of the node.
-
-  **efConstruction**: Take effect in stage of index construction, search scope.
-
-```python
-# RHNSW_SQ
-client.create_index(collection_name, field_name, {
-    "index_type": "RHNSW_SQ",
-    "metric_type": "L2",      # one of L2, IP
-    "params": {
-        "M": 16,              # int. 4~64
-        "efConstruction": 40  # int. 8~512
-    }
-})
-```
-
-- search parameters:
-
-  **ef**: Take the effect in stage of search scope, should be larger than `top_k`.
-
-```python
-# RHNSW_SQ
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "L2",  # one of L2, IP
-        "params": {
-            "ef": 64          # int. top_k~32768
-        }
-    }
-}
-```
-
-#### NSG
-
-**NSG** (*Refined Navigating Spreading-out Graph*) is a graph-based indexing algorithm. It sets the center
+**RNSG** (*Refined Navigating Spreading-out Graph*) is a graph-based indexing algorithm. It sets the center
 position of the whole image as a navigation point, and then uses a specific edge selection strategy to control
 the out-degree of each point (less than or equal to `out_degree`). Therefore, it can reduce memory usage and
 quickly locate the target position nearby during searching vectors.
@@ -397,17 +333,16 @@ The query process is similar to the graph building process. It starts from the n
   **knng**: Number of nearest neighbors
 
 ```python
-# NSG
-client.create_index(collection_name, field_name, {
-    "index_type": "NSG",
-    "metric_type": "L2",
-    "params": {
-        "search_length": 60,         # int. 10~300
-        "out_degree": 30,            # int. 5~300
-        "candidate_pool_size": 300,  # int. 50~1000
-        "knng": 50                   # int. 5~300
-    }
-})
+# RNSG
+client.create_index(collection_name, 
+                    IndexType.IVF_SQ8, 
+                    {
+                      "search_length": 60,         # int. 10~300
+                      "out_degree": 30,            # int. 5~300
+                      "candidate_pool_size": 300,  # int. 50~1000
+                      "knng": 50                   # int. 5~300
+                    }
+)
 ```
 
 - search parameters:
@@ -415,86 +350,12 @@ client.create_index(collection_name, field_name, {
 	**search_length**: Number of query iterations
 
 ```python
-# NSG
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "L2",      # one of L2, IP
-        "params": {
-            "search_length": 100  # int. 10~300
-        }
-    }
-}
+# RNSG
+client.search(collection_name, 
+              query_vectors, 
+              1, 
+              {
+                "search_length": 100  # int. 10~300
+              }
+)
 ```
-
-### Binary Vector Index
-
-The binary vector indexes are partially applicable for binary metrics, please refer to the table as follows:
-
-+-------------------------+-------------------------------------------------+
-| Binary vector index     | Supported metrics                               |
-+=========================+=================================================+
-| BIN_IVF_FLAT            | JACCARD, HAMMING, TANIMOTO                      |
-+-------------------------+-------------------------------------------------+
-
-
-- `BIN_IVF_FLAT`_
-
-#### BIN_IVF_FLAT
-
-**BIN_IVF_FLAT** is a binary variant of IVF_FLAT.
-
-- building parameters:
-
-  **nlist**: Number of cluster units.
-
-```python
-# BIN_IVF_FLAT
-client.create_index(collection_name, field_name, {
-    "index_type": "BIN_IVF_FLAT",
-    "metric_type": "JACCARD",  # one of JACCARD, HAMMING, TANIMOTO
-    "params": {
-        "nlist": 100           # int. 1~65536
-    }
-})
-
-```
-
-- search parameters:
-
-  **nprobe**: Number of inverted file cell to probe.
-
-```python
-# BIN_IVF_FLAT
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "JACCARD",  # one of JACCARD, HAMMING, TANIMOTO
-        "params": {
-            "nprobe": 8            # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-        }
-    }
-}
-```
-
-
-## Scalar Index
-
-For scalar indexes, We only need specify them during creating, so there is no search parameters for them.
-
-- `SORTED`_
-
-### SORTED
-
-- building parameters: N/A
-
-```python
-# SORTED
-client.create_index(collection_name, field_name, {
-    "index_type": "SORTED",
-})
-
-```
-
