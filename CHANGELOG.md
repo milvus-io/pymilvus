@@ -1,10 +1,13 @@
+# pymilvus 1.0.2(TBD)
+
+## Improvement
+- \#442 - Add tutorial documentation
+
+
 # pymilvus 1.0.1(2021-03-08)
 
 ## New Feature
 - \436 Update Pymilvus v1.0.x documentation frame
-
-## New Feature
-- \#436 - Update PyMilvus v1.0.x documentation
 
 ## Task
 - \#432 - Remove hybrid APIs
