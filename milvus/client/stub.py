@@ -426,7 +426,8 @@ class Milvus:
         :param partition_tag: Tag of a partition.
         :type partition_tag: str or None. If partition_tag is None, vectors will be inserted to the default
                              partition `_default`.
-
+        :param params: Insert param. Reserved.
+        :type params: dict
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
