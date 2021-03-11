@@ -428,6 +428,13 @@ class Milvus:
                              partition `_default`.
         :param params: Insert param. Reserved.
         :type params: dict
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only take
+              effect when _async is set to True.
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
@@ -493,7 +500,13 @@ class Milvus:
         :type index_type: IndexType
         :param params: Index param. See <a href="">here</a> for detailed index param of supported indexes.
         :type params: dict
-
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only take
+              effect when _async is set to True.
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
@@ -654,6 +667,13 @@ class Milvus:
         :param params: Search params. The params is related to index type the collection is built.
                        See <a></a> for more detailed information.
         :type  params: dict
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only take
+              effect when _async is set to True.
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
@@ -692,6 +712,13 @@ class Milvus:
         :param params: Search params. The params is related to index type the collection is built.
                        See <a></a> for more detailed information.
         :type  params: dict
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only take
+              effect when _async is set to True.
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
@@ -740,6 +767,13 @@ class Milvus:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only take
+              effect when _async is set to True.
 
         :returns: The operation status. Succeed if `Status.OK()` is `True`.
         :rtype: Status
@@ -770,6 +804,13 @@ class Milvus:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only take
+              effect when _async is set to True.
 
         :returns: The operation status. Succeed if `Status.OK()` is `True`.
         :rtype: Status
