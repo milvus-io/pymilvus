@@ -31,23 +31,23 @@ Methods
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `list_collections() <#milvus.Milvus.list_collections>`_              | Gets a list of collections.                                            |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `get_collection_stats() <#milvus.Milvus.get_collection_stats>`_      | Gets collection statistics.                                       |
+| `get_collection_stats() <#milvus.Milvus.get_collection_stats>`_      | Gets collection statistics.                                            |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `load_collection() <#milvus.Milvus.load_collection>`_                | Loads a specified collection from storage to memory.                   |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `drop_collection() <#milvus.Milvus.drop_collection>`_                | Removes a collection.                                                    |
-+----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `bulk_insert() <#milvus.Milvus.bulk_insert>`_                        | Inserts columnar entities to a specified collection.                   |
+| `drop_collection() <#milvus.Milvus.drop_collection>`_                | Removes a collection.                                                  |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `insert() <#milvus.Milvus.insert>`_                                  | Inserts entities to a specified collection.                            |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `get_entity_by_id() <#milvus.Milvus.get_entity_by_id>`_              | Gets entities by entity ID.                                       |
+| `get_entity_by_id() <#milvus.Milvus.get_entity_by_id>`_              | Gets entities by entity ID.                                            |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `list_id_in_segment() <#milvus.Milvus.list_id_in_segment>`_          | Gets the list of ids in a specified segment.                           |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `create_index() <#milvus.Milvus.create_index>`_                      | Creates an index for a specified field.                                |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `drop_index() <#milvus.Milvus.drop_index>`_                          | Removes index from a specified field.                                    |
+| `get_index_info() <#milvus.Milvus.get_index_info>`_                  | Get index information.                                                 |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `drop_index() <#milvus.Milvus.drop_index>`_                          | Removes index from a specified field.                                  |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `create_partition() <#milvus.Milvus.create_partition>`_              | Creates a partition in a specified collection.                         |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
@@ -75,9 +75,9 @@ APIs
 
 .. autoclass:: milvus.Milvus
    :members: create_collection, has_collection, get_collection_info, count_entities, list_collections,
-             get_collection_stats, load_collection, drop_collection, bulk_insert, insert, get_entity_by_id,
-             list_id_in_segment, create_index, drop_index, create_partition, has_partition, list_partitions,
-             drop_partition, search, search_in_segment, delete_entity_by_id, flush, compact
+             get_collection_stats, load_collection, drop_collection, insert, get_entity_by_id,
+             list_id_in_segment, create_index, get_index_info, drop_index, create_partition, has_partition,
+             list_partitions, drop_partition, search, search_in_segment, delete_entity_by_id, flush, compact
 
 
 
