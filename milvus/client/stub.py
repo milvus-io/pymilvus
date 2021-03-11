@@ -224,13 +224,26 @@ class Milvus:
         Creates a collection.
 
         :type  param: dict
-        :param param: Information needed to create a collection.
+        :param param: Information needed to create a collection. It contains items:
 
-                `param={'collection_name': 'name',
-                                'dimension': 16,
-                                'index_file_size': 1024 (default)，
-                                'metric_type': Metric_type.L2 (default)
-                                }`
+            * *collection_name* (``str``) -- Collection name.
+            * *dimension* (``int``) -- Dimension of embeddings stored in collection.
+            * *index_file_size* (``int``) -- Segment size. See
+              `Storage Concepts <https://milvus.io/docs/v1.0.0/storage_concept.md>`_.
+            * *metric_type* (``MetricType``) -- Distance Metrics type. See
+              `Distance Metrics <https://milvus.io/docs/v1.0.0/metric.md>`_.
+
+
+            A demo is as follow:
+
+            .. code-block:: python
+
+                param={'collection_name': 'name',
+                   'dimension': 16,
+                   'index_file_size': 1024 # Optional, default 1024，
+                   'metric_type': MetricType.L2 # Optional, default MetricType.L2
+                  }
+
 
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
@@ -281,7 +294,7 @@ class Milvus:
 
         :return: The operation status and the flag indicating if collection exists. Succeed if `Status.OK()` is `True`.
                  If status is not OK, the flag is always `False`.
-        :rtype: (Status, bool)
+        :rtype: Status, bool
 
         """
         check_pass_param(collection_name=collection_name)
@@ -301,7 +314,7 @@ class Milvus:
 
         :return: The operation status and collection information. Succeed if `Status.OK()` is `True`.
                  If status is not OK, the returned information is always `None`.
-        :rtype: (Status, CollectionSchema/None)
+        :rtype: Status, CollectionSchema
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -320,7 +333,7 @@ class Milvus:
 
         :return: The operation status and row count. Succeed if `Status.OK()` is `True`.
                  If status is not OK, the returned value of is always `None`.
-        :rtype: (Status, int/None)
+        :rtype: Status, int
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -337,7 +350,7 @@ class Milvus:
 
         :return: The operation status and collection name list. Succeed if `Status.OK()` is `True`.
                  If status is not OK, the returned name list is always `[]`.
-        :rtype: (Status, list[str])
+        :rtype: Status, list[str]
         """
         with self._connection() as handler:
             return handler.show_collections(timeout)
@@ -345,15 +358,18 @@ class Milvus:
     @check_connect
     def get_collection_stats(self, collection_name, timeout=30):
         """
-        Returns collection statistics information
 
-        `:param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+        Returns collection statistics information.
+
+        :type  collection_name: str
+        :param collection_name: target table name.
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
 
         :return: The operation status and collection statistics information. Succeed if `Status.OK()` is `True`.
                  If status is not OK, the returned information is always `[]`.
-        :rtype: (Status, dict/None)
+        :rtype: Status, dict
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -380,10 +396,24 @@ class Milvus:
             return handler.preload_collection(collection_name, partition_tags, timeout)
 
     @check_connect
-    def reload_segments(self, collection_name, segment_ids):
+    def reload_segments(self, collection_name, segment_ids, timeout=None):
+        """
+        Reloads segment DeletedDocs data to cache. This API is not recommended for users.
+
+        :param collection_name: Name of the collection being deleted
+        :type  collection_name: str
+        :param segment_ids: Segment IDs.
+        :type segment_ids: list[str]
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
+
+        :return: The operation status. Succeed if `Status.OK()` is `True`.
+        :rtype: Status
+        """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.reload_segments(collection_name, segment_ids)
+            return handler.reload_segments(collection_name, segment_ids, timeout)
 
     @check_connect
     def drop_collection(self, collection_name, timeout=30):
@@ -408,7 +438,6 @@ class Milvus:
         """
         Insert vectors to a collection.
 
-
         :type  collection_name: str
         :param collection_name: Name of the collection to insert vectors to.
         :param ids: ID list. `None` indicates ID is generated by server system. Note that if the first time when
@@ -418,11 +447,6 @@ class Milvus:
         :type  ids: list[int]
         :param records: List of vectors to insert.
         :type  records: list[list[float]]
-
-                `example records: [[1.2345],[1.2345]]`
-
-                `OR using Prepare.records`
-
         :param partition_tag: Tag of a partition.
         :type partition_tag: str or None. If partition_tag is None, vectors will be inserted to the default
                              partition `_default`.
@@ -441,7 +465,7 @@ class Milvus:
 
         :return: The operation status and IDs of inserted entities. Succeed if `Status.OK()` is `True`.
                  If status is not OK, the returned IDs is always `[]`.
-        :rtype: (Status, list[int])
+        :rtype: Status, list[int]
         """
         if kwargs.get("insert_param", None) is not None:
             with self._connection() as handler:
@@ -475,7 +499,7 @@ class Milvus:
 
         :return: The operation status and entities. Succeed if `Status.OK()` is `True`.
                  If status is not OK, the returned entities is always `[]`.
-        :rtype: (Status, list[list[float]]/list[bytes]/None)
+        :rtype: Status, list[list[float]]
         """
         check_pass_param(collection_name=collection_name, ids=ids)
 
@@ -484,6 +508,21 @@ class Milvus:
 
     @check_connect
     def list_id_in_segment(self, collection_name, segment_name, timeout=None):
+        """
+        Get IDs of entity stored in the specified segment.
+
+        :param collection_name: Collection the segment belongs to.
+        :type collection_name: str
+        :param segment_name: Segment name.
+        :type segment_name: str
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
+
+        :return: The operation status and entity IDs. Succeed if `Status.OK()` is `True`.
+                 If status is not OK, the returned IDs is always `[]`.
+        :rtype: Status, list[int]
+        """
         check_pass_param(collection_name=collection_name)
         check_pass_param(collection_name=segment_name)
         with self._connection() as handler:
@@ -496,9 +535,9 @@ class Milvus:
 
         :param collection_name: Collection used to create index.
         :type collection_name: str
-        :param index_type: index params. See <a href="">here</a> for supported indexes.
+        :param index_type: index params. See `index params <param.html>`_ for supported indexes.
         :type index_type: IndexType
-        :param params: Index param. See <a href="">here</a> for detailed index param of supported indexes.
+        :param params: Index param. See `index params <param.html>`_ for detailed index param of supported indexes.
         :type params: dict
         :param kwargs:
             * *_async* (``bool``) --
@@ -511,7 +550,7 @@ class Milvus:
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
 
-        :return: The operation status and entities. Succeed if `Status.OK()` is `True`.
+        :return: The operation status. Succeed if `Status.OK()` is `True`.
         :rtype: Status
         """
         _index_type = IndexType.FLAT if index_type is None else index_type
@@ -536,7 +575,7 @@ class Milvus:
 
         :return: The operation status and index info. Succeed if `Status.OK()` is `True`.
                  If status is not OK, the returned index info is always `None`.
-        :rtype: (Status, IndexParam/None)
+        :rtype: Status, IndexParam
 
         """
         check_pass_param(collection_name=collection_name)
@@ -599,7 +638,7 @@ class Milvus:
 
         :returns: The operation status and a flag indicating if partition exists. Succeed
                   if `Status.OK()` is `True`. If status is not ok, the flag is always `False`.
-        :rtype: (Status, bool)
+        :rtype: Status, bool
 
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
@@ -620,7 +659,7 @@ class Milvus:
 
         :returns: The operation status and partition list. Succeed if `Status.OK()` is `True`.
                   If status is not OK, returned partition list is `[]`.
-        :rtype: (Status, list[PartitionParam])
+        :rtype: Status, list[PartitionParam]
 
         """
         check_pass_param(collection_name=collection_name)
@@ -665,7 +704,7 @@ class Milvus:
         :param partition_tags: tags to search. `None` indicates to search in whole collection.
         :type  partition_tags: list
         :param params: Search params. The params is related to index type the collection is built.
-                       See <a></a> for more detailed information.
+                       See `index params <param.html>`_ for more detailed information.
         :type  params: dict
         :param kwargs:
             * *_async* (``bool``) --
@@ -680,7 +719,7 @@ class Milvus:
 
         :returns: The operation status and search result. See <a>here</a> to find how to handle search result.
                   Succeed if `Status.OK()` is `True`. If status is not OK, results is always `None`.
-        :rtype: (Status, TopkQueryResult/None)
+        :rtype: Status, TopKQueryResult
         """
         check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
         if partition_tags is not None:
@@ -699,7 +738,7 @@ class Milvus:
 
         The Milvus server stores vector data into multiple files. Searching for vectors in specific files is a
         method used in Mishards. Obtain more detail about Mishards, see
-        <a href="https://github.com/milvus-io/milvus/tree/master/shards">
+        `Mishards <https://github.com/milvus-io/milvus/tree/master/shards>`_.
 
         :param collection_name: table name been queried
         :type  collection_name: str
@@ -725,7 +764,7 @@ class Milvus:
 
         :returns: The operation status and search result. See <a>here</a> to find how to handle search result.
                   Succeed if `Status.OK()` is `True`. If status is not OK, results is always `None`.
-        :rtype: (Status, TopkQueryResult/None)
+        :rtype: Status, TopKQueryResult
         """
         check_pass_param(collection_name=collection_name, topk=top_k, records=query_records, ids=file_ids)
 

@@ -23,11 +23,11 @@ Methods
 +======================================================================+========================================================================+
 | `create_collection() <#milvus.Milvus.create_collection>`_            | Creates a collection.                                                  |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `has_collection() <#milvus.Milvus.has_collection>`_                  | Checks if a collection exists.                                          |
+| `has_collection() <#milvus.Milvus.has_collection>`_                  | Checks if a collection exists.                                         |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `get_collection_info() <#milvus.Milvus.get_collection_info>`_        | Gets information of a specified collection.                       |
+| `get_collection_info() <#milvus.Milvus.get_collection_info>`_        | Gets information of a specified collection.                            |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `count_entities() <#milvus.Milvus.count_entities>`_                  | Gets the number of entities in a collection.                      |
+| `count_entities() <#milvus.Milvus.count_entities>`_                  | Gets the number of entities in a collection.                           |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `list_collections() <#milvus.Milvus.list_collections>`_              | Gets a list of collections.                                            |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
@@ -51,15 +51,13 @@ Methods
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `create_partition() <#milvus.Milvus.create_partition>`_              | Creates a partition in a specified collection.                         |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `has_partition() <#milvus.Milvus.has_partition>`_                    | Checks if a partition exists in a specified collection.                 |
+| `has_partition() <#milvus.Milvus.has_partition>`_                    | Checks if a partition exists in a specified collection.                |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `list_partitions() <#milvus.Milvus.list_partitions>`_                | Gets a partition list from a specified collection.                |
+| `list_partitions() <#milvus.Milvus.list_partitions>`_                | Gets a partition list from a specified collection.                     |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `drop_partition() <#milvus.Milvus.drop_partition>`_                  | Removes a specified partition from a collection.                       |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `search() <#milvus.Milvus.search>`_                                  | Searches for approximate nearest entities.                               |
-+----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `search_in_segment() <#milvus.Milvus.search_in_segment>`_            | Searches for approximate nearest entities in the specified segments.   |
+| `search() <#milvus.Milvus.search>`_                                  | Searches for approximate nearest entities.                             |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `delete_entity_by_id() <#milvus.Milvus.delete_entity_by_id>`_        | Deletes entities by entity ID.                                         |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
@@ -77,7 +75,7 @@ APIs
    :members: create_collection, has_collection, get_collection_info, count_entities, list_collections,
              get_collection_stats, load_collection, drop_collection, insert, get_entity_by_id,
              list_id_in_segment, create_index, get_index_info, drop_index, create_partition, has_partition,
-             list_partitions, drop_partition, search, search_in_segment, delete_entity_by_id, flush, compact
+             list_partitions, drop_partition, search, delete_entity_by_id, flush, compact
 
 
 
