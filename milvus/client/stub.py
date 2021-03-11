@@ -232,10 +232,11 @@ class Milvus:
                                 'metric_type': Metric_type.L2 (default)
                                 }`
 
-        :param timeout: Timeout in seconds.
-        :type  timeout: double
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
-        :return: Whether the operation is successful.
+        :return: Whether collection creating is successful.
         :rtype: Status
         """
         if not isinstance(param, dict):
@@ -274,12 +275,12 @@ class Milvus:
 
         :param collection_name: Name of the collection to check.
         :type  collection_name: str
-        :param timeout: Timeout in seconds.
-        :type  timeout: int
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
-        :return:
-            Status: indicate whether the operation is successful.
-            bool if given collection_name exists
+        :returns: whether the operation is successful and server contains specified collection.
+        :rtype:  (Status, bool)
 
         """
         check_pass_param(collection_name=collection_name)
@@ -293,6 +294,9 @@ class Milvus:
 
         :type  collection_name: str
         :param collection_name: Name of the collection to describe.
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :returns: (Status, table_schema)
             Status: indicate if query is successful
@@ -311,6 +315,9 @@ class Milvus:
 
         :type  collection_name: str
         :param collection_name: target table name.
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :returns:
             Status: indicate if operation is successful
@@ -325,6 +332,10 @@ class Milvus:
     def list_collections(self, timeout=30):
         """
         Returns collection list.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return:
             Status: indicate if this operation is successful
@@ -341,6 +352,10 @@ class Milvus:
     def get_collection_stats(self, collection_name, timeout=30):
         """
         Returns collection statistics information
+
+        `:param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return:
             Status: indicate if this operation is successful
@@ -360,9 +375,12 @@ class Milvus:
 
         :type collection_name: str
         :param collection_name: collection to load
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
-        :returns:
-            Status:  indicate if invoke is successful
+        :return: Whether load is successful
+        :rtype: Status
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -381,6 +399,9 @@ class Milvus:
 
         :type  collection_name: str
         :param collection_name: Name of the collection being deleted
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return: Status, indicate if operation is successful
         :rtype: Status
@@ -412,6 +433,9 @@ class Milvus:
             If partition_tag is None, vectors will be inserted to the collection rather than partitions.
 
         :param partition_tag: Tag of a partition.
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :returns:
             Status: Whether vectors are inserted successfully.
@@ -444,6 +468,9 @@ class Milvus:
 
         :param ids: list of vector id
         :type ids: list
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :returns:
             Status: indicate if invoke is successful
@@ -476,12 +503,9 @@ class Milvus:
             `example (default) param={'index_type': IndexType.FLAT,
                             'nlist': 16384}`
 
-        :param timeout: grpc request timeout.
-
-            if `timeout` = -1, method invoke a synchronous call, waiting util grpc response
-            else method invoke a asynchronous call, timeout work here
-
-        :type  timeout: int
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return: Whether the operation is successful.
         """
@@ -501,6 +525,9 @@ class Milvus:
 
         :type collection_name: str
         :param collection_name: table name been queried
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :returns:
             Status:  Whether the operation is successful.
@@ -519,6 +546,9 @@ class Milvus:
 
         :param collection_name: target collection name.
         :type collection_name: str
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return:
             Status: Whether the operation is successful.
@@ -544,8 +574,9 @@ class Milvus:
         :param partition_tag: Name of the partition tag.
         :type  partition_tag: str
 
-        :param timeout: time waiting for response.
-        :type  timeout: int
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return:
             Status: Whether the operation is successful.
@@ -565,6 +596,9 @@ class Milvus:
 
         :param partition_tag: partition tag.
         :type  partition_tag: str
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return:
             Status: Whether the operation is successful.
@@ -583,8 +617,9 @@ class Milvus:
         :param collection_name: target table name.
         :type  collection_name: str
 
-        :param timeout: time waiting for response.
-        :type  timeout: int
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return:
             Status: Whether the operation is successful.
@@ -607,8 +642,9 @@ class Milvus:
         :param partition_tag: Partition name.
         :type  partition_tag: str
 
-        :param timeout: time waiting for response.
-        :type  timeout: int
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return:
             Status: Whether the operation is successful.
@@ -637,6 +673,10 @@ class Milvus:
 
         :param partition_tags: tags to search
         :type  partition_tags: list
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         :return
             Status: Whether the operation is successful.
@@ -680,6 +720,11 @@ class Milvus:
         :type  top_k: int
         :param top_k: how many similar vectors will be searched
 
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
+
+
         :returns:
             Status:  indicate if query is successful
             results: query result
@@ -706,6 +751,10 @@ class Milvus:
         :param id_array: list of vector id
         :type  id_array: list[int]
 
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
+
         :return:
             Status: Whether the operation is successful.
         """
@@ -720,6 +769,10 @@ class Milvus:
 
         :type  collection_name_array: list
         :param collection_name: Name of one or multiple collections to flush.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         """
 
@@ -745,6 +798,10 @@ class Milvus:
 
         :type  collection_name: str
         :param collection_name: Name of the collections to compact.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
 
         """
         check_pass_param(collection_name=collection_name)
