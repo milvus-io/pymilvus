@@ -2,12 +2,14 @@
 
 ## Improvement
 - \#442 - Add tutorial documentation
+- \#444 - Add index-param documentation
+- \#447 - Add query-results documentation
 
 
 # pymilvus 1.0.1(2021-03-08)
 
 ## New Feature
-- \436 Update Pymilvus v1.0.x documentation frame
+- \436 Update PyMilvus v1.0.x documentation frame
 
 ## Task
 - \#432 - Remove hybrid APIs
