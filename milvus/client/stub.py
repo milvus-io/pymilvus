@@ -81,6 +81,8 @@ def _set_uri(host, port, uri, handler="GRPC"):
 
 class Milvus:
     def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", **kwargs):
+        """Constructor method
+        """
         self._name = kwargs.get('name', None)
         self._uri = None
         self._status = None
