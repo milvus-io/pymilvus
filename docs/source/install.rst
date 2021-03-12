@@ -49,7 +49,7 @@ If you want to install a specific version of PyMilvus:
 
 .. code-block:: shell
    
-   (venv) $ pip install pymilvus==0.3.0
+   (venv) $ pip install pymilvus==1.0.1
 
 If you want to upgrade PyMilvus into the latest version published:
 
