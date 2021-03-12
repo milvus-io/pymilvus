@@ -44,9 +44,9 @@ client.create_index(collection_name, IndexType.FLAT)
   
 ```python
 # FLAT
-client.search(collection_name, 
-              query_vectors, 
-              1
+client.search(collection_name,
+              1,
+              query_vectors
 )
 ```
 
@@ -76,23 +76,13 @@ client.create_index(collection_name, IndexType.IVF_FLAT, {
 
 ```python
 # IVF_FLAT
-client.search(collection_name, 
-              query_vectors, 
+client.search(collection_name,
               1,
-              {
+              query_vectors, 
+              params={
                 "nprobe": 8 # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
               }
 )
-vector_query = {
-    "field_name": {
-        "topk": top_k,
-        "query": queries,
-        "metric_type": "L2",  # one of L2, IP
-        "params": {
-            "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-        }
-    }
-}
 ```
 
 ### IVF_PQ
@@ -101,7 +91,7 @@ vector_query = {
 Cartesian products of `m` low-dimensional vector spaces, and then quantizes the decomposed low-dimensional
 vector spaces. In the end, each vector is stored in `m` × `nbits` bits. Instead of calculating the distances 
 between the target vector and the center of all the units, product quantization enables the calculation of 
-distances between the target vector and the clustering center of each low-dimensional space and greatly reduces
+distances between the target vector, and the clustering center of each low-dimensional space and greatly reduces
 the time complexity and space complexity of the algorithm.
 
 IVF_PQ performs IVF index clustering, and then quantizes the product of vectors. Its index file is even
@@ -132,10 +122,10 @@ client.create_index(collection_name,
 
 ```python
 # IVF_PQ
-client.search(collection_name, 
-              query_vectors, 
+client.search(collection_name,
               1, 
-              {
+              query_vectors, 
+              params={
                 "nprobe": 8 # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
               }
 )
@@ -156,7 +146,7 @@ However, scalar quantization results in a loss of accuracy during searching vect
 ```python
 # IVF_SQ8
 client.create_index(collection_name, 
-                    indextype.ivf_sq8, 
+                    IndexType.IVF_SQ8, 
                     {
                       "nlist": 100      # int. 1~65536
                     }
@@ -169,10 +159,10 @@ client.create_index(collection_name,
 
 ```python
 # IVF_SQ8
-client.search(collection_name, 
-              query_vectors, 
+client.search(collection_name,
               1, 
-              {
+              query_vectors, 
+              params={
                 "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
               }
 )
@@ -212,10 +202,10 @@ client.create_index(collection_name,
 
 ```python
 # IVF_SQ8_H
-client.search(collection_name, 
-              query_vectors, 
+client.search(collection_name,
               1, 
-              {
+              query_vectors, 
+              params={
                 "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
               }
 )
@@ -240,7 +230,7 @@ all the dividing methods simultaneously to reduce the probability that the targe
 ```python
 # ANNOY
 client.create_index(collection_name, 
-                    IndexType.IVF_SQ8, 
+                    IndexType.ANNOY, 
                     {
                       "n_trees": 8      # int. 1~1024
                     }
@@ -253,10 +243,10 @@ client.create_index(collection_name,
 
 ```python
 # ANNOY
-client.search(collection_name, 
+client.search(collection_name,
+              1,
               query_vectors, 
-              1, 
-              {
+              params={
                 "search_k": -1    # int. {-1} U [top_k, n*n_trees], n represents vectors count.
               }
 )
@@ -283,7 +273,7 @@ In addition, you can use `efConstruction` (when building index) or `ef` (when se
 ```python
 # HNSW
 client.create_index(collection_name, 
-                    indextype.ivf_sq8, 
+                    IndexType.HNSW, 
                     {
                       "M": 16,              # int. 4~64
                       "efConstruction": 40  # int. 8~512
@@ -297,10 +287,10 @@ client.create_index(collection_name,
 
 ```python
 # HNSW
-client.search(collection_name, 
-              query_vectors, 
+client.search(collection_name,
               1, 
-              {
+              query_vectors, 
+              params={
                 "ef": 64          # int. top_k~32768
               }
 )
@@ -335,7 +325,7 @@ The query process is similar to the graph building process. It starts from the n
 ```python
 # RNSG
 client.create_index(collection_name, 
-                    IndexType.IVF_SQ8, 
+                    IndexType.RNSG, 
                     {
                       "search_length": 60,         # int. 10~300
                       "out_degree": 30,            # int. 5~300
@@ -351,10 +341,10 @@ client.create_index(collection_name,
 
 ```python
 # RNSG
-client.search(collection_name, 
-              query_vectors, 
+client.search(collection_name,
               1, 
-              {
+              query_vectors, 
+              params={
                 "search_length": 100  # int. 10~300
               }
 )
