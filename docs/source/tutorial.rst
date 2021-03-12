@@ -10,7 +10,8 @@ or `hello milvus <https://www.milvus.io/docs/example_code.md>`_ on milvus offici
 
 
 .. note::
-   Here we use float vectors as example vector field data, if you want to learn example about binary vectors, see `binary vector example<https://github.com/milvus-io/pymilvus/blob/1.0/examples/example_binary.py>`_.
+   Here we use float vectors as example vector field data, if you want to learn example about binary vectors, see
+   `binary vector example <https://github.com/milvus-io/pymilvus/blob/1.0/examples/example_binary.py>`_.
 
 
 Prerequisites
