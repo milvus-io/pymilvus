@@ -6,7 +6,8 @@ This is a basic introduction to Milvus by PyMilvus.
 
 For a runnable python script,
 checkout `example.py <https://github.com/milvus-io/pymilvus/blob/1.0/examples/example.py>`_ on PyMilvus Github,
-or `hello milvus <https://www.milvus.io/docs/example_code.md>`_ on milvus official website. It's a good recommended start to get started with Milvus and PyMilvus as well.
+or `hello milvus <https://www.milvus.io/docs/example_code.md>`_ on Milvus official website. It's a good recommended
+start to get started with Milvus and PyMilvus as well.
 
 
 .. note::
@@ -22,7 +23,7 @@ Before we start, there are some prerequisites.
 Make sure that:
 
 - You have a running Milvus instance.
-- PyMilvus is correctly `installed <https://pymilvus.readthedocs.io/en/latest/install.html>`_.
+- PyMilvus is correctly `installed <https://pymilvus.readthedocs.io/en/1.0/install.html>`_.
 
 Connect to Milvus
 =================
@@ -55,7 +56,7 @@ Create Collection
 =================
 
 To create collection, we need to provide collection parameters.
-``collection_param`` consists of 4 components, they are ``collection_name``, ```dimension``, ``index_file_size``
+``collection_param`` consists of 4 components, they are ``collection_name``, ``dimension``, ``index_file_size``
 and ``metric_type``.
 
 collection_name:
@@ -88,7 +89,7 @@ Status(code=0, message='Create collection successfully!')
 Then you can list collections and 'demo_film_tutorial' will be in the result.
 
 >>> client.list_collections()
-(Status(code=0, message='Show collections successfully!'), [])
+(Status(code=0, message='Show collections successfully!'), ['demo_film_tutorial'])
 
 You can also get info of the collection.
 
@@ -97,6 +98,7 @@ You can also get info of the collection.
 CollectionSchema(collection_name='demo_film_tutorial', dimension=8, index_file_size=2048, metric_type=<MetricType: L2>)
 
 The attributes of collection can be extracted from `info`.
+
 >>> info.collection_name
 'demo_film_tutorial'
 
@@ -140,8 +142,8 @@ Status(code=0, message='OK')
 Entities
 ========
 
-An entity is a vector that correspond to real world objects. Here is an example of 3 entities
-structured in list of dictionary.
+An entity is a group of fields that corresponds to real world objects. In current version, Milvus only contains a vector field.
+Here is an example of 3 entities structured in list of list.
 
 >>> import random
 >>> entities = [[random.random() for _ in range(8)] for _ in range(3)]
@@ -158,8 +160,9 @@ If the entities inserted successfully, ``ids`` we provided will be returned.
 [1615279498011637000, 1615279498011637001, 1615279498011637002]
 
 Or you can also provide entity ids
+
 >>> entity_ids = [0, 1, 2]
->>> status, ids = client.inesrt(collection_name, entities, ids=entity_ids)
+>>> status, ids = client.insert(collection_name, entities, entity_ids)
 
 .. warning::
    If the first time when `insert()` is invoked `ids` is not passed into this method, each of the rest time
@@ -187,7 +190,7 @@ Status(code=0, message='OK')
 Get Detailed information
 ========================
 
-After insert, we can get the detail of collection statistics info by ``get_collection_stats()``
+After insertion, we can get the detail of collection statistics information by ``get_collection_stats()``
 
 .. note::
    For a better output format, we are using ``pprint`` to provide a better format.
@@ -221,7 +224,7 @@ Get Entities by ID
 
 You can get entities by their ids.
 
->>> status, films = client.get_entity_by_id(collection_name, ids=[0, 1615279498011637001])
+>>> status, films = client.get_entity_by_id(collection_name, [0, 1615279498011637001])
 >>> films
 [[], [0.8309633731842041, 0.7896093726158142, 0.09463301301002502, 0.7827594876289368, 0.5261889100074768, 0.8051634430885315, 0.18777835369110107, 0.28041353821754456]]
 
@@ -239,10 +242,10 @@ You can get entities by vector similarity. Assuming we have a ``film_A`` like be
 that are most similar with it.
 
 >>> film_A = [random.random() for _ in range(8)]
->>> status, results = client.search(collection_name, top_k=2, query_records=[film_A])
+>>> status, results = client.search(collection_name, 2, [film_A])
 
 .. note::
-    If the collection is index-built, uer need to specify search param, and pass parameter `params` like: `client.search(..., params={...})`.
+    If the collection is index-built, user need to specify search param, and pass parameter `params` like: `client.search(..., params={...})`.
     You can refer to `Index params <https://pymilvus.readthedocs.io/en/1.0/param.html>`_ for more details.
 
 .. note::
@@ -259,7 +262,7 @@ the film as below. If you want to know how to deal with search result in a bette
 Then how do we get ids, distances and fields? It's as below.
 
 .. note::
-   Because embeddings are randomly generated, so the retrieved vector id and distance may differ.
+   Because vectors are randomly generated, so the retrieved vector id and distance may differ.
 
 >>> film_1.id  # id
 1615279498011637002
@@ -279,7 +282,7 @@ Delete Entities by id
 
 You can delete entities by their ids.
 
->>> client.delete_entity_by_id(collection_name, id_array=[0, 1615279498011637002])
+>>> client.delete_entity_by_id(collection_name, [0, 1615279498011637002])
 Status(code=0, message='OK')
 
 .. note::
