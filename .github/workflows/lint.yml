@@ -1,0 +1,32 @@
+name: PyLint
+
+# Run this workflow every time a new commit pushed to master repository
+on:
+  pull_request:
+    branches:
+      - master
+      - 1.x
+      - 1.0
+
+
+jobs:
+  code-lint:
+    name: Code lint check
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        python-version: [3.6]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt
+      - name: Run pylint
+        shell: bash
+        run: |
+          pylint --rcfile=pylint.conf milvus/client

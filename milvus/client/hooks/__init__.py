@@ -1,3 +1,1 @@
-from .abstract import (
-    BaseSearchHook
-)
+from .abstract import BaseSearchHook

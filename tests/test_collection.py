@@ -34,8 +34,9 @@ class TestCreateCollection:
         assert status.OK(), status.message
 
     @pytest.mark.parametrize("metric",
-                             [MetricType.L2, MetricType.IP, MetricType.HAMMING, MetricType.JACCARD,
-                              MetricType.TANIMOTO, MetricType.SUPERSTRUCTURE, MetricType.SUBSTRUCTURE])
+                             [MetricType.L2, MetricType.IP, MetricType.HAMMING,
+                              MetricType.JACCARD, MetricType.TANIMOTO,
+                              MetricType.SUPERSTRUCTURE, MetricType.SUBSTRUCTURE])
     def test_create_collection_whole_metric(self, metric, gcon):
         collection_param = {
             "collection_name": "test_create_collection_metric_" + str(metric),
@@ -121,10 +122,11 @@ class TestCreateCollection:
             status = gcon.create_collection(collection_param)
             assert not status.OK()
 
-        mock_exception = mock.MagicMock(side_effect=Exception("error"))
-        with mock.patch.object(Uum, 'future', mock_exception):
-            status = gcon.create_collection(collection_param)
-            assert not status.OK()
+        with pytest.raises(Exception):
+            mock_exception = mock.MagicMock(side_effect=Exception("error"))
+            with mock.patch.object(Uum, 'future', mock_exception):
+                status = gcon.create_collection(collection_param)
+                assert not status.OK()
 
 
 class TestHasCollection:
