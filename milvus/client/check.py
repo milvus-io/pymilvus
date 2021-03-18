@@ -1,6 +1,5 @@
 import sys
 import datetime
-import numpy as np
 from urllib.parse import urlparse
 
 from .exceptions import ParamError
@@ -61,25 +60,28 @@ def is_legal_bin_vector(array):
 
 
 def is_legal_numpy_array(array):
-    return False if array is None or array.size == 0 else True
+    return array is not None and array.size > 0
 
 
 def is_legal_records(value):
     param_error = ParamError('A vector must be a non-empty, 2-dimensional array and '
-                             'must contain only elements with the float data type or the bytes data type.')
+                             'must contain only elements with the float data type or '
+                             'the bytes data type.')
 
-    if isinstance(value, np.ndarray):
-        if not is_legal_numpy_array(value):
-            raise param_error
+    # if isinstance(value, np.ndarray):
+    #     if not is_legal_numpy_array(value):
+    #         raise param_error
+    #
+    #     return True
+    def iterable(obj):
+        return hasattr(obj, "__getitem__")
 
-        return True
-
-    if not isinstance(value, list) or len(value) == 0:
+    if not iterable(value) or len(value) == 0:
         raise param_error
 
     if isinstance(value[0], bytes):
         check_func = is_legal_bin_vector
-    elif isinstance(value[0], list):
+    elif iterable(value[0]) and isinstance(value[0][0], float):
         check_func = is_legal_vector
     else:
         raise param_error
