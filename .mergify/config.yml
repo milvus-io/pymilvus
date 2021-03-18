@@ -1,0 +1,33 @@
+pull_request_rules:
+    - name: Automatic merge on approval after CI passed
+      conditions:
+        - "label=PR | automerge"
+        - "label=PR | trigger CI"
+        - "#approved-reviews-by>=1"
+        - "status-success=Code lint check (3.6)"
+        - "status-success=CI ubuntu-18.04 (3.6)"
+        - "status-success=CI ubuntu-18.04 (3.7)"
+        - "status-success=CI ubuntu-18.04 (3.8)"
+        - "status-success=CI ubuntu-20.04 (3.6)"
+        - "status-success=CI ubuntu-20.04 (3.7)"
+        - "status-success=CI ubuntu-20.04 (3.8)"
+      actions:
+        merge:
+          method: squash
+
+    - name: Automatic merge on approval
+      conditions:
+        - "label=PR | automerge"
+        - "label=PR | ignore CI"
+        - "#approved-reviews-by>=1"
+        - "status-success=Code lint check (3.6)"
+      actions:
+        merge:
+          method: squash
+
+    - name: Ask to resolve conflict
+      conditions:
+        - conflict
+      actions:
+        comment:
+          message: This pull request is now in conflicts. Could you fix it? 🙏
