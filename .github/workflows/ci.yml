@@ -1,0 +1,119 @@
+name: Unit Test CI
+
+# Run this workflow every time a new commit pushed
+on:
+  pull_request:
+    branches:
+      - master
+      - 1.x
+      - 1.0
+
+jobs:
+  check:
+    name: Check head commit
+    runs-on: ubuntu-18.04
+    outputs:
+      status: ${{ steps.ci.outputs.test }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set env
+        run: |
+          sudo apt-get update
+          sudo apt install git tig
+      - id: ci
+        name: Read head commit
+        shell: bash
+        run: |
+          message="$(git log --format=%B -n 1  ${{ github.event.pull_request.head.sha }})"
+          echo "The last commit message is: ${message}"
+          if [ ${#message}>=4 ]; then
+            echo 'message length >=4'
+            if [ "${message:0:4}" = '[ci]' ]; then
+              echo "Set test value as yes"
+              echo "::set-output name=test::yes"
+              exit 0
+            fi
+          fi
+
+          echo "Set test value as no"
+          echo "::set-output name=test::no"
+  ci:
+    name: CI ubuntu-18.04
+    runs-on: [ubuntu-18.04]
+    needs: check
+    if: needs.check.outputs.status == 'yes'
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: pymilvus
+      - name: Set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install requirements
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          pip install -r pymilvus/requirements.txt
+          cd pymilvus
+          echo ${{ github.event.after }}
+      - name: Run server docker
+        run: |
+          cd pymilvus/.github/scripts/server
+          docker-compose -f server.yml up -d
+          cd -
+      - name: Run unit test
+        run: |
+          cd pymilvus
+          python -m pytest
+      - name: Clean server docker
+        run: |
+          cd pymilvus/.github/scripts/server
+          docker-compose -f server.yml down
+          cd -
+
+  ci2:
+    name: CI ubuntu-20.04
+    runs-on: [ubuntu-20.04]
+    needs: check
+    if: needs.check.outputs.status == 'yes'
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          path: pymilvus
+      - name: Set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install requirements
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          pip install -r pymilvus/requirements.txt
+          cd pymilvus
+          echo ${{ github.event.after }}
+      - name: Run server docker
+        run: |
+          cd pymilvus/.github/scripts/server
+          docker-compose -f server.yml up -d
+          cd -
+      - name: Run unit test
+        run: |
+          cd pymilvus
+          python -m pytest
+      - name: Clean server docker
+        run: |
+          cd pymilvus/.github/scripts/server
+          docker-compose -f server.yml down
+          cd -

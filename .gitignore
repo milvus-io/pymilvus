@@ -1,22 +1,29 @@
-# Pycharm IDE
+# IDE
+## Pycharm IDE
 /.idea
+
+# Python files
 *.pyc
 dist
 docs/build/
 *.egg
 *.egg-info
 **/__pycache__/
+.pytest*/
 /build/
 .remember
+
+# Env
 .env
+
+# Local Temp
 temp/
 *.swp
+assets/
+TODO
+
+# GitHub
 .coverage
 htmlcov/
 debug/
-milvus/client/wrapper.py
-examples/example_test.py
 .codecov.yml
-assets/
-TODO
-/.github

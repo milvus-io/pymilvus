@@ -1,11 +1,10 @@
-import copy
 import functools
 import json
 import logging
-import ujson
-from urllib.parse import urlparse
 import struct
+from urllib.parse import urlparse
 
+import ujson
 import requests as rq
 
 from .abstract import ConnectIntf, IndexParam, CollectionSchema, TopKQueryResult2, PartitionParam
@@ -61,7 +60,6 @@ MetricName2ValueMap = {
     "SUBSTRUCTURE": MetricType.SUBSTRUCTURE,
     "SUPERSTRUCTURE": MetricType.SUPERSTRUCTURE
 }
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -139,19 +137,19 @@ class HttpHandler(ConnectIntf):
     def ping(self, timeout=10):
         if self._uri is None:
             self._uri = self._set_uri(None, None, None)
-        logging.info("Connecting server {}".format(self._uri))
+        logging.info(f"Connecting server {self._uri}")
         retry = self._max_retry
         try:
             while retry > 0:
                 try:
-                    response = rq.get(self._uri + "/state", timeout=timeout)
+                    _ = rq.get(self._uri + "/state", timeout=timeout)
                     return True
                 except:
                     retry -= 1
                     if retry > 0:
                         continue
-                    else:
-                        raise
+
+                    raise
         except:
             LOGGER.error("Cannot connect server {}".format(self._uri))
             raise NotConnectError("Cannot get server status")
@@ -207,11 +205,14 @@ class HttpHandler(ConnectIntf):
             if response.status_code == 200:
                 js = response.json()
                 return Status(), js["message"]
-            elif response.status_code == 400:
+
+            if response.status_code == 400:
                 js = response.json()
                 return Status(js["code"], js["message"]), None
-            else:
-                return Status(Status.UNEXPECTED_ERROR, response.reason)
+
+            return Status(Status.UNEXPECTED_ERROR, response.reason)
+
+        return Status(Status.ILLEGAL_ARGUMENT, "")
 
     def _get_config(self, cmd, timeout):
         if cmd.startswith("get_config"):
@@ -224,18 +225,22 @@ class HttpHandler(ConnectIntf):
                 js = response.json()
                 rc_parent = js.get(config_node[0], None)
                 if rc_parent is None:
-                    return Status(Status.UNEXPECTED_ERROR, "Config {} not supported".format(cmd_node[1]))
+                    return Status(Status.UNEXPECTED_ERROR,
+                                  "Config {} not supported".format(cmd_node[1]))
                 rc_child = rc_parent.get(config_node[1], None)
                 if rc_child is None:
-                    return Status(Status.UNEXPECTED_ERROR, "Config {} not supported".format(cmd_node[1]))
+                    return Status(Status.UNEXPECTED_ERROR,
+                                  "Config {} not supported".format(cmd_node[1]))
 
                 return Status(), rc_child
                 # return Status(), js["message"]
-            elif response.status_code == 400:
+            if response.status_code == 400:
                 js = response.json()
                 return Status(js["code"], js["message"]), None
-            else:
-                return Status(Status.UNEXPECTED_ERROR, response.reason)
+
+            return Status(Status.UNEXPECTED_ERROR, response.reason)
+
+        return Status(Status.ILLEGAL_ARGUMENT, "")
 
     @handle_error(returns=(None,))
     def _cmd(self, cmd, timeout=10):
@@ -261,7 +266,8 @@ class HttpHandler(ConnectIntf):
         return self._cmd("status", timeout)
 
     @handle_error()
-    def create_collection(self, collection_name, dimension, index_file_size, metric_type, params=None, timeout=10):
+    def create_collection(self, collection_name, dimension, index_file_size, metric_type,
+                          params=None, timeout=10):
         metric = MetricValue2NameMap.get(metric_type, None)
 
         table_param = {
@@ -473,8 +479,10 @@ class HttpHandler(ConnectIntf):
 
     @handle_error(returns=(None,))
     def get_vector_ids(self, table_name, segment_name, timeout):
-        # TODO: here specify page_size hard is stupid, need server support query string 'qll_required'
-        url = self._uri + "/collections/{}/segments/{}/ids?page_size=1000000".format(table_name, segment_name)
+        # TODO: here specify page_size hard is stupid,
+        #  need server support query string 'qll_required'
+        url = self._uri + "/collections/{}/segments/{}/ids?page_size=1000000".format(table_name,
+                                                                                     segment_name)
         response = rq.get(url, timeout=timeout)
         result = response.json()
 
@@ -484,13 +492,13 @@ class HttpHandler(ConnectIntf):
         return Status(result["code"], result["message"]), None
 
     @handle_error()
-    def create_index(self, table_name, index_type, index_params, timeout):
-        url = self._uri + "/collections/{}/indexes".format(table_name)
+    def create_index(self, collection_name, index_type, params, timeout, **kwargs):
+        url = self._uri + "/collections/{}/indexes".format(collection_name)
 
         index = IndexValue2NameMap.get(index_type)
         request = dict()
         request["index_type"] = index
-        request["params"] = index_params
+        request["params"] = params
         data = ujson.dumps(request)
         headers = {"Content-Type": "application/json"}
 
@@ -500,8 +508,8 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error(returns=(None,))
-    def describe_index(self, table_name, timeout):
-        url = self._uri + "/collections/{}/indexes".format(table_name)
+    def describe_index(self, collection_name, timeout):
+        url = self._uri + "/collections/{}/indexes".format(collection_name)
 
         response = rq.get(url, timeout=timeout)
 
@@ -514,13 +522,13 @@ class HttpHandler(ConnectIntf):
 
         if response.status_code == 200:
             index_type = IndexName2ValueMap.get(js["index_type"])
-            return Status(), IndexParam(table_name, index_type, js["params"])
+            return Status(), IndexParam(collection_name, index_type, js["params"])
 
         return Status(js["code"], js["message"]), None
 
     @handle_error()
-    def drop_index(self, table_name, timeout):
-        url = self._uri + "/collections/{}/indexes".format(table_name)
+    def drop_index(self, collection_name, timeout):
+        url = self._uri + "/collections/{}/indexes".format(collection_name)
 
         response = rq.delete(url)
 
@@ -596,7 +604,8 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error(returns=(None,))
-    def search(self, collection_name, top_k, query_records, partition_tags=None, search_params=None, timeout=None, **kwargs):
+    def search(self, collection_name, top_k, query_records, partition_tags=None, search_params=None,
+               timeout=None, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
 
         search_body = dict()
@@ -624,7 +633,8 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"]), None
 
     @handle_error(returns=(None,))
-    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, search_params=None, timeout=None, **kwargs):
+    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, search_params=None,
+                      timeout=None, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
         body_dict = dict()
         body_dict["topk"] = top_k
@@ -646,7 +656,8 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"]), None
 
     @handle_error(returns=(None,))
-    def search_in_files(self, collection_name, file_ids, query_records, top_k, search_params, timeout, **kwargs):
+    def search_in_files(self, collection_name, file_ids, query_records, top_k, search_params,
+                        timeout, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
 
         body_dict = dict()

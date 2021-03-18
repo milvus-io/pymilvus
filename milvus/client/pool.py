@@ -1,7 +1,6 @@
 # -*- coding: UTF-8 -*-
 
 import logging
-import os
 import queue
 import threading
 import time
@@ -10,7 +9,7 @@ from collections import defaultdict
 from . import __version__
 from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
-from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
+from .exceptions import ConnectionPoolError, NotConnectError, VersionError
 
 support_versions = ('1.0.x',)
 
@@ -19,7 +18,8 @@ def _is_version_match(version):
     version_prefix = version.split(".")
     for support_version in support_versions:
         support_version_prefix = support_version.split(".")
-        if version_prefix[0] == support_version_prefix[0] and version_prefix[1] == support_version_prefix[1]:
+        if version_prefix[0] == support_version_prefix[0] and version_prefix[1] == \
+                support_version_prefix[1]:
             return True
     return False
 
@@ -62,7 +62,8 @@ class ConnectionRecord:
         self._kw = kwargs
 
         if handler == "GRPC":
-            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping, conn_id=conn_id, **self._kw)
+            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping, conn_id=conn_id,
+                                           **self._kw)
         elif handler == "HTTP":
             self._connection = HttpHandler(uri=uri, pre_ping=self._pre_ping)
         else:
@@ -112,9 +113,8 @@ class ConnectionPool:
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
             if not _is_version_match(version):
                 raise VersionError(
-                    "Version of python SDK(v{}) not match that of server v{}, excepted is v{}".format(__version__,
-                                                                                                  version,
-                                                                                                  support_versions))
+                    f"Version of python SDK(v{__version__}) not match that of server v{version}, "
+                    f"excepted is v{support_versions}")
         conn.close()
 
     def _inc_used(self):
@@ -235,9 +235,10 @@ class SingletonThreadPool:
             raise NotConnectError("Cannot check server version: {}".format(status.message))
         if not _is_version_match(version):
             raise VersionError(
-                "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
-                                                                                              version,
-                                                                                              support_versions))
+                "Version of python SDK({}) not match that of server{}, excepted is {}".format(
+                    __version__,
+                    version,
+                    support_versions))
 
     def record_duration(self, conn, duration):
         pass
@@ -254,6 +255,7 @@ class SingletonThreadPool:
 
     def release(self, conn):
         pass
+
 
 class SingleConnectionPool:
     def __init__(self, uri, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
@@ -286,9 +288,10 @@ class SingleConnectionPool:
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
             if not _is_version_match(version):
                 raise VersionError(
-                    "Version of python SDK({}) not match that of server{}, excepted is {}".format(__version__,
-                                                                                                  version,
-                                                                                                  support_versions))
+                    "Version of python SDK({}) not match that of server{}, excepted is {}".format(
+                        __version__,
+                        version,
+                        support_versions))
 
     def record_duration(self, conn, duration):
         pass
@@ -364,7 +367,7 @@ class ScopedConnection:
         if not self._pool:
             return
 
-        self._connection and self._pool.release(self._connection)
+        _ = self._connection and self._pool.release(self._connection)
         self._connection = None
         if self._duration:
             self._duration.stop()

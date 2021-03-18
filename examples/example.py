@@ -4,7 +4,6 @@
 # and execute a vector similarity search.
 
 import random
-import numpy as np
 
 from milvus import Milvus, IndexType, MetricType, Status
 

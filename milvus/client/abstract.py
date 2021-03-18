@@ -1,13 +1,13 @@
 import ujson
 
-from ..client.exceptions import ParamError
+from .exceptions import ParamError
 
 from .check import check_pass_param
 
 from .types import IndexType
 
 
-class LoopBase(object):
+class LoopBase:
     def __init__(self):
         self.__index = 0
 
@@ -154,7 +154,9 @@ class TopKQueryResult:
             return
 
         if len_ % col != 0:
-            raise ValueError("Search result is not aligned. (row_num={}, len of ids={})".format(_raw.row_num, len_))
+            raise ValueError(
+                "Search result is not aligned. (row_num={}, len of ids={})".format(_raw.row_num,
+                                                                                   len_))
 
         for si, i in enumerate(range(0, len_, col)):
             k = min(i + col, len_)
@@ -391,98 +393,11 @@ class HybridRawResult(LoopBase):
 
         item_entities = [e[item] for e in self._entities]
 
-        return HybridEntityResult(self._field_names, self._ids[item], item_entities, self._vectors[item],
+        return HybridEntityResult(self._field_names, self._ids[item], item_entities,
+                                  self._vectors[item],
                                   self._distances[item])
         # if item in self._field_names:
         #     index = self._field_names[item]
-
-
-class HybridResult(LoopBase):
-
-    def __init__(self, raw, **kwargs):
-        super().__init__()
-        self._raw = raw
-
-    def __len__(self):
-        return self._raw.row_num
-
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
-            _step = item.step or 1
-
-            elements = []
-            for i in range(_start, _end, _step):
-                elements.append(self.__getitem__(i))
-            return elements
-
-        seg_size = len(self._raw.distance) // self.row_num()
-        seg_start = item * seg_size
-        seg_end = min((item + 1) * seg_size, len(self._raw.distance))
-
-        entities = self._raw.entity
-
-        slice_entity = lambda e, start, end: e.int_value[start: end] if len(e.int_value) > 0 else e.double_value[
-                                                                                                  start: end]
-        seg_ids = self._raw.entity.entity_id[seg_start: seg_end]
-        seg_entities = [slice_entity(e, seg_start, seg_end) for e in entities.attr_data]
-        seg_vectors = self._raw.entity.vector_data[0].value[seg_start: seg_end]
-        seg_distances = self._raw.distance[seg_start: seg_end]
-        return HybridRawResult(self.field_names(), seg_ids, seg_entities, seg_vectors, seg_distances)
-
-    def field_names(self):
-        return list(self._raw.entity.field_names)
-
-    def row_num(self):
-        return self._raw.row_num
-
-
-class HEntity:
-    def __init__(self, field_names, attr_records, vector):
-        self._field_names = field_names
-        self._attr_records = attr_records
-        self._vector = vector
-
-    def get(self, field):
-        index = self._field_names.index(field)
-        if index < len(self._attr_records):
-            return self._attr_records[index]
-
-        if index == len(self._attr_records):
-            return self._vector
-
-        raise ValueError("Out of range ... ")
-
-
-class HEntitySet(LoopBase):
-    def __init__(self, raw):
-        super().__init__()
-        self._raw = raw
-
-    def __len__(self):
-        return self._raw.row_num
-
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
-            _step = item.step or 1
-
-            elements = []
-            for i in range(_start, _end, _step):
-                elements.append(self.__getitem__(i))
-            return elements
-
-        slice_entity = lambda e, index: e.int_value[index] if len(e.int_value) > 0 else e.double_value[index]
-        attr_records = [slice_entity(e, item) for e in self._raw.attr_data]
-        vector = self._raw.vector_data[0].value[item]
-
-        return HEntity(self.field_names, attr_records, vector)
-
-    @property
-    def field_names(self):
-        return list(self._raw.field_names)
 
 
 class IndexParam:
@@ -506,7 +421,8 @@ class IndexParam:
 
         if collection_name is None:
             raise ParamError('Collection name can\'t be None')
-        collection_name = str(collection_name) if not isinstance(collection_name, str) else collection_name
+        collection_name = str(collection_name) if not isinstance(collection_name,
+                                                                 str) else collection_name
 
         if isinstance(index_type, int):
             index_type = IndexType(index_type)
@@ -591,51 +507,6 @@ class CollectionInfo:
     def __init__(self, res):
         self.count = res.total_row_count
         self.partitions_stat = [PartitionStat(p) for p in list(res.partitions_stat)]
-
-    def __str__(self):
-        attr_list = ['%s: %r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class HSegmentStat:
-    def __init__(self, res):
-        self.segment_name = res["segment_name"]
-        self.count = res["count"]
-        self.index_name = res["index"]
-        self.data_size = res["size"]
-
-    def __str__(self):
-        attr_list = ['%s: %r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class HPartitionStat:
-    def __init__(self, res):
-        self.tag = res["partition_tag"]
-        self.count = res["count"]
-        self.segments_stat = [HSegmentStat(s) for s in res["segments_stat"]]
-
-    def __str__(self):
-        attr_list = ['%s: %r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class HCollectionInfo:
-    def __init__(self, res):
-        self.count = res["count"]
-        self.partitions_stat = [HPartitionStat(p) for p in res["partitions_stat"]]
 
     def __str__(self):
         attr_list = ['%s: %r' % (key, value)
@@ -868,7 +739,7 @@ class ConnectIntf:
         """
         _abstract()
 
-    def create_index(self, table_name, index, timeout):
+    def create_index(self, collection_name, index_type, params, timeout, **kwargs):
         """
         Create specified index in a table
         should be implemented
@@ -947,7 +818,7 @@ class ConnectIntf:
 
         _abstract()
 
-    def describe_index(self, table_name, timeout):
+    def describe_index(self, collection_name, timeout):
         """
         Show index information
         should be implemented
@@ -968,7 +839,7 @@ class ConnectIntf:
 
         _abstract()
 
-    def drop_index(self, table_name, timeout):
+    def drop_index(self, collection_name, timeout):
         """
         Show index information
         should be implemented
