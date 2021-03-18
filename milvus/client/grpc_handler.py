@@ -762,52 +762,28 @@ class GrpcHandler(ConnectIntf):
         resutls = self._search_hook.handle_response(response)
         return Status(message='Search vectors successfully!'), resutls
 
-    @error_handler(None)
-    def search_hybrid_pb(self, collection_name, query_entities, partition_tags, params=None, **kwargs):
-        request = Prepare.search_hybrid_pb_param(collection_name, query_entities, partition_tags, params)
-        response = self._stub.HybridSearchPB(request)
-
-        if response.status.error_code != 0:
-            return Status(code=response.status.error_code,
-                          message=response.status.reason), []
-
-        return Status(message='Search vectors successfully!'), \
-               self._hybrid_search_hook.handle_response(response)
-
-    @error_handler(None)
-    def search_hybrid(self, collection_name, vector_params, dsl, partition_tags=None, params=None, **kwargs):
-        request = Prepare.search_hybrid_param(collection_name, vector_params, dsl, partition_tags, params)
-        response = self._stub.HybridSearch(request)
-
-        if response.status.error_code != 0:
-            return Status(code=response.status.error_code,
-                          message=response.status.reason), []
-
-        return Status(message='Search vectors successfully!'), \
-               self._hybrid_search_hook.handle_response(response)
-
-    @error_handler(None)
-    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
-        request = Prepare.search_by_ids_param(collection_name, ids, top_k, partition_tags, params)
-        if kwargs.get("_async", False) is True:
-            future = self._stub.SearchByID.future(request, wait_for_ready=True, timeout=timeout)
-
-            func = kwargs.get("_callback", None)
-            return SearchFuture(future, func)
-
-        ft = self._stub.SearchByID.future(request, wait_for_ready=True, timeout=timeout)
-        response = ft.result()
-        self._search_hook.aft_search()
-
-        if self._search_hook.on_response():
-            return response
-
-        if response.status.error_code != 0:
-            return Status(code=response.status.error_code,
-                          message=response.status.reason), []
-
-        return Status(message='Search vectors successfully!'), \
-               self._search_hook.handle_response(response)
+    # @error_handler(None)
+    # def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, params=None, timeout=None, **kwargs):
+    #     request = Prepare.search_by_ids_param(collection_name, ids, top_k, partition_tags, params)
+    #     if kwargs.get("_async", False) is True:
+    #         future = self._stub.SearchByID.future(request, wait_for_ready=True, timeout=timeout)
+    #
+    #         func = kwargs.get("_callback", None)
+    #         return SearchFuture(future, func)
+    #
+    #     ft = self._stub.SearchByID.future(request, wait_for_ready=True, timeout=timeout)
+    #     response = ft.result()
+    #     self._search_hook.aft_search()
+    #
+    #     if self._search_hook.on_response():
+    #         return response
+    #
+    #     if response.status.error_code != 0:
+    #         return Status(code=response.status.error_code,
+    #                       message=response.status.reason), []
+    #
+    #     return Status(message='Search vectors successfully!'), \
+    #            self._search_hook.handle_response(response)
 
     @error_handler(None)
     def search_in_files(self, collection_name, file_ids, query_records, top_k, params, timeout=None, **kwargs):

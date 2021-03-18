@@ -8,29 +8,29 @@ from .types import Status
 class AbstractFuture:
     @abc.abstractmethod
     def result(self, **kwargs):
-        '''Return deserialized result.
+        """Return deserialized result.
 
         It's a synchronous interface. It will wait executing until
         server respond or timeout occur(if specified).
 
         This API is thread-safe.
-        '''
+        """
         raise NotImplementedError()
 
     @abc.abstractmethod
     def cancel(self):
-        '''Cancle gRPC future.
+        """Cancle gRPC future.
 
         This API is thread-safe.
-        '''
+        """
         raise NotImplementedError()
 
     @abc.abstractmethod
     def done(self):
-        '''Wait for request done.
+        """Wait for request done.
 
         This API is thread-safe.
-        '''
+        """
         raise NotImplementedError()
 
 
@@ -57,10 +57,10 @@ class Future(AbstractFuture):
         raise NotImplementedError()
 
     def __init(self):
-        ''' Register request done callback of gRPC future
+        """ Register request done callback of gRPC future
         Callback function can be executed in individual subthread of gRPC, so
         there need to notify main thread when callback function finished.
-        '''
+        """
 
         def async_done_callback(future):
             with self._condition:

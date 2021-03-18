@@ -7,23 +7,6 @@ from .exceptions import ParamError
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
 
-from .types import RangeType
-
-BoolOccurMap = {
-    "must": grpc_types.MUST,
-    "must_not": grpc_types.MUST_NOT,
-    "should": grpc_types.SHOULD
-}
-
-RangeOperatorMap = {
-    RangeType.LT: grpc_types.LT,
-    RangeType.LTE: grpc_types.LTE,
-    RangeType.EQ: grpc_types.EQ,
-    RangeType.GT: grpc_types.GT,
-    RangeType.GTE: grpc_types.GTE,
-    RangeType.NE: grpc_types.NE
-}
-
 
 class Prepare:
 
@@ -122,19 +105,19 @@ class Prepare:
 
         return search_param
 
-    @classmethod
-    def search_by_ids_param(cls, collection_name, ids, top_k, partition_tag_array, params):
-        _param = grpc_types.SearchByIDParam(
-            collection_name=collection_name, id_array=ids, topk=top_k,
-        )
-        if partition_tag_array:
-            _param.partition_tag_array[:] = partition_tag_array
-
-        params = params or dict()
-        params_str = ujson.dumps(params)
-        _param.extra_params.add(key="params", value=params_str)
-
-        return _param
+    # @classmethod
+    # def search_by_ids_param(cls, collection_name, ids, top_k, partition_tag_array, params):
+    #     _param = grpc_types.SearchByIDParam(
+    #         collection_name=collection_name, id_array=ids, topk=top_k,
+    #     )
+    #     if partition_tag_array:
+    #         _param.partition_tag_array[:] = partition_tag_array
+    #
+    #     params = params or dict()
+    #     params_str = ujson.dumps(params)
+    #     _param.extra_params.add(key="params", value=params_str)
+    #
+    #     return _param
 
     @classmethod
     def search_vector_in_files_param(cls, collection_name, query_records, topk, ids, params):
