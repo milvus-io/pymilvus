@@ -9,6 +9,7 @@ docs/build/
 *.egg
 *.egg-info
 **/__pycache__/
+.pytest*/
 /build/
 .remember
 
