@@ -60,12 +60,13 @@ def is_legal_bin_vector(array):
 
 
 def is_legal_numpy_array(array):
-    return False if array is None or array.size == 0 else True
+    return array is not None and array.size > 0
 
 
 def is_legal_records(value):
     param_error = ParamError('A vector must be a non-empty, 2-dimensional array and '
-                             'must contain only elements with the float data type or the bytes data type.')
+                             'must contain only elements with the float data type or '
+                             'the bytes data type.')
 
     # if isinstance(value, np.ndarray):
     #     if not is_legal_numpy_array(value):

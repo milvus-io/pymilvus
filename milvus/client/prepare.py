@@ -1,8 +1,4 @@
-import copy
-import struct
 import ujson
-
-from .exceptions import ParamError
 
 from ..grpc_gen import milvus_pb2 as grpc_types
 from ..grpc_gen import status_pb2
@@ -30,11 +26,12 @@ class Prepare:
         :return: ttypes.TableSchema object
         """
 
-        _param = grpc_types.CollectionSchema(status=status_pb2.Status(error_code=0, reason='Client'),
-                                             collection_name=collection_name,
-                                             dimension=dimension,
-                                             index_file_size=index_file_size,
-                                             metric_type=metric_type)
+        _param = grpc_types.CollectionSchema(
+            status=status_pb2.Status(error_code=0, reason='Client'),
+            collection_name=collection_name,
+            dimension=dimension,
+            index_file_size=index_file_size,
+            metric_type=metric_type)
 
         if param:
             param_str = ujson.dumps(param)
@@ -44,16 +41,19 @@ class Prepare:
 
     @classmethod
     def preload_param(cls, collection_name, partition_tags):
-        return grpc_types.PreloadCollectionParam(collection_name=collection_name, partition_tag_array=partition_tags)
+        return grpc_types.PreloadCollectionParam(collection_name=collection_name,
+                                                 partition_tag_array=partition_tags)
 
     @classmethod
     def reload_param(cls, collection_name, segment_ids):
-        return grpc_types.ReLoadSegmentsParam(collection_name=collection_name, segment_id_array=segment_ids)
+        return grpc_types.ReLoadSegmentsParam(collection_name=collection_name,
+                                              segment_id_array=segment_ids)
 
     @classmethod
     def insert_param(cls, collection_name, vectors, partition_tag, ids=None, params=None, **kwargs):
         if ids is None:
-            _param = grpc_types.InsertParam(collection_name=collection_name, partition_tag=partition_tag)
+            _param = grpc_types.InsertParam(collection_name=collection_name,
+                                            partition_tag=partition_tag)
         else:
             _param = grpc_types.InsertParam(
                 collection_name=collection_name,

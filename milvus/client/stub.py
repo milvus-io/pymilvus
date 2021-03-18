@@ -4,7 +4,6 @@ import collections
 import copy
 import functools
 import logging
-import threading
 
 from urllib.parse import urlparse
 
@@ -12,9 +11,7 @@ from . import __version__
 from .types import IndexType, MetricType, Status
 from .check import check_pass_param, is_legal_host, is_legal_port
 from .pool import ConnectionPool, SingleConnectionPool, SingletonThreadPool
-from .grpc_handler import GrpcHandler
-from .http_handler import HttpHandler
-from .exceptions import ParamError, NotConnectError, DeprecatedError
+from .exceptions import ParamError, DeprecatedError
 
 from ..settings import DefaultConfig as config
 
@@ -51,7 +48,6 @@ def _pool_args(**kwargs):
 def _set_uri(host, port, uri, handler="GRPC"):
     default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
     default_uri = config.GRPC_URI if handler == "GRPC" else config.HTTP_URI
-    uri_prefix = "tcp://" if handler == "GRPC" else "http://"
 
     if host is not None:
         _port = port if port is not None else default_port
@@ -88,6 +84,9 @@ class Milvus:
         self._status = None
         self._connected = False
         self._handler = handler
+
+        #
+        self._conn = None
 
         _uri = kwargs.get('uri', None)
         pool_uri = _set_uri(host, port, _uri, self._handler)
@@ -127,9 +126,9 @@ class Milvus:
         """
         # TODO: may remove it.
         if self._stub:
-            return self._stub.set_hook(**kwargs)
-
-        self._hooks.update(kwargs)
+            self._stub.set_hook(**kwargs)
+        else:
+            self._hooks.update(kwargs)
 
     @property
     def name(self):
@@ -156,12 +155,14 @@ class Milvus:
             self._connected = True
             return self._status
 
+        return Status()
+
     @deprecated
     def connected(self):
         """
         Deprecated
         """
-        return True if self._status and self._status.OK() else False
+        return self._status and self._status.OK()
 
     @deprecated
     def disconnect(self):
@@ -276,11 +277,12 @@ class Milvus:
         metric_type = collection_param.get('metric_type', MetricType.L2)
         collection_param.pop('metric_type', None)
 
-        check_pass_param(collection_name=collection_name, dimension=dim, index_file_size=index_file_size,
-                         metric_type=metric_type)
+        check_pass_param(collection_name=collection_name, dimension=dim,
+                         index_file_size=index_file_size, metric_type=metric_type)
 
         with self._connection() as handler:
-            return handler.create_collection(collection_name, dim, index_file_size, metric_type, collection_param, timeout)
+            return handler.create_collection(collection_name, dim, index_file_size,
+                                             metric_type, collection_param, timeout)
 
     @check_connect
     def has_collection(self, collection_name, timeout=30):
@@ -294,8 +296,8 @@ class Milvus:
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
 
-        :return: The operation status and the flag indicating if collection exists. Succeed if `Status.OK()` is `True`.
-                 If status is not OK, the flag is always `False`.
+        :return: The operation status and the flag indicating if collection exists. Succeed
+                 if `Status.OK()` is `True`. If status is not OK, the flag is always `False`.
         :rtype: Status, bool
 
         """
@@ -314,8 +316,8 @@ class Milvus:
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
 
-        :return: The operation status and collection information. Succeed if `Status.OK()` is `True`.
-                 If status is not OK, the returned information is always `None`.
+        :return: The operation status and collection information. Succeed if `Status.OK()`
+                 is `True`. If status is not OK, the returned information is always `None`.
         :rtype: Status, CollectionSchema
         """
         check_pass_param(collection_name=collection_name)
@@ -369,8 +371,9 @@ class Milvus:
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
 
-        :return: The operation status and collection statistics information. Succeed if `Status.OK()` is `True`.
-                 If status is not OK, the returned information is always `[]`.
+        :return: The operation status and collection statistics information. Succeed
+                 if `Status.OK()` is `True`. If status is not OK, the returned information
+                 is always `[]`.
         :rtype: Status, dict
         """
         check_pass_param(collection_name=collection_name)
@@ -384,8 +387,8 @@ class Milvus:
 
         :param collection_name: collection to load
         :type collection_name: str
-        :param partition_tags: partition tag list. `None` indicates to load whole collection, otherwise to
-                               load specified partitions.
+        :param partition_tags: partition tag list. `None` indicates to load whole collection,
+                               otherwise to load specified partitions.
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
@@ -436,37 +439,39 @@ class Milvus:
             return handler.drop_collection(collection_name, timeout)
 
     @check_connect
-    def insert(self, collection_name, records, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
+    def insert(self, collection_name, records, ids=None, partition_tag=None,
+               params=None, timeout=None, **kwargs):
         """
         Insert vectors to a collection.
 
         :type  collection_name: str
         :param collection_name: Name of the collection to insert vectors to.
-        :param ids: ID list. `None` indicates ID is generated by server system. Note that if the first time when
-                    insert() is invoked ids is not passed into this method, each of the rest time when inset() is
-                    invoked ids is not permitted to pass, otherwise server will return an error and the insertion
-                    process will fail. And vice versa.
+        :param ids: ID list. `None` indicates ID is generated by server system. Note that if the
+                    first time when insert() is invoked ids is not passed into this method, each
+                    of the rest time when inset() is invoked ids is not permitted to pass,
+                    otherwise server will return an error and the insertion process will fail.
+                    And vice versa.
         :type  ids: list[int]
         :param records: List of vectors to insert.
         :type  records: list[list[float]]
         :param partition_tag: Tag of a partition.
-        :type partition_tag: str or None. If partition_tag is None, vectors will be inserted to the default
-                             partition `_default`.
+        :type partition_tag: str or None. If partition_tag is None, vectors will be inserted to the
+                             default partition `_default`.
         :param params: Insert param. Reserved.
         :type params: dict
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
-              otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only take
-              effect when _async is set to True.
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture
+              object; otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only
+              takes effect when _async is set to True.
 
-        :return: The operation status and IDs of inserted entities. Succeed if `Status.OK()` is `True`.
-                 If status is not OK, the returned IDs is always `[]`.
+        :return: The operation status and IDs of inserted entities. Succeed if `Status.OK()`
+                 is `True`. If status is not OK, the returned IDs is always `[]`.
         :rtype: Status, list[int]
         """
         if kwargs.get("insert_param", None) is not None:
@@ -474,7 +479,7 @@ class Milvus:
                 return handler.insert(None, None, timeout=timeout, **kwargs)
 
         check_pass_param(collection_name=collection_name, records=records)
-        partition_tag is not None and check_pass_param(partition_tag=partition_tag)
+        _ = partition_tag is not None and check_pass_param(partition_tag=partition_tag)
         if ids is not None:
             check_pass_param(ids=ids)
             if len(records) != len(ids):
@@ -484,7 +489,8 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.insert(collection_name, records, ids, partition_tag, params, timeout, **kwargs)
+            return handler.insert(collection_name, records, ids, partition_tag,
+                                  params, timeout, **kwargs)
 
     def get_entity_by_id(self, collection_name, ids, timeout=None):
         """
@@ -539,18 +545,19 @@ class Milvus:
         :type collection_name: str
         :param index_type: index params. See `index params <param.html>`_ for supported indexes.
         :type index_type: IndexType
-        :param params: Index param. See `index params <param.html>`_ for detailed index param of supported indexes.
+        :param params: Index param. See `index params <param.html>`_ for detailed index param of
+                       supported indexes.
         :type params: dict
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
-              otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only take
-              effect when _async is set to True.
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a IndexFuture
+              object; otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only
+              takes effect when _async is set to True.
 
         :return: The operation status. Succeed if `Status.OK()` is `True`.
         :rtype: Status
@@ -654,7 +661,6 @@ class Milvus:
 
         :param collection_name: target table name.
         :type  collection_name: str
-
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
@@ -676,10 +682,8 @@ class Milvus:
 
         :param collection_name: Collection name.
         :type  collection_name: str
-
         :param partition_tag: Partition name.
         :type  partition_tag: str
-
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
@@ -693,7 +697,8 @@ class Milvus:
             return handler.drop_partition(collection_name, partition_tag, timeout)
 
     @check_connect
-    def search(self, collection_name, top_k, query_records, partition_tags=None, params=None, timeout=None, **kwargs):
+    def search(self, collection_name, top_k, query_records, partition_tags=None,
+               params=None, timeout=None, **kwargs):
         """
         Search vectors in a collection.
 
@@ -708,19 +713,20 @@ class Milvus:
         :param params: Search params. The params is related to index type the collection is built.
                        See `index params <param.html>`_ for more detailed information.
         :type  params: dict
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
-              otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only take
-              effect when _async is set to True.
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a SearchFuture
+              object; otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only
+              takes effect when _async is set to True.
 
-        :returns: The operation status and search result. See <a>here</a> to find how to handle search result.
-                  Succeed if `Status.OK()` is `True`. If status is not OK, results is always `None`.
+        :returns: The operation status and search result. See <a>here</a> to find how to handle
+                  search result. Succeed if `Status.OK()` is `True`. If status is not OK,
+                  results is always `None`.
         :rtype: Status, TopKQueryResult
         """
         check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
@@ -731,15 +737,18 @@ class Milvus:
         if not isinstance(params, dict):
             raise ParamError("Params must be a dictionary type")
         with self._connection() as handler:
-            return handler.search(collection_name, top_k, query_records, partition_tags, params, timeout, **kwargs)
+            return handler.search(collection_name, top_k, query_records,
+                                  partition_tags, params, timeout, **kwargs)
 
     @check_connect
-    def search_in_segment(self, collection_name, file_ids, query_records, top_k, params=None, timeout=None, **kwargs):
+    def search_in_segment(self, collection_name, file_ids, query_records, top_k,
+                          params=None, timeout=None, **kwargs):
         """
-        Searches for vectors in specific segments of a collection. This API is not recommended for users.
+        Searches for vectors in specific segments of a collection.
+        This API is not recommended for users.
 
-        The Milvus server stores vector data into multiple files. Searching for vectors in specific files is a
-        method used in Mishards. Obtain more detail about Mishards, see
+        The Milvus server stores vector data into multiple files. Searching for vectors in specific
+        files is a method used in Mishards. Obtain more detail about Mishards, see
         `Mishards <https://github.com/milvus-io/milvus/tree/master/shards>`_.
 
         :param collection_name: table name been queried
@@ -753,22 +762,24 @@ class Milvus:
         :param params: Search params. The params is related to index type the collection is built.
                        See <a></a> for more detailed information.
         :type  params: dict
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
-              otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only take
-              effect when _async is set to True.
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a SearchFuture
+              object; otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only
+              takes effect when _async is set to True.
 
-        :returns: The operation status and search result. See <a>here</a> to find how to handle search result.
-                  Succeed if `Status.OK()` is `True`. If status is not OK, results is always `None`.
+        :returns: The operation status and search result. See <a>here</a> to find how to handle
+                  search result. Succeed if `Status.OK()` is `True`. If status is not OK, results
+                  is always `None`.
         :rtype: Status, TopKQueryResult
         """
-        check_pass_param(collection_name=collection_name, topk=top_k, records=query_records, ids=file_ids)
+        check_pass_param(collection_name=collection_name, topk=top_k,
+                         records=query_records, ids=file_ids)
 
         params = dict() if params is None else params
         if not isinstance(params, dict):
@@ -790,8 +801,9 @@ class Milvus:
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
 
-        :returns: The operation status. If the specified ID doesn't exist, Milvus server skip it and try to
-                  delete next entities, which is regard as one successful operation. Succeed if `Status.OK()` is `True`.
+        :returns: The operation status. If the specified ID doesn't exist, Milvus server skip it
+                  and try to delete next entities, which is regard as one successful operation.
+                  Succeed if `Status.OK()` is `True`.
         :rtype: Status
         """
         check_pass_param(collection_name=collection_name, ids=id_array)
@@ -810,11 +822,11 @@ class Milvus:
         :type  timeout: float
         :param kwargs:
             * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
-              otherwise, method returns results from server.
+              Indicate if invoke asynchronously. When value is true, method returns a FlushFuture
+              object; otherwise, method returns results from server.
             * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only take
-              effect when _async is set to True.
+              The callback function which is invoked after server response successfully. It only
+              takes effect when _async is set to True.
 
         :returns: The operation status. Succeed if `Status.OK()` is `True`.
         :rtype: Status
@@ -847,11 +859,11 @@ class Milvus:
         :type  timeout: float
         :param kwargs:
             * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
-              otherwise, method returns results from server.
+              Indicate if invoke asynchronously. When value is true, method returns a CompactFuture
+              object; otherwise, method returns results from server.
             * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only take
-              effect when _async is set to True.
+              The callback function which is invoked after server response successfully. It only
+              takes effect when _async is set to True.
 
         :returns: The operation status. Succeed if `Status.OK()` is `True`.
         :rtype: Status

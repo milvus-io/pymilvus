@@ -108,8 +108,8 @@ class Future(AbstractFuture):
 
         if self._results:
             return self._results
-        else:
-            return self.on_response(self._response)
+
+        return self.on_response(self._response)
 
     def cancel(self):
         with self._condition:
