@@ -25,6 +25,13 @@ pull_request_rules:
         merge:
           method: squash
 
+    - name: Cherry pick
+      conditions:
+        - "label=PR | cherry-pick"
+      actions:
+        merge:
+          method: rebase
+
     - name: Ask to resolve conflict
       conditions:
         - conflict

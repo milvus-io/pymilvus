@@ -1,7 +1,13 @@
 name: PyLint
 
 # Run this workflow every time a new commit pushed to master repository
-on: pull_request
+on:
+  pull_request:
+    branches:
+      - master
+      - 1.x
+      - 1.0
+
 
 jobs:
   code-lint:
