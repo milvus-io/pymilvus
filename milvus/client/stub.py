@@ -673,7 +673,7 @@ class Milvus:
         check_pass_param(collection_name=collection_name)
 
         with self._connection() as handler:
-            return handler.show_partbitions(collection_name, timeout)
+            return handler.show_partitions(collection_name, timeout)
 
     @check_connect
     def drop_partition(self, collection_name, partition_tag, timeout=30):
