@@ -15,7 +15,7 @@ pull_request_rules:
         merge:
           method: squash
 
-    - name: Automatic merge on approval
+    - name: Automatic merge on approval if CI skipped
       conditions:
         - "label=PR | automerge"
         - "label=PR | ignore CI"
@@ -28,6 +28,8 @@ pull_request_rules:
     - name: Cherry pick
       conditions:
         - "label=PR | cherry-pick"
+        - "#approved-reviews-by>=1"
+        - "status-success=Code lint check (3.6)"
       actions:
         merge:
           method: rebase
