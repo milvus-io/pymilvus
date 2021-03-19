@@ -43,10 +43,6 @@ def is_legal_vector(array):
             len(array) == 0:
         return False
 
-    # for v in array:
-    #     if not isinstance(v, float):
-    #         return False
-
     return True
 
 
@@ -59,8 +55,55 @@ def is_legal_bin_vector(array):
     return True
 
 
-def is_legal_numpy_array(array):
-    return array is not None and array.size > 0
+def is_legal_np_vector(array):
+    return array.dtype.name in ("float32", "float64")
+
+
+def is_legal_np_bin_vector(array):
+    pass
+
+
+def is_legal_array(array):
+    record0 = array[0]
+
+    if isinstance(record0, bytes):
+        validate_func = is_legal_bin_vector
+    elif isinstance(record0, list) or hasattr(record0, "__array__"):
+        validate_func = is_legal_vector
+    else:
+        raise ParamError(f"Invalid vector: Vector must be list-like object")
+
+    dim = len(record0)
+    for record in array:
+        if not validate_func(record):
+            raise ParamError(f"Invalid vector: Check if empty-list exists")
+        if dim != len(record):
+            raise ParamError('Whole vectors must have the same dimension')
+
+    return True
+
+
+def is_legal_np_array(array):
+    record0 = array[0]
+
+    if hasattr(array, "__array__"):
+        validate_func = is_legal_np_vector
+    elif isinstance(record0, bytes):
+        validate_func = is_legal_bin_vector
+    else:
+        if isinstance(record0, list) or hasattr(record0, "__array__"):
+            validate_func = is_legal_vector
+        else:
+            raise ParamError(f"Invalid array.")
+
+    dim = len(record0)
+    for record in array:
+        if not validate_func(record):
+            raise ParamError(f"Invalid vector: {record}")
+        if dim != len(record):
+            raise ParamError('Whole vectors must have the same dimension')
+
+    return True
 
 
 def is_legal_records(value):
@@ -68,32 +111,25 @@ def is_legal_records(value):
                              'must contain only elements with the float data type or '
                              'the bytes data type.')
 
-    # if isinstance(value, np.ndarray):
-    #     if not is_legal_numpy_array(value):
-    #         raise param_error
-    #
-    #     return True
     def iterable(obj):
-        return hasattr(obj, "__getitem__")
+        return hasattr(obj, "__getitem__") and len(obj) > 0
 
     if not iterable(value) or len(value) == 0:
         raise param_error
 
-    if isinstance(value[0], bytes):
-        check_func = is_legal_bin_vector
-    elif iterable(value[0]) and isinstance(value[0][0], float):
-        check_func = is_legal_vector
+    # A numpy.array object has attr "__array__"
+    if hasattr(value, "__array__"):
+        check_func = is_legal_np_array
     else:
-        raise param_error
+        check_func = is_legal_array
 
-    _dim = len(value[0])
-    for record in value:
-        if not check_func(record):
-            raise param_error
-        if _dim != len(record):
-            raise ParamError('Whole vectors must have the same dimension')
-
-    return True
+    return check_func(value)
+    # _dim = len(value[0])
+    # for record in value:
+    #     if not check_func(record):
+    #         raise param_error
+    #     if _dim != len(record):
+    #         raise ParamError('Whole vectors must have the same dimension')
 
 
 def int_or_str(item):

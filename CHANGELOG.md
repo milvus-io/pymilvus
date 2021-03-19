@@ -1,10 +1,15 @@
 # pymilvus 1.0.2(TBD)
 
+## New Feature
+- \#295 - Complete all tests
+- \#456 - Remove Numpy in require packages
+
 ## Improvement
 - \#442 - Add tutorial documentation
 - \#444 - Add index-param documentation
 - \#447 - Add query-results documentation
 - \#450 - Update API reference documentation
+- \#457 - Update require package `ujson` version
 
 
 # pymilvus 1.0.1(2021-03-08)
