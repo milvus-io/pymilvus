@@ -4,7 +4,7 @@ import time
 import pytest
 
 # local application imports
-from factorys import gen_unique_str, fake, records_factory
+from factorys import gen_unique_str, fake, records_factory, bin_records_factory
 from milvus import Milvus, IndexType, MetricType
 
 default_host = "127.0.0.1"
@@ -100,25 +100,25 @@ def table(request, connect):
 
 @pytest.fixture(scope="function")
 def gcollection(request, gcon):
-    table_name = fake.collection_name()
+    collection_name = fake.collection_name()
     dim = getattr(request.module, "dim", 128)
 
-    param = {'collection_name': table_name,
+    param = {'collection_name': collection_name,
              'dimension': dim,
              'index_file_size': 1024,
              'metric_type': MetricType.L2
              }
     gcon.create_collection(param)
-    gcon.flush([table_name])
+    gcon.flush([collection_name])
 
     def teardown():
-        status, table_names = gcon.list_collections()
-        for name in table_names:
+        status, collection_names = gcon.list_collections()
+        for name in collection_names:
             gcon.drop_collection(name)
 
     request.addfinalizer(teardown)
 
-    return table_name
+    return collection_name
 
 
 @pytest.fixture(scope='function')
@@ -131,3 +131,38 @@ def gvector(request, gcon, gcollection):
     gcon.flush([gcollection])
 
     return gcollection
+
+
+@pytest.fixture(scope="function")
+def gbcollection(request, gcon):
+    collection_name = fake.collection_name()
+    dim = getattr(request.module, "dim", 128)
+
+    param = {'collection_name': collection_name,
+             'dimension': dim,
+             'index_file_size': 1024,
+             'metric_type': MetricType.HAMMING
+             }
+    gcon.create_collection(param)
+    gcon.flush([collection_name])
+
+    def teardown():
+        status, collection_names = gcon.list_collections()
+        for name in collection_names:
+            gcon.drop_collection(name)
+
+    request.addfinalizer(teardown)
+
+    return collection_name
+
+
+@pytest.fixture(scope='function')
+def gbvector(request, gcon, gbcollection):
+    dim = getattr(request.module, 'dim', 128)
+
+    records = bin_records_factory(dim, 10000)
+
+    gcon.insert(gbcollection, records)
+    gcon.flush([gbcollection])
+
+    return gbcollection
