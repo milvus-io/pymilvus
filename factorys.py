@@ -18,7 +18,6 @@ from faker.providers import BaseProvider
 from milvus.client.types import IndexType, MetricType
 
 # grpc
-from milvus.client.grpc_handler import Prepare as gPrepare
 from milvus.grpc_gen import milvus_pb2
 
 
@@ -102,6 +101,14 @@ def collection_schema_factory():
 
 def records_factory(dimension, nq):
     return [[random.random() for _ in range(dimension)] for _ in range(nq)]
+
+
+def bin_records_factory(dimension, nq):
+    vectors = [[random.randint(0, 255) for _ in range(dimension // 8)] for _ in range(nq)]
+    data = np.array(vectors, dtype='uint8').astype("uint8")
+
+    # convert to bytes
+    return [bytes(vector) for vector in data]
 
 
 def time_it(func):
