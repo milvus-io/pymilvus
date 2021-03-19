@@ -7,8 +7,9 @@ from milvus.client.pool import ConnectionPool
 
 
 class TestPool:
-    def test_pool_max_conn(self):
-        pool = ConnectionPool(uri="tcp://127.0.0.1:19530", pool_size=10)
+    def test_pool_max_conn(self, gip):
+        ip_, port_ = gip
+        pool = ConnectionPool(uri=f"tcp://{ip_}:{port_}", pool_size=10)
 
         def run(_pool):
             conn = _pool.fetch()
@@ -21,8 +22,9 @@ class TestPool:
             thread.start()
             thread_list.append(thread)
 
-    def test_pool_from_stub(self):
-        client = Milvus(uri="tcp://127.0.0.1:19530", pool_size=10)
+    def test_pool_from_stub(self, gip):
+        ip_, port_ = gip
+        client = Milvus(uri=f"tcp://{ip_}:{port_}", pool_size=10)
 
         def run(_client):
             _client.has_collection("test_pool")
