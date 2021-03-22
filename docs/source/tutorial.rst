@@ -163,7 +163,7 @@ Or you can also provide entity ids
 
 .. warning::
    If the first time when `insert()` is invoked `ids` is not passed into this method, each of the rest time
-   when `inset()` is invoked `ids` is not permitted to pass, otherwise server will return an error and the
+   when `insert()` is invoked `ids` is not permitted to pass, otherwise server will return an error and the
    insertion process will fail. And vice versa.
 
 .. note:
