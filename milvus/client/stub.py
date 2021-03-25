@@ -233,7 +233,8 @@ class Milvus:
             * *dimension* (``int``) -- Dimension of embeddings stored in collection.
             * *index_file_size* (``int``) -- Segment size. See
               `Storage Concepts <https://milvus.io/docs/v1.0.0/storage_concept.md>`_.
-            * *metric_type* (``MetricType``) -- Distance Metrics type. See
+            * *metric_type* (``MetricType``) -- Distance Metrics type. Valued form
+              :class:`~milvus.MetricType`. See
               `Distance Metrics <https://milvus.io/docs/v1.0.0/metric.md>`_.
 
 
