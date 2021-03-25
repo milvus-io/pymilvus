@@ -25,7 +25,7 @@ pull_request_rules:
         merge:
           method: squash
 
-    - name: Cherry pick
+    - name: Automatic merge on approval for a cherry-pick PR
       conditions:
         - "label=PR | cherry-pick"
         - "#approved-reviews-by>=1"
