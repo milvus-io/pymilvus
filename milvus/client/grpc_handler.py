@@ -307,15 +307,6 @@ class GrpcHandler(ConnectIntf):
         LOGGER.error(status)
         return Status(code=status.error_code, message=status.reason)
 
-    @error_handler()
-    def create_hybrid_collection(self, collection_name, fields, timeout=30):
-        collection_schema = Prepare.collection_hybrid_schema(collection_name, fields)
-        response = self._stub.CreateHybridCollection(collection_schema)
-        if response.error_code == 0:
-            return Status(message='Create collection successfully!')
-
-        return Status(code=response.error_code, message=response.reason)
-
     @error_handler(False)
     def has_collection(self, collection_name, timeout=30, **kwargs):
         """
@@ -530,17 +521,6 @@ class GrpcHandler(ConnectIntf):
             return Status(message='Add vectors successfully!'), list(response.vector_id_array)
 
         return Status(code=response.status.error_code, message=response.status.reason), []
-
-    @error_handler([])
-    def insert_hybrid(self, collection_name, entities, vector_entities, ids=None, tag=None,
-                      params=None):
-        insert_param = Prepare.insert_hybrid_param(collection_name, tag, entities, vector_entities,
-                                                   ids, params)
-        response = self._stub.InsertEntity(insert_param)
-        status = response.status
-        if status.error_code == 0:
-            return Status(message='Insert successfully!'), list(response.entity_id_array)
-        return Status(code=status.error_code, message=status.reason), []
 
     @error_handler([])
     def get_vectors_by_ids(self, collection_name, ids, timeout=30):
