@@ -60,18 +60,40 @@ class Status:
 
 
 class IndexType(IntEnum):
+    """Index type enum.
+    """
+
+    #: Invalid index type.
     INVALID = 0
+
+    #: FLAT index. See `FLAT <https://milvus.io/docs/v1.0.0/index.md#FLAT>`_.
     FLAT = 1
-    IVFLAT = 2
+
+    #: IVF(Inverted File) FLAT index.
+    #: See `IVF_FLAT <https://milvus.io/docs/v1.0.0/index.md#IVF_FLAT>`_.
+    IVF_FLAT = 2
+
+    #: IVF SQ8 index. See `IVF_SQ8 <https://milvus.io/docs/v1.0.0/index.md#IVF_SQ8>`_.
     IVF_SQ8 = 3
+
+    #: RNSG(Refined NSG) index. See `RNSG <https://milvus.io/docs/v1.0.0/index.md#RNSG>`_.
     RNSG = 4
+
+    #: IVF SQ8 Hybrid index. See `IVF_SQ8H <https://milvus.io/docs/v1.0.0/index.md#IVF_SQ8H>`_.
     IVF_SQ8H = 5
+
+    #: IVF PQ index. See `IVF_PQ <https://milvus.io/docs/v1.0.0/index.md#IVF_PQ>`_.
     IVF_PQ = 6
+
+    #: HNSW index. See `HNSW <https://milvus.io/docs/v1.0.0/index.md#HNSW>`_.
     HNSW = 11
+
+    #: ANNOY index. See `ANNOY <https://milvus.io/docs/v1.0.0/index.md#ANNOY>`_.
     ANNOY = 12
 
-    # alternative name
-    IVF_FLAT = IVFLAT
+    #: Alternative name for `IVF_FLAT`. Reserved for compatibility.
+    IVFLAT = IVF_FLAT
+    #: Alternative name for `IVF_SQ8H`. Reserved for compatibility.
     IVF_SQ8_H = IVF_SQ8H
 
     def __repr__(self):
@@ -82,15 +104,39 @@ class IndexType(IntEnum):
 
 
 class MetricType(IntEnum):
+    """Metric type enum.
+    """
+
+    #: Invalid metric type.
     INVALID = 0
+
+    #: Euclidean distance. A metric for float vectors.
+    #: See `Euclidean distance <https://milvus.io/docs/v1.0.0/metric.md#Euclidean-distance-L2>`_.
     L2 = 1
+
+    #: Inner product. A metric for float vectors.
+    #: See `Inner Product <https://milvus.io/docs/v1.0.0/metric.md#Inner-product-IP>`_.
     IP = 2
-    # Only supported for byte vectors
+
+    #: Hamming distance. A metric for binary vectors.
+    #: See `Hamming distance <https://milvus.io/docs/v1.0.0/metric.md#Hamming-distance>`_.
     HAMMING = 3
+
+    #: Jaccard distance. A metric for binary vectors.
+    #: See `Jaccard distance <https://milvus.io/docs/v1.0.0/metric.md#Jaccard-distance>`_.
     JACCARD = 4
+
+    #: Tanimoto distance. A metric for binary vectors.
+    #: See `Tanimoto distance <https://milvus.io/docs/v1.0.0/metric.md#Tanimoto-distance>`_.
     TANIMOTO = 5
-    #
+
+    #: Superstructure. A metric for binary vectors,
+    #: only support :attr:`~milvus.IndexType.FLAT` index.
+    #: See `Superstructure <https://milvus.io/docs/v1.0.0/metric.md#Superstructure>`_.
     SUBSTRUCTURE = 6
+
+    #: Substructure. A metric for binary vectors, only support :attr:`~milvus.IndexType.FLAT` index.
+    #: See `Substructure <https://milvus.io/docs/v1.0.0/metric.md#Substructure>`_.
     SUPERSTRUCTURE = 7
 
     def __repr__(self):
