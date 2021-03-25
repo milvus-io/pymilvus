@@ -71,9 +71,14 @@ Contribution guideline
 
 **1. Update CHANGELOG.md**
 
+If any improvement or feature being added, you are recommended to open a new issue(if not exist) then
+record your change in file `CHANGELOG.md`. The format is:
+`- \#{GitHub issue number} - {Brief description for your change}`
+
 **2. Add unit tests for your codes**
 
 To run unit test in github action, you need make sure the last commit message of PR starts with "[ci]".
+If you want to run unit test locally, under root folder of Pymilvus project run `pytest --ip=${IP} --port=${PORT}`.
 
 **3. Pass pylint check**
 
