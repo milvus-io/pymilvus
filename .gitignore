@@ -12,6 +12,7 @@ docs/build/
 .pytest*/
 /build/
 .remember
+venv/
 
 # Env
 .env
