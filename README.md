@@ -20,7 +20,7 @@ The following collection shows Milvus versions and recommended PyMilvus versions
 
 |Milvus version| Recommended PyMilvus version |
 |:-----:|:-----:|
-| 1.0.0 | 1.0.1 |
+| 1.0.x | 1.0.1 |
 
 
 ## Installation
