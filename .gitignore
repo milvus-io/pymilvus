@@ -8,6 +8,7 @@ dist
 docs/build/
 *.egg
 *.egg-info
+*.eggs/
 **/__pycache__/
 .pytest*/
 /build/

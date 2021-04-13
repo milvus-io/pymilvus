@@ -1,18 +1,17 @@
 import pathlib
 import setuptools
-import io
+from datetime import datetime
+import git
 import re
 
 HERE = pathlib.Path(__file__).parent
 
 README = (HERE / 'README.md').read_text()
 
-with io.open("milvus/client/__init__.py", "rt", encoding="utf8") as f:
-    version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
-
 setuptools.setup(
     name="pymilvus",
-    version=version,
+    setup_requires=['setuptools_scm'],
+    use_scm_version={'local_scheme': 'no-local-version'},
     description="Python Sdk for Milvus",
     long_description=README,
     long_description_content_type='text/markdown',
