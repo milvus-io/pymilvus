@@ -10,6 +10,8 @@ README = (HERE / 'README.md').read_text()
 
 setuptools.setup(
     name="pymilvus",
+    author='Milvus Team',
+    author_email='milvus-team@zilliz.com',
     setup_requires=['setuptools_scm'],
     use_scm_version={'local_scheme': 'no-local-version'},
     description="Python Sdk for Milvus",
