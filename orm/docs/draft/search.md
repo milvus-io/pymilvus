@@ -1,8 +1,3 @@
-| Methods                                                      | Descriptions               | 参数                                                         | 返回值                        |
-| ------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------ | ----------------------------- |
-| Search(collection, data, params, limit, expr=None, partition_names=None, fields=None, **kwargs) | Construct a Search object. | collection类型是 Collection<br />data是 list-like(list, tuple, numpy.ndarray)<br /><br />params 类型是 dict<br /><br />limit 类型是 int <br />expr 类型是string<br />partitions_names类型是 list(string)<br />fields类型是list(string) | Search对象或者Raise Exception |
-| Search.execute(sync=True, **kwargs)                          | Return the search result.  | sync 类型是boolean，是否同步等待查询结果<br />kwargs 的可以是 callback=function | SearchResult对象              |
-
 
 | Methods                     | Descriptions                                                 | 参数                     | 返回值                  |
 | --------------------------- | ------------------------------------------------------------ | ------------------------ | ----------------------- |
