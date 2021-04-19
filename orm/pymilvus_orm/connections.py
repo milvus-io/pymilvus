@@ -1,13 +1,18 @@
+from milvus import Milvus
+from .default_config import DefaultConfig
+
 class Connections(object):
     """
     Connections is a class which is used to manage all connections of milvus.
+    Used as a singleton in this module.
     """
 
     def __init__(self):
         """
         Construct a Connections object.
         """
-        pass
+        self._kwargs = {}
+        self._conns = {}
 
     def configure(self, **kwargs):
         """
@@ -22,7 +27,12 @@ class Connections(object):
         
         This will create two milvus connections named default and dev.
         """
-        pass
+        for k in list(self._conns):
+            # try and preserve existing client to keep the persistent connections alive
+            if k in self._kwargs and kwargs.get(k, None) == self._kwargs[k]:
+                continue
+            del self._conns[k]
+        self._kwargs = kwargs
 
     def add_connection(self, alias, conn):
         """
@@ -34,7 +44,7 @@ class Connections(object):
         :param conn: The milvus connection.
         :type conn: class `Milvus`
         """
-        pass
+        self._conns[alias] = conn
 
     def remove_connection(self, alias):
         """
@@ -44,25 +54,57 @@ class Connections(object):
         :param alias: The name of milvus connection
         :type alias: str
         """
-        pass
+        errors = 0
+        for d in (self._conns, self._kwargs):
+            try:
+                del d[alias]
+            except KeyError:
+                errors += 1
 
-    def create_connection(self, alias="default", **kwargs):
+        if errors == 2:
+            raise KeyError("There is no connection with alias %r." % alias)
+
+    def create_connection(self, alias=DefaultConfig.DEFAULT_USING, **kwargs):
         """
         Construct a milvus connection and register it under given alias.
 
         :param alias: The name of milvus connection
         :type alias: str
-        """
-        pass
 
-    def get_connection(self, alias):
+        :return: A milvus connection created by the passed parameters.
+        :rtype: class `Milvus`
+        """
+        host = kwargs.pop("host", DefaultConfig.DEFAULT_HOST)
+        port = kwargs.pop("port", DefaultConfig.DEFAULT_PORT)
+        handler = kwargs.pop("handler", DefaultConfig.DEFAULT_HANDLER)
+        pool = kwargs.pop("pool", DefaultConfig.DEFAULT_POOL)
+
+        conn = Milvus(host, port, handler, pool, **kwargs)
+        self._conns[alias] = conn
+        return conn
+
+    def get_connection(self, alias=DefaultConfig.DEFAULT_USING):
         """
         Retrieve a milvus connection by alias.
 
         :param alias: The name of milvus connection
         :type alias: str
+
+        :return: A milvus connection which of the name is alias.
+        :rtype: class `Milvus`
         """
-        pass
+        try:
+            return self._conns[alias]
+        except KeyError:
+            pass
+
+        # if not, try to create it
+        try:
+            return self.create_connection(alias, **self._kwargs[alias])
+        except KeyError:
+            # no connection and no kwargs to set one up
+            raise KeyError("There is no connection with alias %r." % alias)
+
 
 # Singleton Mode in Python
 

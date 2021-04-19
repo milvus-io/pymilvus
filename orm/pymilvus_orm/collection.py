@@ -115,7 +115,8 @@ class Collection(object):
         :return: Number of entities in this collection.
         :rtype: int
         """
-        pass
+        conn = self._get_connection()
+        return conn.drop_collection(self._name, timeout=kwargs.get("timeout", None))
 
     def load(self, field_names=None, index_names=None, partition_names=None, **kwargs):
         """
