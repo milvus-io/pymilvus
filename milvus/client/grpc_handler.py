@@ -441,6 +441,13 @@ class GrpcHandler(ConnectIntf):
         return Status(code=status.error_code, message=status.reason)
 
     @error_handler()
+    def release_collection(self, collection_name, partition_tags=None, timeout=None):
+        request = Prepare.release_param(collection_name, partition_tags)
+        status = self._stub.ReleaseCollection.future(request, wait_for_ready=True,
+                                                    timeout=timeout).result()
+        return Status(code=status.error_code, message=status.reason)
+
+    @error_handler()
     def reload_segments(self, collection_name, segment_ids, timeout=30):
         file_ids = list(map(int_or_str, segment_ids))
         request = Prepare.reload_param(collection_name, file_ids)
@@ -523,8 +530,9 @@ class GrpcHandler(ConnectIntf):
         return Status(code=response.status.error_code, message=response.status.reason), []
 
     @error_handler([])
-    def get_vectors_by_ids(self, collection_name, ids, timeout=30):
-        request = grpc_types.VectorsIdentity(collection_name=collection_name, id_array=ids)
+    def get_vectors_by_ids(self, collection_name, ids, timeout=30, partition_tag=None):
+        request = grpc_types.VectorsIdentity(collection_name=collection_name, id_array=ids,
+                                             partition_tag=partition_tag)
 
         rf = self._stub.GetVectorsByID.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
@@ -815,8 +823,8 @@ class GrpcHandler(ConnectIntf):
                self._search_file_hook.handle_response(response)
 
     @error_handler()
-    def delete_by_id(self, collection_name, id_array, timeout=None):
-        request = Prepare.delete_by_id_param(collection_name, id_array)
+    def delete_by_id(self, collection_name, id_array, timeout=None, partition_tag=None):
+        request = Prepare.delete_by_id_param(collection_name, id_array, partition_tag)
 
         rf = self._stub.DeleteByID.future(request, wait_for_ready=True, timeout=timeout)
         status = rf.result()

@@ -45,6 +45,11 @@ class Prepare:
                                                  partition_tag_array=partition_tags)
 
     @classmethod
+    def release_param(cls, collection_name, partition_tags):
+        return grpc_types.PreloadCollectionParam(collection_name=collection_name,
+                                                 partition_tag_array=partition_tags)
+
+    @classmethod
     def reload_param(cls, collection_name, segment_ids):
         return grpc_types.ReLoadSegmentsParam(collection_name=collection_name,
                                               segment_id_array=segment_ids)
@@ -140,9 +145,10 @@ class Prepare:
         return grpc_types.PartitionParam(collection_name=collection_name, tag=tag)
 
     @classmethod
-    def delete_by_id_param(cls, collection_name, id_array):
+    def delete_by_id_param(cls, collection_name, id_array, partition_tag):
 
-        return grpc_types.DeleteByIDParam(collection_name=collection_name, id_array=id_array)
+        return grpc_types.DeleteByIDParam(collection_name=collection_name, id_array=id_array,
+                                          partition_tag=partition_tag)
 
     @classmethod
     def flush_param(cls, collection_names):
