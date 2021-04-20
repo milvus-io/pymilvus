@@ -36,7 +36,7 @@ pluggy==0.13.1
 protobuf==3.11.2
 py==1.8.1
 pycparser==2.19
-Pygments==2.5.2
+Pygments==2.7.4
 pylint==2.4.4
 pyparsing==2.4.6
 pytest==5.3.4
