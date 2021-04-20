@@ -35,6 +35,8 @@ Methods
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `load_collection() <#milvus.Milvus.load_collection>`_                | Loads a specified collection from storage to memory.                   |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `release_collection() <#milvus.Milvus.release_collection>`_          | Release a specified collection from memory.                   |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `drop_collection() <#milvus.Milvus.drop_collection>`_                | Removes a collection.                                                  |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `insert() <#milvus.Milvus.insert>`_                                  | Inserts entities to a specified collection.                            |
@@ -74,7 +76,7 @@ APIs
 .. autoclass:: milvus.Milvus
    :member-order: bysource
    :members: create_collection, has_collection, get_collection_info, count_entities, list_collections,
-             get_collection_stats, load_collection, drop_collection, insert, get_entity_by_id,
+             get_collection_stats, load_collection, release_collection, drop_collection, insert, get_entity_by_id,
              list_id_in_segment, create_index, get_index_info, drop_index, create_partition, has_partition,
              list_partitions, drop_partition, search, delete_entity_by_id, flush, compact
 

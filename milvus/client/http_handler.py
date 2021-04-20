@@ -402,6 +402,22 @@ class HttpHandler(ConnectIntf):
         return Status(code=js["code"], message=js["message"])
 
     @handle_error()
+    def release_collection(self, table_name, partition_tags, timeout):
+        url = self._uri + "/system/task"
+        params = {"release": {"collection_name": table_name}}
+        if partition_tags:
+            params["release"]["partition_tags"] = partition_tags
+        data = ujson.dumps(params)
+
+        response = rq.put(url, data=data, timeout=timeout)
+
+        if response.status_code == 200:
+            return Status(message="Release successfuly")
+
+        js = response.json()
+        return Status(code=js["code"], message=js["message"])
+
+    @handle_error()
     def reload_segments(self, collection_name, segment_ids, timeout=10):
         raise NotImplementedError("Not implemented in http server")
 
@@ -445,7 +461,7 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"]), []
 
     @handle_error(returns=(None,))
-    def get_vectors_by_ids(self, collection_name, ids, timeout):
+    def get_vectors_by_ids(self, collection_name, ids, timeout, partition_tag=None):
         status, table_schema = self.describe_collection(collection_name, timeout)
         if not status.OK():
             return status, None
@@ -457,6 +473,8 @@ class HttpHandler(ConnectIntf):
         ids_list = list(map(str, ids))
         query_ids = ",".join(ids_list)
         url = url + "?ids=" + query_ids
+        if partition_tag and isinstance(partition_tag, str):
+            url = url + "&partition_tag={}".format(partition_tag)
         response = rq.get(url, timeout=timeout)
         result = response.json()
 
@@ -684,11 +702,13 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"]), None
 
     @handle_error()
-    def delete_by_id(self, table_name, id_array, timeout=None):
+    def delete_by_id(self, table_name, id_array, timeout=None, partition_tag=None):
         url = self._uri + "/collections/{}/vectors".format(table_name)
         headers = {"Content-Type": "application/json"}
         ids = list(map(str, id_array))
         request = {"delete": {"ids": ids}}
+        if partition_tag and isinstance(partition_tag, str):
+            request["delete"]["partition_tag"] = partition_tag
 
         response = rq.put(url, data=ujson.dumps(request), headers=headers, timeout=timeout)
         result = response.json()
