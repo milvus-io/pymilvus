@@ -47,6 +47,40 @@ class TestGetVectorByID:
         assert status.OK()
         # assert not vector
 
+    @pytest.mark.parametrize("v_tag", [1, [], {"a": 1}, (1, 2)])
+    def test_get_entity_by_id_with_invalid_partition_tag(self, v_tag, gcon):
+        with pytest.raises(ParamError):
+            gcon.get_entity_by_id("test_get_entity_by_id_with_invalid_partition_tag", [1], None, v_tag)
+
+    def test_get_entity_by_id_with_partition_tag(self, gcon, gcollection):
+        vectors = records_factory(128, 1000)
+        ids = [i for i in range(1000)]
+        partition_tag = "test_get_entity_by_id_with_partition_tag"
+        gcon.create_partition(gcollection, partition_tag)
+        status, ids_out = gcon.insert(collection_name=gcollection, records=vectors, ids=ids, partition_tag=partition_tag)
+        assert status.OK(), status.message
+
+        gcon.flush([gcollection])
+
+        status, vec = gcon.get_entity_by_id(gcollection, ids_out[0:10], None, partition_tag)
+        assert status.OK()
+        assert len(vec) == 10
+
+        for v in vec:
+            assert len(v) == 128
+
+    def test_get_entity_by_id_with_non_existent_partition_tag(self, gcon, gcollection):
+        vectors = records_factory(128, 1000)
+        ids = [i for i in range(1000)]
+        status, ids_out = gcon.insert(collection_name=gcollection, records=vectors, ids=ids)
+        assert status.OK(), status.message
+
+        gcon.flush([gcollection])
+
+        status, vec = gcon.get_entity_by_id(gcollection, ids_out[0:10], None, "non-existent")
+        assert not status.OK()
+        assert len(vec) == 0
+
 
 class TestDeleteByID:
     def test_delete_entity_by_id_normal(self, gcon, gcollection):
@@ -73,6 +107,34 @@ class TestDeleteByID:
 
         ids_exceed = [ids[-1] + 10]
         status = gcon.delete_entity_by_id(gcollection, ids_exceed)
+        assert not status.OK()
+
+    @pytest.mark.parametrize("v_tag", [1, [], {"a": 1}, (1, 2)])
+    def test_delete_entity_by_id_with_invalid_partition_tag(self, v_tag, gcon):
+        with pytest.raises(ParamError):
+            gcon.delete_entity_by_id("test_delete_entity_by_id_with_invalid_partition_tag", [1], None, v_tag)
+
+    def test_delete_entity_by_id_with_partition_tag(self, gcon, gcollection):
+        vectors = records_factory(dim, nq)
+        partition_tag = "test_delete_entity_by_id_with_partition_tag"
+        gcon.create_partition(gcollection, partition_tag)
+        status, ids = gcon.insert(gcollection, vectors, partition_tag=partition_tag)
+        gcon.flush([gcollection])
+        assert status.OK()
+
+        status = gcon.delete_entity_by_id(gcollection, ids[0:10], None, partition_tag)
+        assert status.OK()
+
+    @pytest.mark.skip("It's ok to delete entity from non-existent partition now.")
+    def test_delete_entity_by_id_with_non_existent_partition_tag(self, gcon, gcollection):
+        vectors = records_factory(128, 1000)
+        ids = [i for i in range(1000)]
+        status, ids_out = gcon.insert(collection_name=gcollection, records=vectors, ids=ids)
+        assert status.OK(), status.message
+
+        gcon.flush([gcollection])
+
+        status = gcon.delete_entity_by_id(gcollection, ids_out[0:10], None, "non-existent")
         assert not status.OK()
 
 

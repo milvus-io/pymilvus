@@ -247,3 +247,37 @@ class TestLoadCollection:
     def test_load_collection_with_all_partition_non_exist(self, gcon, gvector):
         status = gcon.load_collection(gvector, ["AQAA"])
         assert not status.OK()
+
+class TestReleaseCollection:
+    def test_release_collection_normal(self, gcon, gvector):
+        status = gcon.load_collection(gvector)
+        assert status.OK()
+        status = gcon.release_collection(gvector)
+        assert status.OK()
+
+    @pytest.mark.parametrize("name", [[], bytes(), 123, True, False])
+    def test_release_collection_invalid_name(self, name, gcon):
+        with pytest.raises(ParamError):
+            gcon.release_collection(name)
+
+    def test_release_collection_non_existent(self, gcon):
+        status = gcon.release_collection("test_release_collection_non_existent")
+        assert not status.OK()
+
+    def test_release_collection_with_partition(self, gcon, gvector):
+        status = gcon.load_collection(gvector, ["_default"])
+        assert status.OK()
+        status = gcon.release_collection(gvector, ["_default"])
+        assert status.OK()
+
+    def test_release_collection_with_partition_non_exist(self, gcon, gvector):
+        status = gcon.load_collection(gvector, ["_default"])
+        assert status.OK()
+        status = gcon.release_collection(gvector, ["_default", "test_release_collection_with_partition_non_exist"])
+        assert status.OK()
+
+    def test_release_collection_with_all_partition_non_exist(self, gcon, gvector):
+        status = gcon.load_collection(gvector, ["_default"])
+        assert status.OK()
+        status = gcon.release_collection(gvector, ["test_release_collection_with_partition_non_exist"])
+        assert not status.OK()

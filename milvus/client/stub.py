@@ -402,6 +402,26 @@ class Milvus:
             return handler.preload_collection(collection_name, partition_tags, timeout)
 
     @check_connect
+    def release_collection(self, collection_name, partition_tags=None, timeout=None):
+        """
+        Release a collection from memory and cache.
+
+        :param collection_name: collection to release
+        :type collection_name: str
+        :param partition_tags: partition tag list. `None` indicates to release whole collection,
+                               otherwise to release specified partitions.
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server responses or error occurs.
+        :type  timeout: float
+
+        :return: The operation status. Succeed if `Status.OK()` is `True`.
+        :rtype: Status
+        """
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.release_collection(collection_name, partition_tags, timeout)
+
+    @check_connect
     def reload_segments(self, collection_name, segment_ids, timeout=None):
         """
         Reloads segment DeletedDocs data to cache. This API is not recommended for users.
@@ -493,7 +513,7 @@ class Milvus:
             return handler.insert(collection_name, records, ids, partition_tag,
                                   params, timeout, **kwargs)
 
-    def get_entity_by_id(self, collection_name, ids, timeout=None):
+    def get_entity_by_id(self, collection_name, ids, timeout=None, partition_tag=None):
         """
         Returns raw vectors according to ids.
 
@@ -506,14 +526,19 @@ class Milvus:
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
 
+        :param partition_tag: The partition tag of entity
+        :type partition_tag: str
+
         :return: The operation status and entities. Succeed if `Status.OK()` is `True`.
                  If status is not OK, the returned entities is always `[]`.
         :rtype: Status, list[list[float]]
         """
         check_pass_param(collection_name=collection_name, ids=ids)
+        _ = partition_tag is None or check_pass_param(partition_tag=partition_tag)
 
         with self._connection() as handler:
-            return handler.get_vectors_by_ids(collection_name, ids, timeout=timeout)
+            return handler.get_vectors_by_ids(collection_name, ids, timeout=timeout,
+                                              partition_tag=partition_tag)
 
     @check_connect
     def list_id_in_segment(self, collection_name, segment_name, timeout=None):
@@ -790,7 +815,7 @@ class Milvus:
                                            query_records, top_k, params, timeout, **kwargs)
 
     @check_connect
-    def delete_entity_by_id(self, collection_name, id_array, timeout=None):
+    def delete_entity_by_id(self, collection_name, id_array, timeout=None, partition_tag=None):
         """
         Deletes vectors in a collection by vector ID.
 
@@ -801,6 +826,8 @@ class Milvus:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server responses or error occurs.
         :type  timeout: float
+        :param partition_tag: The partition tag of entity
+        :type partition_tag: str
 
         :returns: The operation status. If the specified ID doesn't exist, Milvus server skip it
                   and try to delete next entities, which is regard as one successful operation.
@@ -808,8 +835,9 @@ class Milvus:
         :rtype: Status
         """
         check_pass_param(collection_name=collection_name, ids=id_array)
+        _ = partition_tag is None or check_pass_param(partition_tag=partition_tag)
         with self._connection() as handler:
-            return handler.delete_by_id(collection_name, id_array, timeout)
+            return handler.delete_by_id(collection_name, id_array, timeout, partition_tag)
 
     @check_connect
     def flush(self, collection_name_array=None, timeout=None, **kwargs):

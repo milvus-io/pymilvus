@@ -3,6 +3,7 @@
 ## New Feature
 - \#295 - Complete all tests
 - \#456 - Remove Numpy in require packages
+- \#484 - Add `partition_tag` parameter to `get_entity_by_id` and `delete_entity_by_id`, Support `release_collection`
 
 ## Improvement
 - \#442 - Add tutorial documentation
