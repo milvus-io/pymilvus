@@ -1,19 +1,6 @@
 import unittest
-import random
+from tests.utils import *
 from pymilvus_orm.utility import *
-
-
-def gen_collection_name():
-    return f'ut-collection-' + str(random.randint(100000, 999999))
-
-
-def gen_partition_name():
-    return f'ut-partition-' + str(random.randint(100000, 999999))
-
-
-def gen_index_name():
-    return f'ut-index-' + str(random.randint(100000, 999999))
-
 
 class TestCase(unittest.TestCase):
     def test_loading_progress(self):
