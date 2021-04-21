@@ -1,5 +1,7 @@
+import unittest
 import logging
 import pytest
+from unittest.mock import MagicMock
 from pymilvus_orm import Collection
 from pymilvus_orm.schema import CollectionSchema, FieldSchema
 from tests.utils import *
@@ -28,12 +30,12 @@ class TestCollections:
         assert new_schema.description == description
 
     def test_description(self, collection):
-        description = collection.description()
-        collection.description(description)
+        description = collection.description
+        collection.description = description
 
     def test_name(self, collection):
-        name = collection.name()
-        collection.name(gen_collection_name())
+        LOGGER.info(collection.name)
+        collection.name = gen_collection_name()
 
     def test_is_empty(self, collection):
         collection.is_empty()
@@ -58,7 +60,7 @@ class TestCollections:
         collection.search()
 
     def test_partitions(self, collection):
-        collection.partitions()
+        partitions = collection.partitions
 
     def test_partition(self, collection):
         collection.partition(gen_partition_name())
@@ -70,7 +72,7 @@ class TestCollections:
         collection.drop_partition(gen_partition_name())
 
     def test_indexes(self, collection):
-        collection.indexes()
+        indexes = collection.indexes
 
     def test_index(self, collection):
         collection.index(gen_index_name())

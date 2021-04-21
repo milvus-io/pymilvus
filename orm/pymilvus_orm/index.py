@@ -1,5 +1,4 @@
 from . import connections
-from .collection import Collection
 
 class Index(object):
 
@@ -19,6 +18,7 @@ class Index(object):
         :param index_params: Indexing parameters.
         :type  index_params: dict
         """
+        from .collection import Collection
         self._collection = collection
         self._name = name
         self._field_name = field_name

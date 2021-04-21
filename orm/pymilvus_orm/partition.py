@@ -1,12 +1,19 @@
 from . import connections
-from .collection import Collection
 
 class Partition(object):
 
-    def __init__(self, collection, name, **kwargs):
+    def __init__(self, collection, name, description, **kwargs):
+        from .collection import Collection
         self._collection = collection
         self._name = name
+        self._description = description
         self._kwargs = kwargs
+
+    def _get_using(self):
+        return self._kwargs.get("_using", "default")
+
+    def _get_connection(self):
+        return connections.get_connection(self._get_using())
 
     @property
     def description(self):
@@ -16,11 +23,18 @@ class Partition(object):
         :return: Partition description text, return when operation is successful
         :rtype: str
         """
-        pass
+        return self._description
 
     @description.setter
     def description(self, value):
-        pass
+        """
+        Set the description text.
+
+        :param: value:
+        :return: Partition description text, return when operation is successful
+        :rtype: str
+        """
+        self._description = value
 
     @property
     def name(self):
@@ -30,11 +44,11 @@ class Partition(object):
         :return: Partition name, return when operation is successful
         :rtype: str
         """
-        pass
+        return self._name
 
     @name.setter
     def name(self, value):
-        pass
+        self._name = value
 
     # read-only
     @property
@@ -45,7 +59,8 @@ class Partition(object):
         :return: Whether the partition is empty
         :rtype: bool
         """
-        pass
+        conn = self._get_connection()
+        return conn.has_partition(self._name)
 
     # read-only
     @property
@@ -56,16 +71,14 @@ class Partition(object):
         :return: Number of entities in this partition.
         :rtype: int
         """
+        # TODO(yukun): Currently there is not way to get num_entities of a partition
         pass
 
     def drop(self, **kwargs):
         """
         Drop the partition, as well as its corresponding index files.
-
-        :return: Number of entities in this partition.
-        :rtype: int
         """
-        pass
+        self._get_connection().drop_partition(self._name)
 
     def load(self, field_names=None, index_names=None, **kwargs):
         """
@@ -77,13 +90,14 @@ class Partition(object):
         :param index_names: The specified indexes to load.
         :type  index_names: list[str]
         """
-        pass
+        #TODO(yukun): No field_names and index_names in load_partition api
+        self._get_connection().load_partition(self._collection.name(), self._name)
 
     def release(self, **kwargs):
         """
         Release the partition from memory.
         """
-        pass
+        self._get_connection().release_partition(self._collection.name(), self._name)
 
     def insert(self, data, **kwargs):
         """
@@ -92,7 +106,8 @@ class Partition(object):
         :param data: The specified data to insert, the dimension of data needs to align with column number
         :type  data: list-like(list, tuple, numpy.ndarray) object or pandas.DataFrame
         """
-        pass
+        conn = self._get_connection()
+        ids = conn.insert(self._collection.name(), data, partition_tag=self._name, kwargs=kwargs)
 
     def search(self, data, params, limit, expr=None, fields=None, **kwargs):
         """
