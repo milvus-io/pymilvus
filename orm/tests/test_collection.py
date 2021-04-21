@@ -1,10 +1,7 @@
-import unittest
 import logging
 import pytest
-from unittest.mock import MagicMock
+from utils import *
 from pymilvus_orm import Collection
-from pymilvus_orm.schema import CollectionSchema, FieldSchema
-from tests.utils import *
 
 LOGGER = logging.getLogger(__name__)
 
@@ -13,16 +10,26 @@ class TestCollections:
     @pytest.fixture(
         scope="function",
     )
-    def collection(self):
+    def params(self):
+        params = {
+            "default": {"host": "localhost", "port": "19530"},
+            "dev": {"host": "localhost", "port": "19530"}
+        }
+        return params
+
+    @pytest.fixture(
+        scope="function",
+    )
+    def collection(self, params):
         name = gen_collection_name()
         schema = gen_schema()
-        return Collection(name, schema)
+        return Collection(name, schema, **params)
 
     def test_constructor(self, collection):
         LOGGER.info(type(collection))
 
     def test_schema(self, collection):
-        schema = collection.schema()
+        schema = collection.schema
         description = "This is new description"
         schema.description = description
         collection.schema(schema)
@@ -30,18 +37,20 @@ class TestCollections:
         assert new_schema.description == description
 
     def test_description(self, collection):
-        description = collection.description
+        LOGGER.info(collection.description)
+        description = "This is new description"
         collection.description = description
+        assert collection.description == description
 
     def test_name(self, collection):
         LOGGER.info(collection.name)
         collection.name = gen_collection_name()
 
     def test_is_empty(self, collection):
-        collection.is_empty()
+        is_empty = collection.is_empty
 
     def test_num_entities(self, collection):
-        collection.num_entities()
+        num = collection.num_entities
 
     def test_drop(self, collection):
         collection.drop()

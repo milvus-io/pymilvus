@@ -18,9 +18,19 @@ class TestPartition():
     @pytest.fixture(
         scope="function",
     )
-    def partition(self):
-        collection = Collection(gen_collection_name(), gen_schema(), {})
-        return Partition(collection, gen_partition_name(), "", {})
+    def params(self):
+        params = {
+            "default": {"host": "localhost", "port": "19530"},
+            "dev": {"host": "localhost", "port": "19530"}
+        }
+        return params
+
+    @pytest.fixture(
+        scope="function",
+    )
+    def partition(self, params):
+        collection = Collection(gen_collection_name(), gen_schema(), **params)
+        return Partition(collection, gen_partition_name(), **params)
 
     def test_constructor(self, partition):
         LOGGER.info(type(partition))

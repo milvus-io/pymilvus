@@ -2,11 +2,11 @@ from . import connections
 
 class Partition(object):
 
-    def __init__(self, collection, name, description, **kwargs):
+    def __init__(self, collection, name, **kwargs):
         from .collection import Collection
         self._collection = collection
         self._name = name
-        self._description = description
+        self._description = kwargs.get("description", "")
         self._kwargs = kwargs
 
     def _get_using(self):

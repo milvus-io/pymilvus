@@ -1,6 +1,7 @@
 import unittest
-from tests.utils import *
+from utils import *
 from pymilvus_orm.utility import *
+
 
 class TestCase(unittest.TestCase):
     def test_loading_progress(self):
