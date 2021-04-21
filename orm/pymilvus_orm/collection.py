@@ -2,9 +2,10 @@ from . import connections
 from . import Partition
 from .schema import CollectionSchema
 
+
 class Collection(object):
     """
-    This is a class coresponding to collection in milvus.
+    This is a class corresponding to collection in milvus.
     """
 
     def __init__(self, name, schema, **kwargs):
@@ -21,6 +22,8 @@ class Collection(object):
         self._name = name
         self._kwargs = kwargs
         self._schema = schema
+        self._num_entities = 0
+        self._description = kwargs.get("description", "")
 
     def _get_using(self):
         return self._kwargs.get("_using", "default")
@@ -51,22 +54,47 @@ class Collection(object):
     @property
     def description(self):
         """
-        Return the description text.
+        Return the description text about the collection.
 
-        :return: Collection description text, return when operation is successful
+        :return:
+            Collection description text, return when operation is successful
+
         :rtype: str
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> field1 = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field1], auto_id=True, description="collection schema has a int64 field")
+        >>> collection = Collection(name="test_collection", schema=schema, description="test get description")
+        >>> collection.description
+        'test get description'
+
         """
-        pass
+        return self._description
 
     @description.setter
     def description(self, value):
         """
         Set the description text of collection.
 
-        :param value: the description text of collection
         :type value: str
+        :param value: the description text of collection
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> field1 = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field1], auto_id=True, description="collection schema has a int64 field")
+        >>> collection = Collection(name="test_collection", schema=schema, description="test get description")
+        >>> collection.description
+        'test get description'
+        >>> collection.description = "test set description"
+        >>> collection.description
+        'test set description'
         """
-        pass
+
+        self._description = value
 
     @property
     def name(self):
@@ -75,8 +103,17 @@ class Collection(object):
 
         :return: Collection name, return when operation is successful
         :rtype: str
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> field1 = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field1], auto_id=True, description="test get collection name.")
+        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> collection.name
+        'test_collection'
         """
-        pass
+        return self._name
 
     @name.setter
     def name(self, value):
@@ -85,8 +122,20 @@ class Collection(object):
 
         :param value: the name of collection
         :type value: str
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> field1 = FieldSchema(name="int64", type="int64", is_primary=False, description="This field type is int64.")
+        >>> schema = CollectionSchema(fields=[field1], auto_id=True, description="test set collection name.")
+        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> collection.name
+        'test_collection'
+        >>> collection.name = "set_collection"
+        >>> collection.name
+        'set_collection'
         """
-        pass
+        self._name = value
 
     # read-only
     @property
@@ -94,10 +143,12 @@ class Collection(object):
         """
         Return whether the collection is empty.
 
-        :return: Whether the collection is empty.
+        :return: Whether the collection is empty
         :rtype: bool
         """
-        pass
+        if self._num_entities == 0:
+            return True
+        return False
 
     # read-only
     @property
@@ -108,7 +159,10 @@ class Collection(object):
         :return: Number of entities in this collection.
         :rtype: int
         """
-        pass
+        conn = self._get_connection()
+        status = conn.get_collection_states(db_name="", collection_name=self._name)
+        self._num_entities = status["row_count"]
+        return self._num_entities
 
     def drop(self, **kwargs):
         """
