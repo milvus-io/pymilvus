@@ -11,7 +11,7 @@ from .grpc_handler import GrpcHandler
 from .http_handler import HttpHandler
 from .exceptions import ConnectionPoolError, NotConnectError, VersionError
 
-support_versions = ('1.0.x',)
+support_versions = ('1.1.x',)
 
 
 def _is_version_match(version):
