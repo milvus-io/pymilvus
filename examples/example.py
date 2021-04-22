@@ -1,11 +1,12 @@
-# This program demos how to connect to Milvus vector database, 
+#This program demos how to connect to Milvus vector database, 
 # create a vector collection,
 # insert 10 vectors, 
 # and execute a vector similarity search.
 
 import random
+import numpy as np
 
-from milvus import Milvus, IndexType, MetricType, Status
+from milvus import Milvus, DataType
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
@@ -26,25 +27,30 @@ def main():
     milvus = Milvus(_HOST, _PORT)
 
     # Create collection demo_collection if it dosen't exist.
-    collection_name = 'example_collection_'
+    collection_name = 'example_collection'
 
-    status, ok = milvus.has_collection(collection_name)
+    ok = milvus.has_collection(collection_name)
+    field_name = 'example_field'
     if not ok:
-        param = {
-            'collection_name': collection_name,
-            'dimension': _DIM,
-            'index_file_size': _INDEX_FILE_SIZE,  # optional
-            'metric_type': MetricType.L2  # optional
-        }
+        fields = {"fields":[{
+            "name": field_name,
+            "type": DataType.FLOAT_VECTOR,
+            "metric_type": "L2",
+            "params": {"dim": _DIM},
+            "indexes": [{"metric_type": "L2"}]
+        }]}
 
-        milvus.create_collection(param)
+        milvus.create_collection(collection_name=collection_name, fields=fields)
+    else:
+        milvus.drop_collection(collection_name=collection_name)
 
     # Show collections in Milvus server
-    _, collections = milvus.list_collections()
+    collections = milvus.list_collections()
+    print(collections)
 
     # Describe demo_collection
-    _, collection = milvus.get_collection_info(collection_name)
-    print(collection)
+    stats = milvus.get_collection_stats(collection_name)
+    print(stats)
 
     # 10000 vectors with 128 dimension
     # element per dimension is float32 type
@@ -55,68 +61,56 @@ def main():
     #   vectors = np.random.rand(10000, _DIM).astype(np.float32)
 
     # Insert vectors into demo_collection, return status and vectors id list
-    status, ids = milvus.insert(collection_name=collection_name, records=vectors)
-    if not status.OK():
-        print("Insert failed: {}".format(status))
+    entities = [{"name": field_name, "type": DataType.FLOAT_VECTOR, "values": vectors}]
+
+    res_ids = milvus.insert(collection_name=collection_name, entities=entities)
+    print("ids:",res_ids)
 
     # Flush collection  inserted data to disk.
     milvus.flush([collection_name])
-    # Get demo_collection row count
-    status, result = milvus.count_entities(collection_name)
 
     # present collection statistics info
-    _, info = milvus.get_collection_stats(collection_name)
-    print(info)
-
-    # Obtain raw vectors by providing vector ids
-    status, result_vectors = milvus.get_entity_by_id(collection_name, ids[:10])
+    stats = milvus.get_collection_stats(collection_name)
+    print(stats)
 
     # create index of vectors, search more rapidly
     index_param = {
-        'nlist': 2048
+        "metric_type": "L2",
+        "index_type": "IVF_FLAT",
+        "params": {"nlist": 1024}
     }
 
     # Create ivflat index in demo_collection
     # You can search vectors without creating index. however, Creating index help to
     # search faster
     print("Creating index: {}".format(index_param))
-    status = milvus.create_index(collection_name, IndexType.IVF_FLAT, index_param)
-
-    # describe index, get information of index
-    status, index = milvus.get_index_info(collection_name)
-    print(index)
-
-    # Use the top 10 vectors for similarity search
-    query_vectors = vectors[0:10]
+    status = milvus.create_index(collection_name, field_name, index_param)
 
     # execute vector similarity search
-    search_param = {
-        "nprobe": 16
-    }
 
     print("Searching ... ")
 
-    param = {
-        'collection_name': collection_name,
-        'query_records': query_vectors,
-        'top_k': 1,
-        'params': search_param,
-    }
+    dsl = {"bool": {"must": [{"vector": {
+                        field_name: {
+                            "metric_type": "L2",
+                            "query": vectors,
+                            "topk": 10,
+                            "params": {"nprobe": 16}
+                        }
+    }}]}}
 
-    status, results = milvus.search(**param)
-    if status.OK():
-        # indicate search result
-        # also use by:
-        #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
-        if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
-            print('Query result is correct')
-        else:
-            print('Query result isn\'t correct')
-
-        # print results
-        print(results)
+    milvus.load_collection(collection_name)
+    results = milvus.search(collection_name, dsl)
+    # indicate search result
+    # also use by:
+    #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
+    if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
+        print('Query result is correct')
     else:
-        print("Search failed. ", status)
+        print('Query result isn\'t correct')
+
+    milvus.drop_index(collection_name,field_name)
+    milvus.release_collection(collection_name)
 
     # Delete demo_collection
     status = milvus.drop_collection(collection_name)

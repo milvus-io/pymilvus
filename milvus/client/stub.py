@@ -1,19 +1,28 @@
 # -*- coding: UTF-8 -*-
 
 import collections
-import copy
 import functools
 import logging
+import time
 
 from urllib.parse import urlparse
 
-from . import __version__
-from .types import IndexType, MetricType, Status
-from .check import check_pass_param, is_legal_host, is_legal_port
+from .types import DeployMode
+from .check import (
+    check_pass_param,
+    is_legal_host,
+    is_legal_port,
+    is_legal_index_metric_type,
+    is_legal_binary_index_metric_type,
+)
 from .pool import ConnectionPool, SingleConnectionPool, SingletonThreadPool
 from .exceptions import ParamError, DeprecatedError
 
 from ..settings import DefaultConfig as config
+from .utils import valid_index_types
+from .utils import valid_binary_index_types
+from .utils import valid_index_params_keys
+from .utils import check_invalid_binary_vector
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,20 +57,16 @@ def _pool_args(**kwargs):
 def _set_uri(host, port, uri, handler="GRPC"):
     default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
     default_uri = config.GRPC_URI if handler == "GRPC" else config.HTTP_URI
+    uri_prefix = "tcp://" if handler == "GRPC" else "http://"
 
     if host is not None:
         _port = port if port is not None else default_port
         _host = host
-        if handler == "HTTP":
-            _proto = "https" if _port == 443 else "http"
-        else:
-            _proto = "tcp"
     elif port is None:
         try:
             _uri = urlparse(uri) if uri else urlparse(default_uri)
             _host = _uri.hostname
             _port = _uri.port
-            _proto = _uri.scheme
         except (AttributeError, ValueError, TypeError) as e:
             raise ParamError("uri is illegal: {}".format(e))
     else:
@@ -72,21 +77,20 @@ def _set_uri(host, port, uri, handler="GRPC"):
     if not is_legal_host(_host) or not is_legal_port(_port):
         raise ParamError("host {} or port {} is illegal".format(_host, _port))
 
-    return "{}://{}:{}".format(str(_proto), str(_host), str(_port))
+    return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
 
 
 class Milvus:
     def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", **kwargs):
-        """Constructor method
-        """
         self._name = kwargs.get('name', None)
         self._uri = None
         self._status = None
         self._connected = False
         self._handler = handler
-
-        #
         self._conn = None
+
+        if handler != "GRPC":
+            raise NotImplementedError("only grpc handler is supported now!")
 
         _uri = kwargs.get('uri', None)
         pool_uri = _set_uri(host, port, _uri, self._handler)
@@ -105,6 +109,25 @@ class Milvus:
         self._kw = kwargs
         self._hooks = collections.defaultdict()
 
+        self._deploy_mode = DeployMode.Distributed
+        self._wait_for_healthy()
+
+    @check_connect
+    def _wait_for_healthy(self, timeout=300, retry=250):
+        with self._connection() as handler:
+            while retry > 0:
+                try:
+                    status = handler.fake_register_link(timeout)
+                    if status.error_code == 0:
+                        self._deploy_mode = status.reason
+                        return
+                except:
+                    pass
+                finally:
+                    time.sleep(1)
+                    retry -= 1
+            raise Exception("server is not healthy, please try again later")
+
     def __enter__(self):
         self._conn = self._pool.fetch()
         return self
@@ -114,21 +137,10 @@ class Milvus:
         self._conn = None
 
     def __del__(self):
-        return self.close()
+        self._pool = None
 
     def _connection(self):
         return self._pool.fetch()
-
-    @deprecated
-    def set_hook(self, **kwargs):
-        """
-        Deprecated
-        """
-        # TODO: may remove it.
-        if self._stub:
-            self._stub.set_hook(**kwargs)
-        else:
-            self._hooks.update(kwargs)
 
     @property
     def name(self):
@@ -138,755 +150,810 @@ class Milvus:
     def handler(self):
         return self._handler
 
-    @deprecated
-    def connect(self, host=None, port=None, uri=None, timeout=2):
-        """
-        Deprecated
-        """
-        if self.connected() and self._connected:
-            return Status(message="You have already connected {} !".format(self._uri),
-                          code=Status.CONNECT_FAILED)
-
-        if self._stub is None:
-            self._init(host, port, uri, handler=self._handler)
-
-        if self.ping(timeout):
-            self._status = Status(message="Connected")
-            self._connected = True
-            return self._status
-
-        return Status()
-
-    @deprecated
-    def connected(self):
-        """
-        Deprecated
-        """
-        return self._status and self._status.OK()
-
-    @deprecated
-    def disconnect(self):
-        """
-        Deprecated
-        """
-        pass
-
     def close(self):
         """
         Close client instance
         """
-        self._pool = None
-
-    def client_version(self):
-        """
-        Returns the version of the client.
-
-        :return: Version of the client.
-
-        :rtype: (str)
-        """
-        return __version__
-
-    def server_status(self, timeout=30):
-        """
-        Returns the status of the Milvus server.
-
-        :return:
-            Status: Whether the operation is successful.
-
-            str : Status of the Milvus server.
-
-        :rtype: (Status, str)
-        """
-        return self._cmd("status", timeout)
-
-    def server_version(self, timeout=30):
-        """
-        Returns the version of the Milvus server.
-
-        :return:
-           Status: Whether the operation is successful.
-
-           str : Version of the Milvus server.
-
-        :rtype: (Status, str)
-        """
-
-        return self._cmd("version", timeout)
+        if self._pool:
+            self._pool = None
+            return
+        raise Exception("connection was already closed!")
 
     @check_connect
-    def _cmd(self, cmd, timeout=30):
-        check_pass_param(cmd=cmd)
-
-        with self._connection() as handler:
-            return handler._cmd(cmd, timeout)
-
-    @check_connect
-    def create_collection(self, param, timeout=30):
+    def create_collection(self, collection_name, fields, timeout=None):
         """
         Creates a collection.
 
-        :type  param: dict
-        :param param: Information needed to create a collection. It contains items:
-
-            * *collection_name* (``str``) -- Collection name.
-            * *dimension* (``int``) -- Dimension of embeddings stored in collection.
-            * *index_file_size* (``int``) -- Segment size. See
-              `Storage Concepts <https://milvus.io/docs/v1.0.0/storage_concept.md>`_.
-            * *metric_type* (``MetricType``) -- Distance Metrics type. Valued form
-              :class:`~milvus.MetricType`. See
-              `Distance Metrics <https://milvus.io/docs/v1.0.0/metric.md>`_.
-
-
-            A demo is as follow:
-
-            .. code-block:: python
-
-                param={'collection_name': 'name',
-                   'dimension': 16,
-                   'index_file_size': 1024 # Optional, default 1024，
-                   'metric_type': MetricType.L2 # Optional, default MetricType.L2
-                  }
-
-
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
-        """
-        if not isinstance(param, dict):
-            raise ParamError('Param type incorrect, expect {} but get {} instead'
-                             .format(type(dict), type(param)))
-
-        collection_param = copy.deepcopy(param)
-
-        if 'collection_name' not in collection_param:
-            raise ParamError('collection_name is required')
-        collection_name = collection_param["collection_name"]
-        collection_param.pop('collection_name')
-
-        if 'dimension' not in collection_param:
-            raise ParamError('dimension is required')
-        dim = collection_param["dimension"]
-        collection_param.pop("dimension")
-
-        index_file_size = collection_param.get('index_file_size', 1024)
-        collection_param.pop('index_file_size', None)
-
-        metric_type = collection_param.get('metric_type', MetricType.L2)
-        collection_param.pop('metric_type', None)
-
-        check_pass_param(collection_name=collection_name, dimension=dim,
-                         index_file_size=index_file_size, metric_type=metric_type)
-
-        with self._connection() as handler:
-            return handler.create_collection(collection_name, dim, index_file_size,
-                                             metric_type, collection_param, timeout)
-
-    @check_connect
-    def has_collection(self, collection_name, timeout=30):
-        """
-
-        Checks whether a collection exists.
-
-        :param collection_name: Name of the collection to check.
+        :param collection_name: The name of the collection. A collection name can only include
+        numbers, letters, and underscores, and must not begin with a number.
         :type  collection_name: str
+
+        :param fields: Field parameters.
+        :type  fields: dict
+
+            ` {"fields": [
+                    {"field": "A", "type": DataType.INT32}
+                    {"field": "B", "type": DataType.INT64},
+                    {"field": "C", "type": DataType.FLOAT},
+                    {"field": "Vec", "type": DataType.FLOAT_VECTOR,
+                     "params": {"dim": 128}}
+                ],
+            "auto_id": True}`
+
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
+                        is set to None, client waits until server response or error occur.
         :type  timeout: float
 
-        :return: The operation status and the flag indicating if collection exists. Succeed
-                 if `Status.OK()` is `True`. If status is not OK, the flag is always `False`.
-        :rtype: Status, bool
+        :return: None
+        :rtype: NoneType
 
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.has_collection(collection_name, timeout)
+            return handler.create_collection(collection_name, fields, timeout)
 
     @check_connect
-    def get_collection_info(self, collection_name, timeout=30):
+    def drop_collection(self, collection_name, timeout=None):
         """
-        Returns information of a collection.
+        Deletes a specified collection.
 
+        :param collection_name: The name of the collection to delete.
         :type  collection_name: str
-        :param collection_name: Name of the collection to describe.
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status and collection information. Succeed if `Status.OK()`
-                 is `True`. If status is not OK, the returned information is always `None`.
-        :rtype: Status, CollectionSchema
-        """
-        check_pass_param(collection_name=collection_name)
-        with self._connection() as handler:
-            return handler.describe_collection(collection_name, timeout)
-
-    @check_connect
-    def count_entities(self, collection_name, timeout=30):
-        """
-        Returns the number of vectors in a collection.
-
-        :type  collection_name: str
-        :param collection_name: target table name.
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status and row count. Succeed if `Status.OK()` is `True`.
-                 If status is not OK, the returned value of is always `None`.
-        :rtype: Status, int
-        """
-        check_pass_param(collection_name=collection_name)
-        with self._connection() as handler:
-            return handler.count_collection(collection_name, timeout)
-
-    @check_connect
-    def list_collections(self, timeout=30):
-        """
-        Returns collection list.
 
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
+                        is set to None, client waits until server response or error occur.
         :type  timeout: float
 
-        :return: The operation status and collection name list. Succeed if `Status.OK()` is `True`.
-                 If status is not OK, the returned name list is always `[]`.
-        :rtype: Status, list[str]
-        """
-        with self._connection() as handler:
-            return handler.show_collections(timeout)
+        :return: None
+        :rtype: NoneType
 
-    @check_connect
-    def get_collection_stats(self, collection_name, timeout=30):
-        """
-
-        Returns collection statistics information.
-
-        :type  collection_name: str
-        :param collection_name: target table name.
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status and collection statistics information. Succeed
-                 if `Status.OK()` is `True`. If status is not OK, the returned information
-                 is always `[]`.
-        :rtype: Status, dict
-        """
-        check_pass_param(collection_name=collection_name)
-        with self._connection() as handler:
-            return handler.show_collection_info(collection_name, timeout)
-
-    @check_connect
-    def load_collection(self, collection_name, partition_tags=None, timeout=None):
-        """
-        Loads a collection for caching.
-
-        :param collection_name: collection to load
-        :type collection_name: str
-        :param partition_tags: partition tag list. `None` indicates to load whole collection,
-                               otherwise to load specified partitions.
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
-        """
-        check_pass_param(collection_name=collection_name)
-        with self._connection() as handler:
-            return handler.preload_collection(collection_name, partition_tags, timeout)
-
-    @check_connect
-    def reload_segments(self, collection_name, segment_ids, timeout=None):
-        """
-        Reloads segment DeletedDocs data to cache. This API is not recommended for users.
-
-        :param collection_name: Name of the collection being deleted
-        :type  collection_name: str
-        :param segment_ids: Segment IDs.
-        :type segment_ids: list[str]
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
-        """
-        check_pass_param(collection_name=collection_name)
-        with self._connection() as handler:
-            return handler.reload_segments(collection_name, segment_ids, timeout)
-
-    @check_connect
-    def drop_collection(self, collection_name, timeout=30):
-        """
-        Deletes a collection by name.
-
-        :param collection_name: Name of the collection being deleted
-        :type  collection_name: str
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.drop_collection(collection_name, timeout)
 
     @check_connect
-    def insert(self, collection_name, records, ids=None, partition_tag=None,
-               params=None, timeout=None, **kwargs):
+    def has_collection(self, collection_name, timeout=None):
         """
-        Insert vectors to a collection.
+        Checks whether a specified collection exists.
 
+        :param collection_name: The name of the collection to check.
         :type  collection_name: str
-        :param collection_name: Name of the collection to insert vectors to.
-        :param ids: ID list. `None` indicates ID is generated by server system. Note that if the
-                    first time when insert() is invoked ids is not passed into this method, each
-                    of the rest time when inset() is invoked ids is not permitted to pass,
-                    otherwise server will return an error and the insertion process will fail.
-                    And vice versa.
-        :type  ids: list[int]
-        :param records: List of vectors to insert.
-        :type  records: list[list[float]]
-        :param partition_tag: Tag of a partition.
-        :type partition_tag: str or None. If partition_tag is None, vectors will be inserted to the
-                             default partition `_default`.
-        :param params: Insert param. Reserved.
-        :type params: dict
+
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture
-              object; otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only
-              takes effect when _async is set to True.
-
-        :return: The operation status and IDs of inserted entities. Succeed if `Status.OK()`
-                 is `True`. If status is not OK, the returned IDs is always `[]`.
-        :rtype: Status, list[int]
-        """
-        if kwargs.get("insert_param", None) is not None:
-            with self._connection() as handler:
-                return handler.insert(None, None, timeout=timeout, **kwargs)
-
-        check_pass_param(collection_name=collection_name, records=records)
-        _ = partition_tag is not None and check_pass_param(partition_tag=partition_tag)
-        if ids is not None:
-            check_pass_param(ids=ids)
-            if len(records) != len(ids):
-                raise ParamError("length of vectors do not match that of ids")
-
-        params = params or dict()
-        if not isinstance(params, dict):
-            raise ParamError("Params must be a dictionary type")
-        with self._connection() as handler:
-            return handler.insert(collection_name, records, ids, partition_tag,
-                                  params, timeout, **kwargs)
-
-    def get_entity_by_id(self, collection_name, ids, timeout=None):
-        """
-        Returns raw vectors according to ids.
-
-        :param collection_name: Name of the collection
-        :type collection_name: str
-
-        :param ids: list of vector id
-        :type ids: list
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
+                        is set to None, client waits until server response or error occur.
         :type  timeout: float
 
-        :return: The operation status and entities. Succeed if `Status.OK()` is `True`.
-                 If status is not OK, the returned entities is always `[]`.
-        :rtype: Status, list[list[float]]
-        """
-        check_pass_param(collection_name=collection_name, ids=ids)
+        :return: If specified collection exists
+        :rtype: bool
 
-        with self._connection() as handler:
-            return handler.get_vectors_by_ids(collection_name, ids, timeout=timeout)
-
-    @check_connect
-    def list_id_in_segment(self, collection_name, segment_name, timeout=None):
-        """
-        Get IDs of entity stored in the specified segment.
-
-        :param collection_name: Collection the segment belongs to.
-        :type collection_name: str
-        :param segment_name: Segment name.
-        :type segment_name: str
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status and entity IDs. Succeed if `Status.OK()` is `True`.
-                 If status is not OK, the returned IDs is always `[]`.
-        :rtype: Status, list[int]
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
-        check_pass_param(collection_name=segment_name)
         with self._connection() as handler:
-            return handler.get_vector_ids(collection_name, segment_name, timeout)
+            return handler.has_collection(collection_name, timeout)
 
     @check_connect
-    def create_index(self, collection_name, index_type=None, params=None, timeout=None, **kwargs):
+    def describe_collection(self, collection_name, timeout=None):
         """
-        Creates index for a collection.
+        Returns the schema of specified collection.
+        Example: {
+                    'collection_name': 'create_collection_eXgbpOtn',
+                    'auto_id': True,
+                    'description': '',
+                    'fields': [
+                    {'field_id': 100, 'name': 'INT32', 'description': '', 'type': 4, 'params': {},
+                    {'field_id': 101, 'name': 'FLOAT_VECTOR', 'description': '', 'type': 101,
+                        'params': {'dim': '128'}}]
+                        }
 
-        :param collection_name: Collection used to create index.
-        :type collection_name: str
-        :param index_type: index params. See `index params <param.html>`_ for supported indexes.
-        :type index_type: IndexType
-        :param params: Index param. See `index params <param.html>`_ for detailed index param of
-                       supported indexes.
-        :type params: dict
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a IndexFuture
-              object; otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only
-              takes effect when _async is set to True.
-
-        :return: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
-        """
-        _index_type = IndexType.FLAT if index_type is None else index_type
-        check_pass_param(collection_name=collection_name, index_type=_index_type)
-
-        params = params or dict()
-        if not isinstance(params, dict):
-            raise ParamError("Params must be a dictionary type")
-        with self._connection() as handler:
-            return handler.create_index(collection_name, _index_type, params, timeout, **kwargs)
-
-    @check_connect
-    def get_index_info(self, collection_name, timeout=30):
-        """
-        Show index information of a collection.
-
-        :type collection_name: str
-        :param collection_name: table name been queried
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status and index info. Succeed if `Status.OK()` is `True`.
-                 If status is not OK, the returned index info is always `None`.
-        :rtype: Status, IndexParam
-
-        """
-        check_pass_param(collection_name=collection_name)
-
-        with self._connection() as handler:
-            return handler.describe_index(collection_name, timeout)
-
-    @check_connect
-    def drop_index(self, collection_name, timeout=30):
-        """
-        Removes an index.
-
-        :param collection_name: target collection name.
-        :type collection_name: str
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
-        """
-        check_pass_param(collection_name=collection_name)
-
-        with self._connection() as handler:
-            return handler.drop_index(collection_name, timeout)
-
-    @check_connect
-    def create_partition(self, collection_name, partition_tag, timeout=30):
-        """
-        create a partition for a collection.
-
-        :param collection_name: Name of the collection.
+        :param collection_name: The name of the collection to describe.
         :type  collection_name: str
-        :param partition_tag: Name of the partition tag.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: The schema of collection to describe.
+        :rtype: dict
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.describe_collection(collection_name, timeout)
+
+    @check_connect
+    def load_collection(self, collection_name, timeout=None):
+        """
+        Loads a specified collection from disk to memory.
+
+        :param collection_name: The name of the collection to load.
+        :type  collection_name: str
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.load_collection("", collection_name=collection_name, timeout=timeout)
+
+    @check_connect
+    def release_collection(self, collection_name, timeout=None):
+        """
+        Clear collection data from memory.
+
+        :param collection_name: The name of collection to release.
+        :type  collection_name: str
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.release_collection(
+                db_name="", collection_name=collection_name, timeout=timeout)
+
+    @check_connect
+    def get_collection_stats(self, collection_name, timeout=None, **kwargs):
+        """
+        Returns collection statistics information.
+        Example: {"row_count": 10}
+
+        :param collection_name: The name of collection.
+        :type  collection_name: str.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: statistics information
+        :rtype: dict
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        with self._connection() as handler:
+            stats = handler.get_collection_stats(collection_name, timeout, **kwargs)
+            result = {stat.key: stat.value for stat in stats}
+            result["row_count"] = int(result["row_count"])
+            return result
+
+    @check_connect
+    def list_collections(self, timeout=None):
+        """
+        Returns a list of all collection names.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: List of collection names, return when operation is successful
+        :rtype: list[str]
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        with self._connection() as handler:
+            return handler.list_collections(timeout)
+
+    @check_connect
+    def create_partition(self, collection_name, partition_tag, timeout=None):
+        """
+        Creates a partition in a specified collection. You only need to import the
+        parameters of partition_tag to create a partition. A collection cannot hold
+        partitions of the same tag, whilst you can insert the same tag in different collections.
+
+        :param collection_name: The name of the collection to create partitions in.
+        :type  collection_name: str
+
+        :param partition_tag: The tag name of the partition to create.
         :type  partition_tag: str
+
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
+                        is set to None, client waits until server response or error occur.
         :type  timeout: float
 
-        :return: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
+        :return: None
+        :rtype: NoneType
 
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
         with self._connection() as handler:
             return handler.create_partition(collection_name, partition_tag, timeout)
 
     @check_connect
-    def has_partition(self, collection_name, partition_tag, timeout=30):
+    def drop_partition(self, collection_name, partition_tag, timeout=None):
         """
-        Check if specified partition exists.
+        Deletes the specified partition in a collection. Note that the default partition
+        '_default' is not permitted to delete. When a partition deleted, all data stored in it
+        will be deleted.
 
-        :param collection_name: target table name.
+        :param collection_name: The name of the collection to delete partitions from.
         :type  collection_name: str
-        :param partition_tag: partition tag.
+
+        :param partition_tag: The tag name of the partition to delete.
         :type  partition_tag: str
+
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
+                        is set to None, client waits until server response or error occur.
         :type  timeout: float
 
-        :returns: The operation status and a flag indicating if partition exists. Succeed
-                  if `Status.OK()` is `True`. If status is not ok, the flag is always `False`.
-        :rtype: Status, bool
+        :return: None
+        :rtype: NoneType
 
-        """
-        check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
-        with self._connection() as handler:
-            return handler.has_partition(collection_name, partition_tag, timeout)
-
-    @check_connect
-    def list_partitions(self, collection_name, timeout=30):
-        """
-        Show all partitions in a collection.
-
-        :param collection_name: target table name.
-        :type  collection_name: str
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :returns: The operation status and partition list. Succeed if `Status.OK()` is `True`.
-                  If status is not OK, returned partition list is `[]`.
-        :rtype: Status, list[PartitionParam]
-
-        """
-        check_pass_param(collection_name=collection_name)
-
-        with self._connection() as handler:
-            return handler.show_partitions(collection_name, timeout)
-
-    @check_connect
-    def drop_partition(self, collection_name, partition_tag, timeout=30):
-        """
-        Deletes a partition in a collection.
-
-        :param collection_name: Collection name.
-        :type  collection_name: str
-        :param partition_tag: Partition name.
-        :type  partition_tag: str
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-
-        :return: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
-
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
         with self._connection() as handler:
             return handler.drop_partition(collection_name, partition_tag, timeout)
 
     @check_connect
-    def search(self, collection_name, top_k, query_records, partition_tags=None,
-               params=None, timeout=None, **kwargs):
+    def has_partition(self, collection_name, partition_tag, timeout=None):
         """
-        Search vectors in a collection.
+        Checks if a specified partition exists in a collection.
 
-        :param collection_name: Name of the collection.
+        :param collection_name: The name of the collection to find the partition in.
         :type  collection_name: str
-        :param top_k: number of vectors which is most similar with query vectors
-        :type  top_k: int
-        :param query_records: vectors to query
-        :type  query_records: list[list[float32]]
-        :param partition_tags: tags to search. `None` indicates to search in whole collection.
-        :type  partition_tags: list
-        :param params: Search params. The params is related to index type the collection is built.
-                       See `index params <param.html>`_ for more detailed information.
-        :type  params: dict
+
+        :param partition_tag: The tag name of the partition to check
+        :type  partition_tag: str
+
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
+                        is set to None, client waits until server response or error occur.
         :type  timeout: float
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a SearchFuture
-              object; otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only
-              takes effect when _async is set to True.
 
-        :returns: The operation status and search result. See <a>here</a> to find how to handle
-                  search result. Succeed if `Status.OK()` is `True`. If status is not OK,
-                  results is always `None`.
-        :rtype: Status, TopKQueryResult
+        :return: Whether a specified partition exists in a collection.
+        :rtype: bool
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name, topk=top_k, records=query_records)
-        if partition_tags is not None:
-            check_pass_param(partition_tag_array=partition_tags)
-
-        params = dict() if params is None else params
-        if not isinstance(params, dict):
-            raise ParamError("Params must be a dictionary type")
+        check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
         with self._connection() as handler:
-            return handler.search(collection_name, top_k, query_records,
-                                  partition_tags, params, timeout, **kwargs)
+            return handler.has_partition(collection_name, partition_tag, timeout)
 
     @check_connect
-    def search_in_segment(self, collection_name, file_ids, query_records, top_k,
-                          params=None, timeout=None, **kwargs):
+    def load_partitions(self, collection_name, partition_names, timeout=None):
         """
-        Searches for vectors in specific segments of a collection.
-        This API is not recommended for users.
+        Load specified partitions from disk to memory.
 
-        The Milvus server stores vector data into multiple files. Searching for vectors in specific
-        files is a method used in Mishards. Obtain more detail about Mishards, see
-        `Mishards <https://github.com/milvus-io/milvus/tree/master/shards>`_.
-
-        :param collection_name: table name been queried
+        :param collection_name: The collection name which partitions belong to.
         :type  collection_name: str
-        :param file_ids: Specified files id array
-        :type  file_ids: list[str] or list[int]
-        :param query_records: all vectors going to be queried
-        :type  query_records: list[list[float]]
-        :param top_k: how many similar vectors will be searched
-        :type  top_k: int
-        :param params: Search params. The params is related to index type the collection is built.
-                       See <a></a> for more detailed information.
-        :type  params: dict
+
+        :param partition_names: The specified partitions to load.
+        :type  partition_names: list[str]
+
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a SearchFuture
-              object; otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only
-              takes effect when _async is set to True.
-
-        :returns: The operation status and search result. See <a>here</a> to find how to handle
-                  search result. Succeed if `Status.OK()` is `True`. If status is not OK, results
-                  is always `None`.
-        :rtype: Status, TopKQueryResult
-        """
-        check_pass_param(collection_name=collection_name, topk=top_k,
-                         records=query_records, ids=file_ids)
-
-        params = dict() if params is None else params
-        if not isinstance(params, dict):
-            raise ParamError("Params must be a dictionary type")
-        with self._connection() as handler:
-            return handler.search_in_files(collection_name, file_ids,
-                                           query_records, top_k, params, timeout, **kwargs)
-
-    @check_connect
-    def delete_entity_by_id(self, collection_name, id_array, timeout=None):
-        """
-        Deletes vectors in a collection by vector ID.
-
-        :param collection_name: Name of the collection.
-        :type  collection_name: str
-        :param id_array: list of vector id
-        :type  id_array: list[int]
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
+                        is set to None, client waits until server response or error occur.
         :type  timeout: float
 
-        :returns: The operation status. If the specified ID doesn't exist, Milvus server skip it
-                  and try to delete next entities, which is regard as one successful operation.
-                  Succeed if `Status.OK()` is `True`.
-        :rtype: Status
-        """
-        check_pass_param(collection_name=collection_name, ids=id_array)
-        with self._connection() as handler:
-            return handler.delete_by_id(collection_name, id_array, timeout)
+        :return: None
+        :rtype: NoneType
 
-    @check_connect
-    def flush(self, collection_name_array=None, timeout=None, **kwargs):
-        """
-        Flushes vector data in one collection or multiple collections to disk.
-
-        :type  collection_name_array: list
-        :param collection_name_array: Name of one or multiple collections to flush.
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a FlushFuture
-              object; otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only
-              takes effect when _async is set to True.
-
-        :returns: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
-        """
-
-        if collection_name_array in (None, []):
-            with self._connection() as handler:
-                return handler.flush([], timeout)
-
-        if not isinstance(collection_name_array, list):
-            raise ParamError("Collection name array must be type of list")
-
-        if len(collection_name_array) <= 0:
-            raise ParamError("Collection name array is not allowed to be empty")
-
-        for name in collection_name_array:
-            check_pass_param(collection_name=name)
-        with self._connection() as handler:
-            return handler.flush(collection_name_array, timeout, **kwargs)
-
-    @check_connect
-    def compact(self, collection_name, timeout=None, **kwargs):
-        """
-        Compacts segments in a collection. This function is recommended after deleting vectors.
-
-        :type  collection_name: str
-        :param collection_name: Name of the collections to compact.
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server responses or error occurs.
-        :type  timeout: float
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a CompactFuture
-              object; otherwise, method returns results from server.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only
-              takes effect when _async is set to True.
-
-        :returns: The operation status. Succeed if `Status.OK()` is `True`.
-        :rtype: Status
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.compact(collection_name, timeout, **kwargs)
+            return handler.load_partitions(db_name="", collection_name=collection_name,
+                                           partition_names=partition_names, timeout=timeout)
 
-    def get_config(self, parent_key, child_key):
+    @check_connect
+    def release_partitions(self, collection_name, partition_names, timeout=None):
         """
-        Gets Milvus configurations.
+        Clear partitions data from memory.
 
+        :param collection_name: The collection name which partitions belong to.
+        :type  collection_name: str
+        :param partition_names: The specified partition to release.
+        :type  partition_names: list[str]
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
-        cmd = "get_config {}.{}".format(parent_key, child_key)
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.release_partitions(db_name="", collection_name=collection_name,
+                                              partition_names=partition_names, timeout=timeout)
 
-        return self._cmd(cmd)
-
-    def set_config(self, parent_key, child_key, value):
+    @check_connect
+    def list_partitions(self, collection_name, timeout=None):
         """
-        Sets Milvus configurations.
+        Returns a list of all partition tags in a specified collection.
 
+        :param collection_name: The name of the collection to retrieve partition tags from.
+        :type  collection_name: str
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: A list of all partition tags in specified collection.
+        :rtype: list[str]
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
         """
-        cmd = "set_config {}.{} {}".format(parent_key, child_key, value)
+        check_pass_param(collection_name=collection_name)
 
-        return self._cmd(cmd)
+        with self._connection() as handler:
+            return handler.list_partitions(collection_name, timeout)
+
+    # @check_connect
+    # def insert(self,collection_name, entities, ids=None, partition_tag=None,
+    #            params=None, timeout=None, **kwargs):
+    #     """
+    #     Inserts entities in a specified collection.
+    #
+    #     :param collection_name: The name of the collection to insert entities in.
+    #     :type  collection_name: str.
+    #     :param entities: The entities to insert.
+    #     :type  entities: list
+    #     :param ids: The list of ids corresponding to the inserted entities.
+    #     :type  ids: list[int]
+    #     :param partition_tag: The name of the partition to insert entities in. The default value
+    #     is one. The server stores entities in the “_default” partition by default.
+    #     :type  partition_tag: str
+    #
+    #     :return: list of ids of the inserted vectors.
+    #     :rtype: list[int]
+    #
+    #     :raises:
+    #         RpcError: If grpc encounter an error
+    #         ParamError: If parameters are invalid
+    #         BaseException: If the return result from server is not ok
+    #     """
+    #     if kwargs.get("insert_param", None) is not None:
+    #         with self._connection() as handler:
+    #             return handler.insert(None, None, timeout=timeout, **kwargs)
+    #
+    #     if ids is not None:
+    #         check_pass_param(ids=ids)
+    #     with self._connection() as handler:
+    #         return handler.insert(
+    #             collection_name, entities, ids, partition_tag, params, timeout, **kwargs)
+
+    @check_connect
+    def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
+        """
+        Creates an index for a field in a specified collection. Milvus does not support creating
+        multiple indexes for a field. In a scenario where the field already has an index, if you
+        create another one, the server will replace the existing index files with the new ones.
+
+        Note that you need to call load_collection() or load_partitions() to make the new index
+        take effect on searching tasks.
+
+        :param collection_name: The name of the collection to create field indexes.
+        :type  collection_name: str
+
+        :param field_name: The name of the field to create an index for.
+        :type  field_name: str
+
+        :param params: Indexing parameters.
+        :type  params: dict
+            There are examples of supported indexes:
+
+            IVF_FLAT:
+                ` {
+                    "metric_type":"L2",
+                    "index_type": "IVF_FLAT",
+                    "params":{"nlist": 1024}
+                }`
+
+            IVF_PQ:
+                `{
+                    "metric_type": "L2",
+                    "index_type": "IVF_PQ",
+                    "params": {"nlist": 1024, "m": 8, "nbits": 8}
+                }`
+
+            IVF_SQ8:
+                `{
+                    "metric_type": "L2",
+                    "index_type": "IVF_SQ8",
+                    "params": {"nlist": 1024}
+                }`
+
+            BIN_IVF_FLAT:
+                `{
+                    "metric_type": "JACCARD",
+                    "index_type": "BIN_IVF_FLAT",
+                    "params": {"nlist": 1024}
+                }`
+
+            HNSW:
+                `{
+                    "metric_type": "L2",
+                    "index_type": "HNSW",
+                    "params": {"M": 48, "efConstruction": 50}
+                }`
+
+            RHNSW_FLAT:
+                `{
+                    "metric_type": "L2",
+                    "index_type": "RHNSW_FLAT",
+                    "params": {"M": 48, "efConstruction": 50}
+                }`
+
+            RHNSW_PQ:
+                `{
+                    "metric_type": "L2",
+                    "index_type": "RHNSW_PQ",
+                    "params": {"M": 48, "efConstruction": 50, "PQM": 8}
+                }`
+
+            RHNSW_SQ:
+                `{
+                    "metric_type": "L2",
+                    "index_type": "RHNSW_SQ",
+                    "params": {"M": 48, "efConstruction": 50}
+                }`
+
+            ANNOY:
+                `{
+                    "metric_type": "L2",
+                    "index_type": "ANNOY",
+                    "params": {"n_trees": 8}
+                }`
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously.
+              When value is true, method returns a IndexFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully.
+              It only take effect when _async is set to True.
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        params = params or dict()
+        if not isinstance(params, dict):
+            raise ParamError("Params must be a dictionary type")
+        # params preliminary validate
+        if 'index_type' not in params:
+            raise ParamError("Params must contains key: 'index_type'")
+        if 'params' not in params:
+            raise ParamError("Params must contains key: 'params'")
+        if 'metric_type' not in params:
+            raise ParamError("Params must contains key: 'metric_type'")
+        if not isinstance(params['params'], dict):
+            raise ParamError("Params['params'] must be a dictionary type")
+        if params['index_type'] not in valid_index_types:
+            raise ParamError("Invalid index_type: " + params['index_type'] +
+                             ", which must be one of: " + valid_index_types)
+        for k in params['params'].keys():
+            if k not in valid_index_params_keys:
+                raise ParamError("Invalid params['params'].key: " + k)
+        for v in params['params'].values():
+            if not isinstance(v, int):
+                raise ParamError(f"Invalid params['params'].value: {v}, which must be an integer")
+
+        # filter invalid metric type
+        if params['index_type'] in valid_binary_index_types:
+            if not is_legal_binary_index_metric_type(params['index_type'], params['metric_type']):
+                raise ParamError("Invalid metric_type: " + params['metric_type'] +
+                                 ", which does not match the index type: " + params['index_type'])
+        else:
+            if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
+                raise ParamError("Invalid metric_type: " + params['metric_type'] +
+                                 ", which does not match the index type: " + params['index_type'])
+        with self._connection() as handler:
+            return handler.create_index(collection_name, field_name, params, timeout, **kwargs)
+
+    @check_connect
+    def drop_index(self, collection_name, field_name, timeout=None):
+        """
+        Removes the index of a field in a specified collection.
+
+        :param collection_name: The name of the collection to remove the field index from.
+        :type  collection_name: str
+        :param field_name: The name of the field to remove the index of.
+        :type  field_name: str
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        check_pass_param(field_name=field_name)
+        with self._connection() as handler:
+            return handler.drop_index(collection_name, field_name, "_default_idx", timeout=timeout)
+
+    @check_connect
+    def describe_index(self, collection_name, field_name, timeout=None):
+        """
+        Returns the schema of index built on specified field.
+        Example: {'index_type': 'FLAT', 'metric_type': 'L2', 'params': {'nlist': 128}}
+
+        :param collection_name: The name of the collection which field belong to.
+        :type  collection_name: str
+
+        :param field_name: The name of field to describe.
+        :type  field_name: str
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: the schema of index built on specified field.
+        :rtype: dict
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        check_pass_param(field_name=field_name)
+        with self._connection() as handler:
+            return handler.describe_index(collection_name, field_name, timeout)
+
+    @check_connect
+    def insert(self,
+               collection_name, entities, ids=None, partition_tag=None, timeout=None, **kwargs):
+        """
+        Inserts entities in a specified collection.
+
+        :param collection_name: The name of the collection to insert entities in.
+        :type  collection_name: str.
+
+        :param entities: The entities to insert.
+        :type  entities: list
+
+        :param ids: The list of ids corresponding to the inserted entities.
+        :type  ids: list[int]
+
+        :param partition_tag: The name of the partition to insert entities in. The default value is
+                              None. The server stores entities in the “_default” partition by
+                              default.
+        :type  partition_tag: str
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously.
+              When value is true, method returns a InsertFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully.
+              It only take effect when _async is set to True.
+
+        :return: list of ids of the inserted vectors.
+        :rtype: list[int]
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        if not check_invalid_binary_vector(entities):
+            raise ParamError("Invalid binary vector data exists")
+
+        if kwargs.get("insert_param", None) is not None:
+            with self._connection() as handler:
+                return handler.bulk_insert(None, None, timeout=timeout, **kwargs)
+
+        if ids is not None:
+            check_pass_param(ids=ids)
+        with self._connection() as handler:
+            return handler.bulk_insert(
+                collection_name, entities, ids, partition_tag, None, timeout, **kwargs)
+
+    @check_connect
+    def flush(self, collection_names=None, timeout=None, **kwargs):
+        """
+        Internally, Milvus organizes data into segments, and indexes are built in a per-segment
+        manner. By default, a segment will be sealed if it grows large enough (according to segment
+        size configuration).
+        If any index is specified on certain field, the index-creating task will be triggered
+        automatically when a segment is sealed.
+
+        The flush() call will seal all the growing segments immediately of the given collection,
+        and force trigger the index-creating tasks.
+
+        :param collection_names: The name of collection to flush.
+        :type  collection_names: list[str]
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously.
+              When value is true, method returns a FlushFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully.
+              It only take effect when _async is set to True.
+
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        if collection_names in (None, []):
+            raise ParamError("Collection name list can not be None or empty")
+
+        if not isinstance(collection_names, list):
+            raise ParamError("Collection name array must be type of list")
+
+        if len(collection_names) <= 0:
+            raise ParamError("Collection name array is not allowed to be empty")
+
+        for name in collection_names:
+            check_pass_param(collection_name=name)
+        with self._connection() as handler:
+            return handler.flush(collection_names, timeout, **kwargs)
+
+    @check_connect
+    def search(self,
+               collection_name, dsl, partition_tags=None, fields=None, timeout=None, **kwargs):
+        """
+        Searches a collection based on the given DSL clauses and returns query results.
+
+        :param collection_name: The name of the collection to search.
+        :type  collection_name: str
+
+        :param dsl: The DSL that defines the query.
+        :type  dsl: dict
+
+            ` {
+                "bool": {
+                    "must": [
+                        {
+                            "range": {
+                                "A": {
+                                    "GT": 1,
+                                    "LT": "100"
+                                }
+                            }
+                        },
+                        {
+                            "vector": {
+                                "Vec": {
+                                    "metric_type": "L2",
+                                    "params": {
+                                        "nprobe": 10
+                                    },
+                                    "query": vectors,
+                                    "topk": 10
+                                }
+                            }
+                        }
+                    ]
+                }
+            }`
+
+        :param partition_tags: The tags of partitions to search.
+        :type  partition_tags: list[str]
+
+        :param fields: The fields to return in the search result
+        :type  fields: list[str]
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously.
+              When value is true, method returns a SearchFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully.
+              It only take effect when _async is set to True.
+
+        :return: Query result. QueryResult is iterable and is a 2d-array-like class,
+                 the first dimension is the number of vectors to query (nq),
+                 the second dimension is the number of topk.
+        :rtype: QueryResult
+
+        Suppose the nq in dsl is 4, topk in dsl is 10:
+        :example:
+        >>> client = Milvus(host='localhost', port='19530')
+        >>> result = client.search(collection_name, dsl)
+        >>> print(len(result))
+        4
+        >>> print(len(result[0]))
+        10
+        >>> print(len(result[0].ids))
+        10
+        >>> result[0].ids
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> len(result[0].distances)
+        10
+        >>> result[0].distances
+        [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        >>> top1 = result[0][0]
+        >>> top1.id
+        0
+        >>> top1.distance
+        0.1
+        >>> top1.score # now, the score is equal to distance
+        0.1
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        with self._connection() as handler:
+            kwargs["_deploy_mode"] = self._deploy_mode
+            return handler.search(
+                collection_name, dsl, partition_tags, fields, timeout=timeout, **kwargs)

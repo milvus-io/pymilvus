@@ -1,10 +1,10 @@
-import ujson
+import abc
+import json
 
-from .exceptions import ParamError
+from .types import DataType
+from . import blob
 
-from .check import check_pass_param
-
-from .types import IndexType
+from ..grpc_gen import milvus_pb2
 
 
 class LoopBase:
@@ -14,69 +14,6 @@ class LoopBase:
     def __iter__(self):
         return self
 
-    def __next__(self):
-        while self.__index < self.__len__():
-            self.__index += 1
-            return self.__getitem__(self.__index - 1)
-
-        # iterate stop, raise Exception
-        self.__index = 0
-        raise StopIteration()
-
-
-class CollectionSchema:
-    def __init__(self, collection_name, dimension, index_file_size, metric_type):
-        """
-        Table Schema
-
-        :type  table_name: str
-        :param table_name: (Required) name of table
-
-            `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
-
-        :type  dimension: int64
-        :param dimension: (Required) dimension of vector
-
-        :type  index_file_size: int64
-        :param index_file_size: (Optional) max size of files which store index
-
-        :type  metric_type: MetricType
-        :param metric_type: (Optional) vectors metric type
-
-            `MetricType`: 1-L2, 2-IP
-
-        """
-        check_pass_param(collection_name=collection_name, dimension=dimension,
-                         index_file_size=index_file_size, metric_type=metric_type)
-
-        self.collection_name = collection_name
-        self.dimension = dimension
-        self.index_file_size = index_file_size
-        self.metric_type = metric_type
-
-    def __repr__(self):
-        attr_list = ['%s=%r' % (key, value) for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-
-class QueryResult:
-
-    def __init__(self, _id, _distance):
-        self.id = _id
-        self.distance = _distance
-
-    def __str__(self):
-        return "Result(id={}, distance={})".format(self.id, self.distance)
-
-
-class RowQueryResult:
-    def __init__(self, _id_list, _dis_list):
-        self._id_list = _id_list or []
-        self._dis_list = _dis_list or []
-
-        # Iterator index
-        self.__index = 0
-
     def __getitem__(self, item):
         if isinstance(item, slice):
             _start = item.start or 0
@@ -85,16 +22,13 @@ class RowQueryResult:
 
             elements = []
             for i in range(_start, _end, _step):
-                elements.append(self.__getitem__(i))
+                elements.append(self.get__item(i))
             return elements
 
-        return QueryResult(self._id_list[item], self._dis_list[item])
+        if item >= self.__len__():
+            raise IndexError("Index out of range")
 
-    def __len__(self):
-        return len(self._id_list)
-
-    def __iter__(self):
-        return self
+        return self.get__item(item)
 
     def __next__(self):
         while self.__index < self.__len__():
@@ -105,351 +39,265 @@ class RowQueryResult:
         self.__index = 0
         raise StopIteration()
 
+    @abc.abstractmethod
+    def get__item(self, item):
+        raise NotImplementedError()
 
-class TopKQueryResult:
-    """
-    TopK query results, shown as 2-D array
 
-    This Class unpack response from server, store ids and distances separately.
-    """
+class LoopCache:
+    def __init__(self):
+        self._array = []
 
-    def __init__(self, raw_source, **kwargs):
-        self._raw = raw_source
-        self._nq = 0
-        self._topk = 0
-        self._id_array = []
-        self._dis_array = []
+    def fill(self, index, obj):
+        if len(self._array) + 1 < index:
+            pass
+
+
+class FieldSchema:
+    def __init__(self, raw):
+        self._raw = raw
+
+        #
+        self.field_id = 0
+        self.name = None
+        self.is_primary_key = False
+        self.description = None
+        self.type = DataType.UNKNOWN
+        self.indexes = list()
+        self.params = dict()
 
         ##
-        self.__index = 0
+        self.__pack(self._raw)
 
-        self._unpack(self._raw)
+    def __pack(self, raw):
+        self.field_id = raw.fieldID
+        self.name = raw.name
+        self.is_primary_key = raw.is_primary_key
+        self.description = raw.description
+        self.type = raw.data_type
+        # self.type = DataType(int(raw.type))
 
-    def _unpack(self, _raw):
-        """
+        for type_param in raw.type_params:
+            if type_param.key == "params":
+                self.params[type_param.key] = json.loads(type_param.value)
+            else:
+                self.params[type_param.key] = type_param.value
 
-        Args:
-            _raw:
+        index_dict = dict()
+        for index_param in raw.index_params:
+            if index_param.key == "params":
+                index_dict[index_param.key] = json.loads(index_param.value)
+            else:
+                index_dict[index_param.key] = index_param.value
 
-        Returns:
+        self.indexes.extend([index_dict])
 
-        """
-        self._nq = _raw.row_num
+    def dict(self):
+        _dict = dict()
+        _dict["field_id"] = self.field_id
+        _dict["name"] = self.name
+        _dict["description"] = self.description
+        _dict["type"] = self.type
+        _dict["params"] = self.params or dict()
+        _dict["is_primary"] = self.is_primary_key
+        return _dict
 
-        if self._nq == 0:
-            return
 
-        self._id_array = [list() for _ in range(self._nq)]
-        self._dis_array = [list() for _ in range(self._nq)]
+class CollectionSchema:
+    def __init__(self, raw):
+        self._raw = raw
 
-        id_list = list(_raw.ids)
-        dis_list = list(_raw.distances)
-        if len(id_list) != len(dis_list):
-            raise ParamError("number of id not match distance ")
+        #
+        self.collection_name = None
+        self.description = None
+        self.params = dict()
+        self.fields = list()
+        self.statistics = dict()
 
-        len_ = len(id_list)
-        col = len_ // self._nq if self._nq > 0 else 0
+        #
+        if self._raw:
+            self.__pack(self._raw)
 
-        if col == 0:
-            return
+    def __pack(self, raw):
+        self.collection_name = raw.schema.name
+        self.auto_id = raw.schema.autoID
+        self.description = raw.schema.description
+        # self.params = dict()
+        # TODO: extra_params here
+        # for kv in raw.extra_params:
+        #     par = ujson.loads(kv.value)
+        #     self.params.update(par)
+        #     # self.params[kv.key] = kv.value
 
-        if len_ % col != 0:
-            raise ValueError(
-                "Search result is not aligned. (row_num={}, len of ids={})".format(_raw.row_num,
-                                                                                   len_))
+        for f in raw.schema.fields:
+            self.fields.append(FieldSchema(f))
 
-        for si, i in enumerate(range(0, len_, col)):
-            k = min(i + col, len_)
-            for j in range(i, k):
-                if id_list[j] == -1:
-                    k = j
-                    break
-            self._id_array[si].extend(id_list[i: k])
-            self._dis_array[si].extend(dis_list[i: k])
+        # for s in raw.statistics:
+        #     self.statistics[s.key] = s.value
 
-        if len(self._id_array) != self._nq or \
-                len(self._dis_array) != self._nq:
-            raise ParamError("Result parse error.")
+    def dict(self):
+        if not self._raw:
+            return dict()
+        _dict = dict()
+        _dict["collection_name"] = self.collection_name
+        _dict["auto_id"] = self.auto_id
+        _dict["description"] = self.description
+        _dict["fields"] = [f.dict() for f in self.fields]
+        # for k, v in self.params.items():
+        #     if isinstance(v, DataType):
+        #         _dict[k] = v.value
+        #     else:
+        #         _dict[k] = v
 
-        self._topk = col
+        return _dict
+
+
+class Entity:
+    def __init__(self, entity_id, entity_row_data, entity_score):
+        self._id = entity_id
+        self._row_data = entity_row_data
+        self._score = entity_score
+        self._distance = entity_score
+
+    def __str__(self):
+        str_ = 'id: {}, distance: {}'.format(self._id, self._distance)
+        return str_
+
+    def __getattr__(self, item):
+        return self.value_of_field(item)
 
     @property
-    def id_array(self):
-        """
-        Id array, it's a 2-D array.
-        """
-        return self._id_array
+    def id(self):
+        return self._id
 
     @property
-    def distance_array(self):
-        """
-        Distance array, it's a 2-D array
-        """
-        return self._dis_array
+    def fields(self):
+        raise NotImplementedError('TODO: support field in Hits')
+
+    def get(self, field):
+        return self.value_of_field(field)
+
+    def value_of_field(self, field):
+        raise NotImplementedError('TODO: support field in Hits')
+
+    def type_of_field(self, field):
+        raise NotImplementedError('TODO: support field in Hits')
+
+
+class Hit:
+    def __init__(self, entity_id, entity_row_data, entity_score):
+        self._id = entity_id
+        self._row_data = entity_row_data
+        self._score = entity_score
+        self._distance = entity_score
+
+    def __str__(self):
+        return "(distance: {}, score: {}, id: {})".format(self._distance, self._score, self._id)
 
     @property
-    def shape(self):
-        """
-        getter. return result shape, format as (row, column).
-
-        """
-        return self._nq, self._topk
+    def entity(self):
+        return Entity(self._id, self._row_data, self._score)
 
     @property
-    def raw(self):
-        """
-        getter. return the raw result response
+    def id(self):
+        return self._id
 
-        """
-        return self._raw
+    @property
+    def distance(self):
+        return self._distance
+
+    @property
+    def score(self):
+        return self._score
+
+
+class Hits(LoopBase):
+    def __init__(self, raw, auto_id):
+        super().__init__()
+        self._raw = raw
+        self._auto_id = auto_id
+        self._distances = self._raw.scores
+        self._entities = []
+        self._pack(self._raw)
+
+    def _pack(self, raw):
+        self._entities = list(self)
+
+    def __len__(self):
+        return len(self._raw.IDs)
+
+    def get__item(self, item):
+        entity_id = self._raw.IDs[item]
+        if self._raw.row_data and len(self._raw.row_data) > item:
+            entity_row_data = self._raw.row_data[item]
+        else:
+            entity_row_data = None
+        entity_score = self._raw.scores[item]
+        if not self._auto_id:
+            entity_id = blob.bytesToInt64(entity_row_data)
+        return Hit(entity_id, entity_row_data, entity_score)
+
+    @property
+    def ids(self):
+        return self._raw.IDs
+
+    @property
+    def distances(self):
+        return self._raw.scores
+
+
+class QueryResult(LoopBase):
+    def __init__(self, raw, auto_id=True):
+        super().__init__()
+        self._raw = raw
+        self._auto_id = auto_id
+        self._pack(raw.hits)
 
     def __len__(self):
         return self._nq
 
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
-            _step = item.step or 1
+    def __len(self):
+        return self._nq
 
-            elements = []
-            for i in range(_start, _end, _step):
-                elements.append(self.__getitem__(i))
-            return elements
+    def _pack(self, raw):
+        self._hits = []
+        for bs in raw:
+            hit = milvus_pb2.Hits()
+            hit.ParseFromString(bs)
+            self._hits.append(hit)
+        self._nq = len(self._hits)
+        self._topk = len(self._hits[0].IDs) if len(self._hits) > 0 else 0
 
-        return RowQueryResult(self._id_array[item], self._dis_array[item])
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        while self.__index < self.__len__():
-            self.__index += 1
-            return self.__getitem__(self.__index - 1)
-
-        # iterate stop, raise Exception
-        self.__index = 0
-        raise StopIteration()
-
-    def __repr__(self):
-        """
-        :return:
-        """
-
-        lam = lambda x: "(id:{}, distance:{})".format(x.id, x.distance)
-
-        if self.__len__() > 5:
-            middle = ''
-
-            ll = self[:3]
-            for topk in ll:
-                if len(topk) > 5:
-                    middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
-                    middle += ",\n   ..."
-                    middle += "\n   %s ]\n\n" % lam(topk[-1])
-                else:
-                    middle = middle + " [ %s ] \n" % ",\n   ".join(map(lam, topk))
-
-            spaces = """        ......
-            ......"""
-
-            ahead = "[\n%s%s\n]" % (middle, spaces)
-            return ahead
-
-        # self.__len__() < 5
-        str_out_list = []
-        for i in range(self.__len__()):
-            str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
-
-        return "[\n%s\n]" % ",\n".join(str_out_list)
+    def get__item(self, item):
+        return Hits(self._hits[item], self._auto_id)
 
 
-class TopKQueryResult2:
-    def __init__(self, raw_source, **kwargs):
-        self._raw = raw_source
-        self._nq = 0
-        self._topk = 0
-        self._results = []
+class ChunkedQueryResult(LoopBase):
+    def __init__(self, raw_list, auto_id=True):
+        super().__init__()
+        self._raw_list = raw_list
+        self._auto_id = auto_id
 
-        self.__index = 0
-
-        self._unpack(self._raw)
-
-    def _unpack(self, raw_resources):
-        js = raw_resources.json()
-        self._nq = js["num"]
-
-        for row_result in js["result"]:
-            row_ = [QueryResult(int(result["id"]), float(result["distance"]))
-                    for result in row_result if float(result["id"]) != -1]
-
-            self._results.append(row_)
-
-    @property
-    def shape(self):
-        return len(self._results), len(self._results[0]) if len(self._results) > 0 else 0
+        self._pack(self._raw_list)
 
     def __len__(self):
-        return len(self._results)
+        return self._nq
 
-    def __getitem__(self, item):
-        return self._results.__getitem__(item)
+    def __len(self):
+        return self._nq
 
-    def __iter__(self):
-        return self
+    def _pack(self, raw_list):
+        self._hits = []
+        for raw in raw_list:
+            for bs in raw.hits:
+                hit = milvus_pb2.Hits()
+                hit.ParseFromString(bs)  # otherwise we can use map to simplify this
+                self._hits.append(hit)
+        self._nq = len(self._hits)
+        self._topk = len(self._hits[0].IDs) if len(self._hits) > 0 else 0
 
-    def __next__(self):
-        while self.__index < self.__len__():
-            self.__index += 1
-            return self.__getitem__(self.__index - 1)
-
-        self.__index = 0
-        raise StopIteration()
-
-    def __repr__(self):
-        lam = lambda x: "(id:{}, distance:{})".format(x.id, x.distance)
-
-        if self.__len__() > 5:
-            middle = ''
-
-            ll = self[:3]
-            for topk in ll:
-                if len(topk) > 5:
-                    middle = middle + " [ %s" % ",\n   ".join(map(lam, topk[:3]))
-                    middle += ",\n   ..."
-                    middle += "\n   %s ]\n\n" % lam(topk[-1])
-                else:
-                    middle = middle + " [ %s ] \n" % ",\n   ".join(map(lam, topk))
-
-            spaces = """        ......
-                    ......"""
-
-            ahead = "[\n%s%s\n]" % (middle, spaces)
-            return ahead
-
-        # self.__len__() < 5
-        str_out_list = []
-        for i in range(self.__len__()):
-            str_out_list.append("[\n%s\n]" % ",\n".join(map(lam, self[i])))
-
-        return "[\n%s\n]" % ",\n".join(str_out_list)
-
-
-class IndexParam:
-    """
-    Index Param
-
-    :type  table_name: str
-    :param table_name: (Required) name of table
-
-    :type  index_type: IndexType
-    :param index_type: (Required) index type, default = IndexType.INVALID
-
-        `IndexType`: 0-invalid, 1-flat, 2-ivflat, 3-IVF_SQ8, 4-MIX_NSG
-
-    :type  nlist: int64
-    :param nlist: (Required) num of cell
-
-    """
-
-    def __init__(self, collection_name, index_type, params):
-
-        if collection_name is None:
-            raise ParamError('Collection name can\'t be None')
-        collection_name = str(collection_name) if not isinstance(collection_name,
-                                                                 str) else collection_name
-
-        if isinstance(index_type, int):
-            index_type = IndexType(index_type)
-        if not isinstance(index_type, IndexType) or index_type == IndexType.INVALID:
-            raise ParamError('Illegal index_type, should be IndexType but not IndexType.INVALID')
-
-        self._collection_name = collection_name
-        self._index_type = index_type
-
-        if not isinstance(params, dict):
-            self._params = ujson.loads(params)
-        else:
-            self._params = params
-
-    def __str__(self):
-        attr_list = ['%s=%r' % (key.lstrip('_'), value)
-                     for key, value in self.__dict__.items()]
-        return '(%s)' % (', '.join(attr_list))
-
-    def __repr__(self):
-        attr_list = ['%s=%r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-    @property
-    def collection_name(self):
-        return self._collection_name
-
-    @property
-    def index_type(self):
-        return self._index_type
-
-    @property
-    def params(self):
-        return self._params
-
-
-class PartitionParam:
-
-    def __init__(self, collection_name, tag):
-        self.collection_name = collection_name
-        self.tag = tag
-
-    def __repr__(self):
-        attr_list = ['%s=%r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '(%s)' % (', '.join(attr_list))
-
-
-class SegmentStat:
-    def __init__(self, res):
-        self.segment_name = res.segment_name
-        self.count = res.row_count
-        self.index_name = res.index_name
-        self.data_size = res.data_size
-
-    def __str__(self):
-        attr_list = ['%s: %r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class PartitionStat:
-    def __init__(self, res):
-        self.tag = res.tag
-        self.count = res.total_row_count
-        self.segments_stat = [SegmentStat(s) for s in list(res.segments_stat)]
-
-    def __str__(self):
-        attr_list = ['%s: %r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class CollectionInfo:
-    def __init__(self, res):
-        self.count = res.total_row_count
-        self.partitions_stat = [PartitionStat(p) for p in list(res.partitions_stat)]
-
-    def __str__(self):
-        attr_list = ['%s: %r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
-
-    def __repr__(self):
-        return self.__str__()
+    def get__item(self, item):
+        return Hits(self._hits[item], self._auto_id)
 
 
 def _abstract():
@@ -674,7 +522,7 @@ class ConnectIntf:
         """
         _abstract()
 
-    def create_index(self, collection_name, index_type, params, timeout, **kwargs):
+    def create_index(self, table_name, index, timeout):
         """
         Create specified index in a table
         should be implemented
@@ -753,7 +601,7 @@ class ConnectIntf:
 
         _abstract()
 
-    def describe_index(self, collection_name, timeout):
+    def describe_index(self, table_name, timeout):
         """
         Show index information
         should be implemented
@@ -774,7 +622,7 @@ class ConnectIntf:
 
         _abstract()
 
-    def drop_index(self, collection_name, timeout):
+    def drop_index(self, table_name, timeout):
         """
         Show index information
         should be implemented
@@ -791,4 +639,16 @@ class ConnectIntf:
         ：:rtype: Status
         """
 
+        _abstract()
+
+    def load_collection(self, collection_name, timeout):
+        _abstract()
+
+    def release_collection(self, collection_name, timeout):
+        _abstract()
+
+    def load_partitions(self, collection_name, timeout):
+        _abstract()
+
+    def release_partitions(self, collection_name, timeout):
         _abstract()
