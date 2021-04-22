@@ -94,3 +94,6 @@ class TestCollections:
 
     def test_drop_index(self, collection):
         collection.drop_index(gen_index_name())
+
+    def test_dummy(self):
+        pass

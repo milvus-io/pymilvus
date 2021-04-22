@@ -1,0 +1,2 @@
+
+VECTOR_COMMON_TYPE_PARAMS = ("ndim",)

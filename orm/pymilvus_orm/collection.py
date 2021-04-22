@@ -7,7 +7,7 @@ class Collection(object):
     This is a class corresponding to collection in milvus.
     """
 
-    def __init__(self, name, schema, **kwargs):
+    def __init__(self, name, data=None, schema=None, **kwargs):
         """
         Construct a collection by the name, schema and other parameters.
         Connection information is contained in kwargs.
@@ -22,11 +22,16 @@ class Collection(object):
         self._kwargs = kwargs
         self._schema = schema
 
+        # self._schema
+
     def _get_using(self):
         return self._kwargs.get("_using", "default")
 
     def _get_connection(self):
         return connections.get_connection(self._get_using())
+
+    def _check_schema(self):
+        pass
 
     @property
     def schema(self):
