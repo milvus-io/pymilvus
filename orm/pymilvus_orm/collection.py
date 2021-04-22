@@ -1,6 +1,4 @@
 from . import connections
-from .partition import Partition
-from .index import Index
 from .schema import CollectionSchema
 
 
@@ -243,11 +241,12 @@ class Collection(object):
         :return: List of Partition object, return when operation is successful
         :rtype: list[Partition]
         """
+        from .partition import Partition
         conn = self._get_connection()
         partition_strs = conn.list_partitions(self._name)
         partitions = []
         for partition in partition_strs:
-            partitions.append(Partition(self._name, partition))
+            partitions.append(Partition(self, partition))
         return partitions
 
     def partition(self, partition_name):
@@ -260,8 +259,9 @@ class Collection(object):
         :return:Partition object corresponding to partition_name
         :rtype: Partition
         """
+        from .partition import Partition
         conn = self._get_connection()
-        return Partition(self._name, partition_name)
+        return Partition(self, partition_name)
 
     def has_partition(self, partition_name):
         """
@@ -311,6 +311,7 @@ class Collection(object):
         :rtype: Index
         """
         # TODO(yukun): Need field name, but provide index name
+        from .index import Index
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, "")
         return Index(self, index_name, "", tmp_index.params)
