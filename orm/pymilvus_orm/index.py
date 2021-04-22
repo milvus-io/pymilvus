@@ -25,6 +25,12 @@ class Index(object):
         self._index_params = index_params
         self._kwargs = kwargs
 
+    def _get_using(self):
+        return self._kwargs.get("_using", "default")
+
+    def _get_connection(self):
+        return connections.get_connection(self._get_using())
+
     @property
     def name(self):
         """
@@ -33,11 +39,11 @@ class Index(object):
         :return: The name of index
         :rtype:  str
         """
-        pass
+        return self._name
 
     @name.setter
     def name(self, value):
-        pass
+        self._name = value
 
     @property
     def params(self):
@@ -47,11 +53,11 @@ class Index(object):
         :return: Index parameters
         :rtype:  dict
         """
-        pass
+        return self._index_params
 
     @params.setter
     def params(self, value):
-        pass
+        self._index_params = value
 
     # read-only
     @property
@@ -62,7 +68,7 @@ class Index(object):
         :return: Corresponding collection name.
         :rtype:  str
         """
-        pass
+        return self._collection.name
 
     @property
     def field_name(self):
@@ -72,10 +78,12 @@ class Index(object):
         :return: Corresponding column name.
         :rtype:  str
         """
-        pass
+        return self._field_name
 
     def drop(self, **kwargs):
         """
         Drop index and its corresponding index files.
         """
-        pass
+        conn = self._get_connection()
+        conn.drop_index(self._collection.name, self.field_name, self.name, timeout=kwargs.get("timeout", None),
+                        **kwargs)

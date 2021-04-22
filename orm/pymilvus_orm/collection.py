@@ -177,7 +177,7 @@ class Collection(object):
         :type partition_names: list[str]
         """
         conn = self._get_connection()
-        conn.load_collection("", self._name, kwargs)
+        conn.load_collection("", self._name, **kwargs)
 
     # TODO(yukun): release_collection in pymilvus need db_name, but not field_name
     def release(self, **kwargs):
@@ -186,7 +186,7 @@ class Collection(object):
         """
         conn = self._get_connection()
         # TODO(yukun): release_collection in pymilvus need db_name, but not field_name
-        conn.release_collection("", self._name, kwargs)
+        conn.release_collection("", self._name, **kwargs)
 
     def insert(self, data, **kwargs):
         """
@@ -207,7 +207,7 @@ class Collection(object):
         :param params: Search parameters
         :type  params: dict
 
-        :param limit:
+        :param limit: Search topk
         :type  limit: int
 
         :param expr: Search expression
@@ -286,7 +286,14 @@ class Collection(object):
         :return: List of Index object, return when operation is successful
         :rtype: list[Index]
         """
-        pass
+        from .index import Index
+        conn = self._get_connection()
+        indexes = []
+        for field in self._schema.fields:
+            tmp_index = conn.describe_index(self._name, field.name)
+            if tmp_index is not None:
+                indexes.append(Index(self, "", field.name, tmp_index["params"]))
+        return indexes
 
     def index(self, index_name):
         """
@@ -301,8 +308,10 @@ class Collection(object):
         # TODO(yukun): Need field name, but provide index name
         from .index import Index
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, "")
-        return Index(self, index_name, "", tmp_index.params)
+        for field in self._schema.fields:
+            tmp_index = conn.describe_index(self._name, field.name)
+            if tmp_index is not None:
+                return Index(self, "", field.name, tmp_index["params"])
 
     def create_index(self, field_name, index_name, index_params, **kwargs):
         """
@@ -320,7 +329,7 @@ class Collection(object):
         # TODO(yukun): Add index_name
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params, timeout=kwargs.get("timeout", None),
-                                 kwargs=kwargs)
+                                 **kwargs)
 
     def has_index(self, index_name):
         """
@@ -334,7 +343,7 @@ class Collection(object):
         """
         conn = self._get_connection()
         # TODO(yukun): Need field name, but provide index name
-        if conn.describe_index(self._name, "") == None:
+        if conn.describe_index(self._name, "") is None:
             return False
         return True
 
@@ -345,6 +354,10 @@ class Collection(object):
         :param index_name: The name of the partition to drop.
         :type  index_name: str
         """
-        # TODO(yukun): Need field name
+        from .index import Index
         conn = self._get_connection()
-        conn.drop_index(self._name, "", index_name, timeout=kwargs.get("timeout", None), kwargs=kwargs)
+        for field in self._schema.fields:
+            tmp_index = conn.describe_index(self._name, field.name)
+            if tmp_index is not None:
+                index = Index(self, index_name, field.name, tmp_index["params"])
+                index.drop()
