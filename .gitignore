@@ -1,31 +1,29 @@
-# IDE
-## Pycharm IDE
+# Pycharm IDE
 /.idea
-
-# Python files
 *.pyc
 dist
-docs/build/
+doc/build/
 *.egg
 *.egg-info
-*.eggs/
 **/__pycache__/
-.pytest*/
 /build/
 .remember
-venv/
-
-# Env
 .env
-
-# Local Temp
 temp/
 *.swp
-assets/
-TODO
-
-# GitHub
 .coverage
 htmlcov/
 debug/
+*debug*
+milvus/client/wrapper.py
+examples/example_test.py
 .codecov.yml
+assets/
+TODO
+/.github
+/test/._testfiles
+
+MD-versions
+
+# env
+venv/
