@@ -175,18 +175,59 @@ class Collection(object):
 
         :param partition_names: The specified partitions to load.
         :type partition_names: list[str]
+
+        :param kwargs:
+            * *timeout* (``float``) --
+              An optional duration of time in seconds to allow for the RPC. When timeout
+              is set to None, client waits until server response or error occur.
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="collection schema has a int64 field")
+        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> import pandas as pd
+        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))
+        >>> data = pd.DataFrame(data={"int64" : int64_series})
+        >>> collection.insert(data)
+        >>> collection.load() # load collection to memory
+        >>> assert not collection.is_empty
+        >>> assert collection.num_entities == 10
         """
         conn = self._get_connection()
-        conn.load_collection("", self._name, **kwargs)
+        conn.load_collection(self._name, timeout=kwargs.get("timeout", None))
 
     # TODO(yukun): release_collection in pymilvus need db_name, but not field_name
     def release(self, **kwargs):
         """
         Release the collection from memory.
+
+        :param kwargs:
+            * *timeout* (``float``) --
+              An optional duration of time in seconds to allow for the RPC. When timeout
+              is set to None, client waits until server response or error occur.
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="collection schema has a int64 field")
+        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> import pandas as pd
+        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))
+        >>> data = pd.DataFrame(data={"int64" : int64_series})
+        >>> collection.insert(data)
+        >>> collection.load()   # load collection to memory
+        >>> assert not collection.is_empty
+        >>> assert collection.num_entities == 10
+        >>> collection.release()    # release the collection from memory
+        >>> assert collection.is_empty
+        >>> assert collection.num_entities == 0
         """
         conn = self._get_connection()
         # TODO(yukun): release_collection in pymilvus need db_name, but not field_name
-        conn.release_collection("", self._name, **kwargs)
+        conn.release_collection(self._name, timeout=kwargs.get("timeout", None))
 
     def insert(self, data, **kwargs):
         """

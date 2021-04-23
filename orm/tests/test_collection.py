@@ -1,6 +1,6 @@
 import logging
 import pytest
-from utils import *
+from .utils import *
 from pymilvus_orm import Collection
 
 LOGGER = logging.getLogger(__name__)
