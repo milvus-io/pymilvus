@@ -18,14 +18,14 @@ class TestCollectionSchema:
                 "name": "vec1",
                 "description": "desc1",
                 "type": DataType.FLOAT_VECTOR,
-                "params": {"ndim": 128},
+                "params": {"dim": 128},
             },
 
             {
                 "name": "vec2",
                 "description": "desc2",
                 "type": DataType.BINARY_VECTOR,
-                "params": {"ndim": 128},
+                "params": {"dim": 128},
             },
             {
                 "name": "ID",
@@ -62,7 +62,7 @@ class TestFieldSchema:
         _dict["name"] = "TestFieldSchema_name_floatvector"
         _dict["description"] = "TestFieldSchema_description_floatvector"
         _dict["type"] = DataType.FLOAT_VECTOR
-        _dict["params"] = {"ndim": 128}
+        _dict["params"] = {"dim": 128}
         return _dict
 
     @pytest.fixture(
@@ -73,7 +73,7 @@ class TestFieldSchema:
         _dict["name"] = "TestFieldSchema_name_binary_vector"
         _dict["description"] = "TestFieldSchema_description_binary_vector"
         _dict["type"] = DataType.BINARY_VECTOR
-        _dict["params"] = {"ndim": 128}
+        _dict["params"] = {"dim": 128}
         return _dict
 
     @pytest.fixture(
@@ -92,7 +92,7 @@ class TestFieldSchema:
         assert field.description == raw_dict_float_vector['description']
         assert field.is_primary == False
         assert field.name == raw_dict_float_vector['name']
-        assert field.ndim == raw_dict_float_vector['params']['ndim']
+        assert field.dim == raw_dict_float_vector['params']['dim']
 
     def test_constructor_from_binary_dict(self, raw_dict_binary_vector):
         field = FieldSchema.construct_from_dict(raw_dict_binary_vector)
@@ -100,7 +100,7 @@ class TestFieldSchema:
         assert field.description == raw_dict_binary_vector['description']
         assert field.is_primary == False
         assert field.name == raw_dict_binary_vector['name']
-        assert field.ndim == raw_dict_binary_vector['params']['ndim']
+        assert field.dim == raw_dict_binary_vector['params']['dim']
 
     def test_constructor_from_norm_dict(self, raw_dict_norm):
         field = FieldSchema.construct_from_dict(raw_dict_norm)
@@ -108,7 +108,7 @@ class TestFieldSchema:
         assert field.description == raw_dict_norm['description']
         assert field.is_primary == False
         assert field.name == raw_dict_norm['name']
-        assert field.ndim is None
+        assert field.dim is None
         assert field.dummy is None
 
     def test_to_dict(self, raw_dict_norm, raw_dict_float_vector, raw_dict_binary_vector):

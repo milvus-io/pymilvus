@@ -1,6 +1,7 @@
 from . import connections
 from .schema import CollectionSchema, FieldSchema
 import pandas
+from .prepare import Prepare
 
 
 class Collection(object):
@@ -312,14 +313,39 @@ class Collection(object):
         # TODO(yukun): release_collection in pymilvus need db_name, but not field_name
         conn.release_collection(self._name, timeout=kwargs.get("timeout", None))
 
-    def insert(self, data, **kwargs):
+    def insert(self, data, partition_name=None, **kwargs):
         """
         Insert data into collection.
 
         :param data: The specified data to insert, the dimension of data needs to align with column number
-        :type  data: list-like(list, tuple, numpy.ndarray) object or pandas.DataFrame
+        :type  data: list-like(list, tuple) object or pandas.DataFrame
+        :param partition_name: The partition name which the data will be inserted to, if partition name is
+                               not passed, then the data will be inserted to "_default" partition
+        :type partition_name: str
+
+        :param kwargs:
+            * *timeout* (``float``) --
+              An optional duration of time in seconds to allow for the RPC. When timeout
+              is set to None, client waits until server response or error occur.
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="collection schema has a int64 field")
+        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> import random
+        >>> data = [[random.randint(1, 100) for _ in range(10)]]
+        >>> collection.insert(data)
+        >>> collection.load()
+        >>> assert not collection.is_empty
+        >>> assert collection.num_entities == 10
         """
-        pass
+        conn = self._get_connection()
+        if isinstance(data, (list, tuple)):
+            entities = Prepare.prepare_insert_data_for_list_or_tuple(data, self._schema)
+            timeout = kwargs.pop("timeout", None)
+            return conn.insert(self._name, entities, partition_tag=partition_name, timeout=timeout, **kwargs)
 
     def search(self, data, params, limit, expr="", partition_names=None, fields=None, **kwargs):
         """
