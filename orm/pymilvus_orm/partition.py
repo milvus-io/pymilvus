@@ -1,4 +1,6 @@
 from . import connections
+from .prepare import Prepare
+
 
 class Partition(object):
 
@@ -96,25 +98,33 @@ class Partition(object):
         :param index_names: The specified indexes to load.
         :type  index_names: list[str]
         """
-        #TODO(yukun): No field_names and index_names in load_partition api
+        # TODO(yukun): No field_names and index_names in load_partition api
         conn = self._get_connection()
-        return conn.load_partitions(self._collection.name, self._name)
+        return conn.load_partitions(self._collection.name, [self._name])
 
     def release(self, **kwargs):
         """
         Release the partition from memory.
         """
-        self._get_connection().release_partitions(self._collection.name, self._name)
+        self._get_connection().release_partitions(self._collection.name, [self._name])
 
     def insert(self, data, **kwargs):
         """
         Insert data into partition.
 
         :param data: The specified data to insert, the dimension of data needs to align with column number
-        :type  data: list-like(list, tuple, numpy.ndarray) object or pandas.DataFrame
+        :type  data: list-like(list, tuple) object or pandas.DataFrame
+
+        :param kwargs:
+            * *timeout* (``float``) --
+              An optional duration of time in seconds to allow for the RPC. When timeout
+              is set to None, client waits until server response or error occur.
         """
         conn = self._get_connection()
-        ids = conn.insert(self._collection.name, data, partition_tag=self._name, kwargs=kwargs)
+        if isinstance(data, (list, tuple)):
+            entities = Prepare.prepare_insert_data_for_list_or_tuple(data, self._collection.schema)
+            timeout = kwargs.pop("timeout", None)
+            return conn.insert(self._collection.name, entities, self._name, timeout=timeout, **kwargs)
 
     def search(self, data, params, limit, expr=None, fields=None, **kwargs):
         """

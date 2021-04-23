@@ -1,7 +1,7 @@
 class Prepare(object):
     @classmethod
     def prepare_insert_data_for_list_or_tuple(cls, data, schema):
-        if not isinstance(data, list) or not isinstance(data, tuple):
+        if not isinstance(data, list) and not isinstance(data, tuple):
             raise Exception("data is not invalid")
 
         fields = schema.fields

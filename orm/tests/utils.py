@@ -58,6 +58,7 @@ def gen_schema():
     from pymilvus_orm.schema import CollectionSchema, FieldSchema
     fields = [
         FieldSchema(gen_field_name(), DataType.INT64),
+        FieldSchema(gen_field_name(), DataType.FLOAT),
         FieldSchema(gen_field_name(), DataType.FLOAT_VECTOR)
     ]
     collection_schema = CollectionSchema(fields)
@@ -74,7 +75,8 @@ def gen_int_attr(row_num):
     return [random.randint(0, 255) for _ in range(row_num)]
 
 
-def gen_data(nb, is_normal=False):
+# pandas.DataFrame
+def gen_pd_data(nb, is_normal=False):
     vectors = gen_vectors(nb, default_dim, is_normal)
     datas = [
         {"name": "int64", "type": DataType.INT64, "values": [i for i in range(nb)]},
@@ -82,6 +84,13 @@ def gen_data(nb, is_normal=False):
         {"name": default_float_vec_field_name, "type": DataType.FLOAT_VECTOR, "values": vectors}
     ]
     data = pandas.DataFrame(datas, columns=['name', 'type', 'values'])
+    return datas
+
+
+# list or tuple data
+def gen_list_data(nb, is_normal=False):
+    vectors = gen_vectors(nb, default_dim, is_normal)
+    datas = [[i for i in range(nb)], [float(i) for i in range(nb)], vectors]
     return datas
 
 

@@ -24,12 +24,6 @@ class TestPartition():
     @pytest.fixture(
         scope="function",
     )
-    def data(self):
-        return gen_data(default_nb)
-
-    @pytest.fixture(
-        scope="function",
-    )
     def schema(self):
         return gen_schema()
 
@@ -74,14 +68,12 @@ class TestPartition():
     def test_drop(self, partition):
         partition.drop()
 
-    @pytest.mark.xfail
     def test_load(self, partition):
         try:
             partition.load()
         except:
             assert False
 
-    @pytest.mark.xfail
     def test_release(self, partition):
         try:
             partition.release()
@@ -89,5 +81,5 @@ class TestPartition():
             assert False
 
     def test_insert(self, partition):
-        data = gen_data(default_nb)
+        data = gen_list_data(default_nb)
         partition.insert(data)
