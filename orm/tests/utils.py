@@ -37,6 +37,7 @@ default_index_params = [
     {"nlist": 128}
 ]
 
+
 def gen_collection_name():
     return f'ut-collection-' + str(random.randint(100000, 999999))
 
@@ -80,6 +81,7 @@ def gen_data(nb, is_normal=False):
         {"name": default_float_vec_field_name, "type": DataType.FLOAT_VECTOR, "values": vectors}
     ]
     return datas
+
 
 def gen_index():
     nlists = [1, 1024, 16384]

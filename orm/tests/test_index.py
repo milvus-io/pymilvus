@@ -36,5 +36,6 @@ class TestIndex:
     def test_field_name(self, index):
         LOGGER.info(index.field_name)
 
+    @pytest.mark.xfail
     def test_drop(self, index):
         index.drop()

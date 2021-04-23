@@ -1,6 +1,7 @@
 from milvus import Milvus
 from .default_config import DefaultConfig
 
+
 class Connections(object):
     """
     Connections is a class which is used to manage all connections of milvus.
