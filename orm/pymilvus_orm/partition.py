@@ -9,6 +9,11 @@ class Partition(object):
         self._description = kwargs.get("description", "")
         self._kwargs = kwargs
 
+        conn = self._get_connection()
+        has = conn.has_partition(self._collection.name, self._name)
+        if not has:
+            conn.create_partition(self._collection.name, self._name)
+
     def _get_using(self):
         return self._kwargs.get("_using", "default")
 
@@ -60,7 +65,7 @@ class Partition(object):
         :rtype: bool
         """
         conn = self._get_connection()
-        return conn.has_partition(self._name)
+        return conn.has_partition(self._collection.name, self._name)
 
     # read-only
     @property
@@ -78,7 +83,8 @@ class Partition(object):
         """
         Drop the partition, as well as its corresponding index files.
         """
-        self._get_connection().drop_partition(self._name)
+        conn = self._get_connection()
+        return conn.drop_partition(self._collection.name, self._name)
 
     def load(self, field_names=None, index_names=None, **kwargs):
         """
@@ -91,13 +97,14 @@ class Partition(object):
         :type  index_names: list[str]
         """
         #TODO(yukun): No field_names and index_names in load_partition api
-        self._get_connection().load_partition(self._collection.name(), self._name)
+        conn = self._get_connection()
+        return conn.load_partitions(self._collection.name, self._name)
 
     def release(self, **kwargs):
         """
         Release the partition from memory.
         """
-        self._get_connection().release_partition(self._collection.name(), self._name)
+        self._get_connection().release_partitions(self._collection.name, self._name)
 
     def insert(self, data, **kwargs):
         """
@@ -107,7 +114,7 @@ class Partition(object):
         :type  data: list-like(list, tuple, numpy.ndarray) object or pandas.DataFrame
         """
         conn = self._get_connection()
-        ids = conn.insert(self._collection.name(), data, partition_tag=self._name, kwargs=kwargs)
+        ids = conn.insert(self._collection.name, data, partition_tag=self._name, kwargs=kwargs)
 
     def search(self, data, params, limit, expr=None, fields=None, **kwargs):
         """

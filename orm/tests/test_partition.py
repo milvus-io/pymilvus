@@ -18,51 +18,67 @@ class TestPartition():
     @pytest.fixture(
         scope="function",
     )
-    def params(self):
-        params = {
-            "default": {"host": "localhost", "port": "19530"},
-            "dev": {"host": "localhost", "port": "19530"}
-        }
-        return params
+    def collection_name(self):
+        return gen_collection_name()
 
     @pytest.fixture(
         scope="function",
     )
-    def partition(self, params):
-        collection = Collection(gen_collection_name(), schema=gen_schema(), **params)
-        return Partition(collection, gen_partition_name(), **params)
+    def data(self):
+        return gen_data(default_nb)
+
+    @pytest.fixture(
+        scope="function",
+    )
+    def schema(self):
+        return gen_schema()
+
+    @pytest.fixture(
+        scope="function",
+    )
+    def partition_name(self):
+        return gen_partition_name()
+
+    @pytest.fixture(
+        scope="function",
+    )
+    def description(self):
+        return "TestPartition_description"
+
+    @pytest.fixture(
+        scope="function",
+    )
+    def partition(self, collection_name, schema, partition_name, description):
+        collection = Collection(collection_name, schema=schema)
+        params = {
+            "description": description,
+        }
+        return Partition(collection, partition_name, **params)
 
     def test_constructor(self, partition):
         LOGGER.info(type(partition))
 
-    def test_description(self, partition):
-        description = partition.description
-        partition.description = description
+    def test_description(self, partition, description):
+        assert partition.description == description
 
-    def test_name(self, partition):
-        name = partition.name
-        partition.name = name
+    def test_name(self, partition, partition_name):
+        assert partition.name == partition_name
 
-    @pytest.mark.xfail
     def test_is_empty(self, partition):
-        is_empty = partition.is_empty
+        assert partition.is_empty is None
 
     def test_num_entities(self, partition):
-        num = partition.num_entities
+        assert partition.num_entities is None
 
-    @pytest.mark.xfail
     def test_drop(self, partition):
         partition.drop()
 
-    @pytest.mark.xfail
     def test_load(self, partition):
         partition.load()
 
-    @pytest.mark.xfail
     def test_release(self, partition):
         partition.release()
 
-    @pytest.mark.xfail
     def test_insert(self, partition):
         data = gen_data(default_nb)
         partition.insert(data)

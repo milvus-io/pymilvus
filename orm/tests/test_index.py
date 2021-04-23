@@ -10,32 +10,52 @@ class TestIndex:
     @pytest.fixture(
         scope="function",
     )
-    def params(self):
-        params = {
-            "default": {"host": "localhost", "port": "19530"},
-            "dev": {"host": "localhost", "port": "19530"}
-        }
-        return params
+    def name(self):
+        return gen_index_name()
 
     @pytest.fixture(
         scope="function",
     )
-    def index(self, params):
-        collection = Collection(gen_collection_name(), schema=gen_schema(), **params)
-        return Index(collection, gen_index_name(), gen_field_name(), gen_index(), **params)
+    def field_name(self):
+        return gen_field_name()
 
-    def test_name(self, index):
-        LOGGER.info(index.name)
+    @pytest.fixture(
+        scope="function",
+    )
+    def collection_name(self):
+        return gen_collection_name()
 
-    def test_params(self, index):
-        LOGGER.info(index.params)
+    @pytest.fixture(
+        scope="function",
+    )
+    def schema(self):
+        return gen_schema()
 
-    def test_collection_name(self, index):
-        LOGGER.info(index.collection_name)
+    @pytest.fixture(
+        scope="function",
+    )
+    def index_param(self):
+        return gen_index()
 
-    def test_field_name(self, index):
-        LOGGER.info(index.field_name)
+    @pytest.fixture(
+        scope="function",
+    )
+    def index(self, name, field_name, collection_name, schema, index_param):
+        # from pymilvus_orm.collection import Collection
+        collection = Collection(collection_name, schema=schema)
+        return Index(collection, name, field_name, index_param)
 
-    @pytest.mark.xfail
+    def test_name(self, index, name):
+        assert index.name == name
+
+    def test_params(self, index, index_param):
+        assert index.params == index_param
+
+    def test_collection_name(self, index, collection_name):
+        assert index.collection_name == collection_name
+
+    def test_field_name(self, index, field_name):
+        assert index.field_name == field_name
+
     def test_drop(self, index):
-        index.drop()
+            index.drop()

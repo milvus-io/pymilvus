@@ -1,5 +1,6 @@
 from . import connections
 
+
 class Index(object):
 
     def __init__(self, collection, name, field_name, index_params, **kwargs):
@@ -24,6 +25,14 @@ class Index(object):
         self._field_name = field_name
         self._index_params = index_params
         self._kwargs = kwargs
+
+        conn = self._get_connection()
+        index = conn.describe_index(self._collection.name, self._field_name)
+        if index is None:
+            conn.create_index(self._collection.name, self._field_name, self._index_params)
+        else:
+            if self._index_params != index["params"]:
+                raise Exception("The index already exists, but the index params is not the same as the passed in")
 
     def _get_using(self):
         return self._kwargs.get("_using", "default")
@@ -85,5 +94,4 @@ class Index(object):
         Drop index and its corresponding index files.
         """
         conn = self._get_connection()
-        conn.drop_index(self._collection.name, self.field_name, self.name, timeout=kwargs.get("timeout", None),
-                        **kwargs)
+        conn.drop_index(self._collection.name, self.field_name, self.name, **kwargs)

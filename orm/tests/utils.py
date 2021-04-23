@@ -1,6 +1,6 @@
 from milvus import DataType
-from pymilvus_orm.schema import CollectionSchema, FieldSchema
 import random
+import pandas
 from sklearn import preprocessing
 
 default_dim = 128
@@ -55,6 +55,7 @@ def gen_field_name():
 
 
 def gen_schema():
+    from pymilvus_orm.schema import CollectionSchema, FieldSchema
     fields = [
         FieldSchema(gen_field_name(), DataType.INT64),
         FieldSchema(gen_field_name(), DataType.FLOAT_VECTOR)
@@ -80,6 +81,7 @@ def gen_data(nb, is_normal=False):
         {"name": "float", "type": DataType.FLOAT, "values": [float(i) for i in range(nb)]},
         {"name": default_float_vec_field_name, "type": DataType.FLOAT_VECTOR, "values": vectors}
     ]
+    data = pandas.DataFrame(datas, columns=['name', 'type', 'values'])
     return datas
 
 
