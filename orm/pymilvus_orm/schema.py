@@ -2,6 +2,7 @@ from pymilvus_orm.types import DataType
 from pymilvus_orm.constants import *
 import copy
 
+
 class CollectionSchema(object):
     def __init__(self, fields, description="", **kwargs):
         self.fields = fields
@@ -29,6 +30,7 @@ class CollectionSchema(object):
         _dict["description"] = self.description
         _dict["fields"] = [f.to_dict() for f in self.fields]
         return _dict
+
 
 class FieldSchema(object):
     def __init__(self, name, dtype, description="", **kwargs):

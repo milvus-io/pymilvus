@@ -18,6 +18,25 @@ class Collection(object):
 
         :param schema: the schema of collection
         :type schema: class `schema.CollectionSchema`
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="collection description", auto_id=True)
+        >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
+        >>> collection.name
+        'test_collection'
+        >>> collection.description
+        'collection description'
+        >>> collection.is_empty
+        True
+        >>> collection.num_entities
+        0
         """
         self._name = name
         self._kwargs = kwargs
@@ -25,22 +44,23 @@ class Collection(object):
         has = conn.has_collection(self._name)
         if has:
             resp = conn.describe_collection(self._name)
-            server_schema = CollectionSchema.construct_from_dict(resp.dict())
+            server_schema = CollectionSchema.construct_from_dict(resp)
             if schema is None:
                 self._schema = server_schema
                 if data is not None:
                     self.insert(data=data)
             else:
-                if len(schema.fields) != len(resp.fields):
+                if len(schema.fields) != len(resp["fields"]):
                     raise Exception("The collection already exist, but the schema is not the same as the passed in.")
                 for schema_field in schema.fields:
                     same_field = False
-                    for field in resp.fields:
-                        if field.name == schema_field.name and field.type == schema_field.dtype \
-                                and field.is_primary_key == schema_field.is_primary:
+                    for field in resp["fields"]:
+                        if field["name"] == schema_field.name and field["type"] == schema_field.dtype:
+                            # and field["is_primary_key"] == schema_field.is_primary:
                             same_field = True
                     if not same_field:
-                        raise Exception("The collection already exist, but the schema is not the same as the passed in.")
+                        raise Exception(
+                            "The collection already exist, but the schema is not the same as the passed in.")
                 self._schema = schema
                 if data is not None:
                     self.insert(data=data)
@@ -110,12 +130,15 @@ class Collection(object):
         :example:
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
-        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="test get description")
-        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="test get description", auto_id=True)
+        >>> collection = Collection(name="test_collection", schema=schema, alias="default")
         >>> collection.description
         'test get description'
-
         """
 
         return self._schema.description
@@ -131,9 +154,13 @@ class Collection(object):
         :example:
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
-        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="test get collection name.")
-        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="test get collection name", auto_id=True)
+        >>> collection = Collection(name="test_collection", schema=schema, alias="default")
         >>> collection.name
         'test_collection'
         """
@@ -151,8 +178,12 @@ class Collection(object):
         :example:
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
-        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="collection schema has a int64 field")
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="test collection is empty", auto_id=True)
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> collection.is_empty
         True
@@ -171,8 +202,12 @@ class Collection(object):
         :example:
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
-        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="collection schema has a int64 field")
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="get collection entities num", auto_id=True)
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> collection.num_entities
         0
@@ -189,14 +224,19 @@ class Collection(object):
         :example:
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
-        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="collection schema has a int64 field")
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="drop collection", auto_id=True)
         >>> collection = Collection(name="test_collection", schema=schema)
         TODO: add example for drop of collection
         # >>> collection.insert(data="")
         # >>> collection.index(index_name="")
         >>> collection.drop()
         >>> collection.num_entities
+        0
         >>> collection.is_empty
         True
 
@@ -242,7 +282,6 @@ class Collection(object):
         conn = self._get_connection()
         conn.load_collection(self._name, timeout=kwargs.get("timeout", None))
 
-    # TODO(yukun): release_collection in pymilvus need db_name, but not field_name
     def release(self, **kwargs):
         """
         Release the collection from memory.
