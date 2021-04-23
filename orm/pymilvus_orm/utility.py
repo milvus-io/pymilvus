@@ -1,4 +1,4 @@
-def loading_progress(collection_name, partition_name=""):
+def loading_progress(collection_name, partition_name="", using="default"):
     """
     Show #loaded entities vs #total entities.
 
@@ -14,7 +14,7 @@ def loading_progress(collection_name, partition_name=""):
     pass
 
 
-def wait_for_loading_complete(collection_name, partition_name="", timeout=None):
+def wait_for_loading_complete(collection_name, partition_name="", timeout=None, using="default"):
     """
     Block until loading is done or Raise Exception after timeout.
 
@@ -30,7 +30,7 @@ def wait_for_loading_complete(collection_name, partition_name="", timeout=None):
     pass
 
 
-def index_building_progress(collection_name, index_name, timeout=None):
+def index_building_progress(collection_name, index_name, timeout=None, using="default"):
     """
     Show # indexed entities vs. # total entities.
 
@@ -49,7 +49,7 @@ def index_building_progress(collection_name, index_name, timeout=None):
     pass
 
 
-def wait_for_index_building_complete(collection_name, index_name, timeout=None):
+def wait_for_index_building_complete(collection_name, index_name, timeout=None, using="default"):
     """
     Block until building is done or Raise Exception after timeout.
 
@@ -65,7 +65,7 @@ def wait_for_index_building_complete(collection_name, index_name, timeout=None):
     pass
 
 
-def has_collection(collection_name):
+def has_collection(collection_name, using="default"):
     """
     Checks whether a specified collection exists.
 
@@ -78,7 +78,7 @@ def has_collection(collection_name):
     pass
 
 
-def has_partition(collection_name, partition_name):
+def has_partition(collection_name, partition_name, using="default"):
     """
     Checks if a specified partition exists in a collection.
 
@@ -90,5 +90,19 @@ def has_partition(collection_name, partition_name):
 
     :return: Whether the partition exist.
     :rtype:  bool
+    """
+    pass
+
+
+def list_collections(timeout=None, using="default"):
+    """
+    Returns a list of all collection names.
+
+    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                    is set to None, client waits until server response or error occur.
+    :type  timeout: float
+
+    :return: List of collection names, return when operation is successful
+    :rtype: list[str]
     """
     pass
