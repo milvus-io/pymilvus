@@ -3,31 +3,41 @@ from milvus import *
 
 class MockMilvus:
     def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", **kwargs):
-        pass
+        self._collections = dict()
 
     def create_collection(self, collection_name, fields, timeout=None):
-        pass
+        if collection_name in self._collections:
+            raise BaseException(1, f"Create collection failed: collection {collection_name} exist")
+        self._collections[collection_name] = fields
 
     def drop_collection(self, collection_name, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"describe collection failed: can't find collection: {collection_name}")
+        self._collections.pop(collection_name)
 
     def has_collection(self, collection_name, timeout=None):
-        pass
+        return collection_name in self._collections
 
     def describe_collection(self, collection_name, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"describe collection failed: can't find collection: {collection_name}")
+        return self._collections[collection_name]
 
     def load_collection(self, collection_name, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"describe collection failed: can't find collection: {collection_name}")
 
     def release_collection(self, collection_name, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"describe collection failed: can't find collection: {collection_name}")
 
     def get_collection_stats(self, collection_name, timeout=None, **kwargs):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"describe collection failed: can't find collection: {collection_name}")
+        return {'row_count': 0}
 
     def list_collections(self, timeout=None):
-        pass
+        return self._collections.keys()
 
     def create_partition(self, collection_name, partition_tag, timeout=None):
         pass
