@@ -13,7 +13,7 @@ every thing you need to know about PyMilvus.
 :doc:`tutorial`
     A quick start to use PyMilvus.
 
-:doc:`api`
+:doc:`api/api`
     The complete API documentation.
 
 :doc:`param`
