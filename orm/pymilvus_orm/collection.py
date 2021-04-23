@@ -58,12 +58,7 @@ class Collection(object):
             else:
                 # create collection schema must be dict
                 if isinstance(schema, CollectionSchema):
-                    for i in range(len(schema.fields)):
-                        if isinstance(schema.fields[i], FieldSchema):
-                            schema.fields[i] = schema.fields[i].__dict__
-                        else:
-                            raise Exception("field type must be schema.FieldSchema.")
-                    conn.create_collection(self._name, fields=schema.__dict__)
+                    conn.create_collection(self._name, fields=schema.to_dict())
                     self._schema = schema
                     if isinstance(data, pandas.DataFrame):
                         # TODO: insert data by DataFrame

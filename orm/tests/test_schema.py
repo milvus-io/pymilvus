@@ -46,6 +46,12 @@ class TestCollectionSchema:
         assert isinstance(f, FieldSchema)
         assert f.name == raw_dict['fields'][2]['name']
 
+    def test_to_dict(self, raw_dict):
+        schema = CollectionSchema.construct_from_dict(raw_dict)
+        target = schema.to_dict()
+        target.pop("auto_id", None)
+        assert target == raw_dict
+        assert target is not raw_dict
 
 class TestFieldSchema:
     @pytest.fixture(
@@ -104,3 +110,15 @@ class TestFieldSchema:
         assert field.name == raw_dict_norm['name']
         assert field.ndim is None
         assert field.dummy is None
+
+    def test_to_dict(self, raw_dict_norm, raw_dict_float_vector, raw_dict_binary_vector):
+        fields = []
+        dicts = [raw_dict_norm, raw_dict_float_vector, raw_dict_binary_vector]
+        fields.append(FieldSchema.construct_from_dict(raw_dict_norm))
+        fields.append(FieldSchema.construct_from_dict(raw_dict_float_vector))
+        fields.append(FieldSchema.construct_from_dict(raw_dict_binary_vector))
+
+        for i, f in enumerate(fields):
+            target = f.to_dict()
+            assert target == dicts[i]
+            assert target is not dicts[i]
