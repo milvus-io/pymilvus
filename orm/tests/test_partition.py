@@ -65,19 +65,28 @@ class TestPartition():
         assert partition.name == partition_name
 
     def test_is_empty(self, partition):
-        assert partition.is_empty is None
+        assert partition.is_empty is True
 
+    @pytest.mark.xfail
     def test_num_entities(self, partition):
-        assert partition.num_entities is None
+        assert partition.num_entities == 0
 
     def test_drop(self, partition):
         partition.drop()
 
+    @pytest.mark.xfail
     def test_load(self, partition):
-        partition.load()
+        try:
+            partition.load()
+        except:
+            assert False
 
+    @pytest.mark.xfail
     def test_release(self, partition):
-        partition.release()
+        try:
+            partition.release()
+        except:
+            assert False
 
     def test_insert(self, partition):
         data = gen_data(default_nb)

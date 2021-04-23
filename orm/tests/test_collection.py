@@ -38,23 +38,18 @@ class TestCollections:
         with pytest.raises(AttributeError):
             collection.name = gen_collection_name()
 
-    @pytest.mark.xfail
     def test_is_empty(self, collection):
-        is_empty = collection.is_empty
+        assert collection.is_empty is True
 
-    @pytest.mark.xfail
     def test_num_entities(self, collection):
-        num = collection.num_entities
+        assert collection.num_entities == 0
 
-    @pytest.mark.xfail
     def test_drop(self, collection):
         collection.drop()
 
-    @pytest.mark.xfail
     def test_load(self, collection):
         collection.load()
 
-    @pytest.mark.xfail
     def test_release(self, collection):
         collection.release()
 
@@ -69,7 +64,7 @@ class TestCollections:
 
     @pytest.mark.xfail
     def test_partitions(self, collection):
-        partitions = collection.partitions
+        assert len(collection.partitions) == 0
 
     @pytest.mark.xfail
     def test_partition(self, collection):

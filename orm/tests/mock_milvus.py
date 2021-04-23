@@ -4,16 +4,19 @@ from milvus import *
 class MockMilvus:
     def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", **kwargs):
         self._collections = dict()
+        self._collection_partitions = dict()
 
     def create_collection(self, collection_name, fields, timeout=None):
         if collection_name in self._collections:
             raise BaseException(1, f"Create collection failed: collection {collection_name} exist")
         self._collections[collection_name] = fields
+        self._collection_partitions[collection_name] = {'default'}
 
     def drop_collection(self, collection_name, timeout=None):
         if collection_name not in self._collections:
             raise BaseException(1, f"describe collection failed: can't find collection: {collection_name}")
         self._collections.pop(collection_name)
+        self._collection_partitions.pop(collection_name)
 
     def has_collection(self, collection_name, timeout=None):
         return collection_name in self._collections
@@ -40,22 +43,45 @@ class MockMilvus:
         return self._collections.keys()
 
     def create_partition(self, collection_name, partition_tag, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"create partition failed: can't find collection: {collection_name}")
+        if partition_tag in self._collection_partitions[collection_name]:
+            raise BaseException(1, f"create partition failed: partition name = {partition_tag} already exists")
+        self._collection_partitions[collection_name].add(partition_tag)
 
     def drop_partition(self, collection_name, partition_tag, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"DropPartition failed: can't find collection: {collection_name}")
+        if partition_tag not in self._collection_partitions[collection_name]:
+            raise BaseException(1, f"DropPartition failed: partition {partition_tag} does not exist")
+        if partition_tag == "_default":
+            raise BaseException(1, f"DropPartition failed: default partition cannot be deleted")
+        print(type(self._collection_partitions[collection_name]))
+        self._collection_partitions[collection_name].remove(partition_tag)
 
     def has_partition(self, collection_name, partition_tag, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"HasPartition failed: can't find collection: {collection_name}")
+        return partition_tag in self._collection_partitions[collection_name]
 
     def load_partitions(self, collection_name, partition_names, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"describe collection failed: can't find collection: {collection_name}")
+        for partition_name in partition_names:
+            if partition_name not in self._collection_partitions[collection_name]:
+                raise BaseException(1, f"partitionID of partitionName:{partition_name} can not be find")
 
     def release_partitions(self, collection_name, partition_names, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"describe collection failed: can't find collection: {collection_name}")
+        for partition_name in partition_names:
+            if partition_name not in self._collection_partitions[collection_name]:
+                raise BaseException(1, f"partitionID of partitionName:{partition_name} can not be find")
 
     def list_partitions(self, collection_name, timeout=None):
-        pass
+        if collection_name not in self._collections:
+            raise BaseException(1, f"can't find collection: {collection_name}")
+        return [e for e in self._collection_partitions]
 
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         pass
