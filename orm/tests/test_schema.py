@@ -102,3 +102,5 @@ class TestFieldSchema:
         assert field.description == raw_dict_norm['description']
         assert field.is_primary == False
         assert field.name == raw_dict_norm['name']
+        assert field.ndim is None
+        assert field.dummy is None

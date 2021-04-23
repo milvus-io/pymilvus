@@ -54,7 +54,7 @@ class FieldSchema(object):
         return FieldSchema(raw['name'], raw['type'], raw['description'], **kwargs)
 
     def __getattr__(self, item):
-        if item in self._type_params:
+        if self._type_params and item in self._type_params:
             return self._type_params[item]
 
     @property
