@@ -1,3 +1,14 @@
+# Copyright (C) 2019-2020 Zilliz. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License
+# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied. See the License for the specific language governing permissions and limitations under the License.
+
 from . import connections
 from .schema import CollectionSchema, FieldSchema
 import pandas
@@ -444,10 +455,10 @@ class Collection(object):
         for field in self._schema.fields:
             tmp_index = conn.describe_index(self._name, field.name)
             if tmp_index is not None:
-                indexes.append(Index(self, "", field.name, tmp_index["params"]))
+                indexes.append(Index(self, field.name, tmp_index["params"]))
         return indexes
 
-    def index(self, index_name):
+    def index(self, index_name=""):
         """
         Return the index corresponding to name.
 
@@ -463,27 +474,27 @@ class Collection(object):
         for field in self._schema.fields:
             tmp_index = conn.describe_index(self._name, field.name)
             if tmp_index is not None:
-                return Index(self, "", field.name, tmp_index["params"])
+                return Index(self, field.name, tmp_index["params"])
 
-    def create_index(self, field_name, index_name, index_params, **kwargs):
+    def create_index(self, field_name, index_params, index_name="", **kwargs):
         """
         Create index on a specified column according to the index parameters. Return Index Object.
 
         :param field_name: The name of the field to create an index for.
         :type  field_name: str
 
-        :param index_name: The name of the index to create.
-        :type  index_name: str
-
         :param index_params: Indexing parameters.
         :type  index_params: dict
+
+        :param index_name: The name of the index to create.
+        :type  index_name: str
         """
         # TODO(yukun): Add index_name
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params, timeout=kwargs.get("timeout", None),
                                  **kwargs)
 
-    def has_index(self, index_name):
+    def has_index(self, index_name=""):
         """
         Checks whether a specified index exists.
 
@@ -499,7 +510,7 @@ class Collection(object):
             return False
         return True
 
-    def drop_index(self, index_name, **kwargs):
+    def drop_index(self, index_name="", **kwargs):
         """
         Drop index and its corresponding index files.
 
@@ -511,5 +522,5 @@ class Collection(object):
         for field in self._schema.fields:
             tmp_index = conn.describe_index(self._name, field.name)
             if tmp_index is not None:
-                index = Index(self, index_name, field.name, tmp_index["params"])
+                index = Index(self, field.name, tmp_index["params"], index_name)
                 index.drop()

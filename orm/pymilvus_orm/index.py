@@ -1,9 +1,19 @@
-from . import connections
+# Copyright (C) 2019-2020 Zilliz. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License
+# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied. See the License for the specific language governing permissions and limitations under the License.
 
+import copy
 
 class Index(object):
 
-    def __init__(self, collection, name, field_name, index_params, **kwargs):
+    def __init__(self, collection, field_name, index_params, name="", **kwargs):
         """
         Create index on a specified column according to the index parameters.
 
@@ -34,12 +44,10 @@ class Index(object):
             if self._index_params != index["params"]:
                 raise Exception("The index already exists, but the index params is not the same as the passed in")
 
-    def _get_using(self):
-        return self._kwargs.get("_using", "default")
-
     def _get_connection(self):
-        return connections.get_connection(self._get_using())
+        return self._collection._get_connection()
 
+    # read-only
     @property
     def name(self):
         """
@@ -50,10 +58,7 @@ class Index(object):
         """
         return self._name
 
-    @name.setter
-    def name(self, value):
-        self._name = value
-
+    # read-only
     @property
     def params(self):
         """
@@ -62,11 +67,8 @@ class Index(object):
         :return: Index parameters
         :rtype:  dict
         """
-        return self._index_params
+        return copy.deepcopy(self._index_params)
 
-    @params.setter
-    def params(self, value):
-        self._index_params = value
 
     # read-only
     @property

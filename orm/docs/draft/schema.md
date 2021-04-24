@@ -20,7 +20,7 @@
 | FieldSchema(name, dtype,  description="", **kwargs) | 构造一个FieldScheam对象 | name 参数类型是string<br />dtype参数类型是 名为 DataType 的 python enum<br />description 类型是 string，自定义描述 | FieldScheam对象或者Raise Exception         |
 |                                                     |                         |                                                              |                                            |
 | FieldSchema.name                                    | 列名                    | /                                                            | string                                     |
-| FieldSchema.data_type                               | 返回数据类型            | /                                                            | DataType                                   |
+| FieldSchema.dtype                                   | 返回数据类型            | /                                                            | DataType                                   |
 | FieldSchema.description                             | 返回自定义描述          | /                                                            | string, 自定义描述                         |
 | FieldSchema.xxx                                     | 其他属性                | /                                                            | None 或者确定的值<br />比如ndim, str_len等 |
 

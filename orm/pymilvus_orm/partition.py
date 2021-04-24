@@ -1,14 +1,23 @@
-from . import connections
+# Copyright (C) 2019-2020 Zilliz. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License
+# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied. See the License for the specific language governing permissions and limitations under the License.
+
 from .prepare import Prepare
 
 
 class Partition(object):
 
-    def __init__(self, collection, name, **kwargs):
-        from .collection import Collection
+    def __init__(self, collection, name, description="", **kwargs):
         self._collection = collection
         self._name = name
-        self._description = kwargs.get("description", "")
+        self._description = description
         self._kwargs = kwargs
 
         conn = self._get_connection()
@@ -16,12 +25,10 @@ class Partition(object):
         if not has:
             conn.create_partition(self._collection.name, self._name)
 
-    def _get_using(self):
-        return self._kwargs.get("_using", "default")
-
     def _get_connection(self):
-        return connections.get_connection(self._get_using())
+        return self._collection._get_connection()
 
+    # read-only
     @property
     def description(self):
         """
@@ -32,17 +39,7 @@ class Partition(object):
         """
         return self._description
 
-    @description.setter
-    def description(self, value):
-        """
-        Set the description text.
-
-        :param: value:
-        :return: Partition description text, return when operation is successful
-        :rtype: str
-        """
-        self._description = value
-
+    # read-only
     @property
     def name(self):
         """
@@ -52,10 +49,6 @@ class Partition(object):
         :rtype: str
         """
         return self._name
-
-    @name.setter
-    def name(self, value):
-        self._name = value
 
     # read-only
     @property
@@ -86,7 +79,7 @@ class Partition(object):
         Drop the partition, as well as its corresponding index files.
         """
         conn = self._get_connection()
-        return conn.drop_partition(self._collection.name, self._name)
+        return conn.drop_partition(self._collection.name, self._name, **kwargs)
 
     def load(self, field_names=None, index_names=None, **kwargs):
         """
@@ -126,7 +119,7 @@ class Partition(object):
             timeout = kwargs.pop("timeout", None)
             return conn.insert(self._collection.name, entities, self._name, timeout=timeout, **kwargs)
 
-    def search(self, data, params, limit, expr=None, fields=None, **kwargs):
+    def search(self, data, anns_field, params, limit, expr=None, output_fields=None, **kwargs):
         """
         Vector similarity search with an optional boolean expression as filters.
 

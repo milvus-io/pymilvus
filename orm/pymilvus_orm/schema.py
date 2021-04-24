@@ -1,3 +1,14 @@
+# Copyright (C) 2019-2020 Zilliz. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License
+# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied. See the License for the specific language governing permissions and limitations under the License.
+
 from pymilvus_orm.types import DataType
 from pymilvus_orm.constants import *
 import copy
@@ -39,7 +50,7 @@ class FieldSchema(object):
         self.description = description
         self._type_params = None
         self._kwargs = kwargs
-        self._is_primary = kwargs.get("is_primary", False)
+        self.is_primary = kwargs.get("is_primary", False)
         self._parse_type_params()
 
     def _parse_type_params(self):
@@ -85,11 +96,3 @@ class FieldSchema(object):
     @property
     def dtype(self):
         return self._dtype
-
-    @property
-    def is_primary(self):
-        return self._is_primary
-
-    @is_primary.setter
-    def is_primary(self, primary):
-        self._is_primary = primary

@@ -43,7 +43,7 @@ class TestIndex:
     def index(self, name, field_name, collection_name, schema, index_param):
         # from pymilvus_orm.collection import Collection
         collection = Collection(collection_name, schema=schema)
-        return Index(collection, name, field_name, index_param)
+        return Index(collection, field_name, index_param, name)
 
     def test_name(self, index, name):
         assert index.name == name
