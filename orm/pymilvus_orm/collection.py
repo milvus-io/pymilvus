@@ -28,7 +28,7 @@ class Collection(object):
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="collection description", auto_id=True)
+        >>> schema = CollectionSchema(fields=[field], description="collection description")
         >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
         >>> collection.name
         'test_collection'
@@ -136,7 +136,7 @@ class Collection(object):
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="test get description", auto_id=True)
+        >>> schema = CollectionSchema(fields=[field], description="test get description")
         >>> collection = Collection(name="test_collection", schema=schema, alias="default")
         >>> collection.description
         'test get description'
@@ -160,7 +160,7 @@ class Collection(object):
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="test get collection name", auto_id=True)
+        >>> schema = CollectionSchema(fields=[field], description="test get collection name")
         >>> collection = Collection(name="test_collection", schema=schema, alias="default")
         >>> collection.name
         'test_collection'
@@ -184,7 +184,7 @@ class Collection(object):
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="test collection is empty", auto_id=True)
+        >>> schema = CollectionSchema(fields=[field], description="test collection is empty")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> collection.is_empty
         True
@@ -208,7 +208,7 @@ class Collection(object):
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="get collection entities num", auto_id=True)
+        >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> collection.num_entities
         0
@@ -230,7 +230,7 @@ class Collection(object):
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="drop collection", auto_id=True)
+        >>> schema = CollectionSchema(fields=[field], description="drop collection")
         >>> collection = Collection(name="test_collection", schema=schema)
         TODO: add example for drop of collection
         # >>> collection.insert(data="")
