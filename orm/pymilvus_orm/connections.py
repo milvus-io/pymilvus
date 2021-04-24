@@ -65,7 +65,7 @@ class Connections(object):
         if errors == 2:
             raise KeyError("There is no connection with alias %r." % alias)
 
-    def create_connection(self, alias=DefaultConfig.DEFAULT_USING, **kwargs):
+    def create_connection(self, alias=DefaultConfig.DEFAULT_USING, **kwargs) -> Milvus:
         """
         Construct a milvus connection and register it under given alias.
 
@@ -84,7 +84,7 @@ class Connections(object):
         self._conns[alias] = conn
         return conn
 
-    def get_connection(self, alias=DefaultConfig.DEFAULT_USING):
+    def get_connection(self, alias=DefaultConfig.DEFAULT_USING) -> Milvus:
         """
         Retrieve a milvus connection by alias.
 

@@ -372,7 +372,7 @@ class Collection(object):
         pass
 
     @property
-    def partitions(self):
+    def partitions(self) -> list:
         """
         Return all partitions of the collection.
 
@@ -387,7 +387,9 @@ class Collection(object):
             partitions.append(Partition(self, partition))
         return partitions
 
-    def partition(self, partition_name):
+    from .partition import Partition
+
+    def partition(self, partition_name) -> Partition:
         """
         Return the partition corresponding to name. Create a new one if not existed.
 
@@ -401,7 +403,7 @@ class Collection(object):
         conn = self._get_connection()
         return Partition(self, partition_name)
 
-    def has_partition(self, partition_name):
+    def has_partition(self, partition_name) -> bool:
         """
         Checks if a specified partition exists.
 
