@@ -25,5 +25,10 @@ class Prepare(object):
             "values": data[i],
         } for i, field in enumerate(fields)]
 
-        return entities
+        ids = None
+        for i, field in enumerate(fields):
+            if field.is_primary:
+                ids = data[i]
+
+        return entities, ids
 

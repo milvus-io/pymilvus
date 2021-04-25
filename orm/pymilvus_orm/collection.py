@@ -229,6 +229,13 @@ class Collection(object):
         status = conn.get_collection_stats(db_name="", collection_name=self._name)
         return status["row_count"]
 
+    @property
+    def primary_field(self):
+        """
+        Return the primary field of collection.
+        """
+        return self._schema.primary_field
+
     def drop(self, **kwargs):
         """
         Drop the collection, as well as its corresponding index files.
@@ -354,9 +361,10 @@ class Collection(object):
         """
         conn = self._get_connection()
         if isinstance(data, (list, tuple)):
-            entities = Prepare.prepare_insert_data_for_list_or_tuple(data, self._schema)
+            entities, ids = Prepare.prepare_insert_data_for_list_or_tuple(data, self._schema)
             timeout = kwargs.pop("timeout", None)
-            return conn.insert(self._name, entities, partition_tag=partition_name, timeout=timeout, **kwargs)
+            return conn.insert(collection_name=self._name, entities=entities, ids=ids, partition_tag=partition_name,
+                               timeout=timeout, **kwargs)
 
     def search(self, data, params, limit, expr="", partition_names=None, fields=None, **kwargs):
         """
