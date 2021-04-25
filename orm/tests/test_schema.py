@@ -7,9 +7,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class TestCollectionSchema:
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def raw_dict(self):
         _dict = {}
         _dict["description"] = "TestCollectionSchema_description"
@@ -53,10 +51,9 @@ class TestCollectionSchema:
         assert target == raw_dict
         assert target is not raw_dict
 
+
 class TestFieldSchema:
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def raw_dict_float_vector(self):
         _dict = dict()
         _dict["name"] = "TestFieldSchema_name_floatvector"
@@ -65,9 +62,7 @@ class TestFieldSchema:
         _dict["params"] = {"dim": 128}
         return _dict
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def raw_dict_binary_vector(self):
         _dict = dict()
         _dict["name"] = "TestFieldSchema_name_binary_vector"
@@ -76,9 +71,7 @@ class TestFieldSchema:
         _dict["params"] = {"dim": 128}
         return _dict
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def raw_dict_norm(self):
         _dict = dict()
         _dict["name"] = "TestFieldSchema_name_norm"

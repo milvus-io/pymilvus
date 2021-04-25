@@ -7,39 +7,27 @@ LOGGER = logging.getLogger(__name__)
 
 
 class TestIndex:
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def name(self):
         return gen_index_name()
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def field_name(self):
         return gen_field_name()
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def collection_name(self):
         return gen_collection_name()
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def schema(self):
         return gen_schema()
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def index_param(self):
         return gen_index()
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def index(self, name, field_name, collection_name, schema, index_param):
         # from pymilvus_orm.collection import Collection
         collection = Collection(collection_name, schema=schema)

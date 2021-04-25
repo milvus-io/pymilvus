@@ -19,15 +19,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 class TestConnections:
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def c(self):
         return Connections()
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def configure_params(self):
         params = {
             "default": {"host": "localhost", "port": "19530"},
@@ -35,21 +31,15 @@ class TestConnections:
         }
         return params
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def host(self):
         return "localhost"
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def port(self):
         return "19530"
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def params(self, host, port):
         d = {
             "host": host,

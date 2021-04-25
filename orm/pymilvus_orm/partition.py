@@ -82,7 +82,7 @@ class Partition(object):
         Drop the partition, as well as its corresponding index files.
         """
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self._name):
+        if conn.has_partition(self._collection.name, self._name) is False:
             raise Exception("Partition doesn't exist")
         return conn.drop_partition(self._collection.name, self._name, **kwargs)
 

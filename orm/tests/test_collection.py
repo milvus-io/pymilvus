@@ -1,22 +1,22 @@
 import logging
 import pytest
 from utils import *
-from pymilvus_orm import Collection
+from pymilvus_orm import Collection, connections
 
 LOGGER = logging.getLogger(__name__)
 
 
 class TestCollections:
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function",)
     def collection(self):
         name = gen_collection_name()
         schema = gen_schema()
-        return Collection(name, schema=schema)
+        yield Collection(name, schema=schema)
+        if connections.get_connection().has_collection(name):
+            connections.get_connection().drop_collection(name)
 
     def test_constructor(self, collection):
-        LOGGER.info(type(collection))
+        assert type(collection) is Collection
 
     @pytest.mark.xfail
     def test_schema(self, collection):

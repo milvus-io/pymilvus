@@ -14,43 +14,40 @@ except ImportError:
 LOGGER = logging.getLogger(__name__)
 
 
-class TestPartition():
-    @pytest.fixture(
-        scope="function",
-    )
+class TestPartition:
+    @pytest.fixture(scope="function")
     def collection_name(self):
         return gen_collection_name()
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def schema(self):
         return gen_schema()
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def partition_name(self):
         return gen_partition_name()
 
-    @pytest.fixture(
-        scope="function",
-    )
+    @pytest.fixture(scope="function")
     def description(self):
         return "TestPartition_description"
 
-    @pytest.fixture(
-        scope="function",
-    )
-    def partition(self, collection_name, schema, partition_name, description):
-        collection = Collection(collection_name, schema=schema)
+    @pytest.fixture(scope="function")
+    def collection(self, collection_name, schema):
+        c = Collection(collection_name, schema=schema)
+        yield c
+        c.drop()
+
+    @pytest.fixture(scope="function")
+    def partition(self, collection, partition_name, description):
         params = {
             "description": description,
         }
-        return Partition(collection, partition_name, **params)
+        yield Partition(collection, partition_name, **params)
+        if collection.has_partition(partition_name):
+            collection.drop_partition(partition_name)
 
     def test_constructor(self, partition):
-        LOGGER.info(type(partition))
+        assert type(partition) is Partition
 
     def test_description(self, partition, description):
         assert partition.description == description
@@ -66,9 +63,10 @@ class TestPartition():
     def test_num_entities(self, partition):
         assert partition.num_entities == 0
 
-    @pytest.mark.xfail
-    def test_drop(self, partition):
+    def test_drop(self, collection, partition, partition_name):
+        assert collection.has_partition(partition_name) is True
         partition.drop()
+        assert collection.has_partition(partition_name) is False
 
     def test_load(self, partition):
         try:
