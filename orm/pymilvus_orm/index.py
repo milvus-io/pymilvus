@@ -10,7 +10,6 @@
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
 import copy
-import string
 
 
 class Index(object):
@@ -50,7 +49,7 @@ class Index(object):
 
     # read-only
     @property
-    def name(self) -> string:
+    def name(self) -> str:
         """
         Return the index name.
 
@@ -72,7 +71,7 @@ class Index(object):
 
     # read-only
     @property
-    def collection_name(self) -> string:
+    def collection_name(self) -> str:
         """
         Return corresponding collection name.
 
@@ -82,7 +81,7 @@ class Index(object):
         return self._collection.name
 
     @property
-    def field_name(self) -> string:
+    def field_name(self) -> str:
         """
         Return corresponding column name.
 
