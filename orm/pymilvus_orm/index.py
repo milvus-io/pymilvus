@@ -96,4 +96,4 @@ class Index(object):
         Drop index and its corresponding index files.
         """
         conn = self._get_connection()
-        conn.drop_index(self._collection.name, self.field_name, self.name, **kwargs)
+        conn.drop_index(self._collection.name, self.field_name, **kwargs)
