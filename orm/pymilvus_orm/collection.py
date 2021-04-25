@@ -411,6 +411,8 @@ class Collection(object):
         :rtype: Partition
         """
         from .partition import Partition
+        if self.has_partition(partition_name) is False:
+            return None
         conn = self._get_connection()
         return Partition(self, partition_name)
 

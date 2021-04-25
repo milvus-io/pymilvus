@@ -58,4 +58,5 @@ class TestIndex:
         assert index.field_name == field_name
 
     def test_drop(self, index):
-        index.drop()
+        with pytest.raises(Exception):
+            index.drop()

@@ -63,8 +63,7 @@ class Partition(object):
         :return: Whether the partition is empty
         :rtype: bool
         """
-        conn = self._get_connection()
-        return conn.has_partition(self._collection.name, self._name)
+        return self.num_entities == 0
 
     # read-only
     @property
@@ -83,6 +82,8 @@ class Partition(object):
         Drop the partition, as well as its corresponding index files.
         """
         conn = self._get_connection()
+        if conn.has_partition(self._collection.name, self._name):
+            raise Exception("Partition doesn't exist")
         return conn.drop_partition(self._collection.name, self._name, **kwargs)
 
     def load(self, field_names=None, index_names=None, **kwargs):
@@ -97,13 +98,20 @@ class Partition(object):
         """
         # TODO(yukun): No field_names and index_names in load_partition api
         conn = self._get_connection()
-        return conn.load_partitions(self._collection.name, [self._name])
+        if conn.has_partition(self._collection.name, self._name):
+            return conn.load_partitions(self._collection.name, [self._name])
+        else:
+            raise Exception("Partition doesn't exist")
 
     def release(self, **kwargs):
         """
         Release the partition from memory.
         """
-        self._get_connection().release_partitions(self._collection.name, [self._name])
+        conn = self._get_connection()
+        if conn.has_partition(self._collection.name, self._name):
+            return conn.release_partitions(self._collection.name, [self._name])
+        else:
+            raise Exception("Partition doesn't exist")
 
     def insert(self, data, **kwargs):
         """
@@ -118,6 +126,8 @@ class Partition(object):
               is set to None, client waits until server response or error occur.
         """
         conn = self._get_connection()
+        if conn.has_partition(self._collection.name, self._name) is False:
+            raise Exception("Partition doesn't exist")
         if isinstance(data, (list, tuple)):
             entities = Prepare.prepare_insert_data_for_list_or_tuple(data, self._collection.schema)
             timeout = kwargs.pop("timeout", None)

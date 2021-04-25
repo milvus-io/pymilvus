@@ -96,4 +96,6 @@ class Index(object):
         Drop index and its corresponding index files.
         """
         conn = self._get_connection()
+        if conn.describe_index(self._collection.name, self._field_name) is None:
+            raise Exception("Index doesn't exist")
         conn.drop_index(self._collection.name, self.field_name, **kwargs)
