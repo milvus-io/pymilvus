@@ -10,9 +10,10 @@
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
 import copy
+import string
+
 
 class Index(object):
-
     def __init__(self, collection, field_name, index_params, name="", **kwargs):
         """
         Create index on a specified column according to the index parameters.
@@ -49,7 +50,7 @@ class Index(object):
 
     # read-only
     @property
-    def name(self):
+    def name(self) -> string:
         """
         Return the index name.
 
@@ -60,7 +61,7 @@ class Index(object):
 
     # read-only
     @property
-    def params(self):
+    def params(self) -> dict:
         """
         Return the index params.
 
@@ -69,10 +70,9 @@ class Index(object):
         """
         return copy.deepcopy(self._index_params)
 
-
     # read-only
     @property
-    def collection_name(self):
+    def collection_name(self) -> string:
         """
         Return corresponding collection name.
 
@@ -82,7 +82,7 @@ class Index(object):
         return self._collection.name
 
     @property
-    def field_name(self):
+    def field_name(self) -> string:
         """
         Return corresponding column name.
 

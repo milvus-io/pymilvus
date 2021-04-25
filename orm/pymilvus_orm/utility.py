@@ -11,6 +11,7 @@
 
 from pymilvus_orm.connections import get_connection
 
+
 def loading_progress(collection_name, partition_name="", using="default"):
     """
     Show #loaded entities vs #total entities.
@@ -24,7 +25,8 @@ def loading_progress(collection_name, partition_name="", using="default"):
     :return: Loading progress, contains num of loaded and num of total
     :rtype:  dict
     """
-    pass
+    # TODO: Need to add functions in pymilvus-distributed
+    raise NotImplementedError
 
 
 def wait_for_loading_complete(collection_name, partition_name="", timeout=None, using="default"):
@@ -40,7 +42,8 @@ def wait_for_loading_complete(collection_name, partition_name="", timeout=None, 
     :param timeout: The timeout for this method, unit: second
     :type  timeout: int
     """
-    pass
+    # TODO: Need to add functions in pymilvus-distributed
+    raise NotImplementedError
 
 
 def index_building_progress(collection_name, index_name, timeout=None, using="default"):
@@ -59,7 +62,8 @@ def index_building_progress(collection_name, index_name, timeout=None, using="de
     :return: Building progress, contains num of indexed entities and num of total entities
     :rtype:  dict
     """
-    pass
+    # TODO: Need to add functions in pymilvus-distributed
+    raise NotImplementedError
 
 
 def wait_for_index_building_complete(collection_name, index_name, timeout=None, using="default"):
@@ -75,7 +79,8 @@ def wait_for_index_building_complete(collection_name, index_name, timeout=None, 
     :param timeout: The timeout for this method, unit: second
     :type  timeout: int
     """
-    pass
+    # TODO: Need to add functions in pymilvus-distributed
+    raise NotImplementedError
 
 
 def has_collection(collection_name, using="default"):
@@ -88,7 +93,7 @@ def has_collection(collection_name, using="default"):
     :return: Whether the collection exists.
     :rtype:  bool
     """
-    pass
+    return get_connection(using).has_collection(collection_name)
 
 
 def has_partition(collection_name, partition_name, using="default"):
@@ -104,7 +109,7 @@ def has_partition(collection_name, partition_name, using="default"):
     :return: Whether the partition exist.
     :rtype:  bool
     """
-    pass
+    return get_connection(using).has_partition(collection_name, partition_name)
 
 
 def list_collections(timeout=None, using="default") -> list:
@@ -118,4 +123,4 @@ def list_collections(timeout=None, using="default") -> list:
     :return: List of collection names, return when operation is successful
     :rtype: list[str]
     """
-    return get_connection().list_collections()
+    return get_connection(using).list_collections()

@@ -43,10 +43,11 @@ class CollectionSchema(object):
         return self.primary_field is None
 
     def to_dict(self):
-        _dict = {}
-        _dict["auto_id"] = self.primary_field is None
-        _dict["description"] = self.description
-        _dict["fields"] = [f.to_dict() for f in self.fields]
+        _dict = {
+            "auto_id": self.primary_field is None,
+            "description": self.description,
+            "fields": [f.to_dict() for f in self.fields]
+        }
         return _dict
 
 

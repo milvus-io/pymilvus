@@ -8,6 +8,7 @@
 # Unless required by applicable law or agreed to in writing, software distributed under the License
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
+import string
 
 from . import connections
 from .schema import CollectionSchema, FieldSchema
@@ -130,7 +131,7 @@ class Collection(object):
         pass
 
     @property
-    def description(self):
+    def description(self) -> string:
         """
         Return the description text about the collection.
 
@@ -156,7 +157,7 @@ class Collection(object):
         return self._schema.description
 
     @property
-    def name(self):
+    def name(self) -> string:
         """
         Return the collection name.
 
@@ -180,7 +181,7 @@ class Collection(object):
 
     # read-only
     @property
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Return whether the collection is empty.
 
@@ -204,7 +205,7 @@ class Collection(object):
 
     # read-only
     @property
-    def num_entities(self):
+    def num_entities(self) -> int:
         """
         Return the number of entities.
 
@@ -331,7 +332,7 @@ class Collection(object):
         # TODO(yukun): release_collection in pymilvus need db_name, but not field_name
         conn.release_collection(self._name, timeout=kwargs.get("timeout", None))
 
-    def insert(self, data, partition_name=None, **kwargs):
+    def insert(self, data, partition_name=None, **kwargs) -> list:
         """
         Insert data into collection.
 
@@ -366,7 +367,9 @@ class Collection(object):
             return conn.insert(collection_name=self._name, entities=entities, ids=ids, partition_tag=partition_name,
                                timeout=timeout, **kwargs)
 
-    def search(self, data, params, limit, expr="", partition_names=None, fields=None, **kwargs):
+    from .search import SearchResult
+
+    def search(self, data, params, limit, expr="", partition_names=None, fields=None, **kwargs) -> SearchResult:
         """
         Vector similarity search with an optional boolean expression as filters.
 
@@ -452,7 +455,7 @@ class Collection(object):
         return conn.drop_partition(self._name, partition_name, timeout=kwargs.get("timeout", None))
 
     @property
-    def indexes(self):
+    def indexes(self) -> list:
         """
         Return all indexes of the collection..
 
@@ -468,7 +471,9 @@ class Collection(object):
                 indexes.append(Index(self, field.name, tmp_index["params"]))
         return indexes
 
-    def index(self, index_name=""):
+    from .index import Index
+
+    def index(self, index_name="") -> Index:
         """
         Return the index corresponding to name.
 
@@ -486,7 +491,7 @@ class Collection(object):
             if tmp_index is not None:
                 return Index(self, field.name, tmp_index["params"])
 
-    def create_index(self, field_name, index_params, index_name="", **kwargs):
+    def create_index(self, field_name, index_params, index_name="", **kwargs) -> Index:
         """
         Create index on a specified column according to the index parameters. Return Index Object.
 
@@ -504,7 +509,7 @@ class Collection(object):
         return conn.create_index(self._name, field_name, index_params, timeout=kwargs.get("timeout", None),
                                  **kwargs)
 
-    def has_index(self, index_name=""):
+    def has_index(self, index_name="") -> bool:
         """
         Checks whether a specified index exists.
 

@@ -8,13 +8,13 @@
 # Unless required by applicable law or agreed to in writing, software distributed under the License
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
+import string
 
 from .prepare import Prepare
 import json
 
 
 class Partition(object):
-
     def __init__(self, collection, name, description="", **kwargs):
         self._collection = collection
         self._name = name
@@ -34,7 +34,7 @@ class Partition(object):
 
     # read-only
     @property
-    def description(self):
+    def description(self) -> string:
         """
         Return the description text.
 
@@ -45,7 +45,7 @@ class Partition(object):
 
     # read-only
     @property
-    def name(self):
+    def name(self) -> string:
         """
         Return the partition name.
 
@@ -56,7 +56,7 @@ class Partition(object):
 
     # read-only
     @property
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Return whether the partition is empty
 
@@ -67,15 +67,15 @@ class Partition(object):
 
     # read-only
     @property
-    def num_entities(self):
+    def num_entities(self) -> int:
         """
         Return the number of entities.
 
         :return: Number of entities in this partition.
         :rtype: int
         """
-        # TODO(yukun): Currently there is not way to get num_entities of a partition
-        pass
+        # TODO(yukun): Need to add functions in pymilvus-distributed
+        return 0
 
     def drop(self, **kwargs):
         """
@@ -96,7 +96,7 @@ class Partition(object):
         :param index_names: The specified indexes to load.
         :type  index_names: list[str]
         """
-        # TODO(yukun): No field_names and index_names in load_partition api
+        # TODO(yukun): Need to extend the load_partitions function in pymilvus-distributed
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
             return conn.load_partitions(self._collection.name, [self._name])
@@ -156,4 +156,4 @@ class Partition(object):
                  the number of vectors to query (nq), the second dimension is the number of topk.
         :rtype: QueryResult
         """
-        pass
+        # TODO: Vector similarity search with an optional boolean expression as filters
