@@ -110,7 +110,7 @@ class Collection(object):
         pass
 
     @property
-    def schema(self):
+    def schema(self) -> CollectionSchema:
         """
         Return the schema of collection.
 

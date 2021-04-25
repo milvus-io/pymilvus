@@ -10,6 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
 from .prepare import Prepare
+import json
 
 
 class Partition(object):
@@ -24,6 +25,9 @@ class Partition(object):
         has = conn.has_partition(self._collection.name, self._name)
         if not has:
             conn.create_partition(self._collection.name, self._name)
+
+    def __repr__(self):
+        return json.dumps({'name': self.name, 'description': self.description, 'num_entities': self.num_entities})
 
     def _get_connection(self):
         return self._collection._get_connection()

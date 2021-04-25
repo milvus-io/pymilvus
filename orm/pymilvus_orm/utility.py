@@ -9,6 +9,8 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
+from pymilvus_orm.connections import get_connection
+
 def loading_progress(collection_name, partition_name="", using="default"):
     """
     Show #loaded entities vs #total entities.
@@ -105,7 +107,7 @@ def has_partition(collection_name, partition_name, using="default"):
     pass
 
 
-def list_collections(timeout=None, using="default"):
+def list_collections(timeout=None, using="default") -> list:
     """
     Returns a list of all collection names.
 
@@ -116,4 +118,4 @@ def list_collections(timeout=None, using="default"):
     :return: List of collection names, return when operation is successful
     :rtype: list[str]
     """
-    pass
+    return get_connection().list_collections()

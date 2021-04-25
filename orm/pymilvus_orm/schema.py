@@ -12,6 +12,7 @@
 from pymilvus_orm.types import DataType
 from pymilvus_orm.constants import *
 import copy
+import json
 
 
 class CollectionSchema(object):
@@ -19,6 +20,12 @@ class CollectionSchema(object):
         self.fields = fields
         self.description = description
         self._kwargs = kwargs
+
+    def __repr__(self):
+        return json.dumps(self.to_dict())
+
+    def __str__(self):
+        return str(json.dumps(self.to_dict()))
 
     @classmethod
     def construct_from_dict(cls, raw):

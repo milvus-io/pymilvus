@@ -40,7 +40,7 @@ class MockMilvus:
         return {'row_count': 0}
 
     def list_collections(self, timeout=None):
-        return self._collections.keys()
+        return list(self._collections.keys())
 
     def create_partition(self, collection_name, partition_tag, timeout=None):
         if collection_name not in self._collections:
@@ -56,7 +56,6 @@ class MockMilvus:
             raise BaseException(1, f"DropPartition failed: partition {partition_tag} does not exist")
         if partition_tag == "_default":
             raise BaseException(1, f"DropPartition failed: default partition cannot be deleted")
-        print(type(self._collection_partitions[collection_name]))
         self._collection_partitions[collection_name].remove(partition_tag)
 
     def has_partition(self, collection_name, partition_tag, timeout=None):
