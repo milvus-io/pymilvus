@@ -2,7 +2,7 @@
 
 Collection
 =========
-.. currentmodule:: milvus_orm
+.. currentmodule:: pymilvus_orm
 
 Collection .
 
@@ -12,18 +12,39 @@ Constructor
    :toctree: api/
    :template: autosummaryclass.rst
 
-   Collection
++----------------------------------------------------------------------+-----------------------------------------------------------------------+
+| Constructor                                                          | Description                                                           |
++======================================================================+=======================================================================+
+| `Collection() <#pymilvus_orm.Collection>`_                           | Milvus client                                                         |
++----------------------------------------------------------------------+-----------------------------------------------------------------------+
 
 Attributes
 ---------------------
 .. autosummary::
    :toctree: api/
 
-    Collection.schema
-    Collection.description
-    Collection.name
-    Collection.is_empty
-    Collection.num_entities
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| API                                                                  | Description                                                            |
++======================================================================+========================================================================+
+| `Collection.schema <#pymilvus_orm.Collection.schema>`_               | Creates a collection.                                                  |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `Collection.description <#pymilvus_orm.Collection.description>`_     | Gets information of a specified collection.                            |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `Collection.name <#pymilvus_orm.Collection.name>`_                   | Gets the number of entities in a collection.                           |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `Collection.is_empty <#pymilvus_orm.Collection.is_empty>`_           | Gets a list of collections.                                            |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `Collection.num_entities <#pymilvus_orm.Collection.num_entities>`_   | Gets collection statistics.                                            |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+
+
+APIs
+-----
+
+
+.. autoclass:: pymilvus_orm.Collection
+   :member-order: bysource
+   :members: schema, description, name, is_empty, num_entities
 
 
 Methods

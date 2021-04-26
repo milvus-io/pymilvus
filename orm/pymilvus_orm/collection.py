@@ -183,6 +183,7 @@ class Collection(object):
     def is_empty(self) -> bool:
         """
         Return whether the collection is empty.
+        This method need to call `num_entities <#pymilvus_orm.Collection.num_entities>`_.
 
         :return: Whether the collection is empty
         :rtype: bool
