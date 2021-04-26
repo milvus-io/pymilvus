@@ -73,8 +73,8 @@ class Partition(object):
         :return: Number of entities in this partition.
         :rtype: int
         """
-        # TODO(yukun): Need to add functions in pymilvus-distributed
-        return 0
+        # TODO: Need to add functions in pymilvus-distributed
+        raise NotImplementedError
 
     def drop(self, **kwargs):
         """
@@ -95,7 +95,8 @@ class Partition(object):
         :param index_names: The specified indexes to load.
         :type  index_names: list[str]
         """
-        # TODO(yukun): Need to extend the load_partitions function in pymilvus-distributed
+        # TODO(yukun): If field_names is not None and not equal schema.field_names, raise Exception Not Supported,
+        #  if index_names is not Not, raise Exception Not Supported
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
             return conn.load_partitions(self._collection.name, [self._name])
@@ -155,4 +156,4 @@ class Partition(object):
                  the number of vectors to query (nq), the second dimension is the number of topk.
         :rtype: QueryResult
         """
-        # TODO: Vector similarity search with an optional boolean expression as filters
+        # TODO(DragonDriver): Vector similarity search with an optional boolean expression as filters

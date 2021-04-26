@@ -83,7 +83,7 @@ class Collection(object):
                     raise Exception("Collection missing schema.")
                 else:
                     if isinstance(data, pandas.DataFrame):
-                        # TODO: construct schema by DataFrame
+                        # TODO(czs007): construct schema by DataFrame
                         pass
                     else:
                         raise Exception("Data of not pandas.DataFrame type should be passed into the schema.")
@@ -93,7 +93,7 @@ class Collection(object):
                     conn.create_collection(self._name, fields=schema.to_dict())
                     self._schema = schema
                     if isinstance(data, pandas.DataFrame):
-                        # TODO: insert data by DataFrame
+                        # TODO(czs007): insert data by DataFrame
                         pass
                     else:
                         self.insert(data=data)
@@ -328,7 +328,6 @@ class Collection(object):
         >>> assert collection.num_entities == 0
         """
         conn = self._get_connection()
-        # TODO(yukun): release_collection in pymilvus need db_name, but not field_name
         conn.release_collection(self._name, timeout=kwargs.get("timeout", None))
 
     def insert(self, data, partition_name=None, **kwargs) -> list:
@@ -482,7 +481,7 @@ class Collection(object):
         :return:Index object corresponding to index_name
         :rtype: Index
         """
-        # TODO(yukun): Need field name, but provide index name
+        # TODO(yukun): Need field name, but provide index name, require some impl in server
         from .index import Index
         conn = self._get_connection()
         for field in self._schema.fields:
@@ -503,7 +502,6 @@ class Collection(object):
         :param index_name: The name of the index to create.
         :type  index_name: str
         """
-        # TODO(yukun): Add index_name
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params, timeout=kwargs.get("timeout", None),
                                  **kwargs)

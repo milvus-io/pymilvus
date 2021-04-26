@@ -25,7 +25,7 @@ def loading_progress(collection_name, partition_name="", using="default"):
     :return: Loading progress, contains num of loaded and num of total
     :rtype:  dict
     """
-    # TODO: Need to add functions in pymilvus-distributed
+    # TODO(godchen): Need to add functions in pymilvus-distributed
     raise NotImplementedError
 
 
@@ -42,7 +42,7 @@ def wait_for_loading_complete(collection_name, partition_name="", timeout=None, 
     :param timeout: The timeout for this method, unit: second
     :type  timeout: int
     """
-    # TODO: Need to add functions in pymilvus-distributed
+    # TODO(godchen): Need to add functions in pymilvus-distributed
     raise NotImplementedError
 
 
@@ -62,7 +62,7 @@ def index_building_progress(collection_name, index_name, timeout=None, using="de
     :return: Building progress, contains num of indexed entities and num of total entities
     :rtype:  dict
     """
-    # TODO: Need to add functions in pymilvus-distributed
+    # TODO(godchen): Need to add functions in pymilvus-distributed
     raise NotImplementedError
 
 
@@ -79,7 +79,7 @@ def wait_for_index_building_complete(collection_name, index_name, timeout=None, 
     :param timeout: The timeout for this method, unit: second
     :type  timeout: int
     """
-    # TODO: Need to add functions in pymilvus-distributed
+    # TODO(godchen): Need to add functions in pymilvus-distributed
     raise NotImplementedError
 
 
