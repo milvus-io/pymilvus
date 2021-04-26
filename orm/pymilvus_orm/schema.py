@@ -34,8 +34,10 @@ class CollectionSchema(object):
 
     @property
     def primary_field(self):
+        primary_field = self._kwargs.get("primary_field", None)
         for f in self.fields:
-            if f.is_primary:
+            if f.is_primary or f.name == primary_field:
+                f.is_primary = True
                 return f
 
     @property
