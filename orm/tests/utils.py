@@ -1,4 +1,4 @@
-from milvus import DataType
+from pymilvus_orm.types import DataType
 import random
 import pandas
 from sklearn import preprocessing

@@ -96,7 +96,11 @@ class Partition(object):
         :type  index_names: list[str]
         """
         # TODO(yukun): If field_names is not None and not equal schema.field_names, raise Exception Not Supported,
-        #  if index_names is not Not, raise Exception Not Supported
+        #  if index_names is not None, raise Exception Not Supported
+        if field_names is not None and len(field_names) != len(self._collection.schema.fields):
+            raise Exception("field_names should be not None or equal schema.field_names")
+        if index_names is not None:
+            raise Exception("index_names should be None")
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
             return conn.load_partitions(self._collection.name, [self._name])

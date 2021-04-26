@@ -449,6 +449,8 @@ class Collection(object):
         :param partition_name: The name of the partition to drop.
         :type  partition_name: str
         """
+        if self.has_partition(partition_name) is False:
+            raise Exception("Partition doesn't exist")
         conn = self._get_connection()
         return conn.drop_partition(self._name, partition_name, timeout=kwargs.get("timeout", None))
 
@@ -463,10 +465,9 @@ class Collection(object):
         from .index import Index
         conn = self._get_connection()
         indexes = []
-        for field in self._schema.fields:
-            tmp_index = conn.describe_index(self._name, field.name)
-            if tmp_index is not None:
-                indexes.append(Index(self, field.name, tmp_index["params"]))
+        tmp_index = conn.describe_index(self._name, "")
+        if tmp_index is not None:
+            indexes.append(Index(self, "", tmp_index["params"]))
         return indexes
 
     from .index import Index
@@ -484,10 +485,9 @@ class Collection(object):
         # TODO(yukun): Need field name, but provide index name, require some impl in server
         from .index import Index
         conn = self._get_connection()
-        for field in self._schema.fields:
-            tmp_index = conn.describe_index(self._name, field.name)
-            if tmp_index is not None:
-                return Index(self, field.name, tmp_index["params"])
+        tmp_index = conn.describe_index(self._name, "")
+        if tmp_index is not None:
+            return Index(self, "", tmp_index["params"])
 
     def create_index(self, field_name, index_params, index_name="", **kwargs) -> Index:
         """
@@ -530,9 +530,10 @@ class Collection(object):
         :type  index_name: str
         """
         from .index import Index
+        if self.has_index(index_name) is False:
+            raise Exception("Index doesn't exist")
         conn = self._get_connection()
-        for field in self._schema.fields:
-            tmp_index = conn.describe_index(self._name, field.name)
-            if tmp_index is not None:
-                index = Index(self, field.name, tmp_index["params"], index_name)
-                index.drop()
+        tmp_index = conn.describe_index(self._name, "")
+        if tmp_index is not None:
+            index = Index(self, "", tmp_index["params"], index_name)
+            index.drop()
