@@ -81,6 +81,9 @@ class Partition(object):
     def drop(self, **kwargs):
         """
         Drop the partition, as well as its corresponding index files.
+        
+        :raises PartitionNotExistException:
+            When partitoin does not exist
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name) is False:
@@ -96,6 +99,10 @@ class Partition(object):
 
         :param index_names: The specified indexes to load.
         :type  index_names: list[str]
+        
+        :raises InvalidArgumentException: 
+            If argument is not valid
+
         """
         # TODO(yukun): If field_names is not None and not equal schema.field_names, raise Exception Not Supported,
         #  if index_names is not None, raise Exception Not Supported
@@ -112,6 +119,9 @@ class Partition(object):
     def release(self, **kwargs):
         """
         Release the partition from memory.
+
+        :raises PartitionNotExistException:
+            When partitoin does not exist
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
@@ -130,6 +140,9 @@ class Partition(object):
             * *timeout* (``float``) --
               An optional duration of time in seconds to allow for the RPC. When timeout
               is set to None, client waits until server response or error occur.
+
+        :raises PartitionNotExistException:
+            When partitoin does not exist
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name) is False:

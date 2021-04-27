@@ -104,3 +104,11 @@ class DescribeCollectionException(MilvusException):
     def __init__(self, code, message):
         super().__init__(code, message)
 
+
+class PartitionNotExistException(MilvusException):
+    def __init__(self, code, message):
+        super().__init__(code, message)
+
+class InvalidArgumentException(MilvusException):
+    def __init__(self, code, message):
+        super().__init__(code, message)
