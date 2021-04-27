@@ -51,10 +51,10 @@ class Connections(object):
         Add a connection object, it will be passed through as-is.
 
         :param alias: The name of milvus connection
-        :type alias: str
+        :type  alias: str
 
         :param conn: The milvus connection.
-        :type conn: class `Milvus`
+        :type  conn: class `Milvus`
         """
         self._conns[alias] = conn
 
@@ -65,6 +65,8 @@ class Connections(object):
 
         :param alias: The name of milvus connection
         :type alias: str
+
+        :raises KeyError: If there is no connection with alias.
         """
         errors = 0
         for d in (self._conns, self._kwargs):
@@ -81,10 +83,14 @@ class Connections(object):
         Construct a milvus connection and register it under given alias.
 
         :param alias: The name of milvus connection
-        :type alias: str
+        :type  alias: str
 
         :return: A milvus connection created by the passed parameters.
         :rtype: class `Milvus`
+
+        :raises NotImplementedError: If handler in connection parameters is not GRPC.
+        :raises ParamError: If pool in connection parameters is not supported.
+        :raises Exception: If server specific in parameters is not ready, we cannot connect to server.
         """
         host = kwargs.pop("host", DefaultConfig.DEFAULT_HOST)
         port = kwargs.pop("port", DefaultConfig.DEFAULT_PORT)
@@ -100,10 +106,15 @@ class Connections(object):
         Retrieve a milvus connection by alias.
 
         :param alias: The name of milvus connection
-        :type alias: str
+        :type  alias: str
 
         :return: A milvus connection which of the name is alias.
         :rtype: class `Milvus`
+
+        :raises KeyError: If there is no connection with alias.
+        :raises NotImplementedError: If handler in connection parameters is not GRPC.
+        :raises ParamError: If pool in connection parameters is not supported.
+        :raises Exception: If server specific in parameters is not ready, we cannot connect to server.
         """
         try:
             return self._conns[alias]
