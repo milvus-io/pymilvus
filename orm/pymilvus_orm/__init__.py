@@ -15,5 +15,6 @@ from .index import Index
 from .partition import Partition
 from .utility import *
 from .search import SearchResult, Hits, Hit
+from .types import DataType
 
 __version__ = "0.0.1"

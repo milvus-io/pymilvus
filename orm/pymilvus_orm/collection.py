@@ -366,31 +366,77 @@ class Collection(object):
             return conn.insert(collection_name=self._name, entities=entities, ids=ids, partition_tag=partition_name,
                                timeout=timeout, **kwargs)
 
-    from .search import SearchResult
-
-    def search(self, data, params, limit, expr="", partition_names=None, fields=None, **kwargs) -> SearchResult:
+    def search(self, data, anns_field, param, limit, expression, partition_names=None, output_fields=None, timeout=None,
+               **kwargs):
         """
         Vector similarity search with an optional boolean expression as filters.
 
-        :param data: Data to search, the dimension of data needs to align with column number
-        :type  data: list-like(list, tuple, numpy.ndarray) object or pandas.DataFrame
-
-        :param params: Search parameters
-        :type  params: dict
-
-        :param limit: Search topk
+        :param data: The vectors of search data, the length of data is number of query (nq), the dim of every vector in
+                     data must be equal to vector field's of collection.
+        :type  data: list[list[float]]
+        :param anns_field: The vector field used to search of collection.
+        :type  anns_field: str
+        :param param: The parameters of search, such as nprobe, etc.
+        :type  param: dict
+        :param limit: The max number of returned record, we also called this parameter as topk.
         :type  limit: int
+        :param expression: The boolean expression used to filter attribute.
+        :type  expression: str
+        :param partition_names: The names of partitions to search.
+        :type  partition_names: list[str]
+        :param output_fields: The fields to return in the search result, not supported now.
+        :type  output_fields: list[str]
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a SearchFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only take
+              effect when _async is set to True.
 
-        :param expr: Search expression
-        :type  expr: str
+        :return: Query result. QueryResult is iterable and is a 2d-array-like class, the first dimension is
+                 the number of vectors to query (nq), the second dimension is the number of limit(topk).
+        :rtype: QueryResult
 
-        :param fields: The fields to return in the search result
-        :type  fields: list[str]
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
 
-        :return: A Search object, you can call its' `execute` method to get the search result
-        :rtype: class `search.Search`
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> dim = 128
+        >>> year_field = FieldSchema(name="year", type="int64", is_primary=False, description="year")
+        >>> embedding_field = FieldSchema(name="embedding", type=DataType.FLOAT_VECTOR, dim=dim)
+        >>> schema = CollectionSchema(fields=[year_field, embedding_field], auto_id=True)
+        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> import random
+        >>> nb = 3000
+        >>> nq = 10
+        >>> limit = 10
+        >>> years = [i for i in range(nb)]
+        >>> embeddings = [[random.random() for _ in range(dim)] for _ in range(nb)]
+        >>> collection.insert([years, embeddings])
+        >>> collection.load()
+        >>> search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
+        >>> res = collection.search(embeddings[:10], "embedding", search_params, limit, "year > 20")
+        >>> assert len(res) == nq
+        >>> assert len(hits) == limit for hits in res
+        >>> hits = res[0]
+        >>> assert len(hits.ids) == limit
+        >>> top1 = hits[0]
+        >>> print(top1.id)
+        >>> print(top1.distance)
+        >>> print(top1.score)
         """
-        pass
+        conn = self._get_connection()
+        return conn.search_with_expression(data, anns_field, param, limit, expression, partition_names, output_fields,
+                                           timeout, **kwargs)
 
     @property
     def partitions(self) -> list:
