@@ -27,17 +27,24 @@ class TestIndex:
     def index_param(self):
         return gen_index()
 
+    @pytest.fixture(
+        scope="function",
+        params=gen_simple_index()
+    )
+    def get_simple_index(self, request):
+        return request.param
+
     @pytest.fixture(scope="function")
-    def index(self, name, field_name, collection_name, schema, index_param):
+    def index(self, name, field_name, collection_name, schema, get_simple_index):
         # from pymilvus_orm.collection import Collection
         collection = Collection(collection_name, schema=schema)
-        return Index(collection, field_name, index_param, name)
+        return Index(collection, field_name, get_simple_index, name)
 
     def test_name(self, index, name):
         assert index.name == name
 
-    def test_params(self, index, index_param):
-        assert index.params == index_param
+    def test_params(self, index, get_simple_index):
+        assert index.params == get_simple_index
 
     def test_collection_name(self, index, collection_name):
         assert index.collection_name == collection_name
@@ -46,5 +53,4 @@ class TestIndex:
         assert index.field_name == field_name
 
     def test_drop(self, index):
-        with pytest.raises(Exception):
-            index.drop()
+        index.drop()

@@ -55,7 +55,7 @@ class TestCollections:
 
     @pytest.mark.xfail
     def test_insert(self, collection):
-        data = gen_data(default_nb)
+        data = gen_list_data(default_nb)
         collection.insert(data)
 
     @pytest.mark.xfail

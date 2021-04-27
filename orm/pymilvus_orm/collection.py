@@ -423,7 +423,6 @@ class Collection(object):
         from .partition import Partition
         if self.has_partition(partition_name) is False:
             return None
-        conn = self._get_connection()
         return Partition(self, partition_name)
 
     def has_partition(self, partition_name) -> bool:

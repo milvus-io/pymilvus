@@ -14,6 +14,7 @@ import json
 
 
 class Partition(object):
+    # TODO(yukun): Need a place to store the description
     def __init__(self, collection, name, description="", **kwargs):
         self._collection = collection
         self._name = name

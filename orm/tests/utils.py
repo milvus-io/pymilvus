@@ -37,6 +37,8 @@ default_index_params = [
     {"nlist": 128}
 ]
 
+def binary_support():
+    return ["BIN_FLAT", "BIN_IVF_FLAT"]
 
 def gen_collection_name():
     return f'ut-collection-' + str(random.randint(100000, 999999))
@@ -132,4 +134,14 @@ def gen_index():
                           for knng in knngs]
             index_params.extend(nsg_params)
 
+    return index_params
+
+def gen_simple_index():
+    index_params = []
+    for i in range(len(all_index_types)):
+        if all_index_types[i] in binary_support():
+            continue
+        dic = {"index_type": all_index_types[i], "metric_type": "L2"}
+        dic.update({"params": default_index_params[i]})
+        index_params.append(dic)
     return index_params

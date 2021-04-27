@@ -1,3 +1,5 @@
+import pdb
+
 from milvus import *
 import logging
 
@@ -6,12 +8,14 @@ class MockMilvus:
     def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", **kwargs):
         self._collections = dict()
         self._collection_partitions = dict()
+        self._collection_indexes = dict()
 
     def create_collection(self, collection_name, fields, timeout=None):
         if collection_name in self._collections:
             raise BaseException(1, f"Create collection failed: collection {collection_name} exist")
         self._collections[collection_name] = fields
         self._collection_partitions[collection_name] = {'_default'}
+        self._collection_indexes[collection_name] = []
         logging.debug(f"create_collection: {collection_name}")
 
     def drop_collection(self, collection_name, timeout=None):
@@ -98,13 +102,21 @@ class MockMilvus:
         return [e for e in self._collection_partitions[collection_name]]
 
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
-        logging.debug(f"create_index: {collection_name}, {field_name}")
+        logging.debug(f"create_index: {collection_name}, {field_name}, {params}")
+        index = {"field_name": field_name, "params": params}
+        self._collection_indexes[collection_name].append(index)
 
     def drop_index(self, collection_name, field_name, timeout=None):
         logging.debug(f"drop_index: {collection_name}, {field_name}")
+        self._collection_indexes[collection_name] = []
 
     def describe_index(self, collection_name, field_name, timeout=None):
         logging.debug(f"describe_index: {collection_name}, {field_name}")
+        if self._collection_indexes.get(collection_name) is None:
+            return
+        indexes = self._collection_indexes[collection_name].copy()
+        if len(indexes) != 0:
+            return indexes[0]
 
     def insert(self, collection_name, entities, ids=None, partition_tag=None, timeout=None, **kwargs):
         pass
