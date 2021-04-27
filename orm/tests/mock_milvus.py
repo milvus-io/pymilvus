@@ -115,5 +115,22 @@ class MockMilvus:
     def search(self, collection_name, dsl, partition_tags=None, fields=None, timeout=None, **kwargs):
         pass
 
+    def load_collection_progress(self, collection_name, timeout=None, **kwargs):
+        return {'num_loaded_entities':3000, 'num_total_entities': 5000}
+
+    def load_partitions_progress(self, collection_name, partition_names, timeout=None, **kwargs):
+        return {'num_loaded_entities':3000, 'num_total_entities': 5000}
+
+    def wait_for_loading_collection_complete(self, collection_name, timeout=None, **kwargs):
+        pass
+
+    def wait_for_loading_partitions_complete(self, collection_name, partition_names, timeout=None, **kwargs):
+        pass
+
+    def get_index_build_progress(self, collection_name, index_name, timeout=None, **kwargs):
+        return {'total_rows':5000,'indexed_rows':3000}
+
+    def wait_for_creating_index(self, collection_name, index_name, timeout=None, **kwargs):
+        pass
 
 Milvus = MockMilvus

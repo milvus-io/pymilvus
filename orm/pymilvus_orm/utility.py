@@ -11,42 +11,45 @@
 
 from pymilvus_orm.connections import get_connection
 
-
-def loading_progress(collection_name, partition_name="", using="default"):
+def loading_progress(collection_name, partition_names=[], using="default"):
     """
     Show #loaded entities vs #total entities.
 
     :param collection_name: The name of collection to show
     :type  collection_name: str
 
-    :param partition_name: The name of partition to show
-    :type  partition_name: str
+    :param partition_names: The name of partition to show
+    :type  partition_names: list 
 
     :return: Loading progress, contains num of loaded and num of total
     :rtype:  dict
     """
-    # TODO(godchen): Need to add functions in pymilvus-distributed
-    raise NotImplementedError
+    if len(partition_names) == 0:
+        return get_connection(using).load_collection_progress(collection_name)
+    else:
+        return get_connection(using).load_partitions_progress(collection_name, partition_names)
 
 
-def wait_for_loading_complete(collection_name, partition_name="", timeout=None, using="default"):
+def wait_for_loading_complete(collection_name, partition_names=[], timeout=None, using="default"):
     """
     Block until loading is done or Raise Exception after timeout.
 
     :param collection_name: The name of collection to wait
     :type  collection_name: str
 
-    :param partition_name: The name of partition to wait
-    :type  partition_name: str
+    :param partition_names: The name of partition to wait
+    :type  partition_names: list
 
     :param timeout: The timeout for this method, unit: second
     :type  timeout: int
     """
-    # TODO(godchen): Need to add functions in pymilvus-distributed
-    raise NotImplementedError
+    if len(partition_names) == 0:
+        return get_connection(using).wait_for_loading_collection_complete(collection_name, timeout)
+    else: 
+        return get_connection(using).wait_for_loading_partitions_complete(collection_name, partition_names, timeout)
 
 
-def index_building_progress(collection_name, index_name, timeout=None, using="default"):
+def index_building_progress(collection_name, index_name="", using="default"):
     """
     Show # indexed entities vs. # total entities.
 
@@ -62,11 +65,10 @@ def index_building_progress(collection_name, index_name, timeout=None, using="de
     :return: Building progress, contains num of indexed entities and num of total entities
     :rtype:  dict
     """
-    # TODO(godchen): Need to add functions in pymilvus-distributed
-    raise NotImplementedError
+    return get_connection(using).get_index_build_progress(collection_name, index_name)
 
 
-def wait_for_index_building_complete(collection_name, index_name, timeout=None, using="default"):
+def wait_for_index_building_complete(collection_name, index_name="", timeout=None, using="default"):
     """
     Block until building is done or Raise Exception after timeout.
 
@@ -79,8 +81,7 @@ def wait_for_index_building_complete(collection_name, index_name, timeout=None, 
     :param timeout: The timeout for this method, unit: second
     :type  timeout: int
     """
-    # TODO(godchen): Need to add functions in pymilvus-distributed
-    raise NotImplementedError
+    return get_connection(using).wait_for_creating_index(collection_name, index_name, timeout)
 
 
 def has_collection(collection_name, using="default"):
