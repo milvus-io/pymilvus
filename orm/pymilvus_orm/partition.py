@@ -74,7 +74,8 @@ class Partition(object):
         :rtype: int
         """
         # TODO: Need to add functions in pymilvus-distributed
-        raise NotImplementedError
+        return 0
+        # raise NotImplementedError
 
     def drop(self, **kwargs):
         """

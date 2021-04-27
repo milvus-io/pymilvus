@@ -62,25 +62,23 @@ class TestCollections:
     def test_search(self, collection):
         collection.search()
 
-    @pytest.mark.xfail
     def test_partitions(self, collection):
-        assert len(collection.partitions) == 0
+        assert len(collection.partitions) == 1
 
-    @pytest.mark.xfail
     def test_partition(self, collection):
         collection.partition(gen_partition_name())
 
-    @pytest.mark.xfail
     def test_has_partition(self, collection):
-        collection.has_partition(gen_partition_name())
+        assert collection.has_partition("_default") is True
+        assert collection.has_partition(gen_partition_name()) is False
 
     @pytest.mark.xfail
     def test_drop_partition(self, collection):
         collection.drop_partition(gen_partition_name())
 
-    @pytest.mark.xfail
     def test_indexes(self, collection):
-        indexes = collection.indexes
+        assert type(collection.indexes) is list
+        assert len(collection.indexes) == 0
 
     @pytest.mark.xfail
     def test_index(self, collection):
@@ -90,9 +88,8 @@ class TestCollections:
     def test_create_index(self, collection, defa):
         collection.create_index(gen_field_name(), gen_index_name())
 
-    @pytest.mark.xfail
     def test_has_index(self, collection):
-        collection.has_index(gen_index_name())
+        assert collection.has_index(gen_index_name()) is False
 
     @pytest.mark.xfail
     def test_drop_index(self, collection):

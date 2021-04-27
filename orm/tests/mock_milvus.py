@@ -11,7 +11,7 @@ class MockMilvus:
         if collection_name in self._collections:
             raise BaseException(1, f"Create collection failed: collection {collection_name} exist")
         self._collections[collection_name] = fields
-        self._collection_partitions[collection_name] = {'default'}
+        self._collection_partitions[collection_name] = {'_default'}
         logging.debug(f"create_collection: {collection_name}")
 
     def drop_collection(self, collection_name, timeout=None):
@@ -95,7 +95,7 @@ class MockMilvus:
         if collection_name not in self._collections:
             raise BaseException(1, f"can't find collection: {collection_name}")
         logging.debug(f"list_partitions: {collection_name}")
-        return [e for e in self._collection_partitions]
+        return [e for e in self._collection_partitions[collection_name]]
 
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         logging.debug(f"create_index: {collection_name}, {field_name}")

@@ -22,7 +22,7 @@ class TestCollectionSchema:
 
     @pytest.mark.xfail
     def test_has_collection(self):
-        has_collection(gen_collection_name())
+        assert has_collection(gen_collection_name()) is False
 
     def test_has_partition(self):
         with pytest.raises(BaseException):
