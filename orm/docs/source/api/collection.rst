@@ -1,59 +1,72 @@
-.. _collection:
-
+=========
 Collection
 =========
-.. currentmodule:: pymilvus_orm
 
 Collection .
 
 Constructor
 -----------
-.. autosummary::
-   :toctree: api/
-   :template: autosummaryclass.rst
 
-+----------------------------------------------------------------------+-----------------------------------------------------------------------+
-| Constructor                                                          | Description                                                           |
-+======================================================================+=======================================================================+
-| `Collection() <#pymilvus_orm.Collection>`_                           | Milvus client                                                         |
-+----------------------------------------------------------------------+-----------------------------------------------------------------------+
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| Constructor                                                          | Description                                                            |
++======================================================================+========================================================================+
+| `Collection() <#pymilvus_orm.Collection>`_                           | Milvus client                                                          |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
 
 Attributes
----------------------
-.. autosummary::
-   :toctree: api/
+----------
 
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | API                                                                  | Description                                                            |
 +======================================================================+========================================================================+
-| `Collection.schema <#pymilvus_orm.Collection.schema>`_               | Creates a collection.                                                  |
+| `schema <#pymilvus_orm.Collection.schema>`_                          | Return the schema of collection.                                       |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `Collection.description <#pymilvus_orm.Collection.description>`_     | Gets information of a specified collection.                            |
+| `description <#pymilvus_orm.Collection.description>`_                | Return the description text about the collection.                      |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `Collection.name <#pymilvus_orm.Collection.name>`_                   | Gets the number of entities in a collection.                           |
+| `name <#pymilvus_orm.Collection.name>`_                              | Return the collection name.                                            |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `Collection.is_empty <#pymilvus_orm.Collection.is_empty>`_           | Gets a list of collections.                                            |
+| `is_empty <#pymilvus_orm.Collection.is_empty>`_                      | Return whether the collection is empty.                                |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
-| `Collection.num_entities <#pymilvus_orm.Collection.num_entities>`_   | Gets collection statistics.                                            |
+| `num_entities <#pymilvus_orm.Collection.num_entities>`_              | Return the number of entities.                                         |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `primary_field <#pymilvus_orm.Collection.primary_field>`_            | Return the primary field of collection.                                |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `drop() <#pymilvus_orm.Collection.drop>`_                            | Drop the collection, as well as its corresponding index files.         |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `load() <#pymilvus_orm.Collection.load>`_                            | Load the collection from disk to memory.                               |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `release() <#pymilvus_orm.Collection.release>`_                      | Release the collection from memory.                                    |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `insert() <#pymilvus_orm.Collection.insert>`_                        | Insert data into collection.                                           |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `search() <#pymilvus_orm.Collection.search>`_                        | Return the number of entities.                                         |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `partitions <#pymilvus_orm.Collection.partitions>`_                  | Return all partitions of the collection.                               |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `partition() <#pymilvus_orm.Collection.partition>`_                  | Return the partition corresponding to name.                            |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `has_partition() <#pymilvus_orm.Collection.has_partition>`_          | Checks if a specified partition exists.                                |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `drop_partition() <#pymilvus_orm.Collection.drop_partition>`_        | Drop the partition and its corresponding index files.                  |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `indexes <#pymilvus_orm.Collection.indexes>`_                        | Return all indexes of the collection.                                  |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `index() <#pymilvus_orm.Collection.search>`_                         | Return the index corresponding to name.                                |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `create_index() <#pymilvus_orm.Collection.primary_field>`_           | Create index on a specified column according to the index parameters.  |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `has_index() <#pymilvus_orm.Collection.partitions>`_                 | Checks whether a specified index exists.                               |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `drop_index() <#pymilvus_orm.Collection.indexes>`_                   | Drop index and its corresponding index files.                          |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 
 
-APIs
------
+APIs References
+---------------
 
 
 .. autoclass:: pymilvus_orm.Collection
    :member-order: bysource
-   :members: schema, description, name, is_empty, num_entities
+   :members: schema, description, name, is_empty, num_entities, primary_field, drop, load, release, insert, search,
+             partitions, partition, has_partition, drop_partition, indexes, index, create_index, has_index, drop_index
 
-
-Methods
----------------------
-.. autosummary::
-   :toctree: api/
-
-    Collection.load
-    Collection.drop
-    Collection.release
-    Collection.insert
-    Collection.search

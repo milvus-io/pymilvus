@@ -458,7 +458,7 @@ class Collection(object):
     @property
     def indexes(self) -> list:
         """
-        Return all indexes of the collection..
+        Return all indexes of the collection.
 
         :return: List of Index object, return when operation is successful
         :rtype: list[Index]
