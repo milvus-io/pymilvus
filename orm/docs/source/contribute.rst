@@ -7,8 +7,8 @@ Contributing
 - `Github workflow`_
 - `Contribution Guideline`_
 
-Contributing is warmly welcomed. You can contribute to PyMilvus project by opening issues and submitting pull
-requests on `PyMilvus Github page <https://github.com/milvus-io/pymilvus-orm>`_.
+Contributing is warmly welcomed. You can contribute to PyMilvus ORM project by opening issues and submitting pull
+requests on `PyMilvus ORM Github page <https://github.com/milvus-io/pymilvus-orm>`_.
 
 Open Issues
 ===========
@@ -25,12 +25,12 @@ For a bug
     With information, we can reproduce the bug easily and solve it later.
 
 For a question
-    It's welcomed to ask any questions about PyMilvus and Milvus, we are pleased to communicate with you.
+    It's welcomed to ask any questions about PyMilvus ORM and Milvus, we are pleased to communicate with you.
 
 Submit Pull Requests
 ====================
 
-If you have improvements to PyMilvus, please submit pull requests(PR) to master, see workflow below.
+If you have improvements to PyMilvus ORM, please submit pull requests(PR) to master, see workflow below.
 
 **PR for codes**, you need to tell us why we need it, mentioning an existing issue would be better.
 
@@ -43,7 +43,7 @@ Github workflow
 
 This is a brief instruction of Github workflow for beginners.
 
-* **Fork** the `PyMilvus repository <https://github.com/milvus-io/pymilvus-orm>`_ on Github.
+* **Fork** the `PyMilvus ORM repository <https://github.com/milvus-io/pymilvus-orm>`_ on Github.
 
 * **Clone** your fork to your local machine with ``git clone git@github.com:<your_user_name>/pymilvus-orm.git``.
 
@@ -58,7 +58,7 @@ If you already have an existing local repository, always update it before you st
 .. code-block:: shell
    
    $ git remote add upstream git@github.com:milvus-io/pymilvus-orm.git
-   $ git checkout master
+   $ git checkout main
    $ git pull upstream master
    $ git checkout -b my_working_branch
 
@@ -78,11 +78,11 @@ record your change in file `CHANGELOG.md`. The format is:
 **2. Add unit tests for your codes**
 
 To run unit test in github action, you need make sure the last commit message of PR starts with "[ci]".
-If you want to run unit test locally, under root folder of Pymilvus project run `pytest --ip=${IP} --port=${PORT}`.
+If you want to run unit test locally, under root folder of PyMilvus ORM project run `pytest --ip=${IP} --port=${PORT}`.
 
 **3. Pass pylint check**
 
-In the root directory, run ``pylint --rcfile=pylint.conf milvus/client`` to make sure the rate is 10.
+In the root directory, run ``pylint --rcfile=pylint.conf pymilvus-orm`` to make sure the rate is 10.
 
 **4. For documentations**
 

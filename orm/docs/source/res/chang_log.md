@@ -1,5 +1,4 @@
-**v1.0.2(Developing)**
+**v0.0.1(Developing)**
  
 
-**v1.0.1**
   * Remove unused hybrid APIs
