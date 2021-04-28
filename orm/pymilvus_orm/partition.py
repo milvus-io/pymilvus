@@ -39,6 +39,21 @@ class Partition(object):
         Return the description text.
 
         :return str: Partition description text, return when operation is successful
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.partition import Partition
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="collection description")
+        >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
+        >>> partition = Partition(collection, name="test_partition", description="test partition desc")
+        >>> partition.description
+        'test partition desc'
         """
         return self._description
 
@@ -49,6 +64,20 @@ class Partition(object):
         Return the partition name.
 
         :return str: Partition name, return when operation is successful
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.partition import Partition
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="collection description")
+        >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
+        >>> partition = Partition(collection, name="test_partition", description="test partition desc")
+        >>> partition.name
+        'test_partition'
         """
         return self._name
 
@@ -59,6 +88,20 @@ class Partition(object):
         Return whether the partition is empty
 
         :return bool: Whether the partition is empty
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.partition import Partition
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="collection description")
+        >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
+        >>> partition = Partition(collection, name="test_partition", description="test partition desc")
+        >>> partition.is_empty
+        True
         """
         return self.num_entities == 0
 
@@ -69,6 +112,20 @@ class Partition(object):
         Return the number of entities.
 
         :return int: Number of entities in this partition.
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.partition import Partition
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="collection description")
+        >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
+        >>> partition = Partition(collection, name="test_partition", description="test partition desc")
+        >>> partition.num_entities
+        0
         """
         # TODO: Need to add functions in pymilvus-distributed
         return 0
