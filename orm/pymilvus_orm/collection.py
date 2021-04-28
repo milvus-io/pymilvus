@@ -451,8 +451,8 @@ class Collection(object):
         >>> print(top1.score)
         """
         conn = self._get_connection()
-        return conn.search_with_expression(data, anns_field, param, limit, expression, partition_names, output_fields,
-                                           timeout, **kwargs)
+        return conn.search_with_expression(self._name, data, anns_field, param, limit, expression, partition_names,
+                                           output_fields, timeout, **kwargs)
 
     @property
     def partitions(self) -> list:
