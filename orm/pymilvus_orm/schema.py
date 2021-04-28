@@ -9,8 +9,8 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
-from pymilvus_orm.types import DataType
-from pymilvus_orm.constants import *
+from .types import DataType
+from .constants import VECTOR_COMMON_TYPE_PARAMS
 import copy
 import json
 

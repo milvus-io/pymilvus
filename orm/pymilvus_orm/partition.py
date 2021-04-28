@@ -9,8 +9,9 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
-from .prepare import Prepare
 import json
+
+from .prepare import Prepare
 
 
 class Partition(object):
@@ -134,7 +135,7 @@ class Partition(object):
     def drop(self, **kwargs):
         """
         Drop the partition, as well as its corresponding index files.
-        
+
         :raises PartitionNotExistException:
             When partitoin does not exist
         """
@@ -152,8 +153,8 @@ class Partition(object):
 
         :param index_names: The specified indexes to load.
         :type  index_names: list[str]
-        
-        :raises InvalidArgumentException: 
+
+        :raises InvalidArgumentException:
             If argument is not valid
 
         """

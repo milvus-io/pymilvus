@@ -10,6 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
 from milvus import Milvus
+
 from .default_config import DefaultConfig
 
 
@@ -36,7 +37,7 @@ class Connections(object):
                 default={"host": "localhost", "port": "19530"},
                 dev={"host": "localhost", "port": "19531"},
             )
-        
+
         This will create two milvus connections named default and dev.
         """
         for k in list(self._conns):

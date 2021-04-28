@@ -2,14 +2,7 @@ import logging
 import unittest
 import pytest
 from utils import *
-
-try:
-    from pymilvus_orm import Collection, Partition
-except ImportError:
-    from os.path import dirname, abspath
-    import sys
-
-    from pymilvus_orm import Collection, Partition
+from pymilvus_orm import Collection, Partition
 
 LOGGER = logging.getLogger(__name__)
 

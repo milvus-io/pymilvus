@@ -3,17 +3,8 @@ import pytest
 import milvus
 from unittest import mock
 
-try:
-    from pymilvus_orm import connections, Connections
-    from pymilvus_orm.default_config import DefaultConfig
-except ImportError:
-    from os.path import dirname, abspath
-    import sys
-
-    sys.path.append(dirname(dirname(abspath(__file__))))
-
-    from pymilvus_orm import connections, Connections
-    from pymilvus_orm.default_config import DefaultConfig
+from pymilvus_orm import connections, Connections
+from pymilvus_orm.default_config import DefaultConfig
 
 LOGGER = logging.getLogger(__name__)
 

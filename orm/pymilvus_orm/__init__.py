@@ -10,10 +10,28 @@
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
 from .collection import Collection
-from .connections import *
+from .connections import (
+        Connections,
+        connections,
+        configure,
+        add_connection,
+        remove_connection,
+        create_connection,
+        get_connection
+)
+
 from .index import Index
 from .partition import Partition
-from .utility import *
+from .utility import (
+        loading_progress,
+        index_building_progress,
+        wait_for_loading_complete,
+        wait_for_index_building_complete,
+        has_collection,
+        has_partition,
+        list_collections,
+)
+
 from .search import SearchResult, Hits, Hit
 from .types import DataType
 

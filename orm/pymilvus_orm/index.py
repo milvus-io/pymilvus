@@ -50,7 +50,6 @@ class Index(object):
         >>> print(index.field_name())
         >>> index.drop()
         """
-        from .collection import Collection
         self._collection = collection
         self._name = name
         self._field_name = field_name

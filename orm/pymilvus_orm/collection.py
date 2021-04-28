@@ -9,10 +9,14 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
-from . import connections
-from .schema import CollectionSchema, FieldSchema
 import pandas
+
+from .connections import get_connection
+from .schema import CollectionSchema, FieldSchema
 from .prepare import Prepare
+from .partition import Partition
+from .index import Index
+from .search import SearchResultFuture, SearchResult
 
 
 class Collection(object):
@@ -104,7 +108,7 @@ class Collection(object):
         return self._kwargs.get("_using", "default")
 
     def _get_connection(self):
-        return connections.get_connection(self._get_using())
+        return get_connection(self._get_using())
 
     def _check_schema(self):
         pass
@@ -451,9 +455,7 @@ class Collection(object):
         res = conn.search_with_expression(self._name, data, anns_field, param, limit, expression, partition_names,
                                           output_fields, timeout, **kwargs)
         if kwargs.get("_async", False):
-            from .search import SearchResultFuture
             return SearchResultFuture(res)
-        from .search import SearchResult
         return SearchResult(res)
 
     @property
@@ -466,7 +468,6 @@ class Collection(object):
 
         :raises CollectionNotExistException: If collection doesn't exist.
         """
-        from .partition import Partition
         conn = self._get_connection()
         partition_strs = conn.list_partitions(self._name)
         partitions = []
@@ -474,7 +475,6 @@ class Collection(object):
             partitions.append(Partition(self, partition))
         return partitions
 
-    from .partition import Partition
 
     def partition(self, partition_name) -> Partition:
         """
@@ -489,7 +489,6 @@ class Collection(object):
         :raises CollectionNotExistException: If collection doesn't exist.
         :raises BaseException: If partition doesn't exist.
         """
-        from .partition import Partition
         if self.has_partition(partition_name) is False:
             return None
         return Partition(self, partition_name)
@@ -538,7 +537,6 @@ class Collection(object):
 
         :raises CollectionNotExistException: If collection doesn't exist.
         """
-        from .index import Index
         conn = self._get_connection()
         indexes = []
         tmp_index = conn.describe_index(self._name, "")
@@ -546,7 +544,6 @@ class Collection(object):
             indexes.append(Index(self, "", tmp_index["params"]))
         return indexes
 
-    from .index import Index
 
     def index(self, index_name="") -> Index:
         """
@@ -562,7 +559,6 @@ class Collection(object):
         :raises BaseException: If index doesn't exist.
         """
         # TODO(yukun): Need field name, but provide index name, require some impl in server
-        from .index import Index
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, "")
         if tmp_index is not None:
@@ -618,7 +614,6 @@ class Collection(object):
         :raises CollectionNotExistException: If collection doesn't exist.
         :raises BaseException: If index has been created.
         """
-        from .index import Index
         if self.has_index(index_name) is False:
             raise Exception("Index doesn't exist")
         conn = self._get_connection()

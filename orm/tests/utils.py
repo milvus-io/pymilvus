@@ -1,7 +1,7 @@
-from pymilvus_orm.types import DataType
 import random
 import pandas
 from sklearn import preprocessing
+from pymilvus_orm.types import DataType
 
 default_dim = 128
 default_nb = 1200

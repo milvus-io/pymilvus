@@ -9,7 +9,8 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
-from pymilvus_orm.connections import get_connection
+from .connections import get_connection
+
 
 def loading_progress(collection_name, partition_names=[], using="default"):
     """
@@ -19,7 +20,7 @@ def loading_progress(collection_name, partition_names=[], using="default"):
     :type  collection_name: str
 
     :param partition_names: The name of partition to show
-    :type  partition_names: list 
+    :type  partition_names: list
 
     :return: Loading progress, contains num of loaded and num of total
     :rtype:  dict
@@ -45,7 +46,7 @@ def wait_for_loading_complete(collection_name, partition_names=[], timeout=None,
     """
     if len(partition_names) == 0:
         return get_connection(using).wait_for_loading_collection_complete(collection_name, timeout)
-    else: 
+    else:
         return get_connection(using).wait_for_loading_partitions_complete(collection_name, partition_names, timeout)
 
 
