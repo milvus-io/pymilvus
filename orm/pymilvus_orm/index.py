@@ -56,8 +56,8 @@ class Index(object):
         """
         Return the index name.
 
-        :return: The name of index
-        :rtype:  str
+        :return str:
+            The name of index
         """
         return self._name
 
@@ -67,8 +67,8 @@ class Index(object):
         """
         Return the index params.
 
-        :return: Index parameters
-        :rtype:  dict
+        :return dict:
+            Index parameters
         """
         return copy.deepcopy(self._index_params)
 
@@ -78,8 +78,8 @@ class Index(object):
         """
         Return corresponding collection name.
 
-        :return: Corresponding collection name.
-        :rtype:  str
+        :return str:
+            Corresponding collection name
         """
         return self._collection.name
 
@@ -88,8 +88,8 @@ class Index(object):
         """
         Return corresponding column name.
 
-        :return: Corresponding column name.
-        :rtype:  str
+        :return str:
+            Corresponding column name
         """
         return self._field_name
 
