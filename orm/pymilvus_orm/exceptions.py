@@ -112,3 +112,11 @@ class PartitionNotExistException(MilvusException):
 class InvalidArgumentException(MilvusException):
     def __init__(self, code, message):
         super().__init__(code, message)
+
+class IndexConflictException(MilvusException):
+    def __init__(self, code, message):
+    super().__init__(code, message)
+
+class IndexNotExistException(MilvusException):
+    def __init__(self, code, message):
+    super().__init__(code, message)

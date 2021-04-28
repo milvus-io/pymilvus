@@ -28,6 +28,9 @@ class Index(object):
 
         :param index_params: Indexing parameters.
         :type  index_params: dict
+
+        :raises ParamError: If parameters are invalid.
+        :raises IndexConflictException: If index with same name and different param already exists.
         """
         from .collection import Collection
         self._collection = collection
@@ -93,6 +96,8 @@ class Index(object):
     def drop(self, **kwargs):
         """
         Drop index and its corresponding index files.
+
+        :raises IndexNotExistException: If index doesn't exist.
         """
         conn = self._get_connection()
         if conn.describe_index(self._collection.name, self._field_name) is None:
