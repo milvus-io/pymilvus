@@ -31,6 +31,24 @@ class Index(object):
 
         :raises ParamError: If parameters are invalid.
         :raises IndexConflictException: If index with same name and different param already exists.
+
+        :example:
+        >>> from pymilvus_orm import *
+        >>> from pymilvus_orm.schema import *
+        >>> from pymilvus_orm.types import DataType
+        >>> connections.create_connection()
+        >>> field1 = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field2 = FieldSchema(name="fvec", dtype=DataType.FLOAT_VECTOR, descrition="float vector", dim=128, is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field1, field2], description="collection description")
+        >>> collection = Collection(name='test_collection', schema=schema)
+        >>> # insert some data
+        >>> index_params = {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 128}}
+        >>> index = Index(collection, "embedding", index_params)
+        >>> print(index.name())
+        >>> print(index.params())
+        >>> print(index.collection_name())
+        >>> print(index.field_name())
+        >>> index.drop()
         """
         from .collection import Collection
         self._collection = collection
