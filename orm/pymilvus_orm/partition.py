@@ -38,8 +38,7 @@ class Partition(object):
         """
         Return the description text.
 
-        :return: Partition description text, return when operation is successful
-        :rtype: str
+        :return str: Partition description text, return when operation is successful
         """
         return self._description
 
@@ -49,8 +48,7 @@ class Partition(object):
         """
         Return the partition name.
 
-        :return: Partition name, return when operation is successful
-        :rtype: str
+        :return str: Partition name, return when operation is successful
         """
         return self._name
 
@@ -60,8 +58,7 @@ class Partition(object):
         """
         Return whether the partition is empty
 
-        :return: Whether the partition is empty
-        :rtype: bool
+        :return bool: Whether the partition is empty
         """
         return self.num_entities == 0
 
@@ -71,8 +68,7 @@ class Partition(object):
         """
         Return the number of entities.
 
-        :return: Number of entities in this partition.
-        :rtype: int
+        :return int: Number of entities in this partition.
         """
         # TODO: Need to add functions in pymilvus-distributed
         return 0
@@ -171,8 +167,7 @@ class Partition(object):
         :param fields: The fields to return in the search result
         :type  fields: list[str]
 
-        :return: Query result. QueryResult is iterable and is a 2d-array-like class, the first dimension is
+        :return QueryResult: Query result. QueryResult is iterable and is a 2d-array-like class, the first dimension is
                  the number of vectors to query (nq), the second dimension is the number of topk.
-        :rtype: QueryResult
         """
         # TODO(DragonDriver): Vector similarity search with an optional boolean expression as filters
