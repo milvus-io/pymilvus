@@ -2,7 +2,7 @@
 [Milvus](https://github.com/milvus-io) support to create index to accelerate vector approximate search. 
 
 To learn how to create an index by python client, see method [create_index()](api.html#milvus.Milvus.create_index) and 
-[index example](https://github.com/milvus-io/pymilvus/tree/1.0/examples) .
+[index example](https://github.com/milvus-io/pymilvus-orm/tree/main/examples) .
 
 For more detailed information about indexes, please refer to [Milvus documentation index chapter.](https://milvus.io/docs/index.md)
 
@@ -15,7 +15,6 @@ To learn how to choose an appropriate index for a metric, see [Distance Metrics]
 - `FLAT`_
 - `IVF_FLAT`_
 - `IVF_SQ8`_
-- `IVF_SQ8_H`_
 - `IVF_PQ`_
 - `HNSW`_
 - `ANNOY`_
@@ -36,7 +35,8 @@ The inserted and index-inbuilt vectors and index-dropped vectors are regard as b
   
 ```python
 # FLAT
-client.create_index(collection_name, IndexType.FLAT)
+collection.create_index(field_name=field_name,
+                        index_params={'index_type': 'FLAT'})
 ```
 
 - search parameters: 
@@ -44,10 +44,7 @@ client.create_index(collection_name, IndexType.FLAT)
   
 ```python
 # FLAT
-client.search(collection_name,
-              1,
-              query_vectors
-)
+collection.search(data, anns_field, search_params, topK, expression)
 ```
 
 ### IVF_FLAT
@@ -65,9 +62,11 @@ IVF_FLAT is the most basic IVF index, and the encoded data stored in each unit i
 
 ```python
 # IVF_FLAT
-client.create_index(collection_name, IndexType.IVF_FLAT, {
-    "nlist": 100      # int. 1~65536
-})
+collection.create_index(field_name=field_name,
+                        index_params={'index_type': 'IVF_FLAT',
+                                      'params': {
+                                        'nlist': 100      # int. 1~65536
+                                      }})
 ```
 
 - search parameters:
@@ -76,13 +75,9 @@ client.create_index(collection_name, IndexType.IVF_FLAT, {
 
 ```python
 # IVF_FLAT
-client.search(collection_name,
-              1,
-              query_vectors, 
-              params={
+collection.search(data, anns_field, {
                 "nprobe": 8 # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-              }
-)
+              }, topK, expression)
 ```
 
 ### IVF_PQ
@@ -107,13 +102,12 @@ smaller than IVF_SQ8, but it also causes a loss of accuracy during searching.
 
 ```python
 # IVF_PQ
-client.create_index(collection_name, 
-                    IndexType.IVF_PQ, 
-                    {
-                      "nlist": 100,     # int. 1~65536
-                      "m": 8            # int. 1~16. 8 by default
-                    }
-)
+collection.create_index(field_name=field_name,
+                        index_params={'index_type': 'IVF_PQ',
+                                      'params': {
+                                        'nlist': 100,     # int. 1~65536
+                                        "m": 8            # int. 1~16. 8 by default
+                                      }})
 ```
 
 - search parameters:
@@ -122,14 +116,9 @@ client.create_index(collection_name,
 
 ```python
 # IVF_PQ
-client.search(collection_name,
-              1, 
-              query_vectors, 
-              params={
+collection.search(data, anns_field, {
                 "nprobe": 8 # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-              }
-)
-
+              }, topK, expression)
 ```
 
 ### IVF_SQ8
@@ -145,12 +134,11 @@ However, scalar quantization results in a loss of accuracy during searching vect
 
 ```python
 # IVF_SQ8
-client.create_index(collection_name, 
-                    IndexType.IVF_SQ8, 
-                    {
-                      "nlist": 100      # int. 1~65536
-                    }
-)
+collection.create_index(field_name=field_name,
+                        index_params={'index_type': 'IVF_SQ8',
+                                      'params': {
+                                        'nlist': 100,     # int. 1~65536
+                                      }})
 ```
 
 - search parameters:
@@ -159,56 +147,9 @@ client.create_index(collection_name,
 
 ```python
 # IVF_SQ8
-client.search(collection_name,
-              1, 
-              query_vectors, 
-              params={
-                "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-              }
-)
-
-```
-
-### IVF_SQ8_H
-
-Optimized version of IVF_SQ8 that requires both CPU and GPU to work. Unlike IVF_SQ8, IVF_SQ8_H uses a GPU-based
-coarse quantizer, which greatly reduces time to quantize.
-
-IVF_SQ8H is an IVF_SQ8 index that optimizes query execution.
-
-The query method is as follows:
-
-- If `nq` ≥ `gpu_search_threshold`, GPU handles the entire query task.
-- If `nq` < `gpu_search_threshold`, GPU handles the task of retrieving the `nprobe` nearest unit in the IVF
-index file, and CPU handles the rest.
-
-- building parameters:
-
-  **nlist**: Number of cluster units.
-
-```python
-# IVF_SQ8_H
-client.create_index(collection_name, 
-                    IndexType.IVF_SQ8_H, 
-                    {
-                      "nlist": 100      # int. 1~65536
-                    }
-)
-```
-
-- search parameters:
-
-  **nprobe**: Number of inverted file cell to probe.
-
-```python
-# IVF_SQ8_H
-client.search(collection_name,
-              1, 
-              query_vectors, 
-              params={
-                "nprobe": 8       # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
-              }
-)
+collection.search(data, anns_field, {
+                "nprobe": 8 # int. 1~nlist(cpu), 1~min[2048, nlist](gpu)
+              }, topK, expression)
 ```
 
 ### ANNOY
@@ -229,12 +170,11 @@ all the dividing methods simultaneously to reduce the probability that the targe
 
 ```python
 # ANNOY
-client.create_index(collection_name, 
-                    IndexType.ANNOY, 
-                    {
-                      "n_trees": 8      # int. 1~1024
-                    }
-)
+collection.create_index(field_name=field_name,
+                        index_params={'index_type': 'ANNOY',
+                                      'params': {
+                                        "n_trees": 8      # int. 1~1024
+                                      }})
 ```
 
 - search parameters:
@@ -243,13 +183,9 @@ client.create_index(collection_name,
 
 ```python
 # ANNOY
-client.search(collection_name,
-              1,
-              query_vectors, 
-              params={
+collection.search(data, anns_field, {
                 "search_k": -1    # int. {-1} U [top_k, n*n_trees], n represents vectors count.
-              }
-)
+              }, topK, expression)
 ```
 
 ### HNSW
@@ -272,13 +208,12 @@ In addition, you can use `efConstruction` (when building index) or `ef` (when se
 
 ```python
 # HNSW
-client.create_index(collection_name, 
-                    IndexType.HNSW, 
-                    {
-                      "M": 16,              # int. 4~64
-                      "efConstruction": 40  # int. 8~512
-                    }
-)
+collection.create_index(field_name=field_name,
+                        index_params={'index_type': 'HNSW',
+                                      'params': {
+                                        "M": 16,              # int. 4~64
+                                        "efConstruction": 40  # int. 8~512
+                                      }})
 ```
 
 - search parameters:
@@ -287,13 +222,9 @@ client.create_index(collection_name,
 
 ```python
 # HNSW
-client.search(collection_name,
-              1, 
-              query_vectors, 
-              params={
+collection.search(data, anns_field, {
                 "ef": 64          # int. top_k~32768
-              }
-)
+              }, topK, expression)
 ```
 
 
@@ -324,15 +255,14 @@ The query process is similar to the graph building process. It starts from the n
 
 ```python
 # RNSG
-client.create_index(collection_name, 
-                    IndexType.RNSG, 
-                    {
-                      "search_length": 60,         # int. 10~300
-                      "out_degree": 30,            # int. 5~300
-                      "candidate_pool_size": 300,  # int. 50~1000
-                      "knng": 50                   # int. 5~300
-                    }
-)
+collection.create_index(field_name=field_name,
+                        index_params={'index_type': 'RNSG',
+                                      'params': {
+                                        "search_length": 60,         # int. 10~300
+                                        "out_degree": 30,            # int. 5~300
+                                        "candidate_pool_size": 300,  # int. 50~1000
+                                        "knng": 50                   # int. 5~300
+                                      }})
 ```
 
 - search parameters:
@@ -341,11 +271,7 @@ client.create_index(collection_name,
 
 ```python
 # RNSG
-client.search(collection_name,
-              1, 
-              query_vectors, 
-              params={
+collection.search(data, anns_field, {
                 "search_length": 100  # int. 10~300
-              }
-)
+              }, topK, expression)
 ```
