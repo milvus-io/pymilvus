@@ -8,7 +8,15 @@ How to deal with search results
 
 The invocation of `search()` is like this:
 
->>> results = client.search('demo', query_vectors, topk)
+>>> import random
+>>> dim = 128
+>>> nq = 10
+>>> query_vectors = [[random.random() for _ in range(dim)] for _ in range(nq)]
+>>> anns_field = "vector field used to search"
+>>> search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
+>>> limit = 10  # topk
+>>> expr = "FieldA > 10"    # filter record whose value on FieldA is less than 10
+>>> results = collection.search(query_vectors, anns_field, search_params, limit, expr)
 
 The result object can be used as a 2-D array. `results[i]` (0 <= i < len(results)) represents topk results of i-th query
 vector, and `results[i][j]` (0 <= j < len( `results[i]` )) represents j-th result of i-th query vector. To get result id and distance,
@@ -25,12 +33,12 @@ The results object can be iterated, so you can traverse the results with two-lev
 ...         distance = result.distance
 
 
-Meanwhile, the results object provide attributes to separately access result id array `id_array` and distance array `distance_array`,
+Meanwhile, the topk results provide attributes to separately access result ids and distances,
 so you can traverse the results like this:
 
->>> for ids, distances in zip(results.id_array, results.distance_array):
-...     for id_, dis_ in zip(ids, distances):
-...         print(f"id = {id_}, distance = {dis_}")
+>>> for result in results:
+...     for id, dis in zip(result.ids, result.distances):
+...         print(f"id = {id}, distance = {dis}")
 
 .. sectionauthor::
-   `Bosszou@milvus <https://github.com/BossZou>`_
+   `dragondriver@milvus <https://github.com/dragondriver>`_
