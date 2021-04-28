@@ -10,73 +10,175 @@
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
 
-class Hit(object):
-    def __init__(self):
-        # TODO: Construct a Hit object from response. A hit represent a record corresponding to the query
+from milvus.client.abstract import LoopBase
+
+
+class _IterableBase(LoopBase):
+    # hide this in doc
+    def get__item(self, item):
         pass
+
+
+class Hit(object):
+    def __init__(self, hit):
+        """
+        Construct a Hit object from response. A hit represent a record corresponding to the query.
+        """
+        self._hit = hit
 
     @property
     def id(self) -> int:
-        # TODO: Return the id of the hit record
-        return 0
+        """
+        Return the id of the hit record.
+
+        :return int:
+            The id of the hit record.
+        """
+        return self._hit.id
 
     @property
     def distance(self) -> float:
-        # TODO: Return the distance between the hit record and the query
-        return 0.0
+        """
+        Return the distance between the hit record and the query.
+
+        :return float:
+            The distance of the hit record.
+        """
+        return self._hit.distance
 
     @property
     def score(self) -> float:
-        # TODO: Return the calculated score of the hit record, now the score is equal to distance
-        return 0.0
+        """
+        Return the calculated score of the hit record, now the score is equal to distance.
+
+        :return float:
+            The score of the hit record.
+        """
+        return self._hit.score
 
 
-class Hits(object):
-    def __init__(self):
-        # TODO: Construct a Hits object from response
-        pass
+class Hits(_IterableBase):
+    def __init__(self, hits):
+        """
+        Construct a Hits object from response.
+        """
+        super(Hits, self).__init__()
+        self._hits = hits
 
     def __iter__(self):
-        # TODO: Iterate the Hits object. Every iteration returns a Hit which
-        #  represent a record corresponding to the query
-        pass
+        """
+        Iterate the Hits object. Every iteration returns a Hit which represent a record
+        corresponding to the query.
+        """
+        return super(Hits, self).__iter__()
+
+    def __next__(self):
+        """
+        Iterate the Hits object. Every iteration returns a Hit which represent a record
+        corresponding to the query.
+        """
+        return super(Hits, self).__next__()
 
     def __getitem__(self, item) -> Hit:
-        # TODO: Return the kth Hit corresponding to the query
-        pass
+        """
+        Return the kth Hit corresponding to the query.
+
+        :return Hit:
+            The kth specified by item Hit corresponding to the query.
+        """
+        return Hit(self._hits[item])
 
     def __len__(self) -> int:
-        # TODO: Return the number of hit record
-        pass
+        """
+        Return the number of hit record.
+
+        :return int:
+            The number of hit record.
+        """
+        return len(self._hits)
 
     @property
     def ids(self) -> list:
-        # TODO: Return the ids of all hit record
-        return []
+        """
+        Return the ids of all hit record.
+
+        :return list[int]:
+            The ids of all hit record.
+        """
+        return self._hits.ids
 
     @property
     def distances(self) -> list:
-        # TODO: Return the distances of all hit record
-        return []
+        """
+        Return the distances of all hit record.
+
+        :return list[float]:
+            The distances of all hit record.
+        """
+        return self._hits.distances
 
 
-class SearchResult(object):
-    def __init__(self):
-        # TODO: construct a search result from response
-        pass
+class SearchResult(_IterableBase):
+    def __init__(self, query_result=None):
+        """
+        Construct a search result from response.
+        """
+        super(SearchResult, self).__init__()
+        self._qs = query_result
 
     def __iter__(self):
-        # TODO: Iterate the Search Result. Every iteration returns a Hits coresponding to a query
-        pass
+        """
+        Iterate the Search Result. Every iteration returns a Hits corresponding to a query.
+        """
+        return super(SearchResult, self).__iter__()
+
+    def __next__(self):
+        """
+        Iterate the Search Result. Every iteration returns a Hits corresponding to a query.
+        """
+        return super(SearchResult, self).__next__()
 
     def __getitem__(self, item) -> Hits:
-        # TODO: Return the Hits corresponding to the nth query
-        pass
+        """
+        Return the Hits corresponding to the nth query.
 
-    def __len__(self) -> len:
-        # TODO: Return the number of query of Search Result
-        pass
+        :return Hits:
+            The hits corresponding to the nth(item) query.
+        """
+        return Hits(self._qs[item])
+
+    def __len__(self) -> int:
+        """
+        Return the number of query of Search Result.
+
+        :return int:
+            The number of query of search result.
+        """
+        return len(self._qs)
+
+
+class SearchResultFuture(object):
+    def __init__(self, future):
+        self._f = future
+
+    def result(self, **kwargs):
+        """
+        Return the SearchResult from future object.
+
+        It's a synchronous interface. It will wait executing until
+        server respond or timeout occur(if specified).
+        """
+        return SearchResult(self._f.result())
+
+    def cancel(self):
+        """
+        Cancel the search request.
+        """
+        return self._f.cancel()
 
     def done(self):
-        # TODO: Blocking util search done
-        pass
+        """
+        Wait for search request done.
+        """
+        return self._f.done()
+

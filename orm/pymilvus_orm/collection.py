@@ -407,20 +407,20 @@ class Collection(object):
         :type  timeout: float
         :param kwargs:
             * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a SearchFuture object;
-              otherwise, method returns results from server.
+              Indicate if invoke asynchronously. When value is true, method returns a SearchResultFuture object;
+              otherwise, method returns results from server directly.
             * *_callback* (``function``) --
               The callback function which is invoked after server response successfully. It only take
               effect when _async is set to True.
 
-        :return Query result:
-            QueryResult is iterable and is a 2d-array-like class, the first dimension is
+        :return: SearchResult:
+            SearchResult is iterable and is a 2d-array-like class, the first dimension is
             the number of vectors to query (nq), the second dimension is the number of limit(topk).
+        :rtype: SearchResult
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -451,8 +451,13 @@ class Collection(object):
         >>> print(top1.score)
         """
         conn = self._get_connection()
-        return conn.search_with_expression(self._name, data, anns_field, param, limit, expression, partition_names,
-                                           output_fields, timeout, **kwargs)
+        res = conn.search_with_expression(self._name, data, anns_field, param, limit, expression, partition_names,
+                                          output_fields, timeout, **kwargs)
+        if kwargs.get("_async", False):
+            from .search import SearchResultFuture
+            return SearchResultFuture(res)
+        from .search import SearchResult
+        return SearchResult(res)
 
     @property
     def partitions(self) -> list:
