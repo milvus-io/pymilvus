@@ -38,6 +38,7 @@ extensions = [
     'sphinx_copybutton',
     'm2r',
     'sphinx.ext.autosummary',
+    'sphinxcontrib.prettyspecialmethods'
 ]
 
 

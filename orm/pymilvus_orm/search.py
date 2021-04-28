@@ -56,6 +56,17 @@ class Hit(object):
         """
         return self._hit.score
 
+    def __str__(self):
+        """
+        Return the information of hit record.
+
+        :return str:
+            The information of hit record.
+        """
+        return "(distance: {}, id: {})".format(self._hit.distance, self._hit.id)
+
+    __repr__ = __str__
+
 
 class Hits(_IterableBase):
     def __init__(self, hits):
