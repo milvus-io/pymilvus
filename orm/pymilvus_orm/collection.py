@@ -17,6 +17,7 @@ from .prepare import Prepare
 from .partition import Partition
 from .index import Index
 from .search import SearchResultFuture, SearchResult
+from .types import DataType
 
 
 class Collection(object):
@@ -112,6 +113,11 @@ class Collection(object):
 
     def _check_schema(self):
         pass
+
+    def _get_vector_field(self) -> str:
+        for field in self._schema.fields:
+            if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
+                return field.name
 
     @property
     def schema(self) -> CollectionSchema:
@@ -558,10 +564,11 @@ class Collection(object):
         :raises CollectionNotExistException: If collection doesn't exist.
         """
         conn = self._get_connection()
+        field_name = self._get_vector_field()
         indexes = []
-        tmp_index = conn.describe_index(self._name, "")
+        tmp_index = conn.describe_index(self._name, field_name)
         if tmp_index is not None:
-            indexes.append(Index(self, tmp_index['field_name'], tmp_index["params"]))
+            indexes.append(Index(self, field_name, tmp_index))
         return indexes
 
 
@@ -580,7 +587,8 @@ class Collection(object):
         """
         # TODO(yukun): Need field name, but provide index name, require some impl in server
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, "")
+        field_name = self._get_vector_field()
+        tmp_index = conn.describe_index(self._name, field_name)
         field_name = tmp_index.pop("field_name", None)
         if tmp_index is not None:
             return Index(self, field_name, tmp_index)
