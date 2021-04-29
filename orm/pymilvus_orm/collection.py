@@ -541,7 +541,7 @@ class Collection(object):
         indexes = []
         tmp_index = conn.describe_index(self._name, "")
         if tmp_index is not None:
-            indexes.append(Index(self, "", tmp_index["params"]))
+            indexes.append(Index(self, tmp_index['field_name'], tmp_index["params"]))
         return indexes
 
 

@@ -110,8 +110,8 @@ class MockMilvus:
         logging.debug(f"drop_index: {collection_name}, {field_name}")
         self._collection_indexes[collection_name] = []
 
-    def describe_index(self, collection_name, field_name, timeout=None):
-        logging.debug(f"describe_index: {collection_name}, {field_name}")
+    def describe_index(self, collection_name, index_name="", timeout=None):
+        logging.debug(f"describe_index: {collection_name}, {index_name}")
         if self._collection_indexes.get(collection_name) is None:
             return
         indexes = self._collection_indexes[collection_name].copy()
