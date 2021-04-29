@@ -10,7 +10,7 @@ Constructor
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | Constructor                                                          | Description                                                            |
 +======================================================================+========================================================================+
-| `Partition() <#pymilvus_orm.Partition>`_                             | Milvus partition                                                       |
+| `Partition() <#pymilvus_orm.Partition>`_                             | Milvus partition.                                                      |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 
 
@@ -43,6 +43,8 @@ Methods
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `release() <#pymilvus_orm.Partition.release>`_                       | Release the Partition from memory.                                     |
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
+| `insert() <#pymilvus_orm.Partition.insert>`_                         | Insert data into partition.                                            |
++----------------------------------------------------------------------+------------------------------------------------------------------------+
 | `search() <#pymilvus_orm.Partition.search>`_                         | Vector similarity search with an optional boolean expression as filters|
 +----------------------------------------------------------------------+------------------------------------------------------------------------+
 
@@ -52,5 +54,5 @@ API Refereences
 
 .. autoclass:: pymilvus_orm.Partition
    :member-order: bysource
-   :members: description, name, is_empty, num_entities, drop, load, release, search
+   :members: description, name, is_empty, num_entities, drop, load, release, insert, search
 
