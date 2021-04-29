@@ -86,8 +86,8 @@ class Connections(object):
         :param alias: The name of milvus connection
         :type  alias: str
 
-        :return: A milvus connection created by the passed parameters.
-        :rtype: class `Milvus`
+        :return Milvus:
+            A milvus connection created by the passed parameters.
 
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.
@@ -109,8 +109,8 @@ class Connections(object):
         :param alias: The name of milvus connection
         :type  alias: str
 
-        :return: A milvus connection which of the name is alias.
-        :rtype: class `Milvus`
+        :return Milvus:
+            A milvus connection which of the name is alias.
 
         :raises KeyError: If there is no connection with alias.
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
