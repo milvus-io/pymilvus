@@ -123,16 +123,6 @@ class Collection(object):
         """
         return self._schema
 
-    @schema.setter
-    def schema(self, value):
-        """
-        Set the schema of collection.
-
-        :param value: the schema of collection
-        :type value: class `schema.CollectionSchema`
-        """
-        pass
-
     @property
     def description(self) -> str:
         """
@@ -235,15 +225,23 @@ class Collection(object):
         return status["row_count"]
 
     @property
-    def primary_field(self):
+    def primary_field(self) -> FieldSchema:
         """
         Return the primary field of collection.
+
+        :return schema.FieldSchema:
+            The primary field of collection.
         """
         return self._schema.primary_field
 
     def drop(self, **kwargs):
         """
         Drop the collection, as well as its corresponding index files.
+
+        :param kwargs:
+            * *timeout* (``float``) --
+              An optional duration of time in seconds to allow for the RPC. When timeout
+              is set to None, client waits until server response or error occur.
 
         :raises CollectionNotExistException: If collection doesn't exist.
 
@@ -478,9 +476,9 @@ class Collection(object):
 
     def partition(self, partition_name) -> Partition:
         """
-        Return the partition corresponding to name. Create a new one if not existed.
+        Return the partition corresponding to name. Return None if not existed.
 
-        :param partition_name: The name of the partition to create.
+        :param partition_name: The name of the partition to get.
         :type  partition_name: str
 
         :return Partition:
@@ -493,16 +491,33 @@ class Collection(object):
             return None
         return Partition(self, partition_name)
 
+    def create_partition(self, partition_name, description=""):
+        """
+        Create the partition corresponding to name if not existed.
+
+        :param partition_name: The name of the partition to create.
+        :type  partition_name: str
+
+        :param description: The description of the partition corresponding to name.
+        :type description: str
+
+        :return Partition:
+            Partition object corresponding to partition_name.
+
+        :raises CollectionNotExistException: If collection doesn't exist.
+        :raises BaseException: If partition doesn't exist.
+        """
+        from .partition import Partition
+        if self.has_partition(partition_name) is True:
+            raise Exception("Partition already exist.")
+        return Partition(self, partition_name)
+
     def has_partition(self, partition_name) -> bool:
         """
         Checks if a specified partition exists.
 
         :param partition_name: The name of the partition to check
         :type  partition_name: str
-
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server response or error occur.
-        :type  timeout: float
 
         :return bool:
             Whether a specified partition exists.
@@ -518,6 +533,11 @@ class Collection(object):
 
         :param partition_name: The name of the partition to drop.
         :type  partition_name: str
+
+        :param kwargs:
+            * *timeout* (``float``) --
+              An optional duration of time in seconds to allow for the RPC. When timeout
+              is set to None, client waits until server response or error occur.
 
         :raises CollectionNotExistException: If collection doesn't exist.
         :raises BaseException: If partition doesn't exist.
@@ -611,6 +631,11 @@ class Collection(object):
 
         :param index_name: The name of the partition to drop.
         :type  index_name: str
+
+        :param kwargs:
+            * *timeout* (``float``) --
+              An optional duration of time in seconds to allow for the RPC. When timeout
+              is set to None, client waits until server response or error occur.
 
         :raises CollectionNotExistException: If collection doesn't exist.
         :raises BaseException: If index has been created.
