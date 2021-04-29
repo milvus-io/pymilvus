@@ -385,7 +385,7 @@ class Collection(object):
             entities, ids = Prepare.prepare_insert_data_for_list_or_tuple(data, self._schema)
             timeout = kwargs.pop("timeout", None)
             return conn.insert(collection_name=self._name, entities=entities, ids=ids, partition_tag=partition_name,
-                               timeout=timeout, **kwargs)
+                               timeout=timeout, orm=True, **kwargs)
 
     def search(self, data, anns_field, param, limit, expression, partition_names=None, output_fields=None, timeout=None,
                **kwargs):
