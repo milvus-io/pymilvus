@@ -43,11 +43,11 @@ class Index(object):
         >>> collection = Collection(name='test_collection', schema=schema)
         >>> # insert some data
         >>> index_params = {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 128}}
-        >>> index = Index(collection, "embedding", index_params)
-        >>> print(index.name())
-        >>> print(index.params())
-        >>> print(index.collection_name())
-        >>> print(index.field_name())
+        >>> index = Index(collection, "fvec", index_params)
+        >>> print(index.name)
+        >>> print(index.params)
+        >>> print(index.collection_name)
+        >>> print(index.field_name)
         >>> index.drop()
         """
         self._collection = collection
