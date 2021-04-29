@@ -12,4 +12,4 @@ API Reference
    milvus_index
    search 
    connections
-   top_level_functions
+   utility 
