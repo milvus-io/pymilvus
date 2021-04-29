@@ -1,5 +1,9 @@
 # Change logs
 
+## pymilvus 1.1.2(2021-06-09)
+### Bug
+- \#539 - Fix Pymilvus connection timeout (\#545)
+
 ## pymilvus 1.1.1(2021-05-28)
 
 ### Bug
