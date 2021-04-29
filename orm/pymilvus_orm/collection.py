@@ -561,8 +561,9 @@ class Collection(object):
         # TODO(yukun): Need field name, but provide index name, require some impl in server
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, "")
+        field_name = tmp_index.pop("field_name", None)
         if tmp_index is not None:
-            return Index(self, "", tmp_index["params"])
+            return Index(self, field_name, tmp_index)
 
     def create_index(self, field_name, index_params, index_name="", **kwargs) -> Index:
         """

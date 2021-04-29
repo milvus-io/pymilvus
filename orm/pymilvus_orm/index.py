@@ -57,12 +57,11 @@ class Index(object):
         self._kwargs = kwargs
 
         conn = self._get_connection()
-        index = conn.describe_index(self._collection.name, "")
-        if index is None:
+        index = conn.describe_index(self._collection.name)
+        if index is not None:
+            tmp_field_name = index.pop("field_name", None)
+        if index is None or index != index_params or tmp_field_name != field_name:
             conn.create_index(self._collection.name, self._field_name, self._index_params)
-        else:
-            if self._index_params != index["params"]:
-                raise Exception("The index already exists, but the index params is not the same as the passed in")
 
     def _get_connection(self):
         return self._collection._get_connection()
