@@ -2,7 +2,10 @@
 Partition
 =========
 
-Partition .
+A partition is a group of entities in one collection with the same label. Entities inserted without a label
+will be tagged a default label by milvus.
+
+Partition is managable, which means managing a group of entities with the same label in one collection.
 
 Constructor 
 -----------

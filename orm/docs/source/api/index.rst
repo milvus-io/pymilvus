@@ -2,7 +2,7 @@
 Index
 =========
 
-Index .
+An index belongs to a specific vector field in a collection, it helps accelerating search.
 
 Constructor 
 -----------

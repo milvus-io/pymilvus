@@ -2,7 +2,12 @@
 Collection
 =========
 
-Collection .
+The scheme of a collection is fixed when collection created. Collection scheme consists of many fields,
+and must contain a vector field. A field to collection is like a column to RDBMS table. Data type are the same in one field. 
+
+A collection is a set of entities, which are also called rows. An entity contains data of all fields.
+Each entity can be labeled, a group of entities with the same label is called a partition. Entity without a
+label will be tagged a default label by Milvus.
 
 Constructor
 -----------
