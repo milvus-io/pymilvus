@@ -57,7 +57,7 @@ class Index(object):
         self._kwargs = kwargs
 
         conn = self._get_connection()
-        index = conn.describe_index(self._collection.name, self._field_name)
+        index = conn.describe_index(self._collection.name)
         if index is not None:
             tmp_field_name = index.pop("field_name", None)
         if index is None or index != index_params or tmp_field_name != field_name:
@@ -116,6 +116,6 @@ class Index(object):
         :raises IndexNotExistException: If index doesn't exist.
         """
         conn = self._get_connection()
-        if conn.describe_index(self._collection.name, self._field_name) is None:
+        if conn.describe_index(self._collection.name) is None:
             raise Exception("Index doesn't exist")
         conn.drop_index(self._collection.name, self.field_name, **kwargs)

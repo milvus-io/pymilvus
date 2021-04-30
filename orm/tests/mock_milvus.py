@@ -10,7 +10,7 @@ class MockMilvus:
         self._collection_partitions = dict()
         self._collection_indexes = dict()
 
-    def create_collection(self, collection_name, fields, timeout=None):
+    def create_collection(self, collection_name, fields, timeout=None, **kwargs):
         if collection_name in self._collections:
             raise BaseException(1, f"Create collection failed: collection {collection_name} exist")
         self._collections[collection_name] = fields

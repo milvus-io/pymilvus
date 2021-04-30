@@ -95,7 +95,7 @@ class Collection(object):
             else:
                 # create collection schema must be dict
                 if isinstance(schema, CollectionSchema):
-                    conn.create_collection(self._name, fields=schema.to_dict())
+                    conn.create_collection(self._name, fields=schema.to_dict(), orm=True)
                     self._schema = schema
                     if isinstance(data, pandas.DataFrame):
                         # TODO(czs007): insert data by DataFrame
@@ -566,9 +566,9 @@ class Collection(object):
         conn = self._get_connection()
         field_name = self._get_vector_field()
         indexes = []
-        tmp_index = conn.describe_index(self._name, field_name)
+        tmp_index = conn.describe_index(self._name)
         if tmp_index is not None:
-            indexes.append(Index(self, field_name, tmp_index))
+            indexes.append(Index(self, tmp_index['field_name'], tmp_index))
         return indexes
 
 
