@@ -17,8 +17,8 @@ import json
 
 class CollectionSchema(object):
     def __init__(self, fields, description="", **kwargs):
-        self.fields = fields
-        self.description = description
+        self._fields = fields
+        self._description = description
         self._kwargs = kwargs
 
     def __repr__(self):
@@ -33,22 +33,79 @@ class CollectionSchema(object):
         return CollectionSchema(fields, raw.get('description', ""))
 
     @property
+    # TODO:
     def primary_field(self):
         primary_field = self._kwargs.get("primary_field", None)
-        for f in self.fields:
+        for f in self._fields:
             if f.is_primary or f.name == primary_field:
                 f.is_primary = True
                 return f
 
     @property
+    def fields(self):
+        """
+        Return the fields about the CollectionSchema.
+
+        :return list:
+            List of FieldSchema, return when operation is successful.
+
+        :example:
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field])
+        >>> schema.fields
+        """
+        return self._fields
+
+    @property
+    def description(self):
+        """
+        Return the description text about the CollectionSchema.
+
+        :return str:
+            CollectionSchema description text, return when operation is successful.
+
+        :example:
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field], description="test get description")
+        >>> schema.description
+        """
+        return self._description
+
+    @property
     def auto_id(self):
+        """
+        Whether primary keys are automatically generated.
+
+        :return bool:
+            Return true if primary keys are automatically generated, false otherwise.
+
+        :example:
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> schema = CollectionSchema(fields=[field])
+        >>> schema.auto_id
+        """
         return self.primary_field is None
 
     def to_dict(self):
         _dict = {
             "auto_id": self.primary_field is None,
-            "description": self.description,
-            "fields": [f.to_dict() for f in self.fields]
+            "description": self._description,
+            "fields": [f.to_dict() for f in self._fields]
         }
         return _dict
 
@@ -57,7 +114,7 @@ class FieldSchema(object):
     def __init__(self, name, dtype, description="", **kwargs):
         self.name = name
         self._dtype = dtype
-        self.description = description
+        self._description = description
         self._type_params = None
         self._kwargs = kwargs
         self.is_primary = kwargs.get("is_primary", False)
@@ -87,7 +144,7 @@ class FieldSchema(object):
     def to_dict(self):
         _dict = dict()
         _dict["name"] = self.name
-        _dict["description"] = self.description
+        _dict["description"] = self._description
         _dict["type"] = self.dtype
         if self._type_params:
             _dict["params"] = copy.deepcopy(self.params)
@@ -100,7 +157,41 @@ class FieldSchema(object):
             return self._type_params[item]
 
     @property
+    def description(self):
+        """
+        Return the description text about the FieldSchema.
+
+        :return str:
+            FieldSchema description text, return when operation is successful.
+
+        :example:
+        >>> from pymilvus_orm.schema import FieldSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field.description
+        """
+        return self._description
+
+    @property
     def params(self):
+        """
+        Return the parameters of the field.
+
+        :return list:
+            List of the parameter.
+
+        :example:
+        >>> from pymilvus_orm.schema import FieldSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field.params
+        """
         return self._type_params
 
     @property
