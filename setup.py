@@ -1,7 +1,6 @@
 import pathlib
 import setuptools
 from datetime import datetime
-import git
 import re
 
 HERE = pathlib.Path(__file__).parent
