@@ -1,7 +1,10 @@
 import logging
+
+import numpy
 import pytest
+
+from pymilvus_orm.schema import CollectionSchema, FieldSchema, parse_fields_from_dataframe
 from utils import *
-from pymilvus_orm.schema import CollectionSchema, FieldSchema
 
 LOGGER = logging.getLogger(__name__)
 
@@ -79,6 +82,17 @@ class TestFieldSchema:
         _dict["type"] = DataType.INT64
         return _dict
 
+    @pytest.fixture(scope="function")
+    def dataframe1(self):
+        import pandas
+        data = {
+            'float': [1.0],
+            'int32': [2],
+            'float_vec': [numpy.array([3, 4.0], numpy.float32)]
+        }
+        df1 = pandas.DataFrame(data)
+        return df1
+
     def test_constructor_from_float_dict(self, raw_dict_float_vector):
         field = FieldSchema.construct_from_dict(raw_dict_float_vector)
         assert field.dtype == DataType.FLOAT_VECTOR
@@ -104,6 +118,16 @@ class TestFieldSchema:
         assert field.dim is None
         assert field.dummy is None
 
+    def test_cmp(self, raw_dict_binary_vector):
+        import copy
+        field1 = FieldSchema.construct_from_dict(raw_dict_binary_vector)
+        field2 = FieldSchema.construct_from_dict(raw_dict_binary_vector)
+        assert field1 == field2
+        dict1 = copy.deepcopy(raw_dict_binary_vector)
+        dict1["name"] = dict1["name"] + "_"
+        field3 = FieldSchema.construct_from_dict(dict1)
+        assert field1 != field3
+
     def test_to_dict(self, raw_dict_norm, raw_dict_float_vector, raw_dict_binary_vector):
         fields = []
         dicts = [raw_dict_norm, raw_dict_float_vector, raw_dict_binary_vector]
@@ -115,3 +139,10 @@ class TestFieldSchema:
             target = f.to_dict()
             assert target == dicts[i]
             assert target is not dicts[i]
+
+    def test_parse_fields_from_dataframe(self, dataframe1):
+        fields = parse_fields_from_dataframe(dataframe1)
+        assert len(fields) == len(dataframe1.columns)
+        for f in fields:
+            if f.dtype == DataType.FLOAT_VECTOR:
+                assert f.dim == len(dataframe1['float_vec'].values[0])

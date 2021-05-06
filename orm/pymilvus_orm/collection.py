@@ -12,12 +12,13 @@
 import pandas
 
 from .connections import get_connection
-from .schema import CollectionSchema, FieldSchema
+from .schema import CollectionSchema, FieldSchema, parse_fields_from_data
 from .prepare import Prepare
 from .partition import Partition
 from .index import Index
 from .search import SearchResultFuture, SearchResult
 from .types import DataType
+from .exceptions import *
 
 
 class Collection(object):
@@ -88,12 +89,12 @@ class Collection(object):
                     raise Exception("Collection missing schema.")
                 else:
                     if isinstance(data, pandas.DataFrame):
+                        schema
                         # TODO(czs007): construct schema by DataFrame
                         pass
                     else:
                         raise Exception("Data of not pandas.DataFrame type should be passed into the schema.")
             else:
-                # create collection schema must be dict
                 if isinstance(schema, CollectionSchema):
                     conn.create_collection(self._name, fields=schema.to_dict(), orm=True)
                     self._schema = schema
@@ -111,8 +112,26 @@ class Collection(object):
     def _get_connection(self):
         return get_connection(self._get_using())
 
+    def _check_insert_data_schema(self, data):
+        """
+        Check whether the data type matches the schema.
+        """
+        if self._schema is None:
+            return False
+        infer_fields = parse_fields_from_data(data)
+
+        if len(infer_fields) != len(self._schema):
+            raise DataTypeNotMatchException(0, "Column cnt not match with schema")
+
+        for x, y in zip(infer_fields, self._schema.fields):
+            if x.dtype != y.dtype:
+                return False
+            # todo check dim
+        return True
+
     def _check_schema(self):
-        pass
+        if self._schema is None:
+            raise SchemaNotReadyException(0, "Schema is not ready")
 
     def _get_vector_field(self) -> str:
         for field in self._schema.fields:
@@ -492,7 +511,6 @@ class Collection(object):
             partitions.append(Partition(self, partition))
         return partitions
 
-
     def partition(self, partition_name) -> Partition:
         """
         Return the partition corresponding to name. Return None if not existed.
@@ -664,7 +682,6 @@ class Collection(object):
         if tmp_index is not None:
             indexes.append(Index(self, tmp_index['field_name'], tmp_index))
         return indexes
-
 
     def index(self, index_name="") -> Index:
         """

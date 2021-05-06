@@ -9,10 +9,14 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
-from .types import DataType
-from .constants import VECTOR_COMMON_TYPE_PARAMS
 import copy
 import json
+import pandas
+from typing import List
+
+from pymilvus_orm.constants import VECTOR_COMMON_TYPE_PARAMS
+from pymilvus_orm.types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
+from pymilvus_orm.exceptions import *
 
 
 class CollectionSchema(object):
@@ -26,6 +30,9 @@ class CollectionSchema(object):
 
     def __str__(self):
         return str(json.dumps(self.to_dict()))
+
+    def __len__(self):
+        return len(self.fields)
 
     @classmethod
     def construct_from_dict(cls, raw):
@@ -156,6 +163,11 @@ class FieldSchema(object):
         if self._type_params and item in self._type_params:
             return self._type_params[item]
 
+    def __eq__(self, other):
+        if not isinstance(other, FieldSchema):
+            return False
+        return self.to_dict() == other.to_dict()
+
     @property
     def description(self):
         """
@@ -197,3 +209,49 @@ class FieldSchema(object):
     @property
     def dtype(self):
         return self._dtype
+
+
+def parse_fields_from_data(datas):
+    if isinstance(datas, pandas.DataFrame):
+        return parse_fields_from_dataframe(datas)
+    fields = []
+    for d in datas:
+        d_type = infer_dtype_bydata(d)
+        fields.append(FieldSchema("", d_type))
+    return fields
+
+
+def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
+    if not isinstance(dataframe, pandas.DataFrame):
+        return None
+    d_types = list(dataframe.dtypes)
+    data_types = list(map(map_numpy_dtype_to_datatype, d_types))
+    col_names = list(dataframe.columns)
+
+    column_params_map = {}
+
+    if DataType.UNKNOWN in data_types:
+        if len(dataframe) == 0:
+            raise CannotInferSchemaException(0, "Cannot infer schema from empty dataframe")
+        else:
+            values = dataframe.head(1).values[0]
+            for i, dtype in enumerate(data_types):
+                if dtype == DataType.UNKNOWN:
+                    new_dtype = infer_dtype_bydata(values[i])
+                    if new_dtype in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR):
+                        vector_type_parasm = {
+                            'dim': len(values[i]),
+                        }
+                        column_params_map[col_names[i]] = vector_type_parasm
+                    data_types[i] = new_dtype
+
+    if DataType.UNKNOWN in data_types:
+        raise CannotInferSchemaException(0, "Cannot infer schema from dataframe")
+
+    fields = []
+    for name, dtype in zip(col_names, data_types):
+        type_params = column_params_map.get(name, {})
+        field_schema = FieldSchema(name, dtype, **type_params)
+        fields.append(field_schema)
+
+    return fields
