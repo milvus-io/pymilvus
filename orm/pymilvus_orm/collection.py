@@ -44,7 +44,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="collection description")
         >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
         >>> collection.name
@@ -69,7 +69,8 @@ class Collection(object):
                     self.insert(data=data)
             else:
                 if server_schema != schema:
-                    raise Exception("The collection already exist, but the schema is not the same as the passed in.")
+                    raise SchemaNotReadyException("The collection already exist, but the schema is not the same as "
+                                                  "the passed in.")
                 self._schema = schema
                 if data is not None:
                     self.insert(data=data)
@@ -77,7 +78,7 @@ class Collection(object):
         else:
             if schema is None:
                 if data is None:
-                    raise Exception("Collection missing schema.")
+                    raise SchemaNotReadyException("Collection missing schema.")
                 else:
                     if isinstance(data, pandas.DataFrame):
                         fields = parse_fields_from_data(data)
@@ -85,7 +86,8 @@ class Collection(object):
                         conn.create_collection(self._name, fields=self._schema.to_dict(), orm=True)
                         self.insert(data=data)
                     else:
-                        raise Exception("Data of not pandas.DataFrame type should be passed into the schema.")
+                        raise SchemaNotReadyException("Data of not pandas.DataFrame type should be passed into the "
+                                                      "schema.")
             else:
                 if isinstance(schema, CollectionSchema):
                     conn.create_collection(self._name, fields=schema.to_dict(), orm=True)
@@ -94,9 +96,9 @@ class Collection(object):
                         if self._check_insert_data_schema(data):
                             self.insert(data=data)
                         else:
-                            raise Exception("The types of schema and data do not match.")
+                            raise SchemaNotReadyException("The types of schema and data do not match.")
                 else:
-                    raise Exception("schema type must be schema.CollectionSchema.")
+                    raise SchemaNotReadyException("schema type must be schema.CollectionSchema.")
 
     def _get_using(self):
         return self._kwargs.get("_using", "default")
@@ -155,7 +157,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="test get description")
         >>> collection = Collection(name="test_collection", schema=schema, alias="default")
         >>> collection.description
@@ -179,7 +181,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="test get collection name")
         >>> collection = Collection(name="test_collection", schema=schema, alias="default")
         >>> collection.name
@@ -204,11 +206,16 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="test collection is empty")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> collection.is_empty
         True
+        >>> data = [[1,2,3,4]]
+        >>> collection.insert(data)
+        [424769928069057860, 424769928069057861, 424769928069057862, 424769928069057863]
+        >>> collection.is_empty
+        False
         """
         return self.num_entities == 0
 
@@ -230,12 +237,16 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> collection.num_entities
         0
-        TODO: add example for num_entities of collection after insert
+        >>> data = [[1,2,3,4]]
+        >>> collection.insert(data)
+        [424769928069057860, 424769928069057861, 424769928069057862, 424769928069057863]
+        >>> collection.num_entities
+        4
         """
         conn = self._get_connection()
         status = conn.get_collection_stats(db_name="", collection_name=self._name)
@@ -248,6 +259,21 @@ class Collection(object):
 
         :return schema.FieldSchema:
             The primary field of collection.
+
+        :example:
+        >>> from pymilvus_orm.collection import Collection
+        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection(alias="default")
+        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=True)
+        >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
+        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> collection.primary_field
+        <pymilvus_orm.schema.FieldSchema object at 0x7f64f6a3cc40>
+        >>> collection.primary_field.name
+        'int64'
         """
         return self._schema.primary_field
 
@@ -269,7 +295,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="drop collection")
         >>> collection = Collection(name="test_collection", schema=schema)
         TODO: add example for drop of collection
@@ -313,8 +339,12 @@ class Collection(object):
         :example:
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
-        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="collection schema has a int64 field")
+        >>> from pymilvus_orm import connections
+        >>> from pymilvus_orm.types import DataType
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field], description="collection schema has a int64 field")
+        >>> connections.create_connection()
+        <milvus.client.stub.Milvus object at 0x7f8579002dc0>
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
         >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))
@@ -342,8 +372,12 @@ class Collection(object):
         :example:
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
-        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="collection schema has a int64 field")
+        >>> from pymilvus_orm import connections
+        >>> from pymilvus_orm.types import DataType
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field], description="collection schema has a int64 field")
+        >>> connections.create_connection()
+        <milvus.client.stub.Milvus object at 0x7f8579002dc0>
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
         >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))
@@ -353,8 +387,6 @@ class Collection(object):
         >>> assert not collection.is_empty
         >>> assert collection.num_entities == 10
         >>> collection.release()    # release the collection from memory
-        >>> assert collection.is_empty
-        >>> assert collection.num_entities == 0
         """
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=kwargs.get("timeout", None))
@@ -381,8 +413,12 @@ class Collection(object):
         :example:
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> field = FieldSchema(name="int64", type="int64", is_primary=False, description="int64")
-        >>> schema = CollectionSchema(fields=[field], auto_id=True, description="collection schema has a int64 field")
+        >>> from pymilvus_orm import connections
+        >>> from pymilvus_orm.types import DataType
+        >>> connections.create_connection()
+        <milvus.client.stub.Milvus object at 0x7f8579002dc0>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field], description="collection schema has a int64 field")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import random
         >>> data = [[random.randint(1, 100) for _ in range(10)]]
@@ -440,11 +476,14 @@ class Collection(object):
         :example:
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        >>> from pymilvus_orm import connections
         >>> from pymilvus_orm.types import DataType
+        >>> connections.create_connection()
+        <milvus.client.stub.Milvus object at 0x7f8579002dc0>
         >>> dim = 128
-        >>> year_field = FieldSchema(name="year", type="int64", is_primary=False, description="year")
-        >>> embedding_field = FieldSchema(name="embedding", type=DataType.FLOAT_VECTOR, dim=dim)
-        >>> schema = CollectionSchema(fields=[year_field, embedding_field], auto_id=True)
+        >>> year_field = FieldSchema(name="year", dtype=DataType.INT64, is_primary=False, description="year")
+        >>> embedding_field = FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dim)
+        >>> schema = CollectionSchema(fields=[year_field, embedding_field])
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import random
         >>> nb = 3000
@@ -457,7 +496,8 @@ class Collection(object):
         >>> search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
         >>> res = collection.search(embeddings[:10], "embedding", search_params, limit, "year > 20")
         >>> assert len(res) == nq
-        >>> assert len(hits) == limit for hits in res
+        >>> for hits in res:
+        >>>     assert len(hits) == limit
         >>> hits = res[0]
         >>> assert len(hits.ids) == limit
         >>> top1 = hits[0]
@@ -489,7 +529,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="collection description")
         >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
         >>> collection.partitions
@@ -522,7 +562,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="collection description")
         >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
         >>> collection.partition("partition")
@@ -557,7 +597,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="collection description")
         >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
         >>> collection.create_partition(partition_name="partition", description="test partition")
@@ -589,7 +629,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="collection description")
         >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
         >>> collection.create_partition(partition_name="partition", description="test partition")
@@ -626,7 +666,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="collection description")
         >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
         >>> collection.create_partition(partition_name="partition", description="test partition")
@@ -661,7 +701,7 @@ class Collection(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="collection description")
         >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
         >>> collection.indexes

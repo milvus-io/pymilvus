@@ -61,7 +61,7 @@ def gen_schema():
     fields = [
         FieldSchema(gen_field_name(), DataType.INT64),
         FieldSchema(gen_field_name(), DataType.FLOAT),
-        FieldSchema(gen_field_name(), DataType.FLOAT_VECTOR)
+        FieldSchema(gen_field_name(), DataType.FLOAT_VECTOR, dim=default_dim)
     ]
     collection_schema = CollectionSchema(fields)
     return collection_schema
