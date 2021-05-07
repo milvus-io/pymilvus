@@ -34,6 +34,12 @@ class CollectionSchema(object):
     def __len__(self):
         return len(self.fields)
 
+    def __eq__(self, other):
+        """
+        The order of the fields of schema must be consistent.
+        """
+        return self.to_dict() == other.to_dict()
+
     @classmethod
     def construct_from_dict(cls, raw):
         fields = [FieldSchema.construct_from_dict(field_raw) for field_raw in raw['fields']]

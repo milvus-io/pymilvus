@@ -79,14 +79,15 @@ def gen_int_attr(row_num):
 
 # pandas.DataFrame
 def gen_pd_data(nb, is_normal=False):
+    import numpy
     vectors = gen_vectors(nb, default_dim, is_normal)
-    datas = [
-        {"name": "int64", "type": DataType.INT64, "values": [i for i in range(nb)]},
-        {"name": "float", "type": DataType.FLOAT, "values": [float(i) for i in range(nb)]},
-        {"name": default_float_vec_field_name, "type": DataType.FLOAT_VECTOR, "values": vectors}
-    ]
-    data = pandas.DataFrame(datas, columns=['name', 'type', 'values'])
-    return datas
+    datas = {
+        "int64": [i for i in range(nb)],
+        "float": numpy.array([i for i in range(nb)], dtype=numpy.float32),
+        default_float_vec_field_name: vectors
+    }
+    data = pandas.DataFrame(datas)
+    return data
 
 
 # list or tuple data

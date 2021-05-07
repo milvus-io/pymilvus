@@ -68,17 +68,8 @@ class Collection(object):
                 if data is not None:
                     self.insert(data=data)
             else:
-                if len(schema.fields) != len(resp["fields"]):
+                if server_schema != schema:
                     raise Exception("The collection already exist, but the schema is not the same as the passed in.")
-                for schema_field in schema.fields:
-                    same_field = False
-                    for field in resp["fields"]:
-                        if field["name"] == schema_field.name and field["type"] == schema_field.dtype:
-                            # and field["is_primary_key"] == schema_field.is_primary:
-                            same_field = True
-                    if not same_field:
-                        raise Exception(
-                            "The collection already exist, but the schema is not the same as the passed in.")
                 self._schema = schema
                 if data is not None:
                     self.insert(data=data)
@@ -89,20 +80,21 @@ class Collection(object):
                     raise Exception("Collection missing schema.")
                 else:
                     if isinstance(data, pandas.DataFrame):
-                        schema
-                        # TODO(czs007): construct schema by DataFrame
-                        pass
+                        fields = parse_fields_from_data(data)
+                        self._schema = CollectionSchema(fields=fields)
+                        conn.create_collection(self._name, fields=self._schema.to_dict(), orm=True)
+                        self.insert(data=data)
                     else:
                         raise Exception("Data of not pandas.DataFrame type should be passed into the schema.")
             else:
                 if isinstance(schema, CollectionSchema):
                     conn.create_collection(self._name, fields=schema.to_dict(), orm=True)
                     self._schema = schema
-                    if isinstance(data, pandas.DataFrame):
-                        # TODO(czs007): insert data by DataFrame
-                        pass
-                    else:
-                        self.insert(data=data)
+                    if data is not None:
+                        if self._check_insert_data_schema(data):
+                            self.insert(data=data)
+                        else:
+                            raise Exception("The types of schema and data do not match.")
                 else:
                     raise Exception("schema type must be schema.CollectionSchema.")
 
@@ -400,11 +392,10 @@ class Collection(object):
         >>> assert collection.num_entities == 10
         """
         conn = self._get_connection()
-        if isinstance(data, (list, tuple)):
-            entities, ids = Prepare.prepare_insert_data_for_list_or_tuple(data, self._schema)
-            timeout = kwargs.pop("timeout", None)
-            return conn.insert(collection_name=self._name, entities=entities, ids=ids, partition_tag=partition_name,
-                               timeout=timeout, orm=True, **kwargs)
+        entities, ids = Prepare.prepare_insert_data_for_list_or_tuple(data, self._schema)
+        timeout = kwargs.pop("timeout", None)
+        return conn.insert(collection_name=self._name, entities=entities, ids=ids, partition_tag=partition_name,
+                           timeout=timeout, orm=True, **kwargs)
 
     def search(self, data, anns_field, param, limit, expression, partition_names=None, output_fields=None, timeout=None,
                **kwargs):

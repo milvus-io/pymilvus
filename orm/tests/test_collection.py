@@ -15,6 +15,20 @@ class TestCollections:
         if connections.get_connection().has_collection(name):
             connections.get_connection().drop_collection(name)
 
+    def test_collection_by_DataFrame(self):
+        from pymilvus_orm import Collection, connections
+        from pymilvus_orm.schema import FieldSchema, CollectionSchema
+        from pymilvus_orm.types import DataType
+        fields = [
+            FieldSchema("int64", DataType.INT64),
+            FieldSchema("float", DataType.FLOAT),
+            FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=128)
+        ]
+        collection_schema = CollectionSchema(fields)
+        connections.create_connection()
+        collection = Collection(name=gen_collection_name(), data=gen_pd_data(default_nb), schema=collection_schema)
+        collection.drop()
+
     def test_constructor(self, collection):
         assert type(collection) is Collection
 
