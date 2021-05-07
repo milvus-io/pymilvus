@@ -93,10 +93,7 @@ class Collection(object):
                     conn.create_collection(self._name, fields=schema.to_dict(), orm=True)
                     self._schema = schema
                     if data is not None:
-                        if self._check_insert_data_schema(data):
-                            self.insert(data=data)
-                        else:
-                            raise SchemaNotReadyException("The types of schema and data do not match.")
+                        self.insert(data=data)
                 else:
                     raise SchemaNotReadyException("schema type must be schema.CollectionSchema.")
 
@@ -427,8 +424,10 @@ class Collection(object):
         >>> assert not collection.is_empty
         >>> assert collection.num_entities == 10
         """
+        if not self._check_insert_data_schema(data):
+            raise SchemaNotReadyException("The types of schema and data do not match.")
         conn = self._get_connection()
-        entities, ids = Prepare.prepare_insert_data_for_list_or_tuple(data, self._schema)
+        entities, ids = Prepare.prepare_insert_data(data, self._schema)
         timeout = kwargs.pop("timeout", None)
         return conn.insert(collection_name=self._name, entities=entities, ids=ids, partition_tag=partition_name,
                            timeout=timeout, orm=True, **kwargs)

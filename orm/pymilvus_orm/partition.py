@@ -202,7 +202,7 @@ class Partition(object):
         if conn.has_partition(self._collection.name, self._name) is False:
             raise Exception("Partition doesn't exist")
         if isinstance(data, (list, tuple)):
-            entities, ids = Prepare.prepare_insert_data_for_list_or_tuple(data, self._collection.schema)
+            entities, ids = Prepare.prepare_insert_data(data, self._collection.schema)
             timeout = kwargs.pop("timeout", None)
             return conn.insert(self._collection.name, entities=entities, ids=ids, partition_tag=self._name,
                                timeout=timeout, **kwargs)

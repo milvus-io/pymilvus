@@ -11,7 +11,7 @@
 
 class Prepare(object):
     @classmethod
-    def prepare_insert_data_for_list_or_tuple(cls, data, schema):
+    def prepare_insert_data(cls, data, schema):
         import pandas
         if not isinstance(data, list) and not isinstance(data, tuple) and not isinstance(data, pandas.DataFrame):
             raise Exception("data is not invalid")
@@ -39,7 +39,10 @@ class Prepare(object):
         ids = None
         for i, field in enumerate(fields):
             if field.is_primary:
-                ids = data[i]
+                if isinstance(data, pandas.DataFrame):
+                    ids = data[field.name]
+                else:
+                    ids = data[i]
 
         return entities, ids
 
