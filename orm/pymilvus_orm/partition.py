@@ -12,6 +12,7 @@
 import json
 
 from .prepare import Prepare
+from .search import SearchResultFuture, SearchResult
 
 
 class Partition(object):
@@ -207,7 +208,7 @@ class Partition(object):
             return conn.insert(self._collection.name, entities=entities, ids=ids, partition_tag=self._name,
                                timeout=timeout, **kwargs)
 
-    def search(self, data, anns_field, params, limit, expr=None, output_fields=None, **kwargs):
+    def search(self, data, anns_field, params, limit, expr=None, output_fields=None, timeout=None, **kwargs):
         """
         Vector similarity search with an optional boolean expression as filters.
 
@@ -230,3 +231,9 @@ class Partition(object):
                  the number of vectors to query (nq), the second dimension is the number of topk.
         """
         # TODO(DragonDriver): Vector similarity search with an optional boolean expression as filters
+        conn = self._get_connection()
+        res = conn.search_with_expression(self._collection.name, data, anns_field, params, limit, expr, self._name,
+                                          output_fields, timeout, **kwargs)
+        if kwargs.get("_async", False):
+            return SearchResultFuture(res)
+        return SearchResult(res)
