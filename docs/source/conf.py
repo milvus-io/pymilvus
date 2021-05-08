@@ -22,7 +22,7 @@ copyright = '2021, Milvus'
 author = 'Milvus'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.1'
+release = '1.1.0'
 show_authors = True
 
 
@@ -43,7 +43,7 @@ extensions = [
 # Copy button configuration for python and shell
 # regexp for:
 # ">>> ", "... ", "$ ", "In [digit]", "(char) $ "
-copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: |\(.\) \$ " 
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: |\(.\) \$ "
 copybutton_prompt_is_regexp = True
 
 # Add any source suffix

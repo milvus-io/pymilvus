@@ -117,7 +117,7 @@ class HttpHandler(ConnectIntf):
                 _uri = urlparse(uri) if uri else urlparse(config.HTTP_URI)
                 _host = _uri.hostname
                 _port = _uri.port
-                _proto = _uri.scheme
+                _proto = "http" if _uri.scheme not in {"http", "https"} else _uri.scheme
             except (AttributeError, ValueError, TypeError) as e:
                 raise ParamError("uri is illegal: {}".format(e))
         else:
