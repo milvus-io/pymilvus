@@ -32,7 +32,8 @@ from .utility import (
         list_collections,
 )
 
-from .search import SearchResult, Hits, Hit
+from .search import SearchResult, Hits, Hit, SearchResultFuture
 from .types import DataType
+from .schema import FieldSchema, CollectionSchema
 
 __version__ = "0.0.1"

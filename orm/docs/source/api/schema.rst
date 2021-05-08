@@ -22,7 +22,7 @@ Constructor
 
 
 CollectionSchema Attributes
----------------------
+---------------------------
 .. autosummary::
    :toctree: api/
 
@@ -48,7 +48,7 @@ APIs
 
 
 FieldSchema Attributes
----------------------
+----------------------
 .. autosummary::
    :toctree: api/
 
