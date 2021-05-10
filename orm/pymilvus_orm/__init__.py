@@ -14,7 +14,6 @@ from .connections import (
         Connections,
         connections,
         configure,
-        add_connection,
         remove_connection,
         create_connection,
         get_connection

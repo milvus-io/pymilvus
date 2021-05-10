@@ -26,6 +26,7 @@ class Connections(object):
         """
         self._kwargs = {}
         self._conns = {}
+        self._addrs = {}
 
     def configure(self, **kwargs):
         """
@@ -44,20 +45,8 @@ class Connections(object):
             # try and preserve existing client to keep the persistent connections alive
             if k in self._kwargs and kwargs.get(k, None) == self._kwargs[k]:
                 continue
-            del self._conns[k]
+            self.remove_connection(alias=k)
         self._kwargs = kwargs
-
-    def add_connection(self, alias, conn):
-        """
-        Add a connection object, it will be passed through as-is.
-
-        :param alias: The name of milvus connection
-        :type  alias: str
-
-        :param conn: The milvus connection.
-        :type  conn: class `Milvus`
-        """
-        self._conns[alias] = conn
 
     def remove_connection(self, alias):
         """
@@ -69,15 +58,20 @@ class Connections(object):
 
         :raises KeyError: If there is no connection with alias.
         """
+        try:
+            conn = self._conns[alias]
+        except KeyError:
+            raise KeyError("There is no connection with alias %r." % alias)
         errors = 0
-        for d in (self._conns, self._kwargs):
+        for d in (self._conns, self._kwargs, self._addrs):
             try:
                 del d[alias]
             except KeyError:
                 errors += 1
 
-        if errors == 2:
+        if errors == 3:
             raise KeyError("There is no connection with alias %r." % alias)
+        conn.close()
 
     def create_connection(self, alias=DefaultConfig.DEFAULT_USING, **kwargs) -> Milvus:
         """
@@ -92,6 +86,11 @@ class Connections(object):
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.
         :raises Exception: If server specific in parameters is not ready, we cannot connect to server.
+
+        :example:
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection("test", host="localhost", port="19530")
+        <milvus.client.stub.Milvus object at 0x7f4045335f10>
         """
         host = kwargs.pop("host", DefaultConfig.DEFAULT_HOST)
         port = kwargs.pop("port", DefaultConfig.DEFAULT_PORT)
@@ -100,6 +99,7 @@ class Connections(object):
 
         conn = Milvus(host, port, handler, pool, **kwargs)
         self._conns[alias] = conn
+        self._addrs[alias] = {"host": host, "port": port}
         return conn
 
     def get_connection(self, alias=DefaultConfig.DEFAULT_USING) -> Milvus:
@@ -129,12 +129,52 @@ class Connections(object):
             # no connection and no kwargs to set one up
             raise KeyError("There is no connection with alias %r." % alias)
 
+    def list_connections(self) -> list:
+        """
+        List all connections.
+
+        :return list:
+            Names of all connections.
+
+        :example:
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection("test", host="localhost", port="19530")
+        <milvus.client.stub.Milvus object at 0x7f4045335f10>
+        >>> connections.list_connections()
+        ['test']
+        """
+
+        return list(self._conns.keys())
+
+    def get_connection_addr(self, alias):
+        """
+        Get connection configure by alias.
+
+        :param alias: The name of milvus connection
+        :type  alias: str
+
+        :return dict:
+            The connection configure which of the name is alias.
+            If alias does not exist, return empty dict.
+
+        :example:
+        >>> from pymilvus_orm import connections
+        >>> connections.create_connection("test", host="localhost", port="19530")
+        <milvus.client.stub.Milvus object at 0x7f4045335f10>
+        >>> connections.list_connections()
+        ['test']
+        >>> connections.get_connection_addr('test')
+        {'host': 'localhost', 'port': '19530'}
+        """
+        return self._addrs.get(alias, {})
+
 
 # Singleton Mode in Python
 
 connections = Connections()
 configure = connections.configure
-add_connection = connections.add_connection
+list_connections = connections.list_connections
+get_connection_addr = connections.get_connection_addr
 remove_connection = connections.remove_connection
 create_connection = connections.create_connection
 get_connection = connections.get_connection

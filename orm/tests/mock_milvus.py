@@ -145,4 +145,7 @@ class MockMilvus:
     def wait_for_creating_index(self, collection_name, index_name, timeout=None, **kwargs):
         pass
 
+    def close(self):
+        pass
+
 Milvus = MockMilvus
