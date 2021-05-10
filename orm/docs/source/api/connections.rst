@@ -24,19 +24,21 @@ Methods
 .. autosummary::
    :toctree: api/
 
-+----------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
-| API                                                                  | Description                                                                                    |
-+======================================================================+================================================================================================+
-| `configure() <#pymilvus_orm.Connections.configure>`_                 | Configure the milvus connections and then create milvus connections by the passed parameters.  |
-+----------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
-| `add_connection() <#pymilvus_orm.Connections.add_connection>`_       | Add a connection object, it will be passed through as-is.                                      |
-+----------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
-| `remove_connection() <#pymilvus_orm.Connections.remove_connection>`_ | Remove connection from the registry.                                                           |
-+----------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
-| `create_connection() <#pymilvus_orm.Connections.create_collection>`_ | Construct a milvus connection and register it under given alias.                               |
-+----------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
-| `get_connection() <#pymilvus_orm.Connections.get_connection>`_       | Retrieve a milvus connection by alias.                                                         |
-+----------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
++----------------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
+| API                                                                        | Description                                                                                    |
++============================================================================+================================================================================================+
+| `configure() <#pymilvus_orm.Connections.configure>`_                       | Configure the milvus connections and then create milvus connections by the passed parameters.  |
++----------------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
+| `remove_connection() <#pymilvus_orm.Connections.remove_connection>`_       | Remove connection from the registry.                                                           |
++----------------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
+| `create_connection() <#pymilvus_orm.Connections.create_collection>`_       | Construct a milvus connection and register it under given alias.                               |
++----------------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
+| `get_connection() <#pymilvus_orm.Connections.get_connection>`_             | Retrieve a milvus connection by alias.                                                         |
++----------------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
+| `list_connections() <#pymilvus_orm.Connections.list_connections>`_         | List all connections.                                                                          |
++----------------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
+| `get_connection_addr() <#pymilvus_orm.Connections.get_connection_addr>`_   | Get connection configure by alias.                                                             |
++----------------------------------------------------------------------------+------------------------------------------------------------------------------------------------+
 
 
 APIs
@@ -45,4 +47,4 @@ APIs
 
 .. autoclass:: pymilvus_orm.Connections
    :member-order: bysource
-   :members: configure, add_connection, remove_connection, create_connection, get_connection
+   :members: configure, remove_connection, create_connection, get_connection, list_connections, get_connection_addr
