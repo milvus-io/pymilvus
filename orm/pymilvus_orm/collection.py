@@ -70,7 +70,7 @@ class Collection(object):
                     self.insert(data=data)
             else:
                 if server_schema != schema:
-                    raise SchemaNotReadyException("The collection already exist, but the schema is not the same as "
+                    raise SchemaNotReadyException(0, "The collection already exist, but the schema is not the same as "
                                                   "the passed in.")
                 self._schema = schema
                 if data is not None:
@@ -79,7 +79,7 @@ class Collection(object):
         else:
             if schema is None:
                 if data is None:
-                    raise SchemaNotReadyException("Collection missing schema.")
+                    raise SchemaNotReadyException(0, "Collection missing schema.")
                 else:
                     if isinstance(data, pandas.DataFrame):
                         fields = parse_fields_from_data(data)
@@ -87,7 +87,7 @@ class Collection(object):
                         conn.create_collection(self._name, fields=self._schema.to_dict(), orm=True)
                         self.insert(data=data)
                     else:
-                        raise SchemaNotReadyException("Data of not pandas.DataFrame type should be passed into the "
+                        raise SchemaNotReadyException(0, "Data of not pandas.DataFrame type should be passed into the "
                                                       "schema.")
             else:
                 if isinstance(schema, CollectionSchema):
@@ -96,7 +96,7 @@ class Collection(object):
                     if data is not None:
                         self.insert(data=data)
                 else:
-                    raise SchemaNotReadyException("schema type must be schema.CollectionSchema.")
+                    raise SchemaNotReadyException(0, "schema type must be schema.CollectionSchema.")
 
     def _get_using(self):
         return self._kwargs.get("_using", "default")
@@ -296,15 +296,15 @@ class Collection(object):
         >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field], description="drop collection")
         >>> collection = Collection(name="test_collection", schema=schema)
-        TODO: add example for drop of collection
-        # >>> collection.insert(data="")
-        # >>> collection.index(index_name="")
-        >>> collection.drop()
+        >>> import pandas as pd
+        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))
+        >>> data = pd.DataFrame(data={"int64" : int64_series})
+        >>> collection.insert(data=data)
         >>> collection.num_entities
-        0
-        >>> collection.is_empty
-        True
-
+        >>> collection.drop()
+        >>> from pymilvus_orm import utility
+        >>> utility.has_collection("test_collection")
+        False
         """
         conn = self._get_connection()
         indexes = self.indexes
