@@ -12,4 +12,5 @@ API Reference
    milvus_index
    search 
    connections
-   utility 
+   utility
+   future

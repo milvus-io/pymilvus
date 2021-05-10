@@ -167,29 +167,3 @@ class SearchResult(_IterableBase):
         """
         return len(self._qs)
 
-
-class SearchResultFuture(object):
-    def __init__(self, future):
-        self._f = future
-
-    def result(self, **kwargs):
-        """
-        Return the SearchResult from future object.
-
-        It's a synchronous interface. It will wait executing until
-        server respond or timeout occur(if specified).
-        """
-        return SearchResult(self._f.result())
-
-    def cancel(self):
-        """
-        Cancel the search request.
-        """
-        return self._f.cancel()
-
-    def done(self):
-        """
-        Wait for search request done.
-        """
-        return self._f.done()
-

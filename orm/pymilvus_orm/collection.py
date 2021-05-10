@@ -16,9 +16,10 @@ from .schema import CollectionSchema, FieldSchema, parse_fields_from_data
 from .prepare import Prepare
 from .partition import Partition
 from .index import Index
-from .search import SearchResultFuture, SearchResult
+from .search import SearchResult
 from .types import DataType
 from .exceptions import *
+from .future import SearchResultFuture, InsertFuture
 
 
 class Collection(object):
@@ -388,7 +389,7 @@ class Collection(object):
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=kwargs.get("timeout", None))
 
-    def insert(self, data, partition_name=None, **kwargs) -> list:
+    def insert(self, data, partition_name=None, **kwargs):
         """
         Insert data into collection.
 
@@ -429,8 +430,11 @@ class Collection(object):
         conn = self._get_connection()
         entities, ids = Prepare.prepare_insert_data(data, self._schema)
         timeout = kwargs.pop("timeout", None)
-        return conn.insert(collection_name=self._name, entities=entities, ids=ids, partition_tag=partition_name,
-                           timeout=timeout, orm=True, **kwargs)
+        res = conn.insert(collection_name=self._name, entities=entities, ids=ids, partition_tag=partition_name,
+                          timeout=timeout, orm=True, **kwargs)
+        if kwargs.get("_async", False):
+            return InsertFuture(res)
+        return res
 
     def search(self, data, anns_field, param, limit, expression, partition_names=None, output_fields=None, timeout=None,
                **kwargs):

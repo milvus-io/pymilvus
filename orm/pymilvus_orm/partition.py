@@ -12,7 +12,8 @@
 import json
 
 from .prepare import Prepare
-from .search import SearchResultFuture, SearchResult
+from .search import SearchResult
+from .future import SearchResultFuture
 
 
 class Partition(object):
