@@ -95,6 +95,14 @@ class MockMilvus:
                 raise BaseException(1, f"partitionID of partitionName:{partition_name} can not be find")
         logging.debug(f"release_partition: {collection_name}, {partition_names}")
 
+    def get_partition_stats(self, collection_name, partition_name, timeout=None, **kwargs):
+        if collection_name not in self._collections:
+            raise BaseException(1, f"describe collection failed: can't find collection: {collection_name}")
+        if partition_name not in self._collection_partitions[collection_name]:
+            raise BaseException(1, f"GetPartitionStatistics failed: partition {partition_name} does not exist")
+        logging.debug(f"get_partition_stats: {partition_name}")
+        return {'row_count': 0}
+
     def list_partitions(self, collection_name, timeout=None):
         if collection_name not in self._collections:
             raise BaseException(1, f"can't find collection: {collection_name}")

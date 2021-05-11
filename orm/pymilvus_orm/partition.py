@@ -117,22 +117,26 @@ class Partition(object):
         :return int: Number of entities in this partition.
         :example:
         >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.partition import Partition
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
         >>> from pymilvus_orm import connections
-        >>> connections.create_connection(alias="default")
-        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="collection description")
-        >>> collection = Collection(name="test_collection", data=None, schema=schema, alias="default")
-        >>> partition = Partition(collection, name="test_partition", description="test partition desc")
+        >>> from pymilvus_orm.types import DataType
+        >>> connections.create_connection()
+        <milvus.client.stub.Milvus object at 0x7f4d59da0be0>
+        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, is_primary=False, description="int64")
+        >>> schema = CollectionSchema(fields=[field], description="collection schema has a int64 field")
+        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> from pymilvus_orm.partition import Partition
+        >>> partition = Partition(collection, "test_partition")
+        >>> import random
+        >>> data = [[random.randint(1,100) for _ in range(10)]]
+        >>> partition.insert(data)
+        [424841106768203085, 424841106768203086, 424841106768203087, 424841106768203088, 424841106768203089, 424841106768203090, 424841106768203091, 424841106768203092, 424841106768203093, 424841106768203094]
         >>> partition.num_entities
-        0
+        10
         """
-        # TODO: Need to add functions in pymilvus-distributed
-        return 0
-        # raise NotImplementedError
+        conn = self._get_connection()
+        status = conn.get_partition_stats(db_name="", collection_name=self._collection.name, partition_name=self._name)
+        return status["row_count"]
 
     def drop(self, **kwargs):
         """

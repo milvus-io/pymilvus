@@ -48,11 +48,9 @@ class TestPartition:
     def test_name(self, partition, partition_name):
         assert partition.name == partition_name
 
-    @pytest.mark.xfail
     def test_is_empty(self, partition):
         assert partition.is_empty is True
 
-    @pytest.mark.xfail
     def test_num_entities(self, partition):
         assert partition.num_entities == 0
 
