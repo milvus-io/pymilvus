@@ -95,6 +95,8 @@ class Connections:
         >>> connections.create_connection("test", host="localhost", port="19530")
         <milvus.client.stub.Milvus object at 0x7f4045335f10>
         """
+        if alias in self._conns:
+            return self._conns[alias]
         host = kwargs.pop("host", DefaultConfig.DEFAULT_HOST)
         port = kwargs.pop("port", DefaultConfig.DEFAULT_PORT)
         handler = kwargs.pop("handler", DefaultConfig.DEFAULT_HANDLER)
@@ -128,7 +130,7 @@ class Connections:
 
         # if not, try to create it
         try:
-            return self.create_connection(alias, **self._kwargs[alias])
+            return self.create_connection(alias, **(self._kwargs[alias]))
         except KeyError:
             # no connection and no kwargs to set one up
             raise KeyError("There is no connection with alias %r." % alias)
