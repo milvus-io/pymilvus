@@ -1,18 +1,19 @@
 # Copyright (C) 2019-2020 Zilliz. All rights reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License. You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software distributed under the License
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing permissions and limitations under the License.
+# or implied. See the License for the specific language governing permissions and limitations under
+# the License.
 
 from .connections import get_connection
 
 
-def loading_progress(collection_name, partition_names=[], using="default"):
+def loading_progress(collection_name, partition_names=None, using="default"):
     """
     Show #loaded entities vs #total entities.
 
@@ -33,7 +34,7 @@ def loading_progress(collection_name, partition_names=[], using="default"):
         >>> from pymilvus_orm import connections
         >>> from pymilvus_orm import utility
         >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
@@ -43,13 +44,12 @@ def loading_progress(collection_name, partition_names=[], using="default"):
         >>> collection.load() # load collection to memory
         >>> utility.loading_progress("test_collection")
     """
-    if len(partition_names) == 0:
+    if not partition_names or len(partition_names) == 0:
         return get_connection(using).load_collection_progress(collection_name)
-    else:
-        return get_connection(using).load_partitions_progress(collection_name, partition_names)
+    return get_connection(using).load_partitions_progress(collection_name, partition_names)
 
 
-def wait_for_loading_complete(collection_name, partition_names=[], timeout=None, using="default"):
+def wait_for_loading_complete(collection_name, partition_names=None, timeout=None, using="default"):
     """
     Block until loading is done or Raise Exception after timeout.
 
@@ -72,7 +72,7 @@ def wait_for_loading_complete(collection_name, partition_names=[], timeout=None,
         >>> from pymilvus_orm import connections
         >>> from pymilvus_orm import utility
         >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
@@ -82,10 +82,11 @@ def wait_for_loading_complete(collection_name, partition_names=[], timeout=None,
         >>> collection.load() # load collection to memory
         >>> utility.wait_for_loading_complete("test_collection")
     """
-    if len(partition_names) == 0:
+    if not partition_names or len(partition_names) == 0:
         return get_connection(using).wait_for_loading_collection_complete(collection_name, timeout)
-    else:
-        return get_connection(using).wait_for_loading_partitions_complete(collection_name, partition_names, timeout)
+    return get_connection(using).wait_for_loading_partitions_complete(collection_name,
+                                                                      partition_names,
+                                                                      timeout)
 
 
 def index_building_progress(collection_name, index_name="", using="default"):
@@ -99,8 +100,9 @@ def index_building_progress(collection_name, index_name="", using="default"):
                         Default index_name is to be used if index_name is not specific.
     :type index_name: str
 
-    :return dict:  
-        Index building progress is a dict contains num of indexed entities and num of total entities.
+    :return dict:
+        Index building progress is a dict contains num of indexed entities and num of total
+        entities.
         {'total_rows':total_rows,'indexed_rows':indexed_rows}
 
     :raises CollectionNotExistException: If collection doesn't exist.
@@ -112,7 +114,8 @@ def index_building_progress(collection_name, index_name="", using="default"):
         >>> from pymilvus_orm import connections
         >>> from pymilvus_orm import utility
         >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema(name="float_vector", dtype=DataType.FLOAT_VECTOR, descrition="float64", is_parimary=False, dim=_DIM)
+        >>> _DIM = 128
+        >>> field = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_parimary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import random
@@ -155,7 +158,8 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> from pymilvus_orm import connections
         >>> from pymilvus_orm import utility
         >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema(name="float_vector", dtype=DataType.FLOAT_VECTOR, descrition="float64", is_parimary=False, dim=_DIM)
+        >>> _DIM = 128
+        >>> field = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_parimary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import random
@@ -182,7 +186,7 @@ def has_collection(collection_name, using="default"):
     :param collection_name: The name of collection to check.
     :type  collection_name: str
 
-    :return bool: 
+    :return bool:
         Whether the collection exists.
 
     :example:
@@ -192,7 +196,7 @@ def has_collection(collection_name, using="default"):
         >>> from pymilvus_orm import connections
         >>> from pymilvus_orm import utility
         >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_collection("test_collection")
@@ -210,7 +214,7 @@ def has_partition(collection_name, partition_name, using="default"):
     :param partition_name: The name of partition to check.
     :type  partition_name: str
 
-    :return bool: 
+    :return bool:
         Whether the partition exist.
 
     :example:
@@ -220,7 +224,7 @@ def has_partition(collection_name, partition_name, using="default"):
         >>> from pymilvus_orm import connections
         >>> from pymilvus_orm import utility
         >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_partition("_default")
@@ -246,7 +250,7 @@ def list_collections(timeout=None, using="default") -> list:
         >>> from pymilvus_orm import connections
         >>> from pymilvus_orm import utility
         >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.list_collections()

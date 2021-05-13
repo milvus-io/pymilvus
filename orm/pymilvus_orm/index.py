@@ -1,18 +1,19 @@
 # Copyright (C) 2019-2020 Zilliz. All rights reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License. You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software distributed under the License
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing permissions and limitations under the License.
+# or implied. See the License for the specific language governing permissions and limitations under
+# the License.
 
 import copy
 
 
-class Index(object):
+class Index:
     def __init__(self, collection, field_name, index_params, name="", **kwargs):
         """
         Create index on a specified column according to the index parameters.
@@ -37,8 +38,8 @@ class Index(object):
         >>> from pymilvus_orm.schema import *
         >>> from pymilvus_orm.types import DataType
         >>> connections.create_connection()
-        >>> field1 = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
-        >>> field2 = FieldSchema(name="fvec", dtype=DataType.FLOAT_VECTOR, descrition="float vector", dim=128, is_parimary=False)
+        >>> field1 = FieldSchema("int64", DataType.INT64, is_parimary=False)
+        >>> field2 = FieldSchema("fvec", DataType.FLOAT_VECTOR, is_parimary=False, dim=128)
         >>> schema = CollectionSchema(fields=[field1, field2], description="collection description")
         >>> collection = Collection(name='test_collection', schema=schema)
         >>> # insert some data

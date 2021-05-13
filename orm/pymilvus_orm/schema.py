@@ -1,25 +1,26 @@
 # Copyright (C) 2019-2020 Zilliz. All rights reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License. You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software distributed under the License
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing permissions and limitations under the License.
+# or implied. See the License for the specific language governing permissions and limitations under
+# the License.
 
 import copy
 import json
-import pandas
 from typing import List
+import pandas
 
 from pymilvus_orm.constants import VECTOR_COMMON_TYPE_PARAMS
 from pymilvus_orm.types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
-from pymilvus_orm.exceptions import *
+from pymilvus_orm.exceptions import CannotInferSchemaException
 
 
-class CollectionSchema(object):
+class CollectionSchema:
     def __init__(self, fields, description="", **kwargs):
         self._fields = fields
         self._description = description
@@ -53,6 +54,7 @@ class CollectionSchema(object):
             if f.is_primary or f.name == primary_field:
                 f.is_primary = True
                 return f
+        return None
 
     @property
     def fields(self):
@@ -68,7 +70,7 @@ class CollectionSchema(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> schema = CollectionSchema(fields=[field])
         >>> schema.fields
         """
@@ -88,7 +90,7 @@ class CollectionSchema(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> schema = CollectionSchema(fields=[field], description="test get description")
         >>> schema.description
         """
@@ -108,7 +110,7 @@ class CollectionSchema(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> schema = CollectionSchema(fields=[field])
         >>> schema.auto_id
         """
@@ -123,7 +125,7 @@ class CollectionSchema(object):
         return _dict
 
 
-class FieldSchema(object):
+class FieldSchema:
     def __init__(self, name, dtype, description="", **kwargs):
         self.name = name
         self._dtype = dtype
@@ -168,6 +170,7 @@ class FieldSchema(object):
     def __getattr__(self, item):
         if self._type_params and item in self._type_params:
             return self._type_params[item]
+        return None
 
     def __eq__(self, other):
         if not isinstance(other, FieldSchema):
@@ -188,7 +191,7 @@ class FieldSchema(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> field.description
         """
         return self._description
@@ -207,7 +210,7 @@ class FieldSchema(object):
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema(name="int64", dtype=DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
         >>> field.params
         """
         return self._type_params
@@ -239,17 +242,16 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
     if DataType.UNKNOWN in data_types:
         if len(dataframe) == 0:
             raise CannotInferSchemaException(0, "Cannot infer schema from empty dataframe")
-        else:
-            values = dataframe.head(1).values[0]
-            for i, dtype in enumerate(data_types):
-                if dtype == DataType.UNKNOWN:
-                    new_dtype = infer_dtype_bydata(values[i])
-                    if new_dtype in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR):
-                        vector_type_parasm = {
-                            'dim': len(values[i]),
-                        }
-                        column_params_map[col_names[i]] = vector_type_parasm
-                    data_types[i] = new_dtype
+        values = dataframe.head(1).values[0]
+        for i, dtype in enumerate(data_types):
+            if dtype == DataType.UNKNOWN:
+                new_dtype = infer_dtype_bydata(values[i])
+                if new_dtype in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR):
+                    vector_type_parasm = {
+                        'dim': len(values[i]),
+                    }
+                    column_params_map[col_names[i]] = vector_type_parasm
+                data_types[i] = new_dtype
 
     if DataType.UNKNOWN in data_types:
         raise CannotInferSchemaException(0, "Cannot infer schema from dataframe")

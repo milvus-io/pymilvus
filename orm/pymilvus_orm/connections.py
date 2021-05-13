@@ -1,20 +1,21 @@
 # Copyright (C) 2019-2020 Zilliz. All rights reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License. You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software distributed under the License
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing permissions and limitations under the License.
+# or implied. See the License for the specific language governing permissions and limitations under
+# the License.
 
 from milvus import Milvus
 
 from .default_config import DefaultConfig
 
 
-class Connections(object):
+class Connections:
     """
     Connections is a class which is used to manage all connections of milvus.
     Used as a singleton in this module.
@@ -30,7 +31,8 @@ class Connections(object):
 
     def configure(self, **kwargs):
         """
-        Configure the milvus connections and then create milvus connections by the passed parameters.
+        Configure the milvus connections and then create milvus connections by the passed
+        parameters.
 
         Example::
 
@@ -85,7 +87,8 @@ class Connections(object):
 
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.
-        :raises Exception: If server specific in parameters is not ready, we cannot connect to server.
+        :raises Exception: If server specific in parameters is not ready, we cannot connect to
+                           server.
 
         :example:
         >>> from pymilvus_orm import connections
@@ -115,7 +118,8 @@ class Connections(object):
         :raises KeyError: If there is no connection with alias.
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.
-        :raises Exception: If server specific in parameters is not ready, we cannot connect to server.
+        :raises Exception: If server specific in parameters is not ready, we cannot connect to
+                           server.
         """
         try:
             return self._conns[alias]

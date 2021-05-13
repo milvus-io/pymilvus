@@ -1,18 +1,19 @@
 # Copyright (C) 2019-2020 Zilliz. All rights reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License. You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software distributed under the License
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing permissions and limitations under the License.
+# or implied. See the License for the specific language governing permissions and limitations under
+# the License.
 
 from enum import IntEnum
-from pandas.api.types import is_object_dtype, infer_dtype, is_list_like, is_scalar, is_float, is_array_like
-import numpy as np
 import logging
+from pandas.api.types import infer_dtype, is_list_like, is_scalar, is_float, is_array_like
+import numpy as np
 
 LOGGER = logging.getLogger(__name__)
 
@@ -82,32 +83,33 @@ def is_numeric_datatype(data_type):
     return is_float_datatype(data_type) or is_integer_datatype(data_type)
 
 
+# pylint: disable=too-many-return-statements
 def infer_dtype_by_scaladata(data):
     if isinstance(data, float):
         return DataType.DOUBLE
-    elif isinstance(data, bool):
+    if isinstance(data, bool):
         return DataType.BOOL
-    elif isinstance(data, int):
+    if isinstance(data, int):
         return DataType.INT64
-    elif isinstance(data, str):
+    if isinstance(data, str):
         return DataType.STRING
     if isinstance(data, np.float64):
         return DataType.DOUBLE
-    elif isinstance(data, np.float32):
+    if isinstance(data, np.float32):
         return DataType.FLOAT
-    elif isinstance(data, np.int64):
+    if isinstance(data, np.int64):
         return DataType.INT64
-    elif isinstance(data, np.int32):
+    if isinstance(data, np.int32):
         return DataType.INT32
-    elif isinstance(data, np.int16):
+    if isinstance(data, np.int16):
         return DataType.INT16
-    elif isinstance(data, np.int8):
+    if isinstance(data, np.int8):
         return DataType.INT8
-    elif isinstance(data, np.bool8):
+    if isinstance(data, np.bool8):
         return DataType.BOOL
-    elif isinstance(data, np.bool_):
+    if isinstance(data, np.bool_):
         return DataType.BOOL
-    elif is_float(data):
+    if is_float(data):
         return DataType.DOUBLE
 
     return DataType.UNKNOWN
