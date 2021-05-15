@@ -13,6 +13,7 @@
 from milvus import Milvus
 
 from .default_config import DefaultConfig
+from .exceptions import ParamError
 
 
 class Connections:
@@ -97,12 +98,24 @@ class Connections:
         """
         if alias in self._conns:
             return self._conns[alias]
-        host = kwargs.pop("host", DefaultConfig.DEFAULT_HOST)
-        port = kwargs.pop("port", DefaultConfig.DEFAULT_PORT)
-        handler = kwargs.pop("handler", DefaultConfig.DEFAULT_HANDLER)
-        pool = kwargs.pop("pool", DefaultConfig.DEFAULT_POOL)
 
-        conn = Milvus(host, port, handler, pool, **kwargs)
+        if alias in self._kwargs and len(kwargs) > 0 and self._kwargs[alias] != kwargs:
+            raise ParamError("passed parameters don't match the configured parameters, "
+                             f"passed: {kwargs}, "
+                             f"configured: {self._kwargs[alias]}")
+
+        _using_parameters = kwargs
+        if len(kwargs) <= 0 and alias in self._kwargs:
+            _using_parameters = self._kwargs[alias]
+        # else:
+        #     self._kwargs[alias] = kwargs
+
+        host = _using_parameters.pop("host", DefaultConfig.DEFAULT_HOST)
+        port = _using_parameters.pop("port", DefaultConfig.DEFAULT_PORT)
+        handler = _using_parameters.pop("handler", DefaultConfig.DEFAULT_HANDLER)
+        pool = _using_parameters.pop("pool", DefaultConfig.DEFAULT_POOL)
+
+        conn = Milvus(host, port, handler, pool, **_using_parameters)
         self._conns[alias] = conn
         self._addrs[alias] = {"host": host, "port": port}
         return conn
@@ -126,13 +139,6 @@ class Connections:
         try:
             return self._conns[alias]
         except KeyError:
-            pass
-
-        # if not, try to create it
-        try:
-            return self.create_connection(alias, **(self._kwargs[alias]))
-        except KeyError:
-            # no connection and no kwargs to set one up
             raise KeyError("There is no connection with alias %r." % alias)
 
     def list_connections(self) -> list:
@@ -150,7 +156,10 @@ class Connections:
         ['test']
         """
 
-        return list(self._conns.keys())
+        all_alias = list(self._conns.keys())
+        all_alias.extend(alias for alias in self._kwargs if alias not in all_alias)
+        assert len(set(all_alias)) == len(all_alias)
+        return all_alias
 
     def get_connection_addr(self, alias):
         """

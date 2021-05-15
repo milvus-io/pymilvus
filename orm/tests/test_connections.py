@@ -46,6 +46,8 @@ class TestConnections:
             c.configure(**configure_params)
 
             for key, _ in configure_params.items():
+                c.create_connection(key)
+
                 conn = c.get_connection(key)
 
                 assert isinstance(conn, milvus.Milvus)
@@ -112,6 +114,7 @@ class TestConnections:
         with mock.patch("milvus.Milvus.__init__", return_value=None):
             c.configure(**configure_params)
             for key, _ in configure_params.items():
+                c.create_connection(key)
                 conn = c.get_connection(key)
                 assert isinstance(conn, milvus.Milvus)
                 c.remove_connection(key)
