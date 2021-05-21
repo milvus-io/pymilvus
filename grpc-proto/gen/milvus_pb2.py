@@ -14,8 +14,9 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from . import common_pb2 as common__pb2
-from . import schema_pb2 as schema__pb2
+import common_pb2 as common__pb2
+import schema_pb2 as schema__pb2
+
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='milvus.proto',
