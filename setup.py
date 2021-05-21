@@ -1,31 +1,32 @@
 import pathlib
 import setuptools
-from datetime import datetime
+import io
 import re
 
 HERE = pathlib.Path(__file__).parent
 
 README = (HERE / 'README.md').read_text()
 
+with io.open("milvus/client/__init__.py", "rt", encoding="utf8") as f:
+    version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
+
 setuptools.setup(
-    name="pymilvus",
-    author='Milvus Team',
-    author_email='milvus-team@zilliz.com',
-    setup_requires=['setuptools_scm'],
-    use_scm_version={'local_scheme': 'no-local-version'},
-    description="Python Sdk for Milvus",
+    name="pymilvus-distributed",
+    version=version,
+    description="Python Sdk for Milvus-Distributed",
     long_description=README,
     long_description_content_type='text/markdown',
     url='https://github.com/milvus-io/pymilvus',
     license="Apache-2.0",
     packages=setuptools.find_packages(),
     include_package_data=True,
-    install_requires=["grpcio>=1.22.0", "grpcio-tools>=1.22.0", "requests>=2.22.0", "ujson>=2.0.0"],
+    install_requires=["grpcio>=1.22.0", "grpcio-tools>=1.22.0", "requests>=2.22.0", "ujson>=1.35", "mmh3==2.3.1"],
     classifiers=[
+        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
 
-    python_requires='>=3.6'
+    python_requires='>=3.5'
 )

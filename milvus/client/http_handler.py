@@ -1,65 +1,23 @@
+import copy
 import functools
 import json
 import logging
-import struct
-from urllib.parse import urlparse
-
 import ujson
+from urllib.parse import urlparse
+import struct
+
 import requests as rq
 
-from .abstract import ConnectIntf, IndexParam, CollectionSchema, TopKQueryResult2, PartitionParam
+from .abstract import ConnectIntf, CollectionSchema
 from .check import is_legal_host, is_legal_port
 from .exceptions import NotConnectError, ParamError
-from .types import Status, IndexType, MetricType
+from .types import Status
 
 from ..settings import DefaultConfig as config
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-IndexValue2NameMap = {
-    IndexType.INVALID: "INVALID",
-    IndexType.FLAT: "FLAT",
-    IndexType.IVFLAT: "IVFFLAT",
-    IndexType.IVF_SQ8: "IVFSQ8",
-    IndexType.IVF_SQ8H: "IVFSQ8H",
-    IndexType.IVF_PQ: "IVFPQ",
-    IndexType.RNSG: "RNSG",
-    IndexType.HNSW: "HNSW",
-    IndexType.ANNOY: "ANNOY"
-}
-
-IndexName2ValueMap = {
-    "INVALID": IndexType.INVALID,
-    "FLAT": IndexType.FLAT,
-    "IVFFLAT": IndexType.IVFLAT,
-    "IVFSQ8": IndexType.IVF_SQ8,
-    "IVFSQ8H": IndexType.IVF_SQ8H,
-    "IVFPQ": IndexType.IVF_PQ,
-    "RNSG": IndexType.RNSG,
-    "HNSW": IndexType.HNSW,
-    "ANNOY": IndexType.ANNOY
-}
-
-MetricValue2NameMap = {
-    MetricType.L2: "L2",
-    MetricType.IP: "IP",
-    MetricType.HAMMING: "HAMMING",
-    MetricType.JACCARD: "JACCARD",
-    MetricType.TANIMOTO: "TANIMOTO",
-    MetricType.SUBSTRUCTURE: "SUBSTRUCTURE",
-    MetricType.SUPERSTRUCTURE: "SUPERSTRUCTURE"
-}
-
-MetricName2ValueMap = {
-    "L2": MetricType.L2,
-    "IP": MetricType.IP,
-    "HAMMING": MetricType.HAMMING,
-    "JACCARD": MetricType.JACCARD,
-    "TANIMOTO": MetricType.TANIMOTO,
-    "SUBSTRUCTURE": MetricType.SUBSTRUCTURE,
-    "SUPERSTRUCTURE": MetricType.SUPERSTRUCTURE
-}
 
 LOGGER = logging.getLogger(__name__)
 
@@ -111,13 +69,11 @@ class HttpHandler(ConnectIntf):
         if host is not None:
             _port = port if port is not None else config.HTTP_PORT
             _host = host
-            _proto = "https" if _port == 443 else "http"
         elif port is None:
             try:
                 _uri = urlparse(uri) if uri else urlparse(config.HTTP_URI)
                 _host = _uri.hostname
                 _port = _uri.port
-                _proto = "http" if _uri.scheme not in {"http", "https"} else _uri.scheme
             except (AttributeError, ValueError, TypeError) as e:
                 raise ParamError("uri is illegal: {}".format(e))
         else:
@@ -128,7 +84,7 @@ class HttpHandler(ConnectIntf):
         if not is_legal_host(_host) or not is_legal_port(_port):
             raise ParamError("host or port is illeagl")
 
-        return "{}://{}:{}".format(str(_proto), str(_host), str(_port))
+        return "http://{}:{}".format(str(_host), str(_port))
 
     @property
     def status(self):
@@ -137,19 +93,19 @@ class HttpHandler(ConnectIntf):
     def ping(self, timeout=10):
         if self._uri is None:
             self._uri = self._set_uri(None, None, None)
-        logging.info(f"Connecting server {self._uri}")
+        logging.info("Connecting server {}".format(self._uri))
         retry = self._max_retry
         try:
             while retry > 0:
                 try:
-                    _ = rq.get(self._uri + "/state", timeout=timeout)
+                    response = rq.get(self._uri + "/state", timeout=timeout)
                     return True
                 except:
                     retry -= 1
                     if retry > 0:
                         continue
-
-                    raise
+                    else:
+                        raise
         except:
             LOGGER.error("Cannot connect server {}".format(self._uri))
             raise NotConnectError("Cannot get server status")
@@ -205,14 +161,11 @@ class HttpHandler(ConnectIntf):
             if response.status_code == 200:
                 js = response.json()
                 return Status(), js["message"]
-
-            if response.status_code == 400:
+            elif response.status_code == 400:
                 js = response.json()
                 return Status(js["code"], js["message"]), None
-
-            return Status(Status.UNEXPECTED_ERROR, response.reason)
-
-        return Status(Status.ILLEGAL_ARGUMENT, "")
+            else:
+                return Status(Status.UNEXPECTED_ERROR, response.reason)
 
     def _get_config(self, cmd, timeout):
         if cmd.startswith("get_config"):
@@ -225,22 +178,18 @@ class HttpHandler(ConnectIntf):
                 js = response.json()
                 rc_parent = js.get(config_node[0], None)
                 if rc_parent is None:
-                    return Status(Status.UNEXPECTED_ERROR,
-                                  "Config {} not supported".format(cmd_node[1]))
+                    return Status(Status.UNEXPECTED_ERROR, "Config {} not supported".format(cmd_node[1]))
                 rc_child = rc_parent.get(config_node[1], None)
                 if rc_child is None:
-                    return Status(Status.UNEXPECTED_ERROR,
-                                  "Config {} not supported".format(cmd_node[1]))
+                    return Status(Status.UNEXPECTED_ERROR, "Config {} not supported".format(cmd_node[1]))
 
                 return Status(), rc_child
                 # return Status(), js["message"]
-            if response.status_code == 400:
+            elif response.status_code == 400:
                 js = response.json()
                 return Status(js["code"], js["message"]), None
-
-            return Status(Status.UNEXPECTED_ERROR, response.reason)
-
-        return Status(Status.ILLEGAL_ARGUMENT, "")
+            else:
+                return Status(Status.UNEXPECTED_ERROR, response.reason)
 
     @handle_error(returns=(None,))
     def _cmd(self, cmd, timeout=10):
@@ -266,15 +215,12 @@ class HttpHandler(ConnectIntf):
         return self._cmd("status", timeout)
 
     @handle_error()
-    def create_collection(self, collection_name, dimension, index_file_size, metric_type,
-                          params=None, timeout=10):
-        metric = MetricValue2NameMap.get(metric_type, None)
-
+    def create_collection(self, collection_name, dimension, index_file_size, metric_type, params=None, timeout=10):
         table_param = {
             "collection_name": collection_name,
             "dimension": dimension,
             "index_file_size": index_file_size,
-            "metric_type": metric
+            "metric_type": metric_type
         }
 
         data = ujson.dumps(table_param)
@@ -332,14 +278,11 @@ class HttpHandler(ConnectIntf):
 
         js = response.json()
         if response.status_code == 200:
-            metric_map = dict()
-            _ = [metric_map.update({i.name: i.value}) for i in MetricType if i.value > 0]
-
-            table = CollectionSchema(
-                collection_name=js["collection_name"],
-                dimension=js["dimension"],
-                index_file_size=js["index_file_size"],
-                metric_type=metric_map[js["metric_type"]])
+            table = CollectionSchema(js)
+                # collection_name=js["collection_name"],
+                # dimension=js["dimension"],
+                # index_file_size=js["index_file_size"],
+                # metric_type=[js["metric_type"]])
 
             return Status(message='Describe table successfully!'), table
 
@@ -386,33 +329,16 @@ class HttpHandler(ConnectIntf):
         return Status(Status.UNEXPECTED_ERROR, "Response is empty"), None
 
     @handle_error()
-    def preload_collection(self, table_name, partition_tags, timeout):
+    def preload_collection(self, table_name, timeout):
         url = self._uri + "/system/task"
         params = {"load": {"collection_name": table_name}}
-        if partition_tags:
-            params["load"]["partition_tags"] = partition_tags
         data = ujson.dumps(params)
+
 
         response = rq.put(url, data=data, timeout=timeout)
 
         if response.status_code == 200:
             return Status(message="Load successfuly")
-
-        js = response.json()
-        return Status(code=js["code"], message=js["message"])
-
-    @handle_error()
-    def release_collection(self, table_name, partition_tags, timeout):
-        url = self._uri + "/system/task"
-        params = {"release": {"collection_name": table_name}}
-        if partition_tags:
-            params["release"]["partition_tags"] = partition_tags
-        data = ujson.dumps(params)
-
-        response = rq.put(url, data=data, timeout=timeout)
-
-        if response.status_code == 200:
-            return Status(message="Release successfuly")
 
         js = response.json()
         return Status(code=js["code"], message=js["message"])
@@ -461,20 +387,18 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"]), []
 
     @handle_error(returns=(None,))
-    def get_vectors_by_ids(self, collection_name, ids, timeout, partition_tag=None):
+    def get_vectors_by_ids(self, collection_name, ids, timeout):
         status, table_schema = self.describe_collection(collection_name, timeout)
         if not status.OK():
             return status, None
         metric = table_schema.metric_type
 
-        bin_vector = metric in list(MetricType.__members__.values())[3:]
+        # bin_vector = metric in list(MetricType.__members__.values())[3:]
 
         url = self._uri + "/collections/{}/vectors".format(collection_name)
         ids_list = list(map(str, ids))
         query_ids = ",".join(ids_list)
         url = url + "?ids=" + query_ids
-        if partition_tag and isinstance(partition_tag, str):
-            url = url + "&partition_tag={}".format(partition_tag)
         response = rq.get(url, timeout=timeout)
         result = response.json()
 
@@ -486,7 +410,7 @@ class HttpHandler(ConnectIntf):
             vector_results = []
             for vector_res in vectors:
                 vector = list(vector_res["vector"])
-                if bin_vector:
+                if metric.startswith("BIN"):
                     vector_results.append(bytes(vector))
                 else:
                     vector_results.append(vector)
@@ -497,10 +421,8 @@ class HttpHandler(ConnectIntf):
 
     @handle_error(returns=(None,))
     def get_vector_ids(self, table_name, segment_name, timeout):
-        # TODO: here specify page_size hard is stupid,
-        #  need server support query string 'qll_required'
-        url = self._uri + "/collections/{}/segments/{}/ids?page_size=1000000".format(table_name,
-                                                                                     segment_name)
+        # TODO: here specify page_size hard is stupid, need server support query string 'qll_required'
+        url = self._uri + "/collections/{}/segments/{}/ids?page_size=1000000".format(table_name, segment_name)
         response = rq.get(url, timeout=timeout)
         result = response.json()
 
@@ -510,13 +432,12 @@ class HttpHandler(ConnectIntf):
         return Status(result["code"], result["message"]), None
 
     @handle_error()
-    def create_index(self, collection_name, index_type, params, timeout, **kwargs):
-        url = self._uri + "/collections/{}/indexes".format(collection_name)
+    def create_index(self, table_name, index_type, index_params, timeout):
+        url = self._uri + "/collections/{}/indexes".format(table_name)
 
-        index = IndexValue2NameMap.get(index_type)
         request = dict()
-        request["index_type"] = index
-        request["params"] = params
+        request["index_type"] = index_type
+        request["params"] = index_params
         data = ujson.dumps(request)
         headers = {"Content-Type": "application/json"}
 
@@ -526,8 +447,8 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error(returns=(None,))
-    def describe_index(self, collection_name, timeout):
-        url = self._uri + "/collections/{}/indexes".format(collection_name)
+    def describe_index(self, table_name, timeout):
+        url = self._uri + "/collections/{}/indexes".format(table_name)
 
         response = rq.get(url, timeout=timeout)
 
@@ -539,14 +460,13 @@ class HttpHandler(ConnectIntf):
         js = response.json()
 
         if response.status_code == 200:
-            index_type = IndexName2ValueMap.get(js["index_type"])
-            return Status(), IndexParam(collection_name, index_type, js["params"])
+            return Status(), js
 
         return Status(js["code"], js["message"]), None
 
     @handle_error()
-    def drop_index(self, collection_name, timeout):
-        url = self._uri + "/collections/{}/indexes".format(collection_name)
+    def drop_index(self, table_name, timeout):
+        url = self._uri + "/collections/{}/indexes".format(table_name)
 
         response = rq.delete(url)
 
@@ -583,9 +503,7 @@ class HttpHandler(ConnectIntf):
 
         js = response.json()
         if response.status_code == 200:
-            partition_list = \
-                [PartitionParam(table_name, item["partition_tag"])
-                 for item in js["partitions"]]
+            partition_list = [item["partition_tag"] for item in js["partitions"]]
 
             return Status(), partition_list
 
@@ -622,8 +540,7 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error(returns=(None,))
-    def search(self, collection_name, top_k, query_records, partition_tags=None, search_params=None,
-               timeout=None, **kwargs):
+    def search(self, collection_name, top_k, query_records, partition_tags=None, search_params=None, timeout=None, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
 
         search_body = dict()
@@ -645,14 +562,14 @@ class HttpHandler(ConnectIntf):
         response = rq.put(url, data, headers=headers)
 
         if response.status_code == 200:
-            return Status(), TopKQueryResult2(response)
+            pass
+            # return Status(), TopKQueryResult2(response)
 
         js = response.json()
         return Status(js["code"], js["message"]), None
 
     @handle_error(returns=(None,))
-    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, search_params=None,
-                      timeout=None, **kwargs):
+    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, search_params=None, timeout=None, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
         body_dict = dict()
         body_dict["topk"] = top_k
@@ -668,14 +585,14 @@ class HttpHandler(ConnectIntf):
         response = rq.put(url, data, headers=headers, timeout=timeout)
 
         if response.status_code == 200:
-            return Status(), TopKQueryResult2(response)
+            pass
+            # return Status(), TopKQueryResult2(response)
 
         js = response.json()
         return Status(js["code"], js["message"]), None
 
     @handle_error(returns=(None,))
-    def search_in_files(self, collection_name, file_ids, query_records, top_k, search_params,
-                        timeout, **kwargs):
+    def search_in_files(self, collection_name, file_ids, query_records, top_k, search_params, timeout, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
 
         body_dict = dict()
@@ -696,19 +613,18 @@ class HttpHandler(ConnectIntf):
         response = rq.put(url, data, headers=headers, timeout=timeout)
 
         if response.status_code == 200:
-            return Status(), TopKQueryResult2(response)
+            pass
+            # return Status(), TopKQueryResult2(response)
 
         js = response.json()
         return Status(js["code"], js["message"]), None
 
     @handle_error()
-    def delete_by_id(self, table_name, id_array, timeout=None, partition_tag=None):
+    def delete_by_id(self, table_name, id_array, timeout=None):
         url = self._uri + "/collections/{}/vectors".format(table_name)
         headers = {"Content-Type": "application/json"}
         ids = list(map(str, id_array))
         request = {"delete": {"ids": ids}}
-        if partition_tag and isinstance(partition_tag, str):
-            request["delete"]["partition_tag"] = partition_tag
 
         response = rq.put(url, data=ujson.dumps(request), headers=headers, timeout=timeout)
         result = response.json()
@@ -719,16 +635,6 @@ class HttpHandler(ConnectIntf):
         url = self._uri + "/system/task"
         headers = {"Content-Type": "application/json"}
         request = {"flush": {"collection_names": table_name_array}}
-
-        response = rq.put(url, ujson.dumps(request), headers=headers)
-        result = response.json()
-        return Status(result["code"], result["message"])
-
-    @handle_error()
-    def compact(self, table_name, timeout):
-        url = self._uri + "/system/task"
-        headers = {"Content-Type": "application/json"}
-        request = {"compact": {"collection_name": table_name}}
 
         response = rq.put(url, ujson.dumps(request), headers=headers)
         result = response.json()

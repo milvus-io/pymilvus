@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package milvus.proto.schema;
+option go_package="github.com/zilliztech/milvus-distributed/internal/proto/schemapb";
+
+import "common.proto";
+
+/**
+ * @brief Field data type
+ */
+enum DataType {
+  None = 0;
+  Bool = 1;
+  Int8 = 2;
+  Int16 = 3;
+  Int32 = 4;
+  Int64 = 5;
+
+  Float = 10;
+  Double = 11;
+
+  String = 20;
+
+  BinaryVector = 100;
+  FloatVector = 101;
+}
+
+/**
+ * @brief Field schema
+ */
+message FieldSchema {
+  int64 fieldID = 1;
+  string name = 2;
+  bool is_primary_key = 3;
+  string description = 4;
+  DataType data_type = 5;
+  repeated common.KeyValuePair type_params = 6;
+  repeated common.KeyValuePair index_params = 7;
+}
+
+/**
+ * @brief Collection schema
+ */
+message CollectionSchema {
+  string name = 1;
+  string description = 2;
+  bool autoID = 3;
+  repeated FieldSchema fields = 4;
+}
