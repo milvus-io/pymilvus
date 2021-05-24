@@ -225,7 +225,7 @@ def parse_fields_from_data(datas):
         return parse_fields_from_dataframe(datas)
     fields = []
     for d in datas:
-        d_type = infer_dtype_bydata(d)
+        d_type = infer_dtype_bydata(d[0])
         fields.append(FieldSchema("", d_type))
     return fields
 

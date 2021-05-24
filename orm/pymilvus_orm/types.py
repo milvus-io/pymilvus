@@ -127,7 +127,6 @@ def infer_dtype_bydata(data):
             type_str = infer_dtype(data)
         except TypeError:
             failed = True
-
         if not failed:
             d_type = dtype_str_map.get(type_str, DataType.UNKNOWN)
             if is_numeric_datatype(d_type):
