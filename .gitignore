@@ -20,7 +20,6 @@ examples/example_test.py
 .codecov.yml
 assets/
 TODO
-/.github
 /test/._testfiles
 
 MD-versions
