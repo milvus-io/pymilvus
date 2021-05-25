@@ -20,7 +20,7 @@ setuptools.setup(
     license="Apache-2.0",
     packages=setuptools.find_packages(),
     include_package_data=True,
-    install_requires=["grpcio>=1.22.0", "grpcio-tools>=1.22.0", "requests>=2.22.0", "ujson>=2.0.0"],
+    install_requires=["grpcio>=1.22.0", "grpcio-tools>=1.22.0", "requests>=2.22.0", "ujson>=2.0.0", "mmh3"],
     classifiers=[
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
