@@ -1053,3 +1053,8 @@ class Milvus:
         with self._connection() as handler:
             return handler.wait_for_creating_index(collection_name, index_name, timeout=timeout)
 
+    @check_connect
+    def dummy(self, request_type, timeout=None):
+        with self._connection() as handler:
+            return handler.dummy(request_type, timeout=timeout)
+

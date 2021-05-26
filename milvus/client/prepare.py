@@ -745,3 +745,7 @@ class Prepare:
     def get_partition_stats_request(cls, collection_name, partition_name):
         return milvus_types.GetPartitionStatisticsRequest(db_name="", collection_name=collection_name,
                                                           partition_name=partition_name)
+
+    @classmethod
+    def dummy_request(cls, request_type):
+        return milvus_types.DummyRequest(request_type=request_type)
