@@ -32,10 +32,13 @@ service MilvusService {
 
   rpc Insert(InsertRequest) returns (InsertResponse) {}
   rpc Search(SearchRequest) returns (SearchResults) {}
+  rpc Retrieve(RetrieveRequest) returns (RetrieveResults) {}
   rpc Flush(FlushRequest) returns (common.Status) {}
 
   rpc GetPersistentSegmentInfo(GetPersistentSegmentInfoRequest) returns (GetPersistentSegmentInfoResponse) {}
   rpc GetQuerySegmentInfo(GetQuerySegmentInfoRequest) returns (GetQuerySegmentInfoResponse) {}
+
+  rpc Dummy(DummyRequest) returns (DummyResponse) {}
 
   // TODO: remove
   rpc RegisterLink(RegisterLinkRequest) returns (RegisterLinkResponse) {}
@@ -314,6 +317,21 @@ message SearchRequest {
   repeated common.KeyValuePair search_params = 8;
 }
 
+message RetrieveRequest {
+  common.MsgBase base = 1;
+  string db_name = 2;
+  string collection_name = 3;
+  repeated string partition_names = 4;
+  schema.IDs ids = 5;
+  repeated string output_fields = 6;
+}
+
+message RetrieveResults {
+  common.Status status = 1;
+  schema.IDs ids = 2;
+  repeated schema.FieldData fields_data = 3;
+}
+
 message Hits {
   repeated int64 IDs = 1;
   repeated bytes row_data = 2;
@@ -371,6 +389,13 @@ message GetQuerySegmentInfoResponse {
   repeated QuerySegmentInfo infos = 2;
 }
 
+message DummyRequest {
+  string request_type = 1;
+}
+
+message DummyResponse {
+  string response = 1;
+}
 
 message RegisterLinkRequest {
 }
