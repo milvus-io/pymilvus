@@ -125,6 +125,11 @@ class MilvusServiceStub(object):
         request_serializer=milvus__pb2.SearchRequest.SerializeToString,
         response_deserializer=milvus__pb2.SearchResults.FromString,
         )
+    self.Retrieve = channel.unary_unary(
+        '/milvus.proto.milvus.MilvusService/Retrieve',
+        request_serializer=milvus__pb2.RetrieveRequest.SerializeToString,
+        response_deserializer=milvus__pb2.RetrieveResults.FromString,
+        )
     self.Flush = channel.unary_unary(
         '/milvus.proto.milvus.MilvusService/Flush',
         request_serializer=milvus__pb2.FlushRequest.SerializeToString,
@@ -139,6 +144,11 @@ class MilvusServiceStub(object):
         '/milvus.proto.milvus.MilvusService/GetQuerySegmentInfo',
         request_serializer=milvus__pb2.GetQuerySegmentInfoRequest.SerializeToString,
         response_deserializer=milvus__pb2.GetQuerySegmentInfoResponse.FromString,
+        )
+    self.Dummy = channel.unary_unary(
+        '/milvus.proto.milvus.MilvusService/Dummy',
+        request_serializer=milvus__pb2.DummyRequest.SerializeToString,
+        response_deserializer=milvus__pb2.DummyResponse.FromString,
         )
     self.RegisterLink = channel.unary_unary(
         '/milvus.proto.milvus.MilvusService/RegisterLink',
@@ -305,6 +315,13 @@ class MilvusServiceServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def Retrieve(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
   def Flush(self, request, context):
     # missing associated documentation comment in .proto file
     pass
@@ -320,6 +337,13 @@ class MilvusServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def GetQuerySegmentInfo(self, request, context):
+    # missing associated documentation comment in .proto file
+    pass
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def Dummy(self, request, context):
     # missing associated documentation comment in .proto file
     pass
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -446,6 +470,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
           request_deserializer=milvus__pb2.SearchRequest.FromString,
           response_serializer=milvus__pb2.SearchResults.SerializeToString,
       ),
+      'Retrieve': grpc.unary_unary_rpc_method_handler(
+          servicer.Retrieve,
+          request_deserializer=milvus__pb2.RetrieveRequest.FromString,
+          response_serializer=milvus__pb2.RetrieveResults.SerializeToString,
+      ),
       'Flush': grpc.unary_unary_rpc_method_handler(
           servicer.Flush,
           request_deserializer=milvus__pb2.FlushRequest.FromString,
@@ -460,6 +489,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
           servicer.GetQuerySegmentInfo,
           request_deserializer=milvus__pb2.GetQuerySegmentInfoRequest.FromString,
           response_serializer=milvus__pb2.GetQuerySegmentInfoResponse.SerializeToString,
+      ),
+      'Dummy': grpc.unary_unary_rpc_method_handler(
+          servicer.Dummy,
+          request_deserializer=milvus__pb2.DummyRequest.FromString,
+          response_serializer=milvus__pb2.DummyResponse.SerializeToString,
       ),
       'RegisterLink': grpc.unary_unary_rpc_method_handler(
           servicer.RegisterLink,

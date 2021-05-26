@@ -1097,6 +1097,12 @@ class GrpcHandler(AbsMilvus):
         if response.error_code != 0:
             raise BaseException(response.error_code, response.reason)
 
+    @error_handler()
+    def dummy(self, request_type, timeout=None, **kwargs):
+        request = Prepare.dummy_request(request_type)
+        future = self._stub.Dummy.future(request, wait_for_ready=True, timeout=timeout)
+        return future.result()
+
     @error_handler(False)
     def fake_register_link(self, timeout=None):
         request = Prepare.register_link_request()
