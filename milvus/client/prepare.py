@@ -635,8 +635,9 @@ class Prepare:
         tag = "$0"
         pls = cls._prepare_placeholders(data, nq, max_nq_per_batch, tag, pl_type, is_binary)
 
-        metric_type = param.pop("metric_type", "L2")
-        search_params = {"anns_field": anns_field, "topk": limit, "metric_type": metric_type, "params": param.pop("params", None)}
+        param_copy = copy.deepcopy(param)
+        metric_type = param_copy.pop("metric_type", "L2")
+        search_params = {"anns_field": anns_field, "topk": limit, "metric_type": metric_type, "params": param_copy.pop("params", None)}
 
         def dump(v):
             if isinstance(v, dict):
