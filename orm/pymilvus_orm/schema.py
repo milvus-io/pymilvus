@@ -49,12 +49,13 @@ class CollectionSchema:
     @property
     # TODO:
     def primary_field(self):
-        primary_field = self._kwargs.get("primary_field", None)
+        primary_field = None
+        primary = self._kwargs.get("primary_field", None)
         for f in self._fields:
-            if f.is_primary or f.name == primary_field:
+            if f.is_primary or f.name == primary:
                 f.is_primary = True
-                return f
-        return None
+                primary_field = f
+        return primary_field
 
     @property
     def fields(self):

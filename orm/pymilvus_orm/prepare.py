@@ -44,7 +44,7 @@ class Prepare:
         for i, field in enumerate(fields):
             if field.is_primary:
                 if isinstance(data, pandas.DataFrame):
-                    ids = data[field.name]
+                    ids = list(data[field.name])
                 else:
                     ids = data[i]
 
