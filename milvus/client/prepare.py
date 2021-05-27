@@ -60,7 +60,8 @@ class Prepare:
 
         for fk, fv in fields.items():
             if fk != 'fields':
-                # TODO: add extra_params
+                if fk == 'description':
+                    schema.description = fv
                 continue
 
             for field in fv:
