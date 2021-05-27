@@ -50,6 +50,8 @@ class Connections:
                 continue
             self.remove_connection(alias=k)
         self._kwargs = kwargs
+        for c in self._kwargs:
+            self.create_connection(alias=c)
 
     def remove_connection(self, alias):
         """
