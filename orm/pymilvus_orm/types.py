@@ -109,6 +109,8 @@ def infer_dtype_by_scaladata(data):
         return DataType.BOOL
     if isinstance(data, np.bool_):
         return DataType.BOOL
+    if isinstance(data, bytes):
+        return DataType.BINARY_VECTOR
     if is_float(data):
         return DataType.DOUBLE
 
@@ -131,8 +133,6 @@ def infer_dtype_bydata(data):
             d_type = dtype_str_map.get(type_str, DataType.UNKNOWN)
             if is_numeric_datatype(d_type):
                 d_type = DataType.FLOAT_VECTOR
-            elif type_str in ("bytes",):
-                d_type = DataType.BINARY_VECTOR
             else:
                 d_type = DataType.UNKNOWN
 

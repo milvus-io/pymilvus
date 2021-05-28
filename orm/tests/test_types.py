@@ -67,7 +67,7 @@ class TestTypes:
             [True],
             [1.0, 2.0],
             ["abc"],
-            [bytes("abc", encoding='ascii'), bytes("def", encoding='ascii')],
+            bytes("abc", encoding='ascii'),
             1,
             True,
             "abc",
