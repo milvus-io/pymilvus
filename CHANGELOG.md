@@ -1,10 +1,13 @@
 # Change logs
 
-## pymilvus 1.1.1(TBD)
+## pymilvus 1.1.1(2021-05-28)
 
-### New Feature
+### Bug
+- \#522 - Control required version for grpcio and grpcio-tools
 
 ### Improvement
+
+- Update OWNERS
 
 ## pymilvus 1.1.0(2021-04-29)
 
