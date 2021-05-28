@@ -1108,3 +1108,10 @@ class GrpcHandler(AbsMilvus):
         request = Prepare.register_link_request()
         future = self._stub.RegisterLink.future(request, wait_for_ready=True, timeout=timeout)
         return future.result().status
+
+    @error_handler()
+    def get(self, collection_name, ids, output_fields=None, partition_names=None, timeout=None):
+        # TODO: some check
+        request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
+        future = self._stub.Retrieve.future(request, wait_for_ready=True, timeout=timeout)
+        return future.result

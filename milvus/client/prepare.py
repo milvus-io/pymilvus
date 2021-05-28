@@ -750,3 +750,11 @@ class Prepare:
     @classmethod
     def dummy_request(cls, request_type):
         return milvus_types.DummyRequest(request_type=request_type)
+
+    @classmethod
+    def retrieve_request(cls, collection_name, ids, output_fields, partition_names):
+        return milvus_types.RetrieveRequest(db_name="",
+                                            collection_name=collection_name,
+                                            ids=ids,
+                                            output_fields=output_fields,
+                                            partition_names=partition_names)

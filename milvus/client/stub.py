@@ -1058,3 +1058,8 @@ class Milvus:
         with self._connection() as handler:
             return handler.dummy(request_type, timeout=timeout)
 
+    @check_connect
+    def get(self, collection_name, ids, output_fields, partition_names, timeout=None):
+        with self._connection() as handler:
+            return handler.get(collection_name, ids, output_fields, partition_names, timeout=timeout)
+
