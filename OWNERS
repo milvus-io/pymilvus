@@ -1,0 +1,14 @@
+
+filters:
+  ".*":
+    reviewers:
+      - czs007
+      - DragonDriver
+      - XuanYang-CN
+      - scsven
+    approvers:
+      - czs007
+      - DragonDriver
+      - XuanYang-CN
+      - scsven
+      
