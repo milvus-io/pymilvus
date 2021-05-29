@@ -10,6 +10,9 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+"""client module"""
+from pkg_resources import get_distribution, DistributionNotFound
+
 from .collection import Collection
 from .connections import (
         Connections,
@@ -37,4 +40,10 @@ from .types import DataType
 from .schema import FieldSchema, CollectionSchema
 from .future import SearchResultFuture, InsertFuture
 
-__version__ = "0.0.1"
+__version__ = '0.0.0.dev'
+
+try:
+    __version__ = get_distribution('pymilvus-orm').version
+except DistributionNotFound:
+    # package is not installed
+    pass
