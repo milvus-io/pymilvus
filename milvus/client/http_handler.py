@@ -358,14 +358,14 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error(returns=([],))
-    def insert(self, table_name, records, ids, partition_tag, params, timeout, **kwargs):
+    def insert(self, table_name, records, ids, partition_name, params, timeout, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(table_name)
 
         data_dict = dict()
         if ids:
             data_dict["ids"] = list(map(str, ids))
-        if partition_tag:
-            data_dict["partition_tag"] = partition_tag
+        if partition_name:
+            data_dict["partition_name"] = partition_name
 
         if isinstance(records[0], bytes):
             vectors = [struct.unpack(str(len(r)) + 'B', r) for r in records]
@@ -477,10 +477,10 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error()
-    def create_partition(self, table_name, partition_tag, timeout=10):
+    def create_partition(self, table_name, partition_name, timeout=10):
         url = self._uri + "/collections/{}/partitions".format(table_name)
 
-        data = ujson.dumps({"partition_tag": partition_tag})
+        data = ujson.dumps({"partition_name": partition_name})
         headers = {"Content-Type": "application/json"}
 
         response = rq.post(url, data=data, headers=headers, timeout=timeout)
@@ -503,32 +503,32 @@ class HttpHandler(ConnectIntf):
 
         js = response.json()
         if response.status_code == 200:
-            partition_list = [item["partition_tag"] for item in js["partitions"]]
+            partition_list = [item["partition_name"] for item in js["partitions"]]
 
             return Status(), partition_list
 
         return Status(js["code"], js["message"]), []
 
     @handle_error(returns=(False,))
-    def has_partition(self, collection_name, tag, timeout=30):
+    def has_partition(self, collection_name, partition_name, timeout=30):
         url = self._uri + "/collections/{}/partitions".format(collection_name)
 
         response = rq.get(url, timeout=timeout)
         if response.status_code == 200:
             result = response.json()
             if result["count"] > 0:
-                partitions = [p["partition_tag"] for p in list(result["partitions"])]
-                return Status(), tag in partitions
+                partitions = [p["partition_name"] for p in list(result["partitions"])]
+                return Status(), partition_name in partitions
             return Status(), False
 
         js = response.json()
         return Status(js["code"], js["message"]), False
 
     @handle_error()
-    def drop_partition(self, collection_name, partition_tag, timeout=10):
+    def drop_partition(self, collection_name, partition_name, timeout=10):
         url = self._uri + "/collections/{}/partitions".format(collection_name)
         request = {
-            "partition_tag": partition_tag
+            "partition_name": partition_name
         }
         payload = ujson.dumps(request)
 
@@ -540,12 +540,12 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"])
 
     @handle_error(returns=(None,))
-    def search(self, collection_name, top_k, query_records, partition_tags=None, search_params=None, timeout=None, **kwargs):
+    def search(self, collection_name, top_k, query_records, partition_names=None, search_params=None, timeout=None, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
 
         search_body = dict()
-        if partition_tags:
-            search_body["partition_tags"] = partition_tags
+        if partition_names:
+            search_body["partition_names"] = partition_names
         search_body["topk"] = top_k
         search_body["params"] = search_params
 
@@ -569,13 +569,13 @@ class HttpHandler(ConnectIntf):
         return Status(js["code"], js["message"]), None
 
     @handle_error(returns=(None,))
-    def search_by_ids(self, collection_name, ids, top_k, partition_tags=None, search_params=None, timeout=None, **kwargs):
+    def search_by_ids(self, collection_name, ids, top_k, partition_names=None, search_params=None, timeout=None, **kwargs):
         url = self._uri + "/collections/{}/vectors".format(collection_name)
         body_dict = dict()
         body_dict["topk"] = top_k
         body_dict["ids"] = list(map(str, ids))
-        if partition_tags:
-            body_dict["partition_tags"] = partition_tags
+        if partition_names:
+            body_dict["partition_names"] = partition_names
         if search_params:
             body_dict["params"] = search_params
 

@@ -362,17 +362,17 @@ class Milvus:
             return handler.list_collections(timeout)
 
     @check_connect
-    def create_partition(self, collection_name, partition_tag, timeout=None):
+    def create_partition(self, collection_name, partition_name, timeout=None):
         """
         Creates a partition in a specified collection. You only need to import the
-        parameters of partition_tag to create a partition. A collection cannot hold
+        parameters of partition_name to create a partition. A collection cannot hold
         partitions of the same tag, whilst you can insert the same tag in different collections.
 
         :param collection_name: The name of the collection to create partitions in.
         :type  collection_name: str
 
-        :param partition_tag: The tag name of the partition to create.
-        :type  partition_tag: str
+        :param partition_name: The tag name of the partition to create.
+        :type  partition_name: str
 
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
@@ -386,12 +386,12 @@ class Milvus:
             ParamError: If parameters are invalid
             BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
+        check_pass_param(collection_name=collection_name, partition_name=partition_name)
         with self._connection() as handler:
-            return handler.create_partition(collection_name, partition_tag, timeout)
+            return handler.create_partition(collection_name, partition_name, timeout)
 
     @check_connect
-    def drop_partition(self, collection_name, partition_tag, timeout=None):
+    def drop_partition(self, collection_name, partition_name, timeout=None):
         """
         Deletes the specified partition in a collection. Note that the default partition
         '_default' is not permitted to delete. When a partition deleted, all data stored in it
@@ -400,8 +400,8 @@ class Milvus:
         :param collection_name: The name of the collection to delete partitions from.
         :type  collection_name: str
 
-        :param partition_tag: The tag name of the partition to delete.
-        :type  partition_tag: str
+        :param partition_name: The tag name of the partition to delete.
+        :type  partition_name: str
 
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
@@ -415,20 +415,20 @@ class Milvus:
             ParamError: If parameters are invalid
             BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
+        check_pass_param(collection_name=collection_name, partition_name=partition_name)
         with self._connection() as handler:
-            return handler.drop_partition(collection_name, partition_tag, timeout)
+            return handler.drop_partition(collection_name, partition_name, timeout)
 
     @check_connect
-    def has_partition(self, collection_name, partition_tag, timeout=None):
+    def has_partition(self, collection_name, partition_name, timeout=None):
         """
         Checks if a specified partition exists in a collection.
 
         :param collection_name: The name of the collection to find the partition in.
         :type  collection_name: str
 
-        :param partition_tag: The tag name of the partition to check
-        :type  partition_tag: str
+        :param partition_name: The tag name of the partition to check
+        :type  partition_name: str
 
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
@@ -442,9 +442,9 @@ class Milvus:
             ParamError: If parameters are invalid
             BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name, partition_tag=partition_tag)
+        check_pass_param(collection_name=collection_name, partition_name=partition_name)
         with self._connection() as handler:
-            return handler.has_partition(collection_name, partition_tag, timeout)
+            return handler.has_partition(collection_name, partition_name, timeout)
 
     @check_connect
     def load_partitions(self, collection_name, partition_names, timeout=None):
@@ -559,7 +559,7 @@ class Milvus:
             return result
 
     # @check_connect
-    # def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
+    # def insert(self, collection_name, entities, ids=None, partition_name=None, params=None, timeout=None, **kwargs):
     #     """
     #     Inserts entities in a specified collection.
     #
@@ -569,9 +569,9 @@ class Milvus:
     #     :type  entities: list
     #     :param ids: The list of ids corresponding to the inserted entities.
     #     :type  ids: list[int]
-    #     :param partition_tag: The name of the partition to insert entities in. The default value is
+    #     :param partition_name: The name of the partition to insert entities in. The default value is
     #      None. The server stores entities in the “_default” partition by default.
-    #     :type  partition_tag: str
+    #     :type  partition_name: str
     #
     #     :return: list of ids of the inserted vectors.
     #     :rtype: list[int]
@@ -588,7 +588,7 @@ class Milvus:
     #     if ids is not None:
     #         check_pass_param(ids=ids)
     #     with self._connection() as handler:
-    #         return handler.insert(collection_name, entities, ids, partition_tag, params, timeout, **kwargs)
+    #         return handler.insert(collection_name, entities, ids, partition_name, params, timeout, **kwargs)
 
     @check_connect
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
@@ -785,7 +785,7 @@ class Milvus:
             return handler.describe_index(collection_name, index_name, timeout)
 
     @check_connect
-    def insert(self, collection_name, entities, ids=None, partition_tag=None, timeout=None, **kwargs):
+    def insert(self, collection_name, entities, ids=None, partition_name=None, timeout=None, **kwargs):
         """
         Inserts entities in a specified collection.
 
@@ -798,9 +798,9 @@ class Milvus:
         :param ids: The list of ids corresponding to the inserted entities.
         :type  ids: list[int]
 
-        :param partition_tag: The name of the partition to insert entities in. The default value is
+        :param partition_name: The name of the partition to insert entities in. The default value is
          None. The server stores entities in the “_default” partition by default.
-        :type  partition_tag: str
+        :type  partition_name: str
         
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
@@ -833,7 +833,7 @@ class Milvus:
         if ids is not None:
             check_pass_param(ids=ids)
         with self._connection() as handler:
-            return handler.bulk_insert(collection_name, entities, ids, partition_tag, None, timeout, **kwargs)
+            return handler.bulk_insert(collection_name, entities, ids, partition_name, None, timeout, **kwargs)
 
     @check_connect
     def flush(self, collection_names=None, timeout=None, **kwargs):
@@ -884,7 +884,7 @@ class Milvus:
             return handler.flush(collection_names, timeout, **kwargs)
 
     @check_connect
-    def search(self, collection_name, dsl, partition_tags=None, fields=None, timeout=None, **kwargs):
+    def search(self, collection_name, dsl, partition_names=None, fields=None, timeout=None, **kwargs):
         """
         Searches a collection based on the given DSL clauses and returns query results.
 
@@ -921,8 +921,8 @@ class Milvus:
                 }
             }`
 
-        :param partition_tags: The tags of partitions to search.
-        :type  partition_tags: list[str]
+        :param partition_names: The tags of partitions to search.
+        :type  partition_names: list[str]
 
         :param fields: The fields to return in the search result
         :type  fields: list[str]
@@ -974,7 +974,7 @@ class Milvus:
         """
         with self._connection() as handler:
             kwargs["_deploy_mode"] = self._deploy_mode
-            return handler.search(collection_name, dsl, partition_tags, fields, timeout=timeout, **kwargs)
+            return handler.search(collection_name, dsl, partition_names, fields, timeout=timeout, **kwargs)
 
     @check_connect
     def search_with_expression(self, collection_name, data, anns_field, param, limit, expression, partition_names=None,

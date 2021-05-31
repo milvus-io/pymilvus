@@ -162,19 +162,19 @@ class Prepare:
         return milvus_types.RegisterLinkRequest()
 
     @classmethod
-    def partition_name(cls, collection_name, partition_tag):
+    def partition_name(cls, collection_name, partition_name):
         if not isinstance(collection_name, str):
             raise ParamError("collection_name must be of str type")
-        if not isinstance(partition_tag, str):
-            raise ParamError("partition_tag must be of str type")
+        if not isinstance(partition_name, str):
+            raise ParamError("partition_name must be of str type")
         return milvus_types.PartitionName(collection_name=collection_name,
-                                          tag=partition_tag)
+                                          tag=partition_name)
 
     @classmethod
-    def bulk_insert_param(cls, collection_name, entities, partition_tag, ids=None, params=None, fields_info=None,
+    def bulk_insert_param(cls, collection_name, entities, partition_name, ids=None, params=None, fields_info=None,
                           **kwargs):
-        default_partition_tag = "_default"  # should here?
-        tag = partition_tag or default_partition_tag
+        default_partition_name = "_default"  # should here?
+        tag = partition_name or default_partition_name
         insert_request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
 
         for entity in entities:
@@ -315,11 +315,11 @@ class Prepare:
         return insert_request
 
     @classmethod
-    def insert_param(cls, collection_name, entities, partition_tag, ids=None, params=None, fields_info=None, **kwargs):
+    def insert_param(cls, collection_name, entities, partition_name, ids=None, params=None, fields_info=None, **kwargs):
         row_batch = milvus_types.InsertRequest()
         row_batch.collection_name = collection_name
-        default_partition_tag = "_default"  # should here?
-        row_batch.partition_name = partition_tag or default_partition_tag
+        default_partition_name = "_default"  # should here?
+        row_batch.partition_name = partition_name or default_partition_name
 
         row_data = list()
         fields_type = list()
@@ -456,7 +456,7 @@ class Prepare:
         return pls
 
     @classmethod
-    def divide_search_request(cls, collection_name, query_entities, partition_tags=None, fields=None, **kwargs):
+    def divide_search_request(cls, collection_name, query_entities, partition_names=None, fields=None, **kwargs):
         if not isinstance(query_entities, (dict,)):
             raise ParamError("Invalid query format. 'query_entities' must be a dict")
 
@@ -538,7 +538,7 @@ class Prepare:
                 plg_str = milvus_types.PlaceholderGroup.SerializeToString(plg)
                 request = milvus_types.SearchRequest(
                     collection_name=collection_name,
-                    partition_names=partition_tags,
+                    partition_names=partition_names,
                 )
                 request.dsl = ujson.dumps(duplicated_entities)
                 request.placeholder_group = plg_str
@@ -547,13 +547,13 @@ class Prepare:
             return requests
 
     @classmethod
-    def search_request(cls, collection_name, query_entities, partition_tags=None, fields=None, **kwargs):
+    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, **kwargs):
         if not isinstance(query_entities, (dict,)):
             raise ParamError("Invalid query format. 'query_entities' must be a dict")
 
         request = milvus_types.SearchRequest(
             collection_name=collection_name,
-            partition_names=partition_tags,
+            partition_names=partition_names,
         )
 
         duplicated_entities = copy.deepcopy(query_entities)

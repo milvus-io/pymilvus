@@ -68,7 +68,7 @@ class TestCreateBase:
         with pytest.raises(Exception) as e:
             connect.create_partition(collection_name, default_tag)
 
-    def test_create_partition_tag_name_None(self, connect, collection):
+    def test_create_partition_name_name_None(self, connect, collection):
         '''
         target: test create partition, tag name set None, check status returned
         method: call function: create_partition
@@ -78,7 +78,7 @@ class TestCreateBase:
         with pytest.raises(Exception) as e:
             connect.create_partition(collection, tag_name)
 
-    def test_create_different_partition_tags(self, connect, collection):
+    def test_create_different_partition_names(self, connect, collection):
         '''
         target: test create partition twice with different names
         method: call function: create_partition, and again
@@ -113,7 +113,7 @@ class TestCreateBase:
         '''
         connect.create_partition(id_collection, default_tag)
         ids = [i for i in range(default_nb)]
-        insert_ids = connect.bulk_insert(id_collection, default_entities, ids, partition_tag=default_tag)
+        insert_ids = connect.bulk_insert(id_collection, default_entities, ids, partition_name=default_tag)
         assert len(insert_ids) == len(ids)
 
     def test_create_partition_insert_with_tag_not_existed(self, connect, collection):
@@ -126,7 +126,7 @@ class TestCreateBase:
         connect.create_partition(collection, default_tag)
         ids = [i for i in range(default_nb)]
         with pytest.raises(Exception) as e:
-            insert_ids = connect.bulk_insert(collection, default_entities, ids, partition_tag=tag_new)
+            insert_ids = connect.bulk_insert(collection, default_entities, ids, partition_name=tag_new)
 
     @pytest.mark.skip("not support custom id")
     def test_create_partition_insert_same_tags(self, connect, id_collection):
@@ -137,9 +137,9 @@ class TestCreateBase:
         '''
         connect.create_partition(id_collection, default_tag)
         ids = [i for i in range(default_nb)]
-        insert_ids = connect.bulk_insert(id_collection, default_entities, ids, partition_tag=default_tag)
+        insert_ids = connect.bulk_insert(id_collection, default_entities, ids, partition_name=default_tag)
         ids = [(i+default_nb) for i in range(default_nb)]
-        new_insert_ids = connect.bulk_insert(id_collection, default_entities, ids, partition_tag=default_tag)
+        new_insert_ids = connect.bulk_insert(id_collection, default_entities, ids, partition_name=default_tag)
         connect.flush([id_collection])
         res = connect.count_entities(id_collection)
         assert res == default_nb * 2
@@ -156,8 +156,8 @@ class TestCreateBase:
         collection_new = gen_unique_str()
         connect.create_collection(collection_new, default_fields)
         connect.create_partition(collection_new, default_tag)
-        ids = connect.bulk_insert(collection, default_entities, partition_tag=default_tag)
-        ids = connect.bulk_insert(collection_new, default_entities, partition_tag=default_tag)
+        ids = connect.bulk_insert(collection, default_entities, partition_name=default_tag)
+        ids = connect.bulk_insert(collection_new, default_entities, partition_name=default_tag)
         connect.flush([collection, collection_new])
         res = connect.count_entities(collection)
         assert res == default_nb
@@ -242,7 +242,7 @@ class TestHasBase:
             res = connect.has_partition(collection, tag_name)
             assert res
 
-    def test_has_partition_tag_not_existed(self, connect, collection):
+    def test_has_partition_name_not_existed(self, connect, collection):
         '''
         target: test has_partition, check status and result
         method: then call function: has_partition, with tag not existed
@@ -293,7 +293,7 @@ class TestDropBase:
         tag_list = []
         assert default_tag not in tag_list
 
-    def test_drop_partition_tag_not_existed(self, connect, collection):
+    def test_drop_partition_name_not_existed(self, connect, collection):
         '''
         target: test drop partition, but tag not existed
         method: create partitions first, then call function: drop_partition
@@ -304,7 +304,7 @@ class TestDropBase:
         with pytest.raises(Exception) as e:
             connect.drop_partition(collection, new_tag)
 
-    def test_drop_partition_tag_not_existed_A(self, connect, collection):
+    def test_drop_partition_name_not_existed_A(self, connect, collection):
         '''
         target: test drop partition, but collection not existed
         method: create partitions first, then call function: drop_partition
