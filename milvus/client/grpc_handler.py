@@ -416,18 +416,18 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(status.error_code, status.reason)
 
     @error_handler()
-    def create_partition(self, collection_name, partition_tag, timeout=None):
-        request = Prepare.create_partition_request(collection_name, partition_tag)
+    def create_partition(self, collection_name, partition_name, timeout=None):
+        request = Prepare.create_partition_request(collection_name, partition_name)
         rf = self._stub.CreatePartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
             raise BaseException(response.error_code, response.reason)
-        # self.load_partitions("", collection_name, [partition_tag], timeout=timeout)
+        # self.load_partitions("", collection_name, [partition_name], timeout=timeout)
         # return Status(response.status.error_code, response.status.reason)
 
     @error_handler()
-    def drop_partition(self, collection_name, partition_tag, timeout=None):
-        request = Prepare.drop_partition_request(collection_name, partition_tag)
+    def drop_partition(self, collection_name, partition_name, timeout=None):
+        request = Prepare.drop_partition_request(collection_name, partition_name)
 
         rf = self._stub.DropPartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
@@ -438,8 +438,8 @@ class GrpcHandler(AbsMilvus):
         # return Status(response.error_code, response.reason)
 
     @error_handler(False)
-    def has_partition(self, collection_name, partition_tag, timeout=None):
-        request = Prepare.has_partition_request(collection_name, partition_tag)
+    def has_partition(self, collection_name, partition_name, timeout=None):
+        request = Prepare.has_partition_request(collection_name, partition_name)
         rf = self._stub.HasPartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         status = response.status
@@ -449,8 +449,8 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(status.error_code, status.reason)
 
     @error_handler(None)
-    def get_partition_info(self, collection_name, partition_tag, timeout=None):
-        request = Prepare.partition_stats_request(collection_name, partition_tag)
+    def get_partition_info(self, collection_name, partition_name, timeout=None):
+        request = Prepare.partition_stats_request(collection_name, partition_name)
         rf = self._stub.DescribePartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         status = response.status
@@ -486,7 +486,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(status.error_code, status.reason)
 
     # https://github.com/zilliztech/milvus-distributed/issues/1339
-    def _prepare_bulk_insert_request(self, collection_name, entities, ids=None, partition_tag=None, params=None,
+    def _prepare_bulk_insert_request(self, collection_name, entities, ids=None, partition_name=None, params=None,
                                      timeout=None, **kwargs):
         insert_param = kwargs.get('insert_param', None)
 
@@ -526,15 +526,15 @@ class GrpcHandler(AbsMilvus):
                 ids = None
 
         request = insert_param if insert_param \
-            else Prepare.bulk_insert_param(collection_name, entities, partition_tag, ids, params, fields_info,
+            else Prepare.bulk_insert_param(collection_name, entities, partition_name, ids, params, fields_info,
                                            auto_id=auto_id)
 
         return request, auto_id
 
     @error_handler([])
-    def bulk_insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
+    def bulk_insert(self, collection_name, entities, ids=None, partition_name=None, params=None, timeout=None, **kwargs):
         try:
-            request, auto_id = self._prepare_bulk_insert_request(collection_name, entities, ids, partition_tag, params,
+            request, auto_id = self._prepare_bulk_insert_request(collection_name, entities, ids, partition_name, params,
                                                                  timeout, **kwargs)
             rf = self._stub.Insert.future(request, wait_for_ready=True, timeout=timeout)
             if kwargs.get("_async", False) is True:
@@ -558,7 +558,7 @@ class GrpcHandler(AbsMilvus):
             raise err
 
     @error_handler([])
-    def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None, timeout=None, **kwargs):
+    def insert(self, collection_name, entities, ids=None, partition_name=None, params=None, timeout=None, **kwargs):
         insert_param = kwargs.get('insert_param', None)
 
         # if insert_param and not isinstance(insert_param, grpc_types.InsertParam):
@@ -602,7 +602,7 @@ class GrpcHandler(AbsMilvus):
                 ids = None
 
         body = insert_param if insert_param \
-            else Prepare.insert_param(collection_name, entities, partition_tag, ids, params, fields_info,
+            else Prepare.insert_param(collection_name, entities, partition_name, ids, params, fields_info,
                                       auto_id=auto_id)
 
         rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
@@ -618,27 +618,27 @@ class GrpcHandler(AbsMilvus):
 
         raise BaseException(response.status.error_code, response.status.reason)
 
-    def _prepare_search_request(self, collection_name, query_entities, partition_tags=None, fields=None, timeout=None, **kwargs):
+    def _prepare_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
         rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
                                              timeout=timeout)
         reply = rf.result()
         if reply.status.error_code != 0 or not reply.value:
             raise CollectionNotExistException(reply.status.error_code, "collection not exists")
 
-        request = Prepare.search_request(collection_name, query_entities, partition_tags, fields)
+        request = Prepare.search_request(collection_name, query_entities, partition_names, fields)
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
 
         return request, auto_id
 
-    def _divide_search_request(self, collection_name, query_entities, partition_tags=None, fields=None, timeout=None, **kwargs):
+    def _divide_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
         rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
                                              timeout=timeout)
         reply = rf.result()
         if reply.status.error_code != 0 or not reply.value:
             raise CollectionNotExistException(reply.status.error_code, "collection not exists")
 
-        requests = Prepare.divide_search_request(collection_name, query_entities, partition_tags, fields)
+        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields)
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
 
@@ -679,24 +679,24 @@ class GrpcHandler(AbsMilvus):
                 return SearchFuture(None, None, True, pre_err)
             raise pre_err
 
-    def _batch_search(self, collection_name, query_entities, partition_tags=None, fields=None, timeout=None, **kwargs):
-        requests, auto_id = self._divide_search_request(collection_name, query_entities, partition_tags,
+    def _batch_search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
+        requests, auto_id = self._divide_search_request(collection_name, query_entities, partition_names,
                                                         fields, **kwargs)
         kwargs["auto_id"] = auto_id
         return self._execute_search_requests(requests, timeout, **kwargs)
 
     @error_handler(None)
-    def _total_search(self, collection_name, query_entities, partition_tags=None, fields=None, timeout=None, **kwargs):
-        request, auto_id = self._prepare_search_request(collection_name, query_entities, partition_tags,
+    def _total_search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
+        request, auto_id = self._prepare_search_request(collection_name, query_entities, partition_names,
                                                         fields, timeout, **kwargs)
         kwargs["auto_id"] = auto_id
         return self._execute_search_requests([request], timeout, **kwargs)
 
     @error_handler(None)
-    def search(self, collection_name, query_entities, partition_tags=None, fields=None, timeout=None, **kwargs):
+    def search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
         if kwargs.get("_deploy_mode", DeployMode.Distributed) == DeployMode.StandAlone:
-            return self._total_search(collection_name, query_entities, partition_tags, fields, timeout, **kwargs)
-        return self._batch_search(collection_name, query_entities, partition_tags, fields, timeout, **kwargs)
+            return self._total_search(collection_name, query_entities, partition_names, fields, timeout, **kwargs)
+        return self._batch_search(collection_name, query_entities, partition_names, fields, timeout, **kwargs)
 
     @error_handler(None)
     @check_has_collection
