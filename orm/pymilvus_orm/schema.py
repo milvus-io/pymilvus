@@ -14,10 +14,11 @@ import copy
 import json
 from typing import List
 import pandas
+from pandas.api.types import is_list_like
 
 from pymilvus_orm.constants import VECTOR_COMMON_TYPE_PARAMS
 from pymilvus_orm.types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
-from pymilvus_orm.exceptions import CannotInferSchemaException
+from pymilvus_orm.exceptions import CannotInferSchemaException, DataTypeNotSupport
 
 
 class CollectionSchema:
@@ -225,7 +226,11 @@ def parse_fields_from_data(datas):
     if isinstance(datas, pandas.DataFrame):
         return parse_fields_from_dataframe(datas)
     fields = []
+    if not isinstance(datas, list):
+        raise DataTypeNotSupport(0, "Datas must be list")
     for d in datas:
+        if not is_list_like(d):
+            raise DataTypeNotSupport(0, "Data type must like list")
         d_type = infer_dtype_bydata(d[0])
         fields.append(FieldSchema("", d_type))
     return fields

@@ -128,3 +128,7 @@ class SchemaNotReadyException(MilvusException):
 
 class DataTypeNotMatchException(MilvusException):
     pass
+
+
+class DataTypeNotSupport(MilvusException):
+    pass
