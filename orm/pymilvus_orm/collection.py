@@ -26,6 +26,19 @@ from .exceptions import (
 from .future import SearchResultFuture, InsertFuture
 
 
+def _check_schema(schema):
+    if schema is None:
+        raise SchemaNotReadyException(0, "Schema is not ready!")
+    if len(schema.fields) == 0:
+        raise SchemaNotReadyException(0, "The field of the schema cannot be empty!")
+    vector_fields = []
+    for field in schema.fields:
+        if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
+            vector_fields.append(field.name)
+    if len(vector_fields) != 1:
+        raise SchemaNotReadyException(0, "The schema must have one and only one vector column!")
+
+
 class Collection:
     """
     This is a class corresponding to collection in milvus.
@@ -73,6 +86,8 @@ class Collection:
                 if data is not None:
                     self.insert(data=data)
             else:
+                if not isinstance(schema, CollectionSchema):
+                    raise SchemaNotReadyException(0, "schema type must be schema.CollectionSchema.")
                 if server_schema != schema:
                     raise SchemaNotReadyException(0,
                                                   "The collection already exist, but the schema is"
@@ -96,6 +111,7 @@ class Collection:
                                                   "passed into the schema.")
             else:
                 if isinstance(schema, CollectionSchema):
+                    _check_schema(schema)
                     conn.create_collection(self._name, fields=schema.to_dict(), orm=True)
                     self._schema = schema
                     if data is not None:
