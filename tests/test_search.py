@@ -25,7 +25,7 @@ default_binary_query, default_binary_query_vecs = gen_query_vectors(binary_field
                                                                     nq)
 
 
-def init_data(connect, collection, nb=1200, partition_tags=None, auto_id=True):
+def init_data(connect, collection, nb=1200, partition_names=None, auto_id=True):
     '''
     Generate entities and add it in collection
     '''
@@ -34,21 +34,21 @@ def init_data(connect, collection, nb=1200, partition_tags=None, auto_id=True):
         insert_entities = entities
     else:
         insert_entities = gen_entities(nb, is_normal=True)
-    if partition_tags is None:
+    if partition_names is None:
         if auto_id:
             ids = connect.bulk_insert(collection, insert_entities)
         else:
             ids = connect.bulk_insert(collection, insert_entities, ids=[i for i in range(nb)])
     else:
         if auto_id:
-            ids = connect.bulk_insert(collection, insert_entities, partition_tag=partition_tags)
+            ids = connect.bulk_insert(collection, insert_entities, partition_name=partition_names)
         else:
-            ids = connect.bulk_insert(collection, insert_entities, ids=[i for i in range(nb)], partition_tag=partition_tags)
+            ids = connect.bulk_insert(collection, insert_entities, ids=[i for i in range(nb)], partition_name=partition_names)
     # connect.flush([collection])
     return insert_entities, ids
 
 
-def init_binary_data(connect, collection, nb=1200, insert=True, partition_tags=None):
+def init_binary_data(connect, collection, nb=1200, insert=True, partition_names=None):
     '''
     Generate entities and add it in collection
     '''
@@ -61,10 +61,10 @@ def init_binary_data(connect, collection, nb=1200, insert=True, partition_tags=N
     else:
         insert_raw_vectors, insert_entities = gen_binary_entities(nb)
     if insert is True:
-        if partition_tags is None:
+        if partition_names is None:
             ids = connect.bulk_insert(collection, insert_entities)
         else:
-            ids = connect.bulk_insert(collection, insert_entities, partition_tag=partition_tags)
+            ids = connect.bulk_insert(collection, insert_entities, partition_name=partition_names)
         connect.flush([collection])
     return insert_raw_vectors, insert_entities, ids
 
@@ -330,7 +330,7 @@ class TestSearchBase:
             assert len(res[0]) >= top_k
             assert res[0]._distances[0] < epsilon
             assert check_id_result(res[0], ids[0])
-            res = connect.search(collection, query, partition_tags=[default_tag])
+            res = connect.search(collection, query, partition_names=[default_tag])
             assert len(res) == nq
 
     @pytest.mark.skip("search_index_partition_B")
@@ -348,16 +348,16 @@ class TestSearchBase:
         if index_type in skip_pq():
             pytest.skip("Skip PQ")
         connect.create_partition(collection, default_tag)
-        entities, ids = init_data(connect, collection, partition_tags=default_tag)
+        entities, ids = init_data(connect, collection, partition_names=default_tag)
         connect.create_index(collection, field_name, get_simple_index)
         search_param = get_search_param(index_type)
         query, vecs = gen_query_vectors(field_name, entities, top_k, nq, search_params=search_param)
         for tags in [[default_tag], [default_tag, "new_tag"]]:
             if top_k > max_top_k:
                 with pytest.raises(Exception) as e:
-                    res = connect.search(collection, query, partition_tags=tags)
+                    res = connect.search(collection, query, partition_names=tags)
             else:
-                res = connect.search(collection, query, partition_tags=tags)
+                res = connect.search(collection, query, partition_names=tags)
                 assert len(res) == nq
                 assert len(res[0]) >= top_k
                 assert res[0]._distances[0] < epsilon
@@ -377,9 +377,9 @@ class TestSearchBase:
         query, vecs = gen_query_vectors(field_name, entities, top_k, nq)
         if top_k > max_top_k:
             with pytest.raises(Exception) as e:
-                res = connect.search(collection, query, partition_tags=["new_tag"])
+                res = connect.search(collection, query, partition_names=["new_tag"])
         else:
-            res = connect.search(collection, query, partition_tags=["new_tag"])
+            res = connect.search(collection, query, partition_names=["new_tag"])
             assert len(res) == nq
             assert len(res[0]) == 0
 
@@ -399,8 +399,8 @@ class TestSearchBase:
             pytest.skip("Skip PQ")
         connect.create_partition(collection, default_tag)
         connect.create_partition(collection, new_tag)
-        entities, ids = init_data(connect, collection, partition_tags=default_tag)
-        new_entities, new_ids = init_data(connect, collection, nb=6001, partition_tags=new_tag)
+        entities, ids = init_data(connect, collection, partition_names=default_tag)
+        new_entities, new_ids = init_data(connect, collection, nb=6001, partition_names=new_tag)
         connect.create_index(collection, field_name, get_simple_index)
         search_param = get_search_param(index_type)
         query, vecs = gen_query_vectors(field_name, entities, top_k, nq, search_params=search_param)
@@ -413,7 +413,7 @@ class TestSearchBase:
             assert not check_id_result(res[1], new_ids[0])
             assert res[0]._distances[0] < epsilon
             assert res[1]._distances[0] < epsilon
-            res = connect.search(collection, query, partition_tags=["new_tag"])
+            res = connect.search(collection, query, partition_names=["new_tag"])
             assert res[0]._distances[0] > epsilon
             assert res[1]._distances[0] > epsilon
 
@@ -434,8 +434,8 @@ class TestSearchBase:
             pytest.skip("Skip PQ")
         connect.create_partition(collection, tag)
         connect.create_partition(collection, new_tag)
-        entities, ids = init_data(connect, collection, partition_tags=tag)
-        new_entities, new_ids = init_data(connect, collection, nb=6001, partition_tags=new_tag)
+        entities, ids = init_data(connect, collection, partition_names=tag)
+        new_entities, new_ids = init_data(connect, collection, nb=6001, partition_names=new_tag)
         connect.create_index(collection, field_name, get_simple_index)
         search_param = get_search_param(index_type)
         query, vecs = gen_query_vectors(field_name, new_entities, top_k, nq, search_params=search_param)
@@ -443,11 +443,11 @@ class TestSearchBase:
             with pytest.raises(Exception) as e:
                 res = connect.search(collection, query)
         else:
-            res = connect.search(collection, query, partition_tags=["(.*)tag"])
+            res = connect.search(collection, query, partition_names=["(.*)tag"])
             assert not check_id_result(res[0], ids[0])
             assert res[0]._distances[0] < epsilon
             assert res[1]._distances[0] < epsilon
-            res = connect.search(collection, query, partition_tags=["new(.*)"])
+            res = connect.search(collection, query, partition_names=["new(.*)"])
             assert res[0]._distances[0] < epsilon
             assert res[1]._distances[0] < epsilon
 
@@ -536,7 +536,7 @@ class TestSearchBase:
             assert len(res[0]) >= top_k
             assert res[0]._distances[0] >= 1 - gen_inaccuracy(res[0]._distances[0])
             assert check_id_result(res[0], ids[0])
-            res = connect.search(collection, query, partition_tags=[default_tag])
+            res = connect.search(collection, query, partition_names=[default_tag])
             assert len(res) == nq
 
     @pytest.mark.skip("search_ip_index_partitions")
@@ -556,8 +556,8 @@ class TestSearchBase:
             pytest.skip("Skip PQ")
         connect.create_partition(collection, default_tag)
         connect.create_partition(collection, new_tag)
-        entities, ids = init_data(connect, collection, partition_tags=default_tag)
-        new_entities, new_ids = init_data(connect, collection, nb=6001, partition_tags=new_tag)
+        entities, ids = init_data(connect, collection, partition_names=default_tag)
+        new_entities, new_ids = init_data(connect, collection, nb=6001, partition_names=new_tag)
         get_simple_index["metric_type"] = metric_type
         connect.create_index(collection, field_name, get_simple_index)
         search_param = get_search_param(index_type)
@@ -571,7 +571,7 @@ class TestSearchBase:
             assert not check_id_result(res[1], new_ids[0])
             assert res[0]._distances[0] >= 1 - gen_inaccuracy(res[0]._distances[0])
             assert res[1]._distances[0] >= 1 - gen_inaccuracy(res[1]._distances[0])
-            res = connect.search(collection, query, partition_tags=["new_tag"])
+            res = connect.search(collection, query, partition_names=["new_tag"])
             assert res[0]._distances[0] < 1 - gen_inaccuracy(res[0]._distances[0])
             # TODO:
             # assert res[1]._distances[0] >= 1 - gen_inaccuracy(res[1]._distances[0])
@@ -1689,7 +1689,7 @@ class TestSearchInvalid(object):
     def test_search_with_invalid_tag(self, connect, collection):
         tag = " "
         with pytest.raises(Exception) as e:
-            res = connect.search(collection, default_query, partition_tags=tag)
+            res = connect.search(collection, default_query, partition_names=tag)
 
     # TODO: reopen after we supporting targetEntry
     @pytest.mark.skip("search_with_invalid_field_name")

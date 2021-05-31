@@ -257,7 +257,7 @@ class AbsMilvus:
     """ Partition
     """
 
-    def create_partition(self, collection_name, partition_tag, timeout=30):
+    def create_partition(self, collection_name, partition_name, timeout=30):
         """
         create a partition for a collection.
 
@@ -267,8 +267,8 @@ class AbsMilvus:
         :param partition_name: Name of the partition.
         :type  partition_name: str
 
-        :param partition_tag: Name of the partition tag.
-        :type  partition_tag: str
+        :param partition_name: Name of the partition tag.
+        :type  partition_name: str
 
         :return:
             Status: Whether the operation is successful.
@@ -284,7 +284,7 @@ class AbsMilvus:
         """
         pass
 
-    def has_partition(self, collection_name, partition_tag):
+    def has_partition(self, collection_name, partition_name):
         """
         Check if specified partition exists.
 
@@ -292,8 +292,8 @@ class AbsMilvus:
         :param collection_name: target table name.
         :type  collection_name: str
 
-        :param partition_tag: partition tag.
-        :type  partition_tag: str
+        :param partition_name: partition tag.
+        :type  partition_name: str
 
         :return:
             exists: bool, if specified partition exists
@@ -327,15 +327,15 @@ class AbsMilvus:
         """
         pass
 
-    def drop_partition(self, collection_name, partition_tag, timeout=30):
+    def drop_partition(self, collection_name, partition_name, timeout=30):
         """
         Deletes a partition in a collection.
 
         :param collection_name: Collection name.
         :type  collection_name: str
 
-        :param partition_tag: Partition name.
-        :type  partition_tag: str
+        :param partition_name: Partition name.
+        :type  partition_name: str
 
         :return:
             Status: Whether the operation is successful.
@@ -354,7 +354,7 @@ class AbsMilvus:
     """ CRUD
     """
 
-    def insert(self, collection_name, entities, ids=None, partition_tag=None, params=None):
+    def insert(self, collection_name, entities, ids=None, partition_name=None, params=None):
         """
         Insert vectors to a collection.
 
@@ -373,10 +373,10 @@ class AbsMilvus:
         :type  collection_name: str
         :param collection_name: Name of the collection to insert entities to.
 
-        :type partition_tag: str or None.
-            If partition_tag is None, entities will be inserted to the collection rather than partitions.
+        :type partition_name: str or None.
+            If partition_name is None, entities will be inserted to the collection rather than partitions.
 
-        :param partition_tag: Tag of a partition.
+        :param partition_name: Tag of a partition.
 
        :return:
             ids: list[int]
@@ -453,7 +453,7 @@ class AbsMilvus:
         """
         pass
 
-    def search(self, collection_name, query_entities, partition_tags=None, fields=None, **kwargs):
+    def search(self, collection_name, query_entities, partition_names=None, fields=None, **kwargs):
         """
         :param collection_name:
         :type  collection_name: str
@@ -480,8 +480,8 @@ class AbsMilvus:
                  },
              }`
 
-        :param partition_tags: partition tag list
-        :type  partition_tags: list[str]
+        :param partition_names: partition tag list
+        :type  partition_names: list[str]
 
         :param params: extra params.
         :type prams: dict
