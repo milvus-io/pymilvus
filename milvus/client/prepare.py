@@ -753,6 +753,7 @@ class Prepare:
 
     @classmethod
     def retrieve_request(cls, collection_name, ids, output_fields, partition_names):
+        ids = schema_types.IDs(int_id=schema_types.LongArray(data=ids))
         return milvus_types.RetrieveRequest(db_name="",
                                             collection_name=collection_name,
                                             ids=ids,
