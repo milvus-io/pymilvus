@@ -181,25 +181,19 @@ class Prepare:
             if not entity.get("name", None) or not entity.get("values", None) or not entity.get("type", None):
                 raise ParamError("Missing param in entities, a field must have type, name and values")
 
-        row_data = list()
+        # row_data = list()
         fields_name = list()
         fields_type = list()
         fields_len = len(entities)
         for i in range(fields_len):
             fields_name.append(entities[i]["name"])
 
-        row_num = len(entities[0]["values"]) if fields_len > 0 else 0
+        # row_num = len(entities[0]["values"]) if fields_len > 0 else 0
 
         auto_id = kwargs.get("auto_id", True)
 
-        if fields_info is None:
-            # this case, we assume the order of entities is same to schema
-            for i in range(row_num):
-                row = []
-                for j in range(fields_len):
-                    row.append(entities[j].get("values")[i])
-                row_data.append(row)
-        else:
+        fields_data = list()
+        if fields_info is not None:
             # field name & type must match fields info
             location = dict()
             for i, field in enumerate(fields_info):
@@ -261,51 +255,51 @@ class Prepare:
                             break
                 if not match_flag:
                     raise ParamError("Field {} don't match in entities".format(field["name"]))
-            for i in range(row_num):
-                row = []
-                for j in range(len(fields_info)):
-                    field_name = fields_info[j]["name"]
-                    if not auto_id and "_id" not in fields_name and field_name == "_id":
-                        continue
-                    else:
-                        loc = location[field_name]
-                        row.append(entities[loc].get("values")[i])
-                row_data.append(row)
 
-        # fill row_data in bytes format
-        if not auto_id and "_id" not in fields_name:
-            id_type = DataType.INT64  # int64_t is supported by default
-            fields_type.insert(0, id_type)
-            for i in range(row_num):
-                row_data[i].insert(0, ids[i])  # fill id
-
-        for i in range(row_num):
-            blob_row_data = common_types.Blob()
-            blob_row_data.value = bytes()
-            for field_value, field_type in zip(row_data[i], fields_type):
-                if field_type in (DataType.BOOL,):
-                    blob_row_data.value += blob.boolToBytes(field_value)
-                elif field_type in (DataType.INT8,):
-                    blob_row_data.value += blob.int8ToBytes(field_value)
-                elif field_type in (DataType.INT16,):
-                    blob_row_data.value += blob.int16ToBytes(field_value)
-                elif field_type in (DataType.INT32,):
-                    blob_row_data.value += blob.int32ToBytes(field_value)
-                elif field_type in (DataType.INT64,):
-                    blob_row_data.value += blob.int64ToBytes(field_value)
-                elif field_type in (DataType.FLOAT,):
-                    blob_row_data.value += blob.floatToBytes(field_value)
-                elif field_type in (DataType.DOUBLE,):
-                    blob_row_data.value += blob.doubleToBytes(field_value)
-                elif field_type in (DataType.STRING,):
-                    blob_row_data.value += blob.stringToBytes(field_value)
-                elif field_type in (DataType.BINARY_VECTOR,):
-                    blob_row_data.value += blob.vectorBinaryToBytes(field_value)
-                elif field_type in (DataType.FLOAT_VECTOR,):
-                    blob_row_data.value += blob.vectorFloatToBytes(field_value)
-                else:
-                    raise ParamError("Unsupported data type!")
-            insert_request.row_data.append(blob_row_data)
+        for entity in entities:
+            field_data = schema_types.FieldData()
+            if entity.get("type") in (DataType.BOOL,):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.bool_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.INT8,):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.int_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.INT16,):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.int_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.INT32,):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.int_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.INT64,):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.long_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.FLOAT,):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.float_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.DOUBLE,):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.double_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.FLOAT_VECTOR):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.vectors.dim = len(entity.get("values")[0])
+                for v in entity.get("values"):
+                    field_data.vectors.float_vector.data = v
+            elif entity.get("type") in (DataType.BINARY_VECTOR):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.vectors.dim = len(entity.get("values")[0]) * 8
+                for v in entity.get("values"):
+                    field_data.vectors.binary_vector.data = v
+            else:
+                raise ParamError("UnSupported data type")
 
         # generate hash keys, TODO: better hash function
         if ids is not None:
