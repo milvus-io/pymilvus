@@ -1059,7 +1059,7 @@ class Milvus:
             return handler.dummy(request_type, timeout=timeout)
 
     @check_connect
-    def get(self, collection_name, ids, output_fields, partition_names, timeout=None):
+    def get(self, collection_name, ids, output_fields=None, partition_names=None, timeout=None):
         """
         Retrieve multiple entities by entityID. Returns a dict that the key is entityID and the value is entity. If
         entityID not found in the collection, it's value in the result will be None.

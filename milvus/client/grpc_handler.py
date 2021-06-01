@@ -1114,4 +1114,4 @@ class GrpcHandler(AbsMilvus):
         # TODO: some check
         request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
         future = self._stub.Retrieve.future(request, wait_for_ready=True, timeout=timeout)
-        return future.result
+        return future.result()
