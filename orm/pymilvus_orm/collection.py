@@ -29,14 +29,14 @@ from .future import SearchResultFuture, InsertFuture
 def _check_schema(schema):
     if schema is None:
         raise SchemaNotReadyException(0, "Schema is not ready!")
-    if len(schema.fields) == 0:
+    if len(schema.fields) < 1:
         raise SchemaNotReadyException(0, "The field of the schema cannot be empty!")
     vector_fields = []
     for field in schema.fields:
         if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
             vector_fields.append(field.name)
-    if len(vector_fields) != 1:
-        raise SchemaNotReadyException(0, "The schema must have one and only one vector column!")
+    if len(vector_fields) < 1:
+        raise SchemaNotReadyException(0, "The schema at least have one vector column!")
 
 
 class Collection:
