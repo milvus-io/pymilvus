@@ -76,6 +76,13 @@ class TestCollections:
     def test_search(self, collection):
         collection.search()
 
+    @pytest.mark.xfail
+    def test_get(self, collection):
+        data = gen_list_data(default_nb)
+        ids = collection.insert(data)
+        assert len(ids) == default_nb
+        res = collection.get(ids[0:10])
+
     def test_partitions(self, collection):
         assert len(collection.partitions) == 1
 

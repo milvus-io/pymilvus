@@ -264,3 +264,31 @@ class Partition:
         if kwargs.get("_async", False):
             return SearchResultFuture(res)
         return SearchResult(res)
+
+    def get(self, ids, output_field=None, timeout=None):
+        """
+        Retrieve multiple entities by entityID. Returns a dict that the key is entityID and
+        the value is entity. If entityID not found in the collection,
+        it's value in the result will be None.
+
+        :param ids: A list of entityID
+        :type  ids: list[int]
+
+        :param output_fields: A list of fields to return
+        :type  output_fields: list[str]
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :return: A dict that contains all results
+        :rtype: dict
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        conn = self._get_connection()
+        res = conn.get(self._collection.name, ids, output_field, [self._name], timeout)
+        return res

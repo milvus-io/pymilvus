@@ -74,3 +74,10 @@ class TestPartition:
     def test_insert(self, partition):
         data = gen_list_data(default_nb)
         partition.insert(data)
+
+    @pytest.mark.xfail
+    def test_get(self, partition):
+        data = gen_list_data(default_nb)
+        ids = partition.insert(data)
+        assert len(ids) == default_nb
+        res = partition.get(ids[0:10])

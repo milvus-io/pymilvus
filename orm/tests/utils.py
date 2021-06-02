@@ -5,6 +5,7 @@ from pymilvus_orm.types import DataType
 
 default_dim = 128
 default_nb = 1200
+default_nq = 10
 default_float_vec_field_name = "float_vector"
 
 all_index_types = [
