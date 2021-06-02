@@ -9,6 +9,7 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
+import copy
 
 from milvus import Milvus
 
@@ -40,59 +41,54 @@ class Connections(metaclass=SingleInstanceMetaClass):
         """
         Construct a Connections object.
         """
-        self._kwargs = {}
+        self._kwargs = {"default": {"host": DefaultConfig.DEFAULT_HOST,
+                                    "port": DefaultConfig.DEFAULT_PORT}}
         self._conns = {}
-        self._addrs = {}
 
-    def configure(self, **kwargs):
+    def add_connection(self, **kwargs):
         """
         Configure the milvus connections and then create milvus connections by the passed
         parameters.
 
         Example::
 
-            connections.configure(
+            connections.add_connection(
                 default={"host": "localhost", "port": "19530"},
                 dev={"host": "localhost", "port": "19531"},
             )
 
         This will create two milvus connections named default and dev.
         """
-        for k in list(self._conns):
-            # try and preserve existing client to keep the persistent connections alive
-            if k in self._kwargs and kwargs.get(k, None) == self._kwargs[k]:
-                continue
-            self.remove_connection(alias=k)
-        self._kwargs = kwargs
-        for c in self._kwargs:
-            self.create_connection(alias=c)
+        for k in kwargs:
+            if k in self._conns:
+                if self._kwargs.get(k, None) != kwargs.get(k, None):
+                    raise ParamError("alias of %r already creating connections, "
+                                     "but the configure is not the same as passed in." % k)
+            self._kwargs[k] = kwargs.get(k, None)
 
-    def remove_connection(self, alias):
+    def disconnect(self, alias):
         """
-        Remove connection from the registry. Raises ``KeyError`` if connection
-        wasn't found.
+        Disconnect connection from the registry.
 
         :param alias: The name of milvus connection
         :type alias: str
-
-        :raises KeyError: If there is no connection with alias.
         """
-        try:
+        if alias in self._conns:
             conn = self._conns[alias]
-        except KeyError:
-            raise KeyError("There is no connection with alias %r." % alias)
-        errors = 0
-        for d in (self._conns, self._kwargs, self._addrs):
-            try:
-                del d[alias]
-            except KeyError:
-                errors += 1
+            conn.close()
+            self._conns.pop(alias, None)
 
-        if errors == 3:
-            raise KeyError("There is no connection with alias %r." % alias)
-        conn.close()
+    def remove_connection(self, alias):
+        """
+        Remove connection from the registry.
 
-    def create_connection(self, alias=DefaultConfig.DEFAULT_USING, **kwargs) -> Milvus:
+        :param alias: The name of milvus connection
+        :type alias: str
+        """
+        self.disconnect(alias)
+        self._kwargs.pop(alias, None)
+
+    def connect(self, alias=DefaultConfig.DEFAULT_USING, **kwargs) -> Milvus:
         """
         Construct a milvus connection and register it under given alias.
 
@@ -109,31 +105,39 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         :example:
         >>> from pymilvus_orm import connections
-        >>> connections.create_connection("test", host="localhost", port="19530")
+        >>> connections.connect("test", host="localhost", port="19530")
         <milvus.client.stub.Milvus object at 0x7f4045335f10>
         """
         if alias in self._conns:
+            if len(kwargs) > 0 and self._kwargs[alias] != kwargs:
+                raise ParamError(f"The connection named {alias} already creating, "
+                                 "but passed parameters don't match the configured parameters, "
+                                 f"passed: {kwargs}, "
+                                 f"configured: {self._kwargs[alias]}")
             return self._conns[alias]
 
-        if alias in self._kwargs and len(kwargs) > 0 and self._kwargs[alias] != kwargs:
-            raise ParamError("passed parameters don't match the configured parameters, "
-                             f"passed: {kwargs}, "
-                             f"configured: {self._kwargs[alias]}")
+        if alias in self._kwargs and len(kwargs) > 0:
+            self._kwargs[alias] = copy.deepcopy(kwargs)
 
-        _using_parameters = kwargs
-        if len(kwargs) <= 0 and alias in self._kwargs:
-            _using_parameters = self._kwargs[alias]
-        # else:
-        #     self._kwargs[alias] = kwargs
+        if alias not in self._kwargs:
+            if len(kwargs) > 0:
+                self._kwargs[alias] = copy.deepcopy(kwargs)
+            else:
+                raise ParamError("You need to pass in the configuration "
+                                 "of the connection named %r" % alias)
 
-        host = _using_parameters.pop("host", DefaultConfig.DEFAULT_HOST)
-        port = _using_parameters.pop("port", DefaultConfig.DEFAULT_PORT)
-        handler = _using_parameters.pop("handler", DefaultConfig.DEFAULT_HANDLER)
-        pool = _using_parameters.pop("pool", DefaultConfig.DEFAULT_POOL)
+        host = self._kwargs[alias].get("host", None)
+        port = self._kwargs[alias].get("port", None)
+        handler = self._kwargs[alias].get("handler", DefaultConfig.DEFAULT_HANDLER)
+        pool = self._kwargs[alias].get("pool", DefaultConfig.DEFAULT_POOL)
 
-        conn = Milvus(host, port, handler, pool, **_using_parameters)
+        kwargs.pop("host", None)
+        kwargs.pop("port", None)
+        kwargs.pop("handler", None)
+        kwargs.pop("pool", None)
+
+        conn = Milvus(host, port, handler, pool, **kwargs)
         self._conns[alias] = conn
-        self._addrs[alias] = {"host": host, "port": port}
         return conn
 
     def get_connection(self, alias=DefaultConfig.DEFAULT_USING) -> Milvus:
@@ -152,10 +156,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :raises Exception: If server specific in parameters is not ready, we cannot connect to
                            server.
         """
-        try:
-            return self._conns[alias]
-        except KeyError:
-            raise KeyError("There is no connection with alias %r." % alias)
+        return self._conns.get(alias, None)
 
     def list_connections(self) -> list:
         """
@@ -165,17 +166,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
             Names of all connections.
 
         :example:
-        >>> from pymilvus_orm import connections
-        >>> connections.create_connection("test", host="localhost", port="19530")
-        <milvus.client.stub.Milvus object at 0x7f4045335f10>
-        >>> connections.list_connections()
-        ['test']
+        >>> from pymilvus_orm import connections as conn
+        >>> conn.connect("test", host="localhost", port="19530")
+        <milvus.client.stub.Milvus object at 0x7f05003f3e80>
+        >>> conn.list_connections()
+        [('default', None), ('test', <milvus.client.stub.Milvus object at 0x7f05003f3e80>)]
         """
-
-        all_alias = list(self._conns.keys())
-        all_alias.extend(alias for alias in self._kwargs if alias not in all_alias)
-        assert len(set(all_alias)) == len(all_alias)
-        return all_alias
+        return [(k, self._conns.get(k, None)) for k in self._kwargs]
 
     def get_connection_addr(self, alias):
         """
@@ -190,22 +187,23 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         :example:
         >>> from pymilvus_orm import connections
-        >>> connections.create_connection("test", host="localhost", port="19530")
+        >>> connections.connect("test", host="localhost", port="19530")
         <milvus.client.stub.Milvus object at 0x7f4045335f10>
         >>> connections.list_connections()
-        ['test']
+        [('default', None), ('test', <milvus.client.stub.Milvus object at 0x7f4045335f10>)]
         >>> connections.get_connection_addr('test')
         {'host': 'localhost', 'port': '19530'}
         """
-        return self._addrs.get(alias, {})
+        return self._kwargs.get(alias, {})
 
 
 # Singleton Mode in Python
 
 connections = Connections()
-configure = connections.configure
+add_connection = connections.add_connection
 list_connections = connections.list_connections
 get_connection_addr = connections.get_connection_addr
 remove_connection = connections.remove_connection
-create_connection = connections.create_connection
+connect = connections.connect
 get_connection = connections.get_connection
+disconnect = connections.disconnect

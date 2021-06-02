@@ -10,6 +10,6 @@ import pymilvus_orm.connections as connections
 
 @pytest.fixture(scope='session', autouse=True)
 def create_collection():
-    connections.create_connection()
+    connections.connect()
     yield
     connections.remove_connection(alias='default')

@@ -25,7 +25,7 @@ class TestCollections:
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=128)
         ]
         collection_schema = CollectionSchema(fields)
-        connections.create_connection()
+        connections.connect()
         collection = Collection(name=gen_collection_name(), data=gen_pd_data(default_nb), schema=collection_schema)
         collection.drop()
 

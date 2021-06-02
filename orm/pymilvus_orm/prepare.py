@@ -12,40 +12,46 @@
 
 import pandas
 
+from pymilvus_orm.exceptions import DataNotMatch
+
 
 class Prepare:
     @classmethod
     def prepare_insert_data(cls, data, schema):
         if not isinstance(data, (list, tuple, pandas.DataFrame)):
-            raise Exception("data is not invalid")
+            raise DataNotMatch(0, "data is not valid")
 
         fields = schema.fields
+        entities = []
+        ids = None
+        raw_lengths = []
         if isinstance(data, pandas.DataFrame):
             if len(fields) != len(data.columns):
-                raise Exception(f"collection has {len(fields)} fields"
-                                f", but go {len(data.columns)} fields")
-        elif len(data) != len(fields):
-            raise Exception(f"collection has {len(fields)} fields, but go {len(data)} fields")
-
-        if isinstance(data, pandas.DataFrame):
-            entities = [{
-                "name": field.name,
-                "type": field.dtype,
-                "values": list(data[field.name]),
-            } for i, field in enumerate(fields)]
-        else:
-            entities = [{
-                "name": field.name,
-                "type": field.dtype,
-                "values": data[i],
-            } for i, field in enumerate(fields)]
-
-        ids = None
-        for i, field in enumerate(fields):
-            if field.is_primary:
-                if isinstance(data, pandas.DataFrame):
+                raise DataNotMatch(0, f"collection has {len(fields)} fields"
+                                      f", but go {len(data.columns)} fields")
+            for i, field in enumerate(fields):
+                entities.append({"name": field.name,
+                                 "type": field.dtype,
+                                 "values": list(data[field.name])})
+                raw_lengths.append(len(data[field.name]))
+                if field.is_primary:
                     ids = list(data[field.name])
-                else:
+        else:
+            if len(data) != len(fields):
+                raise DataNotMatch(0, f"collection has {len(fields)} fields, "
+                                      f"but got {len(data)} fields")
+
+            for i, field in enumerate(fields):
+                entities.append({
+                    "name": field.name,
+                    "type": field.dtype,
+                    "values": data[i]})
+                raw_lengths.append(len(data[i]))
+                if field.is_primary:
                     ids = data[i]
+
+        lengths = list(set(raw_lengths))
+        if len(lengths) > 1:
+            raise DataNotMatch(0, "arrays must all be same length")
 
         return entities, ids

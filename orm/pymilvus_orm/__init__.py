@@ -17,10 +17,13 @@ from .collection import Collection
 from .connections import (
         Connections,
         connections,
-        configure,
+        add_connection,
+        list_connections,
+        get_connection_addr,
         remove_connection,
-        create_connection,
-        get_connection
+        connect,
+        get_connection,
+        disconnect
 )
 
 from .index import Index

@@ -18,7 +18,7 @@ from pandas.api.types import is_list_like
 
 from pymilvus_orm.constants import VECTOR_COMMON_TYPE_PARAMS
 from pymilvus_orm.types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
-from pymilvus_orm.exceptions import CannotInferSchemaException, DataTypeNotSupport
+from pymilvus_orm.exceptions import CannotInferSchemaException, DataTypeNotSupport, ParamError
 
 
 class CollectionSchema:
@@ -140,6 +140,8 @@ class FieldSchema:
         self._description = description
         self._type_params = None
         self._kwargs = kwargs
+        if not isinstance(kwargs.get("is_primary", False), bool):
+            raise ParamError("Param is_primary must be bool type.")
         self.is_primary = kwargs.get("is_primary", False) is True
         self._parse_type_params()
 
