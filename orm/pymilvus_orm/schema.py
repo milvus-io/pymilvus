@@ -133,9 +133,9 @@ class FieldSchema:
         try:
             DataType(dtype)
         except ValueError:
-            raise DataTypeNotSupport(0, "Field type not support %r" % dtype) from None
+            raise DataTypeNotSupport(0, "Field type must be of DataType") from None
         if dtype == DataType.UNKNOWN:
-            raise DataTypeNotSupport(0, "Field type not support %r" % dtype)
+            raise DataTypeNotSupport(0, "Field type must be of DataType")
         self._dtype = dtype
         self._description = description
         self._type_params = None

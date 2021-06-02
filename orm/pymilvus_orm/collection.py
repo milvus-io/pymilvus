@@ -103,6 +103,7 @@ class Collection:
                 if isinstance(data, pandas.DataFrame):
                     fields = parse_fields_from_data(data)
                     self._schema = CollectionSchema(fields=fields)
+                    _check_schema(self._schema)
                     conn.create_collection(self._name, fields=self._schema.to_dict(), orm=True)
                     self.insert(data=data)
                 else:
