@@ -9,7 +9,6 @@ from collections import defaultdict
 
 from . import __version__
 from .grpc_handler import GrpcHandler, RegistryHandler
-from .http_handler import HttpHandler
 from milvus.client.exceptions import ConnectionPoolError, NotConnectError, VersionError
 
 support_versions = ('0.11.x',)
