@@ -1,6 +1,6 @@
 
 unittest:
-	python -m pytest tests
+	python3 -m pytest tests
 
 package:
-	python -m build --sdist --wheel --outdir dist/.
+	python3 -m build --sdist --wheel --outdir dist/ .
