@@ -23,6 +23,11 @@ from pymilvus_orm.exceptions import CannotInferSchemaException, DataTypeNotSuppo
 
 class CollectionSchema:
     def __init__(self, fields, description="", **kwargs):
+        if not isinstance(fields, list):
+            raise ParamError("The fields of schema must be type list.")
+        for field in fields:
+            if not isinstance(field, FieldSchema):
+                raise ParamError("The field of schema type must be FieldSchema.")
         self._fields = fields
         self._description = description
         self._kwargs = kwargs
