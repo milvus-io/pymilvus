@@ -85,6 +85,8 @@ class FieldSchema:
             if type_param.key == "params":
                 import json
                 self.params[type_param.key] = json.loads(type_param.value)
+                if "dim" in self.params[type_param.key]:
+                    self.params[type_param.key]["dim"] = int(self.params[type_param.key]["dim"])
             else:
                 self.params[type_param.key] = type_param.value
 
