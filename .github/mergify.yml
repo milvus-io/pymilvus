@@ -1,7 +1,7 @@
 pull_request_rules:
   - name: Test passed
     conditions:
-      - base=main
+      - base=master
       - "status-success=Run Python Tests (3.6)"
     actions:
       label:
