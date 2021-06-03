@@ -6,7 +6,7 @@
 import random
 import numpy as np
 
-from milvus import Milvus, DataType
+from pymilvus import Milvus, DataType
 
 # Milvus server IP address and port.
 # You may need to change _HOST and _PORT accordingly.
