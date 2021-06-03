@@ -16,7 +16,7 @@ import random
 import csv
 from pprint import pprint
 
-from milvus import Milvus, DataType
+from pymilvus import Milvus, DataType
 
 
 _HOST = '127.0.0.1'
