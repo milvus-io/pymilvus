@@ -18,7 +18,11 @@ from pandas.api.types import is_list_like
 
 from pymilvus_orm.constants import VECTOR_COMMON_TYPE_PARAMS
 from pymilvus_orm.types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
-from pymilvus_orm.exceptions import CannotInferSchemaException, DataTypeNotSupport, ParamError
+from pymilvus_orm.exceptions import (
+    CannotInferSchemaException,
+    DataTypeNotSupport,
+    ParamError,
+)
 
 
 class CollectionSchema:
@@ -247,6 +251,7 @@ def parse_fields_from_data(datas):
         d_type = infer_dtype_bydata(d[0])
         fields.append(FieldSchema("", d_type))
     return fields
+
 
 
 def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:

@@ -13,7 +13,12 @@
 import pandas
 
 from .connections import get_connection
-from .schema import CollectionSchema, FieldSchema, parse_fields_from_data
+from .schema import (
+    CollectionSchema,
+    FieldSchema,
+    parse_fields_from_data,
+    infer_dtype_bydata,
+)
 from .prepare import Prepare
 from .partition import Partition
 from .index import Index
@@ -22,6 +27,7 @@ from .types import DataType
 from .exceptions import (
     SchemaNotReadyException,
     DataTypeNotMatchException,
+    DataNotMatch,
 )
 from .future import SearchResultFuture, InsertFuture
 
@@ -37,6 +43,21 @@ def _check_schema(schema):
             vector_fields.append(field.name)
     if len(vector_fields) < 1:
         raise SchemaNotReadyException(0, "The schema at least have one vector column!")
+
+
+def _check_data_schema(fields, data):
+    if isinstance(data, pandas.DataFrame):
+        for i, field in enumerate(fields):
+            for j, _ in enumerate(data[field.name]):
+                tmp_type = infer_dtype_bydata(data[field.name][j])
+                if tmp_type != field.dtype:
+                    raise DataNotMatch(0, "The data in the same column must be of the same type.")
+    else:
+        for i, field in enumerate(fields):
+            for j, _ in enumerate(data[i]):
+                tmp_type = infer_dtype_bydata(data[i][j])
+                if tmp_type != field.dtype:
+                    raise DataNotMatch(0, "The data in the same column must be of the same type.")
 
 
 class Collection:
@@ -102,6 +123,7 @@ class Collection:
                     raise SchemaNotReadyException(0, "Collection missing schema.")
                 if isinstance(data, pandas.DataFrame):
                     fields = parse_fields_from_data(data)
+                    _check_data_schema(fields, data)
                     self._schema = CollectionSchema(fields=fields)
                     _check_schema(self._schema)
                     conn.create_collection(self._name, fields=self._schema.to_dict(), orm=True)
@@ -137,9 +159,14 @@ class Collection:
         if len(infer_fields) != len(self._schema):
             raise DataTypeNotMatchException(0, "Column cnt not match with schema")
 
+        _check_data_schema(infer_fields, data)
+
         for x, y in zip(infer_fields, self._schema.fields):
             if x.dtype != y.dtype:
                 return False
+            if isinstance(data, pandas.DataFrame):
+                if x.name != y.name:
+                    return False
             # todo check dim
         return True
 
