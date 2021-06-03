@@ -1,0 +1,10 @@
+pull_request_rules:
+  - name: Test passed
+    conditions:
+      - base=main
+      - "status-success=Run Python Tests (3.6)"
+    actions:
+      label:
+        add:
+          - ci-passed
+
