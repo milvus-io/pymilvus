@@ -209,8 +209,7 @@ class Prepare:
                     entity_dim = 0
                     field_dim = 0
                     if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
-                        import ast
-                        field_dim = ast.literal_eval(field["params"]["dim"])
+                        field_dim = field["params"]["dim"]
                         entity_dim = len(entities[j]["values"][0])
 
                     if field_name == entity_name:
