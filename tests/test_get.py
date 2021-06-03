@@ -1,4 +1,4 @@
-from milvus import Milvus
+from pymilvus import Milvus
 
 
 class TestGet:
