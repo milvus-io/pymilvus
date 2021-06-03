@@ -278,7 +278,7 @@ message InsertRequest {
   string db_name = 2;
   string collection_name = 3;
   string partition_name = 4;
-  repeated common.Blob row_data = 5;
+  repeated schema.FieldData fields_data = 5;
   repeated uint32 hash_keys = 6;
 }
 

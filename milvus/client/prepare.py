@@ -181,7 +181,6 @@ class Prepare:
             if not entity.get("name", None) or not entity.get("values", None) or not entity.get("type", None):
                 raise ParamError("Missing param in entities, a field must have type, name and values")
 
-        row_data = list()
         fields_name = list()
         fields_type = list()
         fields_len = len(entities)
@@ -192,120 +191,102 @@ class Prepare:
 
         auto_id = kwargs.get("auto_id", True)
 
-        if fields_info is None:
-            # this case, we assume the order of entities is same to schema
-            for i in range(row_num):
-                row = []
-                for j in range(fields_len):
-                    row.append(entities[j].get("values")[i])
-                row_data.append(row)
-        else:
+        if fields_info is not None:
             # field name & type must match fields info
             location = dict()
             for i, field in enumerate(fields_info):
+                if not auto_id and "_id" not in fields_name and field["name"] == "_id":
+                    continue
+
                 match_flag = False
+                field_name = field["name"]
+                field_type = field["type"]
+
                 for j in range(fields_len):
-                    # if field["name"] == entities[j]["name"] and field["type"] == entities[j]["type"]:
-                    if not auto_id and "_id" not in fields_name:
-                        if field["name"] == "_id":
-                            match_flag = True
-                            break
-                        if field["name"] == entities[j]["name"]:
-                            if field["type"] != entities[j]["type"]:
-                                raise ParamError("Field type doesn't match. Collection field type is {},"
-                                                 "but entities field type is {}".format(field["type"],
-                                                                                        entities[j]["type"]))
-                            if entities[j]["type"] in [DataType.FLOAT_VECTOR,]:
-                                import ast
-                                if ast.literal_eval(field["params"]["dim"]) != len(entities[j]["values"][0]):
-                                    raise ParamError("Field type doesn't match. Collection field dim is {},"
-                                                     "but entities field dim is {}"
-                                                     .format(ast.literal_eval(field["params"]["dim"]),
-                                                             len(entities[j]["values"][0])))
+                    entity_name = entities[j]["name"]
+                    entity_type = entities[j]["type"]
 
-                            if entities[j]["type"] in [DataType.BINARY_VECTOR,]:
-                                import ast
-                                if ast.literal_eval(field["params"]["dim"]) != len(entities[j]["values"][0]) * 8:
-                                    raise ParamError("Field type doesn't match. Collection field dim is {},"
-                                                     "but entities field dim is {}"
-                                                     .format(ast.literal_eval(field["params"]["dim"]),
-                                                             len(entities[j]["values"][0]) * 8))
-                            location[field["name"]] = j
-                            fields_type.append(entities[j]["type"])
-                            match_flag = True
-                            break
+                    entity_dim = 0
+                    field_dim = 0
+                    if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+                        import ast
+                        field_dim = ast.literal_eval(field["params"]["dim"])
+                        entity_dim = len(entities[j]["values"][0])
 
-                    else:
-                        if field["name"] == entities[j]["name"]:
-                            if field["type"] != entities[j]["type"]:
-                                raise ParamError("Field type doesn't match. Collection field type is {},"
-                                                 "but entities field type is {}".format(field["type"],
-                                                                                        entities[j]["type"]))
-                            if entities[j]["type"] in [DataType.FLOAT_VECTOR,]:
-                                import ast
-                                if ast.literal_eval(field["params"]["dim"]) != len(entities[j]["values"][0]):
-                                    raise ParamError("Field type doesn't match. Collection field dim is {},"
-                                                     "but entities field dim is {}"
-                                                     .format(ast.literal_eval(field["params"]["dim"]),
-                                                             len(entities[j]["values"][0])))
-                            if entities[j]["type"] in [DataType.BINARY_VECTOR, ]:
-                                import ast
-                                if ast.literal_eval(field["params"]["dim"]) != len(entities[j]["values"][0]) * 8:
-                                    raise ParamError("Field type doesn't match. Collection field dim is {},"
-                                                     "but entities field dim is {}"
-                                                     .format(ast.literal_eval(field["params"]["dim"]),
-                                                             len(entities[j]["values"][0]) * 8))
-                            location[field["name"]] = j
-                            fields_type.append(entities[j]["type"])
-                            match_flag = True
-                            break
+                    if field_name == entity_name:
+                        if field_type != entity_type:
+                            raise ParamError(f"Collection field type is {field_type}"
+                                             f", but entities field type is {entity_type}")
+
+                        if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
+                            raise ParamError(f"Collection field dim is {field_dim}"
+                                             f", but entities field dim is {entity_dim}")
+
+                        if entity_type in [DataType.BINARY_VECTOR, ] and entity_dim * 8 != field_dim:
+                            raise ParamError(f"Collection field dim is {field_dim}"
+                                             f", but entities field dim is {entity_dim * 8}")
+
+                        location[field["name"]] = j
+                        fields_type.append(entities[j]["type"])
+                        match_flag = True
+                        break
+
                 if not match_flag:
                     raise ParamError("Field {} don't match in entities".format(field["name"]))
-            for i in range(row_num):
-                row = []
-                for j in range(len(fields_info)):
-                    field_name = fields_info[j]["name"]
-                    if not auto_id and "_id" not in fields_name and field_name == "_id":
-                        continue
-                    else:
-                        loc = location[field_name]
-                        row.append(entities[loc].get("values")[i])
-                row_data.append(row)
 
-        # fill row_data in bytes format
         if not auto_id and "_id" not in fields_name:
-            id_type = DataType.INT64  # int64_t is supported by default
-            fields_type.insert(0, id_type)
-            for i in range(row_num):
-                row_data[i].insert(0, ids[i])  # fill id
+            id_data = schema_types.FieldData()
+            id_data.type = schema_types.DataType.Value("Int64")
+            id_data.field_name = "_id"
+            id_data.scalars.long_data.data.extend([i for i in range(row_num)])
+            insert_request.fields_data.append(id_data)
 
-        for i in range(row_num):
-            blob_row_data = common_types.Blob()
-            blob_row_data.value = bytes()
-            for field_value, field_type in zip(row_data[i], fields_type):
-                if field_type in (DataType.BOOL,):
-                    blob_row_data.value += blob.boolToBytes(field_value)
-                elif field_type in (DataType.INT8,):
-                    blob_row_data.value += blob.int8ToBytes(field_value)
-                elif field_type in (DataType.INT16,):
-                    blob_row_data.value += blob.int16ToBytes(field_value)
-                elif field_type in (DataType.INT32,):
-                    blob_row_data.value += blob.int32ToBytes(field_value)
-                elif field_type in (DataType.INT64,):
-                    blob_row_data.value += blob.int64ToBytes(field_value)
-                elif field_type in (DataType.FLOAT,):
-                    blob_row_data.value += blob.floatToBytes(field_value)
-                elif field_type in (DataType.DOUBLE,):
-                    blob_row_data.value += blob.doubleToBytes(field_value)
-                elif field_type in (DataType.STRING,):
-                    blob_row_data.value += blob.stringToBytes(field_value)
-                elif field_type in (DataType.BINARY_VECTOR,):
-                    blob_row_data.value += blob.vectorBinaryToBytes(field_value)
-                elif field_type in (DataType.FLOAT_VECTOR,):
-                    blob_row_data.value += blob.vectorFloatToBytes(field_value)
-                else:
-                    raise ParamError("Unsupported data type!")
-            insert_request.row_data.append(blob_row_data)
+        for entity in entities:
+            field_data = schema_types.FieldData()
+            if entity.get("type") in (DataType.BOOL,):
+                field_data.type = schema_types.DataType.Value("Bool")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.bool_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.INT8,):
+                field_data.type = schema_types.DataType.Value("Int8")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.int_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.INT16,):
+                field_data.type = schema_types.DataType.Value("Int16")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.int_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.INT32,):
+                field_data.type = schema_types.DataType.Value("Int32")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.int_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.INT64,):
+                field_data.type = schema_types.DataType.Value("Int64")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.long_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.FLOAT,):
+                field_data.type = schema_types.DataType.Value("Float")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.float_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.DOUBLE,):
+                field_data.type = schema_types.DataType.Value("Double")
+                field_data.field_name = entity.get("name")
+                field_data.scalars.double_data.data.extend(entity.get("values"))
+            elif entity.get("type") in (DataType.FLOAT_VECTOR,):
+                field_data.type = schema_types.DataType.Value("FloatVector")
+                field_data.field_name = entity.get("name")
+                field_data.vectors.dim = len(entity.get("values")[0])
+                all_floats = [f for vector in entity.get("values") for f in vector]
+                field_data.vectors.float_vector.data.extend(all_floats)
+            elif entity.get("type") in (DataType.BINARY_VECTOR,):
+                field_data.type = schema_types.DataType.Value("BinaryVector")
+                field_data.field_name = entity.get("name")
+                field_data.vectors.dim = len(entity.get("values")[0]) * 8
+                for vector in entity.get("values"):
+                    field_data.vectors.binary_vector += vector
+            else:
+                raise ParamError("UnSupported data type")
+
+            insert_request.fields_data.append(field_data)
 
         # generate hash keys, TODO: better hash function
         if ids is not None:
