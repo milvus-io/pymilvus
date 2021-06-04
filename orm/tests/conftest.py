@@ -4,7 +4,7 @@ import pytest
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
 
-sys.modules['milvus'] = __import__('mock_milvus')
+sys.modules['pymilvus'] = __import__('mock_milvus')
 import pymilvus_orm.connections as connections
 
 

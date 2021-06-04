@@ -1,7 +1,7 @@
 import copy
 import logging
 import pytest
-import milvus
+import pymilvus
 from unittest import mock
 
 from pymilvus_orm import connections, Connections
@@ -44,7 +44,7 @@ class TestConnections:
         LOGGER.info(type(c))
 
     def test_add_connection(self, c, configure_params):
-        with mock.patch("milvus.Milvus.__init__", return_value=None):
+        with mock.patch("pymilvus.Milvus.__init__", return_value=None):
             c.add_connection(**configure_params)
 
             for key, _ in configure_params.items():
@@ -52,7 +52,7 @@ class TestConnections:
 
                 conn = c.get_connection(key)
 
-                assert isinstance(conn, milvus.Milvus)
+                assert isinstance(conn, pymilvus.Milvus)
 
                 with pytest.raises(ParamError):
                     c.add_connection(default={"host": "192.168.1.1", "port": "13500"})
@@ -63,7 +63,7 @@ class TestConnections:
         c.remove_connection("remove")
 
     def test_remove_connection(self, c, host, port):
-        with mock.patch("milvus.Milvus.__init__", return_value=None):
+        with mock.patch("pymilvus.Milvus.__init__", return_value=None):
             alias = "default"
 
             c.connect(alias, host=host, port=port)
@@ -73,53 +73,53 @@ class TestConnections:
             c.remove_connection(alias)
 
     def test_connect_without_param(self, c):
-        with mock.patch("milvus.Milvus.__init__", return_value=None):
+        with mock.patch("pymilvus.Milvus.__init__", return_value=None):
             alias = "default"
             c.connect(alias)
             conn_got = c.get_connection(alias)
-            assert isinstance(conn_got, milvus.Milvus)
+            assert isinstance(conn_got, pymilvus.Milvus)
             c.remove_connection(alias)
 
     def test_connect(self, c, params):
-        with mock.patch("milvus.Milvus.__init__", return_value=None):
+        with mock.patch("pymilvus.Milvus.__init__", return_value=None):
             alias = "default"
             c.connect(alias, **params)
             conn_got = c.get_connection(alias)
-            assert isinstance(conn_got, milvus.Milvus)
+            assert isinstance(conn_got, pymilvus.Milvus)
             c.remove_connection(alias)
 
     def test_get_connection_without_no_connections(self, c):
         assert c.get_connection("get") is None
 
     def test_get_connection(self, c, host, port):
-        with mock.patch("milvus.Milvus.__init__", return_value=None):
+        with mock.patch("pymilvus.Milvus.__init__", return_value=None):
             alias = "default"
 
             c.connect(alias, host=host, port=port)
 
             conn_got = c.get_connection(alias)
-            assert isinstance(conn_got, milvus.Milvus)
+            assert isinstance(conn_got, pymilvus.Milvus)
 
             c.remove_connection(alias)
 
     def test_get_connection_without_alias(self, c, host, port):
-        with mock.patch("milvus.Milvus.__init__", return_value=None):
+        with mock.patch("pymilvus.Milvus.__init__", return_value=None):
             alias = DefaultConfig.DEFAULT_USING
 
             c.connect(alias, host=host, port=port)
 
             conn_got = c.get_connection()
-            assert isinstance(conn_got, milvus.Milvus)
+            assert isinstance(conn_got, pymilvus.Milvus)
 
             c.remove_connection(alias)
 
     def test_get_connection_with_configure_without_add(self, c, configure_params):
-        with mock.patch("milvus.Milvus.__init__", return_value=None):
+        with mock.patch("pymilvus.Milvus.__init__", return_value=None):
             c.add_connection(**configure_params)
             for key, _ in configure_params.items():
                 c.connect(key)
                 conn = c.get_connection(key)
-                assert isinstance(conn, milvus.Milvus)
+                assert isinstance(conn, pymilvus.Milvus)
                 c.remove_connection(key)
 
     def test_get_connection_addr(self, c, host, port):

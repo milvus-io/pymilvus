@@ -11,7 +11,7 @@
 # the License.
 import copy
 
-from milvus import Milvus
+from pymilvus import Milvus
 
 from .default_config import DefaultConfig
 from .exceptions import ParamError

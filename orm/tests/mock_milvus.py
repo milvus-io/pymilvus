@@ -1,6 +1,6 @@
 import pdb
 
-from milvus import *
+from pymilvus import *
 import logging
 
 
