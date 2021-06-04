@@ -589,7 +589,7 @@ class Prepare:
         return request
 
     @classmethod
-    def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, expr, partition_names=None, output_fields=None, **kwargs):
+    def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, expr=None, partition_names=None, output_fields=None, **kwargs):
         requests = []
 
         if len(data) <= 0:
@@ -636,7 +636,8 @@ class Prepare:
             request.placeholder_group = plg_str
 
             request.dsl_type = common_types.DslType.BoolExprV1
-            request.dsl = expr
+            if expr is not None:
+                request.dsl = expr
             request.search_params.extend([common_types.KeyValuePair(key=str(key), value=dump(value))
                                           for key, value in search_params.items()])
 

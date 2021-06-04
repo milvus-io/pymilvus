@@ -700,7 +700,7 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler(None)
     @check_has_collection
-    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression, partition_names=None,
+    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
                                output_fields=None, timeout=None, **kwargs):
         requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
                                                      partition_names, output_fields, **kwargs)
