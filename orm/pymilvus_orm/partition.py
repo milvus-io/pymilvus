@@ -215,7 +215,7 @@ class Partition:
         entities, ids = Prepare.prepare_insert_data(data, self._collection.schema)
         timeout = kwargs.pop("timeout", None)
         res = conn.insert(self._collection.name, entities=entities, ids=ids,
-                          partition_tag=self._name, timeout=timeout, **kwargs)
+                          partition_name=self._name, timeout=timeout, orm=True, **kwargs)
         if kwargs.get("_async", False):
             return InsertFuture(res)
         return res
@@ -260,7 +260,7 @@ class Partition:
         """
         conn = self._get_connection()
         res = conn.search_with_expression(self._collection.name, data, anns_field, params, limit,
-                                          expr, self._name, output_fields, timeout, **kwargs)
+                                          expr, [self._name], output_fields, timeout, **kwargs)
         if kwargs.get("_async", False):
             return SearchResultFuture(res)
         return SearchResult(res)

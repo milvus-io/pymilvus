@@ -485,12 +485,12 @@ class Collection:
         entities, ids = Prepare.prepare_insert_data(data, self._schema)
         timeout = kwargs.pop("timeout", None)
         res = conn.insert(collection_name=self._name, entities=entities, ids=ids,
-                          partition_tag=partition_name, timeout=timeout, orm=True, **kwargs)
+                          partition_name=partition_name, timeout=timeout, orm=True, **kwargs)
         if kwargs.get("_async", False):
             return InsertFuture(res)
         return res
 
-    def search(self, data, anns_field, param, limit, expression, partition_names=None,
+    def search(self, data, anns_field, param, limit, expression=None, partition_names=None,
                output_fields=None, timeout=None, **kwargs):
         """
         Vector similarity search with an optional boolean expression as filters.
@@ -548,7 +548,7 @@ class Collection:
         >>> limit = 10
         >>> years = [i for i in range(nb)]
         >>> embeddings = [[random.random() for _ in range(dim)] for _ in range(nb)]
-        >>> collection.insert([years, embeddings])
+        >>> collection.([years, embeddings])
         >>> collection.load()
         >>> search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
         >>> res = collection.search(embeddings[:10], "embedding", search_params, limit, "year > 20")
