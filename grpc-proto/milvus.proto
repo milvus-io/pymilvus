@@ -34,6 +34,7 @@ service MilvusService {
   rpc Search(SearchRequest) returns (SearchResults) {}
   rpc Retrieve(RetrieveRequest) returns (RetrieveResults) {}
   rpc Flush(FlushRequest) returns (common.Status) {}
+  rpc Query(QueryRequest) returns (QueryResults) {}
 
   rpc GetPersistentSegmentInfo(GetPersistentSegmentInfoRequest) returns (GetPersistentSegmentInfoResponse) {}
   rpc GetQuerySegmentInfo(GetQuerySegmentInfoRequest) returns (GetQuerySegmentInfoResponse) {}
@@ -45,24 +46,24 @@ service MilvusService {
 }
 
 message CreateCollectionRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
   // `schema` is the serialized `schema.CollectionSchema`
-  bytes schema = 4;
-  int32 shards_num = 5;
+  bytes schema = 4; // must
+  int32 shards_num = 5; // must. Once set, no modification is allowed
 }
 
 message DropCollectionRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
 }
 
 message HasCollectionRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
   uint64 time_stamp = 4;
 }
 
@@ -77,9 +78,9 @@ message StringResponse {
 }
 
 message DescribeCollectionRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
   int64 collectionID = 4;
   uint64 time_stamp = 5;
 }
@@ -93,21 +94,21 @@ message DescribeCollectionResponse {
 }
 
 message LoadCollectionRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
 }
 
 message ReleaseCollectionRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
 }
 
 message GetCollectionStatisticsRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
 }
 
 message GetCollectionStatisticsResponse {
@@ -115,57 +116,64 @@ message GetCollectionStatisticsResponse {
   repeated common.KeyValuePair stats = 2;
 }
 
+enum ShowCollectionsType {
+  All = 0;
+  InMemory = 1;
+}
+
 message ShowCollectionsRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
   uint64 time_stamp = 3;
+  ShowCollectionsType type = 4;
 }
 
 message ShowCollectionsResponse {
   common.Status status = 1;
   repeated string collection_names = 2;
+  repeated int64 collection_ids = 3;
 }
 
 message CreatePartitionRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
-  string partition_name = 4;
+  string collection_name = 3; // must
+  string partition_name = 4; // must
 }
 
 message DropPartitionRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
-  string partition_name = 4;
+  string collection_name = 3; // must
+  string partition_name = 4; // must
 }
 
 message HasPartitionRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
-  string partition_name = 4;
+  string collection_name = 3; // must
+  string partition_name = 4; // must
 }
 
 message LoadPartitionsRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
-  repeated string partition_names = 4;
+  string collection_name = 3; // must
+  repeated string partition_names = 4; // must
 }
 
 message ReleasePartitionsRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
-  repeated string partition_names = 4;
+  string collection_name = 3; // must
+  repeated string partition_names = 4; // must
 }
 
 message GetPartitionStatisticsRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
-  string partition_name = 4;
+  string collection_name = 3; // must
+  string partition_name = 4; // must
 }
 
 message GetPartitionStatisticsResponse {
@@ -174,9 +182,9 @@ message GetPartitionStatisticsResponse {
 }
 
 message ShowPartitionsRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
   int64 collectionID = 4;
 }
 
@@ -211,19 +219,19 @@ message ShowSegmentsResponse {
 }
 
 message CreateIndexRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
-  string field_name = 4;
-  repeated common.KeyValuePair extra_params = 5;
+  string collection_name = 3; // must
+  string field_name = 4; // must
+  repeated common.KeyValuePair extra_params = 5; // must
 }
 
 message DescribeIndexRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
   string field_name = 4;
-  string index_name = 5;
+  string index_name = 5; // No need to set up for now @2021.06.30
 }
 
 message IndexDescription {
@@ -239,11 +247,11 @@ message DescribeIndexResponse {
 }
 
 message GetIndexBuildProgressRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2 ;
-  string collection_name = 3;
+  string collection_name = 3; // must
   string field_name = 4;
-  string index_name = 5;
+  string index_name = 5; // must
 }
 
 message GetIndexBuildProgressResponse {
@@ -253,11 +261,11 @@ message GetIndexBuildProgressResponse {
 }
 
 message GetIndexStateRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2 ;
-  string collection_name = 3;
+  string collection_name = 3; // must
   string field_name = 4;
-  string index_name = 5;
+  string index_name = 5; // No need to set up for now @2021.06.30
 }
 
 message GetIndexStateResponse {
@@ -266,11 +274,11 @@ message GetIndexStateResponse {
 }
 
 message DropIndexRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
+  string collection_name = 3; // must
   string field_name = 4;
-  string index_name = 5;
+  string index_name = 5; // No need to set up for now @2021.06.30
 }
 
 message InsertRequest {
@@ -306,24 +314,24 @@ message PlaceholderGroup {
 }
 
 message SearchRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
-  repeated string partition_names = 4;
-  string dsl = 5;
+  string collection_name = 3; // must
+  repeated string partition_names = 4; // must
+  string dsl = 5; // must
   // serialized `PlaceholderGroup`
-  bytes placeholder_group = 6;
-  common.DslType dsl_type = 7;
-  repeated common.KeyValuePair search_params = 8;
+  bytes placeholder_group = 6; // must
+  common.DslType dsl_type = 7; // must
+  repeated common.KeyValuePair search_params = 8; // must
 }
 
 message RetrieveRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string db_name = 2;
-  string collection_name = 3;
-  repeated string partition_names = 4;
-  schema.IDs ids = 5;
-  repeated string output_fields = 6;
+  string collection_name = 3; // must
+  repeated string partition_names = 4; // must
+  schema.IDs ids = 5; // must
+  repeated string output_fields = 6; // must
 }
 
 message RetrieveResults {
@@ -349,6 +357,20 @@ message FlushRequest {
   repeated string collection_names = 3;
 }
 
+message QueryRequest {
+  common.MsgBase base = 1;
+  string db_name = 2;
+  string collection_name = 3;
+  string expr = 4;
+  repeated string output_fields = 5;
+  repeated string partition_names = 6;
+}
+
+message QueryResults {
+  common.Status status = 1;
+  repeated schema.FieldData fields_data = 2;
+}
+
 message PersistentSegmentInfo {
   int64 segmentID = 1;
   int64 collectionID = 2;
@@ -358,9 +380,9 @@ message PersistentSegmentInfo {
 }
 
 message GetPersistentSegmentInfoRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string dbName = 2;
-  string collectionName = 3;
+  string collectionName = 3; // must
 }
 
 message GetPersistentSegmentInfoResponse {
@@ -379,9 +401,9 @@ message QuerySegmentInfo {
 }
 
 message GetQuerySegmentInfoRequest {
-  common.MsgBase base = 1;
+  common.MsgBase base = 1; // must
   string dbName = 2;
-  string collectionName = 3;
+  string collectionName = 3; // must
 }
 
 message GetQuerySegmentInfoResponse {
