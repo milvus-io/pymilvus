@@ -1091,3 +1091,34 @@ class Milvus:
         with self._connection() as handler:
             return handler.get(collection_name, ids, output_fields, partition_names, timeout=timeout)
 
+    @check_connect
+    def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None):
+        """
+        Query with a set of criteria, and results in a list of records that match the query exactly.
+
+        :param collection_name: Name of the collection to retrieve entities from
+        :type  collection_name: str
+
+        :param expr: Name of the collection to retrieve entities from
+        :type  expr: str
+
+        :param output_fields: A list of fields to return
+        :type  output_fields: list[str]
+
+        :param partition_names: Name of partitions that contain entities
+        :type  partition_names: list[str]
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :return: A list that contains all results
+        :rtype: list
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        with self._connection() as handler:
+            return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout)

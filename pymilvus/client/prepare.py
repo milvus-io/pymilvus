@@ -740,3 +740,12 @@ class Prepare:
                                             ids=ids,
                                             output_fields=output_fields,
                                             partition_names=partition_names)
+
+    @classmethod
+    def query_request(cls, collection_name, expr, output_fields, partition_names):
+        return milvus_types.QueryRequest(db_name="",
+                                         collection_name=collection_name,
+                                         expr=expr,
+                                         output_fields=output_fields,
+                                         partition_names=partition_names
+                                         )
