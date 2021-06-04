@@ -9,10 +9,10 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
-
+import numpy
 import pandas
 
-from pymilvus_orm.exceptions import DataNotMatch
+from pymilvus_orm.exceptions import DataNotMatch, DataTypeNotSupport
 
 
 class Prepare:
@@ -42,6 +42,8 @@ class Prepare:
                                       f"but got {len(data)} fields")
 
             for i, field in enumerate(fields):
+                if isinstance(data[i], numpy.ndarray):
+                    raise DataTypeNotSupport(0, "Data type not support numpy.ndarray")
                 entities.append({
                     "name": field.name,
                     "type": field.dtype,
