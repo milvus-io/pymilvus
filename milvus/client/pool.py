@@ -106,9 +106,9 @@ class ConnectionPool:
         with self._condition:
             if self._try_connect:
                 # LOGGER.debug("Try connect server {}".format(self._uri))
-                conn.client().ping()
+                conn.client().ping(self._wait_timeout)
 
-            status, version = conn.client().server_version(timeout=30)
+            status, version = conn.client().server_version(timeout=self._wait_timeout)
             if not status.OK():
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
             if not _is_version_match(version):
@@ -228,9 +228,9 @@ class SingletonThreadPool:
     def _prepare(self):
         conn = self.fetch()
         if self._try_connect:
-            conn.client().ping()
+            conn.client().ping(self._wait_timeout)
 
-        status, version = conn.client().server_version(timeout=30)
+        status, version = conn.client().server_version(timeout=self._wait_timeout)
         if not status.OK():
             raise NotConnectError("Cannot check server version: {}".format(status.message))
         if not _is_version_match(version):
@@ -281,9 +281,9 @@ class SingleConnectionPool:
         self._conn = SingleScopedConnection(conn)
         with self._condition:
             if self._try_connect:
-                self._conn.client().ping()
+                self._conn.client().ping(self._wait_timeout)
 
-            status, version = self._conn.client().server_version(timeout=30)
+            status, version = self._conn.client().server_version(timeout=self._wait_timeout)
             if not status.OK():
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
             if not _is_version_match(version):

@@ -91,7 +91,7 @@ class Milvus:
         _uri = kwargs.get('uri', None)
         pool_uri = _set_uri(host, port, _uri, self._handler)
         pool_kwargs = _pool_args(handler=handler, **kwargs)
-        # self._pool = SingleConnectionPool(pool_uri, **pool_kwargs)
+
         if pool == "QueuePool":
             self._pool = ConnectionPool(pool_uri, **pool_kwargs)
         elif pool == "SingletonThread":
