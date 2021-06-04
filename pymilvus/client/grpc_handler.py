@@ -532,7 +532,8 @@ class GrpcHandler(AbsMilvus):
         return request, auto_id
 
     @error_handler([])
-    def bulk_insert(self, collection_name, entities, ids=None, partition_name=None, params=None, timeout=None, **kwargs):
+    def bulk_insert(self, collection_name, entities, ids=None, partition_name=None, params=None, timeout=None,
+                    **kwargs):
         try:
             request, auto_id = self._prepare_bulk_insert_request(collection_name, entities, ids, partition_name, params,
                                                                  timeout, **kwargs)
@@ -618,7 +619,8 @@ class GrpcHandler(AbsMilvus):
 
         raise BaseException(response.status.error_code, response.status.reason)
 
-    def _prepare_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
+    def _prepare_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
+                                **kwargs):
         rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
                                              timeout=timeout)
         reply = rf.result()
@@ -631,7 +633,8 @@ class GrpcHandler(AbsMilvus):
 
         return request, auto_id
 
-    def _divide_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
+    def _divide_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
+                               **kwargs):
         rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
                                              timeout=timeout)
         reply = rf.result()
@@ -837,7 +840,7 @@ class GrpcHandler(AbsMilvus):
         response = rf.result()
         status = response.status
         if status.error_code == 0:
-            return {'total_rows':response.total_rows,'indexed_rows':response.indexed_rows}
+            return {'total_rows': response.total_rows, 'indexed_rows': response.indexed_rows}
         raise BaseException(status.error_code, status.reason)
 
     @error_handler(IndexState.Failed)
@@ -878,13 +881,12 @@ class GrpcHandler(AbsMilvus):
         """
 
         loaded_segments_nums = sum(info.num_rows for info in
-                self.get_query_segment_infos(collection_name, timeout))
+                                   self.get_query_segment_infos(collection_name, timeout))
 
         total_segments_nums = sum(info.num_rows for info in
-                                self.get_persistent_segment_infos(collection_name, timeout))
+                                  self.get_persistent_segment_infos(collection_name, timeout))
 
-        return {'num_loaded_entities':loaded_segments_nums, 'num_total_entities': total_segments_nums}
-
+        return {'num_loaded_entities': loaded_segments_nums, 'num_total_entities': total_segments_nums}
 
     @error_handler()
     def wait_for_loading_collection(self, collection_name, timeout=None):
@@ -961,7 +963,7 @@ class GrpcHandler(AbsMilvus):
             for info in self.get_query_segment_infos(collection_name, timeout):
                 if 0 <= unloaded_segments.get(info.segmentID, -1) <= info.num_rows:
                     unloaded_segments.pop(info.segmentID)
-                    
+
     @error_handler()
     def load_partitions_progress(self, collection_name, partition_names, timeout=None):
         """
@@ -977,16 +979,15 @@ class GrpcHandler(AbsMilvus):
         pIDs = [response.partitionIDs[index] for index, p_name in enumerate(response.partition_names)
                 if p_name in partition_names]
 
-
         total_segments_nums = sum(info.num_rows for info in
-                             self.get_persistent_segment_infos(collection_name, timeout)
-                             if info.partitionID in pIDs)
+                                  self.get_persistent_segment_infos(collection_name, timeout)
+                                  if info.partitionID in pIDs)
 
         loaded_segments_nums = sum(info.num_rows for info in
-                             self.get_query_segment_infos(collection_name, timeout)
-                             if info.partitionID in pIDs)
+                                   self.get_query_segment_infos(collection_name, timeout)
+                                   if info.partitionID in pIDs)
 
-        return {'num_loaded_entities':loaded_segments_nums, 'num_total_entities': total_segments_nums}
+        return {'num_loaded_entities': loaded_segments_nums, 'num_total_entities': total_segments_nums}
 
     @error_handler()
     def release_partitions(self, db_name, collection_name, partition_names, timeout=None):
@@ -1115,3 +1116,50 @@ class GrpcHandler(AbsMilvus):
         request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
         future = self._stub.Retrieve.future(request, wait_for_ready=True, timeout=timeout)
         return future.result()
+
+    @error_handler()
+    def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None):
+        request = Prepare.query_request(collection_name, expr, output_fields, partition_names)
+        future = self._stub.Query.future(request, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        if response.status != Status.SUCCESS:
+            raise BaseException(response.error_code, response.reason)
+
+        num_fields = len(response.fields_data)
+        # check has fields
+        if num_fields == 0:
+            raise BaseException(0, "")
+
+        # check if all lists are of the same length
+        it = iter(response.fields_data)
+        num_entities = len(next(it))
+        if not all(len(l) == num_entities for l in it):
+            raise BaseException(0, "")
+
+        # transpose
+        results = list()
+        for index in range(0, num_entities):
+            result = dict()
+            for field_data in response.fields_data:
+                if field_data.type == 1:
+                    raise BaseException(0, "Not support bool yet")
+                    # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
+                elif field_data.type == 4:
+                    result[field_data.name] = field_data.field.scalars.data.int_data[index]
+                elif field_data.type == 5:
+                    result[field_data.name] = field_data.field.scalars.data.long_data[index]
+                elif field_data.type == 10:
+                    result[field_data.name] = field_data.field.scalars.data.float_data[index]
+                elif field_data.type == 11:
+                    result[field_data.name] = field_data.field.scalars.data.double_data[index]
+                elif field_data.type == 20:
+                    raise BaseException(0, "Not support string yet")
+                    # result[field_data.name] = field_data.field.scalars.data.string_data[index]
+                elif field_data.type == 100:
+                    raise BaseException(0, "Not support binary yet")
+                    # result[field_data.name] = field_data.field.vectors.data.binary_vector[index]
+                elif field_data.type == 101:
+                    result[field_data.name] = field_data.field.vectors.data.float_vector.data[index]
+            results.append(result)
+
+        return results
