@@ -233,7 +233,7 @@ class Prepare:
                 if not match_flag:
                     raise ParamError("Field {} don't match in entities".format(field["name"]))
 
-        if not auto_id and "_id" not in fields_name:
+        if not auto_id and "_id" not in fields_name and not kwargs.get("orm", False):
             id_data = schema_types.FieldData()
             id_data.type = schema_types.DataType.Value("Int64")
             id_data.field_name = "_id"

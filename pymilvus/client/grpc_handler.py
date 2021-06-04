@@ -500,10 +500,14 @@ class GrpcHandler(AbsMilvus):
         collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
         auto_id = collection_schema["auto_id"]
+        print("_prepare_bluk_insert_request, auto_id", auto_id, "\n")
         fields_name = list()
         for i in range(len(entities)):
             if "name" in entities[i]:
                 fields_name.append(entities[i]["name"])
+
+        print("_prepare_bluk_insert_request, fields_name", fields_name, "\n")
+
         if not auto_id and ids is None and "_id" not in fields_name:
             raise ParamError("You should specify the ids of entities!")
 
@@ -511,10 +515,11 @@ class GrpcHandler(AbsMilvus):
             raise ParamError("You should specify the ids of entities!")
 
         fields_info = collection_schema["fields"]
-
+        print("_prepare_bluk_insert_request, fields_info:", fields_info, "\n")
+        is_orm = kwargs.get("orm", False)
         if (auto_id and len(entities) != len(fields_info)) \
                 or (not auto_id and ids is not None and len(entities) == len(fields_info)
-                    and not kwargs.get("orm", False)):
+                    and not is_orm):
             raise ParamError("The length of entities must be equal to the number of fields!")
 
         if ids is None:
@@ -527,7 +532,7 @@ class GrpcHandler(AbsMilvus):
 
         request = insert_param if insert_param \
             else Prepare.bulk_insert_param(collection_name, entities, partition_name, ids, params, fields_info,
-                                           auto_id=auto_id)
+                                           auto_id=auto_id, orm=is_orm)
 
         return request, auto_id
 
@@ -589,7 +594,6 @@ class GrpcHandler(AbsMilvus):
             raise ParamError("You should specify the ids of entities!")
 
         fields_info = collection_schema["fields"]
-
         if (auto_id and len(entities[0]) != len(fields_info)) \
                 or (not auto_id and ids is not None and len(entities[0]) == len(fields_info)):
             raise ParamError("The length of entities must be equal to the number of fields!")
@@ -895,11 +899,13 @@ class GrpcHandler(AbsMilvus):
         """
         unloaded_segments = {info.segmentID: info.num_rows for info in
                              self.get_persistent_segment_infos(collection_name, timeout)}
-
+        print("Wait_for_loading_collection:", unloaded_segments)
         while len(unloaded_segments) > 0:
             time.sleep(0.5)
 
             for info in self.get_query_segment_infos(collection_name, timeout):
+                cur = unloaded_segments.get(info.segmentID, -1)
+                print("WaitForLoadingCollection: segmentID", info.segmentID, " num_rows: ", info.num_rows, "need :", cur)
                 if 0 <= unloaded_segments.get(info.segmentID, -1) <= info.num_rows:
                     unloaded_segments.pop(info.segmentID)
 
