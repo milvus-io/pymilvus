@@ -977,7 +977,7 @@ class Milvus:
             return handler.search(collection_name, dsl, partition_names, fields, timeout=timeout, **kwargs)
 
     @check_connect
-    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression, partition_names=None,
+    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
                                output_fields=None, timeout=None, **kwargs):
         """
         Searches a collection based on the given expression and returns query results.
