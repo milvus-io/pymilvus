@@ -482,9 +482,9 @@ class Collection:
         if not self._check_insert_data_schema(data):
             raise SchemaNotReadyException(0, "The types of schema and data do not match.")
         conn = self._get_connection()
-        entities, ids = Prepare.prepare_insert_data(data, self._schema)
+        entities = Prepare.prepare_insert_data(data, self._schema)
         timeout = kwargs.pop("timeout", None)
-        res = conn.insert(collection_name=self._name, entities=entities, ids=ids,
+        res = conn.insert(collection_name=self._name, entities=entities, ids=None,
                           partition_name=partition_name, timeout=timeout, orm=True, **kwargs)
         if kwargs.get("_async", False):
             return InsertFuture(res)

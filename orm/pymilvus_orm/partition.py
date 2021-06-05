@@ -212,9 +212,9 @@ class Partition:
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name) is False:
             raise Exception("Partition doesn't exist")
-        entities, ids = Prepare.prepare_insert_data(data, self._collection.schema)
+        entities = Prepare.prepare_insert_data(data, self._collection.schema)
         timeout = kwargs.pop("timeout", None)
-        res = conn.insert(self._collection.name, entities=entities, ids=ids,
+        res = conn.insert(self._collection.name, entities=entities, ids=None,
                           partition_name=self._name, timeout=timeout, orm=True, **kwargs)
         if kwargs.get("_async", False):
             return InsertFuture(res)

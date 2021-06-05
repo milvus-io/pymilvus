@@ -23,7 +23,6 @@ class Prepare:
 
         fields = schema.fields
         entities = []
-        ids = None
         raw_lengths = []
         if isinstance(data, pandas.DataFrame):
             if len(fields) != len(data.columns):
@@ -34,8 +33,6 @@ class Prepare:
                                  "type": field.dtype,
                                  "values": list(data[field.name])})
                 raw_lengths.append(len(data[field.name]))
-                if field.is_primary:
-                    ids = list(data[field.name])
         else:
             if len(data) != len(fields):
                 raise DataNotMatch(0, f"collection has {len(fields)} fields, "
@@ -49,11 +46,9 @@ class Prepare:
                     "type": field.dtype,
                     "values": data[i]})
                 raw_lengths.append(len(data[i]))
-                if field.is_primary:
-                    ids = data[i]
 
         lengths = list(set(raw_lengths))
         if len(lengths) > 1:
             raise DataNotMatch(0, "arrays must all be same length")
 
-        return entities, ids
+        return entities
