@@ -190,6 +190,7 @@ class Prepare:
         row_num = len(entities[0]["values"]) if fields_len > 0 else 0
 
         auto_id = kwargs.get("auto_id", True)
+        is_orm = kwargs.get("orm", False)
 
         if fields_info is not None:
             # field name & type must match fields info
@@ -233,7 +234,7 @@ class Prepare:
                 if not match_flag:
                     raise ParamError("Field {} don't match in entities".format(field["name"]))
 
-        if not auto_id and "_id" not in fields_name and kwargs.get(orm, False):
+        if not auto_id and "_id" not in fields_name and not is_orm:
             id_data = schema_types.FieldData()
             id_data.type = schema_types.DataType.Value("Int64")
             id_data.field_name = "_id"
@@ -294,6 +295,14 @@ class Prepare:
         if ids is not None:
             hash_keys = [abs(mmh3.hash(str(e))) for e in ids]
             insert_request.hash_keys.extend(hash_keys)
+
+        if is_orm:
+            for field in fields_info:
+                if field.get("is_primary", False):
+                    for entity in entities:
+                        if field["name"] == entity["name"]:
+                            hash_keys = [abs(mmh3.hash(str(e))) for e in entity.get("values")]
+                            insert_request.hash_keys.extend(hash_keys)
 
         return insert_request
 

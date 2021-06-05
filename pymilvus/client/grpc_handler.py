@@ -499,20 +499,20 @@ class GrpcHandler(AbsMilvus):
 
         collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
+        is_orm = kwargs.get("orm", False)
         auto_id = collection_schema["auto_id"]
         fields_name = list()
         for i in range(len(entities)):
             if "name" in entities[i]:
                 fields_name.append(entities[i]["name"])
-        if not auto_id and ids is None and "_id" not in fields_name:
+        if not auto_id and ids is None and "_id" not in fields_name and not is_orm:
             raise ParamError("You should specify the ids of entities!")
 
-        if not auto_id and ids is not None and "_id" in fields_name:
+        if not auto_id and ids is not None and "_id" in fields_name and not is_orm:
             raise ParamError("You should specify the ids of entities!")
 
         fields_info = collection_schema["fields"]
 
-        is_orm = kwargs.get("orm", False)
         if (auto_id and len(entities) != len(fields_info)) \
                 or (not auto_id and ids is not None and len(entities) == len(fields_info)
                     and not is_orm):
@@ -545,7 +545,7 @@ class GrpcHandler(AbsMilvus):
 
             response = rf.result()
             if response.status.error_code == 0:
-                if auto_id:
+                if auto_id or kwargs.get("orm", False):
                     return list(range(response.rowID_begin, response.rowID_end))
                 return list(ids)
 
