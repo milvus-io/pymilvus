@@ -206,16 +206,16 @@ class Prepare:
                     entity_name = entities[j]["name"]
                     entity_type = entities[j]["type"]
 
-                    entity_dim = 0
-                    field_dim = 0
-                    if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
-                        field_dim = field["params"]["dim"]
-                        entity_dim = len(entities[j]["values"][0])
-
                     if field_name == entity_name:
                         if field_type != entity_type:
                             raise ParamError(f"Collection field type is {field_type}"
                                              f", but entities field type is {entity_type}")
+
+                        entity_dim = 0
+                        field_dim = 0
+                        if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+                            field_dim = field["params"]["dim"]
+                            entity_dim = len(entities[j]["values"][0])
 
                         if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
                             raise ParamError(f"Collection field dim is {field_dim}"
@@ -233,11 +233,14 @@ class Prepare:
                 if not match_flag:
                     raise ParamError("Field {} don't match in entities".format(field["name"]))
 
-        if not auto_id and "_id" not in fields_name:
+        if not auto_id and "_id" not in fields_name and kwargs.get(orm, False):
             id_data = schema_types.FieldData()
             id_data.type = schema_types.DataType.Value("Int64")
             id_data.field_name = "_id"
-            id_data.scalars.long_data.data.extend([i for i in range(row_num)])
+            if ids is None:
+                id_data.scalars.long_data.data.extend([i for i in range(row_num)])
+            else:
+                id_data.scalars.long_data.data = ids
             insert_request.fields_data.append(id_data)
 
         for entity in entities:
