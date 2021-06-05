@@ -512,9 +512,10 @@ class GrpcHandler(AbsMilvus):
 
         fields_info = collection_schema["fields"]
 
+        is_orm = kwargs.get("orm", False)
         if (auto_id and len(entities) != len(fields_info)) \
                 or (not auto_id and ids is not None and len(entities) == len(fields_info)
-                    and not kwargs.get("orm", False)):
+                    and not is_orm):
             raise ParamError("The length of entities must be equal to the number of fields!")
 
         if ids is None:
@@ -527,7 +528,7 @@ class GrpcHandler(AbsMilvus):
 
         request = insert_param if insert_param \
             else Prepare.bulk_insert_param(collection_name, entities, partition_name, ids, params, fields_info,
-                                           auto_id=auto_id)
+                                           auto_id=auto_id, orm=is_orm)
 
         return request, auto_id
 
