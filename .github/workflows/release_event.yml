@@ -1,0 +1,23 @@
+name: dispatch new release event
+on:
+  release:
+    types: [published]
+
+jobs:
+  dispatch:
+    name: Dispatch event
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tag name
+        id: tag_name
+        run: |
+          echo ::set-output name=SOURCE_TAG::${GITHUB_REF#refs/tags/}
+      - name: Dispatch tag name
+        id: dispatch_tag_name
+        run: |
+          curl \
+          -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/milvus-io/docs/actions/workflows/updateApiReference.yml/dispatches" \
+          -d '{"ref":"master", "inputs": { "tagName": "${{ steps.tag_name.outputs.SOURCE_TAG }}", "repoName": "${{ github.event.repository.name }}" } }' \
+          -u ".:${{secrets.DOC_TOKEN}}"
