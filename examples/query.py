@@ -27,11 +27,11 @@ if __name__ == "__main__":
 
     c.insert(collection_name, [
         {"name": "f1", "type": DataType.FLOAT_VECTOR, "values": [[1, 2, 3, 4]]},
-        {"name": "id", "type": DataType.INT64, "values": [1, 10, 100]}
+        {"name": "id", "type": DataType.INT64, "values": [1]}
     ], orm=True)
 
     c.flush([collection_name])
 
     c.load_collection(collection_name)
 
-    c.query(collection_name, f"id in [ 1, 10, 100 ]")
+    print(c.query(collection_name, f"id in [ 1 ]"))

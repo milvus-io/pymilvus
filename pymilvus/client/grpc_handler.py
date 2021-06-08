@@ -704,7 +704,8 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler(None)
     @check_has_collection
-    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
+    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None,
+                               partition_names=None,
                                output_fields=None, timeout=None, **kwargs):
         requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
                                                      partition_names, output_fields, **kwargs)
@@ -1123,7 +1124,7 @@ class GrpcHandler(AbsMilvus):
         request = Prepare.query_request(collection_name, expr, output_fields, partition_names)
         future = self._stub.Query.future(request, wait_for_ready=True, timeout=timeout)
         response = future.result()
-        if response.status != Status.SUCCESS:
+        if response.status.error_code != Status.SUCCESS:
             raise BaseException(response.error_code, response.reason)
 
         num_fields = len(response.fields_data)
@@ -1132,35 +1133,36 @@ class GrpcHandler(AbsMilvus):
             raise BaseException(0, "")
 
         # check if all lists are of the same length
-        it = iter(response.fields_data)
-        num_entities = len(next(it))
-        if not all(len(l) == num_entities for l in it):
-            raise BaseException(0, "")
+        # it = iter(response.fields_data)
+        # num_entities = len(next(it))
+        # if not all(len(l) == num_entities for l in it):
+        #     raise BaseException(0, "")
+        num_entities = 1
 
         # transpose
         results = list()
         for index in range(0, num_entities):
             result = dict()
             for field_data in response.fields_data:
-                if field_data.type == 1:
+                if field_data.type == DataType.BOOL:
                     raise BaseException(0, "Not support bool yet")
                     # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
-                elif field_data.type == 4:
-                    result[field_data.name] = field_data.field.scalars.data.int_data[index]
-                elif field_data.type == 5:
-                    result[field_data.name] = field_data.field.scalars.data.long_data[index]
-                elif field_data.type == 10:
-                    result[field_data.name] = field_data.field.scalars.data.float_data[index]
-                elif field_data.type == 11:
-                    result[field_data.name] = field_data.field.scalars.data.double_data[index]
-                elif field_data.type == 20:
+                elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
+                    result[field_data.field_name] = field_data.scalars.int_data.data[index]
+                elif field_data.type == DataType.INT64:
+                    result[field_data.field_name] = field_data.scalars.long_data.data[index]
+                elif field_data.type == DataType.FLOAT:
+                    result[field_data.field_name] = field_data.scalars.float_data.data[index]
+                elif field_data.type == DataType.DOUBLE:
+                    result[field_data.field_name] = field_data.scalars.double_data.data[index]
+                elif field_data.type == DataType.STRING:
                     raise BaseException(0, "Not support string yet")
-                    # result[field_data.name] = field_data.field.scalars.data.string_data[index]
-                elif field_data.type == 100:
-                    raise BaseException(0, "Not support binary yet")
-                    # result[field_data.name] = field_data.field.vectors.data.binary_vector[index]
-                elif field_data.type == 101:
-                    result[field_data.name] = field_data.field.vectors.data.float_vector.data[index]
+                    # result[field_data.field_name] = field_data.scalars.string_data.data[index]
+                elif field_data.type == DataType.FLOAT_VECTOR:
+                    dim = field_data.vectors.dim
+                    start_pos = index * dim
+                    end_pos = index * dim + dim
+                    result[field_data.field_name] = field_data.vectors.float_vector.data[start_pos:end_pos]
             results.append(result)
 
         return results
