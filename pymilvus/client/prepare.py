@@ -241,7 +241,7 @@ class Prepare:
             if ids is None:
                 id_data.scalars.long_data.data.extend([i for i in range(row_num)])
             else:
-                id_data.scalars.long_data.data = ids
+                id_data.scalars.long_data.data.extend(ids)
             insert_request.fields_data.append(id_data)
 
         for entity in entities:
