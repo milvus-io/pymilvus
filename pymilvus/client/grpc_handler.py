@@ -1040,7 +1040,7 @@ class GrpcHandler(AbsMilvus):
                 if info.segmentID not in segment_ids_to_wait:
                     continue
 
-                if info.state == common_types.Flushed:
+                if info.state == common_types.SegmentState.Flushed:
                     have_cnt += 1
                     # return False
             return need_cnt == have_cnt
