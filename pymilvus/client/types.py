@@ -166,14 +166,6 @@ class ErrorCode(IntEnum):
     IndexNotExist = 25
 
 
-class SegmentState(IntEnum):
-    SegmentStateNone = 0
-    NotExist = 1
-    Growing = 2
-    Sealed = 3
-    Flushed = 4
-
-
 class PlaceholderType(IntEnum):
     NoneType = 0
     BinaryVector = 100
