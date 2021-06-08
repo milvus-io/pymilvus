@@ -2,8 +2,8 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import pymilvus.grpc_gen.common_pb2 as common__pb2
-import pymilvus.grpc_gen.milvus_pb2 as milvus__pb2
+from . import common_pb2 as common__pb2
+from . import milvus_pb2 as milvus__pb2
 
 
 class MilvusServiceStub(object):

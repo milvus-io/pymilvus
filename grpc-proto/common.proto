@@ -49,6 +49,7 @@ enum SegmentState {
     Growing = 2;
     Sealed = 3;
     Flushed = 4;
+    Flushing = 5;
 }
 
 message Status {
