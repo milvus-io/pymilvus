@@ -14,7 +14,7 @@ from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as milvus_types
 from .abstract import QueryResult, CollectionSchema, ChunkedQueryResult
 from .prepare import Prepare
-from .types import Status, IndexState, SegmentState, DataType, DeployMode, ErrorCode
+from .types import Status, IndexState, DataType, DeployMode, ErrorCode
 from .check import (
     int_or_str,
     is_legal_host,
