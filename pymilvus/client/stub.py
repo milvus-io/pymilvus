@@ -1099,7 +1099,7 @@ class Milvus:
         :param collection_name: Name of the collection to retrieve entities from
         :type  collection_name: str
 
-        :param expr: Name of the collection to retrieve entities from
+        :param expr: The query expression
         :type  expr: str
 
         :param output_fields: A list of fields to return
