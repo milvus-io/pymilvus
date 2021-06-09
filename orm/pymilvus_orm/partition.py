@@ -12,6 +12,7 @@
 
 import json
 
+from .exceptions import CollectionNotExistException
 from .prepare import Prepare
 from .search import SearchResult
 from .future import SearchResultFuture, InsertFuture
@@ -20,6 +21,10 @@ from .future import SearchResultFuture, InsertFuture
 class Partition:
     # TODO(yukun): Need a place to store the description
     def __init__(self, collection, name, description="", **kwargs):
+        from .collection import Collection
+        if not isinstance(collection, Collection):
+            raise CollectionNotExistException(0, "The type of collection must be "
+                                                 "pymilvus_orm.Collection")
         self._collection = collection
         self._name = name
         self._description = description

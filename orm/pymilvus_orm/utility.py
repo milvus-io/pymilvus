@@ -11,6 +11,14 @@
 # the License.
 
 from .connections import get_connection
+from .exceptions import ConnectionNotExistException
+
+
+def _get_connection(alias):
+    conn = get_connection(alias)
+    if conn is None:
+        raise ConnectionNotExistException(0, "Should create connection first")
+    return conn
 
 
 def loading_progress(collection_name, partition_names=None, using="default"):
@@ -45,8 +53,8 @@ def loading_progress(collection_name, partition_names=None, using="default"):
         >>> utility.loading_progress("test_collection")
     """
     if not partition_names or len(partition_names) == 0:
-        return get_connection(using).load_collection_progress(collection_name)
-    return get_connection(using).load_partitions_progress(collection_name, partition_names)
+        return _get_connection(using).load_collection_progress(collection_name)
+    return _get_connection(using).load_partitions_progress(collection_name, partition_names)
 
 
 def wait_for_loading_complete(collection_name, partition_names=None, timeout=None, using="default"):
@@ -83,8 +91,8 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
         >>> utility.wait_for_loading_complete("test_collection")
     """
     if not partition_names or len(partition_names) == 0:
-        return get_connection(using).wait_for_loading_collection_complete(collection_name, timeout)
-    return get_connection(using).wait_for_loading_partitions_complete(collection_name,
+        return _get_connection(using).wait_for_loading_collection_complete(collection_name, timeout)
+    return _get_connection(using).wait_for_loading_partitions_complete(collection_name,
                                                                       partition_names,
                                                                       timeout)
 
@@ -132,7 +140,7 @@ def index_building_progress(collection_name, index_name="", using="default"):
         >>> utility.wait_for_index_building_complete("test_collection", "")
         >>> utility.loading_progress("test_collection")
     """
-    return get_connection(using).get_index_build_progress(collection_name, index_name)
+    return _get_connection(using).get_index_build_progress(collection_name, index_name)
 
 
 def wait_for_index_building_complete(collection_name, index_name="", timeout=None, using="default"):
@@ -176,7 +184,7 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> utility.wait_for_index_building_complete("test_collection", "")
         >>> utility.loading_progress("test_collection")
     """
-    return get_connection(using).wait_for_creating_index(collection_name, index_name, timeout)
+    return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout)
 
 
 def has_collection(collection_name, using="default"):
@@ -201,7 +209,7 @@ def has_collection(collection_name, using="default"):
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_collection("test_collection")
     """
-    return get_connection(using).has_collection(collection_name)
+    return _get_connection(using).has_collection(collection_name)
 
 
 def has_partition(collection_name, partition_name, using="default"):
@@ -229,7 +237,7 @@ def has_partition(collection_name, partition_name, using="default"):
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_partition("_default")
     """
-    return get_connection(using).has_partition(collection_name, partition_name)
+    return _get_connection(using).has_partition(collection_name, partition_name)
 
 
 def list_collections(timeout=None, using="default") -> list:
@@ -255,4 +263,4 @@ def list_collections(timeout=None, using="default") -> list:
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.list_collections()
     """
-    return get_connection(using).list_collections()
+    return _get_connection(using).list_collections()
