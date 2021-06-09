@@ -630,7 +630,10 @@ class Prepare:
 
         param_copy = copy.deepcopy(param)
         metric_type = param_copy.pop("metric_type", "L2")
-        search_params = {"anns_field": anns_field, "topk": limit, "metric_type": metric_type, "params": param_copy.pop("params", None)}
+        params = param_copy.pop("params", {})
+        if not isinstance(params, dict):
+            raise ParamError("Search params must be a dict")
+        search_params = {"anns_field": anns_field, "topk": limit, "metric_type": metric_type, "params": params}
 
         def dump(v):
             if isinstance(v, dict):
