@@ -802,7 +802,8 @@ class Collection:
         indexes = []
         tmp_index = conn.describe_index(self._name)
         if tmp_index is not None:
-            indexes.append(Index(self, tmp_index['field_name'], tmp_index))
+            field_name = tmp_index.pop("field_name", None)
+            indexes.append(Index(self, field_name, tmp_index, construct_only=True))
         return indexes
 
     def index(self, index_name="") -> Index:
@@ -841,7 +842,7 @@ class Collection:
         tmp_index = conn.describe_index(self._name)
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
-            return Index(self, field_name, tmp_index)
+            return Index(self, field_name, tmp_index, construct_only=True)
         raise Exception(f"index {index_name} not exist")
 
     def create_index(self, field_name, index_params, index_name="", **kwargs) -> Index:

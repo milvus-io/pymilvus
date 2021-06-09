@@ -62,6 +62,8 @@ class Index:
         self._field_name = field_name
         self._index_params = index_params
         self._kwargs = kwargs
+        if self._kwargs.pop("construct_only", False):
+            return
 
         conn = self._get_connection()
         index = conn.describe_index(self._collection.name)
