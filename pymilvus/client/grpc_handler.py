@@ -20,6 +20,7 @@ from .check import (
     is_legal_host,
     is_legal_port,
 )
+from .utils import len_of
 
 from .abs_client import AbsMilvus
 from .asynch import (
@@ -1133,11 +1134,10 @@ class GrpcHandler(AbsMilvus):
             raise BaseException(0, "")
 
         # check if all lists are of the same length
-        # it = iter(response.fields_data)
-        # num_entities = len(next(it))
-        # if not all(len(l) == num_entities for l in it):
-        #     raise BaseException(0, "")
-        num_entities = 1
+        it = iter(response.fields_data)
+        num_entities = len_of(next(it))
+        if not all(len_of(field_data) == num_entities for field_data in it):
+            raise BaseException(0, "The length of fields data is inconsistent")
 
         # transpose
         results = list()
@@ -1152,7 +1152,7 @@ class GrpcHandler(AbsMilvus):
                 elif field_data.type == DataType.INT64:
                     result[field_data.field_name] = field_data.scalars.long_data.data[index]
                 elif field_data.type == DataType.FLOAT:
-                    result[field_data.field_name] = field_data.scalars.float_data.data[index]
+                    result[field_data.field_name] = round(field_data.scalars.float_data.data[index], 6)
                 elif field_data.type == DataType.DOUBLE:
                     result[field_data.field_name] = field_data.scalars.double_data.data[index]
                 elif field_data.type == DataType.STRING:
@@ -1162,7 +1162,7 @@ class GrpcHandler(AbsMilvus):
                     dim = field_data.vectors.dim
                     start_pos = index * dim
                     end_pos = index * dim + dim
-                    result[field_data.field_name] = field_data.vectors.float_vector.data[start_pos:end_pos]
+                    result[field_data.field_name] = [round(x, 6) for x in field_data.vectors.float_vector.data[start_pos:end_pos]]
             results.append(result)
 
         return results

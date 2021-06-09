@@ -60,6 +60,7 @@ def check_invalid_binary_vector(entities):
                         return False
     return True
 
+
 # def merge_results(results_list, topk, *args, **kwargs):
 #     """
 #     merge query results
@@ -142,3 +143,32 @@ def check_invalid_binary_vector(entities):
 #     )
 #
 #     return raw_result if raw else QueryResult(raw_result, False)
+
+def len_of(field_data) -> int:
+    if field_data.HasField("scalars"):
+        if field_data.scalars.HasField("bool_data"):
+            return len(field_data.scalars.bool_data.data)
+        elif field_data.scalars.HasField("int_data"):
+            return len(field_data.scalars.int_data.data)
+        elif field_data.scalars.HasField("long_data"):
+            return len(field_data.scalars.long_data.data)
+        elif field_data.scalars.HasField("float_data"):
+            return len(field_data.scalars.float_data.data)
+        elif field_data.scalars.HasField("double_data"):
+            return len(field_data.scalars.double_data.data)
+        elif field_data.scalars.HasField("string_data"):
+            return len(field_data.scalars.string_data.data)
+        elif field_data.scalars.HasField("bytes_data"):
+            return len(field_data.scalars.bytes_data.data)
+        else:
+            raise BaseException("Unsupported scalar type")
+    elif field_data.HasField("vectors"):
+        dim = field_data.vectors.dim
+        if field_data.vectors.HasField("float_vector"):
+            total_len = len(field_data.vectors.float_vector.data)
+            if total_len % dim != 0:
+                raise BaseException(f"Invalid vector length: total_len={total_len}, dim={dim}")
+            return int(total_len / dim)
+        else:
+            raise BaseException("Unsupported vector type")
+    raise BaseException("Unknown data type")
