@@ -297,7 +297,7 @@ class Milvus:
 
         :param collection_name: The name of collection to release.
         :type  collection_name: str
-        
+
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
@@ -488,7 +488,7 @@ class Milvus:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
-        
+
         :return: None
         :rtype: NoneType
 
@@ -557,38 +557,6 @@ class Milvus:
             result = {stat.key: stat.value for stat in stats}
             result["row_count"] = int(result["row_count"])
             return result
-
-    # @check_connect
-    # def insert(self, collection_name, entities, ids=None, partition_name=None, params=None, timeout=None, **kwargs):
-    #     """
-    #     Inserts entities in a specified collection.
-    #
-    #     :param collection_name: The name of the collection to insert entities in.
-    #     :type  collection_name: str.
-    #     :param entities: The entities to insert.
-    #     :type  entities: list
-    #     :param ids: The list of ids corresponding to the inserted entities.
-    #     :type  ids: list[int]
-    #     :param partition_name: The name of the partition to insert entities in. The default value is
-    #      None. The server stores entities in the “_default” partition by default.
-    #     :type  partition_name: str
-    #
-    #     :return: list of ids of the inserted vectors.
-    #     :rtype: list[int]
-    #
-    #     :raises:
-    #         RpcError: If grpc encounter an error
-    #         ParamError: If parameters are invalid
-    #         BaseException: If the return result from server is not ok
-    #     """
-    #     if kwargs.get("insert_param", None) is not None:
-    #         with self._connection() as handler:
-    #             return handler.insert(None, None, timeout=timeout, **kwargs)
-    #
-    #     if ids is not None:
-    #         check_pass_param(ids=ids)
-    #     with self._connection() as handler:
-    #         return handler.insert(collection_name, entities, ids, partition_name, params, timeout, **kwargs)
 
     @check_connect
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
@@ -684,7 +652,7 @@ class Milvus:
             * *_callback* (``function``) --
               The callback function which is invoked after server response successfully. It only take
               effect when _async is set to True.
-        
+
         :return: None
         :rtype: NoneType
 
@@ -741,7 +709,7 @@ class Milvus:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
-        
+
         :return: None
         :rtype: NoneType
 
@@ -785,7 +753,7 @@ class Milvus:
             return handler.describe_index(collection_name, index_name, timeout)
 
     @check_connect
-    def insert(self, collection_name, entities, ids=None, partition_name=None, timeout=None, **kwargs):
+    def insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         """
         Inserts entities in a specified collection.
 
@@ -795,13 +763,10 @@ class Milvus:
         :param entities: The entities to insert.
         :type  entities: list
 
-        :param ids: The list of ids corresponding to the inserted entities.
-        :type  ids: list[int]
-
         :param partition_name: The name of the partition to insert entities in. The default value is
          None. The server stores entities in the “_default” partition by default.
         :type  partition_name: str
-        
+
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
@@ -826,14 +791,8 @@ class Milvus:
         if not check_invalid_binary_vector(entities):
             raise ParamError("Invalid binary vector data exists")
 
-        if kwargs.get("insert_param", None) is not None:
-            with self._connection() as handler:
-                return handler.bulk_insert(None, None, timeout=timeout, **kwargs)
-
-        if ids is not None:
-            check_pass_param(ids=ids)
         with self._connection() as handler:
-            return handler.bulk_insert(collection_name, entities, ids, partition_name, None, timeout, **kwargs)
+            return handler.bulk_insert(collection_name, entities, partition_name, timeout, **kwargs)
 
     @check_connect
     def flush(self, collection_names=None, timeout=None, **kwargs):

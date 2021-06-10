@@ -235,7 +235,7 @@ class InsertFuture(Future):
     def on_response(self, response):
         status = response.status
         if status.error_code == 0:
-            return list(range(response.rowID_begin, response.rowID_end))
+            return response.primary_keys
             # return list(response.entity_id_array)
 
         status = response.status

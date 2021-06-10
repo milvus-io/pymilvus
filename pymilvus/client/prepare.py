@@ -28,12 +28,12 @@ class Prepare:
 
             ` {"fields": [
                     {"field": "A", "type": DataType.INT32}
-                    {"field": "B", "type": DataType.INT64},
+                    {"field": "B", "type": DataType.INT64, "auto_id": True},
                     {"field": "C", "type": DataType.FLOAT},
                     {"field": "Vec", "type": DataType.FLOAT_VECTOR,
                      "params": {"dim": 128}}
-                ],
-            "auto_id": True}`
+                ]
+            }`
 
         :return: ttypes.TableSchema object
         """
@@ -46,18 +46,11 @@ class Prepare:
 
         schema = schema_types.CollectionSchema(name=collection_name)
 
-        auto_id = fields.get('auto_id', True)
-        schema.autoID = auto_id
+        # auto_id = fields.get('auto_id', True)
+        schema.autoID = False
 
-        if not auto_id and not kwargs.get("orm", False):
-            field_schema = schema_types.FieldSchema()
-
-            field_schema.name = "_id"
-            field_schema.is_primary_key = True
-            field_schema.description = "this is _id field"
-            field_schema.data_type = DataType.INT64
-            schema.fields.append(field_schema)
-
+        primary_field = None
+        auto_id_field = None
         for fk, fv in fields.items():
             if fk != 'fields':
                 if fk == 'description':
@@ -72,13 +65,6 @@ class Prepare:
                     raise ParamError("You should specify the name of field!")
                 field_schema.name = field_name
 
-                is_primary_key = field.get('is_primary_key', False) or field.get("is_primary", False)
-                if is_primary_key and auto_id:
-                    raise ParamError("primary key is not supported when auto_id is True")
-                field_schema.is_primary_key = is_primary_key
-
-                field_schema.description = field.get('description', "")
-
                 data_type = field.get('type')
                 if data_type is None:
                     raise ParamError("You should specify the data type of field!")
@@ -86,12 +72,38 @@ class Prepare:
                     raise ParamError("Field type must be of DataType!")
                 field_schema.data_type = data_type
 
+                field_schema.description = field.get('description', "")
+
+                is_primary_key = field.get('is_primary_key', False) or field.get("is_primary", False)
+                auto_id = field.get('auto_id', False)
+
+                if is_primary_key and primary_field:
+                    raise ParamError("A collection should only have a primary field")
+
+                if auto_id and auto_id_field:
+                    if DataType(data_type) != DataType.INT64:
+                        raise ParamError("int64 is the only supported type of automatic generated id")
+                    raise ParamError("A collection should only have a field whose id is automatically generated")
+
+                if is_primary_key:
+                    if DataType(data_type) != DataType.INT64:
+                        raise ParamError("int64 is the only supported type of primary key")
+                    primary_field = field_name
+
+                if auto_id:
+                    auto_id_field = field_name
+
+                field_schema.is_primary_key = is_primary_key
+                field_schema.autoID = auto_id
+
                 type_params = field.get('params')
                 if isinstance(type_params, dict):
                     for tk, tv in type_params.items():
                         if tk == "dim":
-                            if not tv or not isinstance(tv, int):
-                                raise ParamError("dim must be of int!")
+                            try:
+                                int(tv)
+                            except ValueError:
+                                raise ParamError("invalid dim: " + str(tv))
                         kv_pair = common_types.KeyValuePair(key=str(tk), value=str(tv))
                         field_schema.type_params.append(kv_pair)
 
@@ -171,8 +183,7 @@ class Prepare:
                                           tag=partition_name)
 
     @classmethod
-    def bulk_insert_param(cls, collection_name, entities, partition_name, ids=None, params=None, fields_info=None,
-                          **kwargs):
+    def bulk_insert_param(cls, collection_name, entities, partition_name, fields_info=None, **kwargs):
         default_partition_name = "_default"  # should here?
         tag = partition_name or default_partition_name
         insert_request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
@@ -187,62 +198,64 @@ class Prepare:
         for i in range(fields_len):
             fields_name.append(entities[i]["name"])
 
-        row_num = len(entities[0]["values"]) if fields_len > 0 else 0
+        if not fields_info:
+            raise ParamError("Missing collection meta to validate entities")
 
-        auto_id = kwargs.get("auto_id", True)
-        is_orm = kwargs.get("orm", False)
+        location = dict()
+        primary_key_loc = None
+        auto_id_loc = None
+        for i, field in enumerate(fields_info):
+            if field.get("is_primary", False) or field.get("is_primary_key", False):
+                primary_key_loc = i
 
-        if fields_info is not None:
-            # field name & type must match fields info
-            location = dict()
-            for i, field in enumerate(fields_info):
-                if not auto_id and "_id" not in fields_name and field["name"] == "_id":
-                    continue
+            if field.get("auto_id", False):
+                auto_id_loc = i
+                continue
 
-                match_flag = False
-                field_name = field["name"]
-                field_type = field["type"]
+            match_flag = False
+            field_name = field["name"]
+            field_type = field["type"]
 
-                for j in range(fields_len):
-                    entity_name = entities[j]["name"]
-                    entity_type = entities[j]["type"]
+            for j in range(fields_len):
+                entity_name = entities[j]["name"]
+                entity_type = entities[j]["type"]
 
-                    if field_name == entity_name:
-                        if field_type != entity_type:
-                            raise ParamError(f"Collection field type is {field_type}"
-                                             f", but entities field type is {entity_type}")
+                if field_name == entity_name:
+                    if field_type != entity_type:
+                        raise ParamError(f"Collection field type is {field_type}"
+                                         f", but entities field type is {entity_type}")
 
-                        entity_dim = 0
-                        field_dim = 0
-                        if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
-                            field_dim = field["params"]["dim"]
-                            entity_dim = len(entities[j]["values"][0])
+                    entity_dim = 0
+                    field_dim = 0
+                    if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+                        field_dim = field["params"]["dim"]
+                        entity_dim = len(entities[j]["values"][0])
 
-                        if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
-                            raise ParamError(f"Collection field dim is {field_dim}"
-                                             f", but entities field dim is {entity_dim}")
+                    if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
+                        raise ParamError(f"Collection field dim is {field_dim}"
+                                         f", but entities field dim is {entity_dim}")
 
-                        if entity_type in [DataType.BINARY_VECTOR, ] and entity_dim * 8 != field_dim:
-                            raise ParamError(f"Collection field dim is {field_dim}"
-                                             f", but entities field dim is {entity_dim * 8}")
+                    if entity_type in [DataType.BINARY_VECTOR, ] and entity_dim * 8 != field_dim:
+                        raise ParamError(f"Collection field dim is {field_dim}"
+                                         f", but entities field dim is {entity_dim * 8}")
 
-                        location[field["name"]] = j
-                        fields_type.append(entities[j]["type"])
-                        match_flag = True
-                        break
+                    location[field["name"]] = j
+                    fields_type.append(entities[j]["type"])
+                    match_flag = True
+                    break
 
-                if not match_flag:
-                    raise ParamError("Field {} don't match in entities".format(field["name"]))
+            if not match_flag:
+                raise ParamError("Field {} don't match in entities".format(field["name"]))
 
-        if not auto_id and "_id" not in fields_name and not is_orm:
-            id_data = schema_types.FieldData()
-            id_data.type = schema_types.DataType.Value("Int64")
-            id_data.field_name = "_id"
-            if ids is None:
-                id_data.scalars.long_data.data.extend([i for i in range(row_num)])
-            else:
-                id_data.scalars.long_data.data.extend(ids)
-            insert_request.fields_data.append(id_data)
+        # though impossible from sdk
+        if primary_key_loc is None:
+            raise ParamError("primary key not found")
+
+        if auto_id_loc is None and len(entities) != len(fields_info):
+            raise ParamError(f"number of fields: {len(fields_info)}, number of entities: {len(entities)}")
+
+        if auto_id_loc is not None and len(entities) + 1 != len(fields_info):
+            raise ParamError(f"number of fields: {len(fields_info)}, number of entities: {len(entities)}")
 
         for entity in entities:
             field_data = schema_types.FieldData()
@@ -292,145 +305,13 @@ class Prepare:
             insert_request.fields_data.append(field_data)
 
         # generate hash keys, TODO: better hash function
-        if ids is not None:
-            hash_keys = [abs(mmh3.hash(str(e))) for e in ids]
+        if not fields_info[primary_key_loc].get("auto_id", False):
+            field_name = fields_info[primary_key_loc].get("name")
+            entity_loc = location[field_name]
+            hash_keys = [abs(mmh3.hash(str(e))) for e in entities[entity_loc].get("values")]
             insert_request.hash_keys.extend(hash_keys)
 
-        if is_orm:
-            for field in fields_info:
-                if field.get("is_primary", False):
-                    for entity in entities:
-                        if field["name"] == entity["name"]:
-                            hash_keys = [abs(mmh3.hash(str(e))) for e in entity.get("values")]
-                            insert_request.hash_keys.extend(hash_keys)
-
         return insert_request
-
-    @classmethod
-    def insert_param(cls, collection_name, entities, partition_name, ids=None, params=None, fields_info=None, **kwargs):
-        row_batch = milvus_types.InsertRequest()
-        row_batch.collection_name = collection_name
-        default_partition_name = "_default"  # should here?
-        row_batch.partition_name = partition_name or default_partition_name
-
-        row_data = list()
-        fields_type = list()
-        row_num = len(entities)
-        fields_len = len(entities[0]) if row_num > 0 else 0
-
-        if row_num <= 0 or fields_len <= 0:
-            return ParamError("insert empty entity is unnecessary")
-
-        def get_fields_by_schema():
-            if fields_info is None:
-                return None
-            names = [field["name"] for field in fields_info]
-            if not kwargs.get("auto_id", True):
-                names.insert(0, "_id")
-            return names
-
-        # this case, we assume the order of entities is same to schema
-        fields_name = list()
-        entity = entities[0]
-        for key, value in entity.items():
-            if key in fields_name:
-                raise ParamError("duplicated field name in entity")
-            fields_name.append(key)
-
-        auto_id = kwargs.get("auto_id", True)
-
-        if fields_info is None:
-            # this case, we assume the order of entities is same to schema
-            for key, value in entity.items():
-                if isinstance(value, bool):
-                    fields_type.append(DataType.BOOL)
-                elif isinstance(value, int):
-                    fields_type.append(DataType.INT64)  # or int32?
-                elif isinstance(value, float):
-                    fields_type.append(DataType.FLOAT)  # or double?
-                elif isinstance(value, str):
-                    fields_type.append(DataType.STRING)
-                elif isinstance(value, list):
-                    if len(value) <= 0:
-                        raise ParamError("the dim of vectors must greater than zero")
-                    if isinstance(value[0], float):
-                        fields_type.append(DataType.FLOAT_VECTOR)
-                    # TODO: BINARY_VECTOR
-                elif isinstance(value, bytes):
-                    fields_type.append(DataType.BINARY_VECTOR)
-                else:
-                    raise ParamError("unsupported data type")
-            # row_data = [[value for _, value in entity.items()]
-            #             for entity in entities]
-
-            schema_field_names = get_fields_by_schema() or fields_name
-            for entity in entities:
-                row = list()
-                for key, value in entity.items():
-                    if key not in fields_name:
-                        raise ParamError("entities has different field name")
-                    if key not in schema_field_names:
-                        raise ParamError("field name must be in schema")
-                    row.append(value)
-                row_data.append(row)
-        else:
-            # field name & type must match fields info
-            for j in range(len(fields_info)):
-                field_name = fields_info[j]["name"]
-                if not auto_id and "_id" not in fields_name and field_name == "_id":
-                    continue
-                elif field_name not in fields_name:
-                    raise ParamError("Field {} don't match in entities".format(field_name))
-                fields_type.append(fields_info[j]["type"])
-
-            for i in range(row_num):
-                row = list()
-                for j in range(len(fields_info)):
-                    field_name = fields_info[j]["name"]
-                    row.append(entities[i][field_name])
-                row_data.append(row)
-
-        # fill row_data in bytes format
-        if not auto_id and "_id" not in fields_name:
-            id_type = DataType.INT64  # int64_t is supported by default
-            fields_type.insert(0, id_type)
-            for i in range(row_num):
-                row_data[i].insert(0, ids[i])  # fill id
-
-        for i in range(row_num):
-            blob_row_data = common_types.Blob()
-            blob_row_data.value = bytes()
-            for field_value, field_type in zip(row_data[i], fields_type):
-                if field_type in (DataType.BOOL,):
-                    blob_row_data.value += blob.boolToBytes(field_value)
-                elif field_type in (DataType.INT8,):
-                    blob_row_data.value += blob.int8ToBytes(field_value)
-                elif field_type in (DataType.INT16,):
-                    blob_row_data.value += blob.int16ToBytes(field_value)
-                elif field_type in (DataType.INT32,):
-                    blob_row_data.value += blob.int32ToBytes(field_value)
-                elif field_type in (DataType.INT64,):
-                    blob_row_data.value += blob.int64ToBytes(field_value)
-                elif field_type in (DataType.FLOAT,):
-                    blob_row_data.value += blob.floatToBytes(field_value)
-                elif field_type in (DataType.DOUBLE,):
-                    blob_row_data.value += blob.doubleToBytes(field_value)
-                elif field_type in (DataType.STRING,):
-                    blob_row_data.value += blob.stringToBytes(field_value)
-                elif field_type in (DataType.BINARY_VECTOR,):
-                    blob_row_data.value += blob.vectorBinaryToBytes(field_value)
-                elif field_type in (DataType.FLOAT_VECTOR,):
-                    blob_row_data.value += blob.vectorFloatToBytes(field_value)
-                else:
-                    raise ParamError("Unsupported data type!")
-            row_batch.row_data.append(blob_row_data)
-
-        # generate hash keys, TODO: better hash function
-        if ids is not None:
-            hash_keys = [abs(mmh3.hash(str(e))) for e in ids]
-            row_batch.hash_keys.extend(hash_keys)
-
-        return row_batch
 
     @classmethod
     def _prepare_placeholders(cls, vectors, nq, max_nq_per_batch, tag, pl_type, is_binary):

@@ -66,6 +66,7 @@ class FieldSchema:
         self.name = None
         self.is_primary_key = False
         self.description = None
+        self.auto_id = False
         self.type = DataType.UNKNOWN
         self.indexes = list()
         self.params = dict()
@@ -78,6 +79,7 @@ class FieldSchema:
         self.name = raw.name
         self.is_primary_key = raw.is_primary_key
         self.description = raw.description
+        self.auto_id = raw.autoID
         self.type = raw.data_type
         # self.type = DataType(int(raw.type))
 
@@ -108,6 +110,8 @@ class FieldSchema:
         _dict["type"] = self.type
         _dict["params"] = self.params or dict()
         _dict["is_primary"] = self.is_primary_key
+        _dict["is_primary_key"] = self.is_primary_key
+        _dict["auto_id"] = self.auto_id
         return _dict
 
 
@@ -121,6 +125,7 @@ class CollectionSchema:
         self.params = dict()
         self.fields = list()
         self.statistics = dict()
+        self.auto_id = False # auto_id is not in collection level any more later
 
         #
         if self._raw:
@@ -128,7 +133,6 @@ class CollectionSchema:
 
     def __pack(self, raw):
         self.collection_name = raw.schema.name
-        self.auto_id = raw.schema.autoID
         self.description = raw.schema.description
         # self.params = dict()
         # TODO: extra_params here

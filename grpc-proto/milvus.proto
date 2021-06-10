@@ -292,8 +292,7 @@ message InsertRequest {
 
 message InsertResponse {
   common.Status status = 1;
-  int64 rowID_begin = 2;
-  int64 rowID_end = 3;
+  repeated int64 primary_keys = 2;
 }
 
 enum PlaceholderType {
