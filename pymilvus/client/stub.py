@@ -707,7 +707,7 @@ class Milvus:
             raise ParamError("Params['params'] must be a dictionary type")
         if params['index_type'] not in valid_index_types:
             raise ParamError("Invalid index_type: " + params['index_type'] +
-                             ", which must be one of: " + valid_index_types)
+                             ", which must be one of: " + str(valid_index_types))
         for k in params['params'].keys():
             if k not in valid_index_params_keys:
                 raise ParamError("Invalid params['params'].key: " + k)
