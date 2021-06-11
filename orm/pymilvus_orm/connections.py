@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 Zilliz. All rights reserved.
+# Copyright (C) 2019-2021 Zilliz. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -33,7 +33,7 @@ class SingleInstanceMetaClass(type):
 
 class Connections(metaclass=SingleInstanceMetaClass):
     """
-    Connections is a class which is used to manage all connections of milvus.
+    Class for managing all connections of milvus.
     Used as a singleton in this module.
     """
 
@@ -47,8 +47,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def add_connection(self, **kwargs):
         """
-        Configure the milvus connections and then create milvus connections by the passed
-        parameters.
+        Configures the milvus connections and then creates milvus (``connect()``)
+        connections by the passed parameters.
 
         Example::
 
@@ -57,7 +57,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 dev={"host": "localhost", "port": "19531"},
             )
 
-        This will create two milvus connections named default and dev.
+        The above example creates two milvus connections named default and dev.
         """
         for k in kwargs:
             if k in self._conns:
@@ -68,7 +68,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def disconnect(self, alias):
         """
-        Disconnect connection from the registry.
+        Disconnects connection from the registry.
 
         :param alias: The name of milvus connection
         :type alias: str
@@ -80,7 +80,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def remove_connection(self, alias):
         """
-        Remove connection from the registry.
+        Removes connection from the registry.
 
         :param alias: The name of milvus connection
         :type alias: str
@@ -90,7 +90,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def connect(self, alias=DefaultConfig.DEFAULT_USING, **kwargs) -> Milvus:
         """
-        Construct a milvus connection and register it under given alias.
+        Constructs a milvus connection and register it under given alias.
 
         :param alias: The name of milvus connection
         :type  alias: str
@@ -100,7 +100,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.
-        :raises Exception: If server specific in parameters is not ready, we cannot connect to
+        :raises Exception: If server specified in parameters is not ready, we cannot connect to
                            server.
 
         :example:
@@ -142,7 +142,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def get_connection(self, alias=DefaultConfig.DEFAULT_USING) -> Milvus:
         """
-        Retrieve a milvus connection by alias.
+        Retrieves a milvus connection by alias.
 
         :param alias: The name of milvus connection
         :type  alias: str
@@ -160,7 +160,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def list_connections(self) -> list:
         """
-        List all connections.
+        Lists all connections.
 
         :return list:
             Names of all connections.
@@ -176,7 +176,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def get_connection_addr(self, alias):
         """
-        Get connection configure by alias.
+        Retrieves connection configure by alias.
 
         :param alias: The name of milvus connection
         :type  alias: str

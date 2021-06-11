@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 Zilliz. All rights reserved.
+# Copyright (C) 2019-2021 Zilliz. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -70,7 +70,7 @@ class CollectionSchema:
     @property
     def fields(self):
         """
-        Return the fields about the CollectionSchema.
+        Returns the fields about the CollectionSchema.
 
         :return list:
             List of FieldSchema, return when operation is successful.
@@ -90,7 +90,7 @@ class CollectionSchema:
     @property
     def description(self):
         """
-        Return the description text about the CollectionSchema.
+        Returns a text description of the CollectionSchema.
 
         :return str:
             CollectionSchema description text, return when operation is successful.
@@ -110,10 +110,11 @@ class CollectionSchema:
     @property
     def auto_id(self):
         """
-        Whether primary keys are automatically generated.
+        Whether the primary keys are automatically generated.
 
         :return bool:
-            Return true if primary keys are automatically generated, false otherwise.
+            * True: If the primary keys are automatically generated,
+            * False: Otherwise.
 
         :example:
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
@@ -121,7 +122,7 @@ class CollectionSchema:
         >>> from pymilvus_orm import connections
         >>> connections.create_connection(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=False)
         >>> schema = CollectionSchema(fields=[field])
         >>> schema.auto_id
         """
@@ -199,10 +200,10 @@ class FieldSchema:
     @property
     def description(self):
         """
-        Return the description text about the FieldSchema.
+        Returns the text description of the FieldSchema.
 
         :return str:
-            FieldSchema description text, return when operation is successful.
+            FieldSchema description text, returned when the operation is successful.
 
         :example:
         >>> from pymilvus_orm.schema import FieldSchema
@@ -218,7 +219,7 @@ class FieldSchema:
     @property
     def params(self):
         """
-        Return the parameters of the field.
+        Returns the parameters of the field.
 
         :return list:
             List of the parameter.

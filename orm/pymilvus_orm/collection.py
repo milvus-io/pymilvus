@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 Zilliz. All rights reserved.
+# Copyright (C) 2019-2021 Zilliz. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -43,7 +43,7 @@ def _check_schema(schema):
         if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
             vector_fields.append(field.name)
     if len(vector_fields) < 1:
-        raise SchemaNotReadyException(0, "The schema at least have one vector column!")
+        raise SchemaNotReadyException(0, "Schema must at least have one vector column!")
 
 
 def _check_data_schema(fields, data):
@@ -68,7 +68,7 @@ class Collection:
 
     def __init__(self, name, data=None, schema=None, **kwargs):
         """
-        Construct a collection by the name, schema and other parameters.
+        Constructs a collection by name, schema and other parameters.
         Connection information is contained in kwargs.
 
         :param name: the name of collection
@@ -109,11 +109,11 @@ class Collection:
                     self.insert(data=data)
             else:
                 if not isinstance(schema, CollectionSchema):
-                    raise SchemaNotReadyException(0, "schema type must be schema.CollectionSchema.")
+                    raise SchemaNotReadyException(0, "Schema type must be schema.CollectionSchema.")
                 if server_schema != schema:
                     raise SchemaNotReadyException(0,
                                                   "The collection already exist, but the schema is"
-                                                  "not the same as the passed in.")
+                                                  "not the same as the schema passed in.")
                 self._schema = schema
                 if data is not None:
                     self.insert(data=data)
@@ -121,7 +121,7 @@ class Collection:
         else:
             if schema is None:
                 if data is None:
-                    raise SchemaNotReadyException(0, "Collection missing schema.")
+                    raise SchemaNotReadyException(0, "The collection is missing schema.")
                 if isinstance(data, pandas.DataFrame):
                     fields = parse_fields_from_data(data)
                     _check_data_schema(fields, data)
@@ -141,7 +141,8 @@ class Collection:
                     if data is not None:
                         self.insert(data=data)
                 else:
-                    raise SchemaNotReadyException(0, "schema type must be schema.CollectionSchema.")
+                    raise SchemaNotReadyException(0, "The schema type must be "
+                                                     "schema.CollectionSchema.")
 
     def _get_using(self):
         return self._kwargs.get("_using", "default")
@@ -154,7 +155,7 @@ class Collection:
 
     def _check_insert_data_schema(self, data):
         """
-        Check whether the data type matches the schema.
+        Checks whether the data type matches the schema.
         """
         if self._schema is None:
             return False
@@ -176,31 +177,31 @@ class Collection:
 
     def _check_schema(self):
         if self._schema is None:
-            raise SchemaNotReadyException(0, "Schema is not ready")
+            raise SchemaNotReadyException(0, "Schema is not ready. ")
 
     def _get_vector_field(self) -> str:
         for field in self._schema.fields:
             if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
                 return field.name
-        raise Exception("no vector field found!")
+        raise Exception("No vector field is found!")
 
     @property
     def schema(self) -> CollectionSchema:
         """
-        Return the schema of collection.
+        Returns the schema of the collection.
 
         :return schema.CollectionSchema:
-            Schema of collection.
+            Schema of the collection.
         """
         return self._schema
 
     @property
     def description(self) -> str:
         """
-        Return the description text about the collection.
+        Returns a text description of the collection.
 
         :return str:
-            Collection description text, return when operation is successful.
+            Collection description text, returned when the operation succeeds.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -210,10 +211,11 @@ class Collection:
         >>> connections.connect(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=False)
-        >>> schema = CollectionSchema(fields=[field], description="test get description")
+        >>> description="This is an example text description."
+        >>> schema = CollectionSchema(fields=[field], description=description)
         >>> collection = Collection(name="test_collection", schema=schema, _using="default")
         >>> collection.description
-        'test get description'
+        'This is an example text description.'
         """
 
         return self._schema.description
@@ -221,10 +223,10 @@ class Collection:
     @property
     def name(self) -> str:
         """
-        Return the collection name.
+        Returns the collection name.
 
         :return str:
-            Collection name, return when operation is successful.
+            The collection name, returned when the operation succeeds.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -234,7 +236,8 @@ class Collection:
         >>> connections.connect(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=False)
-        >>> schema = CollectionSchema(fields=[field], description="test get collection name")
+        >>> description="This is an example collection name."
+        >>> schema = CollectionSchema(fields=[field], description=description)
         >>> collection = Collection(name="test_collection", schema=schema, _using="default")
         >>> collection.name
         'test_collection'
@@ -245,11 +248,12 @@ class Collection:
     @property
     def is_empty(self) -> bool:
         """
-        Return whether the collection is empty.
+        Whether the collection is empty.
         This method need to call `num_entities <#pymilvus_orm.Collection.num_entities>`_.
 
         :return bool:
-            Whether the collection is empty.
+            * True: The collection is empty.
+            * False: The collection is  gfghnot empty.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -259,7 +263,7 @@ class Collection:
         >>> connections.connect(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=False)
-        >>> schema = CollectionSchema(fields=[field], description="test collection is empty")
+        >>> schema = CollectionSchema(fields=[field], description="Tests if a collection is empty")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> collection.is_empty
         True
@@ -275,12 +279,12 @@ class Collection:
     @property
     def num_entities(self) -> int:
         """
-        Return the number of entities.
+        Returns the number of entities in the collection.
 
         :return int:
-            Number of entities in this collection.
+            Number of entities in the collection.
 
-        :raises CollectionNotExistException: If collection doesn't exist.
+        :raises CollectionNotExistException: If the collection does not exist.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -290,7 +294,8 @@ class Collection:
         >>> connections.connect(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=False)
-        >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
+        >>> description="Retrieves the number of entities in a collection."
+        >>> schema = CollectionSchema(fields=[field], description=description)
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> collection.num_entities
         0
@@ -307,10 +312,10 @@ class Collection:
     @property
     def primary_field(self) -> FieldSchema:
         """
-        Return the primary field of collection.
+        Returns the primary field of the collection.
 
         :return schema.FieldSchema:
-            The primary field of collection.
+            The primary field of the collection.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -331,14 +336,15 @@ class Collection:
 
     def drop(self, **kwargs):
         """
-        Drop the collection, as well as its corresponding index files.
+        Drops the collection together with its index files.
 
         :param kwargs:
             * *timeout* (``float``) --
-              An optional duration of time in seconds to allow for the RPC. When timeout
-              is set to None, client waits until server response or error occur.
+            An optional duration of time in seconds to allow for the RPC.
+            If timeout is set to None,
+            the client keeps waiting until the server responds or an error occurs.
 
-        :raises CollectionNotExistException: If collection doesn't exist.
+        :raises CollectionNotExistException: If the collection does not exist.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -348,7 +354,7 @@ class Collection:
         >>> connections.connect(alias="default")
         <milvus.client.stub.Milvus object at 0x7f9a190ca898>
         >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=False)
-        >>> schema = CollectionSchema(fields=[field], description="drop collection")
+        >>> schema = CollectionSchema(fields=[field], description="Drop the collection.")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
         >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))
@@ -368,12 +374,12 @@ class Collection:
 
     def load(self, field_names=None, index_names=None, partition_names=None, **kwargs):
         """
-        Load the collection from disk to memory.
+        Loads the collection from disk to memory.
 
         :param field_names: The specified fields to load.
         :type  field_names: list[str]
 
-        :param index_names: The specified indexes to load.
+        :param index_names: The specified indices to load.
         :type  index_names: list[str]
 
         :param partition_names: The specified partitions to load.
@@ -381,12 +387,12 @@ class Collection:
 
         :param kwargs:
             * *timeout* (``float``) --
-              An optional duration of time in seconds to allow for the RPC. When timeout
-              is set to None, client waits until server response or error occur.
+              An optional duration of time in seconds to allow for the RPC. If timeout
+              is set to None, the client keeps waiting until the server responds or error occurs.
 
-        :raises CollectionNotExistException: If collection doesn't exist.
-        :raises ParamError: If parameters are invalid.
-        :raises BaseException: If fields, index or partition doesn't exist.
+        :raises CollectionNotExistException: If the collection does not exist.
+        :raises ParamError: If the parameters are invalid.
+        :raises BaseException: If the specified field, index or partition does not exist.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -394,7 +400,7 @@ class Collection:
         >>> from pymilvus_orm import connections
         >>> from pymilvus_orm.types import DataType
         >>> field = FieldSchema("int64", DataType.INT64, is_primary=False, description="int64")
-        >>> schema = CollectionSchema([field], description="collection schema has a int64 field")
+        >>> schema = CollectionSchema([field], description="collection schema has an int64 field")
         >>> connections.connect()
         <milvus.client.stub.Milvus object at 0x7f8579002dc0>
         >>> collection = Collection(name="test_collection", schema=schema)
@@ -402,7 +408,7 @@ class Collection:
         >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))
         >>> data = pd.DataFrame(data={"int64" : int64_series})
         >>> collection.insert(data)
-        >>> collection.load() # load collection to memory
+        >>> collection.load() # Load the collection to memory.
         >>> assert not collection.is_empty
         >>> assert collection.num_entities == 10
         """
@@ -411,15 +417,15 @@ class Collection:
 
     def release(self, **kwargs):
         """
-        Release the collection from memory.
+        Releases the collection from memory.
 
         :param kwargs:
             * *timeout* (``float``) --
-              An optional duration of time in seconds to allow for the RPC. When timeout
-              is set to None, client waits until server response or error occur.
+              An optional duration of time in seconds to allow for the RPC. If timeout
+              is set to None, the client keeps waiting until the server responds or an error occurs.
 
-        :raises CollectionNotExistException: If collection doesn't exist.
-        :raises BaseException: If collection hasn't been loaded.
+        :raises CollectionNotExistException: If collection does not exist.
+        :raises BaseException: If collection has not been loaded to memory.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -445,7 +451,7 @@ class Collection:
 
     def insert(self, data, partition_name=None, **kwargs):
         """
-        Insert data into collection.
+        Insert data into the collection.
 
         :param data: The specified data to insert, the dimension of data needs to align with column
                      number
@@ -457,12 +463,12 @@ class Collection:
 
         :param kwargs:
             * *timeout* (``float``) --
-              An optional duration of time in seconds to allow for the RPC. When timeout
-              is set to None, client waits until server response or error occur.
+              An optional duration of time in seconds to allow for the RPC. If timeout
+              is set to None, the client keeps waiting until the server responds or an error occurs.
 
-        :raises CollectionNotExistException: If collection doesn't exist.
-        :raises ParamError: If parameters are invalid.
-        :raises BaseException: If partition doesn't exist.
+        :raises CollectionNotExistException: If the specified collection does not exist.
+        :raises ParamError: If input parameters are invalid.
+        :raises BaseException: If the specified partition does not exist.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -472,7 +478,7 @@ class Collection:
         >>> connections.connect()
         <milvus.client.stub.Milvus object at 0x7f8579002dc0>
         >>> field = FieldSchema("int64", DataType.INT64, is_primary=False, description="int64")
-        >>> schema = CollectionSchema([field], description="collection schema has a int64 field")
+        >>> schema = CollectionSchema([field], description="collection schema has an int64 field")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import random
         >>> data = [[random.randint(1, 100) for _ in range(10)]]
@@ -497,16 +503,16 @@ class Collection:
     def search(self, data, anns_field, param, limit, expression=None, partition_names=None,
                output_fields=None, timeout=None, **kwargs):
         """
-        Vector similarity search with an optional boolean expression as filters.
+        Conducts a vector similarity search with an optional boolean expression as filter.
 
         :param data: The vectors of search data, the length of data is number of query (nq), the
                      dim of every vector in data must be equal to vector field's of collection.
         :type  data: list[list[float]]
         :param anns_field: The vector field used to search of collection.
         :type  anns_field: str
-        :param param: The parameters of search, such as nprobe, etc.
+        :param param: The parameters of search, such as ``nprobe``.
         :type  param: dict
-        :param limit: The max number of returned record, we also called this parameter as topk.
+        :param limit: The max number of returned record, also known as ``topk``.
         :type  limit: int
         :param expression: The boolean expression used to filter attribute.
         :type  expression: str
@@ -522,8 +528,8 @@ class Collection:
               Indicate if invoke asynchronously. When value is true, method returns a
               SearchResultFuture object; otherwise, method returns results from server directly.
             * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully. It only
-              takes effect when _async is set to True.
+              The callback function which is invoked after server response successfully.
+              It functions only if _async is set to True.
 
         :return: SearchResult:
             SearchResult is iterable and is a 2d-array-like class, the first dimension is
@@ -744,8 +750,8 @@ class Collection:
 
         :param kwargs:
             * *timeout* (``float``) --
-              An optional duration of time in seconds to allow for the RPC. When timeout
-              is set to None, client waits until server response or error occur.
+              An optional duration of time in seconds to allow for the RPC. If timeout
+              is set to None, the client keeps waiting until the server responds or an error occurs.
 
         :raises CollectionNotExistException: If collection doesn't exist.
         :raises BaseException: If partition doesn't exist.
@@ -778,12 +784,12 @@ class Collection:
     @property
     def indexes(self) -> list:
         """
-        Return all indexes of the collection.
+        Returns all indexes of the collection.
 
         :return list[Index]:
-            List of Index object, return when operation is successful.
+            List of Index objects, returned when this operation is successful.
 
-        :raises CollectionNotExistException: If collection doesn't exist.
+        :raises CollectionNotExistException: If the collection does not exist.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -808,18 +814,20 @@ class Collection:
 
     def index(self, index_name="") -> Index:
         """
-        Return the index corresponding to name.
+        Fetches the index object of the of the specified name.
 
-        :param index_name: The name of the index to create.
+        :param index_name: The name of the index to fetch.
         :type  index_name: str
 
         :return Index:
             Index object corresponding to index_name.
 
-        :raises CollectionNotExistException: If collection doesn't exist.
-        :raises BaseException: If index doesn't exist.
+        :raises CollectionNotExistException: If the collection does not exist.
+        :raises BaseException: If the specified index does not exist.
 
         :example:
+
+
         >>> from pymilvus_orm.collection import Collection
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
         >>> from pymilvus_orm.types import DataType
@@ -847,21 +855,21 @@ class Collection:
 
     def create_index(self, field_name, index_params, index_name="", **kwargs) -> Index:
         """
-        Create index on a specified column according to the index parameters. Return Index Object.
+        Creates index for a specified field. Return Index Object.
 
         :param field_name: The name of the field to create an index for.
         :type  field_name: str
 
-        :param index_params: Indexing parameters.
+        :param index_params: The indexing parameters.
         :type  index_params: dict
 
         :param index_name: The name of the index to create.
         :type  index_name: str
 
-        :raises CollectionNotExistException: If collection doesn't exist.
-        :raises ParamError: If index parameters are invalid.
-        :raises BaseException: If field doesn't exist.
-        :raises BaseException: If index has been created.
+        :raises CollectionNotExistException: If the collection does not exist.
+        :raises ParamError: If the index parameters are invalid.
+        :raises BaseException: If field does not exist.
+        :raises BaseException: If the index has been created.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -890,13 +898,13 @@ class Collection:
         """
         Checks whether a specified index exists.
 
-        :param index_name: The name of the index to check.
+        :param index_name: The name of the index.
         :type  index_name: str
 
         :return bool:
-            If specified index exists.
+            Whether the specified index exists.
 
-        :raises CollectionNotExistException: If collection doesn't exist.
+        :raises CollectionNotExistException: If the collection does not exist.
 
         :example:
         >>> from pymilvus_orm.collection import Collection
@@ -929,16 +937,17 @@ class Collection:
         """
         Drop index and its corresponding index files.
 
-        :param index_name: The name of the partition to drop.
+        :param index_name: The name of the index to drop.
         :type  index_name: str
 
         :param kwargs:
             * *timeout* (``float``) --
-              An optional duration of time in seconds to allow for the RPC. When timeout
-              is set to None, client waits until server response or error occur.
+              An optional duration of time in seconds to allow for the RPC. If timeout
+              is set to None, the client keeps waiting until the server responds or an error occurs.
+              Optional. A duration of time in seconds.
 
-        :raises CollectionNotExistException: If collection doesn't exist.
-        :raises BaseException: If index has been created.
+        :raises CollectionNotExistException: If the collection does not exist.
+        :raises BaseException: If the index does not exist or has been dropped.
 
         :example:
         >>> from pymilvus_orm.collection import Collection

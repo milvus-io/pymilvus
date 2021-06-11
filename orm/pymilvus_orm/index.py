@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2020 Zilliz. All rights reserved.
+# Copyright (C) 2019-2021 Zilliz. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -18,12 +18,12 @@ from .exceptions import CollectionNotExistException
 class Index:
     def __init__(self, collection, field_name, index_params, name="", **kwargs):
         """
-        Create index on a specified column according to the index parameters.
+        Creates index on a specified field according to the index parameters.
 
-        :param collection: The collection of index
+        :param collection: The collection in which the index is created
         :type  collection: Collection
 
-        :param name: The name of index
+        :param name: The name of the index
         :type  name: str
 
         :param field_name: The name of the field to create an index for.
@@ -33,7 +33,8 @@ class Index:
         :type  index_params: dict
 
         :raises ParamError: If parameters are invalid.
-        :raises IndexConflictException: If index with same name and different param already exists.
+        :raises IndexConflictException:
+        If an index of the same name but of different param already exists.
 
         :example:
         >>> from pymilvus_orm import *
@@ -79,10 +80,10 @@ class Index:
     @property
     def name(self) -> str:
         """
-        Return the index name.
+        Returns the index name.
 
         :return str:
-            The name of index
+            The name of the index
         """
         return self._name
 
@@ -90,10 +91,10 @@ class Index:
     @property
     def params(self) -> dict:
         """
-        Return the index params.
+        Returns the index parameters.
 
         :return dict:
-            Index parameters
+            The index parameters
         """
         return copy.deepcopy(self._index_params)
 
@@ -101,28 +102,28 @@ class Index:
     @property
     def collection_name(self) -> str:
         """
-        Return corresponding collection name.
+        Returns the corresponding collection name.
 
         :return str:
-            Corresponding collection name
+            The corresponding collection name
         """
         return self._collection.name
 
     @property
     def field_name(self) -> str:
         """
-        Return corresponding column name.
+        Returns the corresponding field name.
 
         :return str:
-            Corresponding column name
+            The corresponding field name.
         """
         return self._field_name
 
     def drop(self, **kwargs):
         """
-        Drop index and its corresponding index files.
+        Drop an index and its corresponding index files.
 
-        :raises IndexNotExistException: If index doesn't exist.
+        :raises IndexNotExistException: If the specified index does not exist.
         """
         conn = self._get_connection()
         if conn.describe_index(self._collection.name) is None:
