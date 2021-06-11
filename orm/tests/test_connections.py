@@ -20,7 +20,7 @@ class TestConnections:
     def configure_params(self):
         params = {
             "test": {"host": "localhost", "port": "19530"},
-            "dev": {"host": "localhost", "port": "19530"},
+            "dev": {"host": "127.0.0.1", "port": "19530"},
         }
         return params
 
@@ -55,7 +55,7 @@ class TestConnections:
                 assert isinstance(conn, pymilvus.Milvus)
 
                 with pytest.raises(ParamError):
-                    c.add_connection(default={"host": "192.168.1.1", "port": "13500"})
+                    c.add_connection(**{key: {"host": "192.168.1.1", "port": "13500"}})
 
                 c.remove_connection(key)
 

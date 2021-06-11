@@ -974,5 +974,5 @@ class Collection:
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, "")
         if tmp_index is not None:
-            index = Index(self, tmp_index['field_name'], tmp_index, index_name)
+            index = Index(self, tmp_index['field_name'], tmp_index, index_name, construct_only=True)
             index.drop()

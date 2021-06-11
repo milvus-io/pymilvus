@@ -10,6 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 import copy
+import threading
 
 from pymilvus import Milvus
 
@@ -17,18 +18,35 @@ from .default_config import DefaultConfig
 from .exceptions import ParamError
 
 
+def synchronized(func):
+    """
+    Decorator in order to achieve thread-safe singleton class.
+    """
+    func.__lock__ = threading.Lock()
+
+    def lock_func(*args, **kwargs):
+        with func.__lock__:
+            return func(*args, **kwargs)
+
+    return lock_func
+
+
 class SingleInstanceMetaClass(type):
-    def __init__(cls, name, bases, dic):
-        cls.__single_instance = None
-        super().__init__(name, bases, dic)
+    instance = None
+
+    def __init__(cls, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def __call__(cls, *args, **kwargs):
-        if cls.__single_instance:
-            return cls.__single_instance
         single_obj = cls.__new__(cls)
         single_obj.__init__(*args, **kwargs)
-        cls.__single_instance = single_obj
         return single_obj
+
+    @synchronized
+    def __new__(cls, *args, **kwargs):
+        if not cls.instance:
+            cls.instance = super().__new__(cls, *args, **kwargs)
+        return cls.instance
 
 
 class Connections(metaclass=SingleInstanceMetaClass):
