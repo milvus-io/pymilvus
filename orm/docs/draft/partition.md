@@ -22,5 +22,6 @@
 | Partition.insert(data, **kwargs)                             | Insert data into partition.                                  | data 类型是list-like(list, tuple, numpy.ndarray) 对象或者pandas.DataFrame，data的维度需要和列的数目对齐<br />kwargs可以是 sync=False | None或者InsertFuture或者Raise Exception                 |
 | Partition.search(data, anns_field, params, limit, expr=None, output_fields=None, **kwargs) | Vector similarity search with an optional boolean expression as filters. | data是 list-like(list, tuple),或者pd.Series <br />anns_field 类型是 string, 表示在哪个列上进行向量的近似查询<br />params 类型是 dict<br /><br />limit 类型是 int <br />expr 类型是string<br />output_fields类型是list(string)<br />kwargs 可以是 async=False | SearchResultFuture或者 SearchResult 或者Raise Exception |
 | Partition.get(ids, output_fields=None) | Retrieve multiple entities by entityID. Returns a dict that the key is entityID and the value is entity. If entityID not found in the collection, it's value in the result will be None. | ids list(int)<br />output_fields 类型是 list(string), 表示要返回哪些列的原始数据 | dict 或者Raise Exception      |
+| Partition.query(expr="", output_fields=None) | Query with a set of criteria, and results in a list of records that match the query exactly. | expr 类型是string<br />output_fields 类型是 list(string), 表示要返回哪些列的原始数据 | dict 或者Raise Exception      |
 
 

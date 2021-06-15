@@ -83,6 +83,15 @@ class TestCollections:
         assert len(ids) == default_nb
         res = collection.get(ids[0:10])
 
+    @pytest.mark.xfail
+    def test_query(self, collection):
+        data = gen_list_data(default_nb)
+        ids = collection.insert(data)
+        assert len(ids) == default_nb
+        ids_expr = ",".join(str(x) for x in ids)
+        expr = "id in [ " + ids_expr + " ]"
+        res = collection.query(expr)
+
     def test_partitions(self, collection):
         assert len(collection.partitions) == 1
 

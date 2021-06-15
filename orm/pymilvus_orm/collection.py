@@ -610,6 +610,35 @@ class Collection:
         res = conn.get(self._name, ids, output_fields, partition_names, timeout)
         return res
 
+    def query(self, expr, output_fields=None, partition_names=None, timeout=None):
+        """
+        Query with a set of criteria, and results in a list of records that match the query exactly.
+
+        :param expr: The query expression
+        :type  expr: str
+
+        :param output_fields: A list of fields to return
+        :type  output_fields: list[str]
+
+        :param partition_names: Name of partitions that contain entities
+        :type  partition_names: list[str]
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :return: A list that contains all results
+        :rtype: list
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        conn = self._get_connection()
+        res = conn.query(self._name, expr, output_fields, partition_names, timeout)
+        return res
+
     @property
     def partitions(self) -> list:
         """
