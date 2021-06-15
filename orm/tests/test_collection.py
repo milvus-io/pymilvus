@@ -112,18 +112,18 @@ class TestCollections:
 
     @pytest.mark.xfail
     def test_index(self, collection):
-        collection.index(gen_index_name())
+        collection.index()
 
     @pytest.mark.xfail
     def test_create_index(self, collection, defa):
         collection.create_index(gen_field_name(), gen_index_name())
 
     def test_has_index(self, collection):
-        assert collection.has_index(gen_index_name()) is False
+        assert collection.has_index() is False
 
     @pytest.mark.xfail
     def test_drop_index(self, collection):
-        collection.drop_index(gen_index_name())
+        collection.drop_index()
 
     def test_dummy(self):
         pass

@@ -163,15 +163,9 @@ class Partition:
             raise Exception("Partition doesn't exist")
         return conn.drop_partition(self._collection.name, self._name, **kwargs)
 
-    def load(self, field_names=None, index_names=None, **kwargs):
+    def load(self, **kwargs):
         """
         Load the partition from disk to memory.
-
-        :param field_names: The specified fields to load.
-        :type  field_names: list[str]
-
-        :param index_names: The specified indexes to load.
-        :type  index_names: list[str]
 
         :raises InvalidArgumentException:
             If argument is not valid
@@ -180,13 +174,9 @@ class Partition:
         # TODO(yukun): If field_names is not None and not equal schema.field_names,
         #  raise Exception Not Supported,
         #  if index_names is not None, raise Exception Not Supported
-        if field_names is not None and len(field_names) != len(self._collection.schema.fields):
-            raise Exception("field_names should be not None or equal schema.field_names")
-        if index_names is not None:
-            raise Exception("index_names should be None")
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
-            return conn.load_partitions(self._collection.name, [self._name])
+            return conn.load_partitions(self._collection.name, [self._name], **kwargs)
         raise Exception("Partition doesn't exist")
 
     def release(self, **kwargs):
@@ -198,7 +188,7 @@ class Partition:
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
-            return conn.release_partitions(self._collection.name, [self._name])
+            return conn.release_partitions(self._collection.name, [self._name], **kwargs)
         raise Exception("Partition doesn't exist")
 
     def insert(self, data, **kwargs):

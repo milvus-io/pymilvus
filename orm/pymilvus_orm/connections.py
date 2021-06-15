@@ -38,15 +38,15 @@ class SingleInstanceMetaClass(type):
         super().__init__(*args, **kwargs)
 
     def __call__(cls, *args, **kwargs):
-        single_obj = cls.__new__(cls)
-        single_obj.__init__(*args, **kwargs)
-        return single_obj
+        if cls.instance:
+            return cls.instance
+        cls.instance = cls.__new__(cls)
+        cls.instance.__init__(*args, **kwargs)
+        return cls.instance
 
     @synchronized
     def __new__(cls, *args, **kwargs):
-        if not cls.instance:
-            cls.instance = super().__new__(cls, *args, **kwargs)
-        return cls.instance
+        return super().__new__(cls, *args, **kwargs)
 
 
 class Connections(metaclass=SingleInstanceMetaClass):

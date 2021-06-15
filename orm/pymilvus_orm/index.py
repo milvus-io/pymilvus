@@ -16,15 +16,12 @@ from .exceptions import CollectionNotExistException
 
 
 class Index:
-    def __init__(self, collection, field_name, index_params, name="", **kwargs):
+    def __init__(self, collection, field_name, index_params, **kwargs):
         """
         Creates index on a specified field according to the index parameters.
 
         :param collection: The collection in which the index is created
         :type  collection: Collection
-
-        :param name: The name of the index
-        :type  name: str
 
         :param field_name: The name of the field to create an index for.
         :type  field_name: str
@@ -59,7 +56,6 @@ class Index:
             raise CollectionNotExistException(0, "The type of collection must be"
                                                  "pymilvus_orm.Collection")
         self._collection = collection
-        self._name = name
         self._field_name = field_name
         self._index_params = index_params
         self._kwargs = kwargs
@@ -75,17 +71,6 @@ class Index:
 
     def _get_connection(self):
         return self._collection._get_connection()
-
-    # read-only
-    @property
-    def name(self) -> str:
-        """
-        Returns the index name.
-
-        :return str:
-            The name of the index
-        """
-        return self._name
 
     # read-only
     @property

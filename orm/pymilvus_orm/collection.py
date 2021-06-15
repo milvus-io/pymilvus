@@ -372,15 +372,9 @@ class Collection:
             index.drop(**kwargs)
         conn.drop_collection(self._name, timeout=kwargs.get("timeout", None))
 
-    def load(self, field_names=None, index_names=None, partition_names=None, **kwargs):
+    def load(self, partition_names=None, **kwargs):
         """
         Loads the collection from disk to memory.
-
-        :param field_names: The specified fields to load.
-        :type  field_names: list[str]
-
-        :param index_names: The specified indices to load.
-        :type  index_names: list[str]
 
         :param partition_names: The specified partitions to load.
         :type partition_names: list[str]
@@ -413,7 +407,10 @@ class Collection:
         >>> assert collection.num_entities == 10
         """
         conn = self._get_connection()
-        conn.load_collection(self._name, timeout=kwargs.get("timeout", None))
+        if partition_names is not None:
+            conn.load_partitions(self._name, partition_names, timeout=kwargs.get("timeout", None))
+        else:
+            conn.load_collection(self._name, timeout=kwargs.get("timeout", None))
 
     def release(self, **kwargs):
         """
@@ -734,7 +731,7 @@ class Collection:
         """
         if self.has_partition(partition_name) is True:
             raise Exception("Partition already exist.")
-        return Partition(self, partition_name)
+        return Partition(self, partition_name, description=description)
 
     def has_partition(self, partition_name) -> bool:
         """
@@ -841,12 +838,9 @@ class Collection:
             indexes.append(Index(self, field_name, tmp_index, construct_only=True))
         return indexes
 
-    def index(self, index_name="") -> Index:
+    def index(self) -> Index:
         """
         Fetches the index object of the of the specified name.
-
-        :param index_name: The name of the index to fetch.
-        :type  index_name: str
 
         :return Index:
             Index object corresponding to index_name.
@@ -880,9 +874,9 @@ class Collection:
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
             return Index(self, field_name, tmp_index, construct_only=True)
-        raise Exception(f"index {index_name} not exist")
+        raise Exception("index not exist")
 
-    def create_index(self, field_name, index_params, index_name="", **kwargs) -> Index:
+    def create_index(self, field_name, index_params, **kwargs) -> Index:
         """
         Creates index for a specified field. Return Index Object.
 
@@ -891,9 +885,6 @@ class Collection:
 
         :param index_params: The indexing parameters.
         :type  index_params: dict
-
-        :param index_name: The name of the index to create.
-        :type  index_name: str
 
         :raises CollectionNotExistException: If the collection does not exist.
         :raises ParamError: If the index parameters are invalid.
@@ -923,12 +914,9 @@ class Collection:
         return conn.create_index(self._name, field_name, index_params,
                                  timeout=kwargs.pop("timeout", None), **kwargs)
 
-    def has_index(self, index_name="") -> bool:
+    def has_index(self) -> bool:
         """
         Checks whether a specified index exists.
-
-        :param index_name: The name of the index.
-        :type  index_name: str
 
         :return bool:
             Whether the specified index exists.
@@ -962,12 +950,9 @@ class Collection:
             return False
         return True
 
-    def drop_index(self, index_name="", **kwargs):
+    def drop_index(self, **kwargs):
         """
         Drop index and its corresponding index files.
-
-        :param index_name: The name of the index to drop.
-        :type  index_name: str
 
         :param kwargs:
             * *timeout* (``float``) --
@@ -998,10 +983,10 @@ class Collection:
         >>> collection.has_index()
         False
         """
-        if self.has_index(index_name) is False:
+        if self.has_index() is False:
             raise Exception("Index doesn't exist")
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, "")
         if tmp_index is not None:
-            index = Index(self, tmp_index['field_name'], tmp_index, index_name, construct_only=True)
-            index.drop()
+            index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True)
+            index.drop(**kwargs)
