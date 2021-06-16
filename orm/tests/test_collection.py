@@ -26,13 +26,15 @@ class TestCollections:
         ]
         collection_schema = CollectionSchema(fields)
         connections.connect()
-        collection = Collection(name=gen_collection_name(), data=gen_pd_data(default_nb), schema=collection_schema)
+        collection = Collection(name=gen_collection_name(), schema=collection_schema)
         collection.drop()
 
     def test_constructor(self, collection):
         assert type(collection) is Collection
 
-    @pytest.mark.xfail
+    def test_construct_from_dataframe(self):
+        assert type(Collection.construct_from_dataframe(gen_collection_name(), gen_pd_data(default_nb))) is Collection
+
     def test_schema(self, collection):
         schema = collection.schema
         description = "This is new description"

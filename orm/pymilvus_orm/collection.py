@@ -66,7 +66,7 @@ class Collection:
     This is a class corresponding to collection in milvus.
     """
 
-    def __init__(self, name, data=None, schema=None, **kwargs):
+    def __init__(self, name, schema=None, **kwargs):
         """
         Constructs a collection by name, schema and other parameters.
         Connection information is contained in kwargs.
@@ -105,44 +105,23 @@ class Collection:
             server_schema = CollectionSchema.construct_from_dict(resp)
             if schema is None:
                 self._schema = server_schema
-                if data is not None:
-                    self.insert(data=data)
             else:
                 if not isinstance(schema, CollectionSchema):
                     raise SchemaNotReadyException(0, "Schema type must be schema.CollectionSchema.")
                 if server_schema != schema:
-                    raise SchemaNotReadyException(0,
-                                                  "The collection already exist, but the schema is"
+                    raise SchemaNotReadyException(0, "The collection already exist, but the schema is"
                                                   "not the same as the schema passed in.")
                 self._schema = schema
-                if data is not None:
-                    self.insert(data=data)
 
         else:
             if schema is None:
-                if data is None:
-                    raise SchemaNotReadyException(0, "The collection is missing schema.")
-                if isinstance(data, pandas.DataFrame):
-                    fields = parse_fields_from_data(data)
-                    _check_data_schema(fields, data)
-                    self._schema = CollectionSchema(fields=fields)
-                    _check_schema(self._schema)
-                    conn.create_collection(self._name, fields=self._schema.to_dict(), orm=True)
-                    self.insert(data=data)
-                else:
-                    raise SchemaNotReadyException(0,
-                                                  "Data of not pandas.DataFrame type should be"
-                                                  "passed into the schema.")
+                raise SchemaNotReadyException(0, "Should be passed into the schema.")
+            if isinstance(schema, CollectionSchema):
+                _check_schema(schema)
+                conn.create_collection(self._name, fields=schema.to_dict(), orm=True)
+                self._schema = schema
             else:
-                if isinstance(schema, CollectionSchema):
-                    _check_schema(schema)
-                    conn.create_collection(self._name, fields=schema.to_dict(), orm=True)
-                    self._schema = schema
-                    if data is not None:
-                        self.insert(data=data)
-                else:
-                    raise SchemaNotReadyException(0, "The schema type must be "
-                                                     "schema.CollectionSchema.")
+                raise SchemaNotReadyException(0, "The schema type must be schema.CollectionSchema.")
 
     def _get_using(self):
         return self._kwargs.get("_using", "default")
@@ -184,6 +163,21 @@ class Collection:
             if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
                 return field.name
         raise Exception("No vector field is found!")
+
+    @classmethod
+    def construct_from_dataframe(cls, name, dataframe, **kwargs):
+        if dataframe is None:
+            raise SchemaNotReadyException(0, "Dataframe can not be None!")
+        if not isinstance(dataframe, pandas.DataFrame):
+            raise SchemaNotReadyException(0, "Data type must be pandas.DataFrame!")
+
+        fields = parse_fields_from_data(dataframe)
+        _check_data_schema(fields, dataframe)
+        schema = CollectionSchema(fields=fields)
+        _check_schema(schema)
+        collection = cls(name, schema, **kwargs)
+        collection.insert(data=dataframe)
+        return collection
 
     @property
     def schema(self) -> CollectionSchema:
