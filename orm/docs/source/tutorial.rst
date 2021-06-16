@@ -145,6 +145,9 @@ In below example, we search the collection on ``embedding`` field.
 >>> collection.search(embedding_A, anns_field, search_params, limit, expr)
 
 .. note::
+    For more about the parameter expr, please refer to: https://github.com/milvus-io/milvus/blob/master/docs/design_docs/query_boolean_expr.md
+
+.. note::
     If the collection is index-built, user need to specify search param, and pass parameter `search_params` like: `collection.search(..., search_params={...})`.
     You can refer to `Index params <https://pymilvus-orm.readthedocs.io/en/1.0/param.html>`_ for more details.
 
