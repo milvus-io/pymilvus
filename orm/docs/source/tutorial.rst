@@ -37,7 +37,7 @@ By default Milvus runs on localhost in port 19530, so you can use default value 
 
 >>> host = '127.0.0.1'
 >>> port = '19530'
->>> connections.create_connection("default", {"host": host, "port": port})
+>>> connections.connect("default", host=host, port=port)
 
 After connecting, we can communicate with Milvus in the following ways. If you are confused about the
 terminology, see `Milvus Terminology <https://milvus.io/docs/terms.md>`_ for explanations.
@@ -66,11 +66,11 @@ Now we can create a collection:
 
 >>> from pymilvus_orm import Collection, DataType, FieldSchema, CollectionSchema
 >>> dim = 128
->>> year_field = FieldSchema(name="year", type="int64", is_primary=False, description="year")
->>> embedding_field = FieldSchema(name="embedding", type=DataType.FLOAT_VECTOR, dim=dim)
->>> schema = CollectionSchema(fields=[year_field, embedding_field], auto_id=True)
->>> collection_name = 'tutorial'
->>> collection = Collection(name=tutorial, schema=schema)
+>>> year_field = FieldSchema(name="year", dtype=DataType.INT64, is_primary=False, description="year")
+>>> embedding_field = FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dim)
+>>> schema = CollectionSchema(fields=[year_field, embedding_field], description="desc of collection")
+>>> collection_name = "tutorial"
+>>> collection = Collection(name=collection_name, schema=schema)
 
 Then you can list collections and 'tutorial' will be in the result.
 
@@ -100,12 +100,14 @@ Create Partition
 If you don't create a partition, there will be a default one called "``_default``", all the entities will be
 inserted into the "``_default``" partition. You can check it by ``Collection.partitions()``
 
->>> collection.partitions()
+>>> collection.partitions
+[{"name": "_default", "description": "", "num_entities": 0}]
 
 You can provide a partition name to create a new partition.
 
->>> collection.partition("new_partition")
->>> collection.partitions()
+>>> collection.create_partition("new_partition")
+>>> collection.partitions
+[{"name": "_default", "description": "", "num_entities": 0}, {"name": "new_partition", "description": "", "num_entities": 0}]
 
 Insert Entities
 ========
@@ -142,7 +144,7 @@ In below example, we search the collection on ``embedding`` field.
 >>> search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
 >>> limit = 2
 >>> expr = "year > 20"
->>> collection.search(embedding_A, anns_field, search_params, limit, expr)
+>>> results = collection.search(embedding_A, anns_field, search_params, limit, expr)
 
 .. note::
     For more about the parameter expr, please refer to: https://github.com/milvus-io/milvus/blob/master/docs/design_docs/query_boolean_expr.md
@@ -182,7 +184,7 @@ You can also drop a partition.
 .. Danger::
    Once you drop a partition, all the data in this partition will be deleted too.
 
->>> collection.drop_partition("partition_to_drop")
+>>> collection.drop_partition("new_partition")
 
 
 Drop a Collection
