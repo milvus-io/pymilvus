@@ -491,7 +491,7 @@ class Collection:
             return InsertFuture(res)
         return res
 
-    def search(self, data, anns_field, param, limit, expression=None, partition_names=None,
+    def search(self, data, anns_field, param, limit, expr=None, partition_names=None,
                output_fields=None, timeout=None, **kwargs):
         """
         Conducts a vector similarity search with an optional boolean expression as filter.
@@ -505,8 +505,8 @@ class Collection:
         :type  param: dict
         :param limit: The max number of returned record, also known as ``topk``.
         :type  limit: int
-        :param expression: The boolean expression used to filter attribute.
-        :type  expression: str
+        :param expr: The boolean expression used to filter attribute.
+        :type  expr: str
         :param partition_names: The names of partitions to search.
         :type  partition_names: list[str]
         :param output_fields: The fields to return in the search result, not supported now.
@@ -564,7 +564,7 @@ class Collection:
         >>> print(top1.score)
         """
         conn = self._get_connection()
-        res = conn.search_with_expression(self._name, data, anns_field, param, limit, expression,
+        res = conn.search_with_expression(self._name, data, anns_field, param, limit, expr,
                                           partition_names, output_fields, timeout, **kwargs)
         if kwargs.get("_async", False):
             return SearchResultFuture(res)
