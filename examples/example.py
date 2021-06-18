@@ -31,14 +31,20 @@ def main():
 
     ok = milvus.has_collection(collection_name)
     field_name = 'example_field'
+    scalar_name = "age"
     if not ok:
         fields = {"fields":[{
-            "name": field_name,
-            "type": DataType.FLOAT_VECTOR,
-            "metric_type": "L2",
-            "params": {"dim": _DIM},
-            "indexes": [{"metric_type": "L2"}]
-        }]}
+                "name": field_name,
+                "type": DataType.FLOAT_VECTOR,
+                "metric_type": "L2",
+                "params": {"dim": _DIM},
+                "indexes": [{"metric_type": "L2"}]
+            },
+            {
+                "name": scalar_name,
+                "type": DataType.INT64
+            }
+        ]}
 
         milvus.create_collection(collection_name=collection_name, fields=fields)
     else:
@@ -61,7 +67,8 @@ def main():
     #   vectors = np.random.rand(10000, _DIM).astype(np.float32)
 
     # Insert vectors into demo_collection, return status and vectors id list
-    entities = [{"name": field_name, "type": DataType.FLOAT_VECTOR, "values": vectors}]
+    entities = [{"name": field_name, "type": DataType.FLOAT_VECTOR, "values": vectors},
+                {"name": scalar_name, "type": DataType.INT64, "values": [x for x in range(10)]}]
 
     res_ids = milvus.insert(collection_name=collection_name, entities=entities)
     print("ids:",res_ids)
@@ -99,8 +106,11 @@ def main():
                         }
     }}]}}
 
+    search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
+
     milvus.load_collection(collection_name)
-    results = milvus.search(collection_name, dsl)
+    results = milvus.search_with_expression(collection_name, vectors, field_name, param=search_params, limit=10, output_fields=[scalar_name])
+    print("search results: ", results[0][0].entity)
     # indicate search result
     # also use by:
     #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
