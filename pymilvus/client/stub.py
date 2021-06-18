@@ -129,9 +129,12 @@ class Milvus:
         self._wait_for_healthy()
 
     @check_connect
-    def _wait_for_healthy(self, timeout=300, retry=250):
+    def _wait_for_healthy(self, timeout=30, retry=10):
         with self._connection() as handler:
+            start_time = time.time()
             while retry > 0:
+                if (time.time() - start_time > timeout):
+                    break
                 try:
                     status = handler.fake_register_link(timeout)
                     if status.error_code == 0:
