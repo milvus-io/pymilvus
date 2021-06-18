@@ -50,6 +50,9 @@ def retry_on_rpc_failure(retry_times=10, wait=1):
             try:
                 return func(self, *args, **kwargs)
             except grpc.RpcError as e:
+                # DEADLINE_EXCEEDED means that the task wat not completed
+                # UNAVAILABLE means that the service is not reachable currently
+                # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
                 if e.code() != grpc.StatusCode.DEADLINE_EXCEEDED and e.code() != grpc.StatusCode.UNAVAILABLE:
                     raise e
                 if counter >= retry_times:
