@@ -300,6 +300,7 @@ class Collection:
         4
         """
         conn = self._get_connection()
+        conn.flush([self._name])
         status = conn.get_collection_stats(db_name="", collection_name=self._name)
         return status["row_count"]
 
