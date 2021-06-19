@@ -278,10 +278,12 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
             if dtype == DataType.UNKNOWN:
                 new_dtype = infer_dtype_bydata(values[i])
                 if new_dtype in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR):
-                    vector_type_parasm = {
-                        'dim': len(values[i]),
-                    }
-                    column_params_map[col_names[i]] = vector_type_parasm
+                    vector_type_params = {}
+                    if new_dtype == DataType.BINARY_VECTOR:
+                        vector_type_params['dim'] = len(values[i]) * 8
+                    else:
+                        vector_type_params['dim'] = len(values[i])
+                    column_params_map[col_names[i]] = vector_type_params
                 data_types[i] = new_dtype
 
     if DataType.UNKNOWN in data_types:
