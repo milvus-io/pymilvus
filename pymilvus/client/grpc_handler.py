@@ -12,7 +12,7 @@ from grpc._cython import cygrpc
 from ..grpc_gen import common_pb2 as common_types
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as milvus_types
-from .abstract import QueryResult, CollectionSchema, ChunkedQueryResult
+from .abstract import QueryResult, CollectionSchema, ChunkedQueryResult, MutationResult
 from .prepare import Prepare
 from .types import Status, IndexState, DataType, DeployMode, ErrorCode
 from .check import (
@@ -486,13 +486,9 @@ class GrpcHandler(AbsMilvus):
 
         raise BaseException(status.error_code, status.reason)
 
-    # https://github.com/zilliztech/milvus-distributed/issues/1339
-    def _prepare_bulk_insert_request(self, collection_name, entities, ids=None, partition_name=None, params=None,
-                                     timeout=None, **kwargs):
+    def _prepare_bulk_insert_request(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         insert_param = kwargs.get('insert_param', None)
 
-        # if insert_param and not isinstance(insert_param, grpc_types.InsertParam):
-        #     raise ParamError("The value of key 'insert_param' is invalid")
         if insert_param and not isinstance(insert_param, milvus_types.RowBatch):
             raise ParamError("The value of key 'insert_param' is invalid")
         if not isinstance(entities, list):
@@ -500,45 +496,22 @@ class GrpcHandler(AbsMilvus):
 
         collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
-        is_orm = kwargs.get("orm", False)
-        auto_id = collection_schema["auto_id"]
         fields_name = list()
         for i in range(len(entities)):
             if "name" in entities[i]:
                 fields_name.append(entities[i]["name"])
-        if not auto_id and ids is None and "_id" not in fields_name and not is_orm:
-            raise ParamError("You should specify the ids of entities!")
-
-        if not auto_id and ids is not None and "_id" in fields_name and not is_orm:
-            raise ParamError("You should specify the ids of entities!")
 
         fields_info = collection_schema["fields"]
 
-        if (auto_id and len(entities) != len(fields_info)) \
-                or (not auto_id and ids is not None and len(entities) == len(fields_info)
-                    and not is_orm):
-            raise ParamError("The length of entities must be equal to the number of fields!")
-
-        if ids is None:
-            ids = []
-            for entity in entities:
-                if "_id" in entity:
-                    ids.append(entity["_id"])
-            if not ids:
-                ids = None
-
         request = insert_param if insert_param \
-            else Prepare.bulk_insert_param(collection_name, entities, partition_name, ids, params, fields_info,
-                                           auto_id=auto_id, orm=is_orm)
+            else Prepare.bulk_insert_param(collection_name, entities, partition_name, fields_info)
 
-        return request, auto_id
+        return request
 
     @error_handler([])
-    def bulk_insert(self, collection_name, entities, ids=None, partition_name=None, params=None, timeout=None,
-                    **kwargs):
+    def bulk_insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         try:
-            request, auto_id = self._prepare_bulk_insert_request(collection_name, entities, ids, partition_name, params,
-                                                                 timeout, **kwargs)
+            request = self._prepare_bulk_insert_request(collection_name, entities, partition_name, timeout, **kwargs)
             rf = self._stub.Insert.future(request, wait_for_ready=True, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
@@ -546,80 +519,13 @@ class GrpcHandler(AbsMilvus):
 
             response = rf.result()
             if response.status.error_code == 0:
-                if auto_id or kwargs.get("orm", False):
-                    return list(range(response.rowID_begin, response.rowID_end))
-                return list(ids)
+                return MutationResult(response)
 
             raise BaseException(response.status.error_code, response.status.reason)
-        # except DescribeCollectionException as desc_error:
-        #     if kwargs.get("_async", False):
-        #         return InsertFuture(None, None, desc_error)
-        #     raise desc_error
         except Exception as err:
             if kwargs.get("_async", False):
                 return InsertFuture(None, None, err)
             raise err
-
-    @error_handler([])
-    def insert(self, collection_name, entities, ids=None, partition_name=None, params=None, timeout=None, **kwargs):
-        insert_param = kwargs.get('insert_param', None)
-
-        # if insert_param and not isinstance(insert_param, grpc_types.InsertParam):
-        #     raise ParamError("The value of key 'insert_param' is invalid")
-        if insert_param and not isinstance(insert_param, milvus_types.RowBatch):
-            raise ParamError("The value of key 'insert_param' is invalid")
-
-        collection = Prepare.describe_collection_request(collection_name)
-        rf = self._stub.DescribeCollection.future(collection, wait_for_ready=True, timeout=timeout)
-        response = rf.result()
-        if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
-        collection_schema = CollectionSchema(raw=response).dict()
-
-        auto_id = collection_schema["auto_id"]
-        fields_name = list()
-        entity = entities[0]
-        for key, value in entity.items():
-            if key in fields_name:
-                raise ParamError("duplicated field name in entity")
-            fields_name.append(key)
-
-        if not auto_id and ids is None and "_id" not in fields_name:
-            raise ParamError("You should specify the ids of entities!")
-
-        if not auto_id and ids is not None and "_id" in fields_name:
-            raise ParamError("You should specify the ids of entities!")
-
-        fields_info = collection_schema["fields"]
-
-        if (auto_id and len(entities[0]) != len(fields_info)) \
-                or (not auto_id and ids is not None and len(entities[0]) == len(fields_info)):
-            raise ParamError("The length of entities must be equal to the number of fields!")
-
-        if ids is None:
-            ids = []
-            for entity in entities:
-                if "_id" in entity:
-                    ids.append(entity["_id"])
-            if not ids:
-                ids = None
-
-        body = insert_param if insert_param \
-            else Prepare.insert_param(collection_name, entities, partition_name, ids, params, fields_info,
-                                      auto_id=auto_id)
-
-        rf = self._stub.Insert.future(body, wait_for_ready=True, timeout=timeout)
-        if kwargs.get("_async", False) is True:
-            cb = kwargs.get("_callback", None)
-            return InsertFuture(rf, cb)
-
-        response = rf.result()
-        if response.status.error_code == 0:
-            if auto_id:
-                return list(range(response.rowID_begin, response.rowID_end))
-            return list(ids)
-
-        raise BaseException(response.status.error_code, response.status.reason)
 
     def _prepare_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
                                 **kwargs):

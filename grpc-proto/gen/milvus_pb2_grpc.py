@@ -118,7 +118,7 @@ class MilvusServiceStub(object):
         self.Insert = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Insert',
                 request_serializer=milvus__pb2.InsertRequest.SerializeToString,
-                response_deserializer=milvus__pb2.InsertResponse.FromString,
+                response_deserializer=milvus__pb2.MutationResult.FromString,
                 )
         self.Search = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Search',
@@ -446,7 +446,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'Insert': grpc.unary_unary_rpc_method_handler(
                     servicer.Insert,
                     request_deserializer=milvus__pb2.InsertRequest.FromString,
-                    response_serializer=milvus__pb2.InsertResponse.SerializeToString,
+                    response_serializer=milvus__pb2.MutationResult.SerializeToString,
             ),
             'Search': grpc.unary_unary_rpc_method_handler(
                     servicer.Search,
@@ -851,7 +851,7 @@ class MilvusService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/Insert',
             milvus__pb2.InsertRequest.SerializeToString,
-            milvus__pb2.InsertResponse.FromString,
+            milvus__pb2.MutationResult.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

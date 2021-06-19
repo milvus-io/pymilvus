@@ -1,7 +1,7 @@
 import abc
 import threading
 
-from .abstract import QueryResult, ChunkedQueryResult
+from .abstract import QueryResult, ChunkedQueryResult, MutationResult
 from .exceptions import BaseException
 from .types import Status
 
@@ -235,8 +235,7 @@ class InsertFuture(Future):
     def on_response(self, response):
         status = response.status
         if status.error_code == 0:
-            return list(range(response.rowID_begin, response.rowID_end))
-            # return list(response.entity_id_array)
+            return MutationResult(response)
 
         status = response.status
         raise BaseException(status.error_code, status.reason)
