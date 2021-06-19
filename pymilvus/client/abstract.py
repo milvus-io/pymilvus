@@ -386,6 +386,7 @@ class ChunkedQueryResult(LoopBase):
         super().__init__()
         self._raw_list = raw_list
         self._auto_id = auto_id
+        self._nq = 0
 
         self._pack(self._raw_list)
 
@@ -397,10 +398,11 @@ class ChunkedQueryResult(LoopBase):
 
     def _pack(self, raw_list):
         self._hits = []
-        self._nq = raw_list[0].results.num_queries
-        self._topk = raw_list[0].results.top_k
         for raw in raw_list:
-            for i in range(self._nq):
+            nq = raw.results.num_queries
+            self._nq += nq
+            self._topk = raw.results.top_k
+            for i in range(nq):
                 hit = schema_pb2.SearchResultData()
                 start_pos = i * self._topk
                 end_pos = (i + 1) * self._topk
