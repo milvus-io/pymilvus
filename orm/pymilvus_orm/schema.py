@@ -32,7 +32,8 @@ class CollectionSchema:
         for field in fields:
             if not isinstance(field, FieldSchema):
                 raise ParamError("The field of schema type must be FieldSchema.")
-        self._fields = fields
+
+        self._fields = [copy.deepcopy(field) if field else None for field in fields]
         self._description = description
         self._kwargs = kwargs
 
@@ -148,12 +149,17 @@ class FieldSchema:
             raise DataTypeNotSupport(0, "Field type must be of DataType")
         self._dtype = dtype
         self._description = description
-        self._type_params = None
-        self._kwargs = kwargs
+        self._type_params = {}
+        self._kwargs = copy.deepcopy(kwargs)
         if not isinstance(kwargs.get("is_primary", False), bool):
             raise ParamError("Param is_primary must be bool type.")
         self.is_primary = kwargs.get("is_primary", False) is True
         self._parse_type_params()
+
+    def __deepcopy__(self, memodict=None):
+        if memodict is None:
+            memodict = {}
+        return FieldSchema(self.name, self._dtype, self.description, **self._kwargs)
 
     def _parse_type_params(self):
         # update self._type_params according to self._kwargs
