@@ -11,8 +11,10 @@ from .client.exceptions import (
     VersionError,
     BaseException
 )
+from .client.asynch import InsertFuture
 from .client import __version__
 
 __all__ = ['Milvus', 'Prepare', 'Status', 'DataType',
            'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'BaseException',
+           'InsertFuture',
            '__version__']

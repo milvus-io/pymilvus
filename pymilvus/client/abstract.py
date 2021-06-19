@@ -64,8 +64,9 @@ class FieldSchema:
         #
         self.field_id = 0
         self.name = None
-        self.is_primary_key = False
+        self.is_primary = False
         self.description = None
+        self.auto_id = False
         self.type = DataType.UNKNOWN
         self.indexes = list()
         self.params = dict()
@@ -76,8 +77,9 @@ class FieldSchema:
     def __pack(self, raw):
         self.field_id = raw.fieldID
         self.name = raw.name
-        self.is_primary_key = raw.is_primary_key
+        self.is_primary = raw.is_primary_key
         self.description = raw.description
+        self.auto_id = raw.autoID
         self.type = raw.data_type
         # self.type = DataType(int(raw.type))
 
@@ -107,7 +109,8 @@ class FieldSchema:
         _dict["description"] = self.description
         _dict["type"] = self.type
         _dict["params"] = self.params or dict()
-        _dict["is_primary"] = self.is_primary_key
+        _dict["is_primary"] = self.is_primary
+        _dict["auto_id"] = self.auto_id
         return _dict
 
 
@@ -121,6 +124,7 @@ class CollectionSchema:
         self.params = dict()
         self.fields = list()
         self.statistics = dict()
+        self.auto_id = False    # auto_id is not in collection level any more later
 
         #
         if self._raw:
@@ -128,7 +132,6 @@ class CollectionSchema:
 
     def __pack(self, raw):
         self.collection_name = raw.schema.name
-        self.auto_id = raw.schema.autoID
         self.description = raw.schema.description
         # self.params = dict()
         # TODO: extra_params here
@@ -252,6 +255,57 @@ class Hits(LoopBase):
     @property
     def distances(self):
         return self._raw.scores
+
+
+class MutationResult:
+    def __init__(self, raw):
+        self._raw = raw
+        self._primary_keys = list()
+        self._insert_cnt = 0
+        self._delete_cnt = 0
+        self._upsert_cnt = 0
+        self._timestamp = 0
+        self._pack(raw)
+
+    @property
+    def primary_keys(self):
+        return self._primary_keys
+
+    @property
+    def insert_count(self):
+        return self._insert_cnt
+
+    @property
+    def delete_count(self):
+        return self._delete_cnt
+
+    @property
+    def upsert_count(self):
+        return self._upsert_cnt
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+
+    # TODO
+    # def error_code(self):
+    #     pass
+    #
+    # def error_reason(self):
+    #     pass
+
+    def _pack(self, raw):
+        # self._primary_keys = getattr(raw.IDs, raw.IDs.WhichOneof('id_field')).value.data
+        which = raw.IDs.WhichOneof("id_field")
+        if which == "int_id":
+            self._primary_keys = raw.IDs.int_id.data
+        elif which == "str_id":
+            self._primary_keys = raw.IDs.str_id.data
+
+        self._insert_cnt = raw.insert_cnt
+        self._delete_cnt = raw.delete_cnt
+        self._upsert_cnt = raw.upsert_cnt
+        self._timestamp = raw.timestamp
 
 
 class QueryResult(LoopBase):
