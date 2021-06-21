@@ -329,7 +329,9 @@ message SearchRequest {
   // serialized `PlaceholderGroup`
   bytes placeholder_group = 6; // must
   common.DslType dsl_type = 7; // must
-  repeated common.KeyValuePair search_params = 8; // must
+  repeated string output_fields = 8;
+  repeated common.KeyValuePair search_params = 9; // must
+  uint64 travel_timestamp = 10;
 }
 
 message RetrieveRequest {
@@ -339,6 +341,7 @@ message RetrieveRequest {
   repeated string partition_names = 4; // must
   schema.IDs ids = 5; // must
   repeated string output_fields = 6; // must
+  uint64 travel_timestamp = 7;
 }
 
 message RetrieveResults {
@@ -355,7 +358,7 @@ message Hits {
 
 message SearchResults {
   common.Status status = 1;
-  repeated bytes hits = 2;
+  schema.SearchResultData results = 2;
 }
 
 message FlushRequest {

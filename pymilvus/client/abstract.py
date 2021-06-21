@@ -9,6 +9,7 @@ from .types import DataType
 from . import blob
 
 from ..grpc_gen import milvus_pb2
+from ..grpc_gen import schema_pb2
 
 
 class LoopBase(object):
@@ -171,7 +172,7 @@ class Entity:
         self._distance = entity_score
 
     def __str__(self):
-        str_ = 'id: {}, distance: {}'.format(self._id, self._distance)
+        str_ = 'id: {}, distance: {}, entity: {},'.format(self._id, self._distance, self._row_data)
         return str_
 
     def __getattr__(self, item):
@@ -235,22 +236,43 @@ class Hits(LoopBase):
         self._entities = [item for item in self]
 
     def __len__(self):
-        return len(self._raw.IDs)
+        return len(self._raw.ids.int_id.data)
 
     def get__item(self, item):
-        entity_id = self._raw.IDs[item]
-        if self._raw.row_data and len(self._raw.row_data) > item:
-            entity_row_data = self._raw.row_data[item]
-        else:
-            entity_row_data = None
+        entity_id = self._raw.ids.int_id.data[item]
+        entity_row_data = dict()
+        if self._raw.fields_data:
+            for field_data in self._raw.fields_data:
+                if field_data.type == DataType.BOOL:
+                    raise BaseException(0, "Not support bool yet")
+                    # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
+                elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
+                    if len(field_data.scalars.int_data.data) >= item:
+                        entity_row_data[field_data.field_name] = field_data.scalars.int_data.data[item]
+                elif field_data.type == DataType.INT64:
+                    if len(field_data.scalars.long_data.data) >= item:
+                        entity_row_data[field_data.field_name] = field_data.scalars.long_data.data[item]
+                elif field_data.type == DataType.FLOAT:
+                    if len(field_data.scalars.float_data.data) >= item:
+                        entity_row_data[field_data.field_name] = round(field_data.scalars.float_data.data[item], 6)
+                elif field_data.type == DataType.DOUBLE:
+                    if len(field_data.scalars.double_data.data) >= item:
+                        entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[item]
+                elif field_data.type == DataType.STRING:
+                    raise BaseException(0, "Not support string yet")
+                    # result[field_data.field_name] = field_data.scalars.string_data.data[index]
+                elif field_data.type == DataType.FLOAT_VECTOR:
+                    dim = field_data.vectors.dim
+                    if len(field_data.vectors.float_vector.data) >= item * dim:
+                        start_pos = item * dim
+                        end_pos = item * dim + dim
+                        entity_row_data[field_data.field_name] = [round(x, 6) for x in field_data.vectors.float_vector.data[start_pos:end_pos]]
         entity_score = self._raw.scores[item]
-        if not self._auto_id:
-            entity_id = blob.bytesToInt64(entity_row_data)
         return Hit(entity_id, entity_row_data, entity_score)
 
     @property
     def ids(self):
-        return self._raw.IDs
+        return self._raw.ids.int_id.data
 
     @property
     def distances(self):
@@ -322,13 +344,38 @@ class QueryResult(LoopBase):
         return self._nq
 
     def _pack(self, raw):
+        self._nq = raw.results.num_queries
+        self._topk = raw.results.top_k
         self._hits = []
-        for bs in raw:
-            hit = milvus_pb2.Hits()
-            hit.ParseFromString(bs)
+        for i in range(self._nq):
+            hit = schema_pb2.SearchResultData()
+            start_pos = i * self._topk
+            end_pos = (i + 1) * self._topk
+            hit.scores.append(raw.results.scores[start_pos : end_pos])
+            hit.ids.append(raw.results.ids.int_id.data[start_pos : end_pos])
+            for field_data in raw.result.fields_data:
+                field = schema_pb2.FieldData()
+                field.type = field_data.type
+                field.field_name = field_data.field_name
+                if field_data.type == DataType.BOOL:
+                    raise BaseException(0, "Not support bool yet")
+                    # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
+                elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
+                    field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos : end_pos])
+                elif field_data.type == DataType.INT64:
+                    field.scalars.long_data.data.extend(field_data.scalars.long_data.data[start_pos: end_pos])
+                elif field_data.type == DataType.FLOAT:
+                    field.scalars.float_data.data.extend(field_data.scalars.float_data.data[start_pos: end_pos])
+                elif field_data.type == DataType.DOUBLE:
+                    field.scalars.double_data.data.extend(field_data.scalars.double_data.data[start_pos: end_pos])
+                elif field_data.type == DataType.STRING:
+                    raise BaseException(0, "Not support string yet")
+                    # result[field_data.field_name] = field_data.scalars.string_data.data[index]
+                elif field_data.type == DataType.FLOAT_VECTOR:
+                    dim = field.vectors.dim
+                    field.vectors.float_vector.data.extend(field_data.vectors.float_data.data[start_pos * dim : end_pos * dim])
+                hit.fields_data.append(field)
             self._hits.append(hit)
-        self._nq = len(self._hits)
-        self._topk = len(self._hits[0].IDs) if len(self._hits) > 0 else 0
 
     def get__item(self, item):
         return Hits(self._hits[item], self._auto_id)
@@ -339,6 +386,7 @@ class ChunkedQueryResult(LoopBase):
         super().__init__()
         self._raw_list = raw_list
         self._auto_id = auto_id
+        self._nq = 0
 
         self._pack(self._raw_list)
 
@@ -351,12 +399,40 @@ class ChunkedQueryResult(LoopBase):
     def _pack(self, raw_list):
         self._hits = []
         for raw in raw_list:
-            for bs in raw.hits:
-                hit = milvus_pb2.Hits()
-                hit.ParseFromString(bs)  # otherwise we can use map to simplify this
+            nq = raw.results.num_queries
+            self._nq += nq
+            self._topk = raw.results.top_k
+            for i in range(nq):
+                hit = schema_pb2.SearchResultData()
+                start_pos = i * self._topk
+                end_pos = (i + 1) * self._topk
+                hit.scores.extend(raw.results.scores[start_pos: end_pos])
+                hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos: end_pos])
+                for field_data in raw.results.fields_data:
+                    field = schema_pb2.FieldData()
+                    field.type = field_data.type
+                    field.field_name = field_data.field_name
+                    if field_data.type == DataType.BOOL:
+                        raise BaseException(0, "Not support bool yet")
+                        # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
+                    elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
+                        field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos: end_pos])
+                    elif field_data.type == DataType.INT64:
+                        field.scalars.long_data.data.extend(field_data.scalars.long_data.data[start_pos: end_pos])
+                    elif field_data.type == DataType.FLOAT:
+                        field.scalars.float_data.data.extend(field_data.scalars.float_data.data[start_pos: end_pos])
+                    elif field_data.type == DataType.DOUBLE:
+                        field.scalars.double_data.data.extend(field_data.scalars.double_data.data[start_pos: end_pos])
+                    elif field_data.type == DataType.STRING:
+                        raise BaseException(0, "Not support string yet")
+                        # result[field_data.field_name] = field_data.scalars.string_data.data[index]
+                    elif field_data.type == DataType.FLOAT_VECTOR:
+                        dim = field.vectors.dim
+                        field.vectors.float_vector.data.extend(field_data.vectors.float_data.data[
+                                                          start_pos * dim: end_pos * dim])
+                    hit.fields_data.append(field)
                 self._hits.append(hit)
-        self._nq = len(self._hits)
-        self._topk = len(self._hits[0].IDs) if len(self._hits) > 0 else 0
+
 
     def get__item(self, item):
         return Hits(self._hits[item], self._auto_id)
