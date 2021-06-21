@@ -33,6 +33,7 @@ class TestCollectionSchema:
                 "description": "ID",
                 "type": DataType.INT64,
                 "is_primary": True,
+                "auto_id": False
             },
         ]
         _dict["fields"] = fields

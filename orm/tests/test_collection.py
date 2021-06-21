@@ -24,7 +24,7 @@ class TestCollections:
             FieldSchema("float", DataType.FLOAT),
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=128)
         ]
-        collection_schema = CollectionSchema(fields)
+        collection_schema = CollectionSchema(fields, primary_field="int64")
         connections.connect()
         collection = Collection(name=gen_collection_name(), schema=collection_schema)
         collection.drop()
@@ -33,7 +33,7 @@ class TestCollections:
         assert type(collection) is Collection
 
     def test_construct_from_dataframe(self):
-        assert type(Collection.construct_from_dataframe(gen_collection_name(), gen_pd_data(default_nb))) is Collection
+        assert type(Collection.construct_from_dataframe(gen_collection_name(), gen_pd_data(default_nb), priamry_field="int64")) is Collection
 
     def test_schema(self, collection):
         schema = collection.schema

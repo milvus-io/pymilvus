@@ -1,5 +1,6 @@
 import pdb
 
+import pymilvus.client.abstract
 from pymilvus import *
 import logging
 
@@ -127,7 +128,7 @@ class MockMilvus:
             return indexes[0]
 
     def insert(self, collection_name, entities, ids=None, partition_tag=None, timeout=None, **kwargs):
-        pass
+        return pymilvus.client.abstract.MutationResult
 
     def flush(self, collection_names=None, timeout=None, **kwargs):
         pass

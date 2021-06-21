@@ -253,3 +253,48 @@ class SearchResult:
 
     def on_result(self, res):
         return Hits(res)
+
+
+class MutationResult:
+    def __init__(self, mr):
+        self._mr = mr
+        self._primary_keys = list()
+        self._insert_cnt = 0
+        self._delete_cnt = 0
+        self._upsert_cnt = 0
+        self._timestamp = 0
+        self._pack(mr)
+
+    @property
+    def primary_keys(self):
+        return self._primary_keys
+
+    @property
+    def insert_count(self):
+        return self._insert_cnt
+
+    @property
+    def delete_count(self):
+        return self._delete_cnt
+
+    @property
+    def upsert_count(self):
+        return self._upsert_cnt
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+
+    # TODO
+    # def error_code(self):
+    #     pass
+    #
+    # def error_reason(self):
+    #     pass
+
+    def _pack(self, mr):
+        self._primary_keys = mr.primary_keys
+        self._insert_cnt = mr.insert_count
+        self._delete_cnt = mr.delete_count
+        self._upsert_cnt = mr.upsert_count
+        self._timestamp = mr.timestamp

@@ -9,6 +9,8 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
+import copy
+
 import numpy
 import pandas
 
@@ -29,18 +31,27 @@ class Prepare:
                 raise DataNotMatch(0, f"collection has {len(fields)} fields"
                                       f", but go {len(data.columns)} fields")
             for i, field in enumerate(fields):
+                if field.is_primary and field.auto_id:
+                    pass
                 entities.append({"name": field.name,
                                  "type": field.dtype,
                                  "values": list(data[field.name])})
                 raw_lengths.append(len(data[field.name]))
         else:
-            if len(data) != len(fields):
-                raise DataNotMatch(0, f"collection has {len(fields)} fields, "
-                                      f"but got {len(data)} fields")
+            if schema.auto_id:
+                if len(data) + 1 != len(fields):
+                    raise DataNotMatch(0, f"collection has {len(fields)} fields, "
+                                          f"but got {len(data)} fields")
 
-            for i, field in enumerate(fields):
+            tmp_fields = copy.deepcopy(fields)
+            for i, field in enumerate(tmp_fields):
+                if field.is_primary and field.auto_id:
+                    tmp_fields.pop(i)
+
+            for i, field in enumerate(tmp_fields):
                 if isinstance(data[i], numpy.ndarray):
                     raise DataTypeNotSupport(0, "Data type not support numpy.ndarray")
+
                 entities.append({
                     "name": field.name,
                     "type": field.dtype,

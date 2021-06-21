@@ -60,7 +60,7 @@ def gen_field_name():
 def gen_schema():
     from pymilvus_orm.schema import CollectionSchema, FieldSchema
     fields = [
-        FieldSchema(gen_field_name(), DataType.INT64),
+        FieldSchema(gen_field_name(), DataType.INT64, is_primary=True, auto_id=False),
         FieldSchema(gen_field_name(), DataType.FLOAT),
         FieldSchema(gen_field_name(), DataType.FLOAT_VECTOR, dim=default_dim)
     ]

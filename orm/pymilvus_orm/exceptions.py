@@ -140,3 +140,7 @@ class DataNotMatch(MilvusException):
 
 class ConnectionNotExistException(MilvusException):
     pass
+
+
+class PrimaryKeyException(MilvusException):
+    pass

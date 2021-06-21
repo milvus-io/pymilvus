@@ -9,6 +9,7 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
+import copy
 
 import pandas
 
@@ -22,7 +23,7 @@ from .schema import (
 from .prepare import Prepare
 from .partition import Partition
 from .index import Index
-from .search import SearchResult
+from .search import SearchResult, MutationResult
 from .types import DataType
 from .exceptions import (
     SchemaNotReadyException,
@@ -118,7 +119,7 @@ class Collection:
                 raise SchemaNotReadyException(0, "Should be passed into the schema.")
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
-                conn.create_collection(self._name, fields=schema.to_dict(), orm=True)
+                conn.create_collection(self._name, fields=schema.to_dict())
                 self._schema = schema
             else:
                 raise SchemaNotReadyException(0, "The schema type must be schema.CollectionSchema.")
@@ -139,13 +140,18 @@ class Collection:
         if self._schema is None:
             return False
         infer_fields = parse_fields_from_data(data)
+        tmp_fields = copy.deepcopy(self._schema.fields)
 
-        if len(infer_fields) != len(self._schema):
+        for i, field in enumerate(self._schema.fields):
+            if field.is_primary and field.auto_id:
+                tmp_fields.pop(i)
+
+        if len(infer_fields) != len(tmp_fields):
             raise DataTypeNotMatchException(0, "Column cnt not match with schema")
 
         _check_data_schema(infer_fields, data)
 
-        for x, y in zip(infer_fields, self._schema.fields):
+        for x, y in zip(infer_fields, tmp_fields):
             if x.dtype != y.dtype:
                 return False
             if isinstance(data, pandas.DataFrame):
@@ -170,9 +176,26 @@ class Collection:
             raise SchemaNotReadyException(0, "Dataframe can not be None!")
         if not isinstance(dataframe, pandas.DataFrame):
             raise SchemaNotReadyException(0, "Data type must be pandas.DataFrame!")
+        primary_field = kwargs.get("priamry_field", None)
+        if primary_field is None:
+            raise SchemaNotReadyException(0, "Schema must have a primary key field!")
+        auto_id = kwargs.get("auto_id", False)
+        if auto_id:
+            if dataframe[primary_field].isnull().all():
+                dataframe.drop(primary_field, axis=1)
+            else:
+                raise SchemaNotReadyException(0, "Auto_id is True, but get the data of primary key field.")
 
         fields = parse_fields_from_data(dataframe)
         _check_data_schema(fields, dataframe)
+        if auto_id:
+            fields.append(FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True, auto_id=True, **kwargs))
+        else:
+            for field in fields:
+                if field.name == primary_field:
+                    field.is_primary = True
+                    field.auto_id = False
+
         schema = CollectionSchema(fields=fields)
         _check_schema(schema)
         collection = cls(name, schema, **kwargs)
@@ -487,10 +510,10 @@ class Collection:
         entities = Prepare.prepare_insert_data(data, self._schema)
         timeout = kwargs.pop("timeout", None)
         res = conn.insert(collection_name=self._name, entities=entities, ids=None,
-                          partition_name=partition_name, timeout=timeout, orm=True, **kwargs)
+                          partition_name=partition_name, timeout=timeout, **kwargs)
         if kwargs.get("_async", False):
             return InsertFuture(res)
-        return res
+        return MutationResult(res)
 
     def search(self, data, anns_field, param, limit, expr=None, partition_names=None,
                output_fields=None, timeout=None, **kwargs):
@@ -570,37 +593,6 @@ class Collection:
         if kwargs.get("_async", False):
             return SearchResultFuture(res)
         return SearchResult(res)
-
-    def get(self, ids, partition_names=None, output_fields=None, timeout=None):
-        """
-        Retrieve multiple entities by entityID. Returns a dict that the key is entityID and
-        the value is entity. If entityID not found in the collection,
-        it's value in the result will be None.
-
-        :param ids: A list of entityID
-        :type  ids: list[int]
-
-        :param output_fields: A list of fields to return
-        :type  output_fields: list[str]
-
-        :param partition_names: Name of partitions that contain entities
-        :type  partition_names: list[str]
-
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server response or error occur
-        :type  timeout: float
-
-        :return: A dict that contains all results
-        :rtype: dict
-
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
-        """
-        conn = self._get_connection()
-        res = conn.get(self._name, ids, output_fields, partition_names, timeout)
-        return res
 
     def query(self, expr, output_fields=None, partition_names=None, timeout=None):
         """
