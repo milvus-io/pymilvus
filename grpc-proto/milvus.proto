@@ -331,6 +331,7 @@ message SearchRequest {
   common.DslType dsl_type = 7; // must
   repeated string output_fields = 8;
   repeated common.KeyValuePair search_params = 9; // must
+  uint64 travel_timestamp = 10;
 }
 
 message RetrieveRequest {
@@ -340,6 +341,7 @@ message RetrieveRequest {
   repeated string partition_names = 4; // must
   schema.IDs ids = 5; // must
   repeated string output_fields = 6; // must
+  uint64 travel_timestamp = 7;
 }
 
 message RetrieveResults {
