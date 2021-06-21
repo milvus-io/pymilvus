@@ -443,6 +443,7 @@ class Prepare:
                 request = milvus_types.SearchRequest(
                     collection_name=collection_name,
                     partition_names=partition_names,
+                    output_fields=fields,
                 )
                 request.dsl = ujson.dumps(duplicated_entities)
                 request.placeholder_group = plg_str
@@ -458,6 +459,7 @@ class Prepare:
         request = milvus_types.SearchRequest(
             collection_name=collection_name,
             partition_names=partition_names,
+            output_fields=fields,
         )
 
         duplicated_entities = copy.deepcopy(query_entities)
@@ -559,6 +561,7 @@ class Prepare:
             request = milvus_types.SearchRequest(
                 collection_name=collection_name,
                 partition_names=partition_names,
+                output_fields=output_fields,
             )
             request.placeholder_group = plg_str
 
