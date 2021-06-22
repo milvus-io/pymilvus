@@ -29,11 +29,9 @@ if collection_name in client.list_collections():
 
 collection_param = {
     "fields": [
-        {"name": "release_year", "type": DataType.INT32},
+        {"name": "release_year", "type": DataType.INT64, "is_primary": True},
         {"name": "embedding", "type": DataType.FLOAT_VECTOR, "params": {"dim": 8}},
     ],
-    "segment_row_limit": 4096,
-    "auto_id": False
 }
 
 client.create_collection(collection_name, collection_param)
@@ -71,7 +69,7 @@ for film in films:
 
 
 hybrid_entities = [
-    {"name": "release_year", "values": release_years, "type": DataType.INT32},
+    {"name": "release_year", "values": release_years, "type": DataType.INT64},
     {"name": "embedding", "values": embeddings, "type": DataType.FLOAT_VECTOR},
 ]
 

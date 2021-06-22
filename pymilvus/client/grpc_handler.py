@@ -1032,7 +1032,7 @@ class GrpcHandler(AbsMilvus):
         future = self._stub.Query.future(request, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code != Status.SUCCESS:
-            raise BaseException(response.error_code, response.reason)
+            raise BaseException(response.status.error_code, response.status.reason)
 
         num_fields = len(response.fields_data)
         # check has fields
