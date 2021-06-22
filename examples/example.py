@@ -1,4 +1,4 @@
-#This program demos how to connect to Milvus vector database, 
+# This program demos how to connect to Milvus vector database,
 # create a vector collection,
 # insert 10 vectors, 
 # and execute a vector similarity search.
@@ -31,18 +31,20 @@ def main():
 
     ok = milvus.has_collection(collection_name)
     field_name = 'example_field'
-    scalar_name = "age"
+    id_name = "id"
     if not ok:
-        fields = {"fields":[{
-                "name": field_name,
-                "type": DataType.FLOAT_VECTOR,
-                "metric_type": "L2",
-                "params": {"dim": _DIM},
-                "indexes": [{"metric_type": "L2"}]
-            },
+        fields = {"fields": [{
+            "name": field_name,
+            "type": DataType.FLOAT_VECTOR,
+            "metric_type": "L2",
+            "params": {"dim": _DIM},
+            "indexes": [{"metric_type": "L2"}]
+        },
             {
-                "name": scalar_name,
-                "type": DataType.INT64
+                "name": id_name,
+                "type": DataType.INT64,
+                "auto_id": True,
+                "is_primary": True,
             }
         ]}
 
@@ -67,11 +69,10 @@ def main():
     #   vectors = np.random.rand(10000, _DIM).astype(np.float32)
 
     # Insert vectors into demo_collection, return status and vectors id list
-    entities = [{"name": field_name, "type": DataType.FLOAT_VECTOR, "values": vectors},
-                {"name": scalar_name, "type": DataType.INT64, "values": [x for x in range(10)]}]
+    entities = [{"name": field_name, "type": DataType.FLOAT_VECTOR, "values": vectors}]
 
     res_ids = milvus.insert(collection_name=collection_name, entities=entities)
-    print("ids:",res_ids)
+    print("ids:", res_ids.primary_keys)
 
     # Flush collection  inserted data to disk.
     milvus.flush([collection_name])
@@ -98,18 +99,19 @@ def main():
     print("Searching ... ")
 
     dsl = {"bool": {"must": [{"vector": {
-                        field_name: {
-                            "metric_type": "L2",
-                            "query": vectors,
-                            "topk": 10,
-                            "params": {"nprobe": 16}
-                        }
+        field_name: {
+            "metric_type": "L2",
+            "query": vectors,
+            "topk": 10,
+            "params": {"nprobe": 16}
+        }
     }}]}}
 
     search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
 
     milvus.load_collection(collection_name)
-    results = milvus.search_with_expression(collection_name, vectors, field_name, param=search_params, limit=10, output_fields=[scalar_name])
+    results = milvus.search_with_expression(collection_name, vectors, field_name, param=search_params, limit=10,
+                                            output_fields=[id_name])
     print("search results: ", results[0][0].entity)
     # indicate search result
     # also use by:
@@ -119,7 +121,7 @@ def main():
     else:
         print('Query result isn\'t correct')
 
-    milvus.drop_index(collection_name,field_name)
+    milvus.drop_index(collection_name, field_name)
     milvus.release_collection(collection_name)
 
     # Delete demo_collection
