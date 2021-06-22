@@ -104,6 +104,23 @@ class Index:
         """
         return self._field_name
 
+    def __eq__(self, other) -> bool:
+        """
+        The order of the fields of index must be consistent.
+        """
+        return self.to_dict() == other.to_dict()
+
+    def to_dict(self):
+        """
+        Put collection name, field name and index params into dict.
+        """
+        _dict = {
+            "collection": self._collection._name,
+            "field": self._field_name,
+            "index_param": self.params
+        }
+        return _dict
+
     def drop(self, **kwargs):
         """
         Drop an index and its corresponding index files.
