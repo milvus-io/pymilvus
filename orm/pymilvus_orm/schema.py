@@ -28,35 +28,30 @@ from pymilvus_orm.exceptions import (
 
 class CollectionSchema:
     def __init__(self, fields, description="", **kwargs):
-        self._primary_field = None
         if not isinstance(fields, list):
             raise ParamError("The fields of schema must be type list.")
         self._fields = [copy.deepcopy(field) for field in fields]
+        primary_field = kwargs.get("primary_field", None)
         for field in self._fields:
             if not isinstance(field, FieldSchema):
                 raise ParamError("The field of schema type must be FieldSchema.")
+            if primary_field == field.name:
+                field.is_primary = True
+        self._primary_field = None
+        for field in self._fields:
             if field.is_primary:
-                if self._primary_field is None:
-                    self._primary_field = field
-                else:
+                if primary_field is not None and primary_field != field.name:
                     raise PrimaryKeyException(0, "Primary key field can only be one.")
+                self._primary_field = field
 
         if self._primary_field is None:
-            if kwargs.get("primary_field", None) is None:
-                raise PrimaryKeyException(0, "Must be have a primary key field.")
-            for field in self._fields:
-                if kwargs.get("primary_field", None) == field.name:
-                    field.is_primary = True
-                    self._primary_field = field
-        else:
-            if kwargs.get("primary_field", None) is not None and kwargs.get("primary_field", None) != self._primary_field.name:
-                raise PrimaryKeyException(0, "Primary key field can only be one.")
+            raise PrimaryKeyException(0, "Must be have a primary key field.")
 
         if self._primary_field.dtype not in [DataType.INT64]:
             raise PrimaryKeyException(0, "Primary key type must be DataType.INT64.")
 
         self._auto_id = kwargs.get("auto_id", None)
-        if self._auto_id is not None:
+        if "auto_id" in kwargs:
             if not isinstance(self._auto_id, bool):
                 raise ParamError("Param auto_id must be bool type.")
             if self._primary_field.auto_id is not None and self._primary_field.auto_id != self._auto_id:
@@ -182,12 +177,13 @@ class FieldSchema:
         if not isinstance(kwargs.get("is_primary", False), bool):
             raise ParamError("Param is_primary must be bool type.")
         self.is_primary = kwargs.get("is_primary", False)
-        if "auto_id" in kwargs:
-            if not self.is_primary:
-                raise PrimaryKeyException(0, "auto_id can only be specified on the primary key field")
-            if not isinstance(kwargs.get("auto_id"), bool):
-                raise ParamError("Param auto_id must be bool type.")
         self.auto_id = kwargs.get("auto_id", None)
+        if "auto_id" in kwargs:
+            if not isinstance(self.auto_id, bool):
+                raise ParamError("Param auto_id must be bool type.")
+            if not self.is_primary and self.auto_id:
+                raise PrimaryKeyException(0, "auto_id can only be specified on the primary key field")
+
         self._parse_type_params()
 
     def __deepcopy__(self, memodict=None):
@@ -214,6 +210,8 @@ class FieldSchema:
         kwargs = {}
         kwargs.update(raw.get("params", {}))
         kwargs['is_primary'] = raw.get("is_primary", False)
+        if raw.get("auto_id", None) is not None:
+            kwargs['auto_id'] = raw.get("auto_id", None)
         return FieldSchema(raw['name'], raw['type'], raw['description'], **kwargs)
 
     def to_dict(self):
@@ -225,7 +223,6 @@ class FieldSchema:
             _dict["params"] = copy.deepcopy(self.params)
         if self.is_primary:
             _dict["is_primary"] = True
-        if self.auto_id is not None:
             _dict["auto_id"] = self.auto_id
         return _dict
 

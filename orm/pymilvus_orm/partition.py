@@ -14,7 +14,7 @@ import json
 
 from .exceptions import CollectionNotExistException
 from .prepare import Prepare
-from .search import SearchResult
+from .search import SearchResult, MutationResult
 from .future import SearchResultFuture, InsertFuture
 
 
@@ -217,9 +217,9 @@ class Partition:
                           partition_name=self._name, timeout=timeout, orm=True, **kwargs)
         if kwargs.get("_async", False):
             return InsertFuture(res)
-        return res
+        return MutationResult(res)
 
-    def search(self, data, anns_field, params, limit, expr=None, output_fields=None, timeout=None,
+    def search(self, data, anns_field, param, limit, expr=None, output_fields=None, timeout=None,
                **kwargs):
         """
         Vector similarity search with an optional boolean expression as filters.
@@ -229,8 +229,8 @@ class Partition:
         :type  data: list[list[float]]
         :param anns_field: The vector field used to search of collection.
         :type  anns_field: str
-        :param params: The parameters of search, such as nprobe, etc.
-        :type  params: dict
+        :param param: The parameters of search, such as nprobe, etc.
+        :type  param: dict
         :param limit: The max number of returned record, we also called this parameter as topk.
         :type  limit: int
         :param expr: The boolean expression used to filter attribute.
@@ -258,7 +258,7 @@ class Partition:
         :raises BaseException: If the return result from server is not ok.
         """
         conn = self._get_connection()
-        res = conn.search_with_expression(self._collection.name, data, anns_field, params, limit,
+        res = conn.search_with_expression(self._collection.name, data, anns_field, param, limit,
                                           expr, [self._name], output_fields, timeout, **kwargs)
         if kwargs.get("_async", False):
             return SearchResultFuture(res)
