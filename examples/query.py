@@ -22,22 +22,36 @@ if __name__ == "__main__":
         {
             "name": "id",
             "type": DataType.INT64,
+            "auto_id": True,
             "is_primary": True,
         }
     ],
-        "auto_id": False,
     }, orm=True)
 
     assert c.has_collection(collection_name)
 
-    c.insert(collection_name, [
+    ids = c.insert(collection_name, [
         {"name": "f1", "type": DataType.FLOAT_VECTOR, "values": [[1.1, 2.2, 3.3, 4.4], [5.5, 6.6, 7.7, 8.8]]},
-        {"name": "age", "type": DataType.FLOAT, "values": [3.45, 8.9]},
-        {"name": "id", "type": DataType.INT64, "values": [1, 2]}
+        {"name": "age", "type": DataType.FLOAT, "values": [3.45, 8.9]}
     ], orm=True)
 
     c.flush([collection_name])
 
     c.load_collection(collection_name)
 
-    pprint(c.query(collection_name, f"id in [ 1, 2 ]"))
+    #############################################################
+    search_params = {"metric_type": "L2", "params": {"nprobe": 1}}
+
+    results = c.search_with_expression(collection_name, [[1.1, 2.2, 3.3, 4.4]],
+                                       "f1", param=search_params, limit=2, output_fields=["id"])
+
+    print("search results: ", results[0][0].entity, " + ", results[0][1].entity)
+    #############################################################
+
+    ids_expr = ",".join(str(x) for x in ids.primary_keys)
+
+    expr = "id in [ " + ids_expr + " ] "
+
+    print(expr)
+
+    pprint(c.query(collection_name, expr))
