@@ -102,7 +102,7 @@ class Prepare:
                         if tk == "dim":
                             try:
                                 int(tv)
-                            except ValueError:
+                            except (TypeError, ValueError):
                                 raise ParamError("invalid dim: " + str(tv))
                         kv_pair = common_types.KeyValuePair(key=str(tk), value=str(tv))
                         field_schema.type_params.append(kv_pair)
