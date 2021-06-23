@@ -57,6 +57,7 @@ class CollectionSchema:
             if self._primary_field.auto_id is not None and self._primary_field.auto_id != self._auto_id:
                 raise ParamError("The auto_id of the collection is inconsistent "
                                  "with the auto_id of the primary key field.")
+            self._primary_field.auto_id = self._auto_id
         else:
             if self._primary_field.auto_id is None:
                 self._primary_field.auto_id = False
