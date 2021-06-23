@@ -929,17 +929,7 @@ class GrpcHandler(AbsMilvus):
         raise BaseException(status.error_code, status.reason)
 
     @error_handler()
-    def wait_for_flushed(self, collection_name, timeout=None, **kwargs):
-        def get_first_segment_ids():
-            infos = self.get_persistent_segment_infos(collection_name, timeout, **kwargs)
-            return [info.segmentID for info in infos]
-            # in fact, exception only happens when collection is not existed
-            # try:
-            #     infos = self.get_persistent_segment_infos(collection_name, timeout, **kwargs)
-            #     return [info.segmentID for info in infos]
-            # except BaseException:
-            #     return None
-
+    def _wait_for_flushed(self, collection_name, get_first_segment_ids_func, timeout=None, **kwargs):
         def flushed(segment_ids_to_wait):
             infos = self.get_persistent_segment_infos(collection_name, timeout, **kwargs)
             need_cnt = len(segment_ids_to_wait)
@@ -952,20 +942,8 @@ class GrpcHandler(AbsMilvus):
                     have_cnt += 1
                     # return False
             return need_cnt == have_cnt
-            # in fact, exception only happens when collection is not existed
-            # try:
-            #     infos = self.get_persistent_segment_infos(collection_name, timeout, **kwargs)
-            #     for info in infos:
-            #         if info.segmentID not in segment_ids_to_wait:
-            #             continue
-            #         print("info.state: ", info.state)
-            #         if info.state != SegmentState.Flushed:
-            #             return False
-            #     return True
-            # except BaseException:
-            #     return False
 
-        first_segment_ids = get_first_segment_ids()
+        first_segment_ids = get_first_segment_ids_func()
         while True:
             time.sleep(0.5)
             if flushed(first_segment_ids):
@@ -980,7 +958,7 @@ class GrpcHandler(AbsMilvus):
             def _check():
                 if kwargs.get("sync", True):
                     for collection_name in collection_name_array:
-                        self.wait_for_flushed(collection_name)
+                        self._wait_for_flushed(collection_name, lambda name: future.result().coll_segIDs[name].data)
 
             flush_future = FlushFuture(future)
             flush_future.add_callback(_check)
@@ -997,7 +975,7 @@ class GrpcHandler(AbsMilvus):
         sync = kwargs.get("sync", True)
         if sync:
             for collection_name in collection_name_array:
-                self.wait_for_flushed(collection_name)
+                self._wait_for_flushed(collection_name, lambda name: future.result().coll_segIDs[name].data)
 
     @error_handler()
     def drop_index(self, collection_name, field_name, index_name, timeout=None, **kwargs):

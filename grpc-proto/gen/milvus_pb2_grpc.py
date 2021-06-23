@@ -133,7 +133,7 @@ class MilvusServiceStub(object):
         self.Flush = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Flush',
                 request_serializer=milvus__pb2.FlushRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
+                response_deserializer=milvus__pb2.FlushResponse.FromString,
                 )
         self.Query = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Query',
@@ -461,7 +461,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'Flush': grpc.unary_unary_rpc_method_handler(
                     servicer.Flush,
                     request_deserializer=milvus__pb2.FlushRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
+                    response_serializer=milvus__pb2.FlushResponse.SerializeToString,
             ),
             'Query': grpc.unary_unary_rpc_method_handler(
                     servicer.Query,
@@ -902,7 +902,7 @@ class MilvusService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/Flush',
             milvus__pb2.FlushRequest.SerializeToString,
-            common__pb2.Status.FromString,
+            milvus__pb2.FlushResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

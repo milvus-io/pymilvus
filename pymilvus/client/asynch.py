@@ -301,8 +301,8 @@ class CreateFlatIndexFuture(AbstractFuture):
 
 class FlushFuture(Future):
     def on_response(self, response):
-        if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
 
 
 class LoadCollectionFuture(Future):
