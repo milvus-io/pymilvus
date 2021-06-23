@@ -958,7 +958,7 @@ class GrpcHandler(AbsMilvus):
             def _check():
                 if kwargs.get("sync", True):
                     for collection_name in collection_name_array:
-                        self._wait_for_flushed(collection_name, lambda name: future.result().coll_segIDs[name].data)
+                        self._wait_for_flushed(collection_name, lambda: future.result().coll_segIDs[collection_name].data)
 
             flush_future = FlushFuture(future)
             flush_future.add_callback(_check)
@@ -975,7 +975,7 @@ class GrpcHandler(AbsMilvus):
         sync = kwargs.get("sync", True)
         if sync:
             for collection_name in collection_name_array:
-                self._wait_for_flushed(collection_name, lambda name: future.result().coll_segIDs[name].data)
+                self._wait_for_flushed(collection_name, lambda: future.result().coll_segIDs[collection_name].data)
 
     @error_handler()
     def drop_index(self, collection_name, field_name, index_name, timeout=None, **kwargs):
