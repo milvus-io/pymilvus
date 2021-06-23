@@ -139,6 +139,13 @@ class Collection:
         """
         if self._schema is None:
             return False
+        if self._schema.auto_id:
+            if isinstance(data, pandas.DataFrame):
+                if self._schema.primary_field.name in data:
+                    if not data[self._schema.primary_field.name].isnull().all():
+                        raise DataNotMatch(0, "Auto_id is True, primary field should not have data.")
+                    data = data.drop(self._schema.primary_field.name, axis=1)
+
         infer_fields = parse_fields_from_data(data)
         tmp_fields = copy.deepcopy(self._schema.fields)
 
@@ -179,6 +186,12 @@ class Collection:
         primary_field = kwargs.pop("primary_field", None)
         if primary_field is None:
             raise SchemaNotReadyException(0, "Schema must have a primary key field!")
+        pk_index = -1
+        for i, field in enumerate(dataframe):
+            if field == primary_field:
+                pk_index = i
+        if pk_index == -1:
+            raise SchemaNotReadyException(0, "Primary field must in dataframe.")
         auto_id = kwargs.pop("auto_id", False)
         if auto_id:
             if dataframe[primary_field].isnull().all():
@@ -189,7 +202,7 @@ class Collection:
         fields = parse_fields_from_data(dataframe)
         _check_data_schema(fields, dataframe)
         if auto_id:
-            fields.append(FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True, auto_id=True, **kwargs))
+            fields.insert(pk_index, FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True, auto_id=True, **kwargs))
         else:
             for field in fields:
                 if field.name == primary_field:
@@ -503,7 +516,7 @@ class Collection:
         >>> assert collection.num_entities == 10
         """
         if data is None:
-            return []
+            return MutationResult(data)
         if not self._check_insert_data_schema(data):
             raise SchemaNotReadyException(0, "The types of schema and data do not match.")
         conn = self._get_connection()

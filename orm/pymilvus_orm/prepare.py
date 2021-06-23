@@ -28,13 +28,20 @@ class Prepare:
         raw_lengths = []
         if isinstance(data, pandas.DataFrame):
             if schema.auto_id:
-                if len(fields) != len(data.columns)+1:
-                    raise DataNotMatch(0, f"collection has {len(fields)} fields, and auto_id is True"
-                                          f", but go {len(data.columns)} fields")
+                if schema.primary_field.name in data:
+                    if len(fields) != len(data.columns):
+                        raise DataNotMatch(0, f"collection has {len(fields)} fields, and auto_id is True"
+                                              f", but got {len(data.columns)} fields")
+                    if not data[schema.primary_field.name].isnull().all():
+                        raise DataNotMatch(0, "Auto_id is True, primary field should not have data.")
+                else:
+                    if len(fields) != len(data.columns)+1:
+                        raise DataNotMatch(0, f"collection has {len(fields)} fields, and auto_id is True"
+                                              f", but got {len(data.columns)} fields")
             else:
                 if len(fields) != len(data.columns):
                     raise DataNotMatch(0, f"collection has {len(fields)} fields, and auto_id is False"
-                                          f", but go {len(data.columns)} fields")
+                                          f", but got {len(data.columns)} fields")
             for i, field in enumerate(fields):
                 if field.is_primary and field.auto_id:
                     continue

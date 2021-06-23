@@ -293,6 +293,8 @@ class MutationResult:
     #     pass
 
     def _pack(self, mr):
+        if mr is None:
+            return
         self._primary_keys = mr.primary_keys
         self._insert_cnt = mr.insert_count
         self._delete_cnt = mr.delete_count
