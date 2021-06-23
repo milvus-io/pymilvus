@@ -176,13 +176,13 @@ class Collection:
             raise SchemaNotReadyException(0, "Dataframe can not be None!")
         if not isinstance(dataframe, pandas.DataFrame):
             raise SchemaNotReadyException(0, "Data type must be pandas.DataFrame!")
-        primary_field = kwargs.get("priamry_field", None)
+        primary_field = kwargs.pop("primary_field", None)
         if primary_field is None:
             raise SchemaNotReadyException(0, "Schema must have a primary key field!")
-        auto_id = kwargs.get("auto_id", False)
+        auto_id = kwargs.pop("auto_id", False)
         if auto_id:
             if dataframe[primary_field].isnull().all():
-                dataframe.drop(primary_field, axis=1)
+                dataframe = dataframe.drop(primary_field, axis=1)
             else:
                 raise SchemaNotReadyException(0, "Auto_id is True, but get the data of primary key field.")
 
@@ -199,8 +199,8 @@ class Collection:
         schema = CollectionSchema(fields=fields)
         _check_schema(schema)
         collection = cls(name, schema, **kwargs)
-        collection.insert(data=dataframe)
-        return collection
+        res = collection.insert(data=dataframe)
+        return collection, res
 
     @property
     def schema(self) -> CollectionSchema:

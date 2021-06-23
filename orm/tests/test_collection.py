@@ -33,7 +33,7 @@ class TestCollections:
         assert type(collection) is Collection
 
     def test_construct_from_dataframe(self):
-        assert type(Collection.construct_from_dataframe(gen_collection_name(), gen_pd_data(default_nb), priamry_field="int64")) is Collection
+        assert type(Collection.construct_from_dataframe(gen_collection_name(), gen_pd_data(default_nb), primary_field="int64")[0]) is Collection
 
     def test_schema(self, collection):
         schema = collection.schema

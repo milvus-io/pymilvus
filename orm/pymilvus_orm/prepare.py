@@ -27,12 +27,17 @@ class Prepare:
         entities = []
         raw_lengths = []
         if isinstance(data, pandas.DataFrame):
-            if len(fields) != len(data.columns):
-                raise DataNotMatch(0, f"collection has {len(fields)} fields"
-                                      f", but go {len(data.columns)} fields")
+            if schema.auto_id:
+                if len(fields) != len(data.columns)+1:
+                    raise DataNotMatch(0, f"collection has {len(fields)} fields, and auto_id is True"
+                                          f", but go {len(data.columns)} fields")
+            else:
+                if len(fields) != len(data.columns):
+                    raise DataNotMatch(0, f"collection has {len(fields)} fields, and auto_id is False"
+                                          f", but go {len(data.columns)} fields")
             for i, field in enumerate(fields):
                 if field.is_primary and field.auto_id:
-                    pass
+                    continue
                 entities.append({"name": field.name,
                                  "type": field.dtype,
                                  "values": list(data[field.name])})
