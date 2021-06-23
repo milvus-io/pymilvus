@@ -92,7 +92,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             self._kwargs[k] = kwargs.get(k, None)
 
-    def disconnect(self, alias):
+    def disconnect(self, alias: str):
         """
         Disconnects connection from the registry.
 
@@ -104,7 +104,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             conn.close()
             self._conns.pop(alias, None)
 
-    def remove_connection(self, alias):
+    def remove_connection(self, alias: str):
         """
         Removes connection from the registry.
 
@@ -134,6 +134,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
         >>> connections.connect("test", host="localhost", port="19530")
         <milvus.client.stub.Milvus object at 0x7f4045335f10>
         """
+        if not isinstance(alias, str):
+            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+
         def connect_milvus(**kwargs):
             tmp_kwargs = copy.deepcopy(kwargs)
             tmp_host = tmp_kwargs.pop("host", None)
@@ -186,6 +189,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :raises Exception: If server specific in parameters is not ready, we cannot connect to
                            server.
         """
+        if not isinstance(alias, str):
+            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+
         return self._conns.get(alias, None)
 
     def list_connections(self) -> list:
@@ -204,7 +210,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         """
         return [(k, self._conns.get(k, None)) for k in self._kwargs]
 
-    def get_connection_addr(self, alias):
+    def get_connection_addr(self, alias: str):
         """
         Retrieves connection configure by alias.
 
