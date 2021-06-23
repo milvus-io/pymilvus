@@ -970,8 +970,8 @@ class GrpcHandler(AbsMilvus):
             return flush_future
 
         response = future.result()
-        if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
         sync = kwargs.get("sync", True)
         if sync:
             for collection_name in collection_name_array:
