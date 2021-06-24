@@ -46,6 +46,10 @@ if __name__ == "__main__":
                                        "f1", param=search_params, limit=2, output_fields=["id"])
 
     print("search results: ", results[0][0].entity, " + ", results[0][1].entity)
+    #
+    # print("Test entity.get: ", results[0][0].entity.get("age"))
+    # print("Test entity.value_of_field: ", results[0][0].entity.value_of_field("age"))
+    # print("Test entity.fields: ", results[0][0].entity.fields)
     #############################################################
 
     ids_expr = ",".join(str(x) for x in ids.primary_keys)
@@ -54,4 +58,5 @@ if __name__ == "__main__":
 
     print(expr)
 
-    pprint(c.query(collection_name, expr))
+    res = c.query(collection_name, expr)
+    print(res)

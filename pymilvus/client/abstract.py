@@ -125,7 +125,7 @@ class CollectionSchema:
         self.params = dict()
         self.fields = list()
         self.statistics = dict()
-        self.auto_id = False    # auto_id is not in collection level any more later
+        self.auto_id = False  # auto_id is not in collection level any more later
 
         #
         if self._raw:
@@ -184,13 +184,19 @@ class Entity:
 
     @property
     def fields(self):
-        raise NotImplementedError('TODO: support field in Hits')
+        fields = []
+        for k, v in self._row_data.items():
+            fields.append(k)
+        return fields
 
     def get(self, field):
         return self.value_of_field(field)
 
     def value_of_field(self, field):
-        raise NotImplementedError('TODO: support field in Hits')
+        if field in self._row_data:
+            return self._row_data[field]
+        else:
+            raise BaseException(0, "Field {} is not in return entity".format(field))
 
     def type_of_field(self, field):
         raise NotImplementedError('TODO: support field in Hits')
@@ -266,7 +272,9 @@ class Hits(LoopBase):
                     if len(field_data.vectors.float_vector.data) >= item * dim:
                         start_pos = item * dim
                         end_pos = item * dim + dim
-                        entity_row_data[field_data.field_name] = [round(x, 6) for x in field_data.vectors.float_vector.data[start_pos:end_pos]]
+                        entity_row_data[field_data.field_name] = [round(x, 6) for x in
+                                                                  field_data.vectors.float_vector.data[
+                                                                  start_pos:end_pos]]
         entity_score = self._raw.scores[item]
         return Hit(entity_id, entity_row_data, entity_score)
 
@@ -351,8 +359,8 @@ class QueryResult(LoopBase):
             hit = schema_pb2.SearchResultData()
             start_pos = i * self._topk
             end_pos = (i + 1) * self._topk
-            hit.scores.append(raw.results.scores[start_pos : end_pos])
-            hit.ids.append(raw.results.ids.int_id.data[start_pos : end_pos])
+            hit.scores.append(raw.results.scores[start_pos: end_pos])
+            hit.ids.append(raw.results.ids.int_id.data[start_pos: end_pos])
             for field_data in raw.result.fields_data:
                 field = schema_pb2.FieldData()
                 field.type = field_data.type
@@ -361,7 +369,7 @@ class QueryResult(LoopBase):
                     raise BaseException(0, "Not support bool yet")
                     # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                    field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos : end_pos])
+                    field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos: end_pos])
                 elif field_data.type == DataType.INT64:
                     field.scalars.long_data.data.extend(field_data.scalars.long_data.data[start_pos: end_pos])
                 elif field_data.type == DataType.FLOAT:
@@ -373,7 +381,8 @@ class QueryResult(LoopBase):
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field.vectors.dim
-                    field.vectors.float_vector.data.extend(field_data.vectors.float_data.data[start_pos * dim : end_pos * dim])
+                    field.vectors.float_vector.data.extend(
+                        field_data.vectors.float_data.data[start_pos * dim: end_pos * dim])
                 hit.fields_data.append(field)
             self._hits.append(hit)
 
@@ -429,10 +438,9 @@ class ChunkedQueryResult(LoopBase):
                     elif field_data.type == DataType.FLOAT_VECTOR:
                         dim = field.vectors.dim
                         field.vectors.float_vector.data.extend(field_data.vectors.float_data.data[
-                                                          start_pos * dim: end_pos * dim])
+                                                               start_pos * dim: end_pos * dim])
                     hit.fields_data.append(field)
                 self._hits.append(hit)
-
 
     def get__item(self, item):
         return Hits(self._hits[item], self._auto_id)
