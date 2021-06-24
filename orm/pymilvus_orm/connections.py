@@ -99,10 +99,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :param alias: The name of milvus connection
         :type alias: str
         """
+        if not isinstance(alias, str):
+            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+
         if alias in self._conns:
-            conn = self._conns[alias]
-            conn.close()
-            self._conns.pop(alias, None)
+            self._conns.pop(alias).close()
 
     def remove_connection(self, alias: str):
         """
@@ -111,6 +112,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :param alias: The name of milvus connection
         :type alias: str
         """
+        if not isinstance(alias, str):
+            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+
         self.disconnect(alias)
         self._kwargs.pop(alias, None)
 
@@ -230,6 +234,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
         >>> connections.get_connection_addr('test')
         {'host': 'localhost', 'port': '19530'}
         """
+        if not isinstance(alias, str):
+            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+
         return self._kwargs.get(alias, {})
 
 
