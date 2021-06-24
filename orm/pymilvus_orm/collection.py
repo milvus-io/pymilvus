@@ -28,23 +28,28 @@ from .types import DataType
 from .exceptions import (
     SchemaNotReadyException,
     DataTypeNotMatchException,
-    DataNotMatch,
+    DataNotMatchException,
     ConnectionNotExistException,
+    PartitionAlreadyExistException,
+    PartitionNotExistException,
+    IndexNotExistException,
+    AutoIDException,
+    ExceptionsMessage,
 )
 from .future import SearchResultFuture, InsertFuture
 
 
 def _check_schema(schema):
     if schema is None:
-        raise SchemaNotReadyException(0, "Schema is not ready!")
+        raise SchemaNotReadyException(0, ExceptionsMessage.NoSchema)
     if len(schema.fields) < 1:
-        raise SchemaNotReadyException(0, "The field of the schema cannot be empty!")
+        raise SchemaNotReadyException(0, ExceptionsMessage.EmptySchema)
     vector_fields = []
     for field in schema.fields:
         if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
             vector_fields.append(field.name)
     if len(vector_fields) < 1:
-        raise SchemaNotReadyException(0, "Schema must at least have one vector column!")
+        raise SchemaNotReadyException(0, ExceptionsMessage.NoVector)
 
 
 def _check_data_schema(fields, data):
@@ -53,13 +58,13 @@ def _check_data_schema(fields, data):
             for j, _ in enumerate(data[field.name]):
                 tmp_type = infer_dtype_bydata(data[field.name][j])
                 if tmp_type != field.dtype:
-                    raise DataNotMatch(0, "The data in the same column must be of the same type.")
+                    raise DataNotMatchException(0, ExceptionsMessage.DataTypeInconsistent)
     else:
         for i, field in enumerate(fields):
             for j, _ in enumerate(data[i]):
                 tmp_type = infer_dtype_bydata(data[i][j])
                 if tmp_type != field.dtype:
-                    raise DataNotMatch(0, "The data in the same column must be of the same type.")
+                    raise DataNotMatchException(0, ExceptionsMessage.DataTypeInconsistent)
 
 
 class Collection:
@@ -108,21 +113,20 @@ class Collection:
                 self._schema = server_schema
             else:
                 if not isinstance(schema, CollectionSchema):
-                    raise SchemaNotReadyException(0, "Schema type must be schema.CollectionSchema.")
+                    raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)
                 if server_schema != schema:
-                    raise SchemaNotReadyException(0, "The collection already exist, but the schema is"
-                                                  "not the same as the schema passed in.")
+                    raise SchemaNotReadyException(0, ExceptionsMessage.SchemaInconsistent)
                 self._schema = schema
 
         else:
             if schema is None:
-                raise SchemaNotReadyException(0, "Should be passed into the schema.")
+                raise SchemaNotReadyException(0, ExceptionsMessage.NoSchema)
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
                 conn.create_collection(self._name, fields=schema.to_dict())
                 self._schema = schema
             else:
-                raise SchemaNotReadyException(0, "The schema type must be schema.CollectionSchema.")
+                raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)
 
     def _get_using(self):
         return self._kwargs.get("_using", "default")
@@ -130,7 +134,7 @@ class Collection:
     def _get_connection(self):
         conn = get_connection(self._get_using())
         if conn is None:
-            raise ConnectionNotExistException(0, "should create connect first")
+            raise ConnectionNotExistException(0, ExceptionsMessage.ConnectFirst)
         return conn
 
     def _check_insert_data_schema(self, data):
@@ -143,7 +147,7 @@ class Collection:
             if isinstance(data, pandas.DataFrame):
                 if self._schema.primary_field.name in data:
                     if not data[self._schema.primary_field.name].isnull().all():
-                        raise DataNotMatch(0, "Auto_id is True, primary field should not have data.")
+                        raise DataNotMatchException(0, ExceptionsMessage.AutoIDWithData)
                     data = data.drop(self._schema.primary_field.name, axis=1)
 
         infer_fields = parse_fields_from_data(data)
@@ -154,7 +158,7 @@ class Collection:
                 tmp_fields.pop(i)
 
         if len(infer_fields) != len(tmp_fields):
-            raise DataTypeNotMatchException(0, "Column cnt not match with schema")
+            raise DataTypeNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
 
         _check_data_schema(infer_fields, data)
 
@@ -169,35 +173,38 @@ class Collection:
 
     def _check_schema(self):
         if self._schema is None:
-            raise SchemaNotReadyException(0, "Schema is not ready. ")
+            raise SchemaNotReadyException(0, ExceptionsMessage.NoSchema)
 
     def _get_vector_field(self) -> str:
         for field in self._schema.fields:
             if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
                 return field.name
-        raise Exception("No vector field is found!")
+        raise SchemaNotReadyException(0, ExceptionsMessage.NoVector)
 
     @classmethod
     def construct_from_dataframe(cls, name, dataframe, **kwargs):
         if dataframe is None:
-            raise SchemaNotReadyException(0, "Dataframe can not be None!")
+            raise SchemaNotReadyException(0, ExceptionsMessage.NoneDataFrame)
         if not isinstance(dataframe, pandas.DataFrame):
-            raise SchemaNotReadyException(0, "Data type must be pandas.DataFrame!")
+            raise SchemaNotReadyException(0, ExceptionsMessage.DataFrameType)
         primary_field = kwargs.pop("primary_field", None)
         if primary_field is None:
-            raise SchemaNotReadyException(0, "Schema must have a primary key field!")
+            raise SchemaNotReadyException(0, ExceptionsMessage.NoPrimaryKey)
         pk_index = -1
         for i, field in enumerate(dataframe):
             if field == primary_field:
                 pk_index = i
         if pk_index == -1:
-            raise SchemaNotReadyException(0, "Primary field must in dataframe.")
+            raise SchemaNotReadyException(0, ExceptionsMessage.PrimaryKeyNotExist)
+        if "auto_id" in kwargs:
+            if not isinstance(kwargs.get("auto_id", None), bool):
+                raise AutoIDException(0, ExceptionsMessage.AutoIDType)
         auto_id = kwargs.pop("auto_id", False)
         if auto_id:
             if dataframe[primary_field].isnull().all():
                 dataframe = dataframe.drop(primary_field, axis=1)
             else:
-                raise SchemaNotReadyException(0, "Auto_id is True, but get the data of primary key field.")
+                raise SchemaNotReadyException(0, ExceptionsMessage.AutoIDWithData)
 
         fields = parse_fields_from_data(dataframe)
         _check_data_schema(fields, dataframe)
@@ -518,7 +525,7 @@ class Collection:
         if data is None:
             return MutationResult(data)
         if not self._check_insert_data_schema(data):
-            raise SchemaNotReadyException(0, "The types of schema and data do not match.")
+            raise SchemaNotReadyException(0, ExceptionsMessage.TypeOfDataAndSchemaInconsistent)
         conn = self._get_connection()
         entities = Prepare.prepare_insert_data(data, self._schema)
         timeout = kwargs.pop("timeout", None)
@@ -730,7 +737,7 @@ class Collection:
         {"name": "partition", "description": "", "num_entities": 0}
         """
         if self.has_partition(partition_name) is True:
-            raise Exception("Partition already exist.")
+            raise PartitionAlreadyExistException(0, ExceptionsMessage.PartitionAlreayExist)
         return Partition(self, partition_name, description=description)
 
     def has_partition(self, partition_name) -> bool:
@@ -803,7 +810,7 @@ class Collection:
         False
         """
         if self.has_partition(partition_name) is False:
-            raise Exception("Partition doesn't exist")
+            raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
         conn = self._get_connection()
         return conn.drop_partition(self._name, partition_name, timeout=kwargs.get("timeout", None))
 
@@ -874,7 +881,7 @@ class Collection:
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
             return Index(self, field_name, tmp_index, construct_only=True)
-        raise Exception("index not exist")
+        raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
 
     def create_index(self, field_name, index_params, **kwargs) -> Index:
         """
@@ -984,7 +991,7 @@ class Collection:
         False
         """
         if self.has_index() is False:
-            raise Exception("Index doesn't exist")
+            raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, "")
         if tmp_index is not None:

@@ -12,7 +12,7 @@
 
 import json
 
-from .exceptions import CollectionNotExistException
+from .exceptions import CollectionNotExistException, PartitionNotExistException, ExceptionsMessage
 from .prepare import Prepare
 from .search import SearchResult, MutationResult
 from .future import SearchResultFuture, InsertFuture
@@ -23,8 +23,7 @@ class Partition:
     def __init__(self, collection, name, description="", **kwargs):
         from .collection import Collection
         if not isinstance(collection, Collection):
-            raise CollectionNotExistException(0, "The type of collection must be "
-                                                 "pymilvus_orm.Collection")
+            raise CollectionNotExistException(0, ExceptionsMessage.CollectionType)
         self._collection = collection
         self._name = name
         self._description = description
@@ -161,7 +160,7 @@ class Partition:
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name) is False:
-            raise Exception("Partition doesn't exist")
+            raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
         return conn.drop_partition(self._collection.name, self._name, **kwargs)
 
     def load(self, **kwargs):
@@ -178,7 +177,7 @@ class Partition:
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
             return conn.load_partitions(self._collection.name, [self._name], **kwargs)
-        raise Exception("Partition doesn't exist")
+        raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
 
     def release(self, **kwargs):
         """
@@ -190,7 +189,7 @@ class Partition:
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
             return conn.release_partitions(self._collection.name, [self._name], **kwargs)
-        raise Exception("Partition doesn't exist")
+        raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
 
     def insert(self, data, **kwargs):
         """
@@ -210,7 +209,7 @@ class Partition:
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name) is False:
-            raise Exception("Partition doesn't exist")
+            raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
         entities = Prepare.prepare_insert_data(data, self._collection.schema)
         timeout = kwargs.pop("timeout", None)
         res = conn.insert(self._collection.name, entities=entities, ids=None,

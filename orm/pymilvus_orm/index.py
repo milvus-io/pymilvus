@@ -12,7 +12,7 @@
 
 import copy
 
-from .exceptions import CollectionNotExistException
+from .exceptions import CollectionNotExistException, ExceptionsMessage, IndexNotExistException
 
 
 class Index:
@@ -53,8 +53,7 @@ class Index:
         """
         from .collection import Collection
         if not isinstance(collection, Collection):
-            raise CollectionNotExistException(0, "The type of collection must be"
-                                                 "pymilvus_orm.Collection")
+            raise CollectionNotExistException(0, ExceptionsMessage.CollectionType)
         self._collection = collection
         self._field_name = field_name
         self._index_params = index_params
@@ -129,5 +128,5 @@ class Index:
         """
         conn = self._get_connection()
         if conn.describe_index(self._collection.name) is None:
-            raise Exception("Index doesn't exist")
+            raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
         conn.drop_index(self._collection.name, self.field_name, **kwargs)

@@ -11,13 +11,13 @@
 # the License.
 
 from .connections import get_connection
-from .exceptions import ConnectionNotExistException
+from .exceptions import ConnectionNotExistException, ExceptionsMessage
 
 
 def _get_connection(alias):
     conn = get_connection(alias)
     if conn is None:
-        raise ConnectionNotExistException(0, "Should create connection first")
+        raise ConnectionNotExistException(0, ExceptionsMessage.ConnectFirst)
     return conn
 
 

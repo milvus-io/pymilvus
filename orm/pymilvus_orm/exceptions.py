@@ -106,6 +106,10 @@ class PartitionNotExistException(MilvusException):
     pass
 
 
+class PartitionAlreadyExistException(MilvusException):
+    pass
+
+
 class InvalidArgumentException(MilvusException):
     pass
 
@@ -130,11 +134,11 @@ class DataTypeNotMatchException(MilvusException):
     pass
 
 
-class DataTypeNotSupport(MilvusException):
+class DataTypeNotSupportException(MilvusException):
     pass
 
 
-class DataNotMatch(MilvusException):
+class DataNotMatchException(MilvusException):
     pass
 
 
@@ -142,5 +146,61 @@ class ConnectionNotExistException(MilvusException):
     pass
 
 
+class ConnectionConfigException(MilvusException):
+    pass
+
+
 class PrimaryKeyException(MilvusException):
     pass
+
+
+class FieldsTypeException(MilvusException):
+    pass
+
+
+class FieldTypeException(MilvusException):
+    pass
+
+
+class AutoIDException(MilvusException):
+    pass
+
+
+class ExceptionsMessage:
+    NoHostPort = "connection configuration must contain 'host' and 'port'."
+    HostType = "Type of 'host' must be str."
+    PortType = "Type of 'port' must be str or int."
+    ConnDiffConf = "Alias of %r already creating connections, but the configure is not the same as passed in."
+    AliasType = "Alias should be string, but %r is given."
+    ConnLackConf = "You need to pass in the configuration of the connection named %r ."
+    ConnectFirst = "should create connect first."
+    NoSchema = "Should be passed into the schema."
+    EmptySchema = "The field of the schema cannot be empty."
+    SchemaType = "Schema type must be schema.CollectionSchema."
+    SchemaInconsistent = "The collection already exist, but the schema is not the same as the schema passed in."
+    AutoIDWithData = "Auto_id is True, primary field should not have data."
+    AutoIDType = "Param auto_id must be bool type."
+    AutoIDInconsistent = "The auto_id of the collection is inconsistent with the auto_id of the primary key field."
+    AutoIDOnlyOnPK = "The auto_id can only be specified on the primary key field"
+    FieldsNumInconsistent = "The data fields number is not match with schema."
+    NoVector = "No vector field is found."
+    NoneDataFrame = "Dataframe can not be None."
+    DataFrameType = "Data type must be pandas.DataFrame."
+    NoPrimaryKey = "Schema must have a primary key field."
+    PrimaryKeyNotExist = "Primary field must in dataframe."
+    PrimaryKeyOnlyOne = "Primary key field can only be one."
+    PrimaryKeyType = "Primary key type must be DataType.INT64."
+    IsPrimaryType = "Param is_primary must be bool type."
+    DataTypeInconsistent = "The data in the same column must be of the same type."
+    DataTypeNotSupport = "Data type is not support."
+    DataLengthsInconsistent = "Arrays must all be same length."
+    DataFrameInvalid = "Cannot infer schema from empty dataframe."
+    NdArrayNotSupport = "Data type not support numpy.ndarray."
+    TypeOfDataAndSchemaInconsistent = "The types of schema and data do not match."
+    PartitionAlreadyExist = "Partition already exist."
+    PartitionNotExist = "Partition not exist."
+    IndexNotExist = "Index doesn't exist."
+    CollectionType = "The type of collection must be pymilvus_orm.Collection."
+    FieldsType = "The fields of schema must be type list."
+    FieldType = "The field of schema type must be FieldSchema."
+    FieldDtype = "Field dtype must be of DataType"

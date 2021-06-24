@@ -15,7 +15,7 @@ import threading
 from pymilvus import Milvus
 
 from .default_config import DefaultConfig
-from .exceptions import ParamError
+from .exceptions import ExceptionsMessage, ConnectionConfigException
 
 
 def synchronized(func):
@@ -80,15 +80,14 @@ class Connections(metaclass=SingleInstanceMetaClass):
         for k in kwargs:
             if k in self._conns:
                 if self._kwargs.get(k, None) != kwargs.get(k, None):
-                    raise ParamError("alias of %r already creating connections, "
-                                     "but the configure is not the same as passed in." % k)
+                    raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf % k)
             if "host" not in kwargs.get(k, {}) or "port" not in kwargs.get(k, {}):
-                raise ParamError("connection configuration must contain 'host' and 'port'")
+                raise ConnectionConfigException(0, ExceptionsMessage.NoHostPort)
 
             if not isinstance(kwargs.get(k)["host"], str):
-                raise ParamError("Type of 'host' must be str!")
+                raise ConnectionConfigException(0, ExceptionsMessage.HostType)
             if not isinstance(kwargs.get(k)["port"], (str, int)):
-                raise ParamError("Type of port type must be str or int!")
+                raise ConnectionConfigException(0, ExceptionsMessage.PortType)
 
             self._kwargs[k] = kwargs.get(k, None)
 
@@ -100,7 +99,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :type alias: str
         """
         if not isinstance(alias, str):
-            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
 
         if alias in self._conns:
             self._conns.pop(alias).close()
@@ -113,7 +112,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :type alias: str
         """
         if not isinstance(alias, str):
-            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
 
         self.disconnect(alias)
         self._kwargs.pop(alias, None)
@@ -139,7 +138,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         <milvus.client.stub.Milvus object at 0x7f4045335f10>
         """
         if not isinstance(alias, str):
-            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+            raise ConnectionConfigException(0, ExceptionsMessage.AliasType)
 
         def connect_milvus(**kwargs):
             tmp_kwargs = copy.deepcopy(kwargs)
@@ -150,16 +149,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
             return Milvus(tmp_host, tmp_port, handler, pool, **tmp_kwargs)
         if alias in self._conns:
             if len(kwargs) > 0 and self._kwargs[alias] != kwargs:
-                raise ParamError(f"The connection named {alias} already creating, "
-                                 "but passed parameters don't match the configured parameters, "
-                                 f"passed: {kwargs}, "
-                                 f"configured: {self._kwargs[alias]}")
+                raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf)
             return self._conns[alias]
 
         if alias in self._kwargs:
             if len(kwargs) > 0:
                 if "host" not in kwargs or "port" not in kwargs:
-                    raise ParamError("Connection configuration must be contained host and port")
+                    raise ConnectionConfigException(0, ExceptionsMessage.NoHostPort)
                 conn = connect_milvus(**kwargs)
                 self._kwargs[alias] = copy.deepcopy(kwargs)
                 self._conns[alias] = conn
@@ -170,12 +166,12 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         if len(kwargs) > 0:
             if "host" not in kwargs or "port" not in kwargs:
-                raise ParamError("Connection configuration must be contained host and port")
+                raise ConnectionConfigException(0, ExceptionsMessage.NoHostPort)
             conn = connect_milvus(**kwargs)
             self._kwargs[alias] = copy.deepcopy(kwargs)
             self._conns[alias] = conn
             return conn
-        raise ParamError("You need to pass in the configuration of the connection named %r" % alias)
+        raise ConnectionConfigException(0, ExceptionsMessage.ConnLackConf % alias)
 
     def get_connection(self, alias=DefaultConfig.DEFAULT_USING) -> Milvus:
         """
@@ -194,7 +190,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                            server.
         """
         if not isinstance(alias, str):
-            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
 
         return self._conns.get(alias, None)
 
@@ -235,7 +231,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         {'host': 'localhost', 'port': '19530'}
         """
         if not isinstance(alias, str):
-            raise ParamError(f"alias should be string, but [{type(alias)}] is given")
+            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
 
         return self._kwargs.get(alias, {})
 

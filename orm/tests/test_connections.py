@@ -54,7 +54,7 @@ class TestConnections:
 
                 assert isinstance(conn, pymilvus.Milvus)
 
-                with pytest.raises(ParamError):
+                with pytest.raises(ConnectionConfigException):
                     c.add_connection(**{key: {"host": "192.168.1.1", "port": "13500"}})
 
                 c.remove_connection(key)

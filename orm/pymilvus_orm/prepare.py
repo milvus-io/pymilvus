@@ -14,14 +14,14 @@ import copy
 import numpy
 import pandas
 
-from pymilvus_orm.exceptions import DataNotMatch, DataTypeNotSupport
+from pymilvus_orm.exceptions import DataNotMatchException, DataTypeNotSupportException, ExceptionsMessage
 
 
 class Prepare:
     @classmethod
     def prepare_insert_data(cls, data, schema):
         if not isinstance(data, (list, tuple, pandas.DataFrame)):
-            raise DataNotMatch(0, "data is not valid")
+            raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
 
         fields = schema.fields
         entities = []
@@ -30,18 +30,15 @@ class Prepare:
             if schema.auto_id:
                 if schema.primary_field.name in data:
                     if len(fields) != len(data.columns):
-                        raise DataNotMatch(0, f"collection has {len(fields)} fields, and auto_id is True"
-                                              f", but got {len(data.columns)} fields")
+                        raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
                     if not data[schema.primary_field.name].isnull().all():
-                        raise DataNotMatch(0, "Auto_id is True, primary field should not have data.")
+                        raise DataNotMatchException(0, ExceptionsMessage.AutoIDWithData)
                 else:
                     if len(fields) != len(data.columns)+1:
-                        raise DataNotMatch(0, f"collection has {len(fields)} fields, and auto_id is True"
-                                              f", but got {len(data.columns)} fields")
+                        raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
             else:
                 if len(fields) != len(data.columns):
-                    raise DataNotMatch(0, f"collection has {len(fields)} fields, and auto_id is False"
-                                          f", but got {len(data.columns)} fields")
+                    raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
             for i, field in enumerate(fields):
                 if field.is_primary and field.auto_id:
                     continue
@@ -52,8 +49,7 @@ class Prepare:
         else:
             if schema.auto_id:
                 if len(data) + 1 != len(fields):
-                    raise DataNotMatch(0, f"collection has {len(fields)} fields, "
-                                          f"but got {len(data)} fields")
+                    raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
 
             tmp_fields = copy.deepcopy(fields)
             for i, field in enumerate(tmp_fields):
@@ -62,7 +58,7 @@ class Prepare:
 
             for i, field in enumerate(tmp_fields):
                 if isinstance(data[i], numpy.ndarray):
-                    raise DataTypeNotSupport(0, "Data type not support numpy.ndarray")
+                    raise DataTypeNotSupportException(0, ExceptionsMessage.NdArrayNotSupport)
 
                 entities.append({
                     "name": field.name,
@@ -72,6 +68,6 @@ class Prepare:
 
         lengths = list(set(raw_lengths))
         if len(lengths) > 1:
-            raise DataNotMatch(0, "arrays must all be same length")
+            raise DataNotMatchException(0, ExceptionsMessage.DataLengthsInconsistent)
 
         return entities

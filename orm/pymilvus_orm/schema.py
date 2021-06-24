@@ -20,43 +20,45 @@ from pymilvus_orm.constants import VECTOR_COMMON_TYPE_PARAMS
 from pymilvus_orm.types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
 from pymilvus_orm.exceptions import (
     CannotInferSchemaException,
-    DataTypeNotSupport,
-    ParamError,
+    DataTypeNotSupportException,
     PrimaryKeyException,
+    FieldsTypeException,
+    FieldTypeException,
+    AutoIDException,
+    ExceptionsMessage
 )
 
 
 class CollectionSchema:
     def __init__(self, fields, description="", **kwargs):
         if not isinstance(fields, list):
-            raise ParamError("The fields of schema must be type list.")
+            raise FieldsTypeException(0, ExceptionsMessage.FieldsType)
         self._fields = [copy.deepcopy(field) for field in fields]
         primary_field = kwargs.get("primary_field", None)
         for field in self._fields:
             if not isinstance(field, FieldSchema):
-                raise ParamError("The field of schema type must be FieldSchema.")
+                raise FieldTypeException(0, ExceptionsMessage.FieldType)
             if primary_field == field.name:
                 field.is_primary = True
         self._primary_field = None
         for field in self._fields:
             if field.is_primary:
                 if primary_field is not None and primary_field != field.name:
-                    raise PrimaryKeyException(0, "Primary key field can only be one.")
+                    raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyOnlyOne)
                 self._primary_field = field
 
         if self._primary_field is None:
-            raise PrimaryKeyException(0, "Must be have a primary key field.")
+            raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyNotExist)
 
         if self._primary_field.dtype not in [DataType.INT64]:
-            raise PrimaryKeyException(0, "Primary key type must be DataType.INT64.")
+            raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyType)
 
         self._auto_id = kwargs.get("auto_id", None)
         if "auto_id" in kwargs:
             if not isinstance(self._auto_id, bool):
-                raise ParamError("Param auto_id must be bool type.")
+                raise AutoIDException(0, ExceptionsMessage.AutoIDType)
             if self._primary_field.auto_id is not None and self._primary_field.auto_id != self._auto_id:
-                raise ParamError("The auto_id of the collection is inconsistent "
-                                 "with the auto_id of the primary key field.")
+                raise AutoIDException(0, ExceptionsMessage.AutoIDInconsistent)
             self._primary_field.auto_id = self._auto_id
         else:
             if self._primary_field.auto_id is None:
@@ -168,22 +170,22 @@ class FieldSchema:
         try:
             DataType(dtype)
         except ValueError:
-            raise DataTypeNotSupport(0, "Field type must be of DataType") from None
+            raise DataTypeNotSupportException(0, ExceptionsMessage.FieldDtype) from None
         if dtype == DataType.UNKNOWN:
-            raise DataTypeNotSupport(0, "Field type must be of DataType")
+            raise DataTypeNotSupportException(0, ExceptionsMessage.FieldDtype)
         self._dtype = dtype
         self._description = description
         self._type_params = {}
         self._kwargs = copy.deepcopy(kwargs)
         if not isinstance(kwargs.get("is_primary", False), bool):
-            raise ParamError("Param is_primary must be bool type.")
+            raise PrimaryKeyException(0, ExceptionsMessage.IsPrimaryType)
         self.is_primary = kwargs.get("is_primary", False)
         self.auto_id = kwargs.get("auto_id", None)
         if "auto_id" in kwargs:
             if not isinstance(self.auto_id, bool):
-                raise ParamError("Param auto_id must be bool type.")
+                raise AutoIDException(0, ExceptionsMessage.AutoIDType)
             if not self.is_primary and self.auto_id:
-                raise PrimaryKeyException(0, "auto_id can only be specified on the primary key field")
+                raise PrimaryKeyException(0, ExceptionsMessage.AutoIDOnlyOnPK)
 
         self._parse_type_params()
 
@@ -285,10 +287,10 @@ def parse_fields_from_data(datas):
         return parse_fields_from_dataframe(datas)
     fields = []
     if not isinstance(datas, list):
-        raise DataTypeNotSupport(0, "Datas must be list")
+        raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
     for d in datas:
         if not is_list_like(d):
-            raise DataTypeNotSupport(0, "Data type must like list")
+            raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
         d_type = infer_dtype_bydata(d[0])
         fields.append(FieldSchema("", d_type))
     return fields
@@ -306,7 +308,7 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
 
     if DataType.UNKNOWN in data_types:
         if len(dataframe) == 0:
-            raise CannotInferSchemaException(0, "Cannot infer schema from empty dataframe")
+            raise CannotInferSchemaException(0, ExceptionsMessage.DataFrameInvalid)
         values = dataframe.head(1).values[0]
         for i, dtype in enumerate(data_types):
             if dtype == DataType.UNKNOWN:
@@ -321,7 +323,7 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
                 data_types[i] = new_dtype
 
     if DataType.UNKNOWN in data_types:
-        raise CannotInferSchemaException(0, "Cannot infer schema from dataframe")
+        raise CannotInferSchemaException(0, ExceptionsMessage.DataFrameInvalid)
 
     fields = []
     for name, dtype in zip(col_names, data_types):
