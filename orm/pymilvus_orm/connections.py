@@ -138,7 +138,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         <milvus.client.stub.Milvus object at 0x7f4045335f10>
         """
         if not isinstance(alias, str):
-            raise ConnectionConfigException(0, ExceptionsMessage.AliasType)
+            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
 
         def connect_milvus(**kwargs):
             tmp_kwargs = copy.deepcopy(kwargs)
@@ -149,7 +149,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             return Milvus(tmp_host, tmp_port, handler, pool, **tmp_kwargs)
         if alias in self._conns:
             if len(kwargs) > 0 and self._kwargs[alias] != kwargs:
-                raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf)
+                raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf % alias)
             return self._conns[alias]
 
         if alias in self._kwargs:
