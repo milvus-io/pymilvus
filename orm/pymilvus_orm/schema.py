@@ -46,6 +46,7 @@ class CollectionSchema:
                 if primary_field is not None and primary_field != field.name:
                     raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyOnlyOne)
                 self._primary_field = field
+                primary_field = field.name
 
         if self._primary_field is None:
             raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyNotExist)
