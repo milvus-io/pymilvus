@@ -1,132 +1,138 @@
-# This program demos how to connect to Milvus vector database,
-# create a vector collection,
-# insert 10 vectors, 
-# and execute a vector similarity search.
-
 import random
-import numpy as np
-
 from pymilvus import Milvus, DataType
 
-# Milvus server IP address and port.
-# You may need to change _HOST and _PORT accordingly.
+# This example shows how to:
+#   1. connect to Milvus server
+#   2. create a collection
+#   3. insert entities
+#   4. create index
+#   5. search
+
 _HOST = '127.0.0.1'
-_PORT = '19530'  # default value
-# _PORT = '19121'  # default http value
+_PORT = '19530'
+
+# Const names
+_COLLECTION_NAME = 'demo'
+_ID_FIELD_NAME = 'id_field'
+_VECTOR_FIELD_NAME = 'float_vector_field'
 
 # Vector parameters
-_DIM = 8  # dimension of vector
-
+_DIM = 128
 _INDEX_FILE_SIZE = 32  # max file size of stored index
 
+# Index parameters
+_METRIC_TYPE = 'L2'
+_INDEX_TYPE = 'IVF_FLAT'
+_NLIST = 1024
+_NPROBE = 16
+_TOPK = 10
 
-def main():
-    # Specify server addr when create milvus client instance
-    # milvus client instance maintain a connection pool, param
-    # `pool_size` specify the max connection num.
-    milvus = Milvus(_HOST, _PORT)
+# Create milvus client instance
+milvus = Milvus(_HOST, _PORT)
 
-    # Create collection demo_collection if it dosen't exist.
-    collection_name = 'example_collection'
+def create_collection(name):
+    id_field = {
+        "name": _ID_FIELD_NAME,
+        "type": DataType.INT64,
+        "auto_id": True,
+        "is_primary": True,
+    }
+    vector_field = {
+        "name": _VECTOR_FIELD_NAME,
+        "type": DataType.FLOAT_VECTOR,
+        "metric_type": "L2",
+        "params": {"dim": _DIM},
+        "indexes": [{"metric_type": "L2"}]
+    }
+    fields = {"fields": [id_field, vector_field]}
 
-    ok = milvus.has_collection(collection_name)
-    field_name = 'example_field'
-    id_name = "id"
-    if not ok:
-        fields = {"fields": [{
-            "name": field_name,
-            "type": DataType.FLOAT_VECTOR,
-            "metric_type": "L2",
-            "params": {"dim": _DIM},
-            "indexes": [{"metric_type": "L2"}]
-        },
-            {
-                "name": id_name,
-                "type": DataType.INT64,
-                "auto_id": True,
-                "is_primary": True,
-            }
-        ]}
+    milvus.create_collection(collection_name=name, fields=fields)
+    print("collection created:", name)
 
-        milvus.create_collection(collection_name=collection_name, fields=fields)
-    else:
-        milvus.drop_collection(collection_name=collection_name)
+def drop_collection(name):
+    if milvus.has_collection(name):
+        milvus.drop_collection(name)
+        print("collection dropped:", name)
 
-    # Show collections in Milvus server
+def list_collections():
     collections = milvus.list_collections()
+    print("list collection:")
     print(collections)
 
-    # Describe demo_collection
-    stats = milvus.get_collection_stats(collection_name)
+def get_collection_stats(name):
+    stats = milvus.get_collection_stats(name)
+    print("collection stats:")
     print(stats)
 
-    # 10000 vectors with 128 dimension
-    # element per dimension is float32 type
-    # vectors should be a 2-D array
-    vectors = [[random.random() for _ in range(_DIM)] for _ in range(10)]
-    print(vectors)
-    # You can also use numpy to generate random vectors:
-    #   vectors = np.random.rand(10000, _DIM).astype(np.float32)
+def insert(name, num, dim):
+    vectors = [[random.random() for _ in range(dim)] for _ in range(num)]
+    entities = [{"name": _VECTOR_FIELD_NAME, "type": DataType.FLOAT_VECTOR, "values": vectors}]
+    ids = milvus.insert(name, entities)
+    return ids, vectors
 
-    # Insert vectors into demo_collection, return status and vectors id list
-    entities = [{"name": field_name, "type": DataType.FLOAT_VECTOR, "values": vectors}]
+def flush(name):
+    milvus.flush([name])
 
-    res_ids = milvus.insert(collection_name=collection_name, entities=entities)
-    print("ids:", res_ids.primary_keys)
-
-    # Flush collection  inserted data to disk.
-    milvus.flush([collection_name])
-
-    # present collection statistics info
-    stats = milvus.get_collection_stats(collection_name)
-    print(stats)
-
-    # create index of vectors, search more rapidly
+def create_index(name, field_name):
     index_param = {
-        "metric_type": "L2",
-        "index_type": "IVF_FLAT",
-        "params": {"nlist": 1024}
+        "metric_type": _METRIC_TYPE,
+        "index_type": _INDEX_TYPE,
+        "params": {"nlist": _NLIST}
     }
+    milvus.create_index(name, field_name, index_param)
+    print("Create index: {}".format(index_param))
 
-    # Create ivflat index in demo_collection
-    # You can search vectors without creating index. however, Creating index help to
-    # search faster
-    print("Creating index: {}".format(index_param))
-    status = milvus.create_index(collection_name, field_name, index_param)
+def drop_index(name, field_name):
+    milvus.drop_index(name, field_name)
+    print("Drop index:", field_name)
 
-    # execute vector similarity search
+def load_collection(name):
+    milvus.load_collection(name)
 
-    print("Searching ... ")
+def release_collection(name):
+    milvus.release_collection(name)
 
-    dsl = {"bool": {"must": [{"vector": {
-        field_name: {
-            "metric_type": "L2",
-            "query": vectors,
-            "topk": 10,
-            "params": {"nprobe": 16}
-        }
-    }}]}}
+def search(name, vector_field, search_vectors, ids):
+    nq = len(search_vectors)
+    search_params = {"metric_type": _METRIC_TYPE, "params": {"nprobe": _NPROBE}}
+    results = milvus.search_with_expression(name, search_vectors, vector_field, param=search_params, limit=_TOPK)
+    for i in range(nq):
+        if results[i][0].distance == 0.0 or results[i][0].id == ids[0]:
+            print("OK! search results: ", results[i][0].entity)
+        else:
+            print("FAIL! search results: ", results[i][0].entity)
 
-    search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
+def main():
+    name = _COLLECTION_NAME
+    vector_field = _VECTOR_FIELD_NAME
 
-    milvus.load_collection(collection_name)
-    results = milvus.search_with_expression(collection_name, vectors, field_name, param=search_params, limit=10,
-                                            output_fields=[id_name])
-    print("search results: ", results[0][0].entity)
-    # indicate search result
-    # also use by:
-    #   `results.distance_array[0][0] == 0.0 or results.id_array[0][0] == ids[0]`
-    if results[0][0].distance == 0.0 or results[0][0].id == ids[0]:
-        print('Query result is correct')
-    else:
-        print('Query result isn\'t correct')
+    drop_collection(name)
+    create_collection(name)
 
-    milvus.drop_index(collection_name, field_name)
-    milvus.release_collection(collection_name)
+    # show collections
+    list_collections()
 
-    # Delete demo_collection
-    status = milvus.drop_collection(collection_name)
+    # generate 10000 vectors with 128 dimension
+    ids, vectors = insert(name, 10000, _DIM)
 
+    # flush
+    flush(name)
+
+    # show row_count
+    get_collection_stats(name)
+
+    # create index
+    create_index(name, vector_field)
+
+    # load
+    load_collection(name)
+
+    # search
+    search(name, vector_field, vectors[:10], ids)
+
+    drop_index(name, vector_field)
+    release_collection(name)
+    drop_collection(name)
 
 if __name__ == '__main__':
     main()
