@@ -1009,6 +1009,8 @@ class GrpcHandler(AbsMilvus):
         request = Prepare.query_request(collection_name, expr, output_fields, partition_names)
         future = self._stub.Query.future(request, wait_for_ready=True, timeout=timeout)
         response = future.result()
+        if response.status.error_code == Status.EMPTY_COLLECTION:
+            return list()
         if response.status.error_code != Status.SUCCESS:
             raise BaseException(response.status.error_code, response.status.reason)
 
