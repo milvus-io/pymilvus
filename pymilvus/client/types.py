@@ -34,6 +34,7 @@ class Status:
     ILLEGAL_METRIC_TYPE = 23
     OUT_OF_MEMORY = 24
     INDEX_NOT_EXIST = 25
+    EMPTY_COLLECTION = 26
 
     def __init__(self, code=SUCCESS, message="Success"):
         self.code = code
