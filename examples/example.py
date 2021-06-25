@@ -113,8 +113,8 @@ def main():
     # show collections
     list_collections()
 
-    # generate 100 vectors with 128 dimension
-    ids, vectors = insert(name, 100, _DIM)
+    # generate 10000 vectors with 128 dimension
+    ids, vectors = insert(name, 10000, _DIM)
 
     # flush
     flush(name)
