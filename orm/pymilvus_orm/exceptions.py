@@ -204,3 +204,4 @@ class ExceptionsMessage:
     FieldsType = "The fields of schema must be type list."
     FieldType = "The field of schema type must be FieldSchema."
     FieldDtype = "Field dtype must be of DataType"
+    ExprType = "The type of expr must be string ,but %r is given."

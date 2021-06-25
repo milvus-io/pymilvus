@@ -573,6 +573,7 @@ class Collection:
 
         :raises RpcError: If gRPC encounter an error.
         :raises ParamError: If parameters are invalid.
+        :raises DataTypeNotMatchException: If wrong type of param is passed.
         :raises BaseException: If the return result from server is not ok.
 
         :example:
@@ -607,6 +608,9 @@ class Collection:
         >>> print(top1.distance)
         >>> print(top1.score)
         """
+        if expr is not None and not isinstance(expr, str):
+            raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
+
         conn = self._get_connection()
         res = conn.search_with_expression(self._name, data, anns_field, param, limit, expr,
                                           partition_names, output_fields, timeout, **kwargs)
@@ -637,8 +641,12 @@ class Collection:
         :raises:
             RpcError: If gRPC encounter an error
             ParamError: If parameters are invalid
+            DataTypeNotMatchException: If wrong type of param is passed
             BaseException: If the return result from server is not ok
         """
+        if not isinstance(expr, str):
+            raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
+
         conn = self._get_connection()
         res = conn.query(self._name, expr, output_fields, partition_names, timeout)
         return res
