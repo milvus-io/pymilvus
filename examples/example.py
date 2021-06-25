@@ -1,14 +1,13 @@
+import random
+from pymilvus import Milvus, DataType
+
 # This example shows how to:
 #   1. connect to Milvus server
 #   2. create a collection
 #   3. insert entities
 #   4. create index
-#   5. execute a similarity search
+#   5. search
 
-import random
-from pymilvus import Milvus, DataType
-
-# Milvus server IP address and port.
 _HOST = '127.0.0.1'
 _PORT = '19530'
 
