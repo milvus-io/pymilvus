@@ -41,7 +41,7 @@ from .utility import (
 from .search import SearchResult, Hits, Hit
 from .types import DataType
 from .schema import FieldSchema, CollectionSchema
-from .future import SearchResultFuture, InsertFuture
+from .future import SearchFuture, MutationFuture
 
 __version__ = '0.0.0.dev'
 

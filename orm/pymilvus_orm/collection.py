@@ -36,7 +36,7 @@ from .exceptions import (
     AutoIDException,
     ExceptionsMessage,
 )
-from .future import SearchResultFuture, InsertFuture
+from .future import SearchFuture, MutationFuture
 
 
 def _check_schema(schema):
@@ -209,7 +209,8 @@ class Collection:
         fields = parse_fields_from_data(dataframe)
         _check_data_schema(fields, dataframe)
         if auto_id:
-            fields.insert(pk_index, FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True, auto_id=True, **kwargs))
+            fields.insert(pk_index, FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True, auto_id=True,
+                                                **kwargs))
         else:
             for field in fields:
                 if field.name == primary_field:
@@ -532,7 +533,7 @@ class Collection:
         res = conn.insert(collection_name=self._name, entities=entities, ids=None,
                           partition_name=partition_name, timeout=timeout, **kwargs)
         if kwargs.get("_async", False):
-            return InsertFuture(res)
+            return MutationFuture(res)
         return MutationResult(res)
 
     def search(self, data, anns_field, param, limit, expr=None, partition_names=None,
@@ -561,7 +562,7 @@ class Collection:
         :param kwargs:
             * *_async* (``bool``) --
               Indicate if invoke asynchronously. When value is true, method returns a
-              SearchResultFuture object; otherwise, method returns results from server directly.
+              SearchFuture object; otherwise, method returns results from server directly.
             * *_callback* (``function``) --
               The callback function which is invoked after server response successfully.
               It functions only if _async is set to True.
@@ -615,7 +616,7 @@ class Collection:
         res = conn.search_with_expression(self._name, data, anns_field, param, limit, expr,
                                           partition_names, output_fields, timeout, **kwargs)
         if kwargs.get("_async", False):
-            return SearchResultFuture(res)
+            return SearchFuture(res)
         return SearchResult(res)
 
     def query(self, expr, output_fields=None, partition_names=None, timeout=None):

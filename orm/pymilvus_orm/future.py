@@ -11,7 +11,7 @@
 # the License.
 
 
-from .search import SearchResult
+from .search import SearchResult, MutationResult
 
 
 # TODO(dragondriver): how could we inherit the docstring elegantly?
@@ -44,10 +44,11 @@ class BaseFuture:
         return self._f.done()
 
 
-class SearchResultFuture(BaseFuture):
+class SearchFuture(BaseFuture):
     def on_response(self, res):
         return SearchResult(res)
 
 
-class InsertFuture(BaseFuture):
-    pass
+class MutationFuture(BaseFuture):
+    def on_response(self, res):
+        return MutationResult(res)

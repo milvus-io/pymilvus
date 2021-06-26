@@ -15,7 +15,7 @@ import json
 from .exceptions import CollectionNotExistException, PartitionNotExistException, ExceptionsMessage
 from .prepare import Prepare
 from .search import SearchResult, MutationResult
-from .future import SearchResultFuture, InsertFuture
+from .future import SearchFuture, MutationFuture
 
 
 class Partition:
@@ -215,7 +215,7 @@ class Partition:
         res = conn.insert(self._collection.name, entities=entities, ids=None,
                           partition_name=self._name, timeout=timeout, orm=True, **kwargs)
         if kwargs.get("_async", False):
-            return InsertFuture(res)
+            return MutationFuture(res)
         return MutationResult(res)
 
     def search(self, data, anns_field, param, limit, expr=None, output_fields=None, timeout=None,
@@ -242,7 +242,7 @@ class Partition:
         :param kwargs:
             * *_async* (``bool``) --
               Indicate if invoke asynchronously. When value is true, method returns a
-              SearchResultFuture object; otherwise, method returns results from server directly.
+              SearchFuture object; otherwise, method returns results from server directly.
             * *_callback* (``function``) --
               The callback function which is invoked after server response successfully. It only
               takes effect when _async is set to True.
@@ -260,7 +260,7 @@ class Partition:
         res = conn.search_with_expression(self._collection.name, data, anns_field, param, limit,
                                           expr, [self._name], output_fields, timeout, **kwargs)
         if kwargs.get("_async", False):
-            return SearchResultFuture(res)
+            return SearchFuture(res)
         return SearchResult(res)
 
     def query(self, expr, output_fields=None, timeout=None):
