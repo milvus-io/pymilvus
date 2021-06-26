@@ -1006,7 +1006,7 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler()
     def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None):
-        if type(output_fields) == list:
+        if type(output_fields) != list:
             raise BaseException(0, "Param output_fields should be a list")
         request = Prepare.query_request(collection_name, expr, output_fields, partition_names)
         future = self._stub.Query.future(request, wait_for_ready=True, timeout=timeout)
