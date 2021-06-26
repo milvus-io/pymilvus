@@ -829,7 +829,7 @@ class Milvus:
 
         :param kwargs:
             * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a InsertFuture object;
+              Indicate if invoke asynchronously. When value is true, method returns a MutationFuture object;
               otherwise, method returns results from server.
             * *_callback* (``function``) --
               The callback function which is invoked after server response successfully. It only take
