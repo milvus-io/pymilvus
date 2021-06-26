@@ -231,7 +231,7 @@ class ChunkedSearchFuture(Future):
         return ChunkedQueryResult(response, self._auto_id)
 
 
-class InsertFuture(Future):
+class MutationFuture(Future):
     def on_response(self, response):
         status = response.status
         if status.error_code == 0:
