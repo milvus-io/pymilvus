@@ -25,7 +25,7 @@ from .utils import len_of
 from .abs_client import AbsMilvus
 from .asynch import (
     SearchFuture,
-    InsertFuture,
+    MutationFuture,
     CreateIndexFuture,
     CreateFlatIndexFuture,
     FlushFuture,
@@ -515,7 +515,7 @@ class GrpcHandler(AbsMilvus):
             rf = self._stub.Insert.future(request, wait_for_ready=True, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
-                return InsertFuture(rf, cb)
+                return MutationFuture(rf, cb)
 
             response = rf.result()
             if response.status.error_code == 0:
@@ -524,7 +524,7 @@ class GrpcHandler(AbsMilvus):
             raise BaseException(response.status.error_code, response.status.reason)
         except Exception as err:
             if kwargs.get("_async", False):
-                return InsertFuture(None, None, err)
+                return MutationFuture(None, None, err)
             raise err
 
     def _prepare_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
