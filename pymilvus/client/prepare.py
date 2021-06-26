@@ -456,6 +456,9 @@ class Prepare:
         if not isinstance(query_entities, (dict,)):
             raise ParamError("Invalid query format. 'query_entities' must be a dict")
 
+        if fields is not None and not isinstance(fields, (list, )):
+            raise ParamError("Invalid query format. 'fields' must be a list")
+
         request = milvus_types.SearchRequest(
             collection_name=collection_name,
             partition_names=partition_names,
