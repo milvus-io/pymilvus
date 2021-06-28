@@ -355,10 +355,11 @@ class QueryResult(LoopBase):
         self._nq = raw.results.num_queries
         self._topk = raw.results.top_k
         self._hits = []
+        offset = 0
         for i in range(self._nq):
             hit = schema_pb2.SearchResultData()
-            start_pos = i * self._topk
-            end_pos = (i + 1) * self._topk
+            start_pos = offset
+            end_pos = offset + raw.results.topks[i]
             hit.scores.append(raw.results.scores[start_pos: end_pos])
             hit.ids.append(raw.results.ids.int_id.data[start_pos: end_pos])
             for field_data in raw.result.fields_data:
@@ -385,6 +386,7 @@ class QueryResult(LoopBase):
                         field_data.vectors.float_data.data[start_pos * dim: end_pos * dim])
                 hit.fields_data.append(field)
             self._hits.append(hit)
+            offset += raw.results.topks[i]
 
     def get__item(self, item):
         return Hits(self._hits[item], self._auto_id)
@@ -411,10 +413,11 @@ class ChunkedQueryResult(LoopBase):
             nq = raw.results.num_queries
             self._nq += nq
             self._topk = raw.results.top_k
+            offset = 0
             for i in range(nq):
                 hit = schema_pb2.SearchResultData()
-                start_pos = i * self._topk
-                end_pos = (i + 1) * self._topk
+                start_pos = offset
+                end_pos = offset + raw.results.topks[i]
                 hit.scores.extend(raw.results.scores[start_pos: end_pos])
                 hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos: end_pos])
                 for field_data in raw.results.fields_data:
@@ -441,6 +444,7 @@ class ChunkedQueryResult(LoopBase):
                                                                start_pos * dim: end_pos * dim])
                     hit.fields_data.append(field)
                 self._hits.append(hit)
+                offset += raw.result.topks[i]
 
     def get__item(self, item):
         return Hits(self._hits[item], self._auto_id)
