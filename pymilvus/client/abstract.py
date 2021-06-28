@@ -444,7 +444,7 @@ class ChunkedQueryResult(LoopBase):
                                                                start_pos * dim: end_pos * dim])
                     hit.fields_data.append(field)
                 self._hits.append(hit)
-                offset += raw.result.topks[i]
+                offset += raw.results.topks[i]
 
     def get__item(self, item):
         return Hits(self._hits[item], self._auto_id)
