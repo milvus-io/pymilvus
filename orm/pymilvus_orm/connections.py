@@ -65,8 +65,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def add_connection(self, **kwargs):
         """
-        Configures the milvus connections and then creates milvus (``connect()``)
-        connections by the passed parameters.
+        Configures a milvus connection.
 
         Example::
 

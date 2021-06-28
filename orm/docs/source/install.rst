@@ -5,9 +5,9 @@ Installation
 Installing via pip
 ==================
 
-PyMilvus ORM is in the `Python Package Index <https://pypi.org/project/pymilvus-orm/>`_.
+PyMilvus-ORM is in the `Python Package Index <https://pypi.org/project/pymilvus-orm/>`_.
 
-PyMilvus ORM only support python3(>= 3.6), usually, it's ok to install PyMilvus ORM like below.
+PyMilvus-ORM only support python3(>= 3.6), usually, it's ok to install PyMilvus-ORM like below.
 
 .. code-block:: shell
    
@@ -16,9 +16,9 @@ PyMilvus ORM only support python3(>= 3.6), usually, it's ok to install PyMilvus 
 Installing in a virtual environment
 ====================================
 
-It's recommended to use PyMilvus ORM in a virtual environment, using virtual environment allows you to avoid
+It's recommended to use PyMilvus-ORM in a virtual environment, using virtual environment allows you to avoid
 installing Python packages globally which could break system tools or other projects.
-We use ``virtualenv`` as an example to demonstrate how to install and using PyMilvus ORM in a virtual environment.
+We use ``virtualenv`` as an example to demonstrate how to install and using PyMilvus-ORM in a virtual environment.
 See `virtualenv <https://virtualenv.pypa.io/en/latest/>`_ for more information about why and how.
 
 
@@ -38,20 +38,20 @@ If you want to exit the virtualenv ``venv``, you can use ``deactivate``.
    $ 
 
 
-Installing a specific PyMilvus ORM version
+Installing a specific PyMilvus-ORM version
 ======================================
 
 Here we assume you are already in a virtual environment.
 
-Suitable PyMilvus ORM version depends on Milvus version you are using. See `install pymilvus-orm <https://github.com/milvus-io/pymilvus-orm#install-pymilvus-orm>`_ for recommended pymilvus-orm version.
+Suitable PyMilvus-ORM version depends on Milvus version you are using. See `install pymilvus-orm <https://github.com/milvus-io/pymilvus-orm#install-pymilvus-orm>`_ for recommended pymilvus-orm version.
 
-If you want to install a specific version of PyMilvus ORM:
+If you want to install a specific version of PyMilvus-ORM:
 
 .. code-block:: shell
    
    (venv) $ pip install pymilvus-orm==0.0.1
 
-If you want to upgrade PyMilvus ORM into the latest version published:
+If you want to upgrade PyMilvus-ORM into the latest version published:
 
 .. code-block:: shell
    
@@ -61,7 +61,7 @@ If you want to upgrade PyMilvus ORM into the latest version published:
 Installing from source
 ======================
 
-This will install the latest PyMilvus ORM into your virtual environment.
+This will install the latest PyMilvus-ORM into your virtual environment.
 
 .. code-block:: shell
    

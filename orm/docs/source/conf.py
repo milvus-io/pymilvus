@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'pymilvus'
+project = 'pymilvus-orm'
 copyright = '2021, Milvus'
 author = 'Milvus'
 

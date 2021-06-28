@@ -4,7 +4,7 @@ Index
 =========
 .. currentmodule:: pymilvus_orm
 
-Index .
+An index belongs to a specific vector field in a collection, it helps accelerating search.
 
 Constructor
 -----------
@@ -27,13 +27,11 @@ Attributes
 +----------------------------------------------------------------------+---------------------------------------------------------------------------+
 | API                                                                  | Description                                                               |
 +======================================================================+===========================================================================+
-| `name <#pymilvus_orm.Index.name>`_                                   | Return the index name.                                                    |
-+----------------------------------------------------------------------+---------------------------------------------------------------------------+
 | `params <#pymilvus_orm.Index.params>`_                               | Return the index params.                                                  |
 +----------------------------------------------------------------------+---------------------------------------------------------------------------+
 | `collection_name <#pymilvus_orm.Index.collection_name>`_             | Return corresponding collection name.                                     |
 +----------------------------------------------------------------------+---------------------------------------------------------------------------+
-| `field_name <#pymilvus_orm.Index.field_name>`_                       | Return corresponding column name.                                         |
+| `field_name <#pymilvus_orm.Index.field_name>`_                       | Return corresponding field name.                                          |
 +----------------------------------------------------------------------+---------------------------------------------------------------------------+
 | `drop <#pymilvus_orm.Index.drop>`_                                   | Drop index and its corresponding index files.                             |
 +----------------------------------------------------------------------+---------------------------------------------------------------------------+
@@ -45,4 +43,4 @@ APIs
 
 .. autoclass:: pymilvus_orm.Index
    :member-order: bysource
-   :members: name, params, collection_name, field_name, drop
+   :members: params, collection_name, field_name, drop

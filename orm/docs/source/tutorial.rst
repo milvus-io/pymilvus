@@ -2,12 +2,12 @@
 Tutorial
 ========
 
-This is a basic introduction to Milvus by pymilvus-orm.
+This is a basic introduction to Milvus by PyMilvus-ORM.
 
 For a runnable python script,
-checkout `example.py <https://github.com/milvus-io/pymilvus-orm/blob/1.0/examples/example.py>`_ on pymilvus-orm Github,
+checkout `example.py <https://github.com/milvus-io/pymilvus-orm/blob/1.0/examples/example.py>`_ on PyMilvus-ORM Github,
 or `hello milvus <https://www.milvus.io/docs/example_code.md>`_ on Milvus official website. It's a good recommended
-start to get started with Milvus and pymilvus-orm as well.
+start to get started with Milvus and PyMilvus-ORM as well.
 
 
 .. note::
@@ -23,12 +23,12 @@ Before we start, there are some prerequisites.
 Make sure that:
 
 - You have a running Milvus instance.
-- pymilvus-orm is correctly :doc:`install`.
+- PyMilvus-ORM is correctly :doc:`install`.
 
 Connect to Milvus
 =================
 
-First of all, we need to import pymilvus-orm.
+First of all, we need to import `pymilvus-orm`.
 
 >>> from pymilvus_orm import connections
 
