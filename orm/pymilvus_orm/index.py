@@ -37,18 +37,21 @@ class Index:
         >>> from pymilvus_orm import *
         >>> from pymilvus_orm.schema import *
         >>> from pymilvus_orm.types import DataType
-        >>> connections.create_connection()
-        >>> field1 = FieldSchema("int64", DataType.INT64, is_parimary=False)
-        >>> field2 = FieldSchema("fvec", DataType.FLOAT_VECTOR, is_parimary=False, dim=128)
+        >>> connections.connect()
+        <pymilvus.client.stub.Milvus object at 0x7fac15e53470>
+        >>> field1 = FieldSchema("int64", DataType.INT64, is_primary=True)
+        >>> field2 = FieldSchema("fvec", DataType.FLOAT_VECTOR, is_primary=False, dim=128)
         >>> schema = CollectionSchema(fields=[field1, field2], description="collection description")
         >>> collection = Collection(name='test_collection', schema=schema)
         >>> # insert some data
         >>> index_params = {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 128}}
         >>> index = Index(collection, "fvec", index_params)
-        >>> print(index.name)
         >>> print(index.params)
+        {'index_type': 'IVF_FLAT', 'metric_type': 'L2', 'params': {'nlist': 128}}
         >>> print(index.collection_name)
+        test_collection
         >>> print(index.field_name)
+        fvec
         >>> index.drop()
         """
         from .collection import Collection
