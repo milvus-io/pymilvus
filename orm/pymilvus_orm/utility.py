@@ -36,18 +36,17 @@ def loading_progress(collection_name, partition_names=None, using="default"):
         {'num_loaded_entities':loaded_segments_nums, 'num_total_entities': total_segments_nums}
     :raises PartitionNotExistException: If partition doesn't exist.
     :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> from pymilvus_orm import utility
-        >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
+        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> _DIM = 128
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
-        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))
-        >>> data = pd.DataFrame(data={"int64" : int64_series})
+        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
+        >>> float_vector_series = [[random.random() for _ in range _DIM] for _ in range (10)]
+        >>> data = pd.DataFrame({"int64" : int64_series, "float_vector": float_vector_series})
         >>> collection.insert(data)
         >>> collection.load() # load collection to memory
         >>> utility.loading_progress("test_collection")
@@ -74,18 +73,17 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
     :raises PartitionNotExistException: If partition doesn't exist.
 
     :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> from pymilvus_orm import utility
-        >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
+        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> _DIM = 128
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
-        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))
-        >>> data = pd.DataFrame(data={"int64" : int64_series})
+        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
+        >>> float_vector_series = [[random.random() for _ in range _DIM] for _ in range (10)]
+        >>> data = pd.DataFrame({"int64" : int64_series, "float_vector": float_vector_series})
         >>> collection.insert(data)
         >>> collection.load() # load collection to memory
         >>> utility.wait_for_loading_complete("test_collection")
@@ -109,6 +107,7 @@ def index_building_progress(collection_name, index_name="", using="default"):
     :type index_name: str
 
     :return dict:
+
         Index building progress is a dict contains num of indexed entities and num of total
         entities.
         {'total_rows':total_rows,'indexed_rows':indexed_rows}
@@ -116,20 +115,21 @@ def index_building_progress(collection_name, index_name="", using="default"):
     :raises CollectionNotExistException: If collection doesn't exist.
     :raises IndexNotExistException: If index doesn't exist.
     :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> from pymilvus_orm import utility
-        >>> connections.create_connection(alias="default")
+        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
         >>> _DIM = 128
-        >>> field = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_parimary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field], description="test")
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import random
         >>> import numpy as np
+        >>> import pandas as pd
         >>> vectors = [[random.random() for _ in range(_DIM)] for _ in range(5000)]
-        >>> collection.insert([vectors])
+        >>> int64_series = pd.Series(data=list(range(5000, 10000)), index=list(range(5000)))
+        >>> vectors = [[random.random() for _ in range(_DIM)] for _ in range (5000)]
+        >>> data = pd.DataFrame({"int64" : int64_series, "float_vector": vectors})
+        >>> collection.insert(data)
         >>> collection.load() # load collection to memory
         >>> index_param = {
         >>>    "metric_type": "L2",
@@ -137,7 +137,7 @@ def index_building_progress(collection_name, index_name="", using="default"):
         >>>    "params": {"nlist": 1024}
         >>> }
         >>> collection.create_index("float_vector", index_param)
-        >>> utility.wait_for_index_building_complete("test_collection", "")
+        >>> utility.index_building_progress("test_collection", "")
         >>> utility.loading_progress("test_collection")
     """
     return _get_connection(using).get_index_build_progress(collection_name, index_name)
@@ -160,20 +160,21 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
     :raises IndexNotExistException: If index doesn't exist.
 
     :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> from pymilvus_orm import utility
-        >>> connections.create_connection(alias="default")
+        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
         >>> _DIM = 128
-        >>> field = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_parimary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field], description="test")
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import random
         >>> import numpy as np
+        >>> import pandas as pd
         >>> vectors = [[random.random() for _ in range(_DIM)] for _ in range(5000)]
-        >>> collection.insert([vectors])
+        >>> int64_series = pd.Series(data=list(range(5000, 10000)), index=list(range(5000)))
+        >>> vectors = [[random.random() for _ in range(_DIM)] for _ in range (5000)]
+        >>> data = pd.DataFrame({"int64" : int64_series, "float_vector": vectors})
+        >>> collection.insert(data)
         >>> collection.load() # load collection to memory
         >>> index_param = {
         >>>    "metric_type": "L2",
@@ -181,8 +182,9 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>>    "params": {"nlist": 1024}
         >>> }
         >>> collection.create_index("float_vector", index_param)
-        >>> utility.wait_for_index_building_complete("test_collection", "")
+        >>> utility.index_building_progress("test_collection", "")
         >>> utility.loading_progress("test_collection")
+
     """
     return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout)
 
@@ -198,14 +200,12 @@ def has_collection(collection_name, using="default"):
         Whether the collection exists.
 
     :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> from pymilvus_orm import utility
-        >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
+        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> _DIM = 128
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_collection("test_collection")
     """
@@ -226,14 +226,12 @@ def has_partition(collection_name, partition_name, using="default"):
         Whether the partition exist.
 
     :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> from pymilvus_orm import utility
-        >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
+        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> _DIM = 128
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_partition("_default")
     """
@@ -252,14 +250,12 @@ def list_collections(timeout=None, using="default") -> list:
         List of collection names, return when operation is successful
 
     :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> from pymilvus_orm import utility
-        >>> connections.create_connection(alias="default")
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="get collection entities num")
+        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> _DIM = 128
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.list_collections()
     """
