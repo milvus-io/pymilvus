@@ -132,9 +132,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
                            server.
 
         :example:
-        >>> from pymilvus_orm import connections
-        >>> connections.connect("test", host="localhost", port="19530")
-        <milvus.client.stub.Milvus object at 0x7f4045335f10>
+            >>> from pymilvus_orm import connections
+            >>> connections.connect("test", host="localhost", port="19530")
+            <pymilvus.client.stub.Milvus object at 0x7f4045335f10>
         """
         if not isinstance(alias, str):
             raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
@@ -201,11 +201,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
             Names of all connections.
 
         :example:
-        >>> from pymilvus_orm import connections as conn
-        >>> conn.connect("test", host="localhost", port="19530")
-        <milvus.client.stub.Milvus object at 0x7f05003f3e80>
-        >>> conn.list_connections()
-        [('default', None), ('test', <milvus.client.stub.Milvus object at 0x7f05003f3e80>)]
+            >>> from pymilvus_orm import connections as conn
+            >>> conn.connect("test", host="localhost", port="19530")
+            <pymilvus.client.stub.Milvus object at 0x7f05003f3e80>
+            >>> conn.list_connections()
+            [('default', None), ('test', <pymilvus.client.stub.Milvus object at 0x7f05003f3e80>)]
         """
         return [(k, self._conns.get(k, None)) for k in self._kwargs]
 
@@ -221,13 +221,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
             If alias does not exist, return empty dict.
 
         :example:
-        >>> from pymilvus_orm import connections
-        >>> connections.connect("test", host="localhost", port="19530")
-        <milvus.client.stub.Milvus object at 0x7f4045335f10>
-        >>> connections.list_connections()
-        [('default', None), ('test', <milvus.client.stub.Milvus object at 0x7f4045335f10>)]
-        >>> connections.get_connection_addr('test')
-        {'host': 'localhost', 'port': '19530'}
+            >>> from pymilvus_orm import connections
+            >>> connections.connect("test", host="localhost", port="19530")
+            <pymilvus.client.stub.Milvus object at 0x7f4045335f10>
+            >>> connections.list_connections()
+            [('default', None), ('test', <pymilvus.client.stub.Milvus object at 0x7f4045335f10>)]
+            >>> connections.get_connection_addr('test')
+            {'host': 'localhost', 'port': '19530'}
         """
         if not isinstance(alias, str):
             raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
