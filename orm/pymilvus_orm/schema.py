@@ -105,12 +105,10 @@ class CollectionSchema:
         :example:
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
         >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> connections.create_connection(alias="default")
-        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
         >>> schema = CollectionSchema(fields=[field])
         >>> schema.fields
+        [<pymilvus_orm.schema.FieldSchema object at 0x7fd3716ffc50>]
         """
         return self._fields
 
@@ -125,12 +123,10 @@ class CollectionSchema:
         :example:
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
         >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> connections.create_connection(alias="default")
-        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
         >>> schema = CollectionSchema(fields=[field], description="test get description")
         >>> schema.description
+        'test get description'
         """
         return self._description
 
@@ -146,12 +142,10 @@ class CollectionSchema:
         :example:
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
         >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> connections.create_connection(alias="default")
-        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
         >>> schema = CollectionSchema(fields=[field])
         >>> schema.auto_id
+        False
         """
         return self._auto_id
 
@@ -251,11 +245,9 @@ class FieldSchema:
         :example:
         >>> from pymilvus_orm.schema import FieldSchema
         >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> connections.create_connection(alias="default")
-        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=False)
         >>> field.description
+        'int64'
         """
         return self._description
 
@@ -270,11 +262,12 @@ class FieldSchema:
         :example:
         >>> from pymilvus_orm.schema import FieldSchema
         >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> connections.create_connection(alias="default")
-        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
+        >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=False)
         >>> field.params
+        {}
+        >>> fvec_field = FieldSchema("fvec", DataType.FLOAT_VECTOR, description="float vector", is_primary=False, dim=128)
+        >>> fvec_field.params
+        {'dim': 128}
         """
         return self._type_params
 
