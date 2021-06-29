@@ -44,7 +44,6 @@ class Partition:
     def _get_connection(self):
         return self._collection._get_connection()
 
-    # read-only
     @property
     def description(self) -> str:
         """
@@ -53,23 +52,19 @@ class Partition:
         :return str: Partition description text, return when operation is successful
 
         :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.partition import Partition
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> connections.create_connection(alias="default")
-        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema("int64", DataType.INT64, "int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="collection description")
-        >>> collection = Collection(name="test_collection", schema=schema, alias="default")
-        >>> partition = Partition(collection, "test_partition", "test partition desc")
-        >>> partition.description
-        'test partition desc'
+            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_description", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> partition.description
+            'comedy films'
         """
         return self._description
 
-    # read-only
     @property
     def name(self) -> str:
         """
@@ -77,23 +72,19 @@ class Partition:
 
         :return str: Partition name, return when operation is successful
         :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.partition import Partition
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> connections.create_connection(alias="default")
-        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="collection description")
-        >>> collection = Collection(name="test_collection", schema=schema, alias="default")
-        >>> partition = Partition(collection, "test_partition", "test partition desc")
-        >>> partition.name
-        'test_partition'
+            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_name", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> partition.name
+            'comedy'
         """
         return self._name
 
-    # read-only
     @property
     def is_empty(self) -> bool:
         """
@@ -104,46 +95,42 @@ class Partition:
         * False: The partition is not empty.
 
         :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.partition import Partition
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> from pymilvus_orm import connections
-        >>> connections.create_connection(alias="default")
-        <milvus.client.stub.Milvus object at 0x7f9a190ca898>
-        >>> field = FieldSchema("int64", DataType.INT64, "int64", is_parimary=False)
-        >>> schema = CollectionSchema(fields=[field], description="collection description")
-        >>> collection = Collection(name="test_collection", schema=schema, alias="default")
-        >>> partition = Partition(collection, "test_partition", "test partition desc")
-        >>> partition.is_empty
-        True
+            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_is_empty", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> partition.is_empty
+            True
         """
         return self.num_entities == 0
 
-    # read-only
     @property
     def num_entities(self) -> int:
         """
         Return the number of entities.
 
         :return int: Number of entities in this partition.
+
         :example:
-        >>> from pymilvus_orm.collection import Collection
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm import connections
-        >>> from pymilvus_orm.types import DataType
-        >>> connections.create_connection()
-        <milvus.client.stub.Milvus object at 0x7f4d59da0be0>
-        >>> field = FieldSchema("int64", DataType.INT64, is_primary=False, description="int64")
-        >>> schema = CollectionSchema([field], description="collection schema has a int64 field")
-        >>> collection = Collection(name="test_collection", schema=schema)
-        >>> from pymilvus_orm.partition import Partition
-        >>> partition = Partition(collection, "test_partition")
-        >>> import random
-        >>> data = [[random.randint(1,100) for _ in range(10)]]
-        >>> partition.insert(data)
-        >>> partition.num_entities
-        10
+            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_num_entities", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> data = [
+            ...     [i for i in range(10)],
+            ...     [[float(i) for i in range(2)] for _ in range(10)],
+            ... ]
+            >>> partition.insert(data)
+            >>> partition.num_entities
+            10
         """
         conn = self._get_connection()
         conn.flush([self._collection.name])
@@ -157,6 +144,17 @@ class Partition:
 
         :raises PartitionNotExistException:
             When partitoin does not exist
+
+        :example:
+            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_drop", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> partition.drop()
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name) is False:
@@ -170,6 +168,16 @@ class Partition:
         :raises InvalidArgumentException:
             If argument is not valid
 
+        :example:
+            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_load", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> partition.load()
         """
         # TODO(yukun): If field_names is not None and not equal schema.field_names,
         #  raise Exception Not Supported,
@@ -185,6 +193,18 @@ class Partition:
 
         :raises PartitionNotExistException:
             When partitoin does not exist
+
+        :example:
+            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_release", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> partition.load()
+            >>> partition.release()
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
@@ -206,6 +226,23 @@ class Partition:
 
         :raises PartitionNotExistException:
             When partitoin does not exist
+
+        :example:
+            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_insert", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> data = [
+            ...     [i for i in range(10)],
+            ...     [[float(i) for i in range(2)] for _ in range(10)],
+            ... ]
+            >>> partition.insert(data)
+            >>> partition.num_entities
+            10
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name) is False:
@@ -255,6 +292,43 @@ class Partition:
         :raises RpcError: If gRPC encounter an error.
         :raises ParamError: If parameters are invalid.
         :raises BaseException: If the return result from server is not ok.
+
+        :example:
+            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> import random
+            >>> connections.connect()
+            <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_collection_search", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> # insert
+            >>> data = [
+            ...     [i for i in range(10)],
+            ...     [[random.random() for _ in range(2)] for _ in range(10)],
+            ... ]
+            >>> partition.insert(data)
+            >>> partition.num_entities
+            10
+            >>> partition.load()
+            >>> # search
+            >>> search_param = {
+            ...     "data": [[1.0, 1.0]],
+            ...     "anns_field": "films",
+            ...     "param": {"metric_type": "L2"},
+            ...     "limit": 2,
+            ...     "expr": "film_id > 0",
+            ... }
+            >>> res = partition.search(**search_param)
+            >>> assert len(res) == 1
+            >>> hits = res[0]
+            >>> assert len(hits) == 2
+            >>> print(f"- Total hits: {len(hits)}, hits ids: {hits.ids} ")
+            - Total hits: 2, hits ids: [8, 5]
+            >>> print(f"- Top1 hit id: {hits[0].id}, distance: {hits[0].distance}, score: {hits[0].score} ")
+            - Top1 hit id: 8, distance: 0.10143111646175385, score: 0.10143111646175385
         """
         conn = self._get_connection()
         res = conn.search_with_expression(self._collection.name, data, anns_field, param, limit,

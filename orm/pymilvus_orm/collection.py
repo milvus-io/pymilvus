@@ -568,6 +568,7 @@ class Collection:
             ... ]
             >>> collection.insert(data)
             >>> collection.num_entities
+            10
             >>> collection.load()
             >>> # search
             >>> search_param = {
