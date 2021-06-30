@@ -186,6 +186,10 @@ def is_legal_partition_name(tag):
     return tag is not None and isinstance(tag, str)
 
 
+def is_legal_limit(limit):
+    return isinstance(limit, int) and limit > 0
+
+
 def is_legal_partition_name_array(tag_array):
     if tag_array is None:
         return True
@@ -271,6 +275,9 @@ def check_pass_param(*args, **kwargs):
                 _raise_param_error(key, value)
         elif key in ("partition_name_array",):
             if not is_legal_partition_name_array(value):
+                _raise_param_error(key, value)
+        elif key in ("limit",):
+            if not is_legal_limit(value):
                 _raise_param_error(key, value)
         # elif key in ("records",):
         #     if not is_legal_records(value):
