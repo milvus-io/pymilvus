@@ -11,6 +11,7 @@
 # the License.
 
 import abc
+from pymilvus.client.abstract import Entity
 
 
 class _IterableWrapper:
@@ -98,6 +99,16 @@ class Hit:
             The id of the hit record.
         """
         return self._hit.id
+
+    @property
+    def entity(self) -> Entity:
+        """
+        Return the Entity of the hit record.
+
+        :return pymilvus Entity object:
+            The entity content of the hit record.
+        """
+        return self._hit.entity
 
     @property
     def distance(self) -> float:
