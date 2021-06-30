@@ -77,6 +77,19 @@ class Future(AbstractFuture):
         '''
         raise NotImplementedError()
 
+    def _callback(self, **kwargs):
+        for cb in self._done_cb_list:
+            if cb:
+                # necessary to check parameter signature of cb?
+                if isinstance(self._results, tuple):
+                    cb(*self._results)
+                elif _parameter_is_empty(cb):
+                    cb()
+                elif self._results is not None:
+                    cb(self._results)
+                else:
+                    raise BaseException(1, "callback function is not legal!")
+
     def result(self, **kwargs):
         self.exception()
         with self._condition:
@@ -86,17 +99,7 @@ class Future(AbstractFuture):
                 self._response = self._future.result(timeout=to)
                 self._results = self.on_response(self._response)
 
-                for cb in self._done_cb_list:
-                    if cb:
-                        # necessary to check parameter signature of cb?
-                        if isinstance(self._results, tuple):
-                            cb(*self._results)
-                        elif _parameter_is_empty(cb):
-                            cb()
-                        elif self._results is not None:
-                            cb(self._results)
-                        else:
-                            raise BaseException(1, "callback function is not legal!")
+                self._callback()
 
             self._condition.notify_all()
 
@@ -124,7 +127,9 @@ class Future(AbstractFuture):
         with self._condition:
             if self._future and not self._future.done():
                 try:
-                    self._future.result()
+                    self._response = self._future.result()
+                    self._results = self.on_response(self._response)
+                    self._callback()    # https://github.com/milvus-io/milvus/issues/6160
                 except Exception as e:
                     self._exception = e
 
