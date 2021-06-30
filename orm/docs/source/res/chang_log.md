@@ -1,4 +1,6 @@
-**v0.0.1(Developing)**
- 
+**v2.0.0rc1(TBD)**
 
-  * Remove unused hybrid APIs
+  * ORM(Object Relational Model) Support for milvus 2.0
+  * Hybrid Search between scalar and vector data
+  * Match query interface
+  
