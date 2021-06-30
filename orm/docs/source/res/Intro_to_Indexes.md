@@ -1,7 +1,7 @@
 
 [Milvus](https://github.com/milvus-io) support to create index to accelerate vector approximate search. 
 
-To learn how to create an index by python client, see method [create_index()](api.html#milvus.Milvus.create_index) and 
+To learn how to create an index by python client, see method [create_index()](api/collection.html#pymilvus_orm.Collection.create_index) and 
 [index example](https://github.com/milvus-io/pymilvus-orm/tree/main/examples) .
 
 For more detailed information about indexes, please refer to [Milvus documentation index chapter.](https://milvus.io/docs/index.md)
@@ -18,7 +18,6 @@ To learn how to choose an appropriate index for a metric, see [Distance Metrics]
 - `IVF_PQ`_
 - `HNSW`_
 - `ANNOY`_
-- `RNSG`_
 
 
 ### FLAT
@@ -30,14 +29,8 @@ when the number of queries is small.
 
 The inserted and index-inbuilt vectors and index-dropped vectors are regard as built with ``FLAT``.
 
-- building parameters: 
-  **N/A**
-  
-```python
-# FLAT
-collection.create_index(field_name=field_name,
-                        index_params={'index_type': 'FLAT'})
-```
+FLAT is the default index type in the server, so it's not necessary to create an FLAT index. When you search a
+collection without creating an index before, in fact you search a collection with FLAT index.
 
 - search parameters: 
   **N/A**
@@ -64,6 +57,7 @@ IVF_FLAT is the most basic IVF index, and the encoded data stored in each unit i
 # IVF_FLAT
 collection.create_index(field_name=field_name,
                         index_params={'index_type': 'IVF_FLAT',
+                                      'metric_type': 'L2',
                                       'params': {
                                         'nlist': 100      # int. 1~65536
                                       }})
@@ -104,6 +98,7 @@ smaller than IVF_SQ8, but it also causes a loss of accuracy during searching.
 # IVF_PQ
 collection.create_index(field_name=field_name,
                         index_params={'index_type': 'IVF_PQ',
+                                      'metric_type': 'L2',
                                       'params': {
                                         'nlist': 100,     # int. 1~65536
                                         "m": 8            # int. 1~16. 8 by default
@@ -136,6 +131,7 @@ However, scalar quantization results in a loss of accuracy during searching vect
 # IVF_SQ8
 collection.create_index(field_name=field_name,
                         index_params={'index_type': 'IVF_SQ8',
+                                      'metric_type': 'L2',
                                       'params': {
                                         'nlist': 100,     # int. 1~65536
                                       }})
@@ -172,6 +168,7 @@ all the dividing methods simultaneously to reduce the probability that the targe
 # ANNOY
 collection.create_index(field_name=field_name,
                         index_params={'index_type': 'ANNOY',
+                                      'metric_type': 'L2',
                                       'params': {
                                         "n_trees": 8      # int. 1~1024
                                       }})
@@ -210,6 +207,7 @@ In addition, you can use `efConstruction` (when building index) or `ef` (when se
 # HNSW
 collection.create_index(field_name=field_name,
                         index_params={'index_type': 'HNSW',
+                                      'metric_type': 'L2',
                                       'params': {
                                         "M": 16,              # int. 4~64
                                         "efConstruction": 40  # int. 8~512
@@ -228,50 +226,3 @@ collection.search(data, anns_field, {
 ```
 
 
-### RNSG
-
-**RNSG** (*Refined Navigating Spreading-out Graph*) is a graph-based indexing algorithm. It sets the center
-position of the whole image as a navigation point, and then uses a specific edge selection strategy to control
-the out-degree of each point (less than or equal to `out_degree`). Therefore, it can reduce memory usage and
-quickly locate the target position nearby during searching vectors.
-
-The graph construction process of NSG is as follows:
-
-1. Find `knng` nearest neighbors for each point.
-2. Iterate at least `search_length` times based on `knng` nearest neighbor nodes to select `candidate_pool_size` possible nearest neighbor nodes.
-3. Construct the out-edge of each point in the selected `candidate_pool_size` nodes according to the edge selection strategy.
-
-The query process is similar to the graph building process. It starts from the navigation point and iterates at least `search_length` times to get the final result.
-
-- building parameters:
-
-  **search_length**: Number of query iterations.
-
-  **out_degree**: Maximum out-degree of the node.
-
-  **candidate_pool_size**: Candidate pool size of the node.
-
-  **knng**: Number of nearest neighbors
-
-```python
-# RNSG
-collection.create_index(field_name=field_name,
-                        index_params={'index_type': 'RNSG',
-                                      'params': {
-                                        "search_length": 60,         # int. 10~300
-                                        "out_degree": 30,            # int. 5~300
-                                        "candidate_pool_size": 300,  # int. 50~1000
-                                        "knng": 50                   # int. 5~300
-                                      }})
-```
-
-- search parameters:
-
-	**search_length**: Number of query iterations
-
-```python
-# RNSG
-collection.search(data, anns_field, {
-                "search_length": 100  # int. 10~300
-              }, topK, expression)
-```
