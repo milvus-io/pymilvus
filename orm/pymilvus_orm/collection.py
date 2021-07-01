@@ -10,6 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 import copy
+import json
 
 import pandas
 
@@ -129,6 +130,14 @@ class Collection:
                 self._schema = schema
             else:
                 raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)
+
+    def __repr__(self):
+        return json.dumps({
+            'name': self.name,
+            'schema': self._schema.to_dict(),
+            'partitions': [json.loads(p.__repr__()) for p in self.partitions],
+            'description': self.description,
+        })
 
     def _get_using(self):
         return self._kwargs.get("_using", "default")
