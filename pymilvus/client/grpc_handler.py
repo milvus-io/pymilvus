@@ -5,6 +5,7 @@ import logging
 import threading
 import json
 import functools
+import copy
 
 import grpc
 from grpc._cython import cygrpc
@@ -535,9 +536,10 @@ class GrpcHandler(AbsMilvus):
         if reply.status.error_code != 0 or not reply.value:
             raise CollectionNotExistException(reply.status.error_code, "collection not exists")
 
-        request = Prepare.search_request(collection_name, query_entities, partition_names, fields)
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
+        request = Prepare.search_request(collection_name, query_entities, partition_names, fields,
+                                         schema=collection_schema)
 
         return request, auto_id
 
@@ -549,9 +551,10 @@ class GrpcHandler(AbsMilvus):
         if reply.status.error_code != 0 or not reply.value:
             raise CollectionNotExistException(reply.status.error_code, "collection not exists")
 
-        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields)
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
+        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields,
+                                                 schema=collection_schema)
 
         return requests, auto_id
 
@@ -614,12 +617,15 @@ class GrpcHandler(AbsMilvus):
     def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None,
                                partition_names=None,
                                output_fields=None, timeout=None, **kwargs):
-        requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
-                                                     partition_names, output_fields, **kwargs)
+        _kwargs = copy.deepcopy(kwargs)
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
-        kwargs["auto_id"] = auto_id
-        return self._execute_search_requests(requests, timeout, **kwargs)
+        _kwargs["schema"] = collection_schema
+        requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
+                                                     partition_names, output_fields, **_kwargs)
+        _kwargs.pop("schema")
+        _kwargs["auto_id"] = auto_id
+        return self._execute_search_requests(requests, timeout, **_kwargs)
 
     @error_handler(None)
     def get_query_segment_infos(self, collection_name, timeout=30, **kwargs):
