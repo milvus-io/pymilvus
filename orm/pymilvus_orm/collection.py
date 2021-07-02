@@ -729,7 +729,7 @@ class Collection:
             {"name": "partition", "description": "comedy films", "num_entities": 0}
         """
         if self.has_partition(partition_name) is True:
-            raise PartitionAlreadyExistException(0, ExceptionsMessage.PartitionAlreayExist)
+            raise PartitionAlreadyExistException(0, ExceptionsMessage.PartitionAlreadyExist)
         return Partition(self, partition_name, description=description)
 
     def has_partition(self, partition_name) -> bool:
