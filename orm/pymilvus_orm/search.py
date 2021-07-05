@@ -265,7 +265,6 @@ class SearchResult:
     def on_result(self, res):
         return Hits(res)
 
-
 class MutationResult:
     def __init__(self, mr):
         self._mr = mr
@@ -295,6 +294,18 @@ class MutationResult:
     @property
     def timestamp(self):
         return self._timestamp
+
+    def __str__(self):
+        """
+        Return the information of mutation result
+
+        :return str:
+            The information of mutation result.
+        """
+        return "(insert count: {}, delete count: {}, upsert count: {}, timestamp: {})".\
+            format(self._insert_cnt, self._delete_cnt, self._upsert_cnt, self._timestamp)
+
+    __repr__ = __str__
 
     # TODO
     # def error_code(self):

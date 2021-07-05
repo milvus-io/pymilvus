@@ -1,4 +1,5 @@
 import logging
+import numpy
 import pytest
 from utils import *
 from pymilvus_orm import Collection, connections
@@ -73,6 +74,20 @@ class TestCollections:
     def test_insert(self, collection):
         data = gen_list_data(default_nb)
         collection.insert(data)
+
+    def test_insert_ret(self, collection):
+        vectors = gen_vectors(1, default_dim, bool(0))
+        data = [
+            [1],
+            [numpy.float32(1.0)],
+            vectors
+        ]
+        result = collection.insert(data)
+        print(result)
+        assert "insert count" in str(result)
+        assert "delete count" in str(result)
+        assert "upsert count" in str(result)
+        assert "timestamp" in str(result)
 
     @pytest.mark.xfail
     def test_search(self, collection):
