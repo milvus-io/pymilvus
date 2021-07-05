@@ -126,7 +126,6 @@ class Milvus:
         self._hooks = collections.defaultdict()
 
         self._deploy_mode = DeployMode.Distributed
-        self._wait_for_healthy()
 
     @check_connect
     def _wait_for_healthy(self, timeout=30, retry=10):
@@ -159,7 +158,8 @@ class Milvus:
         self._pool = None
 
     def _connection(self):
-        return self._pool.fetch()
+        if self._pool:
+            return self._pool.fetch()
 
     def _update_connection_pool(self):
         self._pool = None
