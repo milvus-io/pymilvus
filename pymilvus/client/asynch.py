@@ -64,6 +64,7 @@ class Future(AbstractFuture):
         self._response = None
         self._results = None
         self._exception = pre_exception
+        self._callback_called = False   # callback function should be called only once
 
     def add_callback(self, func):
         self._done_cb_list.append(func)
@@ -78,28 +79,33 @@ class Future(AbstractFuture):
         raise NotImplementedError()
 
     def _callback(self, **kwargs):
-        for cb in self._done_cb_list:
-            if cb:
-                # necessary to check parameter signature of cb?
-                if isinstance(self._results, tuple):
-                    cb(*self._results)
-                elif _parameter_is_empty(cb):
-                    cb()
-                elif self._results is not None:
-                    cb(self._results)
-                else:
-                    raise BaseException(1, "callback function is not legal!")
+        if not self._callback_called:
+            for cb in self._done_cb_list:
+                if cb:
+                    # necessary to check parameter signature of cb?
+                    if isinstance(self._results, tuple):
+                        cb(*self._results)
+                    elif _parameter_is_empty(cb):
+                        cb()
+                    elif self._results is not None:
+                        cb(self._results)
+                    else:
+                        raise BaseException(1, "callback function is not legal!")
+        self._callback_called = True
 
     def result(self, **kwargs):
         self.exception()
         with self._condition:
             # future not finished. wait callback being called.
             to = kwargs.get("timeout", None)
-            if self._future and not self._future.done() or not self._response:
+            # when result() was called more than once, future.done() return True
+            if self._future and not self._future.done():
                 self._response = self._future.result(timeout=to)
                 self._results = self.on_response(self._response)
 
                 self._callback()
+
+            self._done = True
 
             self._condition.notify_all()
 
@@ -132,6 +138,8 @@ class Future(AbstractFuture):
                     self._callback()    # https://github.com/milvus-io/milvus/issues/6160
                 except Exception as e:
                     self._exception = e
+
+            self._done = True
 
             self._condition.notify_all()
 
@@ -169,23 +177,16 @@ class ChunkedSearchFuture(Future):
         with self._condition:
             to = kwargs.get("timeout", None)
             for future in self._future_list:
-                if future and len(self._response) <= 0:
+                # when result() was called more than once, future.done() return True
+                if future and not future.done():
                     self._response.append(future.result(timeout=to))
 
             if len(self._response) > 0 and not self._results:
                 self._results = self.on_response(self._response)
 
-                for cb in self._done_cb_list:
-                    if cb:
-                        # necessary to check parameter signature of cb?
-                        if isinstance(self._results, tuple):
-                            cb(*self._results)
-                        elif _parameter_is_empty(cb):
-                            cb()
-                        elif self._results is not None:
-                            cb(self._results)
-                        else:
-                            raise BaseException(1, "callback function is not legal!")
+                self._callback()
+
+            self._done = True
 
             self._condition.notify_all()
 
@@ -212,12 +213,17 @@ class ChunkedSearchFuture(Future):
     def done(self):
         # self.exception()
         with self._condition:
-            for future in self._future_list:
-                if future and not future.done():
-                    try:
-                        future.result()
-                    except Exception as e:
-                        self._exception = e
+            try:
+                for future in self._future_list:
+                    if future and not future.done():
+                        self._response.append(future.result(timeout=None))
+
+                if len(self._response) > 0 and not self._results:
+                    self._results = self.on_response(self._response)
+                    self._callback()    # https://github.com/milvus-io/milvus/issues/6160
+
+            except Exception as e:
+                self._exception = e
 
             self._condition.notify_all()
 
