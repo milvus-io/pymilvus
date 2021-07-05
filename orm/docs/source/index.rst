@@ -51,7 +51,3 @@ every thing you need to know about PyMilvus-ORM.
    about
 
 
-.. sectionauthor::
-   `Bosszou@milvus <https://github.com/BossZou>`_, 
-   `Godchen@milvus <https://github.com/godchen0212>`_, 
-   `Yangxuan@milvus <https://github.com/XuanYang-cn>`_

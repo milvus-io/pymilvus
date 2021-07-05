@@ -89,5 +89,3 @@ In the root directory, run ``pylint --rcfile=pylint.conf pymilvus-orm`` to make 
 You need to enter the ``doc`` directory and run ``make html``, please refer to
 `About this documentations <https://milvus.io/api-reference/pymilvus-orm/v2.0.0rc1/about.html>`_.
 
-.. sectionauthor::
-   `Yangxuan@milvus <https://github.com/XuanYang-cn>`_

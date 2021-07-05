@@ -76,5 +76,3 @@ Your installation is correct if the following command in the Python shell doesn'
    
    (venv) $ python -c "from pymilvus_orm import Milvus, DataType"
 
-.. sectionauthor::
-   `IronMan@milvus <https://github.com/xiaocai2333>`_

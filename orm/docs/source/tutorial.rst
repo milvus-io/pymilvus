@@ -197,5 +197,3 @@ Finally, you can drop an entire collection.
 
 >>> collection.drop()
 
-.. sectionauthor::
-   `dragondriver@milvus <https://github.com/dragondriver>`_

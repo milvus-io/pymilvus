@@ -40,5 +40,3 @@ so you can traverse the results like this:
 ...     for id, dis in zip(result.ids, result.distances):
 ...         print(f"id = {id}, distance = {dis}")
 
-.. sectionauthor::
-   `dragondriver@milvus <https://github.com/dragondriver>`_
