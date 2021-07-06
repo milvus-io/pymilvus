@@ -24,7 +24,8 @@ from .schema import (
 from .prepare import Prepare
 from .partition import Partition
 from .index import Index
-from .search import SearchResult, MutationResult
+from .search import SearchResult
+from .mutation import MutationResult
 from .types import DataType
 from .exceptions import (
     SchemaNotReadyException,

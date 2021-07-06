@@ -14,7 +14,8 @@ import json
 
 from .exceptions import CollectionNotExistException, PartitionNotExistException, ExceptionsMessage
 from .prepare import Prepare
-from .search import SearchResult, MutationResult
+from .search import SearchResult
+from .mutation import MutationResult
 from .future import SearchFuture, MutationFuture
 
 
