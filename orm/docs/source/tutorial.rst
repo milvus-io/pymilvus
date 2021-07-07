@@ -37,7 +37,8 @@ By default Milvus runs on localhost in port 19530, so you can use default value 
 
 >>> host = '127.0.0.1'
 >>> port = '19530'
->>> connections.connect("default", host=host, port=port)
+>>> connections.add_connection(default={"host": host, "port": port})
+>>> connections.connect(alias='default')
 
 After connecting, we can communicate with Milvus in the following ways. If you are confused about the
 terminology, see `Milvus Terminology <https://milvus.io/docs/v2.0.0/glossary.md>`_ for explanations.
@@ -58,17 +59,19 @@ Create Collection
 
 To create collection, we could provide the schema for it.
 
-In this tutorial, we will create a collection with two field: `year` and `embedding`.
+In this tutorial, we will create a collection with three fields: `id`, `year` and `embedding`.
 
+The type of 'id' field is `int64`, and it is set as primary field.
 The type of `year` field is `int64`, and the type of `embedding` is `FLOAT_VECTOR` whose `dim` is 128.
 
 Now we can create a collection:
 
 >>> from pymilvus_orm import Collection, DataType, FieldSchema, CollectionSchema
 >>> dim = 128
->>> year_field = FieldSchema(name="year", dtype=DataType.INT64, is_primary=True, description="year")
+>>> id_field = FieldSchema(name="id", dtype=DataType.INT64, description="primary_field")
+>>> year_field = FieldSchema(name="year", dtype=DataType.INT64, description="year")
 >>> embedding_field = FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dim)
->>> schema = CollectionSchema(fields=[year_field, embedding_field], description="desc of collection")
+>>> schema = CollectionSchema(fields=[id_field, year_field, embedding_field], primary_field='id', auto_id=True, description='desc of collection')
 >>> collection_name = "tutorial"
 >>> collection = Collection(name=collection_name, schema=schema)
 
@@ -116,7 +119,7 @@ An entity is a group of fields that corresponds to real world objects. In this t
 Here is an example of 3 entities structured in list of list.
 
 >>> import random
->>> nb = 3
+>>> nb = 30
 >>> years = [i for i in range(nb)]
 >>> embeddings = [[random.random() for _ in range(dim)] for _ in range(nb)]
 >>> entities = [years, embeddings]
@@ -137,6 +140,8 @@ You can get entities by vector similarity. Assuming we have a ``embedding_A`` li
 that are most similar with it.
 
 In below example, we search the collection on ``embedding`` field.
+.. note::
+    Before searching, we need to load data into memory.
 
 >>> nq = 10
 >>> embedding_A = [[random.random() for _ in range(dim)] for _ in range(nq)]
@@ -144,6 +149,7 @@ In below example, we search the collection on ``embedding`` field.
 >>> search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
 >>> limit = 2
 >>> expr = "year > 20"
+>>> collection.load()
 >>> results = collection.search(embedding_A, anns_field, search_params, limit, expr)
 
 .. note::
