@@ -47,7 +47,7 @@ class Duration:
 
 
 class ConnectionRecord:
-    def __init__(self, uri, handler="GRPC", conn_id=-1, pre_ping=True, **kwargs):
+    def __init__(self, uri, channel=None, handler="GRPC", conn_id=-1, pre_ping=True, **kwargs):
         '''
         @param uri server uri
         @param recycle int, time period to recycle connection.
@@ -61,12 +61,7 @@ class ConnectionRecord:
         self._kw = kwargs
 
         if handler == "GRPC":
-            self._connection = GrpcHandler(uri=uri, pre_ping=self._pre_ping, conn_id=conn_id, **self._kw)
-        # if handler == "GRPC":
-        #     self._register_link()
-        #     self._connection = GrpcHandler(uri=self._uri, pre_ping=self._pre_ping, conn_id=conn_id, **self._kw)
-        elif handler == "HTTP":
-            self._connection = HttpHandler(uri=uri, pre_ping=self._pre_ping)
+            self._connection = GrpcHandler(uri=uri, channel=channel, pre_ping=self._pre_ping, conn_id=conn_id, **self._kw)
         else:
             raise ValueError("Unknown handler type. Use GRPC or HTTP")
 
@@ -210,9 +205,10 @@ class ConnectionPool:
 
 
 class SingletonThreadPool:
-    def __init__(self, uri, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
+    def __init__(self, uri, channel=None, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
         # Asynchronous queue to store connection
         self._uri = uri
+        self._channel = channel
         self._conn = None
         self._pool_size = pool_size
         self._wait_timeout = wait_timeout
@@ -243,7 +239,7 @@ class SingletonThreadPool:
             conn = self._local.conn
         except AttributeError:
             t_ident = threading.get_ident()
-            conn = ConnectionRecord(self._uri, conn_id=t_ident, **self._kw)
+            conn = ConnectionRecord(self._uri, self._channel, conn_id=t_ident, **self._kw)
             self._local.conn = conn
 
         return SingleScopedConnection(conn)

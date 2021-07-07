@@ -107,17 +107,18 @@ class Prepare:
                         kv_pair = common_types.KeyValuePair(key=str(tk), value=str(tv))
                         field_schema.type_params.append(kv_pair)
 
-                index_params = field.get('indexes')
-                if isinstance(index_params, list):
-                    for index_param in index_params:
-                        if not isinstance(index_param, dict):
-                            raise ParamError("Every index param must be of dict type!")
-                        for ik, iv in index_param.items():
-                            if ik == "metric_type":
-                                if not isinstance(iv, MetricType) and not isinstance(iv, str):
-                                    raise ParamError("metric_type must be of Milvus.MetricType or str!")
-                            kv_pair = common_types.KeyValuePair(key=str(ik), value=str(iv))
-                            field_schema.index_params.append(kv_pair)
+                # No longer supported
+                # index_params = field.get('indexes')
+                # if isinstance(index_params, list):
+                #     for index_param in index_params:
+                #         if not isinstance(index_param, dict):
+                #             raise ParamError("Every index param must be of dict type!")
+                #         for ik, iv in index_param.items():
+                #             if ik == "metric_type":
+                #                 if not isinstance(iv, MetricType) and not isinstance(iv, str):
+                #                     raise ParamError("metric_type must be of Milvus.MetricType or str!")
+                #             kv_pair = common_types.KeyValuePair(key=str(ik), value=str(iv))
+                #             field_schema.index_params.append(kv_pair)
 
                 schema.fields.append(field_schema)
 
