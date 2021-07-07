@@ -105,7 +105,7 @@ def _set_uri(host, port, uri, handler="GRPC"):
 
 
 class Milvus:
-    def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", **kwargs):
+    def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", channel=None, **kwargs):
         self._name = kwargs.get('name', None)
         self._uri = None
         self._status = None
@@ -119,7 +119,7 @@ class Milvus:
         self._pool_type = pool
         self._pool_uri = _set_uri(host, port, _uri, self._handler)
         self._pool_kwargs = _pool_args(handler=handler, **kwargs)
-        self._update_connection_pool()
+        self._update_connection_pool(channel=channel)
 
         # store extra key-words arguments
         self._kw = kwargs
@@ -161,18 +161,19 @@ class Milvus:
         if self._pool:
             return self._pool.fetch()
 
-    def _update_connection_pool(self):
+    def _update_connection_pool(self, channel):
         self._pool = None
         if self._pool_type == "QueuePool":
             self._pool = ConnectionPool(self._pool_uri, **self._pool_kwargs)
         elif self._pool_type == "SingletonThread":
-            self._pool = SingletonThreadPool(self._pool_uri, **self._pool_kwargs)
+            self._pool = SingletonThreadPool(self._pool_uri, channel=channel, **self._pool_kwargs)
         elif self._pool_type == "Singleton":
             self._pool = SingleConnectionPool(self._pool_uri, **self._pool_kwargs)
         else:
             raise ParamError("Unknown pool value: {}".format(self._pool_type))
 
-        self._wait_for_healthy()
+        if not channel:
+            self._wait_for_healthy()
 
     @property
     def name(self):
