@@ -115,8 +115,10 @@ You can provide a partition name to create a new partition.
 Insert Entities
 ========
 
-An entity is a group of fields that corresponds to real world objects. In this tutorial, collection has two field.
-Here is an example of 3 entities structured in list of list.
+An entity is a group of fields that corresponds to real world objects. In this tutorial, collection has three fields.
+Here is an example of 30 entities structured in list of list.
+.. note:
+   The field `id` was set as primary and auto_id above, so we shall not input the value for it when inserting.
 
 >>> import random
 >>> nb = 30
@@ -140,7 +142,7 @@ You can get entities by vector similarity. Assuming we have a ``embedding_A`` li
 that are most similar with it.
 
 In below example, we search the collection on ``embedding`` field.
-.. note::
+.. note:
     Before searching, we need to load data into memory.
 
 >>> nq = 10
