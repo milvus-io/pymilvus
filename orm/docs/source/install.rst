@@ -49,7 +49,7 @@ If you want to install a specific version of PyMilvus-ORM:
 
 .. code-block:: shell
    
-   (venv) $ pip install pymilvus-orm==0.0.1
+   (venv) $ pip install pymilvus-orm==2.0.0rc1
 
 If you want to upgrade PyMilvus-ORM into the latest version published:
 
