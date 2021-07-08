@@ -6,7 +6,7 @@ This is a basic introduction to Milvus by PyMilvus-ORM.
 
 For a runnable python script,
 checkout `example.py <https://github.com/milvus-io/pymilvus-orm/blob/main/examples/example.py>`_ on PyMilvus-ORM Github,
-or `hello milvus <https://milvus.io/docs/v2.0.0/hellomilvus.md>`_ on Milvus official website. It's a good recommended
+or `hello milvus <https://milvus.io/docs/v2.0.0/example_code.md>`_ on Milvus official website. It's a good recommended
 start to get started with Milvus and PyMilvus-ORM as well.
 
 
