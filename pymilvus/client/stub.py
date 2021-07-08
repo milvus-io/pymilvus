@@ -161,7 +161,7 @@ class Milvus:
         if self._pool:
             return self._pool.fetch()
 
-    def _update_connection_pool(self, channel):
+    def _update_connection_pool(self, channel=None):
         self._pool = None
         if self._pool_type == "QueuePool":
             self._pool = ConnectionPool(self._pool_uri, **self._pool_kwargs)
