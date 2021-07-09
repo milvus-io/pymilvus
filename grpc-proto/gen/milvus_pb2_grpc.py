@@ -140,6 +140,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.QueryRequest.SerializeToString,
                 response_deserializer=milvus__pb2.QueryResults.FromString,
                 )
+        self.CalcDistance = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CalcDistance',
+                request_serializer=milvus__pb2.CalcDistanceRequest.SerializeToString,
+                response_deserializer=milvus__pb2.CalcDistanceResults.FromString,
+                )
         self.GetPersistentSegmentInfo = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetPersistentSegmentInfo',
                 request_serializer=milvus__pb2.GetPersistentSegmentInfoRequest.SerializeToString,
@@ -315,6 +320,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CalcDistance(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetPersistentSegmentInfo(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -467,6 +478,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.Query,
                     request_deserializer=milvus__pb2.QueryRequest.FromString,
                     response_serializer=milvus__pb2.QueryResults.SerializeToString,
+            ),
+            'CalcDistance': grpc.unary_unary_rpc_method_handler(
+                    servicer.CalcDistance,
+                    request_deserializer=milvus__pb2.CalcDistanceRequest.FromString,
+                    response_serializer=milvus__pb2.CalcDistanceResults.SerializeToString,
             ),
             'GetPersistentSegmentInfo': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPersistentSegmentInfo,
@@ -920,6 +936,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/Query',
             milvus__pb2.QueryRequest.SerializeToString,
             milvus__pb2.QueryResults.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CalcDistance(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CalcDistance',
+            milvus__pb2.CalcDistanceRequest.SerializeToString,
+            milvus__pb2.CalcDistanceResults.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
