@@ -6,6 +6,7 @@ import threading
 import json
 import functools
 import copy
+import math
 
 import grpc
 from grpc._cython import cygrpc
@@ -1071,3 +1072,22 @@ class GrpcHandler(AbsMilvus):
             results.append(result)
 
         return results
+
+    @error_handler(None)
+    def calc_distance(self,  vectors_left, vectors_right, params, timeout=30, **kwargs):
+        req = Prepare.calc_distance_request(vectors_left, vectors_right, params)
+        future = self._stub.CalcDistance.future(req, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        status = response.status
+        if status.error_code != 0:
+            raise BaseException(status.error_code, status.reason)
+        if len(response.int_dist.data) > 0:
+            return response.int_dist.data
+        elif len(response.float_dist.data) > 0:
+            def is_l2(val):
+                return val == "L2" or val == "l2"
+            if is_l2(params["metric"]) and "sqrt" in params.keys() and params["sqrt"] == True:
+                for i in range(len(response.float_dist.data)):
+                    response.float_dist.data[i] = math.sqrt(response.float_dist.data[i])
+            return response.float_dist.data
+        raise BaseException(0, "Empty result returned")
