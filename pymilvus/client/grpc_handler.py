@@ -252,7 +252,8 @@ class GrpcHandler(AbsMilvus):
 
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
-        self._setup(host, port, _uri, pre_ping)
+        _channel = kwargs.get("channel", None)
+        self._setup(host, port, _uri, _channel, pre_ping)
 
     def __str__(self):
         attr_list = ['%s=%r' % (key, value)
@@ -265,7 +266,7 @@ class GrpcHandler(AbsMilvus):
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def _setup(self, host, port, uri, pre_ping=False):
+    def _setup(self, host, port, uri, channel=None, pre_ping=False):
         """
         Create a grpc channel and a stub
 
@@ -273,14 +274,16 @@ class GrpcHandler(AbsMilvus):
 
         """
         self._uri = set_uri(host, port, uri)
-        self._channel = grpc.insecure_channel(
-            self._uri,
-            options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
-                     (cygrpc.ChannelArgKey.max_receive_message_length, -1),
-                     ('grpc.enable_retries', 1),
-                     ('grpc.keepalive_time_ms', 55000)]
-        )
-        # self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        if channel:
+            self._channel = channel
+        else:
+            self._channel = grpc.insecure_channel(
+                self._uri,
+                options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
+                         (cygrpc.ChannelArgKey.max_receive_message_length, -1),
+                         ('grpc.enable_retries', 1),
+                         ('grpc.keepalive_time_ms', 55000)]
+            )
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
         self.status = Status()
 
@@ -359,7 +362,13 @@ class GrpcHandler(AbsMilvus):
     def create_collection(self, collection_name, fields, timeout=None, **kwargs):
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
 
-        rf = self._stub.CreateCollection.future(request, wait_for_ready=True, timeout=timeout)
+        # TODO(wxyu): In grpcio==1.37.1, `wait_for_ready` is an EXPERIMENTAL argument, while it's not supported in
+        #  grpcio-testing==1.37.1 . So that we remove the argument in order to using grpc-testing in unittests.
+        # rf = self._stub.CreateCollection.future(request, wait_for_ready=True, timeout=timeout)
+
+        rf = self._stub.CreateCollection.future(request, timeout=timeout)
+        if kwargs.get("_async", False):
+            return rf
         status = rf.result()
         if status.error_code != 0:
             LOGGER.error(status)
@@ -965,7 +974,8 @@ class GrpcHandler(AbsMilvus):
             def _check():
                 if kwargs.get("sync", True):
                     for collection_name in collection_name_array:
-                        self._wait_for_flushed(collection_name, lambda: future.result().coll_segIDs[collection_name].data)
+                        self._wait_for_flushed(collection_name,
+                                               lambda: future.result().coll_segIDs[collection_name].data)
 
             flush_future = FlushFuture(future)
             flush_future.add_callback(_check)
@@ -1013,7 +1023,7 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler()
     def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None):
-        if output_fields is not None and not isinstance(output_fields, (list, )):
+        if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError("Invalid query format. 'output_fields' must be a list")
         request = Prepare.query_request(collection_name, expr, output_fields, partition_names)
         future = self._stub.Query.future(request, wait_for_ready=True, timeout=timeout)
@@ -1057,7 +1067,8 @@ class GrpcHandler(AbsMilvus):
                     dim = field_data.vectors.dim
                     start_pos = index * dim
                     end_pos = index * dim + dim
-                    result[field_data.field_name] = [round(x, 6) for x in field_data.vectors.float_vector.data[start_pos:end_pos]]
+                    result[field_data.field_name] = [round(x, 6) for x in
+                                                     field_data.vectors.float_vector.data[start_pos:end_pos]]
             results.append(result)
 
         return results

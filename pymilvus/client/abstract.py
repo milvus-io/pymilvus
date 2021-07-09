@@ -439,8 +439,9 @@ class ChunkedQueryResult(LoopBase):
                         raise BaseException(0, "Not support string yet")
                         # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                     elif field_data.type == DataType.FLOAT_VECTOR:
-                        dim = field.vectors.dim
-                        field.vectors.float_vector.data.extend(field_data.vectors.float_data.data[
+                        dim = field_data.vectors.dim
+                        field.vectors.dim = dim
+                        field.vectors.float_vector.data.extend(field_data.vectors.float_vector.data[
                                                                start_pos * dim: end_pos * dim])
                     hit.fields_data.append(field)
                 self._hits.append(hit)
