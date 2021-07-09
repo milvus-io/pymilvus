@@ -31,6 +31,8 @@ class Partition:
         self._kwargs = kwargs
 
         conn = self._get_connection()
+        if kwargs.get("construct_only", False):
+            return
         has = conn.has_partition(self._collection.name, self._name)
         if not has:
             conn.create_partition(self._collection.name, self._name)

@@ -666,7 +666,7 @@ class Collection:
         partition_strs = conn.list_partitions(self._name)
         partitions = []
         for partition in partition_strs:
-            partitions.append(Partition(self, partition))
+            partitions.append(Partition(self, partition, construct_only=True))
         return partitions
 
     def partition(self, partition_name) -> Partition:
@@ -698,7 +698,7 @@ class Collection:
         """
         if self.has_partition(partition_name) is False:
             return None
-        return Partition(self, partition_name)
+        return Partition(self, partition_name, construct_only=True)
 
     def create_partition(self, partition_name, description=""):
         """
