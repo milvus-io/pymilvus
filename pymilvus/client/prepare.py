@@ -721,3 +721,77 @@ class Prepare:
                                          output_fields=output_fields,
                                          partition_names=partition_names
                                          )
+
+    @classmethod
+    def calc_distance_request(cls,  vectors_left, vectors_right, params):
+        if vectors_left == None or not isinstance(vectors_left, dict):
+            raise ParamError("Left vectors array is invalid")
+
+        if vectors_right == None or not isinstance(vectors_right, dict):
+            raise ParamError("Right vectors array is invalid")
+
+        if params == None or not isinstance(params, dict):
+            params = {"metric": "L2"}
+        if "metric" not in params.keys() or len(params["metric"]) == 0:
+            params["metric"] = "L2"
+
+        request = milvus_types.CalcDistanceRequest()
+        request.params.extend([common_types.KeyValuePair(key=str(key), value=str(value))
+                                      for key, value in params.items()])
+
+        _TYPE_IDS = "ids"
+        _TYPE_FLOAT = "float_vectors"
+        _TYPE_BIN = "bin_vectors"
+        def extract_vectors(vectors, request_op):
+            calc_type = ""
+            dimension = 0
+            if _TYPE_IDS in vectors.keys():
+                if "collection" not in vectors.keys():
+                    raise ParamError("Collection name not specified")
+                if "field" not in vectors.keys():
+                    raise ParamError("Vector field name not specified")
+                ids = vectors.get(_TYPE_IDS)
+                if (not isinstance(ids, list)) or len(ids) == 0:
+                    raise ParamError("Vector id array is empty or not a list")
+
+                calc_type  = _TYPE_IDS
+                if isinstance(ids[0], str):
+                    request_op.id_array.id_array.str_id.data.extend(ids)
+                else:
+                    request_op.id_array.id_array.int_id.data.extend(ids)
+                request_op.id_array.collection_name = vectors["collection"]
+                request_op.id_array.field_name = vectors["field"]
+                if "partitions" in vectors.keys():
+                    request_op.partition_names.extend(vectors.get("partitions"))
+            elif _TYPE_FLOAT in vectors.keys():
+                float_array = vectors.get(_TYPE_FLOAT)
+                if (not isinstance(float_array, list)) or len(float_array) == 0:
+                    raise ParamError("Float vector array is empty or not a list")
+                calc_type = _TYPE_FLOAT
+                all_floats = [f for vector in float_array for f in vector]
+                request_op.data_array.dim = len(float_array[0])
+                dimension = request_op.data_array.dim
+                request_op.data_array.float_vector.data.extend(all_floats)
+            elif _TYPE_BIN in vectors.keys():
+                bin_array = vectors.get(_TYPE_BIN)
+                if (not isinstance(bin_array, list)) or len(bin_array) == 0:
+                    raise ParamError("Binary vector array is empty or not a list")
+                calc_type = _TYPE_BIN
+                request_op.data_array.dim = len(bin_array[0]) * 8
+                if "dim" in params.keys():
+                    request_op.data_array.dim = params["dim"]
+                dimension = request_op.data_array.dim
+                for bin in bin_array:
+                    request_op.data_array.binary_vector += bin
+            return calc_type, dimension
+
+        type_left, dim_left = extract_vectors(vectors_left, request.op_left)
+        type_right, dim_right = extract_vectors(vectors_right, request.op_right)
+
+        if (type_left == _TYPE_FLOAT and type_right == _TYPE_BIN) or (type_left == _TYPE_BIN and type_right == _TYPE_FLOAT):
+            raise ParamError("Cannot calculate distance between float vectors and binary vectors")
+
+        if (type_left != _TYPE_IDS and type_right != _TYPE_IDS) and dim_left != dim_right:
+            raise ParamError("Cannot calculate distance between vectors with different dimension")
+
+        return request
