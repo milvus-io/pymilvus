@@ -4,8 +4,6 @@ import math
 import time
 import numpy as np
 
-sys.path.append('/home/yhmo/git-go/pymilvus')
-
 from pymilvus import Milvus, DataType
 
 # This example shows how to use milvus to calculate vectors distance
