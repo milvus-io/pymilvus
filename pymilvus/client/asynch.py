@@ -98,8 +98,7 @@ class Future(AbstractFuture):
         with self._condition:
             # future not finished. wait callback being called.
             to = kwargs.get("timeout", None)
-            # when result() was called more than once, future.done() return True
-            if self._future and not self._future.done():
+            if self._future and self._results is None:
                 self._response = self._future.result(timeout=to)
                 self._results = self.on_response(self._response)
 
@@ -131,7 +130,7 @@ class Future(AbstractFuture):
     def done(self):
         # self.exception()
         with self._condition:
-            if self._future and not self._future.done():
+            if self._future and self._results is None:
                 try:
                     self._response = self._future.result()
                     self._results = self.on_response(self._response)
@@ -176,15 +175,16 @@ class ChunkedSearchFuture(Future):
         self.exception()
         with self._condition:
             to = kwargs.get("timeout", None)
-            for future in self._future_list:
-                # when result() was called more than once, future.done() return True
-                if future and not future.done():
-                    self._response.append(future.result(timeout=to))
+            if self._results is None:
+                for future in self._future_list:
+                    # when result() was called more than once, future.done() return True
+                    if future and not future.done():
+                        self._response.append(future.result(timeout=to))
 
-            if len(self._response) > 0 and not self._results:
-                self._results = self.on_response(self._response)
+                if len(self._response) > 0 and not self._results:
+                    self._results = self.on_response(self._response)
 
-                self._callback()
+                    self._callback()
 
             self._done = True
 
@@ -213,17 +213,18 @@ class ChunkedSearchFuture(Future):
     def done(self):
         # self.exception()
         with self._condition:
-            try:
-                for future in self._future_list:
-                    if future and not future.done():
-                        self._response.append(future.result(timeout=None))
+            if self._results is None:
+                try:
+                    for future in self._future_list:
+                        if future and not future.done():
+                            self._response.append(future.result(timeout=None))
 
-                if len(self._response) > 0 and not self._results:
-                    self._results = self.on_response(self._response)
-                    self._callback()    # https://github.com/milvus-io/milvus/issues/6160
+                    if len(self._response) > 0 and not self._results:
+                        self._results = self.on_response(self._response)
+                        self._callback()    # https://github.com/milvus-io/milvus/issues/6160
 
-            except Exception as e:
-                self._exception = e
+                except Exception as e:
+                    self._exception = e
 
             self._condition.notify_all()
 
