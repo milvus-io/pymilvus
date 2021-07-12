@@ -275,6 +275,13 @@ class Hits(LoopBase):
                         entity_row_data[field_data.field_name] = [round(x, 6) for x in
                                                                   field_data.vectors.float_vector.data[
                                                                   start_pos:end_pos]]
+                elif field_data.type == DataType.BINARY_VECTOR:
+                    dim = field_data.vectors.dim
+                    if len(field_data.vectors.binary_vector.data) >= item * (dim / 8):
+                        start_pos = item * (dim / 8)
+                        end_pos = (item + 1) * (dim / 8)
+                        entity_row_data[field_data.field_name] = [
+                            field_data.vectors.binary_vector.data[start_pos:end_pos]]
         entity_score = self._raw.scores[item]
         return Hit(entity_id, entity_row_data, entity_score)
 
@@ -382,8 +389,14 @@ class QueryResult(LoopBase):
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field.vectors.dim
+                    field.vectors.dim = dim
                     field.vectors.float_vector.data.extend(
                         field_data.vectors.float_data.data[start_pos * dim: end_pos * dim])
+                elif field_data.type == DataType.BINARY_VECTOR:
+                    dim = field_data.vectors.dim
+                    field.vectors.dim = dim
+                    field.vectors.binary_vector.data.extend(field_data.vectors.binary_vector.data[
+                                                            start_pos * (dim / 8): end_pos * (dim / 8)])
                 hit.fields_data.append(field)
             self._hits.append(hit)
             offset += raw.results.topks[i]
@@ -443,6 +456,11 @@ class ChunkedQueryResult(LoopBase):
                         field.vectors.dim = dim
                         field.vectors.float_vector.data.extend(field_data.vectors.float_vector.data[
                                                                start_pos * dim: end_pos * dim])
+                    elif field_data.type == DataType.BINARY_VECTOR:
+                        dim = field_data.vectors.dim
+                        field.vectors.dim = dim
+                        field.vectors.binary_vector.data.extend(field_data.vectors.binary_vector.data[
+                                                                start_pos * (dim / 8): end_pos * (dim / 8)])
                     hit.fields_data.append(field)
                 self._hits.append(hit)
                 offset += raw.results.topks[i]
