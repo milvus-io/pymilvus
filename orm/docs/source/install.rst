@@ -11,7 +11,7 @@ PyMilvus-ORM only support python3(>= 3.6), usually, it's ok to install PyMilvus-
 
 .. code-block:: shell
    
-   $ python3 -m pip install pymilvus-orm==2.0.0rc1
+   $ python3 -m pip install pymilvus-orm==2.0.0rc2
 
 Installing in a virtual environment
 ====================================
@@ -27,7 +27,7 @@ See `virtualenv <https://virtualenv.pypa.io/en/latest/>`_ for more information a
    $ python3 -m pip install virtualenv
    $ virtualenv venv
    $ source venv/bin/activate
-   (venv) $ pip install pymilvus-orm==2.0.0rc1
+   (venv) $ pip install pymilvus-orm==2.0.0rc2
 
 If you want to exit the virtualenv ``venv``, you can use ``deactivate``.
 
@@ -49,7 +49,7 @@ If you want to install a specific version of PyMilvus-ORM:
 
 .. code-block:: shell
    
-   (venv) $ pip install pymilvus-orm==2.0.0rc1
+   (venv) $ pip install pymilvus-orm==2.0.0rc2
 
 If you want to upgrade PyMilvus-ORM into the latest version published:
 
