@@ -11,3 +11,16 @@
 # the License.
 
 VECTOR_COMMON_TYPE_PARAMS = ("dim",)
+
+
+
+CALC_DIST_IDS = "ids"
+CALC_DIST_FLOAT_VEC = "float_vectors"
+CALC_DIST_BIN_VEC = "bin_vectors"
+CALC_DIST_METRIC = "metric"
+CALC_DIST_L2 = "L2"
+CALC_DIST_IP = "IP"
+CALC_DIST_HAMMING = "HAMMING"
+CALC_DIST_TANIMOTO = "TANIMOTO"
+CALC_DIST_SQRT = "sqrt"
+CALC_DIST_DIM = "dim"

@@ -10,9 +10,13 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+from pymilvus_orm import constants
 from .connections import get_connection
 from .exceptions import ConnectionNotExistException, ExceptionsMessage
 
+from .exceptions import (
+    ResultError,
+)
 
 def _get_connection(alias):
     conn = get_connection(alias)
@@ -299,7 +303,11 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
         Assume the vectors_right: R_a, R_b
         Distance between L_n and R_m we called "D_n_m"
         The returned distances are arranged like this:
-          [D_1_a, D_1_b, D_2_a, D_2_b, D_3_a, D_3_b]
+          [[D_1_a, D_1_b],
+           [D_2_a, D_2_b],
+           [D_3_a, D_3_b]]
+
+        Note: if some vectors doesn't exist in collection, the returned distance is "-1.0"
 
     :example:
         >>> vectors_l = [[random.random() for _ in range(64)] for _ in range(5)]
@@ -309,4 +317,25 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
         >>> params = {"metric": "L2", "sqrt": True}
         >>> results = utility.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
     """
-    return _get_connection(using).calc_distance(vectors_left, vectors_right, params, timeout)
+    res = _get_connection(using).calc_distance(vectors_left, vectors_right, params, timeout)
+
+    def vector_count(op):
+        x = 0
+        if constants.CALC_DIST_IDS in op:
+            x = len(op[constants.CALC_DIST_IDS])
+        elif constants.CALC_DIST_FLOAT_VEC in op:
+            x = len(op[constants.CALC_DIST_FLOAT_VEC])
+        elif constants.CALC_DIST_BIN_VEC in op:
+            x = len(op[constants.CALC_DIST_BIN_VEC])
+        return x
+
+    n = vector_count(vectors_left)
+    m = vector_count(vectors_right)
+    if len(res) != n*m:
+        raise ResultError("Returned distance array is illegal")
+
+    # transform 1-d distances to 2-d distances
+    res_2_d = []
+    for i in range(n):
+        res_2_d.append(res[i*m:i*m+m])
+    return res_2_d
