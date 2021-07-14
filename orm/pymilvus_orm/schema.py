@@ -105,7 +105,7 @@ class CollectionSchema:
         :example:
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
         >>> from pymilvus_orm.types import DataType
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> schema = CollectionSchema(fields=[field])
         >>> schema.fields
         [<pymilvus_orm.schema.FieldSchema object at 0x7fd3716ffc50>]
@@ -123,7 +123,7 @@ class CollectionSchema:
         :example:
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
         >>> from pymilvus_orm.types import DataType
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> schema = CollectionSchema(fields=[field], description="test get description")
         >>> schema.description
         'test get description'
@@ -142,7 +142,7 @@ class CollectionSchema:
         :example:
         >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
         >>> from pymilvus_orm.types import DataType
-        >>> field = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> schema = CollectionSchema(fields=[field])
         >>> schema.auto_id
         False

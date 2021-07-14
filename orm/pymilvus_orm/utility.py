@@ -43,7 +43,7 @@ def loading_progress(collection_name, partition_names=None, using="default"):
         >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
-        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
@@ -80,7 +80,7 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
         >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
-        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
@@ -122,7 +122,7 @@ def index_building_progress(collection_name, index_name="", using="default"):
         >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
-        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
@@ -167,7 +167,7 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
-        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
@@ -207,7 +207,7 @@ def has_collection(collection_name, using="default"):
         >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
-        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
@@ -233,7 +233,7 @@ def has_partition(collection_name, partition_name, using="default"):
         >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
-        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
@@ -257,7 +257,7 @@ def list_collections(timeout=None, using="default") -> list:
         >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
-        >>> field_int64 = FieldSchema("int64", DataType.INT64, descrition="int64", is_primary=True)
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
         >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
