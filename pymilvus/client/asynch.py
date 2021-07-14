@@ -145,7 +145,7 @@ class Future(AbstractFuture):
     def exception(self):
         if self._exception:
             raise self._exception
-        if self._future and not self._future.done():
+        if self._future:
             self._future.exception()
 
 
@@ -177,8 +177,7 @@ class ChunkedSearchFuture(Future):
             to = kwargs.get("timeout", None)
             if self._results is None:
                 for future in self._future_list:
-                    # when result() was called more than once, future.done() return True
-                    if future and not future.done():
+                    if future:
                         self._response.append(future.result(timeout=to))
 
                 if len(self._response) > 0 and not self._results:
@@ -216,7 +215,7 @@ class ChunkedSearchFuture(Future):
             if self._results is None:
                 try:
                     for future in self._future_list:
-                        if future and not future.done():
+                        if future:
                             self._response.append(future.result(timeout=None))
 
                     if len(self._response) > 0 and not self._results:
@@ -232,7 +231,7 @@ class ChunkedSearchFuture(Future):
         if self._exception:
             raise self._exception
         for future in self._future_list:
-            if future and not future.done():
+            if future:
                 future.exception()
 
     def on_response(self, response):
