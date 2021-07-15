@@ -194,6 +194,19 @@ def is_legal_anns_field(field):
     return isinstance(field, str) and len(field) > 0
 
 
+def is_legal_search_data(data):
+    if not isinstance(data, list):
+        return False
+
+    for vector in data:
+        # list -> float vector
+        # bytes -> byte vector
+        if not isinstance(vector, (list, bytes)):
+            return False
+
+    return True
+
+
 def is_legal_partition_name_array(tag_array):
     if tag_array is None:
         return True
@@ -285,6 +298,9 @@ def check_pass_param(*args, **kwargs):
                 _raise_param_error(key, value)
         elif key in ("anns_field",):
             if not is_legal_anns_field(value):
+                _raise_param_error(key, value)
+        elif key in ("search_data",):
+            if not is_legal_search_data(value):
                 _raise_param_error(key, value)
         # elif key in ("records",):
         #     if not is_legal_records(value):
