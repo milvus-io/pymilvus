@@ -1038,7 +1038,7 @@ class Milvus:
             ParamError: If parameters are invalid
             BaseException: If the return result from server is not ok
         """
-        check_pass_param(limit=limit)
+        check_pass_param(limit=limit, anns_field=anns_field)
         with self._connection() as handler:
             kwargs["_deploy_mode"] = self._deploy_mode
             return handler.search_with_expression(collection_name, data, anns_field, param, limit, expression, partition_names, output_fields, timeout, **kwargs)
