@@ -207,6 +207,20 @@ def is_legal_search_data(data):
     return True
 
 
+def is_legal_output_fields(output_fields):
+    if output_fields is None:
+        return True
+
+    if not isinstance(output_fields, list):
+        return False
+
+    for field in output_fields:
+        if not is_legal_field_name(field):
+            return False
+
+    return True
+
+
 def is_legal_partition_name_array(tag_array):
     if tag_array is None:
         return True
@@ -301,6 +315,9 @@ def check_pass_param(*args, **kwargs):
                 _raise_param_error(key, value)
         elif key in ("search_data",):
             if not is_legal_search_data(value):
+                _raise_param_error(key, value)
+        elif key in ("output_fields",):
+            if not is_legal_output_fields(value):
                 _raise_param_error(key, value)
         # elif key in ("records",):
         #     if not is_legal_records(value):
