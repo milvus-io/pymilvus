@@ -75,7 +75,7 @@ class Collection:
 
         """
 
-    def __init__(self, name, schema=None, **kwargs):
+    def __init__(self, name, schema=None, using="default", **kwargs):
         """
         Constructs a collection by name, schema and other parameters.
         Connection information is contained in kwargs.
@@ -85,6 +85,9 @@ class Collection:
 
         :param schema: the schema of collection
         :type schema: class `schema.CollectionSchema`
+
+        :param using: Milvus link of create collection
+        :type using: str
 
         :example:
             >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
@@ -107,6 +110,7 @@ class Collection:
             0
         """
         self._name = name
+        self._using = using
         self._kwargs = kwargs
         conn = self._get_connection()
         has = conn.has_collection(self._name)
@@ -140,11 +144,8 @@ class Collection:
             'description': self.description,
         })
 
-    def _get_using(self):
-        return self._kwargs.get("_using", "default")
-
     def _get_connection(self):
-        conn = get_connection(self._get_using())
+        conn = get_connection(self._using)
         if conn is None:
             raise ConnectionNotExistException(0, ExceptionsMessage.ConnectFirst)
         return conn
