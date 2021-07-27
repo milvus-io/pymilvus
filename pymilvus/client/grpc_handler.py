@@ -22,6 +22,7 @@ from .check import (
     is_legal_host,
     is_legal_port,
 )
+from ..settings import DefaultConfig as config
 from .utils import len_of
 
 from .abs_client import AbsMilvus
@@ -1075,6 +1076,7 @@ class GrpcHandler(AbsMilvus):
 
     @error_handler(None)
     def calc_distance(self,  vectors_left, vectors_right, params, timeout=30, **kwargs):
+        params = params or {"metric": config.CALC_DIST_METRIC}
         req = Prepare.calc_distance_request(vectors_left, vectors_right, params)
         future = self._stub.CalcDistance.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()

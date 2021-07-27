@@ -10,6 +10,7 @@ class DefaultConfig:
     HTTP_ADDRESS = "127.0.0.1:19121"
     HTTP_URI = "http://{}".format(HTTP_ADDRESS)
 
+    CALC_DIST_METRIC = "L2"
 
 # logging
 COLORS = {
