@@ -165,11 +165,11 @@ class CollectionSchema:
 
 
 class Entity:
-    def __init__(self, entity_id, entity_row_data, entity_score):
+    def __init__(self, entity_id, entity_row_data, entity_score, entity_distance):
         self._id = entity_id
         self._row_data = entity_row_data
         self._score = entity_score
-        self._distance = entity_score
+        self._distance = entity_distance
 
     def __str__(self):
         str_ = 'id: {}, distance: {}, entity: {},'.format(self._id, self._distance, self._row_data)
@@ -203,18 +203,18 @@ class Entity:
 
 
 class Hit:
-    def __init__(self, entity_id, entity_row_data, entity_score):
+    def __init__(self, entity_id, entity_row_data, entity_score, entity_distance):
         self._id = entity_id
         self._row_data = entity_row_data
         self._score = entity_score
-        self._distance = entity_score
+        self._distance = entity_distance
 
     def __str__(self):
         return "(distance: {}, score: {}, id: {})".format(self._distance, self._score, self._id)
 
     @property
     def entity(self):
-        return Entity(self._id, self._row_data, self._score)
+        return Entity(self._id, self._row_data, self._score, self._distance)
 
     @property
     def id(self):
@@ -234,7 +234,8 @@ class Hits(LoopBase):
         super().__init__()
         self._raw = raw
         self._auto_id = auto_id
-        self._distances = self._raw.scores
+        self._distances = self._raw.distances
+        self._scores = self._raw.scores
         self._entities = []
         self._pack(self._raw)
 
@@ -283,7 +284,8 @@ class Hits(LoopBase):
                         entity_row_data[field_data.field_name] = [
                             field_data.vectors.binary_vector.data[start_pos:end_pos]]
         entity_score = self._raw.scores[item]
-        return Hit(entity_id, entity_row_data, entity_score)
+        entity_distance = self._raw.distances[item]
+        return Hit(entity_id, entity_row_data, entity_score, entity_distance)
 
     @property
     def ids(self):
@@ -291,6 +293,10 @@ class Hits(LoopBase):
 
     @property
     def distances(self):
+        return self._raw.distances
+
+    @property
+    def scores(self):
         return self._raw.scores
 
 
@@ -368,6 +374,7 @@ class QueryResult(LoopBase):
             start_pos = offset
             end_pos = offset + raw.results.topks[i]
             hit.scores.append(raw.results.scores[start_pos: end_pos])
+            hit.distances.append(raw.results.distances[start_pos: end_pos])
             hit.ids.append(raw.results.ids.int_id.data[start_pos: end_pos])
             for field_data in raw.result.fields_data:
                 field = schema_pb2.FieldData()
@@ -432,6 +439,7 @@ class ChunkedQueryResult(LoopBase):
                 start_pos = offset
                 end_pos = offset + raw.results.topks[i]
                 hit.scores.extend(raw.results.scores[start_pos: end_pos])
+                hit.distances.extend(raw.results.distances[start_pos: end_pos])
                 hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos: end_pos])
                 for field_data in raw.results.fields_data:
                     field = schema_pb2.FieldData()
