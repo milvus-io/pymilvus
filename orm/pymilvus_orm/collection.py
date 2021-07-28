@@ -58,7 +58,7 @@ def _check_data_schema(fields, data):
     if isinstance(data, pandas.DataFrame):
         for i, field in enumerate(fields):
             for j, _ in enumerate(data[field.name]):
-                tmp_type = infer_dtype_bydata(data[field.name][j])
+                tmp_type = infer_dtype_bydata(data[field.name].iloc[j])
                 if tmp_type != field.dtype:
                     raise DataNotMatchException(0, ExceptionsMessage.DataTypeInconsistent)
     else:
