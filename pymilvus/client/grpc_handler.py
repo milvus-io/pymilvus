@@ -720,8 +720,10 @@ class GrpcHandler(AbsMilvus):
         if _async:
             def _check():
                 if kwargs.get("sync", True):
-                    if not self.wait_for_creating_index(collection_name=collection_name, field_name=field_name):
-                        raise BaseException(Status.UNEXPECTED_ERROR, "create index failed")
+                    index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
+                                                                              field_name=field_name)
+                    if not index_success:
+                        raise BaseException(Status.UNEXPECTED_ERROR, fail_reason)
 
             index_future = CreateIndexFuture(future)
             index_future.add_callback(_check)
@@ -736,8 +738,10 @@ class GrpcHandler(AbsMilvus):
             raise BaseException(status.error_code, status.reason)
 
         if kwargs.get("sync", True):
-            if not self.wait_for_creating_index(collection_name=collection_name, field_name=field_name):
-                raise BaseException(Status.UNEXPECTED_ERROR, "create index failed")
+            index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
+                                                                      field_name=field_name)
+            if not index_success:
+                raise BaseException(Status.UNEXPECTED_ERROR, fail_reason)
 
         return Status(status.error_code, status.reason)
 
@@ -775,18 +779,18 @@ class GrpcHandler(AbsMilvus):
         response = rf.result()
         status = response.status
         if status.error_code == 0:
-            return response.state
+            return response.state, response.fail_reason
         raise BaseException(status.error_code, status.reason)
 
     @error_handler(False)
     def wait_for_creating_index(self, collection_name, field_name, timeout=None):
         while True:
             time.sleep(0.5)
-            state = self.get_index_state(collection_name, field_name, timeout)
+            state, fail_reason = self.get_index_state(collection_name, field_name, timeout)
             if state == IndexState.Finished:
-                return True
+                return True, fail_reason
             if state == IndexState.Failed:
-                return False
+                return False, fail_reason
 
     @error_handler()
     def load_collection(self, db_name, collection_name, timeout=None, **kwargs):
