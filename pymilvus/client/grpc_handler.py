@@ -1,47 +1,47 @@
 import datetime
 import time
-from urllib.parse import urlparse
 import logging
 import threading
 import json
 import functools
 import copy
 import math
+from urllib.parse import urlparse
 
 import grpc
 from grpc._cython import cygrpc
-
 from ..grpc_gen import common_pb2 as common_types
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as milvus_types
-from .abstract import QueryResult, CollectionSchema, ChunkedQueryResult, MutationResult
+
+from .abstract import CollectionSchema, ChunkedQueryResult, MutationResult
 from .prepare import Prepare
 from .types import Status, IndexState, DataType, DeployMode, ErrorCode
-from .check import (
-    int_or_str,
-    is_legal_host,
-    is_legal_port,
-)
-from ..settings import DefaultConfig as config
+from .check import is_legal_host, is_legal_port
 from .utils import len_of
-
+from .hooks import BaseSearchHook
+from .client_hooks import SearchHook, HybridSearchHook
 from .abs_client import AbsMilvus
+from ..settings import DefaultConfig as config
+
 from .asynch import (
     SearchFuture,
     MutationFuture,
     CreateIndexFuture,
     CreateFlatIndexFuture,
     FlushFuture,
-    LoadCollectionFuture,
     LoadPartitionsFuture,
     ChunkedSearchFuture
 )
 
-from .hooks import BaseSearchHook
-from .client_hooks import SearchHook, HybridSearchHook
-from .exceptions import *
-from ..settings import DefaultConfig as config
-from . import __version__
+from .exceptions import (
+    IllegalCollectionNameException,
+    CollectionNotExistException,
+    ParamError,
+    NotConnectError,
+    DescribeCollectionException,
+)
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -192,7 +192,7 @@ class RegistryHandler:
                 try:
                     ft.result(timeout=timeout)
                     return True
-                except:
+                except Exception:
                     retry -= 1
                     LOGGER.debug("Retry connect addr <{}> {} times".format(self._uri, self._max_retry - retry))
                     if retry > 0:
@@ -334,7 +334,7 @@ class GrpcHandler(AbsMilvus):
                 try:
                     ft.result(timeout=timeout)
                     return True
-                except:
+                except Exception:
                     retry -= 1
                     LOGGER.debug("Retry connect addr <{}> {} times".format(self._uri, self._max_retry - retry))
                     if retry > 0:
@@ -798,7 +798,7 @@ class GrpcHandler(AbsMilvus):
             raise BaseException(response.error_code, response.reason)
         sync = kwargs.get("sync", True)
         if sync:
-            self.wait_for_loading_collection(collection_name)
+            self.wait_for_loading_collection(collection_name, timeout)
 
     @error_handler()
     def load_collection_progress(self, collection_name, timeout=None):
@@ -1075,7 +1075,7 @@ class GrpcHandler(AbsMilvus):
         return results
 
     @error_handler(None)
-    def calc_distance(self,  vectors_left, vectors_right, params, timeout=30, **kwargs):
+    def calc_distance(self, vectors_left, vectors_right, params, timeout=30, **kwargs):
         params = params or {"metric": config.CALC_DIST_METRIC}
         req = Prepare.calc_distance_request(vectors_left, vectors_right, params)
         future = self._stub.CalcDistance.future(req, wait_for_ready=True, timeout=timeout)
@@ -1088,7 +1088,7 @@ class GrpcHandler(AbsMilvus):
         elif len(response.float_dist.data) > 0:
             def is_l2(val):
                 return val == "L2" or val == "l2"
-            if is_l2(params["metric"]) and "sqrt" in params.keys() and params["sqrt"] == True:
+            if is_l2(params["metric"]) and "sqrt" in params.keys() and params["sqrt"] is True:
                 for i in range(len(response.float_dist.data)):
                     response.float_dist.data[i] = math.sqrt(response.float_dist.data[i])
             return response.float_dist.data
