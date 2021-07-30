@@ -21,7 +21,6 @@ from .check import is_legal_host, is_legal_port
 from .utils import len_of
 from .hooks import BaseSearchHook
 from .client_hooks import SearchHook, HybridSearchHook
-from .abs_client import AbsMilvus
 from ..settings import DefaultConfig as config
 
 from .asynch import (
@@ -228,7 +227,7 @@ class RegistryHandler:
         return response.address.ip, response.address.port
 
 
-class GrpcHandler(AbsMilvus):
+class GrpcHandler:
     def __init__(self, host=None, port=None, pre_ping=True, **kwargs):
         self._channel = None
         self._stub = None
