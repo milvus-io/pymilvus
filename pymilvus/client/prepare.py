@@ -14,6 +14,7 @@ from ..grpc_gen import schema_pb2 as schema_types
 from ..grpc_gen import milvus_pb2 as milvus_types
 
 from . import blob
+from .configs import DefaultConfigs
 
 from .types import RangeType, DataType, MetricType, IndexType, PlaceholderType, DeployMode
 
@@ -434,7 +435,7 @@ class Prepare:
                 bytes_per_vector = len(vectors[0]) * 4
 
             nq = len(vectors)
-            max_nq_per_batch = (5 * 1024 * 1024) / (bytes_per_vector * topk * factor)
+            max_nq_per_batch = DefaultConfigs.MaxSearchResultSize / (bytes_per_vector * topk * factor)
             max_nq_per_batch = int(max_nq_per_batch)
             if max_nq_per_batch <= 0:
                 raise ParamError(f"topk {topk} is too large!")
@@ -574,7 +575,7 @@ class Prepare:
         max_nq_per_batch = nq
         if kwargs.get("_deploy_mode", DeployMode.Distributed):
             factor = 10
-            max_nq_per_batch = (5 * 1024 * 1024) / (bytes_per_vector * limit * factor)
+            max_nq_per_batch = DefaultConfigs.MaxSearchResultSize / (bytes_per_vector * limit * factor)
             max_nq_per_batch = int(max_nq_per_batch)
             if max_nq_per_batch <= 0:
                 raise ParamError(f"limit {limit} is too large!")
