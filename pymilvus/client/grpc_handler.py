@@ -22,6 +22,7 @@ from .utils import len_of
 from .hooks import BaseSearchHook
 from .client_hooks import SearchHook, HybridSearchHook
 from ..settings import DefaultConfig as config
+from .configs import DefaultConfigs
 
 from .asynch import (
     SearchFuture,
@@ -820,6 +821,9 @@ class GrpcHandler:
 
     @error_handler()
     def wait_for_loading_collection(self, collection_name, timeout=None):
+        return self._wait_for_loading_collection_v2(collection_name, timeout)
+
+    def _wait_for_loading_collection_v1(self, collection_name, timeout=None):
         """
         Block until load collection complete.
         """
@@ -832,6 +836,32 @@ class GrpcHandler:
             for info in self.get_query_segment_infos(collection_name, timeout):
                 if 0 <= unloaded_segments.get(info.segmentID, -1) <= info.num_rows:
                     unloaded_segments.pop(info.segmentID)
+
+    def _wait_for_loading_collection_v2(self, collection_name, timeout=None):
+        """
+        Block until load collection complete.
+        """
+        request = Prepare.show_collections_request([collection_name])
+
+        while True:
+            future = self._stub.ShowCollections.future(request, wait_for_ready=True, timeout=timeout)
+            response = future.result()
+
+            if response.status.error_code != 0:
+                raise BaseException(response.status.error_code, response.status.reason)
+
+            ol = len(response.collection_names)
+            pl = len(response.inMemory_percentages)
+
+            if ol != pl:
+                raise BaseException(ErrorCode.UnexpectedError,
+                                    f"len(collection_names) ({ol}) != len(inMemory_percentages) ({pl})")
+
+            for i, coll_name in enumerate(response.collection_names):
+                if coll_name == collection_name and response.inMemory_percentages[i] == 100:
+                    return
+
+            time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
 
     @error_handler()
     def release_collection(self, db_name, collection_name, timeout=None):
@@ -870,6 +900,9 @@ class GrpcHandler:
 
     @error_handler()
     def wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
+        return self._wait_for_loading_partitions_v2(collection_name, partition_names, timeout)
+
+    def _wait_for_loading_partitions_v1(self, collection_name, partition_names, timeout=None):
         """
         Block until load partition complete.
         """
@@ -893,6 +926,42 @@ class GrpcHandler:
             for info in self.get_query_segment_infos(collection_name, timeout):
                 if 0 <= unloaded_segments.get(info.segmentID, -1) <= info.num_rows:
                     unloaded_segments.pop(info.segmentID)
+
+    def _wait_for_loading_partitions_v2(self, collection_name, partition_names, timeout=None):
+        """
+        Block until load partition complete.
+        """
+        request = Prepare.show_partitions_request(collection_name, partition_names)
+
+        while True:
+            future = self._stub.ShowPartitions.future(request, wait_for_ready=True, timeout=timeout)
+            response = future.result()
+
+            status = response.status
+            if status.error_code != 0:
+                raise BaseException(status.error_code, status.reason)
+
+            ol = len(response.partition_names)
+            pl = len(response.inMemory_percentages)
+
+            if ol != pl:
+                raise BaseException(ErrorCode.UnexpectedError,
+                                    f"len(partition_names) ({ol}) != len(inMemory_percentages) ({pl})")
+
+            loaded_histogram = dict()
+            for i, par_name in enumerate(response.partition_names):
+                loaded_histogram[par_name] = response.inMemory_percentages[i]
+
+            ok = True
+            for par_name in partition_names:
+                if loaded_histogram.get(par_name, 0) != 100:
+                    ok = False
+                    break
+
+            if ok:
+                return
+
+            time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
 
     @error_handler()
     def load_partitions_progress(self, collection_name, partition_names, timeout=None):
