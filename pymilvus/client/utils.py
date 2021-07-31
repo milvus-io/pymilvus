@@ -170,5 +170,6 @@ def len_of(field_data) -> int:
                 raise BaseException(f"Invalid vector length: total_len={total_len}, dim={dim}")
             return int(total_len / dim)
         else:
-            raise BaseException("Unsupported vector type")
+            total_len = len(field_data.vectors.binary_vector)
+            return int(total_len / (dim / 8))
     raise BaseException("Unknown data type")

@@ -1069,6 +1069,11 @@ class GrpcHandler(AbsMilvus):
                     end_pos = index * dim + dim
                     result[field_data.field_name] = [round(x, 6) for x in
                                                      field_data.vectors.float_vector.data[start_pos:end_pos]]
+                elif field_data.type == DataType.BINARY_VECTOR:
+                    dim = field_data.vectors.dim
+                    start_pos = index * (int(dim / 8))
+                    end_pos = (index + 1) * (int(dim / 8))
+                    result[field_data.field_name] = field_data.vectors.binary_vector[start_pos:end_pos]
             results.append(result)
 
         return results
