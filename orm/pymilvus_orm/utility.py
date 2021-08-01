@@ -18,6 +18,7 @@ from .exceptions import (
     ResultError,
 )
 
+
 def _get_connection(alias):
     conn = get_connection(alias)
     if conn is None:
@@ -190,7 +191,7 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> utility.loading_progress("test_collection")
 
     """
-    return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout)
+    return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout)[0]
 
 
 def has_collection(collection_name, using="default"):
@@ -331,11 +332,11 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
 
     n = vector_count(vectors_left)
     m = vector_count(vectors_right)
-    if len(res) != n*m:
+    if len(res) != n * m:
         raise ResultError("Returned distance array is illegal")
 
     # transform 1-d distances to 2-d distances
     res_2_d = []
     for i in range(n):
-        res_2_d.append(res[i*m:i*m+m])
+        res_2_d.append(res[i * m:i * m + m])
     return res_2_d
