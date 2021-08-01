@@ -39,6 +39,7 @@ from .exceptions import (
     ParamError,
     NotConnectError,
     DescribeCollectionException,
+    BaseException,
 )
 
 
