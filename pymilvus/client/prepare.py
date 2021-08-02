@@ -5,6 +5,7 @@ import ujson
 import mmh3
 
 from .exceptions import ParamError
+from .check import check_pass_param
 
 from ..grpc_gen import milvus_pb2 as grpc_types
 
@@ -143,8 +144,16 @@ class Prepare:
         return milvus_types.CollectionStatsRequest(collection_name=collection_name)
 
     @classmethod
-    def show_collections_request(cls):
-        return milvus_types.ShowCollectionsRequest()
+    def show_collections_request(cls, collection_names=None):
+        req = milvus_types.ShowCollectionsRequest()
+        if collection_names:
+            if not isinstance(collection_names, (list,)):
+                raise ParamError(f"collection_names must be a list of strings, but got: {collection_names}")
+            for collection_name in collection_names:
+                check_pass_param(collection_name=collection_name)
+            req.collection_names.extend(collection_names)
+            req.type = milvus_types.ShowType.InMemory
+        return req
 
     @classmethod
     def create_partition_request(cls, collection_name, partition_name):
@@ -163,8 +172,17 @@ class Prepare:
         return milvus_types.PartitionStatsRequest(collection_name=collection_name, partition_name=partition_name)
 
     @classmethod
-    def show_partitions_request(cls, collection_name):
-        return milvus_types.ShowPartitionsRequest(collection_name=collection_name)
+    def show_partitions_request(cls, collection_name, partition_names=None):
+        check_pass_param(collection_name=collection_name)
+        req = milvus_types.ShowPartitionsRequest(collection_name=collection_name)
+        if partition_names:
+            if not isinstance(partition_names, (list,)):
+                raise ParamError(f"partition_names must be a list of strings, but got: {partition_names}")
+            for partition_name in partition_names:
+                check_pass_param(partition_name=partition_name)
+            req.partition_names.extend(partition_names)
+            req.type = milvus_types.ShowType.InMemory
+        return req
 
     @classmethod
     def empty(cls):
