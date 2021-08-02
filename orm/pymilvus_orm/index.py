@@ -123,13 +123,17 @@ class Index:
         }
         return _dict
 
-    def drop(self, **kwargs):
+    def drop(self, timeout=None, **kwargs):
         """
         Drop an index and its corresponding index files.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
 
         :raises IndexNotExistException: If the specified index does not exist.
         """
         conn = self._get_connection()
         if conn.describe_index(self._collection.name) is None:
             raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
-        conn.drop_index(self._collection.name, self.field_name, **kwargs)
+        conn.drop_index(self._collection.name, self.field_name, timeout=timeout, **kwargs)

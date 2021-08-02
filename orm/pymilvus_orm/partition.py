@@ -141,9 +141,13 @@ class Partition:
                                           partition_name=self._name)
         return status["row_count"]
 
-    def drop(self, **kwargs):
+    def drop(self, timeout=None, **kwargs):
         """
         Drop the partition, as well as its corresponding index files.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
 
         :raises PartitionNotExistException:
             When partitoin does not exist
@@ -160,13 +164,17 @@ class Partition:
             >>> partition.drop()
         """
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self._name) is False:
+        if conn.has_partition(self._collection.name, self._name, timeout=timeout) is False:
             raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
-        return conn.drop_partition(self._collection.name, self._name, **kwargs)
+        return conn.drop_partition(self._collection.name, self._name, timeout=timeout, **kwargs)
 
-    def load(self, **kwargs):
+    def load(self, timeout=None, **kwargs):
         """
         Load the partition from disk to memory.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
 
         :raises InvalidArgumentException:
             If argument is not valid
@@ -187,12 +195,16 @@ class Partition:
         #  if index_names is not None, raise Exception Not Supported
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
-            return conn.load_partitions(self._collection.name, [self._name], **kwargs)
+            return conn.load_partitions(self._collection.name, [self._name], timeout=timeout, **kwargs)
         raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
 
-    def release(self, **kwargs):
+    def release(self, timeout=None, **kwargs):
         """
         Release the partition from memory.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
 
         :raises PartitionNotExistException:
             When partitoin does not exist
@@ -211,16 +223,20 @@ class Partition:
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
-            return conn.release_partitions(self._collection.name, [self._name], **kwargs)
+            return conn.release_partitions(self._collection.name, [self._name], timeout=timeout, **kwargs)
         raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
 
-    def insert(self, data, **kwargs):
+    def insert(self, data, timeout=None, **kwargs):
         """
         Insert data into partition.
 
         :param data: The specified data to insert, the dimension of data needs to align with column
                      number
         :type  data: list-like(list, tuple) object or pandas.DataFrame
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
 
         :param kwargs:
             * *timeout* (``float``) --
@@ -251,7 +267,6 @@ class Partition:
         if conn.has_partition(self._collection.name, self._name) is False:
             raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
         entities = Prepare.prepare_insert_data(data, self._collection.schema)
-        timeout = kwargs.pop("timeout", None)
         res = conn.insert(self._collection.name, entities=entities, ids=None,
                           partition_name=self._name, timeout=timeout, orm=True, **kwargs)
         if kwargs.get("_async", False):

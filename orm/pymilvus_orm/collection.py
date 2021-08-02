@@ -371,11 +371,11 @@ class Collection:
         """
         return self._schema.primary_field
 
-    def drop(self, **kwargs):
+    def drop(self, timeout=None, **kwargs):
         """
         Drops the collection together with its index files.
 
-        :param kwargs:
+        :param timeout:
             * *timeout* (``float``) --
                 An optional duration of time in seconds to allow for the RPC.
                 If timeout is set to None,
@@ -400,17 +400,17 @@ class Collection:
         conn = self._get_connection()
         indexes = self.indexes
         for index in indexes:
-            index.drop(**kwargs)
-        conn.drop_collection(self._name, timeout=kwargs.get("timeout", None))
+            index.drop(timeout=timeout, **kwargs)
+        conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
-    def load(self, partition_names=None, **kwargs):
+    def load(self, partition_names=None, timeout=None, **kwargs):
         """
         Loads the collection from disk to memory.
 
         :param partition_names: The specified partitions to load.
         :type partition_names: list[str]
 
-        :param kwargs:
+        :param timeout:
             * *timeout* (``float``) --
               An optional duration of time in seconds to allow for the RPC. If timeout
               is set to None, the client keeps waiting until the server responds or error occurs.
@@ -435,15 +435,15 @@ class Collection:
         """
         conn = self._get_connection()
         if partition_names is not None:
-            conn.load_partitions(self._name, partition_names, timeout=kwargs.get("timeout", None))
+            conn.load_partitions(self._name, partition_names, timeout=timeout, **kwargs)
         else:
-            conn.load_collection(self._name, timeout=kwargs.get("timeout", None))
+            conn.load_collection(self._name, timeout=timeout, **kwargs)
 
-    def release(self, **kwargs):
+    def release(self, timeout=None, **kwargs):
         """
         Releases the collection from memory.
 
-        :param kwargs:
+        :param timeout:
             * *timeout* (``float``) --
               An optional duration of time in seconds to allow for the RPC. If timeout
               is set to None, the client keeps waiting until the server responds or an error occurs.
@@ -467,9 +467,9 @@ class Collection:
             >>> collection.release()    # release the collection from memory
         """
         conn = self._get_connection()
-        conn.release_collection(self._name, timeout=kwargs.get("timeout", None))
+        conn.release_collection(self._name, timeout=timeout, **kwargs)
 
-    def insert(self, data, partition_name=None, **kwargs):
+    def insert(self, data, partition_name=None, timeout=None, **kwargs):
         """
         Insert data into the collection.
 
@@ -481,7 +481,7 @@ class Collection:
                                partition
         :type partition_name: str
 
-        :param kwargs:
+        :param timeout:
             * *timeout* (``float``) --
               An optional duration of time in seconds to allow for the RPC. If timeout
               is set to None, the client keeps waiting until the server responds or an error occurs.
@@ -514,7 +514,6 @@ class Collection:
             raise SchemaNotReadyException(0, ExceptionsMessage.TypeOfDataAndSchemaInconsistent)
         conn = self._get_connection()
         entities = Prepare.prepare_insert_data(data, self._schema)
-        timeout = kwargs.pop("timeout", None)
         res = conn.insert(collection_name=self._name, entities=entities, ids=None,
                           partition_name=partition_name, timeout=timeout, **kwargs)
         if kwargs.get("_async", False):
@@ -734,12 +733,16 @@ class Collection:
             raise PartitionAlreadyExistException(0, ExceptionsMessage.PartitionAlreadyExist)
         return Partition(self, partition_name, description=description)
 
-    def has_partition(self, partition_name) -> bool:
+    def has_partition(self, partition_name, timeout=None) -> bool:
         """
         Checks if a specified partition exists.
 
         :param partition_name: The name of the partition to check
         :type  partition_name: str
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
 
         :return bool:
             Whether a specified partition exists.
@@ -762,16 +765,16 @@ class Collection:
             False
         """
         conn = self._get_connection()
-        return conn.has_partition(self._name, partition_name)
+        return conn.has_partition(self._name, partition_name, timeout=timeout)
 
-    def drop_partition(self, partition_name, **kwargs):
+    def drop_partition(self, partition_name, timeout=None, **kwargs):
         """
         Drop the partition and its corresponding index files.
 
         :param partition_name: The name of the partition to drop.
         :type  partition_name: str
 
-        :param kwargs:
+        :param timeout:
             * *timeout* (``float``) --
               An optional duration of time in seconds to allow for the RPC. If timeout
               is set to None, the client keeps waiting until the server responds or an error occurs.
@@ -798,7 +801,7 @@ class Collection:
         if self.has_partition(partition_name) is False:
             raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
         conn = self._get_connection()
-        return conn.drop_partition(self._name, partition_name, timeout=kwargs.get("timeout", None))
+        return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
     @property
     def indexes(self) -> list:
@@ -862,7 +865,7 @@ class Collection:
             return Index(self, field_name, tmp_index, construct_only=True)
         raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
 
-    def create_index(self, field_name, index_params, **kwargs) -> Index:
+    def create_index(self, field_name, index_params, timeout=None, **kwargs) -> Index:
         """
         Creates index for a specified field. Return Index Object.
 
@@ -871,6 +874,10 @@ class Collection:
 
         :param index_params: The indexing parameters.
         :type  index_params: dict
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
 
         :raises CollectionNotExistException: If the collection does not exist.
         :raises ParamError: If the index parameters are invalid.
@@ -893,11 +900,15 @@ class Collection:
         """
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params,
-                                 timeout=kwargs.pop("timeout", None), **kwargs)
+                                 timeout=timeout, **kwargs)
 
-    def has_index(self) -> bool:
+    def has_index(self, timeout=None) -> bool:
         """
         Checks whether a specified index exists.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
 
         :return bool:
             Whether the specified index exists.
@@ -919,15 +930,15 @@ class Collection:
         """
         conn = self._get_connection()
         # TODO(yukun): Need field name, but provide index name
-        if conn.describe_index(self._name, "") is None:
+        if conn.describe_index(self._name, "", timeout=timeout) is None:
             return False
         return True
 
-    def drop_index(self, **kwargs):
+    def drop_index(self, timeout=None, **kwargs):
         """
         Drop index and its corresponding index files.
 
-        :param kwargs:
+        :param timeout:
             * *timeout* (``float``) --
               An optional duration of time in seconds to allow for the RPC. If timeout
               is set to None, the client keeps waiting until the server responds or an error occurs.
@@ -958,4 +969,4 @@ class Collection:
         tmp_index = conn.describe_index(self._name, "")
         if tmp_index is not None:
             index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True)
-            index.drop(**kwargs)
+            index.drop(timeout=timeout, **kwargs)
