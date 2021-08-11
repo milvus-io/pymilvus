@@ -632,6 +632,34 @@ class Collection:
             ParamError: If parameters are invalid
             DataTypeNotMatchException: If wrong type of param is passed
             BaseException: If the return result from server is not ok
+
+        :example:
+            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> import random
+            >>> connections.connect()
+            <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("film_date", DataType.INT64),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_collection_query", schema)
+            >>> # insert
+            >>> data = [
+            ...     [i for i in range(10)],
+            ...     [i + 2000 for i in range(10)],
+            ...     [[random.random() for _ in range(2)] for _ in range(10)],
+            ... ]
+            >>> collection.insert(data)
+            >>> collection.num_entities
+            10
+            >>> collection.load()
+            >>> # query
+            >>> expr = "film_id in [ 0, 1 ]"
+            >>> res = collection.query(expr, output_fields=["film_date"])
+            >>> assert len(res) == 2
+            >>> print(f"- Query results: {res}")
+            - Query results: [{'film_id': 0, 'film_date': 2000}, {'film_id': 1, 'film_date': 2001}]
         """
         if not isinstance(expr, str):
             raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
