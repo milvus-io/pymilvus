@@ -14,7 +14,7 @@ import copy
 import numpy
 import pandas
 
-from pymilvus_orm.exceptions import DataNotMatchException, DataTypeNotSupportException, ExceptionsMessage
+from .exceptions import DataNotMatchException, DataTypeNotSupportException, ExceptionsMessage
 
 
 class Prepare:

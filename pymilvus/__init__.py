@@ -11,10 +11,52 @@ from .client.exceptions import (
     VersionError,
     BaseException
 )
-from .client.asynch import MutationFuture
+#  comment for dup
+#  from .client.asynch import MutationFuture
 from .client import __version__
 
-__all__ = ['Milvus', 'Prepare', 'Status', 'DataType',
-           'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'BaseException',
-           'MutationFuture',
-           '__version__']
+
+"""client module"""
+from .orm.pymilvus_orm.collection import Collection
+from .orm.pymilvus_orm.connections import (
+    Connections,
+    connections,
+    add_connection,
+    list_connections,
+    get_connection_addr,
+    remove_connection,
+    connect,
+    get_connection,
+    disconnect
+)
+
+from .orm.pymilvus_orm.index import Index
+from .orm.pymilvus_orm.partition import Partition
+from .orm.pymilvus_orm.utility import (
+    loading_progress,
+    index_building_progress,
+    wait_for_loading_complete,
+    wait_for_index_building_complete,
+    has_collection,
+    has_partition,
+    list_collections,
+)
+
+from .orm.pymilvus_orm.search import SearchResult, Hits, Hit
+from .orm.pymilvus_orm.schema import FieldSchema, CollectionSchema
+from .orm.pymilvus_orm.future import SearchFuture, MutationFuture
+
+__all__ = [
+    # pymilvus orm'styled APIs
+    'Collection', 'Index', 'Partition',
+    'Connections', 'connections', 'add_connection', 'list_connection', 'get_connection_addr', 'remove_connection', 'connect', 'get_connection', 'disconnect',
+    'loading_progress', 'index_building_progress', 'wait_for_loading_complete', 'has_collection', 'has_partition', 'list_collection',
+    'SearchResult', 'Hits', 'Hit',
+    'FieldSchema', 'CollectionSchema',
+    'SearchFuture', 'MutationFuture',
+
+    # pymilvus old style APIs
+    'Milvus', 'Prepare', 'Status', 'DataType',
+    'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'BaseException',
+    '__version__'
+]

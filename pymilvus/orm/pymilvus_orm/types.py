@@ -12,29 +12,13 @@
 
 from enum import IntEnum
 import logging
+
 from pandas.api.types import infer_dtype, is_list_like, is_scalar, is_float, is_array_like
 import numpy as np
 
+from ...client.types import DataType
+
 LOGGER = logging.getLogger(__name__)
-
-
-class DataType(IntEnum):
-    NONE = 0
-    BOOL = 1
-    INT8 = 2
-    INT16 = 3
-    INT32 = 4
-    INT64 = 5
-
-    FLOAT = 10
-    DOUBLE = 11
-
-    STRING = 20
-
-    BINARY_VECTOR = 100
-    FLOAT_VECTOR = 101
-
-    UNKNOWN = 999
 
 
 dtype_str_map = {

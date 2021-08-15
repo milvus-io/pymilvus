@@ -10,11 +10,11 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-from pymilvus_orm import constants
+from . import constants
 from .connections import get_connection
-from .exceptions import ConnectionNotExistException, ExceptionsMessage
-
 from .exceptions import (
+    ConnectionNotExistException,
+    ExceptionsMessage,
     ResultError,
 )
 

@@ -16,9 +16,9 @@ from typing import List
 import pandas
 from pandas.api.types import is_list_like
 
-from pymilvus_orm.constants import VECTOR_COMMON_TYPE_PARAMS
-from pymilvus_orm.types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
-from pymilvus_orm.exceptions import (
+from .constants import VECTOR_COMMON_TYPE_PARAMS
+from .types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
+from .exceptions import (
     CannotInferSchemaException,
     DataTypeNotSupportException,
     PrimaryKeyException,
