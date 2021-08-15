@@ -22,7 +22,7 @@ The following collection shows Milvus versions and recommended PyMilvus versions
 | 1.1.* | 1.1.2 |
 | 2.0.0-RC1 | 2.0.0rc1 |
 | 2.0.0-RC2 | 2.0.0rc2 |
-| 2.0.0-RC3 | 2.0.0rc3 |
+| 2.0.0-RC4 | 2.0.0rc4 |
 
 
 ## Installation
@@ -36,7 +36,7 @@ $ pip3 install pymilvus
 You can install a specific version of PyMilvus by:
 
 ```shell
-$ pip3 install pymilvus==2.0.0rc3
+$ pip3 install pymilvus==2.0.0rc4
 ```
 
 You can upgrade PyMilvus to the latest version by:
