@@ -193,7 +193,7 @@ def test_collection_only_name():
 
 def test_collection_with_dataframe():
     data = gen_dataframe(default_nb)
-    collection = Collection.construct_from_dataframe(name=gen_unique_str(), dataframe=data, primary_field="int64")
+    collection, _ = Collection.construct_from_dataframe(name=gen_unique_str(), dataframe=data, primary_field="int64")
     collection.load()
     assert collection.is_empty is False
     assert collection.num_entities == default_nb

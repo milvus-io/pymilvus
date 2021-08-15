@@ -1,11 +1,11 @@
-import sys
 import random
 
 from pymilvus import (
     connections,
     list_collections,
     FieldSchema, CollectionSchema, DataType,
-    Collection, Partition
+    Collection, Partition,
+    utility
 )
 
 # configure milvus hostname and port
