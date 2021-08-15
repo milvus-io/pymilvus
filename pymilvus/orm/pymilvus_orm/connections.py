@@ -132,7 +132,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                            server.
 
         :example:
-            >>> from pymilvus_orm import connections
+            >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
             <pymilvus.client.stub.Milvus object at 0x7f4045335f10>
         """
@@ -201,7 +201,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             Names of all connections.
 
         :example:
-            >>> from pymilvus_orm import connections as conn
+            >>> from pymilvus import connections as conn
             >>> conn.connect("test", host="localhost", port="19530")
             <pymilvus.client.stub.Milvus object at 0x7f05003f3e80>
             >>> conn.list_connections()
@@ -221,7 +221,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             If alias does not exist, return empty dict.
 
         :example:
-            >>> from pymilvus_orm import connections
+            >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
             <pymilvus.client.stub.Milvus object at 0x7f4045335f10>
             >>> connections.list_connections()

@@ -41,7 +41,7 @@ def loading_progress(collection_name, partition_names=None, using="default"):
         {'num_loaded_entities':loaded_segments_nums, 'num_total_entities': total_segments_nums}
     :raises PartitionNotExistException: If partition doesn't exist.
     :example:
-        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
@@ -78,7 +78,7 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
     :raises PartitionNotExistException: If partition doesn't exist.
 
     :example:
-        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
@@ -120,7 +120,7 @@ def index_building_progress(collection_name, index_name="", using="default"):
     :raises CollectionNotExistException: If collection doesn't exist.
     :raises IndexNotExistException: If index doesn't exist.
     :example:
-        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
@@ -165,7 +165,7 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
     :raises IndexNotExistException: If index doesn't exist.
 
     :example:
-        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
@@ -205,7 +205,7 @@ def has_collection(collection_name, using="default"):
         Whether the collection exists.
 
     :example:
-        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
@@ -231,7 +231,7 @@ def has_partition(collection_name, partition_name, using="default"):
         Whether the partition exist.
 
     :example:
-        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
@@ -255,7 +255,7 @@ def list_collections(timeout=None, using="default") -> list:
         List of collection names, return when operation is successful
 
     :example:
-        >>> from pymilvus_orm import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)

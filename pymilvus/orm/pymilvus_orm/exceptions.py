@@ -204,7 +204,7 @@ class ExceptionsMessage:
     PartitionAlreadyExist = "Partition already exist."
     PartitionNotExist = "Partition not exist."
     IndexNotExist = "Index doesn't exist."
-    CollectionType = "The type of collection must be pymilvus_orm.Collection."
+    CollectionType = "The type of collection must be pymilvus.Collection."
     FieldsType = "The fields of schema must be type list."
     FieldType = "The field of schema type must be FieldSchema."
     FieldDtype = "Field dtype must be of DataType"

@@ -34,9 +34,9 @@ class Index:
         If an index of the same name but of different param already exists.
 
         :example:
-        >>> from pymilvus_orm import *
-        >>> from pymilvus_orm.schema import *
-        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus import *
+        >>> from pymilvus.schema import *
+        >>> from pymilvus.types import DataType
         >>> connections.connect()
         <pymilvus.client.stub.Milvus object at 0x7fac15e53470>
         >>> field1 = FieldSchema("int64", DataType.INT64, is_primary=True)

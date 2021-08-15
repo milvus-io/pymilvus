@@ -55,7 +55,7 @@ class Partition:
         :return str: Partition description text, return when operation is successful
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -75,7 +75,7 @@ class Partition:
 
         :return str: Partition name, return when operation is successful
         :example:
-            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -99,7 +99,7 @@ class Partition:
 
         :example:
 
-            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -120,7 +120,7 @@ class Partition:
         :return int: Number of entities in this partition.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -154,7 +154,7 @@ class Partition:
             When partitoin does not exist
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -181,7 +181,7 @@ class Partition:
             If argument is not valid
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -211,7 +211,7 @@ class Partition:
             When partitoin does not exist
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -248,7 +248,7 @@ class Partition:
             When partitoin does not exist
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -313,7 +313,7 @@ class Partition:
         :raises BaseException: If the return result from server is not ok.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
             >>> connections.connect()
             <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
@@ -379,7 +379,7 @@ class Partition:
             BaseException: If the return result from server is not ok
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
             >>> connections.connect()
             <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>

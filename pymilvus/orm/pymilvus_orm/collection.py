@@ -90,7 +90,7 @@ class Collection:
         :type using: str
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             <pymilvus.client.stub.Milvus object at 0x7f9a190ca898>
             >>> fields = [
@@ -255,7 +255,7 @@ class Collection:
             Collection description text, returned when the operation succeeds.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> fields = [
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -279,7 +279,7 @@ class Collection:
             The collection name, returned when the operation succeeds.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> fields = [
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -296,14 +296,14 @@ class Collection:
     def is_empty(self) -> bool:
         """
         Whether the collection is empty.
-        This method need to call `num_entities <#pymilvus_orm.Collection.num_entities>`_.
+        This method need to call `num_entities <#pymilvus.Collection.num_entities>`_.
 
         :return bool:
             * True: The collection is empty.
             * False: The collection is  gfghnot empty.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -313,7 +313,7 @@ class Collection:
             >>> collection.is_empty
             True
             >>> collection.insert([[1], [[1.0, 2.0]]])
-            <pymilvus_orm.search.MutationResult object at 0x7fabaf3e5d50>
+            <pymilvus.search.MutationResult object at 0x7fabaf3e5d50>
             >>> collection.is_empty
             False
         """
@@ -331,7 +331,7 @@ class Collection:
         :raises CollectionNotExistException: If the collection does not exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -358,7 +358,7 @@ class Collection:
             The primary field of the collection.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -384,7 +384,7 @@ class Collection:
         :raises CollectionNotExistException: If the collection does not exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -420,7 +420,7 @@ class Collection:
         :raises BaseException: If the specified field, index or partition does not exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -428,7 +428,7 @@ class Collection:
             ... ])
             >>> collection = Collection("test_collection_load", schema)
             >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
-            <pymilvus_orm.search.MutationResult object at 0x7fabaf3e5d50>
+            <pymilvus.search.MutationResult object at 0x7fabaf3e5d50>
             >>> collection.load()
             >>> collection.num_entities
             2
@@ -452,7 +452,7 @@ class Collection:
         :raises BaseException: If collection has not been loaded to memory.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -460,7 +460,7 @@ class Collection:
             ... ])
             >>> collection = Collection("test_collection_release", schema)
             >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
-            <pymilvus_orm.search.MutationResult object at 0x7fabaf3e5d50>
+            <pymilvus.search.MutationResult object at 0x7fabaf3e5d50>
             >>> collection.load()
             >>> collection.num_entities
             2
@@ -491,7 +491,7 @@ class Collection:
         :raises BaseException: If the specified partition does not exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
             >>> connections.connect()
             <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
@@ -562,7 +562,7 @@ class Collection:
         :raises BaseException: If the return result from server is not ok.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
             >>> connections.connect()
             <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
@@ -634,7 +634,7 @@ class Collection:
             BaseException: If the return result from server is not ok
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
             >>> connections.connect()
             <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
@@ -679,7 +679,7 @@ class Collection:
         :raises CollectionNotExistException: If collection doesn't exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
             >>> schema = CollectionSchema([
@@ -711,7 +711,7 @@ class Collection:
         :raises BaseException: If partition doesn't exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
             >>> schema = CollectionSchema([
@@ -745,7 +745,7 @@ class Collection:
         :raises BaseException: If partition doesn't exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -778,7 +778,7 @@ class Collection:
         :raises CollectionNotExistException: If collection doesn't exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -811,7 +811,7 @@ class Collection:
         :raises BaseException: If partition doesn't exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -842,7 +842,7 @@ class Collection:
         :raises CollectionNotExistException: If the collection does not exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -871,7 +871,7 @@ class Collection:
         :raises BaseException: If the specified index does not exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -882,9 +882,9 @@ class Collection:
             >>> collection.create_index("films", index)
             Status(code=0, message='')
             >>> collection.indexes
-            [<pymilvus_orm.index.Index object at 0x7f4435587e20>]
+            [<pymilvus.index.Index object at 0x7f4435587e20>]
             >>> collection.index()
-            <pymilvus_orm.index.Index object at 0x7f44355a1460>
+            <pymilvus.index.Index object at 0x7f44355a1460>
         """
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name)
@@ -913,7 +913,7 @@ class Collection:
         :raises BaseException: If the index has been created.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -924,7 +924,7 @@ class Collection:
             >>> collection.create_index("films", index)
             Status(code=0, message='')
             >>> collection.index()
-            <pymilvus_orm.index.Index object at 0x7f44355a1460>
+            <pymilvus.index.Index object at 0x7f44355a1460>
         """
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params,
@@ -944,7 +944,7 @@ class Collection:
         :raises CollectionNotExistException: If the collection does not exist.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -976,7 +976,7 @@ class Collection:
         :raises BaseException: If the index does not exist or has been dropped.
 
         :example:
-            >>> from pymilvus_orm import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),

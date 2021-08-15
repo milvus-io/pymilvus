@@ -103,13 +103,11 @@ class CollectionSchema:
             List of FieldSchema, return when operation is successful.
 
         :example:
-
-            >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-            >>> from pymilvus_orm.types import DataType
+            >>> from pymilvus import FieldSchema, CollectionSchema, DataType
             >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
             >>> schema = CollectionSchema(fields=[field])
             >>> schema.fields
-            [<pymilvus_orm.schema.FieldSchema object at 0x7fd3716ffc50>]
+            [<pymilvus.schema.FieldSchema object at 0x7fd3716ffc50>]
         """
         return self._fields
 
@@ -122,8 +120,7 @@ class CollectionSchema:
             CollectionSchema description text, return when operation is successful.
 
         :example:
-            >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-            >>> from pymilvus_orm.types import DataType
+            >>> from pymilvus import FieldSchema, CollectionSchema, DataType
             >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
             >>> schema = CollectionSchema(fields=[field], description="test get description")
             >>> schema.description
@@ -141,8 +138,7 @@ class CollectionSchema:
             * False: Otherwise.
 
         :example:
-            >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-            >>> from pymilvus_orm.types import DataType
+            >>> from pymilvus import FieldSchema, CollectionSchema, DataType
             >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
             >>> schema = CollectionSchema(fields=[field])
             >>> schema.auto_id
@@ -243,8 +239,7 @@ class FieldSchema:
             FieldSchema description text, returned when the operation is successful.
 
         :example:
-        >>> from pymilvus_orm.schema import FieldSchema
-        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus import FieldSchema, DataType
         >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=False)
         >>> field.description
         'int64'
@@ -260,8 +255,7 @@ class FieldSchema:
             List of the parameter.
 
         :example:
-        >>> from pymilvus_orm.schema import FieldSchema
-        >>> from pymilvus_orm.types import DataType
+        >>> from pymilvus import FieldSchema, DataType
         >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=False)
         >>> field.params
         {}
