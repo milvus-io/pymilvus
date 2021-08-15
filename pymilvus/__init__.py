@@ -51,8 +51,8 @@ from .orm.pymilvus_orm.future import SearchFuture, MutationFuture
 __all__ = [
     # pymilvus orm'styled APIs
     'Collection', 'Index', 'Partition',
-    'Connections', 'connections', 'add_connection', 'list_connection', 'get_connection_addr', 'remove_connection', 'connect', 'get_connection', 'disconnect',
-    'loading_progress', 'index_building_progress', 'wait_for_loading_complete', 'has_collection', 'has_partition', 'list_collection',
+    'Connections', 'connections', 'add_connection', 'list_connections', 'get_connection_addr', 'remove_connection', 'connect', 'get_connection', 'disconnect',
+    'loading_progress', 'index_building_progress', 'wait_for_loading_complete', 'has_collection', 'has_partition', 'list_collections',
     'SearchResult', 'Hits', 'Hit',
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',

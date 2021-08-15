@@ -5,7 +5,7 @@ from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
 
 sys.modules['pymilvus'] = __import__('mock_milvus')
-import pymilvus_orm.connections as connections
+import pymilvus.connections as connections
 
 
 @pytest.fixture(scope='session', autouse=True)

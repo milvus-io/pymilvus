@@ -1,138 +1,116 @@
+import sys
 import random
-from pymilvus import Milvus, DataType
 
-# This example shows how to:
-#   1. connect to Milvus server
-#   2. create a collection
-#   3. insert entities
-#   4. create index
-#   5. search
+from pymilvus import (
+    connections,
+    list_collections,
+    FieldSchema, CollectionSchema, DataType,
+    Collection, Partition
+)
 
-_HOST = '127.0.0.1'
-_PORT = '19530'
+# configure milvus hostname and port
+print(f"\nCreate connection...")
+connections.connect()
 
-# Const names
-_COLLECTION_NAME = 'demo'
-_ID_FIELD_NAME = 'id_field'
-_VECTOR_FIELD_NAME = 'float_vector_field'
+# List all collection names
+print(f"\nList collections...")
+print(list_collections())
 
-# Vector parameters
-_DIM = 128
-_INDEX_FILE_SIZE = 32  # max file size of stored index
+# Create a collection named 'demo_film_tutorial'
+print(f"\nCreate collection...")
+field1 = FieldSchema(name="release_year", dtype=DataType.INT64, description="int64", is_primary=True)
+field2 = FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, description="float vector", dim=8, is_primary=False)
+schema = CollectionSchema(fields=[field1, field2], description="collection description")
+collection = Collection(name='demo_film_tutorial', data=None, schema=schema)
 
-# Index parameters
-_METRIC_TYPE = 'L2'
-_INDEX_TYPE = 'IVF_FLAT'
-_NLIST = 1024
-_NPROBE = 16
-_TOPK = 10
+# List all collection names
+print(f"\nList collections...")
+print(list_collections())
 
-# Create milvus client instance
-milvus = Milvus(_HOST, _PORT)
+print(f"\nGet collection name, schema and description...")
+print(collection.name)
+print(collection.schema)
+print(collection.description)
 
-def create_collection(name):
-    id_field = {
-        "name": _ID_FIELD_NAME,
-        "type": DataType.INT64,
-        "auto_id": True,
-        "is_primary": True,
+# List all partition names in demo collection
+print(f"\nList partitions...")
+print(collection.partitions)
+
+# Create a partition named 'American'
+print(f"\nCreate partition...")
+partition_name = "American"
+partition = Partition(collection, partition_name)
+print(collection.partition(partition_name='American'))
+
+# List all partition names in demo collection
+print(f"\nList partitions...")
+print(collection.partitions)
+
+# Construct some entities
+The_Lord_of_the_Rings = [
+    {
+        "id": 1,
+        "title": "The_Fellowship_of_the_Ring",
+        "release_year": 2001,
+        "embedding": [random.random() for _ in range(8)]
+    },
+    {
+        "id": 2,
+        "title": "The_Two_Towers",
+        "release_year": 2002,
+        "embedding": [random.random() for _ in range(8)]
+    },
+    {
+        "id": 3,
+        "title": "The_Return_of_the_King",
+        "release_year": 2003,
+        "embedding": [random.random() for _ in range(8)]
     }
-    vector_field = {
-        "name": _VECTOR_FIELD_NAME,
-        "type": DataType.FLOAT_VECTOR,
-        "metric_type": "L2",
-        "params": {"dim": _DIM},
-        "indexes": [{"metric_type": "L2"}]
-    }
-    fields = {"fields": [id_field, vector_field]}
+]
 
-    milvus.create_collection(collection_name=name, fields=fields)
-    print("collection created:", name)
+# Transform
+ids = [k.get("id") for k in The_Lord_of_the_Rings]
+release_years = [k.get("release_year") for k in The_Lord_of_the_Rings]
+embeddings = [k.get("embedding") for k in The_Lord_of_the_Rings]
 
-def drop_collection(name):
-    if milvus.has_collection(name):
-        milvus.drop_collection(name)
-        print("collection dropped:", name)
+data = [release_years, embeddings]
 
-def list_collections():
-    collections = milvus.list_collections()
-    print("list collection:")
-    print(collections)
+# Insert into milvus
+print(f"\nInsert data...")
+partition.insert(data)
 
-def get_collection_stats(name):
-    stats = milvus.get_collection_stats(name)
-    print("collection stats:")
-    print(stats)
+# Count entities
+print(f"\nCount entities...")
+print(collection.num_entities)
 
-def insert(name, num, dim):
-    vectors = [[random.random() for _ in range(dim)] for _ in range(num)]
-    entities = [{"name": _VECTOR_FIELD_NAME, "type": DataType.FLOAT_VECTOR, "values": vectors}]
-    ids = milvus.insert(name, entities)
-    return ids, vectors
+# TODO(wxyu): search
 
-def flush(name):
-    milvus.flush([name])
+# Drop a partition
+print(f"\nDrop partition...")
+partition.drop()
 
-def create_index(name, field_name):
-    index_param = {
-        "metric_type": _METRIC_TYPE,
-        "index_type": _INDEX_TYPE,
-        "params": {"nlist": _NLIST}
-    }
-    milvus.create_index(name, field_name, index_param)
-    print("Create index: {}".format(index_param))
+# List all partition names in demo collection
+print(f"\nList partitions...")
+print(collection.partitions)
 
-def drop_index(name, field_name):
-    milvus.drop_index(name, field_name)
-    print("Drop index:", field_name)
+# List all collection names
+print(f"\nList collections...")
+print(list_collections())
 
-def load_collection(name):
-    milvus.load_collection(name)
+# Drop a collection
+print(f"\nDrop collection...")
+collection.drop()
 
-def release_collection(name):
-    milvus.release_collection(name)
+# List all collection names
+print(f"\nList collections...")
+print(list_collections())
 
-def search(name, vector_field, search_vectors, ids):
-    nq = len(search_vectors)
-    search_params = {"metric_type": _METRIC_TYPE, "params": {"nprobe": _NPROBE}}
-    results = milvus.search_with_expression(name, search_vectors, vector_field, param=search_params, limit=_TOPK)
-    for i in range(nq):
-        if results[i][0].distance == 0.0 or results[i][0].id == ids[0]:
-            print("OK! search results: ", results[i][0].entity)
-        else:
-            print("FAIL! search results: ", results[i][0].entity)
-
-def main():
-    name = _COLLECTION_NAME
-    vector_field = _VECTOR_FIELD_NAME
-
-    drop_collection(name)
-    create_collection(name)
-
-    # show collections
-    list_collections()
-
-    # generate 10000 vectors with 128 dimension
-    ids, vectors = insert(name, 10000, _DIM)
-
-    # flush
-    flush(name)
-
-    # show row_count
-    get_collection_stats(name)
-
-    # create index
-    create_index(name, vector_field)
-
-    # load
-    load_collection(name)
-
-    # search
-    search(name, vector_field, vectors[:10], ids)
-
-    drop_index(name, vector_field)
-    release_collection(name)
-    drop_collection(name)
-
-if __name__ == '__main__':
-    main()
+# Calculate distance between vectors
+vectors_l = [[random.random() for _ in range(64)] for _ in range(3)]
+vectors_r = [[random.random() for _ in range(64)] for _ in range(5)]
+op_l = {"float_vectors": vectors_l}
+op_r = {"float_vectors": vectors_r}
+params = {"metric": "L2", "sqrt": True}
+results = utility.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
+for i in range(len(results)):
+    print(results[i])

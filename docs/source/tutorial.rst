@@ -50,7 +50,7 @@ Collection
 Now let's create a new collection. Before we start, we can list all the collections already exist. For a brand
 new Milvus running instance, the result should be empty.
 
->>> from pymilvus_orm import list_collections
+>>> from pymilvus import list_collections
 >>> list_collections()
 []
 
@@ -66,7 +66,7 @@ The type of `year` field is `int64`, and the type of `embedding` is `FLOAT_VECTO
 
 Now we can create a collection:
 
->>> from pymilvus_orm import Collection, DataType, FieldSchema, CollectionSchema
+>>> from pymilvus import Collection, DataType, FieldSchema, CollectionSchema
 >>> dim = 128
 >>> id_field = FieldSchema(name="id", dtype=DataType.INT64, description="primary_field")
 >>> year_field = FieldSchema(name="year", dtype=DataType.INT64, description="year")
