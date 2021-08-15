@@ -8,7 +8,7 @@ Contributing
 - `Contribution Guideline`_
 
 Contributing is warmly welcomed. You can contribute to PyMilvus ORM project by opening issues and submitting pull
-requests on `PyMilvus ORM Github page <https://github.com/milvus-io/pymilvus-orm>`_.
+requests on `PyMilvus Github page <https://github.com/milvus-io/pymilvus>`_.
 
 Open Issues
 ===========
@@ -21,7 +21,7 @@ For a feature
 
 For a bug
     You need to tell us as much information as possible, better start with our
-    `bug report template <https://github.com/milvus-io/pymilvus-orm/issues/new?assignees=&labels=&template=bug_report.md&title=%5BBUG%5D>`_.
+    `bug report template <https://github.com/milvus-io/pymilvus/issues/new?assignees=&labels=&template=bug_report.md&title=%5BBUG%5D>`_.
     With information, we can reproduce the bug easily and solve it later.
 
 For a question
@@ -43,9 +43,9 @@ Github workflow
 
 This is a brief instruction of Github workflow for beginners.
 
-* **Fork** the `PyMilvus ORM repository <https://github.com/milvus-io/pymilvus-orm>`_ on Github.
+* **Fork** the `PyMilvus ORM repository <https://github.com/milvus-io/pymilvus>`_ on Github.
 
-* **Clone** your fork to your local machine with ``git clone git@github.com:<your_user_name>/pymilvus-orm.git``.
+* **Clone** your fork to your local machine with ``git clone git@github.com:<your_user_name>/pymilvus.git``.
 
 * Create a new branch with ``git checkout -b my_working_branch``.
 
@@ -57,7 +57,7 @@ If you already have an existing local repository, always update it before you st
 
 .. code-block:: shell
    
-   $ git remote add upstream git@github.com:milvus-io/pymilvus-orm.git
+   $ git remote add upstream git@github.com:milvus-io/pymilvus.git
    $ git checkout main
    $ git pull upstream master
    $ git checkout -b my_working_branch
@@ -82,10 +82,10 @@ If you want to run unit test locally, under root folder of PyMilvus ORM project 
 
 **3. Pass pylint check**
 
-In the root directory, run ``pylint --rcfile=pylint.conf pymilvus-orm`` to make sure the rate is 10.
+In the root directory, run ``pylint --rcfile=pylint.conf pymilvus`` to make sure the rate is 10.
 
 **4. For documentations**
 
 You need to enter the ``doc`` directory and run ``make html``, please refer to
-`About this documentations <https://milvus.io/api-reference/pymilvus-orm/v2.0.0rc1/about.html>`_.
+`About this documentations <https://milvus.io/api-reference/pymilvus/v2.0.0rc4/about.html>`_.
 

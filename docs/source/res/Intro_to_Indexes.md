@@ -2,7 +2,7 @@
 [Milvus](https://github.com/milvus-io) support to create index to accelerate vector approximate search. 
 
 To learn how to create an index by python client, see method [create_index()](api/collection.html#pymilvus_orm.Collection.create_index) and 
-[index example](https://github.com/milvus-io/pymilvus-orm/tree/main/examples) .
+[index example](https://github.com/milvus-io/pymilvus/tree/main/examples) .
 
 For more detailed information about indexes, please refer to [Milvus documentation index chapter.](https://milvus.io/docs/index.md)
 

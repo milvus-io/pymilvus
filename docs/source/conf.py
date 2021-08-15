@@ -17,12 +17,12 @@ sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'pymilvus-orm'
+project = 'pymilvus'
 copyright = '2021, Milvus'
 author = 'Milvus'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.1'
+release = '2.0.0rc4'
 show_authors = True
 
 

@@ -103,12 +103,13 @@ class CollectionSchema:
             List of FieldSchema, return when operation is successful.
 
         :example:
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> schema = CollectionSchema(fields=[field])
-        >>> schema.fields
-        [<pymilvus_orm.schema.FieldSchema object at 0x7fd3716ffc50>]
+
+            >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+            >>> from pymilvus_orm.types import DataType
+            >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
+            >>> schema = CollectionSchema(fields=[field])
+            >>> schema.fields
+            [<pymilvus_orm.schema.FieldSchema object at 0x7fd3716ffc50>]
         """
         return self._fields
 
@@ -121,12 +122,12 @@ class CollectionSchema:
             CollectionSchema description text, return when operation is successful.
 
         :example:
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> schema = CollectionSchema(fields=[field], description="test get description")
-        >>> schema.description
-        'test get description'
+            >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+            >>> from pymilvus_orm.types import DataType
+            >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
+            >>> schema = CollectionSchema(fields=[field], description="test get description")
+            >>> schema.description
+            'test get description'
         """
         return self._description
 
@@ -140,15 +141,14 @@ class CollectionSchema:
             * False: Otherwise.
 
         :example:
-        >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        >>> from pymilvus_orm.types import DataType
-        >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> schema = CollectionSchema(fields=[field])
-        >>> schema.auto_id
-        False
+            >>> from pymilvus_orm.schema import FieldSchema, CollectionSchema
+            >>> from pymilvus_orm.types import DataType
+            >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
+            >>> schema = CollectionSchema(fields=[field])
+            >>> schema.auto_id
+            False
         """
         return self._auto_id
-
 
     def to_dict(self):
         _dict = {

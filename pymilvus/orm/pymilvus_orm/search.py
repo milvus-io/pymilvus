@@ -11,7 +11,7 @@
 # the License.
 
 import abc
-from ....client.abstract import Entity
+from ...client.abstract import Entity
 
 
 class _IterableWrapper:

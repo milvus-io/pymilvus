@@ -98,6 +98,7 @@ class Partition:
         * False: The partition is not empty.
 
         :example:
+
             >>> from pymilvus_orm import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([

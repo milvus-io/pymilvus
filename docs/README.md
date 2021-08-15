@@ -55,5 +55,5 @@ Then open your browser to `http://localhost:8000`.
 
 # Submit documentation change
 After a documentation changed, please use Git to store you modification and push to your remote repository,
-then pull a new request to repository `milvus-io/pymilvus-orm`.
+then pull a new request to repository `milvus-io/pymilvus`.
  
