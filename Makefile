@@ -1,7 +1,7 @@
 
 unittest:
 	PYTHONPATH=`pwd` python3 -m pytest tests
-	PYTHONPATH=`pwd` python3 -m pytest --cov=pymilvus pymilvus/orm/tests -x -rxXs
+	# PYTHONPATH=`pwd` python3 -m pytest pymilvus/orm/tests -x -rxXs
 
 lint:
 	PYTHONPATH=`pwd` pylint --rcfile=pylint.conf pymilvus
