@@ -2,7 +2,7 @@
 
 from .client.stub import Milvus
 from .client.prepare import Prepare
-from .client.types import Status, DataType, RangeType, IndexType, MetricType
+from .client.types import Status, DataType, RangeType, IndexType
 from .client.exceptions import (
     ParamError,
     ConnectError,
@@ -48,6 +48,7 @@ from .orm.pymilvus_orm.default_config import DefaultConfig
 from .orm.pymilvus_orm.search import SearchResult, Hits, Hit
 from .orm.pymilvus_orm.schema import FieldSchema, CollectionSchema
 from .orm.pymilvus_orm.future import SearchFuture, MutationFuture
+from .orm.pymilvus_orm.exceptions import ExceptionsMessage
 
 __all__ = [
     # pymilvus orm'styled APIs
@@ -57,7 +58,7 @@ __all__ = [
     'SearchResult', 'Hits', 'Hit',
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',
-    'utility', 'DefaultConfig',
+    'utility', 'DefaultConfig', 'ExceptionsMessage',
 
     # pymilvus old style APIs
     'Milvus', 'Prepare', 'Status', 'DataType',
