@@ -43,6 +43,7 @@ from .orm.pymilvus_orm.utility import (
 )
 
 from .orm.pymilvus_orm import utility
+from .orm.pymilvus_orm.default_config import DefaultConfig
 
 from .orm.pymilvus_orm.search import SearchResult, Hits, Hit
 from .orm.pymilvus_orm.schema import FieldSchema, CollectionSchema
@@ -56,7 +57,7 @@ __all__ = [
     'SearchResult', 'Hits', 'Hit',
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',
-    'utility',
+    'utility', 'DefaultConfig',
 
     # pymilvus old style APIs
     'Milvus', 'Prepare', 'Status', 'DataType',
