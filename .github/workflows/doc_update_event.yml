@@ -1,0 +1,28 @@
+name: web-content - Dispatch event after docs files updated
+
+on:
+  push:
+    branches-ignore:
+      - 'master'
+      - '1.*'
+    paths:
+      - 'docs/**'
+
+jobs:
+  dispatch_event:
+    name: Dispatch event
+    runs-on: ubuntu-latest
+    steps:
+      - id: extract_branch
+        name: Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      - id: dispatch_branch_name
+        name: Dispatch branch name if update any docs
+        run: |
+          curl \
+          -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/milvus-io/web-content/actions/workflows/updateApiByBranchEvent.yml/dispatches" \
+          -d '{"ref":"master", "inputs": { "branchName": "${{ steps.extract_branch.outputs.branch }}", "repoName": "${{ github.event.repository.name }}" } }' \
+          -u ".:${{secrets.DOC_TOKEN}}"
