@@ -125,11 +125,6 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.SearchRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SearchResults.FromString,
                 )
-        self.Retrieve = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/Retrieve',
-                request_serializer=milvus__pb2.RetrieveRequest.SerializeToString,
-                response_deserializer=milvus__pb2.RetrieveResults.FromString,
-                )
         self.Flush = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Flush',
                 request_serializer=milvus__pb2.FlushRequest.SerializeToString,
@@ -164,6 +159,11 @@ class MilvusServiceStub(object):
                 '/milvus.proto.milvus.MilvusService/RegisterLink',
                 request_serializer=milvus__pb2.RegisterLinkRequest.SerializeToString,
                 response_deserializer=milvus__pb2.RegisterLinkResponse.FromString,
+                )
+        self.GetMetrics = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetMetrics',
+                request_serializer=milvus__pb2.GetMetricsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetMetricsResponse.FromString,
                 )
 
 
@@ -302,12 +302,6 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Retrieve(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def Flush(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -346,6 +340,13 @@ class MilvusServiceServicer(object):
 
     def RegisterLink(self, request, context):
         """TODO: remove
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetMetrics(self, request, context):
+        """https://wiki.lfaidata.foundation/display/MIL/MEP+8+--+Add+metrics+for+proxy
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -464,11 +465,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.SearchRequest.FromString,
                     response_serializer=milvus__pb2.SearchResults.SerializeToString,
             ),
-            'Retrieve': grpc.unary_unary_rpc_method_handler(
-                    servicer.Retrieve,
-                    request_deserializer=milvus__pb2.RetrieveRequest.FromString,
-                    response_serializer=milvus__pb2.RetrieveResults.SerializeToString,
-            ),
             'Flush': grpc.unary_unary_rpc_method_handler(
                     servicer.Flush,
                     request_deserializer=milvus__pb2.FlushRequest.FromString,
@@ -503,6 +499,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.RegisterLink,
                     request_deserializer=milvus__pb2.RegisterLinkRequest.FromString,
                     response_serializer=milvus__pb2.RegisterLinkResponse.SerializeToString,
+            ),
+            'GetMetrics': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetMetrics,
+                    request_deserializer=milvus__pb2.GetMetricsRequest.FromString,
+                    response_serializer=milvus__pb2.GetMetricsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -889,23 +890,6 @@ class MilvusService(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def Retrieve(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/Retrieve',
-            milvus__pb2.RetrieveRequest.SerializeToString,
-            milvus__pb2.RetrieveResults.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
     def Flush(request,
             target,
             options=(),
@@ -1021,6 +1005,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/RegisterLink',
             milvus__pb2.RegisterLinkRequest.SerializeToString,
             milvus__pb2.RegisterLinkResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetMetrics(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetMetrics',
+            milvus__pb2.GetMetricsRequest.SerializeToString,
+            milvus__pb2.GetMetricsResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
