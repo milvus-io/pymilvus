@@ -745,10 +745,10 @@ class Prepare:
     @classmethod
     def calc_distance_request(cls,  vectors_left, vectors_right, params):
         if vectors_left == None or not isinstance(vectors_left, dict):
-            raise ParamError("Left vectors array is invalid")
+            raise ParamError("vectors_left value {} is illegal".format(vectors_left))
 
         if vectors_right == None or not isinstance(vectors_right, dict):
-            raise ParamError("Right vectors array is invalid")
+            raise ParamError("vectors_right value {} is illegal".format(vectors_right))
 
         if params == None or not isinstance(params, dict):
             params = {"metric": "L2"}
