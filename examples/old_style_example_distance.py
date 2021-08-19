@@ -100,7 +100,8 @@ def tanimoto_distance(vec_l, vec_r, dim):
         return -1
 
     hamming = hamming_distance(vec_l, vec_r)
-    return hamming/(dim*2-hamming)
+    same_bits = dim - hamming
+    return same_bits/(dim*2-same_bits)
 
 def calc_binary_distance(l_count, r_count, dim, metric):
     vectors_l, raw_l = gen_binary_vectors(l_count, dim)
@@ -185,20 +186,20 @@ def load_collection(collection):
 def insert_vectors_to_calc():
     collection_name = "test"
     vec_field = "vec"
-    dim = 128
+    dim = 3
     drop_collection(collection_name)
     create_collection(collection_name, vec_field, dim)
 
-    l_count = 10
+    l_count = 1
     db_ids, db_vectors = insert(collection_name, vec_field, l_count, dim)
     flush(collection_name)
     load_collection(collection_name)
 
-    r_count = 50
-    vectors_l = gen_float_vectors(r_count, dim)
+    r_count = 2
+    vectors_r = gen_float_vectors(r_count, dim)
 
-    op_l = {"float_vectors": vectors_l}
-    op_r = {"ids": db_ids, "collection": collection_name, "field": vec_field}
+    op_l = {"ids": db_ids, "collection": collection_name, "field": vec_field}
+    op_r = {"float_vectors": vectors_r}
 
     metric = "L2"
     sqrt = True
@@ -214,9 +215,9 @@ def insert_vectors_to_calc():
 
     all_correct = True
     for i in range(l_count):
-        vec_l = vectors_l[i]
+        vec_l = db_vectors[i]
         for j in range(r_count):
-            vec_r = db_vectors[j]
+            vec_r = vectors_r[j]
             dist_1 = l2_distance(vec_l, vec_r, sqrt) if metric == "L2" else ip_distance(vec_l, vec_r)
             dist_2 = results[i * r_count + j]
             if math.fabs(dist_1 - dist_2) > _PRECISION:
@@ -228,4 +229,4 @@ def insert_vectors_to_calc():
 
 if __name__ == '__main__':
     input_vectors_to_calc()
-    # insert_vectors_to_calc()
+    insert_vectors_to_calc()
