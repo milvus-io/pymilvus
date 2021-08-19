@@ -21,8 +21,8 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     include_package_data=True,
     install_requires=[
-        "grpcio>=1.22.0,<1.38.0",
-        "grpcio-tools>=1.22.0, <1.38.0",
+        "grpcio==1.37.1",
+        "grpcio-tools==1.37.1",
         "requests>=2.22.0",
         "ujson>=2.0.0",
         "mmh3",
