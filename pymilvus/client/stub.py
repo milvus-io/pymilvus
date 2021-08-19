@@ -1074,7 +1074,7 @@ class Milvus:
         or
         `{"bin_vectors": [b'\x94', b'N', ... b'\xca']}`
 
-        :param params: parameters, currently only support "metric_type", default value is "L2"
+        :param params: parameters, currently only support "metric", default value is "L2"
                        extra parameter for "L2" distance: "sqrt", true or false, default is false
                        extra parameter for "HAMMING" and "TANIMOTO": "dim", set this value if dimension is not a multiple of 8, otherwise the dimension will be calculted by list length
         :type  params: dict

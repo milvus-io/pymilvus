@@ -750,10 +750,12 @@ class Prepare:
         if vectors_right == None or not isinstance(vectors_right, dict):
             raise ParamError("vectors_right value {} is illegal".format(vectors_right))
 
-        if params == None or not isinstance(params, dict):
-            params = {"metric": "L2"}
-        if "metric" not in params.keys() or len(params["metric"]) == 0:
+        if params == None:
             params["metric"] = "L2"
+
+        if (not isinstance(params, dict)) or ("metric" not in params.keys())\
+                or (not isinstance(params["metric"], str)) or len(params["metric"]) == 0:
+            raise ParamError("params value {} is illegal".format(params))
 
         request = milvus_types.CalcDistanceRequest()
         request.params.extend([common_types.KeyValuePair(key=str(key), value=str(value))
