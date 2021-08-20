@@ -783,8 +783,8 @@ class Prepare:
                     request_op.id_array.id_array.int_id.data.extend(ids)
                 request_op.id_array.collection_name = vectors["collection"]
                 request_op.id_array.field_name = vectors["field"]
-                if "partitions" in vectors.keys():
-                    request_op.partition_names.extend(vectors.get("partitions"))
+                if "partition" in vectors.keys():
+                    request_op.id_array.partition_names.append(vectors.get("partition"))
             elif _TYPE_FLOAT in vectors.keys():
                 float_array = vectors.get(_TYPE_FLOAT)
                 if (not isinstance(float_array, list)) or len(float_array) == 0:
