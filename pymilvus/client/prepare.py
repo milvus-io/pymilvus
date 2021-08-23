@@ -750,12 +750,16 @@ class Prepare:
         if vectors_right == None or not isinstance(vectors_right, dict):
             raise ParamError("vectors_right value {} is illegal".format(vectors_right))
 
-        if params == None:
-            params["metric"] = "L2"
+        def precheck_params(p):
+            ret = p or {"metric": "L2"}
+            if "metric" not in ret.keys():
+                ret["metric"] = "L2"
 
-        if (not isinstance(params, dict)) or ("metric" not in params.keys())\
-                or (not isinstance(params["metric"], str)) or len(params["metric"]) == 0:
-            raise ParamError("params value {} is illegal".format(params))
+            if (not isinstance(ret, dict)) or (not isinstance(ret["metric"], str)) or len(ret["metric"]) == 0:
+                raise ParamError("params value {} is illegal".format(p))
+            return ret
+
+        precheck_params(params)
 
         request = milvus_types.CalcDistanceRequest()
         request.params.extend([common_types.KeyValuePair(key=str(key), value=str(value))
@@ -822,5 +826,19 @@ class Prepare:
 
         if (type_left != _TYPE_IDS and type_right != _TYPE_IDS) and dim_left != dim_right:
             raise ParamError("Cannot calculate distance between vectors with different dimension")
+
+        def postcheck_params(vtype, p):
+            metrics_f = ["L2", "IP"]
+            metrics_b = ["HAMMING", "TANIMOTO"]
+            m = p["metric"].upper()
+            if vtype == _TYPE_FLOAT and (m not in metrics_f):
+                msg = "{} metric type is invalid for float vector"
+                raise ParamError(msg.format(m))
+            if vtype == _TYPE_BIN and (m not in metrics_b):
+                msg = "{} metric type is invalid for binary vector"
+                raise ParamError(msg.format(m))
+
+        postcheck_params(type_left, params)
+        postcheck_params(type_right, params)
 
         return request
