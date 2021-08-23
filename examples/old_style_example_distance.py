@@ -62,7 +62,7 @@ def calc_float_distance(l_count, r_count, dim, metric):
     op_r = {"float_vectors": vectors_r}
 
     sqrt = True
-    params = {"metric": metric, "sqrt": sqrt}
+    params = {"metric_type": metric, "sqrt": sqrt}
     time_start = time.time()
     results = milvus.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
     time_end = time.time()
@@ -110,7 +110,7 @@ def calc_binary_distance(l_count, r_count, dim, metric):
     op_l = {"bin_vectors": vectors_l}
     op_r = {"bin_vectors": vectors_r}
 
-    params = {"metric": metric, "dim": dim}
+    params = {"metric_type": metric, "dim": dim}
     time_start = time.time()
     results = milvus.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
     time_end = time.time()
@@ -186,16 +186,16 @@ def load_collection(collection):
 def insert_vectors_to_calc():
     collection_name = "test"
     vec_field = "vec"
-    dim = 3
+    dim = 64
     drop_collection(collection_name)
     create_collection(collection_name, vec_field, dim)
 
-    l_count = 1
+    l_count = 10
     db_ids, db_vectors = insert(collection_name, vec_field, l_count, dim)
     flush(collection_name)
     load_collection(collection_name)
 
-    r_count = 2
+    r_count = 25
     vectors_r = gen_float_vectors(r_count, dim)
 
     op_l = {"ids": db_ids, "collection": collection_name, "field": vec_field}
@@ -203,7 +203,7 @@ def insert_vectors_to_calc():
 
     metric = "L2"
     sqrt = True
-    params = {"metric": metric, "sqrt": sqrt}
+    params = {"metric_type": metric, "sqrt": sqrt}
     time_start = time.time()
     results = milvus.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
     time_end = time.time()

@@ -110,7 +110,7 @@ vectors_l = [[random.random() for _ in range(64)] for _ in range(3)]
 vectors_r = [[random.random() for _ in range(64)] for _ in range(5)]
 op_l = {"float_vectors": vectors_l}
 op_r = {"float_vectors": vectors_r}
-params = {"metric": "L2", "sqrt": True}
+params = {"metric_type": "L2", "sqrt": True}
 results = utility.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
 for i in range(len(results)):
     print(results[i])

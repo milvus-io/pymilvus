@@ -1154,7 +1154,11 @@ class GrpcHandler:
 
     @error_handler(None)
     def calc_distance(self, vectors_left, vectors_right, params, timeout=30, **kwargs):
+        # both "metric" or "metric_type" are ok
         params = params or {"metric": config.CALC_DIST_METRIC}
+        if "metric_type" in params.keys():
+            params["metric"] = params["metric_type"]
+
         req = Prepare.calc_distance_request(vectors_left, vectors_right, params)
         future = self._stub.CalcDistance.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()
