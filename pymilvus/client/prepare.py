@@ -764,8 +764,10 @@ class Prepare:
         _TYPE_IDS = "ids"
         _TYPE_FLOAT = "float_vectors"
         _TYPE_BIN = "bin_vectors"
-        def extract_vectors(vectors, request_op):
-            calc_type = ""
+        def extract_vectors(vectors, request_op, is_left):
+            prefix = "vectors_right"
+            if is_left:
+                prefix = "vectors_left"
             dimension = 0
             if _TYPE_IDS in vectors.keys():
                 if "collection" not in vectors.keys():
@@ -788,7 +790,8 @@ class Prepare:
             elif _TYPE_FLOAT in vectors.keys():
                 float_array = vectors.get(_TYPE_FLOAT)
                 if (not isinstance(float_array, list)) or len(float_array) == 0:
-                    raise ParamError("Float vector array is empty or not a list")
+                    msg = prefix + " value {} is illegal"
+                    raise ParamError(msg.format(vectors))
                 calc_type = _TYPE_FLOAT
                 all_floats = [f for vector in float_array for f in vector]
                 request_op.data_array.dim = len(float_array[0])
@@ -797,7 +800,8 @@ class Prepare:
             elif _TYPE_BIN in vectors.keys():
                 bin_array = vectors.get(_TYPE_BIN)
                 if (not isinstance(bin_array, list)) or len(bin_array) == 0:
-                    raise ParamError("Binary vector array is empty or not a list")
+                    msg = prefix + " value {} is illegal"
+                    raise ParamError(msg.format(vectors))
                 calc_type = _TYPE_BIN
                 request_op.data_array.dim = len(bin_array[0]) * 8
                 if "dim" in params.keys():
@@ -805,10 +809,13 @@ class Prepare:
                 dimension = request_op.data_array.dim
                 for bin in bin_array:
                     request_op.data_array.binary_vector += bin
+            else:
+                msg = prefix + " value {} is illegal"
+                raise ParamError(msg.format(vectors))
             return calc_type, dimension
 
-        type_left, dim_left = extract_vectors(vectors_left, request.op_left)
-        type_right, dim_right = extract_vectors(vectors_right, request.op_right)
+        type_left, dim_left = extract_vectors(vectors_left, request.op_left, True)
+        type_right, dim_right = extract_vectors(vectors_right, request.op_right, False)
 
         if (type_left == _TYPE_FLOAT and type_right == _TYPE_BIN) or (type_left == _TYPE_BIN and type_right == _TYPE_FLOAT):
             raise ParamError("Cannot calculate distance between float vectors and binary vectors")
