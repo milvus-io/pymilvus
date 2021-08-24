@@ -243,6 +243,33 @@ def has_partition(collection_name, partition_name, using="default"):
     return _get_connection(using).has_partition(collection_name, partition_name)
 
 
+def drop_collection(collection_name, timeout=None, using="default"):
+    """
+    Drop a collection by name
+
+    :param collection_name: A string representing the collection to be deleted
+    :type  collection_name: str
+    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                    is set to None, client waits until server response or error occur.
+    :type  timeout: float
+
+    :example:
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> schema = CollectionSchema(fields=[
+        ...     FieldSchema("int64", DataType.INT64, description="int64", is_primary=True),
+        ...     FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=128),
+        ... ])
+        >>> collection = Collection(name="drop_collection_test", schema=schema)
+        >>> utility.has_collection("drop_collection_test")
+        >>> True
+        >>> utility.drop_collection("drop_collection_test")
+        >>> utility.has_collection("drop_collection_test")
+        >>> False
+    """
+    return _get_connection(using).drop_collection(collection_name, timeout)
+
+
 def list_collections(timeout=None, using="default") -> list:
     """
     Returns a list of all collection names.

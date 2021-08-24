@@ -1,9 +1,8 @@
 import pdb
-
-from pymilvus import *
 import logging
-
 from mock_result import MockMutationResult
+
+#  from pymilvus import *
 
 
 class MockMilvus:

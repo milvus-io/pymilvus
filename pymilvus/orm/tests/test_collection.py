@@ -2,7 +2,8 @@ import logging
 import numpy
 import pytest
 from utils import *
-from pymilvus_orm import Collection, connections
+
+from pymilvus import Collection, connections
 
 LOGGER = logging.getLogger(__name__)
 
@@ -17,9 +18,9 @@ class TestCollections:
             connections.get_connection().drop_collection(name)
 
     def test_collection_by_DataFrame(self):
-        from pymilvus_orm import Collection, connections
-        from pymilvus_orm.schema import FieldSchema, CollectionSchema
-        from pymilvus_orm.types import DataType
+        from pymilvus import Collection, connections
+        from pymilvus import FieldSchema, CollectionSchema
+        from pymilvus import DataType
         fields = [
             FieldSchema("int64", DataType.INT64),
             FieldSchema("float", DataType.FLOAT),

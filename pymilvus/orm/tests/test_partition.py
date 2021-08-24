@@ -2,7 +2,7 @@ import logging
 import unittest
 import pytest
 from utils import *
-from pymilvus_orm import Collection, Partition
+from pymilvus import Collection, Partition
 
 LOGGER = logging.getLogger(__name__)
 

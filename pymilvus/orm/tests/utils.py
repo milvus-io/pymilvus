@@ -1,7 +1,8 @@
 import random
 import pandas
 from sklearn import preprocessing
-from pymilvus_orm.types import DataType
+
+from pymilvus import DataType
 
 default_dim = 128
 default_nb = 1200
@@ -42,23 +43,23 @@ def binary_support():
     return ["BIN_FLAT", "BIN_IVF_FLAT"]
 
 def gen_collection_name():
-    return f'ut-collection-' + str(random.randint(100000, 999999))
+    return f'ut_collection_' + str(random.randint(100000, 999999))
 
 
 def gen_partition_name():
-    return f'ut-partition-' + str(random.randint(100000, 999999))
+    return f'ut_partition_' + str(random.randint(100000, 999999))
 
 
 def gen_index_name():
-    return f'ut-index-' + str(random.randint(100000, 999999))
+    return f'ut_index_' + str(random.randint(100000, 999999))
 
 
 def gen_field_name():
-    return f'ut-field-' + str(random.randint(100000, 999999))
+    return f'ut_field_' + str(random.randint(100000, 999999))
 
 
 def gen_schema():
-    from pymilvus_orm.schema import CollectionSchema, FieldSchema
+    from pymilvus import CollectionSchema, FieldSchema
     fields = [
         FieldSchema(gen_field_name(), DataType.INT64, is_primary=True, auto_id=False),
         FieldSchema(gen_field_name(), DataType.FLOAT),

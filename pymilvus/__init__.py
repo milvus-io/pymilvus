@@ -1,4 +1,14 @@
-# -*- coding: utf-8 -*-
+# Copyright (C) 2019-2021 Zilliz. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License
+# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+# or implied. See the License for the specific language governing permissions and limitations under
+# the License.
 
 from .client.stub import Milvus
 from .client.prepare import Prepare
@@ -18,17 +28,7 @@ from .client import __version__
 
 """client module"""
 from .orm.pymilvus_orm.collection import Collection
-from .orm.pymilvus_orm.connections import (
-    Connections,
-    connections,
-    add_connection,
-    list_connections,
-    get_connection_addr,
-    remove_connection,
-    connect,
-    get_connection,
-    disconnect
-)
+from .orm.pymilvus_orm.connections import connections, Connections
 
 from .orm.pymilvus_orm.index import Index
 from .orm.pymilvus_orm.partition import Partition
@@ -40,6 +40,7 @@ from .orm.pymilvus_orm.utility import (
     has_collection,
     has_partition,
     list_collections,
+    drop_collection,
 )
 
 from .orm.pymilvus_orm import utility
@@ -53,8 +54,8 @@ from .orm.pymilvus_orm.exceptions import ExceptionsMessage
 __all__ = [
     # pymilvus orm'styled APIs
     'Collection', 'Index', 'Partition',
-    'Connections', 'connections', 'add_connection', 'list_connections', 'get_connection_addr', 'remove_connection', 'connect', 'get_connection', 'disconnect',
-    'loading_progress', 'index_building_progress', 'wait_for_loading_complete', 'has_collection', 'has_partition', 'list_collections',
+    'connections',
+    'loading_progress', 'index_building_progress', 'wait_for_loading_complete', 'has_collection', 'has_partition', 'list_collections', 'wait_for_loading_complete', 'wait_for_index_building_complete', 'drop_collection',
     'SearchResult', 'Hits', 'Hit',
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',
