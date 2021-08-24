@@ -24,6 +24,8 @@ Methods
 +--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------+
 | `list_collections([timeout, using]) <#pymilvus.utility.list_collections>`_                                                     | List all collections.                   |
 +--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------+
+| `drop_collections(collection_name, [timeout, using]) <#pymilvus.utility.drop_collection>`_                                     | Drop a collection by name.              |
++--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------+
 
 APIs References
 ---------------
@@ -31,4 +33,5 @@ APIs References
 .. automodule:: pymilvus.utility 
    :member-order: bysource
    :members: loading_progress, wait_for_loading_complete, index_building_progress,
-             wait_for_index_building_complete, has_collection, has_partition, list_collections
+             wait_for_index_building_complete, has_collection, has_partition, list_collections,
+             drop_collection

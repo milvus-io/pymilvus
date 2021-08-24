@@ -190,9 +190,9 @@ class Milvus:
         """
         Close client instance
         """
-        if self._pool:
-            self._pool = None
-            return
+        self._pool = None
+        return
+
         raise Exception("connection was already closed!")
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
