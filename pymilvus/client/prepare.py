@@ -833,10 +833,10 @@ class Prepare:
             m = p["metric"].upper()
             if vtype == _TYPE_FLOAT and (m not in metrics_f):
                 msg = "{} metric type is invalid for float vector"
-                raise ParamError(msg.format(m))
+                raise ParamError(msg.format(p["metric"]))
             if vtype == _TYPE_BIN and (m not in metrics_b):
                 msg = "{} metric type is invalid for binary vector"
-                raise ParamError(msg.format(m))
+                raise ParamError(msg.format(p["metric"]))
 
         postcheck_params(type_left, params)
         postcheck_params(type_right, params)
