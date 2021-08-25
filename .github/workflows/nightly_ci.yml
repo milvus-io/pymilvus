@@ -1,0 +1,59 @@
+name: Nightly CI
+on:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    #         ┌───────────── minute (0 - 59)
+    #         │ ┌───────────── hour (0 - 23)
+    #         │ │ ┌───────────── day of the month (1 - 31)
+    #         │ │ │ ┌───────────── month (1 - 12 or JAN-DEC)
+    #         │ │ │ │ ┌───────────── day of the week (0 - 6 or SUN-SAT)
+    #         │ │ │ │ │
+    #         │ │ │ │ │
+    #         │ │ │ │ │
+    - cron:  '* 10 * * *'
+
+jobs:
+  nightly:
+    name: Run Nightly CI
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+    env:
+      IMAGE_REPO: "milvusdb"
+      TAG_PREFIX: "master-"
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Get the latest of Milvus dev image tag
+      shell: bash
+      id: extracter
+      working-directory: ci/scripts
+      run: echo "::set-output name=tag::$(./docker_image_find_tag.sh -n ${IMAGE_REPO}/milvus-dev -t ${TAG_PREFIX}latest -f ${TAG_PREFIX} -F -L -q)"
+
+    - name: Install Milvus
+      working-directory: ci/docker/milvus
+      run: |
+        IMAGE_TAG=${{ steps.extracter.outputs.tag }}  docker-compose up -d
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Clone Milvus Repo
+      uses: actions/checkout@v2
+      with:
+        repository: milvus-io/milvus
+        path: 'milvus'
+
+    - name: Install PyMilvus
+      run: |
+        python3 -m pip install --no-cache-dir -r milvus/tests/python_client/requirements.txt
+        python3 -m pip uninstall -y pymilvus
+        python3 setup.py install
+
+    - name: Smoke Test
+      working-directory: milvus/tests/python_client
+      run: |
+        pytest -n 2 --tags L0
