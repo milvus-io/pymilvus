@@ -1163,6 +1163,7 @@ class GrpcHandler:
         params = params or {"metric": config.CALC_DIST_METRIC}
         if "metric_type" in params.keys():
             params["metric"] = params["metric_type"]
+            params.pop("metric_type")
 
         req = Prepare.calc_distance_request(vectors_left, vectors_right, params)
         future = self._stub.CalcDistance.future(req, wait_for_ready=True, timeout=timeout)
