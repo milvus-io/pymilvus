@@ -723,7 +723,7 @@ class GrpcHandler:
             def _check():
                 if kwargs.get("sync", True):
                     index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
-                                                                              field_name=field_name)
+                                                                              field_name=field_name, timeout=timeout)
                     if not index_success:
                         raise BaseException(Status.UNEXPECTED_ERROR, fail_reason)
 
@@ -741,7 +741,7 @@ class GrpcHandler:
 
         if kwargs.get("sync", True):
             index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
-                                                                      field_name=field_name)
+                                                                      field_name=field_name, timeout=timeout)
             if not index_success:
                 raise BaseException(Status.UNEXPECTED_ERROR, fail_reason)
 
@@ -786,6 +786,7 @@ class GrpcHandler:
 
     @error_handler(False)
     def wait_for_creating_index(self, collection_name, field_name, timeout=None):
+        start = time.time()
         while True:
             time.sleep(0.5)
             state, fail_reason = self.get_index_state(collection_name, field_name, timeout)
@@ -793,6 +794,10 @@ class GrpcHandler:
                 return True, fail_reason
             if state == IndexState.Failed:
                 return False, fail_reason
+            end = time.time()
+            if timeout is not None:
+                if end - start > timeout:
+                    raise BaseException(1, "CreateIndex Timeout")
 
     @error_handler()
     def load_collection(self, db_name, collection_name, timeout=None, **kwargs):
