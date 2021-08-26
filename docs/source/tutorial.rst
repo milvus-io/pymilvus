@@ -23,7 +23,7 @@ Before we start, there are some prerequisites.
 Make sure that:
 
 - You have a running Milvus instance.
-- PyMilvus is correctly :doc:`install`.
+- PyMilvus is correctly installed, see :doc:`install`.
 
 Connect to Milvus
 =================
