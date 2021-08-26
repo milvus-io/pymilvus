@@ -1078,16 +1078,19 @@ class Milvus:
         or
         `{"bin_vectors": [b'\x94', b'N', ... b'\xca']}`
 
-        :param params: parameters, currently only support "metric_type", default value is "L2"
-                       extra parameter for "L2" distance: "sqrt", true or false, default is false
-                       extra parameter for "HAMMING" and "TANIMOTO": "dim", set this value if dimension is not a multiple of 8, otherwise the dimension will be calculted by list length
+        :param params: key-value pair parameters
+                       Key: "metric_type"/"metric"    Value: "L2"/"IP"/"HAMMING"/"TANIMOTO", default is "L2",
+                       Key: "sqrt"    Value: true or false, default is false    Only for "L2" distance
+                       Key: "dim"     Value: set this value if dimension is not a multiple of 8,
+                                             otherwise the dimension will be calculted by list length,
+                                             only for "HAMMING" and "TANIMOTO"
         :type  params: dict
-            There are examples of supported metric_type:
-                `{"metric_type": "L2"}`
+            Examples of supported metric_type:
+                `{"metric_type": "L2", "sqrt": true}`
                 `{"metric_type": "IP"}`
-                `{"metric_type": "HAMMING"}`
+                `{"metric_type": "HAMMING", "dim": 17}`
                 `{"metric_type": "TANIMOTO"}`
-            Note: "L2", "IP", "HAMMING", "TANIMOTO" are case insensitive
+            Note: metric type are case insensitive
 
         :return: 2-d array distances
         :rtype: list[list[int]] for "HAMMING" or list[list[float]] for others
