@@ -75,7 +75,7 @@ class Collection:
 
         """
 
-    def __init__(self, name, schema=None, using="default", **kwargs):
+    def __init__(self, name, schema=None, using="default", shards_num=2, **kwargs):
         """
         Constructs a collection by name, schema and other parameters.
         Connection information is contained in kwargs.
@@ -88,6 +88,10 @@ class Collection:
 
         :param using: Milvus link of create collection
         :type using: str
+
+        :param shards_num: How wide to scale collection. Corresponds to how many active datanodes
+                        can be used on insert.
+        :type shards_num: int
 
         :example:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
@@ -111,6 +115,7 @@ class Collection:
         """
         self._name = name
         self._using = using
+        self._shards_num = shards_num
         self._kwargs = kwargs
         conn = self._get_connection()
         has = conn.has_collection(self._name)
@@ -131,7 +136,7 @@ class Collection:
                 raise SchemaNotReadyException(0, ExceptionsMessage.NoSchema)
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
-                conn.create_collection(self._name, fields=schema.to_dict())
+                conn.create_collection(self._name, fields=schema.to_dict(), shards_num=self._shards_num)
                 self._schema = schema
             else:
                 raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)

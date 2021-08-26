@@ -197,7 +197,7 @@ class Milvus:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @check_connect
-    def create_collection(self, collection_name, fields, timeout=None, **kwargs):
+    def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
         """
         Creates a collection.
 
@@ -217,6 +217,10 @@ class Milvus:
                 ],
             "auto_id": True}`
 
+        :param shards_num: How wide to scale collection. Corresponds to how many active datanodes
+                        can be used on insert.
+        :type shards_num: int
+
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
@@ -230,7 +234,7 @@ class Milvus:
             BaseException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.create_collection(collection_name, fields, timeout, **kwargs)
+            return handler.create_collection(collection_name, fields, shards_num=shards_num, timeout=timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @check_connect

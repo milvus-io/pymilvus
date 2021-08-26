@@ -361,8 +361,8 @@ class GrpcHandler:
         return self._uri
 
     @error_handler()
-    def create_collection(self, collection_name, fields, timeout=None, **kwargs):
-        request = Prepare.create_collection_request(collection_name, fields, **kwargs)
+    def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
+        request = Prepare.create_collection_request(collection_name, fields, shards_num=shards_num, **kwargs)
 
         # TODO(wxyu): In grpcio==1.37.1, `wait_for_ready` is an EXPERIMENTAL argument, while it's not supported in
         #  grpcio-testing==1.37.1 . So that we remove the argument in order to using grpc-testing in unittests.

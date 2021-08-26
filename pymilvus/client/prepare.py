@@ -23,7 +23,7 @@ from .types import RangeType, DataType, MetricType, IndexType, PlaceholderType, 
 class Prepare:
 
     @classmethod
-    def create_collection_request(cls, collection_name, fields, **kwargs):
+    def create_collection_request(cls, collection_name, fields, shards_num=2, **kwargs):
         """
         :type param: dict
         :param param: (Required)
@@ -45,6 +45,7 @@ class Prepare:
 
         if "fields" not in fields:
             raise ParamError("Param fields must contains key 'fields'")
+
 
         schema = schema_types.CollectionSchema(name=collection_name)
 
@@ -125,7 +126,7 @@ class Prepare:
                 schema.fields.append(field_schema)
 
         return milvus_types.CreateCollectionRequest(collection_name=collection_name,
-                                                    schema=bytes(schema.SerializeToString()))
+                                                    schema=bytes(schema.SerializeToString()), shards_num = shards_num)
 
     @classmethod
     def drop_collection_request(cls, collection_name):
