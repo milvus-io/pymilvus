@@ -42,7 +42,7 @@ def check_connect(func):
     return inner
 
 
-def retry_on_rpc_failure(retry_times=10, wait=1):
+def retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=True):
     def wrapper(func):
         @functools.wraps(func)
         def handler(self, *args, **kwargs):
@@ -55,6 +55,8 @@ def retry_on_rpc_failure(retry_times=10, wait=1):
                     # UNAVAILABLE means that the service is not reachable currently
                     # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
                     if e.code() != grpc.StatusCode.DEADLINE_EXCEEDED and e.code() != grpc.StatusCode.UNAVAILABLE:
+                        raise e
+                    if not retry_on_deadline and e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
                         raise e
                     if counter >= retry_times:
                         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
@@ -236,7 +238,7 @@ class Milvus:
         with self._connection() as handler:
             return handler.create_collection(collection_name, fields, shards_num=shards_num, timeout=timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=False)
     @check_connect
     def drop_collection(self, collection_name, timeout=None):
         """
