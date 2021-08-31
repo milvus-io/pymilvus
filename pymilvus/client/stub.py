@@ -166,6 +166,8 @@ class Milvus:
         if self._pool:
             return self._pool.fetch()
 
+        raise Exception("Connection is already closed")
+
     def _update_connection_pool(self, channel=None):
         self._pool = None
         if self._pool_type == "QueuePool":
@@ -192,8 +194,9 @@ class Milvus:
         """
         Close client instance
         """
-        self._pool = None
-        return
+        if self._pool:
+            self._pool = None
+            return
 
         raise Exception("connection was already closed!")
 
