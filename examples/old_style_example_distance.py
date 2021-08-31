@@ -16,14 +16,16 @@ milvus = Milvus(_HOST, _PORT)
 
 _PRECISION = 1e-3
 
+
 def gen_float_vectors(num, dim):
     vec_list = [[random.random() for _ in range(dim)] for _ in range(num)]
     return vec_list
 
+
 def gen_binary_vectors(num, dim):
     zero_fill = 0
-    if dim%8 > 0:
-        zero_fill = 8 - dim%8
+    if dim % 8 > 0:
+        zero_fill = 8 - dim % 8
     binary_vectors = []
     raw_vectors = []
     for i in range(num):
@@ -34,16 +36,18 @@ def gen_binary_vectors(num, dim):
         binary_vectors.append(bytes(np.packbits(raw_vector, axis=-1).tolist()))
     return binary_vectors, raw_vectors
 
-def l2_distance(vec_l, vec_r, sqrt = False):
+
+def l2_distance(vec_l, vec_r, sqrt=False):
     if len(vec_l) != len(vec_r):
         return -1.0
 
     dist = 0.0
     for i in range(len(vec_l)):
-        dist = dist + math.pow(vec_l[i]-vec_r[i], 2)
+        dist = dist + math.pow(vec_l[i] - vec_r[i], 2)
     if sqrt:
         dist = math.sqrt(dist)
     return dist
+
 
 def ip_distance(vec_l, vec_r):
     if len(vec_l) != len(vec_r):
@@ -51,8 +55,9 @@ def ip_distance(vec_l, vec_r):
 
     dist = 0.0
     for i in range(len(vec_l)):
-        dist = dist + vec_l[i]*vec_r[i]
+        dist = dist + vec_l[i] * vec_r[i]
     return dist
+
 
 def calc_float_distance(l_count, r_count, dim, metric):
     vectors_l = gen_float_vectors(l_count, dim)
@@ -66,8 +71,8 @@ def calc_float_distance(l_count, r_count, dim, metric):
     time_start = time.time()
     results = milvus.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
     time_end = time.time()
-    print(metric, "distance(","l_count",l_count, "r_count",r_count, "dim",dim,") time cost", (time_end-time_start)*1000, "ms")
-    print(results)
+    print(f"{metric} distance(l_count {l_count}, r_count {r_count},  dim {dim}), time cost {(time_end-time_start)*1000} ms")
+    print(f"The top 3 result: {results[:3]}")
     if len(results) != l_count * r_count:
         print("Incorrect results returned by calc_distance()")
 
@@ -77,13 +82,14 @@ def calc_float_distance(l_count, r_count, dim, metric):
         for j in range(r_count):
             vec_r = vectors_r[j]
             dist_1 = l2_distance(vec_l, vec_r, sqrt) if metric == "L2" else ip_distance(vec_l, vec_r)
-            dist_2 = results[i*r_count+j]
+            dist_2 = results[i * r_count + j]
             if math.fabs(dist_1 - dist_2) > _PRECISION:
                 print("Incorrect result", dist_1, "vs", dist_2)
                 all_correct = False
 
     if all_correct:
         print("All distance are correct\n")
+
 
 def hamming_distance(vec_l, vec_r):
     if len(vec_l) != len(vec_r):
@@ -95,13 +101,15 @@ def hamming_distance(vec_l, vec_r):
             hamming = hamming + 1
     return hamming
 
+
 def tanimoto_distance(vec_l, vec_r, dim):
     if len(vec_l) != len(vec_r):
         return -1
 
     hamming = hamming_distance(vec_l, vec_r)
     same_bits = dim - hamming
-    return same_bits/(dim*2-same_bits)
+    return same_bits / (dim * 2 - same_bits)
+
 
 def calc_binary_distance(l_count, r_count, dim, metric):
     vectors_l, raw_l = gen_binary_vectors(l_count, dim)
@@ -114,8 +122,8 @@ def calc_binary_distance(l_count, r_count, dim, metric):
     time_start = time.time()
     results = milvus.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
     time_end = time.time()
-    print(metric, "distance(","l_count",l_count, "r_count",r_count, "dim",dim,") time cost", (time_end-time_start)*1000, "ms")
-    print(results)
+    print(f"{metric} distance(l_count {l_count}, r_count {r_count},  dim {dim}), time cost {(time_end-time_start)*1000} ms")
+    print(f"The top 3 result: {results[:3]}")
     if len(results) != l_count * r_count:
         print("Incorrect results returned by calc_distance()")
 
@@ -133,6 +141,7 @@ def calc_binary_distance(l_count, r_count, dim, metric):
     if all_correct:
         print("All distance are correct\n")
 
+
 def input_vectors_to_calc():
     calc_float_distance(100, 50, 256, "L2")
     calc_float_distance(5, 1000, 256, "IP")
@@ -144,6 +153,7 @@ def input_vectors_to_calc():
     calc_binary_distance(500, 5, 1, "TANIMOTO")
     calc_binary_distance(50, 150, 16, "TANIMOTO")
 
+
 def create_collection(collection, vec_field, dim):
     id_field = {
         "name": "id",
@@ -154,19 +164,19 @@ def create_collection(collection, vec_field, dim):
     vector_field = {
         "name": vec_field,
         "type": DataType.FLOAT_VECTOR,
-        "metric_type": "L2",
         "params": {"dim": dim},
-        "indexes": [{"metric_type": "L2"}]
     }
     fields = {"fields": [id_field, vector_field]}
 
     milvus.create_collection(collection_name=collection, fields=fields)
     print("collection created:", collection)
 
+
 def drop_collection(collection):
     if milvus.has_collection(collection):
         milvus.drop_collection(collection)
         print("collection dropped:", collection)
+
 
 def insert(collection, vec_field, num, dim):
     vectors = [[random.random() for _ in range(dim)] for _ in range(num)]
@@ -175,13 +185,16 @@ def insert(collection, vec_field, num, dim):
     print("insert", len(list(ids._primary_keys)), "vectors into", collection)
     return list(ids._primary_keys), vectors
 
+
 def flush(collection):
     milvus.flush([collection])
     print("collection flushed:", collection)
 
+
 def load_collection(collection):
     milvus.load_collection(collection)
     print("collection loaded:", collection)
+
 
 def insert_vectors_to_calc():
     collection_name = "test"
@@ -207,9 +220,8 @@ def insert_vectors_to_calc():
     time_start = time.time()
     results = milvus.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
     time_end = time.time()
-    print(metric, "distance(", "l_count", l_count, "r_count", r_count, "dim", dim, ") time cost",
-          (time_end - time_start) * 1000, "ms")
-    print(results)
+    print(f"{metric} distance(l_count {l_count}, r_count {r_count},  dim {dim}), time cost {(time_end-time_start)*1000} ms")
+    print(f"The top 3 result: {results[:3]}")
     if len(results) != l_count * r_count:
         print("Incorrect results returned by calc_distance()")
 
@@ -226,6 +238,7 @@ def insert_vectors_to_calc():
 
     if all_correct:
         print("All distance are correct\n")
+
 
 if __name__ == '__main__':
     input_vectors_to_calc()

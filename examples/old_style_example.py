@@ -30,6 +30,7 @@ _TOPK = 10
 # Create milvus client instance
 milvus = Milvus(_HOST, _PORT)
 
+
 def create_collection(name):
     id_field = {
         "name": _ID_FIELD_NAME,
@@ -40,29 +41,31 @@ def create_collection(name):
     vector_field = {
         "name": _VECTOR_FIELD_NAME,
         "type": DataType.FLOAT_VECTOR,
-        "metric_type": "L2",
         "params": {"dim": _DIM},
-        "indexes": [{"metric_type": "L2"}]
     }
     fields = {"fields": [id_field, vector_field]}
 
     milvus.create_collection(collection_name=name, fields=fields)
     print("collection created:", name)
 
+
 def drop_collection(name):
     if milvus.has_collection(name):
         milvus.drop_collection(name)
         print("collection dropped:", name)
+
 
 def list_collections():
     collections = milvus.list_collections()
     print("list collection:")
     print(collections)
 
+
 def get_collection_stats(name):
     stats = milvus.get_collection_stats(name)
     print("collection stats:")
     print(stats)
+
 
 def insert(name, num, dim):
     vectors = [[random.random() for _ in range(dim)] for _ in range(num)]
@@ -70,8 +73,10 @@ def insert(name, num, dim):
     ids = milvus.insert(name, entities)
     return ids, vectors
 
+
 def flush(name):
     milvus.flush([name])
+
 
 def create_index(name, field_name):
     index_param = {
@@ -82,15 +87,19 @@ def create_index(name, field_name):
     milvus.create_index(name, field_name, index_param)
     print("Create index: {}".format(index_param))
 
+
 def drop_index(name, field_name):
     milvus.drop_index(name, field_name)
     print("Drop index:", field_name)
 
+
 def load_collection(name):
     milvus.load_collection(name)
 
+
 def release_collection(name):
     milvus.release_collection(name)
+
 
 def search(name, vector_field, search_vectors, ids):
     nq = len(search_vectors)
@@ -101,6 +110,7 @@ def search(name, vector_field, search_vectors, ids):
             print("OK! search results: ", results[i][0].entity)
         else:
             print("FAIL! search results: ", results[i][0].entity)
+
 
 def main():
     name = _COLLECTION_NAME
@@ -133,6 +143,7 @@ def main():
     drop_index(name, vector_field)
     release_collection(name)
     drop_collection(name)
+
 
 if __name__ == '__main__':
     main()

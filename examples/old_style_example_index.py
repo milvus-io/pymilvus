@@ -29,7 +29,8 @@ if collection_name in client.list_collections():
 
 collection_param = {
     "fields": [
-        {"name": "release_year", "type": DataType.INT64, "is_primary": True},
+        {"name": "id", "type": DataType.INT64, "is_primary": True},
+        {"name": "release_year", "type": DataType.INT64},
         {"name": "embedding", "type": DataType.FLOAT_VECTOR, "params": {"dim": 8}},
     ],
 }
@@ -69,6 +70,7 @@ for film in films:
 
 
 hybrid_entities = [
+    {"name": "id", "values": ids, "type": DataType.INT64},
     {"name": "release_year", "values": release_years, "type": DataType.INT64},
     {"name": "embedding", "values": embeddings, "type": DataType.FLOAT_VECTOR},
 ]
@@ -79,10 +81,10 @@ hybrid_entities = [
 #     After preparing the data, we are going to insert them into our collection.
 #     The number of films inserted should be 8657.
 # ------
-ids = client.insert(collection_name, hybrid_entities, ids)
+ids = client.insert(collection_name, hybrid_entities)
 
 client.flush([collection_name])
-after_flush_counts = client.count_entities(collection_name)
+after_flush_counts = client.get_collection_stats(collection_name)
 print(" > There are {} films in collection `{}` after flush".format(after_flush_counts, collection_name))
 
 
@@ -110,44 +112,38 @@ info = client.describe_collection(collection_name)
 pprint(info)
 
 # ------
-# Basic hybrid search entities:
+# Basic load collection:
+#     Before search, we need to load collection data into memory.
+# ------
+client.load_collection(collection_name)
+
+# ------
+# Basic search with expressions:
 #     If we want to use index, the specific index params need to be provided, in our case, the "params"
 #     should be "nprobe", if no "params" given, Milvus will complain about it and raise a exception.
 # ------
-query_embedding = [random.random() for _ in range(8)]
-query_hybrid = {
-    "bool": {
-        "must": [
-            {
-                "term": {"release_year": [2002, 1995]}
-            },
-            {
-                "vector": {
-                    "embedding": {"topk": 3,
-                                  "query": [query_embedding],
-                                  "metric_type": "L2",
-                                  "params": {"nprobe": 8}}
-                }
-            }
-        ]
-    }
+embedding2search = [[random.random() for _ in range(8)] for _ in range(1)]
+search_param = {
+    "data": embedding2search,
+    "anns_field": "embedding",
+    "param": {"metric_type": "L2", "params": {"nprobe": 8}},
+    "limit": 3,
+    "output_fields": ["release_year"],
+    "expression": "release_year in [1995, 2002]",
 }
 
 # ------
 # Basic hybrid search entities
 # ------
-results = client.search(collection_name, query_hybrid, fields=["release_year", "embedding"])
+results = client.search_with_expression(collection_name, **search_param)
 for entities in results:
     for topk_film in entities:
         current_entity = topk_film.entity
         print("==")
-        print("- id: {}".format(topk_film.id))
-        print("- title: {}".format(titles[topk_film.id]))
-        print("- distance: {}".format(topk_film.distance))
-
-        print("- release_year: {}".format(current_entity.release_year))
-        print("- embedding: {}".format(current_entity.embedding))
-
+        print(f"- id: {topk_film.id}")
+        print(f"- title: {titles[topk_film.id]}")
+        print(f"- distance: {topk_film.distance}")
+        print(f"- release_year: {current_entity.release_year}")
 
 # ------
 # Basic delete index:
