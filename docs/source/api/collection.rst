@@ -57,6 +57,8 @@ Methods
 +---------------------------------------------------------------+--------------------------------------------------------------------------+
 | `insert() <#pymilvus.Collection.insert>`_                     | Insert data into collection.                                             |
 +---------------------------------------------------------------+--------------------------------------------------------------------------+
+| `delete() <#pymilvus.Collection.delete>`_                     | Delete entities with an expression condition.                            |
++---------------------------------------------------------------+--------------------------------------------------------------------------+
 | `search() <#pymilvus.Collection.search>`_                     | Vector similarity search with an optional boolean expression as filters. |
 +---------------------------------------------------------------+--------------------------------------------------------------------------+
 | `query() <#pymilvus.Collection.query>`_                       | Query with a set of criteria.                                            |
@@ -86,5 +88,5 @@ APIs References
    :member-order: bysource
    :special-members: __init__
    :members: schema, description, name, is_empty, num_entities, primary_field, partitions, indexes,
-             drop, load, release, insert, search, query, partition, create_partition, has_partition, drop_partition,
+             drop, load, release, insert, delete, search, query, partition, create_partition, has_partition, drop_partition,
              index, create_index, has_index, drop_index

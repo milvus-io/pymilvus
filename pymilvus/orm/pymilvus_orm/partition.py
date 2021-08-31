@@ -274,6 +274,57 @@ class Partition:
             return MutationFuture(res)
         return MutationResult(res)
 
+    def delete(self, expr, timeout=None, **kwargs):
+        """
+        Delete entities with an expression condition.
+        And return results to show which primary key is deleted successfully
+
+        :param expr: The query expression
+        :type  expr: str
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :return: list of ids of the deleted vectors.
+        :rtype: list
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+
+        :example:
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_insert", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> data = [
+            ...     [i for i in range(10)],
+            ...     [[float(i) for i in range(2)] for _ in range(10)],
+            ... ]
+            >>> partition.insert(data)
+            >>> partition.num_entities
+            >>> partition.num_entities
+
+            >>> expr = "film_id in [ 0, 1 ]"
+            >>> res = partition.delete(expr)
+            >>> assert len(res) == 2
+            >>> print(f"- Deleted entities: {res}")
+            - Delete results: [0, 1]
+        """
+
+        conn = self._get_connection()
+        res = conn.delete(collection_name=self._collection.name, expr=expr,
+                          partition_name=self._partition_name, timeout=timeout, **kwargs)
+        if kwargs.get("_async", False):
+            return MutationFuture(res)
+        return MutationResult(res)
+
     def search(self, data, anns_field, param, limit, expr=None, output_fields=None, timeout=None,
                **kwargs):
         """

@@ -540,6 +540,22 @@ class GrpcHandler:
                 return MutationFuture(None, None, err)
             raise err
 
+    @error_handler(None)
+    def delete(self, collection_name, expression, partition_name=None, timeout=None, **kwargs):
+        try:
+            req = Prepare.delete_request(collection_name, partition_name, expression)
+            future = self._stub.Delete.future(req, wait_for_ready=True, timeout=timeout)
+
+            response = future.result()
+            if response.status.error_code == 0:
+                return MutationResult(response)
+
+            raise BaseException(response.status.error_code, response.status.reason)
+        except Exception as err:
+            if kwargs.get("_async", False):
+                return MutationFuture(None, None, err)
+            raise err
+
     def _prepare_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
                                 **kwargs):
         rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,

@@ -120,6 +120,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.InsertRequest.SerializeToString,
                 response_deserializer=milvus__pb2.MutationResult.FromString,
                 )
+        self.Delete = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/Delete',
+                request_serializer=milvus__pb2.DeleteRequest.SerializeToString,
+                response_deserializer=milvus__pb2.MutationResult.FromString,
+                )
         self.Search = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Search',
                 request_serializer=milvus__pb2.SearchRequest.SerializeToString,
@@ -296,6 +301,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Delete(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def Search(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -458,6 +469,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'Insert': grpc.unary_unary_rpc_method_handler(
                     servicer.Insert,
                     request_deserializer=milvus__pb2.InsertRequest.FromString,
+                    response_serializer=milvus__pb2.MutationResult.SerializeToString,
+            ),
+            'Delete': grpc.unary_unary_rpc_method_handler(
+                    servicer.Delete,
+                    request_deserializer=milvus__pb2.DeleteRequest.FromString,
                     response_serializer=milvus__pb2.MutationResult.SerializeToString,
             ),
             'Search': grpc.unary_unary_rpc_method_handler(
@@ -868,6 +884,23 @@ class MilvusService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/Insert',
             milvus__pb2.InsertRequest.SerializeToString,
+            milvus__pb2.MutationResult.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Delete(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/Delete',
+            milvus__pb2.DeleteRequest.SerializeToString,
             milvus__pb2.MutationResult.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

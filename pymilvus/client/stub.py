@@ -860,6 +860,39 @@ class Milvus:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @check_connect
+    def delete(self, collection_name, expr, partition_name=None, timeout=None, **kwargs):
+        """
+        Delete entities with an expression condition.
+        And return results to show which primary key is deleted successfully
+
+        :param collection_name: Name of the collection to delete entities from
+        :type  collection_name: str
+
+        :param expr: The query expression
+        :type  expr: str
+
+        :param partition_name: Name of partitions that contain entities
+        :type  partition_name: str
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :return: list of ids of the deleted vectors.
+        :rtype: list
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        print(collection_name, expr, partition_name)
+        with self._connection() as handler:
+            return handler.delete(collection_name, expr, partition_name, timeout, **kwargs)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @check_connect
     def flush(self, collection_names=None, timeout=None, **kwargs):
         """
         Internally, Milvus organizes data into segments, and indexes are built in a per-segment manner.
