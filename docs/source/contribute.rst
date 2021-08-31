@@ -87,5 +87,5 @@ In the root directory, run ``pylint --rcfile=pylint.conf pymilvus`` to make sure
 **4. For documentations**
 
 You need to enter the ``doc`` directory and run ``make html``, please refer to
-`About this documentations <https://milvus.io/api-reference/pymilvus/v2.0.0rc4/about.html>`_.
+`About this documentations <https://milvus.io/api-reference/pymilvus/v2.0.0rc5/about.html>`_.
 
