@@ -366,6 +366,23 @@ class Prepare:
         return insert_request
 
     @classmethod
+    def delete_request(cls, collection_name, partition_name, expr):
+        def check_str(input, prefix):
+            if (input == None):
+                raise ParamError(prefix + " cannot be None")
+            if (input == None) or (not isinstance(input, str)):
+                msg = prefix + " value {} is illegal"
+                raise ParamError(msg.format(input))
+
+        check_str(collection_name, "collection_name")
+        check_str(expr, "expr")
+
+        default_partition_name = "_default"  # should here?
+        partition_name = partition_name or default_partition_name
+        request = milvus_types.DeleteRequest(collection_name=collection_name, expr = expr, partition_name=partition_name)
+        return request
+
+    @classmethod
     def _prepare_placeholders(cls, vectors, nq, max_nq_per_batch, tag, pl_type, is_binary, dimension=0):
         pls = []
         for begin in range(0, nq, max_nq_per_batch):
