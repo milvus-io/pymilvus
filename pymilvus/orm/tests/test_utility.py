@@ -3,6 +3,7 @@ from utils import *
 from pymilvus import utility
 
 
+@pytest.mark.xfail
 class TestCollectionSchema:
     def test_loading_progress(self):
         utility.loading_progress(gen_collection_name(), [gen_partition_name()])

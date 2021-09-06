@@ -9,8 +9,8 @@ from mock_milvus import MockMilvus
 from pymilvus import connections
 
 
-@pytest.fixture(scope='session', autouse=True)
-def create_collection():
-    connections.connect()
-    yield
-    connections.remove_connection(alias='default')
+#  @pytest.fixture(scope='session', autouse=True)
+#  def create_collection():
+#      connections.connect()
+#      yield
+#      connections.remove_connection(alias='default')

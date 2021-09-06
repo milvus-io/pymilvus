@@ -6,6 +6,7 @@ from pymilvus import Collection, Index, connections, Connections
 LOGGER = logging.getLogger(__name__)
 
 
+@pytest.mark.skip("Connect with the real server")
 class TestIndex:
     @pytest.fixture(scope="function")
     def name(self):
