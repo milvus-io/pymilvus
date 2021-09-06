@@ -9,7 +9,7 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
-from pymilvus import Collection, connections, FieldSchema, CollectionSchema, DataType
+from pymilvus import Collection, connections, FieldSchema, CollectionSchema, DataType, utility
 
 import random
 import numpy as np
@@ -173,9 +173,16 @@ connections.connect(alias="default")
 
 
 def test_create_collection():
-    collection = Collection(name=gen_unique_str(), schema=gen_default_fields())
+    name = gen_unique_str()
+    collection = Collection(name=name, schema=gen_default_fields())
     assert collection.is_empty is True
     assert collection.num_entities == 0
+    return name
+
+
+def test_exist_collection(name):
+    assert utility.has_collection(name) is True
+    collection = Collection(name)
     collection.drop()
 
 
@@ -233,8 +240,10 @@ def test_specify_primary_key():
     collection2.drop()
 
 
-print("test collection")
-test_create_collection()
+print("test collection and get an existing collection")
+name = test_create_collection()
+print("test an existing collection")
+test_exist_collection(name)
 print("test collection only name")
 test_collection_only_name()
 print("test collection with dataframe")
