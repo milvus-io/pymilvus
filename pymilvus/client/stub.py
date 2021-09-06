@@ -134,25 +134,22 @@ class Milvus:
 
     @check_connect
     def _wait_for_healthy(self, timeout=30, retry=10):
-        _timeout_on_every_retry = self._kw.get("timeout", None)
-        _timeout = _timeout_on_every_retry if _timeout_on_every_retry else timeout
         with self._connection() as handler:
-            start_time = time.time()
             while retry > 0:
-                if (time.time() - start_time > _timeout):
-                    break
+                is_except = False
                 try:
-                    status = handler.fake_register_link(_timeout)
+                    status = handler.fake_register_link(timeout)
                     if status.error_code == 0:
                         self._deploy_mode = status.reason
                         return
-                except Exception:
-                    pass
+                except:
+                    is_except = True
                 finally:
-                    time.sleep(1)
-                    retry -= 1
+                    sleep_time = 1 if is_except else timeout
+                    time.sleep(sleep_time)
+                    retry -=1
             raise Exception("server is not healthy, please try again later")
-
+            
     def __enter__(self):
         self._conn = self._pool.fetch()
         return self
