@@ -175,4 +175,4 @@ class PlaceholderType(IntEnum):
 
 class DeployMode:
     Distributed = "DISTRIBUTED"
-    StandAlone = "SINGLE_NODE"
+    StandAlone = "STANDALONE"
