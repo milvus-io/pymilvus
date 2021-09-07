@@ -116,6 +116,8 @@ class Milvus:
         self._status = None
         self._connected = False
         self._handler = handler
+        # store extra key-words arguments
+        self._kw = kwargs
 
         if handler != "GRPC":
             raise NotImplementedError("only grpc handler is supported now!")
@@ -126,8 +128,6 @@ class Milvus:
         self._pool_kwargs = _pool_args(handler=handler, **kwargs)
         self._update_connection_pool(channel=channel)
 
-        # store extra key-words arguments
-        self._kw = kwargs
         self._hooks = collections.defaultdict()
 
         self._deploy_mode = DeployMode.Distributed
