@@ -122,8 +122,7 @@ class Milvus:
         self._pool_kwargs = _pool_args(handler=handler, **kwargs)
         self._update_connection_pool(channel=channel)
 
-        # store extra key-words arguments
-       
+
         self._hooks = collections.defaultdict()
 
         self._deploy_mode = DeployMode.Distributed
