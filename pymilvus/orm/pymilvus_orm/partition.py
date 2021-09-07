@@ -42,6 +42,7 @@ class Partition:
             'name': self.name,
             'collection_name': self._collection.name,
             'description': self.description,
+            'num_entities': self.num_entities
         })
 
     def _get_connection(self):
