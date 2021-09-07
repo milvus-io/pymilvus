@@ -1182,5 +1182,3 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout)
-
-
