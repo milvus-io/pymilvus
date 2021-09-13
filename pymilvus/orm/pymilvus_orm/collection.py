@@ -133,7 +133,7 @@ class Collection:
 
         else:
             if schema is None:
-                raise SchemaNotReadyException(0, ExceptionsMessage.NoSchema)
+                raise SchemaNotReadyException(0, ExceptionsMessage.CollectionNotExistNoSchema % name)
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
                 conn.create_collection(self._name, fields=schema.to_dict(), shards_num=self._shards_num)
