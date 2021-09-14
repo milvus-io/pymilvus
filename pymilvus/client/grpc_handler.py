@@ -822,8 +822,8 @@ class GrpcHandler:
         response = rf.result()
         if response.error_code != 0:
             raise BaseException(response.error_code, response.reason)
-        sync = kwargs.get("sync", True)
-        if sync:
+        _async = kwargs.get("_async", False)
+        if not _async:
             self.wait_for_loading_collection(collection_name, timeout)
 
     @error_handler()
