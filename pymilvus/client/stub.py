@@ -310,7 +310,7 @@ class Milvus:
             return handler.describe_collection(collection_name, timeout)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
-    def load_collection(self, collection_name, timeout=None):
+    def load_collection(self, collection_name, timeout=None, **kwargs):
         """
         Loads a specified collection from disk to memory.
 
@@ -331,7 +331,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.load_collection("", collection_name=collection_name, timeout=timeout)
+            return handler.load_collection("", collection_name=collection_name, timeout=timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def release_collection(self, collection_name, timeout=None):

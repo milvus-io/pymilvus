@@ -415,10 +415,13 @@ class Collection:
         :param partition_names: The specified partitions to load.
         :type partition_names: list[str]
 
-        :param timeout:
-            * *timeout* (``float``) --
-              An optional duration of time in seconds to allow for the RPC. If timeout
+        :param timeout:An optional duration of time in seconds to allow for the RPC. If timeout
               is set to None, the client keeps waiting until the server responds or error occurs.
+        :type timeout: float
+
+        :param kwargs:
+            * *_async* (``bool``) --
+            Indicate if invoke asynchronously.
 
         :raises CollectionNotExistException: If the collection does not exist.
         :raises ParamError: If the parameters are invalid.
