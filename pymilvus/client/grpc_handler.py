@@ -996,8 +996,18 @@ class GrpcHandler:
         if status.error_code != 0:
             raise BaseException(status.error_code, status.reason)
 
-        pIDs = [response.partitionIDs[index] for index, p_name in enumerate(response.partition_names)
-                if p_name in partition_names]
+        pIDs = []
+        pNames = []
+        for index, p_name in enumerate(response.partition_names):
+            if p_name in partition_names:
+                pIDs.append(response.partitionIDs[index])
+                pNames.append((p_name))
+
+        # all partition names must be valid, otherwise throw exception
+        for name in partition_names:
+            if not name in pNames:
+                msg = "partitionID of partitionName:" + name + " can not be found"
+                raise BaseException(1, msg)
 
         total_segments_nums = sum(info.num_rows for info in
                                   self.get_persistent_segment_infos(collection_name, timeout)
