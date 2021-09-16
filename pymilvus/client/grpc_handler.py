@@ -697,24 +697,24 @@ class GrpcHandler:
 
     @error_handler()
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
+        collection_desc = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+        valid_field = False
+        for fields in collection_desc["fields"]:
+            if field_name != fields["name"]:
+                continue
+            if fields["type"] != DataType.FLOAT_VECTOR and fields["type"] != DataType.BINARY_VECTOR:
+                # TODO: add new error type
+                raise BaseException(Status.UNEXPECTED_ERROR,
+                                    "cannot create index on non-vector field: " + str(field_name))
+            valid_field = True
+            break
+        if not valid_field:
+            # TODO: add new error type
+            raise BaseException(Status.UNEXPECTED_ERROR,
+                                "cannot create index on non-existed field: " + str(field_name))
         index_type = params["index_type"].upper()
         if index_type == "FLAT":
             try:
-                collection_desc = self.describe_collection(collection_name, timeout=timeout, **kwargs)
-                valid_field = False
-                for fields in collection_desc["fields"]:
-                    if field_name != fields["name"]:
-                        continue
-                    if fields["type"] != DataType.FLOAT_VECTOR and fields["type"] != DataType.BINARY_VECTOR:
-                        # TODO: add new error type
-                        raise BaseException(Status.UNEXPECTED_ERROR,
-                                            "cannot create index on non-vector field: " + field_name)
-                    valid_field = True
-                    break
-                if not valid_field:
-                    # TODO: add new error type
-                    raise BaseException(Status.UNEXPECTED_ERROR,
-                                        "cannot create index on non-existed field: " + field_name)
                 index_desc = self.describe_index(collection_name, "", timeout=timeout, **kwargs)
                 if index_desc is not None:
                     self.drop_index(collection_name, field_name, "_default_idx", timeout=timeout, **kwargs)
