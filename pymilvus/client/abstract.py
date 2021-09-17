@@ -44,6 +44,9 @@ class LoopBase(object):
         self.__index = 0
         raise StopIteration()
 
+    def __str__(self):
+        return str(list(map(str, self.__getitem__(slice(None)))))
+
     @abc.abstractmethod
     def get__item(self, item):
         raise NotImplementedError()
