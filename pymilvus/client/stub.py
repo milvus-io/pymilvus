@@ -602,6 +602,103 @@ class Milvus:
             return result
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
+    def create_alias(self, collection_name, alias, timeout=None, **kwargs):
+        """
+        Specify alias for a collection.
+        Alias cannot be duplicated, you can't assign same alias to different collections.
+        But you can specify multiple aliases for a collection, for example:
+            before create_alias("collection_1", "bob"):
+                collection_1's aliases = ["tom"]
+            after create_alias("collection_1", "bob"):
+                collection_1's aliases = ["tom", "bob"]
+
+        :param collection_name: The name of collection.
+        :type  collection_name: str.
+
+        :param alias: The alias of the collection.
+        :type  alias: str.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.create_alias(collection_name, alias, timeout, **kwargs)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    def drop_alias(self, alias, timeout=None, **kwargs):
+        """
+        Delete an alias.
+        This api no need to specify collection name because the milvus server knows which collection it belongs.
+        For example:
+            before drop_alias("bob"):
+                collection_1's aliases = ["tom", "bob"]
+            after drop_alias("bob"):
+                collection_1's aliases = ["tom"]
+
+        :param alias: The alias to be deleted.
+        :type  alias: str.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        with self._connection() as handler:
+            return handler.drop_alias(alias, timeout, **kwargs)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    def alter_alias(self, collection_name, alias, timeout=None, **kwargs):
+        """
+        Change alias of a collection to another collection. If the alias doesn't exist, the api will return error.
+        Alias cannot be duplicated, you can't assign same alias to different collections.
+        This api can change alias owner collection, for example:
+            before alter_alias("collection_2", "bob"):
+                collection_1's aliases = ["bob"]
+                collection_2's aliases = []
+            after alter_alias("collection_2", "bob"):
+                collection_1's aliases = []
+                collection_2's aliases = ["bob"]
+
+        :param collection_name: The name of collection.
+        :type  collection_name: str.
+
+        :param alias: The new alias of the collection.
+        :type  alias: str.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.alter_alias(collection_name, alias, timeout, **kwargs)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         """
         Creates an index for a field in a specified collection. Milvus does not support creating multiple

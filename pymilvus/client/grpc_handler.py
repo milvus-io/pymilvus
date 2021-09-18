@@ -695,6 +695,30 @@ class GrpcHandler:
             if load_index_done():
                 return
 
+    @error_handler(None)
+    def create_alias(self, collection_name, alias, timeout=None, **kwargs):
+        request = Prepare.create_alias_request(collection_name, alias)
+        rf = self._stub.CreateAlias.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
+
+    @error_handler(None)
+    def drop_alias(self, alias, timeout=None, **kwargs):
+        request = Prepare.drop_alias_request(alias)
+        rf = self._stub.DropAlias.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
+
+    @error_handler(None)
+    def alter_alias(self, collection_name, alias, timeout=None, **kwargs):
+        request = Prepare.alter_alias_request(collection_name, alias)
+        rf = self._stub.AlterAlias.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
+
     @error_handler()
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         collection_desc = self.describe_collection(collection_name, timeout=timeout, **kwargs)
