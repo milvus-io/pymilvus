@@ -31,3 +31,4 @@ TODO
 htmlcov/
 debug/
 .codecov.yml
+coverage.xml
