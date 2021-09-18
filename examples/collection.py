@@ -239,6 +239,14 @@ def test_specify_primary_key():
     assert len(collection2.indexes) != 0
     collection2.drop()
 
+def test_alias():
+    name = gen_unique_str()
+    collection = Collection(name=name, schema=gen_default_fields())
+    assert len(collection.aliases) == 0
+
+    alias = "tom"
+    collection.drop_alias(alias)
+    collection.create_alias(alias)
 
 print("test collection and get an existing collection")
 name = test_create_collection()
@@ -254,4 +262,6 @@ print("test collection binary vector")
 test_create_index_binary_vector()
 print("test collection specify primary key")
 test_specify_primary_key()
+print("test alias")
+test_alias()
 print("test end")

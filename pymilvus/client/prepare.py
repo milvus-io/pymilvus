@@ -656,6 +656,18 @@ class Prepare:
         return requests
 
     @classmethod
+    def create_alias_request(cls, collection_name, alias):
+        return milvus_types.CreateAliasRequest(collection_name=collection_name, alias=alias)
+
+    @classmethod
+    def drop_alias_request(cls, alias):
+        return milvus_types.DropAliasRequest(alias=alias)
+
+    @classmethod
+    def alter_alias_request(cls, collection_name, alias):
+        return milvus_types.AlterAliasRequest(collection_name=collection_name, alias=alias)
+
+    @classmethod
     def create_index__request(cls, collection_name, field_name, params):
         index_params = milvus_types.CreateIndexRequest(collection_name=collection_name, field_name=field_name)
 
