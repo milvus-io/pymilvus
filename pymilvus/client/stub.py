@@ -120,8 +120,6 @@ class Milvus:
         self._pool_kwargs = _pool_args(handler=handler, **kwargs)
         self._update_connection_pool(channel=channel)
 
-        self._hooks = collections.defaultdict()
-
         self._deploy_mode = DeployMode.Distributed
 
     def _wait_for_healthy(self, timeout=30, retry=10):
