@@ -45,7 +45,7 @@ class LoopBase(object):
         raise StopIteration()
 
     def __str__(self):
-        return str(list(map(str, self.__getitem__(slice(None)))))
+        return str(list(map(str, self.__getitem__(slice(0, 10)))))
 
     @abc.abstractmethod
     def get__item(self, item):
