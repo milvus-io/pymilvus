@@ -10,7 +10,8 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .types import Status, DataType, DeployMode
-from .check import check_pass_param, is_legal_host, is_legal_port, is_legal_index_metric_type, is_legal_binary_index_metric_type
+from .check import check_pass_param, is_legal_host, is_legal_port, is_legal_index_metric_type, \
+    is_legal_binary_index_metric_type
 from .pool import ConnectionPool, SingleConnectionPool, SingletonThreadPool
 from .exceptions import BaseException, ParamError, DeprecatedError
 
@@ -124,14 +125,12 @@ class Milvus:
 
         self._deploy_mode = DeployMode.Distributed
 
-    def _wait_for_healthy(self, timeout=30, retry=10):
-        _timeout_on_every_retry = self._kw.get("timeout", None)
+    def _wait_for_healthy(self, timeout=60):
+        _timeout_on_every_retry = self._kw.get("timeout", 0)
         _timeout = _timeout_on_every_retry if _timeout_on_every_retry else timeout
         with self._connection() as handler:
             start_time = time.time()
-            while retry > 0:
-                if (time.time() - start_time > _timeout):
-                    break
+            while (time.time() - start_time < _timeout):
                 try:
                     status = handler.fake_register_link(_timeout)
                     if status.error_code == 0:
@@ -141,7 +140,6 @@ class Milvus:
                     pass
                 finally:
                     time.sleep(1)
-                    retry -= 1
             raise Exception("server is not healthy, please try again later")
 
     def __enter__(self):
@@ -962,9 +960,9 @@ class Milvus:
             BaseException: If the return result from server is not ok
         """
         raise NotImplementedError("Delete function is not implemented")
-        #check_pass_param(collection_name=collection_name)
-        #print(collection_name, expr, partition_name)
-        #with self._connection() as handler:
+        # check_pass_param(collection_name=collection_name)
+        # print(collection_name, expr, partition_name)
+        # with self._connection() as handler:
         #    return handler.delete(collection_name, expr, partition_name, timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
@@ -1109,7 +1107,8 @@ class Milvus:
             return handler.search(collection_name, dsl, partition_names, fields, timeout=timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
-    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
+    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None,
+                               partition_names=None,
                                output_fields=None, timeout=None, **kwargs):
         """
         Searches a collection based on the given expression and returns query results.
@@ -1160,7 +1159,8 @@ class Milvus:
         )
         with self._connection() as handler:
             kwargs["_deploy_mode"] = self._deploy_mode
-            return handler.search_with_expression(collection_name, data, anns_field, param, limit, expression, partition_names, output_fields, timeout, **kwargs)
+            return handler.search_with_expression(collection_name, data, anns_field, param, limit, expression,
+                                                  partition_names, output_fields, timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def calc_distance(self, vectors_left, vectors_right, params=None, timeout=None, **kwargs):
