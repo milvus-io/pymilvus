@@ -10,13 +10,12 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-from enum import IntEnum
 import logging
 
 from pandas.api.types import infer_dtype, is_list_like, is_scalar, is_float, is_array_like
 import numpy as np
 
-from ...client.types import DataType
+from ..client.types import DataType
 
 LOGGER = logging.getLogger(__name__)
 
@@ -125,7 +124,7 @@ def infer_dtype_bydata(data):
     if d_type == DataType.UNKNOWN:
         try:
             elem = data[0]
-        except:
+        except IndexError:
             elem = None
 
         if elem is not None and is_scalar(elem):

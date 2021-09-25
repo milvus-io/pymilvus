@@ -90,6 +90,21 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.ShowPartitionsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ShowPartitionsResponse.FromString,
                 )
+        self.CreateAlias = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CreateAlias',
+                request_serializer=milvus__pb2.CreateAliasRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.DropAlias = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DropAlias',
+                request_serializer=milvus__pb2.DropAliasRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.AlterAlias = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AlterAlias',
+                request_serializer=milvus__pb2.AlterAliasRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
         self.CreateIndex = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateIndex',
                 request_serializer=milvus__pb2.CreateIndexRequest.SerializeToString,
@@ -260,6 +275,24 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ShowPartitions(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateAlias(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropAlias(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AlterAlias(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -440,6 +473,21 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.ShowPartitions,
                     request_deserializer=milvus__pb2.ShowPartitionsRequest.FromString,
                     response_serializer=milvus__pb2.ShowPartitionsResponse.SerializeToString,
+            ),
+            'CreateAlias': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateAlias,
+                    request_deserializer=milvus__pb2.CreateAliasRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DropAlias': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropAlias,
+                    request_deserializer=milvus__pb2.DropAliasRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'AlterAlias': grpc.unary_unary_rpc_method_handler(
+                    servicer.AlterAlias,
+                    request_deserializer=milvus__pb2.AlterAliasRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
             ),
             'CreateIndex': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateIndex,
@@ -783,6 +831,57 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ShowPartitions',
             milvus__pb2.ShowPartitionsRequest.SerializeToString,
             milvus__pb2.ShowPartitionsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateAlias(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CreateAlias',
+            milvus__pb2.CreateAliasRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DropAlias(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DropAlias',
+            milvus__pb2.DropAliasRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def AlterAlias(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AlterAlias',
+            milvus__pb2.AlterAliasRequest.SerializeToString,
+            common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

@@ -10,7 +10,8 @@ from urllib.parse import urlparse
 
 from . import __version__
 from .types import Status, DataType, DeployMode
-from .check import check_pass_param, is_legal_host, is_legal_port, is_legal_index_metric_type, is_legal_binary_index_metric_type
+from .check import check_pass_param, is_legal_host, is_legal_port, is_legal_index_metric_type, \
+    is_legal_binary_index_metric_type
 from .pool import ConnectionPool, SingleConnectionPool, SingletonThreadPool
 from .exceptions import BaseException, ParamError, DeprecatedError
 
@@ -124,14 +125,12 @@ class Milvus:
 
         self._deploy_mode = DeployMode.Distributed
 
-    def _wait_for_healthy(self, timeout=30, retry=10):
-        _timeout_on_every_retry = self._kw.get("timeout", None)
+    def _wait_for_healthy(self, timeout=60):
+        _timeout_on_every_retry = self._kw.get("timeout", 0)
         _timeout = _timeout_on_every_retry if _timeout_on_every_retry else timeout
         with self._connection() as handler:
             start_time = time.time()
-            while retry > 0:
-                if (time.time() - start_time > _timeout):
-                    break
+            while (time.time() - start_time < _timeout):
                 try:
                     status = handler.fake_register_link(_timeout)
                     if status.error_code == 0:
@@ -141,7 +140,6 @@ class Milvus:
                     pass
                 finally:
                     time.sleep(1)
-                    retry -= 1
             raise Exception("server is not healthy, please try again later")
 
     def __enter__(self):
@@ -602,6 +600,103 @@ class Milvus:
             return result
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
+    def create_alias(self, collection_name, alias, timeout=None, **kwargs):
+        """
+        Specify alias for a collection.
+        Alias cannot be duplicated, you can't assign same alias to different collections.
+        But you can specify multiple aliases for a collection, for example:
+            before create_alias("collection_1", "bob"):
+                collection_1's aliases = ["tom"]
+            after create_alias("collection_1", "bob"):
+                collection_1's aliases = ["tom", "bob"]
+
+        :param collection_name: The name of collection.
+        :type  collection_name: str.
+
+        :param alias: The alias of the collection.
+        :type  alias: str.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.create_alias(collection_name, alias, timeout, **kwargs)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    def drop_alias(self, alias, timeout=None, **kwargs):
+        """
+        Delete an alias.
+        This api no need to specify collection name because the milvus server knows which collection it belongs.
+        For example:
+            before drop_alias("bob"):
+                collection_1's aliases = ["tom", "bob"]
+            after drop_alias("bob"):
+                collection_1's aliases = ["tom"]
+
+        :param alias: The alias to be deleted.
+        :type  alias: str.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        with self._connection() as handler:
+            return handler.drop_alias(alias, timeout, **kwargs)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    def alter_alias(self, collection_name, alias, timeout=None, **kwargs):
+        """
+        Change alias of a collection to another collection. If the alias doesn't exist, the api will return error.
+        Alias cannot be duplicated, you can't assign same alias to different collections.
+        This api can change alias owner collection, for example:
+            before alter_alias("collection_2", "bob"):
+                collection_1's aliases = ["bob"]
+                collection_2's aliases = []
+            after alter_alias("collection_2", "bob"):
+                collection_1's aliases = []
+                collection_2's aliases = ["bob"]
+
+        :param collection_name: The name of collection.
+        :type  collection_name: str.
+
+        :param alias: The new alias of the collection.
+        :type  alias: str.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: None
+        :rtype: NoneType
+
+        :raises:
+            RpcError: If gRPC encounter an error
+            ParamError: If parameters are invalid
+            BaseException: If the return result from server is not ok
+        """
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+            return handler.alter_alias(collection_name, alias, timeout, **kwargs)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         """
         Creates an index for a field in a specified collection. Milvus does not support creating multiple
@@ -865,9 +960,9 @@ class Milvus:
             BaseException: If the return result from server is not ok
         """
         raise NotImplementedError("Delete function is not implemented")
-        #check_pass_param(collection_name=collection_name)
-        #print(collection_name, expr, partition_name)
-        #with self._connection() as handler:
+        # check_pass_param(collection_name=collection_name)
+        # print(collection_name, expr, partition_name)
+        # with self._connection() as handler:
         #    return handler.delete(collection_name, expr, partition_name, timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
@@ -1012,7 +1107,8 @@ class Milvus:
             return handler.search(collection_name, dsl, partition_names, fields, timeout=timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
-    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
+    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None,
+                               partition_names=None,
                                output_fields=None, timeout=None, **kwargs):
         """
         Searches a collection based on the given expression and returns query results.
@@ -1063,7 +1159,8 @@ class Milvus:
         )
         with self._connection() as handler:
             kwargs["_deploy_mode"] = self._deploy_mode
-            return handler.search_with_expression(collection_name, data, anns_field, param, limit, expression, partition_names, output_fields, timeout, **kwargs)
+            return handler.search_with_expression(collection_name, data, anns_field, param, limit, expression,
+                                                  partition_names, output_fields, timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def calc_distance(self, vectors_left, vectors_right, params=None, timeout=None, **kwargs):

@@ -12,7 +12,7 @@
 import copy
 import threading
 
-from ...client.stub import Milvus
+from ..client.stub import Milvus
 
 from .default_config import DefaultConfig
 from .exceptions import ExceptionsMessage, ConnectionConfigException

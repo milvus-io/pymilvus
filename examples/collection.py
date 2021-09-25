@@ -239,6 +239,43 @@ def test_specify_primary_key():
     assert len(collection2.indexes) != 0
     collection2.drop()
 
+def test_alias():
+    def gen_collection(name, partitions):
+        if utility.has_collection(name):
+            collection = Collection(name=name)
+            return collection
+
+        collection = Collection(name=name, schema=gen_default_fields())
+        for p in partitions:
+            collection.create_partition(p)
+        return collection
+
+    name_1 = "TestAlias_1"
+    name_2 = "TestAlias_2"
+    partitions_1 = ["a", "b", "c"]
+    partitions_2 = ["x", "y"]
+    collection_1 = gen_collection(name_1, partitions_1)
+    collection_2 = gen_collection(name_2, partitions_2)
+
+    # here we got two collections, the collection_1's alias is "A"
+    alias = "A"
+    try:
+        collection_1.create_alias(alias)
+    except:
+        print("alias", alias, "already exist")
+
+    # use the alias can do all things like collection name
+    # now we get partitions by the alias, it return partitions of collection_1
+    shift_collection = Collection(name=alias)
+    assert len(shift_collection.partitions) == len(partitions_1) + 1
+
+    # then we change the alias to collection_2
+    # get partition by the alias again, it return partitions of collection_2
+    collection_2.alter_alias(alias)
+    assert len(shift_collection.partitions) == len(partitions_2) + 1
+
+    collection_1.drop()
+    collection_2.drop()
 
 print("test collection and get an existing collection")
 name = test_create_collection()
@@ -254,4 +291,6 @@ print("test collection binary vector")
 test_create_index_binary_vector()
 print("test collection specify primary key")
 test_specify_primary_key()
+print("test alias")
+test_alias()
 print("test end")

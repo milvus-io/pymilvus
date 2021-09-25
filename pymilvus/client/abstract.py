@@ -126,6 +126,7 @@ class CollectionSchema:
         self.fields = list()
         self.statistics = dict()
         self.auto_id = False  # auto_id is not in collection level any more later
+        self.aliases = []
 
         #
         if self._raw:
@@ -134,6 +135,7 @@ class CollectionSchema:
     def __pack(self, raw):
         self.collection_name = raw.schema.name
         self.description = raw.schema.description
+        self.aliases = raw.aliases
         # self.params = dict()
         # TODO: extra_params here
         # for kv in raw.extra_params:
@@ -155,6 +157,7 @@ class CollectionSchema:
         _dict["auto_id"] = self.auto_id
         _dict["description"] = self.description
         _dict["fields"] = [f.dict() for f in self.fields]
+        _dict["aliases"] = self.aliases
         # for k, v in self.params.items():
         #     if isinstance(v, DataType):
         #         _dict[k] = v.value
