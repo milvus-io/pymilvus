@@ -64,7 +64,6 @@ class Prepare:
                     tmp_fields.pop(i)
 
             for i, field in enumerate(tmp_fields):
-                print(data[i])
                 if isinstance(data[i], numpy.ndarray):
                     data[i] = data[i].tolist()
 
