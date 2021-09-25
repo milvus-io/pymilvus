@@ -14,6 +14,13 @@ import copy
 import numpy
 import pandas
 
+try:
+    import torch
+    import tensorflow as tf
+except:
+    raise ImportWarning(
+        "Please install pytorch and tensorflow")
+
 from .exceptions import DataNotMatchException, DataTypeNotSupportException, ExceptionsMessage
 
 
@@ -57,7 +64,14 @@ class Prepare:
                     tmp_fields.pop(i)
 
             for i, field in enumerate(tmp_fields):
+                print(data[i])
                 if isinstance(data[i], numpy.ndarray):
+                    data[i] = data[i].tolist()
+
+                elif isinstance(data[i], tf.Tensor):
+                    data[i] = data[i].numpy().tolist()
+
+                else:
                     raise DataTypeNotSupportException(0, ExceptionsMessage.NdArrayNotSupport)
 
                 entities.append({
