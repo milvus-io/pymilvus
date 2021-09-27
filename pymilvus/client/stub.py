@@ -1103,9 +1103,8 @@ class Milvus:
             return handler.search(collection_name, dsl, partition_names, fields, timeout=timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
-    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None,
-                               partition_names=None,
-                               output_fields=None, timeout=None, **kwargs):
+    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
+                               output_fields=None, timeout=None, round_decimal=-1, **kwargs):
         """
         Searches a collection based on the given expression and returns query results.
 
@@ -1129,6 +1128,8 @@ class Milvus:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
+        :param round_decimal: The specified number of decimal places of returned distance
+        :type  round_decimal: int
         :param kwargs:
             * *_async* (``bool``) --
               Indicate if invoke asynchronously. When value is true, method returns a SearchFuture object;
@@ -1148,6 +1149,7 @@ class Milvus:
         """
         check_pass_param(
             limit=limit,
+            round_decimal=round_decimal,
             anns_field=anns_field,
             search_data=data,
             partition_name_array=partition_names,
@@ -1156,7 +1158,7 @@ class Milvus:
         with self._connection() as handler:
             kwargs["_deploy_mode"] = self._deploy_mode
             return handler.search_with_expression(collection_name, data, anns_field, param, limit, expression,
-                                                  partition_names, output_fields, timeout, **kwargs)
+                                                  partition_names, output_fields, timeout, round_decimal, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def calc_distance(self, vectors_left, vectors_right, params=None, timeout=None, **kwargs):

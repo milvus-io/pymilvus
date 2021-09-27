@@ -126,9 +126,10 @@ def test_partition():
     print("load partition")
     partition.load()
     topK = 5
+    round_decimal = 3
     search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
     print("search partition")
-    res = partition.search(data[2][-2:], "float_vector", search_params, topK, "count > 100")
+    res = partition.search(data[2][-2:], "float_vector", search_params, topK, "count > 100", round_decimal=round_decimal)
     for hits in res:
         for hit in hits:
             print(hit)

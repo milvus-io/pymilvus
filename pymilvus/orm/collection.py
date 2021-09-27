@@ -585,7 +585,7 @@ class Collection:
         return MutationResult(res)
 
     def search(self, data, anns_field, param, limit, expr=None, partition_names=None,
-               output_fields=None, timeout=None, **kwargs):
+               output_fields=None, timeout=None, round_decimal=-1, **kwargs):
         """
         Conducts a vector similarity search with an optional boolean expression as filter.
 
@@ -607,6 +607,8 @@ class Collection:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
+        :param round_decimal: The specified number of decimal places of returned distance
+        :type  round_decimal: int
         :param kwargs:
             * *_async* (``bool``) --
               Indicate if invoke asynchronously. When value is true, method returns a
@@ -666,7 +668,7 @@ class Collection:
 
         conn = self._get_connection()
         res = conn.search_with_expression(self._name, data, anns_field, param, limit, expr,
-                                          partition_names, output_fields, timeout, **kwargs)
+                                          partition_names, output_fields, timeout, round_decimal, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
