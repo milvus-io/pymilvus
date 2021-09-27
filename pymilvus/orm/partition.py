@@ -279,7 +279,7 @@ class Partition:
         Delete entities with an expression condition.
         And return results to show which primary key is deleted successfully
 
-        :param expr: The query expression
+        :param expr: The expression to specify entities to be deleted
         :type  expr: str
 
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
