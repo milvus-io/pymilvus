@@ -19,8 +19,6 @@ from .prepare import Prepare
 from .types import Status, IndexState, DataType, DeployMode, ErrorCode
 from .check import is_legal_host, is_legal_port
 from .utils import len_of
-from .hooks import BaseSearchHook
-from .client_hooks import SearchHook, HybridSearchHook
 from ..settings import DefaultConfig as config
 from .configs import DefaultConfigs
 
@@ -247,11 +245,6 @@ class GrpcHandler:
         self._condition = threading.Condition()
         self._request_id = 0
 
-        # client hook
-        self._search_hook = SearchHook()
-        self._hybrid_search_hook = HybridSearchHook()
-        self._search_file_hook = SearchHook()
-
         # set server uri if object is initialized with parameter
         _uri = kwargs.get("uri", None)
         _channel = kwargs.get("channel", None)
@@ -298,32 +291,6 @@ class GrpcHandler:
             _id = self._request_id
             self._request_id += 1
             return _id
-
-    def set_hook(self, **kwargs):
-        """
-        specify client hooks.
-        The client hooks are used in methods which interact with server.
-        Use key-value method to set hooks. Supported hook setting currently is as follow.
-
-            search hook,
-            search-in-file hook
-
-        """
-
-        # config search hook
-        _search_hook = kwargs.get('search', None)
-        if _search_hook:
-            if not isinstance(_search_hook, BaseSearchHook):
-                raise ParamError("search hook must be a subclass of `BaseSearchHook`")
-
-            self._search_hook = _search_hook
-
-        _search_file_hook = kwargs.get('search_in_file', None)
-        if _search_file_hook:
-            if not isinstance(_search_file_hook, BaseSearchHook):
-                raise ParamError("search hook must be a subclass of `BaseSearchHook`")
-
-            self._search_file_hook = _search_file_hook
 
     def ping(self):
         begin_timeout = 1
@@ -600,7 +567,6 @@ class GrpcHandler:
 
             # step 1: get future object
             for request in requests:
-                self._search_hook.pre_search()
 
                 ft = self._stub.Search.future(request, wait_for_ready=True, timeout=timeout)
                 futures.append(ft)

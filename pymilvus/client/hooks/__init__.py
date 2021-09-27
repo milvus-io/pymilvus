@@ -1,3 +1,0 @@
-from .abstract import (
-    BaseSearchHook
-)
