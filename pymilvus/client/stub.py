@@ -941,7 +941,7 @@ class Milvus:
         :param collection_name: Name of the collection to delete entities from
         :type  collection_name: str
 
-        :param expr: The query expression
+        :param expr: The expression to specify entities to be deleted
         :type  expr: str
 
         :param partition_name: Name of partitions that contain entities
@@ -959,11 +959,9 @@ class Milvus:
             ParamError: If parameters are invalid
             BaseException: If the return result from server is not ok
         """
-        raise NotImplementedError("Delete function is not implemented")
-        # check_pass_param(collection_name=collection_name)
-        # print(collection_name, expr, partition_name)
-        # with self._connection() as handler:
-        #    return handler.delete(collection_name, expr, partition_name, timeout, **kwargs)
+        check_pass_param(collection_name=collection_name)
+        with self._connection() as handler:
+           return handler.delete(collection_name, expr, partition_name, timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def flush(self, collection_names=None, timeout=None, **kwargs):

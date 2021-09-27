@@ -370,15 +370,17 @@ class Prepare:
         def check_str(input, prefix):
             if (input == None):
                 raise ParamError(prefix + " cannot be None")
-            if (input == None) or (not isinstance(input, str)):
+            if not isinstance(input, str):
                 msg = prefix + " value {} is illegal"
                 raise ParamError(msg.format(input))
+            if input == "":
+                raise ParamError(prefix + " cannot be empty")
 
         check_str(collection_name, "collection_name")
         check_str(expr, "expr")
 
-        default_partition_name = "_default"  # should here?
-        partition_name = partition_name or default_partition_name
+        # if partition_name is null or empty, delete action will apply to whole collection
+        partition_name = partition_name or ""
         request = milvus_types.DeleteRequest(collection_name=collection_name, expr = expr, partition_name=partition_name)
         return request
 

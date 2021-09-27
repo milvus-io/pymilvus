@@ -533,7 +533,7 @@ class Collection:
         Delete entities with an expression condition.
         And return results to show which primary key is deleted successfully
 
-        :param expr: The query expression
+        :param expr: The expression to specify entities to be deleted
         :type  expr: str
 
         :param partition_name: Name of partitions that contain entities
