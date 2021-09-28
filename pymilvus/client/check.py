@@ -268,6 +268,8 @@ def is_legal_binary_index_metric_type(index_type: str, metric_type: str) -> bool
 def _raise_param_error(param_name, param_value):
     raise ParamError("`{}` value {} is illegal".format(param_name, param_value))
 
+def is_legal_round_decimal(round_decimal):
+    return isinstance(round_decimal, int) and -2 < round_decimal < 7
 
 def check_pass_param(*args, **kwargs):
     if kwargs is None:
@@ -318,6 +320,9 @@ def check_pass_param(*args, **kwargs):
                 _raise_param_error(key, value)
         elif key in ("output_fields",):
             if not is_legal_output_fields(value):
+                _raise_param_error(key, value)
+        elif key in ("round_decimal",):
+            if not is_legal_round_decimal(value):
                 _raise_param_error(key, value)
         # elif key in ("records",):
         #     if not is_legal_records(value):

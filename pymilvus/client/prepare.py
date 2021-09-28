@@ -589,7 +589,8 @@ class Prepare:
         return request
 
     @classmethod
-    def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, expr=None, partition_names=None, output_fields=None, **kwargs):
+    def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, expr=None, partition_names=None,
+                                  output_fields=None, round_decimal=-1, **kwargs):
         schema = kwargs.get("schema", None)
         fields_schema = schema.get("fields", None)  # list
         fields_name_locs = {fields_schema[loc]["name"]: loc
@@ -629,8 +630,7 @@ class Prepare:
         params = param_copy.pop("params", {})
         if not isinstance(params, dict):
             raise ParamError("Search params must be a dict")
-        search_params = {"anns_field": anns_field, "topk": limit, "metric_type": metric_type, "params": params}
-
+        search_params = {"anns_field": anns_field, "topk": limit, "metric_type": metric_type, "params": params, "round_decimal": round_decimal}
         def dump(v):
             if isinstance(v, dict):
                 return ujson.dumps(v)

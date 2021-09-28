@@ -583,8 +583,8 @@ class GrpcHandler:
                     raise BaseException(response.status.error_code, response.status.reason)
 
                 raws.append(response)
-
-            return ChunkedQueryResult(raws, auto_id)
+            round_decimal = kwargs.get("round_decimal", -1)
+            return ChunkedQueryResult(raws, auto_id, round_decimal)
 
         except Exception as pre_err:
             if kwargs.get("_async", False):
@@ -612,17 +612,18 @@ class GrpcHandler:
 
     @error_handler(None)
     @check_has_collection
-    def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None,
-                               partition_names=None,
-                               output_fields=None, timeout=None, **kwargs):
+    def search_with_expression(self, collection_name, data, anns_field, param, limit,
+                               expression=None, partition_names=None, output_fields=None,
+                               timeout=None, round_decimal=-1, **kwargs):
         _kwargs = copy.deepcopy(kwargs)
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
         _kwargs["schema"] = collection_schema
         requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
-                                                     partition_names, output_fields, **_kwargs)
+                                                     partition_names, output_fields, round_decimal, **_kwargs)
         _kwargs.pop("schema")
         _kwargs["auto_id"] = auto_id
+        _kwargs["round_decimal"] = round_decimal
         return self._execute_search_requests(requests, timeout, **_kwargs)
 
     @error_handler(None)
