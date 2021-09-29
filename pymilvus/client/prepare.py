@@ -499,6 +499,7 @@ class Prepare:
                     collection_name=collection_name,
                     partition_names=partition_names,
                     output_fields=fields,
+                    guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
                 )
                 request.dsl = ujson.dumps(duplicated_entities)
                 request.placeholder_group = plg_str
@@ -523,6 +524,7 @@ class Prepare:
             collection_name=collection_name,
             partition_names=partition_names,
             output_fields=fields,
+            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
         )
 
         duplicated_entities = copy.deepcopy(query_entities)
@@ -644,6 +646,7 @@ class Prepare:
                 collection_name=collection_name,
                 partition_names=partition_names,
                 output_fields=output_fields,
+                guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
             )
             request.placeholder_group = plg_str
 
