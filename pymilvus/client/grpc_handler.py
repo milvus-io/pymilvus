@@ -528,7 +528,7 @@ class GrpcHandler:
             raise err
 
     def _prepare_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
-                                **kwargs):
+                                round_decimal=-1, **kwargs):
         rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
                                              timeout=timeout)
         reply = rf.result()
@@ -537,13 +537,13 @@ class GrpcHandler:
 
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
-        request = Prepare.search_request(collection_name, query_entities, partition_names, fields,
+        request = Prepare.search_request(collection_name, query_entities, partition_names, fields, round_decimal,
                                          schema=collection_schema)
 
         return request, auto_id
 
-    def _divide_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
-                               **kwargs):
+    def _divide_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None
+                               , round_decimal=-1, **kwargs):
         rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
                                              timeout=timeout)
         reply = rf.result()
@@ -552,7 +552,7 @@ class GrpcHandler:
 
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
-        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields,
+        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields, round_decimal,
                                                  schema=collection_schema)
 
         return requests, auto_id
@@ -591,24 +591,28 @@ class GrpcHandler:
                 return SearchFuture(None, None, True, pre_err)
             raise pre_err
 
-    def _batch_search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
+    def _batch_search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
+                      round_decimal=-1, **kwargs):
         requests, auto_id = self._divide_search_request(collection_name, query_entities, partition_names,
-                                                        fields, **kwargs)
+                                                        fields, timeout, round_decimal, **kwargs)
         kwargs["auto_id"] = auto_id
+        kwargs["round_decimal"] = round_decimal
         return self._execute_search_requests(requests, timeout, **kwargs)
 
     @error_handler(None)
-    def _total_search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
+    def _total_search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
+                      round_decimal=-1, **kwargs):
         request, auto_id = self._prepare_search_request(collection_name, query_entities, partition_names,
-                                                        fields, timeout, **kwargs)
+                                                        fields, timeout, round_decimal, **kwargs)
         kwargs["auto_id"] = auto_id
+        kwargs["round_decimal"] = round_decimal
         return self._execute_search_requests([request], timeout, **kwargs)
 
     @error_handler(None)
-    def search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, **kwargs):
+    def search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, round_decimal=-1, **kwargs):
         if kwargs.get("_deploy_mode", DeployMode.Distributed) == DeployMode.StandAlone:
-            return self._total_search(collection_name, query_entities, partition_names, fields, timeout, **kwargs)
-        return self._batch_search(collection_name, query_entities, partition_names, fields, timeout, **kwargs)
+            return self._total_search(collection_name, query_entities, partition_names, fields, timeout, round_decimal, **kwargs)
+        return self._batch_search(collection_name, query_entities, partition_names, fields, timeout, round_decimal, **kwargs)
 
     @error_handler(None)
     @check_has_collection
