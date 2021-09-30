@@ -1010,7 +1010,7 @@ class Milvus:
             return handler.flush(collection_names, timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
-    def search(self, collection_name, dsl, partition_names=None, fields=None, timeout=None, **kwargs):
+    def search(self, collection_name, dsl, partition_names=None, fields=None, timeout=None, round_decimal=-1, **kwargs):
         """
         Searches a collection based on the given DSL clauses and returns query results.
 
@@ -1056,7 +1056,9 @@ class Milvus:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
-
+        :param round_decimal: The specified number of decimal places of returned distance
+        :type  round_decimal: int
+        
         :param kwargs:
             * *_async* (``bool``) --
               Indicate if invoke asynchronously. When value is true, method returns a SearchFuture object;
@@ -1098,9 +1100,13 @@ class Milvus:
             ParamError: If parameters are invalid
             BaseException: If the return result from server is not ok
         """
+        check_pass_param(
+            round_decimal=round_decimal,
+        )
         with self._connection() as handler:
             kwargs["_deploy_mode"] = self._deploy_mode
-            return handler.search(collection_name, dsl, partition_names, fields, timeout=timeout, **kwargs)
+            return handler.search(collection_name, dsl, partition_names, fields, timeout=timeout,
+                                  round_decimal=round_decimal, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def search_with_expression(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
