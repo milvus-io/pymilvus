@@ -404,7 +404,8 @@ class Prepare:
         return pls
 
     @classmethod
-    def divide_search_request(cls, collection_name, query_entities, partition_names=None, fields=None, **kwargs):
+    def divide_search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=1,
+                              **kwargs):
         schema = kwargs.get("schema", None)
         fields_schema = schema.get("fields", None)  # list
         fields_name_locs = {fields_schema[loc]["name"]: loc
@@ -418,7 +419,7 @@ class Prepare:
         vector_names = dict()
 
         meta = {}   # TODO: ugly here, find a better method
-        def extract_vectors_param(param, placeholders, meta=None, names=None):
+        def extract_vectors_param(param, placeholders, meta=None, names=None, round_decimal=-1):
             if not isinstance(param, (dict, list)):
                 return
 
@@ -445,18 +446,18 @@ class Prepare:
                         placeholders[ph] = pv["query"]
                         names[ph] = pk
                         param["vector"][pk]["query"] = ph
+                        param["vector"][pk]["round_decimal"] = round_decimal
 
                     return
                 else:
                     for _, v in param.items():
-                        extract_vectors_param(v, placeholders, meta, names)
+                        extract_vectors_param(v, placeholders, meta, names, round_decimal)
 
             if isinstance(param, list):
                 for item in param:
-                    extract_vectors_param(item, placeholders, meta, names)
+                    extract_vectors_param(item, placeholders, meta, names, round_decimal)
 
-        extract_vectors_param(duplicated_entities, vector_placeholders, meta, vector_names)
-
+        extract_vectors_param(duplicated_entities, vector_placeholders, meta, vector_names, round_decimal)
         if len(vector_placeholders) > 1:
             raise ParamError("query on two vector field is not supported now!")
 
@@ -508,7 +509,7 @@ class Prepare:
             return requests
 
     @classmethod
-    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, **kwargs):
+    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1, **kwargs):
         schema = kwargs.get("schema", None)
         fields_schema = schema.get("fields", None)  # list
         fields_name_locs = {fields_schema[loc]["name"]: loc
@@ -531,7 +532,7 @@ class Prepare:
         vector_placeholders = dict()
         vector_names = dict()
 
-        def extract_vectors_param(param, placeholders, names):
+        def extract_vectors_param(param, placeholders, names, round_decimal):
             if not isinstance(param, (dict, list)):
                 return
 
@@ -546,17 +547,18 @@ class Prepare:
                         placeholders[ph] = pv["query"]
                         names[ph] = pk
                         param["vector"][pk]["query"] = ph
+                        param["vector"][pk]["round_decimal"] = round_decimal
 
                     return
                 else:
                     for _, v in param.items():
-                        extract_vectors_param(v, placeholders, names)
+                        extract_vectors_param(v, placeholders, names, round_decimal)
 
             if isinstance(param, list):
                 for item in param:
-                    extract_vectors_param(item, placeholders, names)
+                    extract_vectors_param(item, placeholders, names, round_decimal)
 
-        extract_vectors_param(duplicated_entities, vector_placeholders, vector_names)
+        extract_vectors_param(duplicated_entities, vector_placeholders, vector_names, round_decimal)
         request.dsl = ujson.dumps(duplicated_entities)
 
         plg = milvus_types.PlaceholderGroup()

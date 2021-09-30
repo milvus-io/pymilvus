@@ -180,7 +180,7 @@ class Hits:
             for i in range(_start, _end):
                 elements.append(self.on_result(s[i]))
             return elements
-        return s
+        return self.on_result(s)
 
     def __len__(self) -> int:
         """
@@ -190,6 +190,9 @@ class Hits:
             The number of hit record.
         """
         return self._hits.__len__()
+
+    def __str__(self):
+        return str(list(map(str, self.__getitem__(slice(0, 10)))))
 
     def on_result(self, res):
         return Hit(res)
@@ -251,7 +254,7 @@ class SearchResult:
             for i in range(_start, _end):
                 elements.append(self.on_result(s[i]))
             return elements
-        return s
+        return self.on_result(s)
 
     def __len__(self) -> int:
         """
@@ -261,6 +264,9 @@ class SearchResult:
             The number of query of search result.
         """
         return self._qs.__len__()
+
+    def __str__(self):
+        return str(list(map(str, self.__getitem__(slice(0, 10)))))
 
     def on_result(self, res):
         return Hits(res)
