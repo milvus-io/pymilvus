@@ -180,7 +180,7 @@ class Hits:
             for i in range(_start, _end):
                 elements.append(self.on_result(s[i]))
             return elements
-        return s
+        return self.on_result(s)
 
     def __len__(self) -> int:
         """
@@ -254,7 +254,7 @@ class SearchResult:
             for i in range(_start, _end):
                 elements.append(self.on_result(s[i]))
             return elements
-        return s
+        return self.on_result(s)
 
     def __len__(self) -> int:
         """
