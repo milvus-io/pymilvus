@@ -191,6 +191,9 @@ class Hits:
         """
         return self._hits.__len__()
 
+    def __str__(self):
+        return str(list(map(str, self.__getitem__(slice(0, 10)))))
+
     def on_result(self, res):
         return Hit(res)
 
@@ -261,6 +264,9 @@ class SearchResult:
             The number of query of search result.
         """
         return self._qs.__len__()
+
+    def __str__(self):
+        return str(list(map(str, self.__getitem__(slice(0, 10)))))
 
     def on_result(self, res):
         return Hits(res)
