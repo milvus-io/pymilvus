@@ -63,6 +63,11 @@ message KeyValuePair {
     string value = 2;
 }
 
+message KeyDataPair {
+    string key = 1;
+    bytes data = 2;
+}
+
 message Blob {
     bytes value = 1;
 }
@@ -160,4 +165,10 @@ enum DslType {
 // Don't Modify This. @czs
 message MsgHeader {
     common.MsgBase base = 1;
+}
+
+// Don't Modify This. @czs
+message DMLMsgHeader {
+    common.MsgBase base = 1;
+    string shardName = 2;
 }
