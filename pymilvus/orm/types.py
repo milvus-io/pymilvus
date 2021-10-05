@@ -16,7 +16,7 @@ from pandas.api.types import infer_dtype, is_list_like, is_scalar, is_float, is_
 import numpy as np
 
 from ..client.types import DataType
-
+import torch
 LOGGER = logging.getLogger(__name__)
 
 
@@ -96,7 +96,8 @@ def infer_dtype_by_scaladata(data):
         return DataType.BINARY_VECTOR
     if is_float(data):
         return DataType.DOUBLE
-
+    if isinstance(data, torch.Tensor):
+        return DataType.FLOAT_VECTOR
     return DataType.UNKNOWN
 
 

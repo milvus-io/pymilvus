@@ -41,7 +41,7 @@ class Prepare:
                     if not data[schema.primary_field.name].isnull().all():
                         raise DataNotMatchException(0, ExceptionsMessage.AutoIDWithData)
                 else:
-                    if len(fields) != len(data.columns)+1:
+                    if len(fields) != len(data.columns) + 1:
                         raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
             else:
                 if len(fields) != len(data.columns):
@@ -64,11 +64,14 @@ class Prepare:
                     tmp_fields.pop(i)
 
             for i, field in enumerate(tmp_fields):
-                if isinstance(data[i], numpy.ndarray):
+                if isinstance(data[i], (numpy.ndarray, torch.Tensor)):
                     data[i] = data[i].tolist()
 
                 elif isinstance(data[i], tf.Tensor):
                     data[i] = data[i].numpy().tolist()
+
+                elif isinstance(data[i], list):
+                    data[i] = data[i]
 
                 else:
                     raise DataTypeNotSupportException(0, ExceptionsMessage.NdArrayNotSupport)
