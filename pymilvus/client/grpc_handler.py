@@ -607,14 +607,8 @@ class GrpcHandler:
         return self._execute_search_requests([request], timeout, **kwargs)
 
     @error_handler(None)
-    def search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, round_decimal=-1, **kwargs):
-        if kwargs.get("_deploy_mode", DeployMode.Distributed) == DeployMode.StandAlone:
-            return self._total_search(collection_name, query_entities, partition_names, fields, timeout, round_decimal, **kwargs)
-        return self._batch_search(collection_name, query_entities, partition_names, fields, timeout, round_decimal, **kwargs)
-
-    @error_handler(None)
     @check_has_collection
-    def search_with_expression(self, collection_name, data, anns_field, param, limit,
+    def search(self, collection_name, data, anns_field, param, limit,
                                expression=None, partition_names=None, output_fields=None,
                                timeout=None, round_decimal=-1, **kwargs):
         _kwargs = copy.deepcopy(kwargs)
