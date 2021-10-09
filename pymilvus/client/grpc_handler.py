@@ -511,10 +511,6 @@ class GrpcHandler:
     def delete(self, collection_name, expression, partition_name=None, timeout=None, **kwargs):
         try:
             req = Prepare.delete_request(collection_name, partition_name, expression)
-
-            # once delete api is finished, remove this error
-            raise NotImplementedError("Delete function is not implemented")
-
             future = self._stub.Delete.future(req, wait_for_ready=True, timeout=timeout)
 
             response = future.result()
@@ -525,7 +521,9 @@ class GrpcHandler:
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
-            raise err
+        finally:
+            # once delete api is finished, remove this error
+            raise NotImplementedError("Delete function is not implemented")
 
     def _prepare_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
                                 round_decimal=-1, **kwargs):
