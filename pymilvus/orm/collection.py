@@ -667,8 +667,8 @@ class Collection:
             raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        res = conn.search_with_expression(self._name, data, anns_field, param, limit, expr,
-                                          partition_names, output_fields, timeout, round_decimal, **kwargs)
+        res = conn.search(self._name, data, anns_field, param, limit, expr,
+                          partition_names, output_fields, timeout, round_decimal, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)

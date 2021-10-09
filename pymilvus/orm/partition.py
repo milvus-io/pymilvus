@@ -402,8 +402,8 @@ class Partition:
             - Top1 hit id: 8, distance: 0.10143111646175385, score: 0.10143111646175385
         """
         conn = self._get_connection()
-        res = conn.search_with_expression(self._collection.name, data, anns_field, param, limit,
-                                          expr, [self._name], output_fields, timeout, round_decimal, **kwargs)
+        res = conn.search(self._collection.name, data, anns_field, param, limit,
+                          expr, [self._name], output_fields, timeout, round_decimal, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
