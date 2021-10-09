@@ -12,12 +12,11 @@ pymilvus
 
 This example is runable for Milvus(0.11.x) and pymilvus(0.3.x).
 """
-import random
 import csv
+import random
 from pprint import pprint
 
 from pymilvus import Milvus, DataType
-
 
 _HOST = '127.0.0.1'
 _PORT = '19530'
@@ -36,7 +35,6 @@ collection_param = {
 }
 
 client.create_collection(collection_name, collection_param)
-
 
 # ------
 # Basic create index:
@@ -68,13 +66,11 @@ for film in films:
     release_years.append(int(film[2]))
     embeddings.append(list(map(float, film[3][1:][:-1].split(','))))
 
-
 hybrid_entities = [
     {"name": "id", "values": ids, "type": DataType.INT64},
     {"name": "release_year", "values": release_years, "type": DataType.INT64},
     {"name": "embedding", "values": embeddings, "type": DataType.FLOAT_VECTOR},
 ]
-
 
 # ------
 # Basic insert:
@@ -86,7 +82,6 @@ ids = client.insert(collection_name, hybrid_entities)
 client.flush([collection_name])
 after_flush_counts = client.get_collection_stats(collection_name)
 print(" > There are {} films in collection `{}` after flush".format(after_flush_counts, collection_name))
-
 
 # ------
 # Basic create index:
@@ -135,7 +130,7 @@ search_param = {
 # ------
 # Basic hybrid search entities
 # ------
-results = client.search_with_expression(collection_name, **search_param)
+results = client.search(collection_name, **search_param)
 for entities in results:
     for topk_film in entities:
         current_entity = topk_film.entity

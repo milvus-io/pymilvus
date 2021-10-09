@@ -1,6 +1,6 @@
-from pymilvus import Milvus, DataType
 import random
-from pprint import pprint
+
+from pymilvus import Milvus, DataType
 
 if __name__ == "__main__":
     c = Milvus("localhost", "19530")
@@ -42,8 +42,8 @@ if __name__ == "__main__":
     #############################################################
     search_params = {"metric_type": "L2", "params": {"nprobe": 1}}
 
-    results = c.search_with_expression(collection_name, [[1.1, 2.2, 3.3, 4.4]],
-                                       "f1", param=search_params, limit=2, output_fields=["id"])
+    results = c.search(collection_name, [[1.1, 2.2, 3.3, 4.4]],
+                       "f1", param=search_params, limit=2, output_fields=["id"])
 
     print("search results: ", results[0][0].entity, " + ", results[0][1].entity)
     #

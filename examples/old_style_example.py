@@ -1,4 +1,5 @@
 import random
+
 from pymilvus import Milvus, DataType
 
 # This example shows how to:
@@ -104,7 +105,7 @@ def release_collection(name):
 def search(name, vector_field, search_vectors, ids):
     nq = len(search_vectors)
     search_params = {"metric_type": _METRIC_TYPE, "params": {"nprobe": _NPROBE}}
-    results = milvus.search_with_expression(name, search_vectors, vector_field, param=search_params, limit=_TOPK)
+    results = milvus.search(name, search_vectors, vector_field, param=search_params, limit=_TOPK)
     for i in range(nq):
         if results[i][0].distance == 0.0 or results[i][0].id == ids[0]:
             print("OK! search results: ", results[i][0].entity)
