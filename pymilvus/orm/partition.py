@@ -407,6 +407,16 @@ class Partition:
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
+    
+    def searchByID(self, query_id, anns_field, param, limit, expr=None, output_fields=None, timeout=None, round_decimal=-1,
+               **kwargs):
+        conn = self._get_connection()
+        res = conn.search_by_id(self._collection.name, query_id, anns_field, param, limit,
+                                          expr, [self._name], output_fields, timeout, round_decimal, **kwargs)
+        if kwargs.get("_async", False):
+            return SearchFuture(res)
+        return SearchResult(res)
+
 
     def query(self, expr, output_fields=None, timeout=None):
         """
