@@ -4546,6 +4546,15 @@ _MILVUSSERVICE = _descriptor.ServiceDescriptor(
     serialized_options=None,
     create_key=_descriptor._internal_create_key,
   ),
+   _descriptor.MethodDescriptor(
+    name='GetVectorsByID',
+    full_name='milvus.proto.milvus.MilvusService.GetVectorsByID',
+    index=34,
+    containing_service=None,
+    input_type=_VECTORIDS,
+    output_type=_VECTORSARRAY,
+    serialized_options=None,
+  ),
 ])
 _sym_db.RegisterServiceDescriptor(_MILVUSSERVICE)
 
