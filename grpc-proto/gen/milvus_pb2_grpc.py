@@ -185,6 +185,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.GetMetricsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetMetricsResponse.FromString,
                 )
+        self.GetVectorsByID = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetVectorsByID',
+                request_serializer=milvus__pb2.VectorIDs.SerializeToString,
+                response_deserializer=milvus__pb2.VectorsArray.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -395,6 +400,11 @@ class MilvusServiceServicer(object):
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
+        
+    def GetVectorsByID(self, request, context):
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
 
 def add_MilvusServiceServicer_to_server(servicer, server):
@@ -568,6 +578,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.GetMetrics,
                     request_deserializer=milvus__pb2.GetMetricsRequest.FromString,
                     response_serializer=milvus__pb2.GetMetricsResponse.SerializeToString,
+            ),
+            'GetVectorsByID': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetVectorsByID,
+                    request_deserializer=milvus__pb2.VectorIDs.FromString,
+                    response_serializer=milvus__pb2.VectorsArray.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -1152,6 +1167,23 @@ class MilvusService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetMetrics',
+            milvus__pb2.GetMetricsRequest.SerializeToString,
+            milvus__pb2.GetMetricsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+    
+    @staticmethod
+    def GetVectorsByID(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetVectorsByID',
             milvus__pb2.GetMetricsRequest.SerializeToString,
             milvus__pb2.GetMetricsResponse.FromString,
             options, channel_credentials,
