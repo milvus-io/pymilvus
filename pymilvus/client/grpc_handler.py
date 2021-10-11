@@ -621,6 +621,44 @@ class GrpcHandler:
         _kwargs["auto_id"] = auto_id
         _kwargs["round_decimal"] = round_decimal
         return self._execute_search_requests(requests, timeout, **_kwargs)
+    
+    def search_by_id(self, collection_name, query_id, anns_field, param, limit, 
+                     expression = None, partition_tags=None, output_fields = None, 
+                     timeout=None, round_decimal=-1, **kwargs):
+                     
+        ## first part of the method: get the vector by id
+        rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
+                                                timeout=timeout)
+        reply = rf.result()
+        if reply.status.error_code != 0 or not reply.value:
+                raise CollectionNotExistException(reply.status.error_code, "collection not exists")
+
+        request = milvus_types.VectorIDs(collection_name=collection_name, field_name = None, id_array=query_id,
+                                                partition_names=partition_tags)
+
+        future = self._stub.GetVectorsByID.future(request, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        ## variable that stores the vector corresponding to the id
+        vector = list()
+        if response.data_array == None:
+            print("can not obtain vector")
+            return
+        else:
+            for datas in response.data_array:
+                data = bytes(datas.binary_data) or list(datas.float_data)
+                ## vector corresponding to the query_id
+                vector.append(data)
+    
+        ## second part of the method: do vector querying
+        _kwargs = copy.deepcopy(kwargs)
+        schema = self.self.describe_collection(collection_name, timeout)
+        _kwargs["schema"] = schema
+        _kwargs["auto_id"] = schema["auto_id"]
+        _kwargs["round_decimal"] = round_decimal
+        requests = Prepare.search_requests_with_expr(collection_name, vector, anns_field, param, limit, expression,
+                                                        partition_tags, output_fields, round_decimal, **_kwargs)
+        return self._execute_search_requests(requests, timeout, **_kwargs)
+
 
     @error_handler(None)
     def get_query_segment_infos(self, collection_name, timeout=30, **kwargs):
