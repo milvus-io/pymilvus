@@ -672,6 +672,20 @@ class Collection:
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
+    
+    def searchByID(self, query_id, anns_field, param, limit, expr=None, partition_names=None,
+               output_fields=None, timeout=None, round_decimal=-1, **kwargs):
+
+        if expr is not None and not isinstance(expr, str):
+            raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
+
+        conn = self._get_connection()
+        res = conn.search_by_id(self._name, query_id, anns_field, param, limit, expr,
+                                          partition_names, output_fields, timeout, round_decimal, **kwargs)
+        if kwargs.get("_async", False):
+            return SearchFuture(res)
+        return SearchResult(res)
+
 
     def query(self, expr, output_fields=None, partition_names=None, timeout=None):
         """
