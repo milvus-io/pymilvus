@@ -28,6 +28,8 @@ setuptools.setup(
         "mmh3",
         "pandas==1.1.5; python_version<'3.7'",
         "pandas==1.2.4; python_version>'3.6'",
+        "torch==1.9.0",
+        "tensorflow",
     ],
     classifiers=[
         "Programming Language :: Python :: 3.6",
