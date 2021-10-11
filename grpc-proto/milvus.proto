@@ -40,6 +40,8 @@ service MilvusService {
   rpc Flush(FlushRequest) returns (FlushResponse) {}
   rpc Query(QueryRequest) returns (QueryResults) {}
   rpc CalcDistance(CalcDistanceRequest) returns (CalcDistanceResults) {}
+  rpc GetVectorsByID(VectorIDs) returns (VectorsArray) {}
+
 
   rpc GetPersistentSegmentInfo(GetPersistentSegmentInfoRequest) returns (GetPersistentSegmentInfoResponse) {}
   rpc GetQuerySegmentInfo(GetQuerySegmentInfoRequest) returns (GetQuerySegmentInfoResponse) {}
