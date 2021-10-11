@@ -1066,6 +1066,16 @@ class Milvus:
             kwargs["_deploy_mode"] = self._deploy_mode
             return handler.search(collection_name, data, anns_field, param, limit, expression,
                                   partition_names, output_fields, timeout, round_decimal, **kwargs)
+        
+        
+    def search_by_id(self, collection_name, query_id, anns_field, param, limit, 
+                     expression = None, partition_tags=None, output_fields = None, 
+                     timeout=None, round_decimal=-1, **kwargs):
+        with self._connection() as handler:
+            kwargs["_deploy_mode"] = self._deploy_mode
+            return handler.search_by_id(collection_name, query_id, anns_field, param, limit, expression,
+                                                  partition_tags, output_fields, timeout, round_decimal, **kwargs)
+
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def calc_distance(self, vectors_left, vectors_right, params=None, timeout=None, **kwargs):
