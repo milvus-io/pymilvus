@@ -11,7 +11,7 @@ PyMilvus only support python3(>= 3.6), usually, it's ok to install PyMilvus like
 
 .. code-block:: shell
    
-   $ python3 -m pip install pymilvus==2.0.0rc6
+   $ python3 -m pip install pymilvus==2.0.0rc7
 
 Installing in a virtual environment
 ====================================
@@ -27,7 +27,7 @@ See `virtualenv <https://virtualenv.pypa.io/en/latest/>`_ for more information a
    $ python3 -m pip install virtualenv
    $ virtualenv venv
    $ source venv/bin/activate
-   (venv) $ pip install pymilvus==2.0.0rc6
+   (venv) $ pip install pymilvus==2.0.0rc7
 
 If you want to exit the virtualenv ``venv``, you can use ``deactivate``.
 
@@ -49,7 +49,7 @@ If you want to install a specific version of PyMilvus:
 
 .. code-block:: shell
    
-   (venv) $ pip install pymilvus==2.0.0rc6
+   (venv) $ pip install pymilvus==2.0.0rc7
 
 If you want to upgrade PyMilvus into the latest version published:
 
