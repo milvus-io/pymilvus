@@ -25,9 +25,7 @@ class LoopBase(object):
             _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
             _step = item.step or 1
 
-            elements = []
-            for i in range(_start, _end, _step):
-                elements.append(self.get__item(i))
+            elements = [self.get__item(i) for i in range(_start, _end, _step)]
             return elements
 
         if item >= self.__len__():
@@ -146,8 +144,7 @@ class CollectionSchema:
         #     self.params.update(par)
         #     # self.params[kv.key] = kv.value
 
-        for f in raw.schema.fields:
-            self.fields.append(FieldSchema(f))
+        self.fields = [FieldSchema(f) for f in raw.schema.fields]
 
         # for s in raw.statistics:
         #     self.statistics[s.key] = s.value
@@ -190,9 +187,7 @@ class Entity:
 
     @property
     def fields(self):
-        fields = []
-        for k, v in self._row_data.items():
-            fields.append(k)
+        fields = [k for k, v in self._row_data.items()]
         return fields
 
     def get(self, field):
