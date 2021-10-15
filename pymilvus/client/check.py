@@ -144,7 +144,7 @@ def is_legal_ids(ids):
             i_ = int(i)
             if i_ < 0 or i_ > sys.maxsize:
                 return False
-        except:
+        except Exception:
             return False
 
     return True
@@ -195,13 +195,14 @@ def is_legal_anns_field(field):
 
 
 def is_legal_search_data(data):
-    if not isinstance(data, list):
+    import numpy as np
+    if not isinstance(data, (list, np.ndarray)):
         return False
 
     for vector in data:
         # list -> float vector
         # bytes -> byte vector
-        if not isinstance(vector, (list, bytes)):
+        if not isinstance(vector, (list, bytes, np.ndarray)):
             return False
 
     return True
