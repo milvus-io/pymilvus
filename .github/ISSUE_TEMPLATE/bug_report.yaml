@@ -1,0 +1,61 @@
+name: 🐞 Bug report
+description: Create a report to help us improve pymilvus
+title: "[Bug]: "
+body:
+- type: markdown
+  attributes:
+    value: |
+      Thanks for taking the time to fill out this bug report!
+- type: checkboxes
+  attributes:
+    label: Is there an existing issue for this?
+    description: Please search to see if an issue already exists for the bug you encountered.
+    options:
+    - label: I have searched the existing issues
+      required: true
+- type: textarea
+  attributes:
+    label: Describe the bug
+    description: A clear and concise description of what the bug is.
+    placeholder: |
+      When I do <X>, <Y> happens and I see the error message attached below:
+      ```...```
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Expected Behavior
+    description: A clear and concise description of what you expected to happen.
+    placeholder: When I do <X>, <Z> should happen instead.
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Steps/Code To Reproduce behavior
+    description: |
+      Follow this [guide](http://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports) to craft a minimal bug report. 
+      This helps us reproduce the issue you're having and resolve the issue more quickly.
+    render: markdown
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Environment details
+    description: |
+      Enter the Environment Details:
+    value: |
+      - Hardware/Softward conditions (OS, CPU, GPU, Memory):
+      - Method of installation (Docker, or from source):
+      - Milvus version (v0.3.1, or v0.4.0):
+      - Milvus configuration (Settings you made in `server_config.yaml`):
+    render: markdown
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Anything else?
+    description: |
+      If applicable, add screenshots to help explain your problem.
+      Links? References? Anything that will give us more context about the issue you are encountering!
+  validations:
+    required: false
