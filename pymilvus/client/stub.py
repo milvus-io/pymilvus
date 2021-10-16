@@ -1044,7 +1044,7 @@ class Milvus:
             * *_callback* (``function``) --
               The callback function which is invoked after server response successfully. It only take
               effect when _async is set to True.
-            * *guarantee_timestamp* (``function``) --
+            * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is provided, then Milvus will search all operations performed to date.
 

@@ -1,7 +1,3 @@
-from ..grpc_gen import common_pb2
-from ..grpc_gen.milvus_pb2 import SearchResults as Grpc_Result
-from ..client.abstract import QueryResult
-from ..client.exceptions import ParamError
 from .types import DataType
 
 valid_index_types = [
@@ -42,6 +38,21 @@ valid_binary_metric_types = [
     "SUBSTRUCTURE",
     "SUPERSTRUCTURE"
 ]
+
+LOGICAL_BITS = 18
+LOGICAL_BITS_MASK = (1 << LOGICAL_BITS) - 1
+
+
+def generate_timestamp(timestamp: int, ms: int) -> int:
+    """
+    generate_timestamp adds the real time to an existing timestamp, and returns back the new timestamp
+    """
+
+    logical = timestamp & LOGICAL_BITS_MASK
+    physical = timestamp >> LOGICAL_BITS
+
+    new_timestamp = int(((physical + ms) << LOGICAL_BITS) + logical)
+    return new_timestamp
 
 
 def check_invalid_binary_vector(entities):

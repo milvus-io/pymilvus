@@ -1,5 +1,6 @@
 import pytest
 from pymilvus.client.check import check_pass_param
+from pymilvus.client.utils import generate_timestamp
 
 
 class TestCheckPassParam:
@@ -19,3 +20,10 @@ class TestCheckPassParam:
         with pytest.raises(Exception):
             a = [{i * j for i in range(40)} for j in range(40)]
             check_pass_param(search_data=a)
+
+
+class TestGenTS:
+    def test_gen_timestamp(self):
+        t = generate_timestamp(426152581543231492, 1000)
+
+        print(f"Generated ts: {t}")
