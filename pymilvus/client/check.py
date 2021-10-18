@@ -186,7 +186,7 @@ def is_legal_partition_name(tag: Any) -> bool:
 
 
 def is_legal_limit(limit: Any) -> bool:
-    return limit and isinstance(limit, int)
+    return isinstance(limit, int) and limit > 0
 
 
 def is_legal_anns_field(field: Any) -> bool:
