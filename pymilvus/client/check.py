@@ -1,17 +1,15 @@
 import sys
 import datetime
+from typing import Any, Union
 from urllib.parse import urlparse
 from .exceptions import ParamError
 
 
-def is_legal_host(host):
-    if not isinstance(host, str):
-        return False
-
-    return True
+def is_legal_host(host: Any) -> bool:
+    return isinstance(host, str)
 
 
-def is_legal_port(port):
+def is_legal_port(port: Any) -> bool:
     if isinstance(port, (str, int)):
         try:
             _port = int(port)
@@ -24,7 +22,7 @@ def is_legal_port(port):
     return True
 
 
-def is_legal_uri(uri):
+def is_legal_uri(uri: Any) -> bool:
     if uri is None:
         return True
 
@@ -35,7 +33,7 @@ def is_legal_uri(uri):
         return False
 
 
-def is_legal_vector(array):
+def is_legal_vector(array: Any) -> bool:
     if not array or \
             not isinstance(array, list) or \
             len(array) == 0:
@@ -48,7 +46,7 @@ def is_legal_vector(array):
     return True
 
 
-def is_legal_bin_vector(array):
+def is_legal_bin_vector(array: Any) -> bool:
     if not array or \
             not isinstance(array, bytes) or \
             len(array) == 0:
@@ -57,13 +55,15 @@ def is_legal_bin_vector(array):
     return True
 
 
-def is_legal_numpy_array(array):
-    return False if array is None or array.size == 0 else True
+def is_legal_numpy_array(array: Any) -> bool:
+    return not (array is None or array.size == 0)
 
 
 # def is_legal_records(value):
-#     param_error = ParamError('A vector must be a non-empty, 2-dimensional array and '
-#                              'must contain only elements with the float data type or the bytes data type.')
+#     param_error = ParamError(
+#         'A vector must be a non-empty, 2-dimensional array and '
+#         'must contain only elements with the float data type or the bytes data type.'
+#     )
 #
 #     if isinstance(value, np.ndarray):
 #         if not is_legal_numpy_array(value):
@@ -91,49 +91,48 @@ def is_legal_numpy_array(array):
 #     return True
 
 
-def int_or_str(item):
+def int_or_str(item: Union[int, str]) -> str:
     if isinstance(item, int):
         return str(item)
 
     return item
 
 
-def is_correct_date_str(param):
+def is_correct_date_str(param: str) -> bool:
     try:
         datetime.datetime.strptime(param, '%Y-%m-%d')
     except ValueError:
-        raise ParamError('Incorrect data format, should be YYYY-MM-DD')
+        return False
 
     return True
 
 
-def is_legal_dimension(dim):
+def is_legal_dimension(dim: Any) -> bool:
     return isinstance(dim, int)
 
 
-def is_legal_index_size(index_size):
+def is_legal_index_size(index_size: Any) -> bool:
     return isinstance(index_size, int)
 
 
-def is_legal_table_name(table_name):
-    return isinstance(table_name, str) and len(table_name) > 0
+def is_legal_table_name(table_name: Any) -> bool:
+    return table_name and isinstance(table_name, str)
 
 
-def is_legal_field_name(field_name):
-    return isinstance(field_name, str) and len(field_name) > 0
+def is_legal_field_name(field_name: Any) -> bool:
+    return field_name and isinstance(field_name, str)
 
 
-def is_legal_nlist(nlist):
+def is_legal_nlist(nlist: Any) -> bool:
     return not isinstance(nlist, bool) and isinstance(nlist, int)
 
 
-def is_legal_topk(topk):
+def is_legal_topk(topk: Any) -> bool:
     return not isinstance(topk, bool) and isinstance(topk, int)
 
 
-def is_legal_ids(ids):
-    if not isinstance(ids, list) or \
-            len(ids) == 0:
+def is_legal_ids(ids: Any) -> bool:
+    if not ids or not isinstance(ids, list):
         return False
 
     # TODO: Here check id valid value range may not match other SDK
@@ -150,15 +149,15 @@ def is_legal_ids(ids):
     return True
 
 
-def is_legal_nprobe(nprobe):
+def is_legal_nprobe(nprobe: Any) -> bool:
     return isinstance(nprobe, int)
 
 
-def is_legal_cmd(cmd):
-    return isinstance(cmd, str) and len(cmd) > 0
+def is_legal_cmd(cmd: Any) -> bool:
+    return cmd and isinstance(cmd, str)
 
 
-def parser_range_date(date):
+def parser_range_date(date: Union[str, datetime.date]) -> str:
     if isinstance(date, datetime.date):
         return date.strftime('%Y-%m-%d')
 
@@ -173,7 +172,7 @@ def parser_range_date(date):
         'or datetime.datetime object')
 
 
-def is_legal_date_range(start, end):
+def is_legal_date_range(start: str, end: str) -> bool:
     start_date = datetime.datetime.strptime(start, "%Y-%m-%d")
     end_date = datetime.datetime.strptime(end, "%Y-%m-%d")
     if (end_date - start_date).days < 0:
@@ -182,19 +181,19 @@ def is_legal_date_range(start, end):
     return True
 
 
-def is_legal_partition_name(tag):
+def is_legal_partition_name(tag: Any) -> bool:
     return tag is not None and isinstance(tag, str)
 
 
-def is_legal_limit(limit):
-    return isinstance(limit, int) and limit > 0
+def is_legal_limit(limit: Any) -> bool:
+    return limit and isinstance(limit, int)
 
 
-def is_legal_anns_field(field):
-    return isinstance(field, str) and len(field) > 0
+def is_legal_anns_field(field: Any) -> bool:
+    return field and isinstance(field, str)
 
 
-def is_legal_search_data(data):
+def is_legal_search_data(data: Any) -> bool:
     import numpy as np
     if not isinstance(data, (list, np.ndarray)):
         return False
@@ -208,7 +207,7 @@ def is_legal_search_data(data):
     return True
 
 
-def is_legal_output_fields(output_fields):
+def is_legal_output_fields(output_fields: Any) -> bool:
     if output_fields is None:
         return True
 
@@ -222,7 +221,7 @@ def is_legal_output_fields(output_fields):
     return True
 
 
-def is_legal_partition_name_array(tag_array):
+def is_legal_partition_name_array(tag_array: Any) -> bool:
     if tag_array is None:
         return True
 
@@ -238,7 +237,7 @@ def is_legal_partition_name_array(tag_array):
 
 # https://milvus.io/cn/docs/v1.0.0/metric.md#floating
 def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
-    if index_type not in ["FLAT",
+    if index_type not in ("FLAT",
                           "IVF_FLAT",
                           "IVF_SQ8",
                           # "IVF_SQ8_HYBRID",
@@ -248,9 +247,9 @@ def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
                           "ANNOY",
                           "RHNSW_FLAT",
                           "RHNSW_PQ",
-                          "RHNSW_SQ", ]:
+                          "RHNSW_SQ"):
         return False
-    if metric_type not in ["L2", "IP"]:
+    if metric_type not in ("L2", "IP"):
         return False
     return True
 
@@ -258,21 +257,23 @@ def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
 # https://milvus.io/cn/docs/v1.0.0/metric.md#binary
 def is_legal_binary_index_metric_type(index_type: str, metric_type: str) -> bool:
     if index_type == "BIN_FLAT":
-        if metric_type in ["JACCARD", "TANIMOTO", "HAMMING", "SUBSTRUCTURE", "SUPERSTRUCTURE"]:
+        if metric_type in ("JACCARD", "TANIMOTO", "HAMMING", "SUBSTRUCTURE", "SUPERSTRUCTURE"):
             return True
     elif index_type == "BIN_IVF_FLAT":
-        if metric_type in ["JACCARD", "TANIMOTO", "HAMMING"]:
+        if metric_type in ("JACCARD", "TANIMOTO", "HAMMING"):
             return True
     return False
 
 
-def _raise_param_error(param_name, param_value):
-    raise ParamError("`{}` value {} is illegal".format(param_name, param_value))
+def _raise_param_error(param_name: str, param_value: Any) -> None:
+    raise ParamError(f"`{param_name}` value {param_value} is illegal")
 
-def is_legal_round_decimal(round_decimal):
+
+def is_legal_round_decimal(round_decimal: Any) -> bool:
     return isinstance(round_decimal, int) and -2 < round_decimal < 7
 
-def check_pass_param(*args, **kwargs):
+
+def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
     if kwargs is None:
         raise ParamError("Param should not be None")
 
@@ -329,4 +330,4 @@ def check_pass_param(*args, **kwargs):
         #     if not is_legal_records(value):
         #         _raise_param_error(key, value)
         else:
-            raise ParamError("unknown param `{}`".format(key))
+            raise ParamError(f"unknown param `{key}`")
