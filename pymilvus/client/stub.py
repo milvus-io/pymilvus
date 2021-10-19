@@ -959,7 +959,7 @@ class Milvus:
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-           return handler.delete(collection_name, expr, partition_name, timeout, **kwargs)
+            return handler.delete(collection_name, expr, partition_name, timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def flush(self, collection_names=None, timeout=None, **kwargs):
@@ -1047,6 +1047,9 @@ class Milvus:
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is provided, then Milvus will search all operations performed to date.
+            * *travel_timestamp* (``int``) --
+              Users can specify a timestamp in a search to get results based on a data view
+                        at a specified point in time.
 
         :return: Query result. QueryResult is iterable and is a 2d-array-like class, the first dimension is
                  the number of vectors to query (nq), the second dimension is the number of limit(topk).

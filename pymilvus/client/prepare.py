@@ -410,7 +410,7 @@ class Prepare:
         vector_placeholders = dict()
         vector_names = dict()
 
-        meta = {}   # TODO: ugly here, find a better method
+        meta = {}  # TODO: ugly here, find a better method
 
         def extract_vectors_param(param, placeholders, meta=None, names=None, round_decimal=-1):
             if not isinstance(param, (dict, list)):
@@ -456,7 +456,7 @@ class Prepare:
 
         requests = []
         factor = 10
-        topk = meta.get("topk", 100)    # TODO: ugly here, find a better method
+        topk = meta.get("topk", 100)  # TODO: ugly here, find a better method
         for tag, vectors in vector_placeholders.items():
             if len(vectors) <= 0:
                 continue
@@ -502,7 +502,8 @@ class Prepare:
             return requests
 
     @classmethod
-    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1, **kwargs):
+    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1,
+                       **kwargs):
         schema = kwargs.get("schema", None)
         fields_schema = schema.get("fields", None)  # list
         fields_name_locs = {fields_schema[loc]["name"]: loc
@@ -511,7 +512,7 @@ class Prepare:
         if not isinstance(query_entities, (dict,)):
             raise ParamError("Invalid query format. 'query_entities' must be a dict")
 
-        if fields is not None and not isinstance(fields, (list, )):
+        if fields is not None and not isinstance(fields, (list,)):
             raise ParamError("Invalid query format. 'fields' must be a list")
 
         request = milvus_types.SearchRequest(
@@ -627,7 +628,8 @@ class Prepare:
         params = param_copy.pop("params", {})
         if not isinstance(params, dict):
             raise ParamError("Search params must be a dict")
-        search_params = {"anns_field": anns_field, "topk": limit, "metric_type": metric_type, "params": params, "round_decimal": round_decimal}
+        search_params = {"anns_field": anns_field, "topk": limit, "metric_type": metric_type, "params": params,
+                         "round_decimal": round_decimal}
 
         def dump(v):
             if isinstance(v, dict):
@@ -643,6 +645,7 @@ class Prepare:
                 partition_names=partition_names,
                 output_fields=output_fields,
                 guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
+                travel_timestamp=kwargs.get("travel_timestamp", 0),
             )
             request.placeholder_group = plg_str
 
@@ -853,7 +856,8 @@ class Prepare:
         type_left, dim_left = extract_vectors(vectors_left, request.op_left, True)
         type_right, dim_right = extract_vectors(vectors_right, request.op_right, False)
 
-        if (type_left == _TYPE_FLOAT and type_right == _TYPE_BIN) or (type_left == _TYPE_BIN and type_right == _TYPE_FLOAT):
+        if (type_left == _TYPE_FLOAT and type_right == _TYPE_BIN) or (
+                type_left == _TYPE_BIN and type_right == _TYPE_FLOAT):
             raise ParamError("Cannot calculate distance between float vectors and binary vectors")
 
         if (type_left != _TYPE_IDS and type_right != _TYPE_IDS) and dim_left != dim_right:
