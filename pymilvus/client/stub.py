@@ -1121,6 +1121,22 @@ class Milvus:
             return handler.calc_distance(vectors_left, vectors_right, params, timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
+    def get_query_segment_info(self, timeout=None, **kwargs):
+        """
+        Notifies Proxy to return segments information from query nodes.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+
+        :return: QuerySegmentInfo:
+            QuerySegmentInfo is the growing segments's information in query cluster.
+        :rtype: QuerySegmentInfo
+        """
+        with self._connection() as handler:
+            return handler.get_query_segment_infos(timeout, **kwargs)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
     def load_collection_progress(self, collection_name, timeout=None):
         with self._connection() as handler:
             return handler.load_collection_progress(collection_name, timeout=timeout)
