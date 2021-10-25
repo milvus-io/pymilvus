@@ -370,3 +370,24 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
     for i in range(n):
         res_2_d.append(res[i * m:i * m + m])
     return res_2_d
+
+def get_query_segment_info(timeout=None, using="default"):
+    """
+    Notifies Proxy to return segments information from query nodes.
+
+    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                    is set to None, client waits until server response or error occur.
+    :type  timeout: float
+
+    :return: QuerySegmentInfo:
+        QuerySegmentInfo is the growing segments's information in query cluster.
+    :rtype: QuerySegmentInfo
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>>
+        >>> connections.connect()
+        >>>
+        >>> res = utility.get_query_segment_info()
+    """
+    return _get_connection(using).get_query_segment_info()
