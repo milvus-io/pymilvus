@@ -348,12 +348,8 @@ class Prepare:
 
         insert_request.num_rows = row_num
 
-        # generate hash keys, TODO: better hash function
-        if not fields_info[primary_key_loc].get("auto_id", False):
-            field_name = fields_info[primary_key_loc].get("name")
-            entity_loc = location[field_name]
-            hash_keys = [abs(mmh3.hash(str(e))) for e in entities[entity_loc].get("values")]
-            insert_request.hash_keys.extend(hash_keys)
+        # insert_request.hash_keys won't be filled in client. 
+        # It will be filled in proxy.
 
         return insert_request
 
