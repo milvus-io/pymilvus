@@ -369,10 +369,10 @@ class Prepare:
                 raise ParamError(prefix + " cannot be empty")
 
         check_str(collection_name, "collection_name")
+        if partition_name != "":
+            check_str(partition_name, "partition_name")
         check_str(expr, "expr")
 
-        # if partition_name is null or empty, delete action will apply to whole collection
-        partition_name = partition_name or ""
         request = milvus_types.DeleteRequest(collection_name=collection_name, expr=expr, partition_name=partition_name)
         return request
 
