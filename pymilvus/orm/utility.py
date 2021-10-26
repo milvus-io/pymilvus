@@ -371,10 +371,11 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
         res_2_d.append(res[i * m:i * m + m])
     return res_2_d
 
-def get_query_segment_info(timeout=None, using="default"):
+def get_query_segment_info(collection_name, timeout=None, using="default"):
     """
     Notifies Proxy to return segments information from query nodes.
 
+    :param collection_name: A string representing the collection to get segments info.
     :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                     is set to None, client waits until server response or error occur.
     :type  timeout: float
@@ -384,10 +385,19 @@ def get_query_segment_info(timeout=None, using="default"):
     :rtype: QuerySegmentInfo
 
     :example:
-        >>> from pymilvus import connections, utility
-        >>>
-        >>> connections.connect()
-        >>>
-        >>> res = utility.get_query_segment_info()
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> _DIM = 128
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
+        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="get collection entities num")
+        >>> collection = Collection(name="test_get_segment_info", schema=schema)
+        >>> import pandas as pd
+        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
+        >>> float_vector_series = [[random.random() for _ in range _DIM] for _ in range (10)]
+        >>> data = pd.DataFrame({"int64" : int64_series, "float_vector": float_vector_series})
+        >>> collection.insert(data)
+        >>> collection.load() # load collection to memory
+        >>> res = utility.get_query_segment_info("test_get_segment_info")
     """
-    return _get_connection(using).get_query_segment_info()
+    return _get_connection(using).get_query_segment_info(collection_name, timeout=timeout)
