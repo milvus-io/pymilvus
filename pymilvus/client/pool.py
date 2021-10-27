@@ -1,7 +1,6 @@
 # -*- coding: UTF-8 -*-
 
 import logging
-import os
 import queue
 import threading
 import time
@@ -65,6 +64,9 @@ class ConnectionRecord:
         else:
             raise ValueError("Unknown handler type. Use GRPC or HTTP")
 
+    def __repr__(self):
+        return f"<ConnectionRecord: {id(self)}> <conn: {id(self._connection)}>"
+
     def _register_link(self):
         with RegistryHandler(uri=self._uri, pre_ping=self._pre_ping, conn_id=self._conn_id, **self._kw) as register:
             ip, port = register.register_link()
@@ -112,9 +114,8 @@ class ConnectionPool:
                 raise NotConnectError("Cannot check server version: {}".format(status.message))
             if not _is_version_match(version):
                 raise VersionError(
-                    "Version of python SDK(v{}) not match that of server v{}, excepted is v{}".format(__version__,
-                                                                                                  version,
-                                                                                                  support_versions))
+                    f"Version of python SDK(v{__version__}) not match that of server v{version}, excepted is v{support_versions}")
+
         conn.close()
 
     def _inc_used(self):
