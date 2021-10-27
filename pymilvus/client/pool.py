@@ -79,6 +79,8 @@ class ConnectionRecord:
         #     self._connection.ping()
         return self._connection
 
+    def __str__(self):
+        return "ConnectRecord:(%s) conn:(%s)" % (str(id(self)), str(id(self._connection)))
 
 class ConnectionPool:
     def __init__(self, uri, pool_size=10, wait_timeout=30, try_connect=True, **kwargs):
