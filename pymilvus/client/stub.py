@@ -1072,6 +1072,60 @@ class Milvus:
             kwargs["_deploy_mode"] = self._deploy_mode
             return handler.search(collection_name, data, anns_field, param, limit, expression,
                                   partition_names, output_fields, timeout, round_decimal, **kwargs)
+        
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    def search_by_id(self, collection_name, search_ids, anns_field, param, limit, expression=None, partition_names=None,
+               output_fields=None, timeout=None, round_decimal=-1, **kwargs):
+        """
+        Searches a collection based on the given expression and returns query results.
+        :param collection_name: The name of the collection to search.
+        :type  collection_name: str
+        :param search_ids: List of ids of the vectors to search, the length of search_ids is number of query (nq).
+        :type  search_ids: list[int]
+        :param anns_field: The vector field used to search of collection.
+        :type  anns_field: str
+        :param param: The parameters of search, such as nprobe, etc.
+        :type  param: dict
+        :param limit: The max number of returned record, we also called this parameter as topk.
+        :type  limit: int
+        :param expression: The boolean expression used to filter attribute.
+        :type  expression: str
+        :param partition_names: The names of partitions to search.
+        :type  partition_names: list[str]
+        :param output_fields: The fields to return in the search result, not supported now.
+        :type  output_fields: list[str]
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+        :param round_decimal: The specified number of decimal places of returned distance
+        :type  round_decimal: int
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a SearchFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only take
+              effect when _async is set to True.
+        :return: Query result. QueryResult is iterable and is a 2d-array-like class, the first dimension is
+                 the number of vectors to query (nq), the second dimension is the number of limit(topk).
+        :rtype: QueryResult
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
+        """
+        check_pass_param(
+            limit=limit,
+            round_decimal=round_decimal,
+            anns_field=anns_field,
+            search_ids=search_ids,
+            partition_name_array=partition_names,
+            output_fields=output_fields,
+        )
+        with self._connection() as handler:
+            kwargs["_deploy_mode"] = self._deploy_mode
+            return handler.search_by_id(collection_name, search_ids, anns_field, param, limit, expression,
+                                  partition_names, output_fields, timeout, round_decimal, **kwargs)
+
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def calc_distance(self, vectors_left, vectors_right, params=None, timeout=None, **kwargs):

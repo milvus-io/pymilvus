@@ -206,6 +206,16 @@ def is_legal_search_data(data: Any) -> bool:
 
     return True
 
+def is_legal_search_ids(ids):
+    if not isinstance(ids, list):
+        return False
+
+    for vector in ids:
+        if not isinstance(vector, int):
+            return False
+
+    return True
+
 
 def is_legal_output_fields(output_fields: Any) -> bool:
     if output_fields is None:
@@ -319,6 +329,9 @@ def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too
                 _raise_param_error(key, value)
         elif key in ("search_data",):
             if not is_legal_search_data(value):
+                _raise_param_error(key, value)
+        elif key in ("search_ids",):
+            if not is_legal_search_ids(value):
                 _raise_param_error(key, value)
         elif key in ("output_fields",):
             if not is_legal_output_fields(value):

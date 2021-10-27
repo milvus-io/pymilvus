@@ -413,6 +413,85 @@ class Partition:
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
+    
+    def search_by_id(self, search_ids, anns_field, param, limit, expr=None, output_fields=None, timeout=None, round_decimal=-1,
+               **kwargs):
+        """
+        Vector similarity search with an optional boolean expression as filters.
+        :param search_ids: List of ids of the vectors to search, the length of search_ids is number of query (nq).
+        :type  search_ids: list[int]
+        :param anns_field: The vector field used to search of collection.
+        :type  anns_field: str
+        :param param: The parameters of search, such as nprobe, etc.
+        :type  param: dict
+        :param limit: The max number of returned record, we also called this parameter as topk.
+        :param round_decimal: The specified number of decimal places of returned distance
+        :type  round_decimal: int
+        :param expr: The boolean expression used to filter attribute.
+        :type  expr: str
+        :param output_fields: The fields to return in the search result, not supported now.
+        :type  output_fields: list[str]
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur.
+        :type  timeout: float
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a
+              SearchFuture object; otherwise, method returns results from server directly.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only
+              takes effect when _async is set to True.
+        :return: SearchResult:
+            SearchResult is iterable and is a 2d-array-like class, the first dimension is
+            the number of vectors to query (nq), the second dimension is the number of limit(topk).
+        :rtype: SearchResult
+        :raises RpcError: If gRPC encounter an error.
+        :raises ParamError: If parameters are invalid.
+        :raises BaseException: If the return result from server is not ok.
+        :example:
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> import random
+            >>> connections.connect()
+            <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_collection_search", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> # insert
+            >>> data = [
+            ...     [i for i in range(10)],
+            ...     [[random.random() for _ in range(2)] for _ in range(10)],
+            ... ]
+            >>> partition.insert(data)
+            >>> partition.num_entities
+            10
+            >>> partition.load()
+            >>> # search
+            >>> search_param = {
+            ...     "search_ids": [1],
+            ...     "anns_field": "films",
+            ...     "param": {"metric_type": "L2"},
+            ...     "limit": 2,
+            ...     "expr": "film_id > 0",
+            ... }
+            >>> res = partition.search_by_id(**search_param)
+            >>> assert len(res) == 1
+            >>> hits = res[0]
+            >>> assert len(hits) == 2
+            >>> print(f"- Total hits: {len(hits)}, hits ids: {hits.ids} ")
+            - Total hits: 2, hits ids: [1, 5]
+            >>> print(f"- Top1 hit id: {hits[0].id}, distance: {hits[0].distance}, score: {hits[0].score} ")
+            - Top1 hit id: 1, distance: 0.0, score: 0.0
+        """
+        conn = self._get_connection()
+        res = conn.search_by_id(self._collection.name, search_ids, anns_field, param, limit,
+                          expr, [self._name], output_fields, timeout, round_decimal, **kwargs)
+        if kwargs.get("_async", False):
+            return SearchFuture(res)
+        return SearchResult(res)
+
 
     def query(self, expr, output_fields=None, timeout=None):
         """
