@@ -32,19 +32,19 @@ The following collection shows Milvus versions and recommended PyMilvus versions
 You can install PyMilvus via `pip` or `pip3` for Python 3.6+:
 
 ```shell
-$ pip3 install pymilvus
+$ pip3 install pymilvus-perf
 ```
 
 You can install a specific version of PyMilvus by:
 
 ```shell
-$ pip3 install pymilvus==2.0.0rc8
+$ pip3 install pymilvus-perf==2.0.0rc8
 ```
 
 You can upgrade PyMilvus to the latest version by:
 
 ```shell
-$ pip3 install --upgrade pymilvus
+$ pip3 install --upgrade pymilvus-perf
 ```
 
 
@@ -74,7 +74,7 @@ For example, after the release of 1.0.1, two commits were submitted on the 1.0 b
 
 To install the package on test.pypi.org, you need to append the parameter --index-url after pip, for example:
 ```shell
-$ python3 -m pip install --index-url https://test.pypi.org/simple/ pymilvus
+$ python3 -m pip install --index-url https://test.pypi.org/simple/ pymilvus-perf
 ```
 
 
