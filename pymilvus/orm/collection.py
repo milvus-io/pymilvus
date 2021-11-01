@@ -546,10 +546,9 @@ class Collection:
         :return: list of ids of the deleted vectors.
         :rtype: list
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
 
         :example:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
@@ -699,11 +698,10 @@ class Collection:
         :return: A list that contains all results
         :rtype: list
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            DataTypeNotMatchException: If wrong type of param is passed
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises DataTypeNotMatchException: If wrong type of param is passed
+        :raises BaseException: If the return result from server is not ok
 
         :example:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType

@@ -221,10 +221,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.create_collection(collection_name, fields, shards_num=shards_num, timeout=timeout, **kwargs)
@@ -244,10 +243,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -268,10 +266,9 @@ class Milvus:
         :return: If specified collection exists
         :rtype: bool
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -296,10 +293,9 @@ class Milvus:
         :return: The schema of collection to describe.
         :rtype: dict
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -320,10 +316,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -344,10 +339,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -369,10 +363,9 @@ class Milvus:
         :return: statistics information
         :rtype: dict
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         with self._connection() as handler:
             stats = handler.get_collection_stats(collection_name, timeout, **kwargs)
@@ -392,10 +385,9 @@ class Milvus:
         :return: List of collection names, return when operation is successful
         :rtype: list[str]
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.list_collections(timeout)
@@ -420,10 +412,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         with self._connection() as handler:
@@ -449,10 +440,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         with self._connection() as handler:
@@ -476,10 +466,9 @@ class Milvus:
         :return: Whether a specified partition exists in a collection.
         :rtype: bool
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         with self._connection() as handler:
@@ -503,10 +492,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -531,10 +519,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -556,10 +543,9 @@ class Milvus:
         :return: A list of all partition tags in specified collection.
         :rtype: list[str]
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
 
@@ -585,10 +571,9 @@ class Milvus:
         :return: statistics information
         :rtype: dict
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -621,10 +606,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -651,10 +635,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.drop_alias(alias, timeout, **kwargs)
@@ -685,10 +668,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -792,10 +774,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         params = params or dict()
         if not isinstance(params, dict):
@@ -849,10 +830,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         check_pass_param(field_name=field_name)
@@ -879,10 +859,9 @@ class Milvus:
         :return: the schema of index built on specified field.
         :rtype: dict
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -918,10 +897,9 @@ class Milvus:
         :return: list of ids of the inserted vectors.
         :rtype: list[int]
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         # filter invalid binary data #1352: https://github.com/zilliztech/milvus-distributed/issues/1352
         if not check_invalid_binary_vector(entities):
@@ -952,10 +930,9 @@ class Milvus:
         :return: list of ids of the deleted vectors.
         :rtype: list
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
@@ -990,10 +967,9 @@ class Milvus:
         :return: None
         :rtype: NoneType
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         if collection_names in (None, []):
             raise ParamError("Collection name list can not be None or empty")
@@ -1055,10 +1031,9 @@ class Milvus:
                  the number of vectors to query (nq), the second dimension is the number of limit(topk).
         :rtype: QueryResult
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         check_pass_param(
             limit=limit,
@@ -1196,10 +1171,9 @@ class Milvus:
         :return: A list that contains all results
         :rtype: list
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout)

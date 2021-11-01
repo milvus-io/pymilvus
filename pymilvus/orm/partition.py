@@ -289,10 +289,9 @@ class Partition:
         :return: list of ids of the deleted vectors.
         :rtype: list
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
 
         :example:
             >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
@@ -431,10 +430,9 @@ class Partition:
         :return: A list that contains all results
         :rtype: list
 
-        :raises:
-            RpcError: If gRPC encounter an error
-            ParamError: If parameters are invalid
-            BaseException: If the return result from server is not ok
+        :raises RpcError: If gRPC encounter an error
+        :raises ParamError: If parameters are invalid
+        :raises BaseException: If the return result from server is not ok
 
         :example:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
