@@ -22,7 +22,7 @@ copyright = '2021, Milvus'
 author = 'Milvus'
 
 # The full version, including alpha/beta/rc tags
-release = '2.0.0rc7'
+release = '2.0.0rc8'
 show_authors = True
 
 
