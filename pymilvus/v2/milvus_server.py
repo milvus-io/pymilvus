@@ -17,6 +17,10 @@ class IServer(metaclass=ABCMeta):
     def create_collection(self, collection_name, fields, shards_num):
         pass
 
+    @abstractmethod
+    def drop_collection(self, collection_name):
+        pass
+
 
 class GrpcServer(IServer):
     def __init__(self, host="localhost", port="19530"):
@@ -58,3 +62,7 @@ class GrpcServer(IServer):
         request = milvus_types.CreateCollectionRequest(collection_name=collection_name,
                                                        schema=bytes(schema.SerializeToString()), shards_num=shards_num)
         return self._stub.CreateCollection(request)
+
+    def drop_collection(self, collection_name):
+        request = milvus_types.DropCollectionRequest(collection_name=collection_name)
+        return self._stub.DropCollection(request)
