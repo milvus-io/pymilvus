@@ -14,11 +14,11 @@ class IServer(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def create_collection(self, collection_name, fields, shards_num) -> None:
+    def create_collection(self, collection_name, fields, shards_num) -> common_types.Status:
         pass
 
     @abstractmethod
-    def drop_collection(self, collection_name) -> None:
+    def drop_collection(self, collection_name) -> common_types.Status:
         pass
 
     @abstractmethod
@@ -34,7 +34,11 @@ class IServer(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def create_partition(self, collection_name, partition_name) -> None:
+    def create_partition(self, collection_name, partition_name) -> common_types.Status:
+        pass
+
+    @abstractmethod
+    def drop_partition(self, collection_name, partition_name) -> common_types.Status:
         pass
 
 
@@ -50,7 +54,7 @@ class GrpcServer(IServer):
         )
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
 
-    def create_collection(self, collection_name, fields, shards_num) -> None:
+    def create_collection(self, collection_name, fields, shards_num) -> common_types.Status:
         assert isinstance(fields, dict)
         assert "fields" in fields
         assert sum(1 for field in fields["fields"] if "is_primary" in field) == 1
@@ -79,7 +83,7 @@ class GrpcServer(IServer):
                                                        schema=bytes(schema.SerializeToString()), shards_num=shards_num)
         return self._stub.CreateCollection(request)
 
-    def drop_collection(self, collection_name) -> None:
+    def drop_collection(self, collection_name) -> common_types.Status:
         request = milvus_types.DropCollectionRequest(collection_name=collection_name)
         return self._stub.DropCollection(request)
 
@@ -95,6 +99,10 @@ class GrpcServer(IServer):
         request = milvus_types.ShowCollectionsRequest()
         return self._stub.ShowCollections(request)
 
-    def create_partition(self, collection_name, partition_name) -> None:
+    def create_partition(self, collection_name, partition_name) -> common_types.Status:
         request = milvus_types.CreatePartitionRequest(collection_name=collection_name, partition_name=partition_name)
         return self._stub.CreatePartition(request)
+
+    def drop_partition(self, collection_name, partition_name) -> common_types.Status:
+        request = milvus_types.DropPartitionRequest(collection_name=collection_name, partition_name=partition_name)
+        return self._stub.DropPartition(request)
