@@ -69,3 +69,22 @@ class TestHasCollection:
         response = server_instance.has_collection("name")
         assert response.status.error_code == 0
         assert response.value is True
+
+
+class TestDescribeCollection:
+    def test_describe_collection(self, server_instance):
+        server_instance.create_collection("name", {"fields": [
+            {
+                "name": "my_id",
+                "type": DataType.INT64,
+                "auto_id": True,
+                "is_primary": True,
+            },
+            {
+                "name": "my_vector",
+                "type": DataType.FLOAT_VECTOR,
+                "params": {"dim": 64},
+            }
+        ], "description": "this is a description"}, 2)
+        response = server_instance.describe_collection("name")
+        assert response.status.error_code == 0

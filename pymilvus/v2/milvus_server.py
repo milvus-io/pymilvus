@@ -25,6 +25,10 @@ class IServer(metaclass=ABCMeta):
     def has_collection(self, collection_name) -> bool:
         pass
 
+    @abstractmethod
+    def describe_collection(self, collection_name) -> dict:
+        pass
+
 
 class GrpcServer(IServer):
     def __init__(self, host="localhost", port="19530"):
@@ -74,3 +78,7 @@ class GrpcServer(IServer):
     def has_collection(self, collection_name) -> bool:
         request = milvus_types.HasCollectionRequest(collection_name=collection_name)
         return self._stub.HasCollection(request)
+
+    def describe_collection(self, collection_name) -> dict:
+        request = milvus_types.DescribeCollectionRequest(collection_name=collection_name)
+        return self._stub.DescribeCollection(request)
