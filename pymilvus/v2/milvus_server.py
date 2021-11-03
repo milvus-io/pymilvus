@@ -22,11 +22,11 @@ class IServer(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def has_collection(self, collection_name) -> bool:
+    def has_collection(self, collection_name) -> milvus_types.BoolResponse:
         pass
 
     @abstractmethod
-    def describe_collection(self, collection_name) -> dict:
+    def describe_collection(self, collection_name) -> milvus_types.DescribeCollectionResponse:
         pass
 
 
@@ -75,10 +75,10 @@ class GrpcServer(IServer):
         request = milvus_types.DropCollectionRequest(collection_name=collection_name)
         return self._stub.DropCollection(request)
 
-    def has_collection(self, collection_name) -> bool:
+    def has_collection(self, collection_name) -> milvus_types.BoolResponse:
         request = milvus_types.HasCollectionRequest(collection_name=collection_name)
         return self._stub.HasCollection(request)
 
-    def describe_collection(self, collection_name) -> dict:
+    def describe_collection(self, collection_name) -> milvus_types.DescribeCollectionResponse:
         request = milvus_types.DescribeCollectionRequest(collection_name=collection_name)
         return self._stub.DescribeCollection(request)
