@@ -33,6 +33,10 @@ class IServer(metaclass=ABCMeta):
     def list_collections(self) -> milvus_types.ShowCollectionsResponse:
         pass
 
+    @abstractmethod
+    def create_partition(self, collection_name, partition_name) -> None:
+        pass
+
 
 class GrpcServer(IServer):
     def __init__(self, host="localhost", port="19530"):
@@ -90,3 +94,7 @@ class GrpcServer(IServer):
     def list_collections(self) -> milvus_types.ShowCollectionsResponse:
         request = milvus_types.ShowCollectionsRequest()
         return self._stub.ShowCollections(request)
+
+    def create_partition(self, collection_name, partition_name) -> None:
+        request = milvus_types.CreatePartitionRequest(collection_name=collection_name, partition_name=partition_name)
+        return self._stub.CreatePartition(request)
