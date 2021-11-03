@@ -14,11 +14,15 @@ class IServer(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def create_collection(self, collection_name, fields, shards_num):
+    def create_collection(self, collection_name, fields, shards_num) -> None:
         pass
 
     @abstractmethod
-    def drop_collection(self, collection_name):
+    def drop_collection(self, collection_name) -> None:
+        pass
+
+    @abstractmethod
+    def has_collection(self, collection_name) -> bool:
         pass
 
 
@@ -34,7 +38,7 @@ class GrpcServer(IServer):
         )
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
 
-    def create_collection(self, collection_name, fields, shards_num):
+    def create_collection(self, collection_name, fields, shards_num) -> None:
         assert isinstance(fields, dict)
         assert "fields" in fields
         assert sum(1 for field in fields["fields"] if "is_primary" in field) == 1
@@ -63,6 +67,10 @@ class GrpcServer(IServer):
                                                        schema=bytes(schema.SerializeToString()), shards_num=shards_num)
         return self._stub.CreateCollection(request)
 
-    def drop_collection(self, collection_name):
+    def drop_collection(self, collection_name) -> None:
         request = milvus_types.DropCollectionRequest(collection_name=collection_name)
         return self._stub.DropCollection(request)
+
+    def has_collection(self, collection_name) -> bool:
+        request = milvus_types.HasCollectionRequest(collection_name=collection_name)
+        return self._stub.HasCollection(request)
