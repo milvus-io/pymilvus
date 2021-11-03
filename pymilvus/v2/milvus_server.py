@@ -29,6 +29,10 @@ class IServer(metaclass=ABCMeta):
     def describe_collection(self, collection_name) -> milvus_types.DescribeCollectionResponse:
         pass
 
+    @abstractmethod
+    def list_collections(self) -> milvus_types.ShowCollectionsResponse:
+        pass
+
 
 class GrpcServer(IServer):
     def __init__(self, host="localhost", port="19530"):
@@ -82,3 +86,7 @@ class GrpcServer(IServer):
     def describe_collection(self, collection_name) -> milvus_types.DescribeCollectionResponse:
         request = milvus_types.DescribeCollectionRequest(collection_name=collection_name)
         return self._stub.DescribeCollection(request)
+
+    def list_collections(self) -> milvus_types.ShowCollectionsResponse:
+        request = milvus_types.ShowCollectionsRequest()
+        return self._stub.ShowCollections(request)
