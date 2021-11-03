@@ -10,6 +10,9 @@ from ..grpc_gen import schema_pb2 as schema_types
 
 
 class IServer(metaclass=ABCMeta):
+    """
+    Abstraction for the function of milvus server, to makes the unit tests not depend on a milvus server.
+    """
     def __init__(self):
         pass
 
@@ -43,6 +46,10 @@ class IServer(metaclass=ABCMeta):
 
 
 class GrpcServer(IServer):
+    """
+    Methods in this class cannot be covered by unit tests(unit tests should not depends on the milvus server), so that
+    keep them as simple as possible.
+    """
     def __init__(self, host="localhost", port="19530"):
         super().__init__()
         self._channel = grpc.insecure_channel(
