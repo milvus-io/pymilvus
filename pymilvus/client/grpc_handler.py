@@ -619,6 +619,24 @@ class GrpcHandler:
         _kwargs["auto_id"] = auto_id
         _kwargs["round_decimal"] = round_decimal
         return self._execute_search_requests(requests, timeout, **_kwargs)
+    
+    @error_handler(None)
+    @check_has_collection
+    def search_by_id(self, collection_name, search_ids, anns_field, param, limit,
+                     expression=None, partition_names=None, output_fields=None,
+                     timeout=None, round_decimal=-1, **kwargs):
+        ## do vector querying
+        _kwargs = copy.deepcopy(kwargs)
+        collection_schema = self.describe_collection(collection_name, timeout)
+        auto_id = collection_schema["auto_id"]
+        _kwargs["schema"] = collection_schema
+        requests = Prepare.search_requests_with_ids(collection_name, search_ids, anns_field, param, limit, expression,
+                                                     partition_names, output_fields, round_decimal, **_kwargs)
+        _kwargs.pop("schema")
+        _kwargs["auto_id"] = auto_id
+        _kwargs["round_decimal"] = round_decimal
+        return self._execute_search_requests(requests, timeout, **_kwargs)
+
 
     @error_handler(None)
     def get_query_segment_infos(self, collection_name, timeout=30, **kwargs):
