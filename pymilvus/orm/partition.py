@@ -244,6 +244,11 @@ class Partition:
               An optional duration of time in seconds to allow for the RPC. When timeout
               is set to None, client waits until server response or error occur.
 
+        :return: A MutationResult object contains a property named `insert_count` represents how many
+        entities have been inserted into milvus and a property named `primary_keys` is a list of primary
+        keys of the inserted entities.
+        :rtype: MutationResult
+
         :raises PartitionNotExistException:
             When partitoin does not exist
 
@@ -277,7 +282,7 @@ class Partition:
     def delete(self, expr, timeout=None, **kwargs):
         """
         Delete entities with an expression condition.
-        And return results to show which primary key is deleted successfully
+        And return results to show how many entities will be deleted.
 
         :param expr: The expression to specify entities to be deleted
         :type  expr: str
@@ -286,8 +291,9 @@ class Partition:
                         is set to None, client waits until server response or error occur
         :type  timeout: float
 
-        :return: list of ids of the deleted vectors.
-        :rtype: list
+        :return: A MutationResult object contains a property named `delete_count` represents how many
+        entities will be deleted.
+        :rtype: MutationResult
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
