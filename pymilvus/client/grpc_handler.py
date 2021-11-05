@@ -1196,3 +1196,11 @@ class GrpcHandler:
                     response.float_dist.data[i] = math.sqrt(response.float_dist.data[i])
             return response.float_dist.data
         raise BaseException(0, "Empty result returned")
+
+    @error_handler()
+    def load_balance(self, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
+        req = Prepare.load_balance_request(src_node_id, dst_node_ids, sealed_segment_ids)
+        future = self._stub.LoadBalance.future(req, wait_for_ready=True, timeout=timeout)
+        status = future.result()
+        if status.error_code != 0:
+            raise BaseException(status.error_code, status.reason)
