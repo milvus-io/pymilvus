@@ -1178,3 +1178,26 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    def load_balance(self, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
+        """
+        Do load balancing operation from source query node to destination query node.
+
+        :param src_node_id: The source query node id to balance.
+        :type  src_node_id: int
+
+        :param dst_node_ids: The destination query node ids to balance.
+        :type  dst_node_ids: list[int]
+
+        :param sealed_segment_ids: Sealed segment ids to balance.
+        :type  sealed_segment_ids: list[int]
+
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+
+        :raises BaseException: If query nodes not exist.
+        :raises BaseException: If sealed segments not exist.
+        """
+        with self._connection() as handler:
+            return handler.load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout, **kwargs)

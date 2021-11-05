@@ -371,6 +371,37 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
         res_2_d.append(res[i * m:i * m + m])
     return res_2_d
 
+def load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, using="default"):
+    """
+    Do load balancing operation from source query node to destination query node.
+
+    :param src_node_id: The source query node id to balance.
+    :type  src_node_id: int
+
+    :param dst_node_ids: The destination query node ids to balance.
+    :type  dst_node_ids: list[int]
+
+    :param sealed_segment_ids: Sealed segment ids to balance.
+    :type  sealed_segment_ids: list[int]
+
+    :param timeout: The timeout for this method, unit: second
+    :type  timeout: int
+
+    :raises BaseException: If query nodes not exist.
+    :raises BaseException: If sealed segments not exist.
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> 
+        >>> connections.connect()
+        >>> 
+        >>> src_node_id = 0
+        >>> dst_node_ids = [1]
+        >>> sealed_segment_ids = []
+        >>> res = utility.load_balance(src_node_id, dst_node_ids, sealed_segment_ids)
+    """
+    return _get_connection(using).load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout)
+
 def get_query_segment_info(collection_name, timeout=None, using="default"):
     """
     Notifies Proxy to return segments information from query nodes.
