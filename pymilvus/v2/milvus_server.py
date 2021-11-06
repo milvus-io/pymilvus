@@ -13,6 +13,7 @@ class IServer(metaclass=ABCMeta):
     """
     Abstraction for the function of milvus server, to makes the unit tests not depend on a milvus server.
     """
+
     def __init__(self):
         pass
 
@@ -44,12 +45,17 @@ class IServer(metaclass=ABCMeta):
     def drop_partition(self, collection_name, partition_name) -> common_types.Status:
         pass
 
+    @abstractmethod
+    def has_partition(self, collection_name, partition_name) -> milvus_types.BoolResponse:
+        pass
+
 
 class GrpcServer(IServer):
     """
     Methods in this class cannot be covered by unit tests(unit tests should not depends on the milvus server), so that
     keep them as simple as possible.
     """
+
     def __init__(self, host="localhost", port="19530"):
         super().__init__()
         self._channel = grpc.insecure_channel(
@@ -113,3 +119,8 @@ class GrpcServer(IServer):
     def drop_partition(self, collection_name, partition_name) -> common_types.Status:
         request = milvus_types.DropPartitionRequest(collection_name=collection_name, partition_name=partition_name)
         return self._stub.DropPartition(request)
+
+    def has_partition(self, collection_name, partition_name) -> milvus_types.BoolResponse:
+        request = milvus_types.HasPartitionRequest(collection_name=collection_name, partition_name=partition_name)
+        resp = self._stub.HasPartition(request)
+        return resp
