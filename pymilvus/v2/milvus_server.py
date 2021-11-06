@@ -11,7 +11,36 @@ from ..grpc_gen import schema_pb2 as schema_types
 
 class IServer(metaclass=ABCMeta):
     """
-    Abstraction for the function of milvus server, to makes the unit tests not depend on a milvus server.
+    The interface of milvus server.
+
+    Methods
+    -------
+    create_collection(collection_name, fields, shards_num) -> common_types.Status
+        Create a collection in Milvus
+
+    drop_collection(collection_name) -> common_types.Status
+        Drop a collection in Milvus
+
+    has_collection(collection_name) -> milvus_types.BoolResponse
+        Check if a collection exists in Milvus
+
+    describe_collection(collection_name) -> milvus_types.DescribeCollectionResponse
+        Get the schema of a collection in Milvus
+
+    list_collections() -> milvus_types.ShowCollectionsResponse
+        List all collections in Milvus
+
+    create_partition(collection_name, partition_name) -> common_types.Status
+        Create a partition in specified collection of Milvus
+
+    drop_partition(collection_name, partition_name) -> common_types.Status
+        Drop a partition in specified collection of Milvus
+
+    has_partition(collection_name, partition_name) -> milvus_types.BoolResponse
+        Check if a partition exists in specified collection of Milvus
+
+    list_partitions(collection_name) -> milvus_types.ShowPartitionsResponse
+        List all partitions in specified collection of Milvus
     """
 
     def __init__(self):
