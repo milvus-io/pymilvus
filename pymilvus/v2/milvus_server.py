@@ -49,6 +49,10 @@ class IServer(metaclass=ABCMeta):
     def has_partition(self, collection_name, partition_name) -> milvus_types.BoolResponse:
         pass
 
+    @abstractmethod
+    def list_partitions(self, collection_name) -> milvus_types.ShowPartitionsResponse:
+        pass
+
 
 class GrpcServer(IServer):
     """
@@ -122,5 +126,8 @@ class GrpcServer(IServer):
 
     def has_partition(self, collection_name, partition_name) -> milvus_types.BoolResponse:
         request = milvus_types.HasPartitionRequest(collection_name=collection_name, partition_name=partition_name)
-        resp = self._stub.HasPartition(request)
-        return resp
+        return self._stub.HasPartition(request)
+
+    def list_partitions(self, collection_name) -> milvus_types.ShowPartitionsResponse:
+        request = milvus_types.ShowPartitionsRequest(collection_name=collection_name)
+        return self._stub.ShowPartitions(request)

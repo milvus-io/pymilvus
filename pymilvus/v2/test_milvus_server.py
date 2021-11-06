@@ -183,3 +183,24 @@ class TestHasPartition:
         response = server_instance.has_partition(collection_name, partition_name)
         assert response.status.error_code == 0
         assert response.value is True
+
+
+class TestListPartitions:
+    def test_list_partitions(self, server_instance, collection_name, partition_name):
+        server_instance.create_collection(collection_name, {"fields": [
+            {
+                "name": "my_id",
+                "type": DataType.INT64,
+                "auto_id": True,
+                "is_primary": True,
+            },
+            {
+                "name": "my_vector",
+                "type": DataType.FLOAT_VECTOR,
+                "params": {"dim": 64},
+            }
+        ], "description": "this is a description"}, 2)
+        server_instance.create_partition(collection_name, partition_name)
+        response = server_instance.list_partitions(collection_name)
+        assert response.status.error_code == 0
+        assert partition_name in list(response.partition_names)
