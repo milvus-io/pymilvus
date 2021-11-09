@@ -190,6 +190,21 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.LoadBalanceRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.GetCompactionState = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetCompactionState',
+                request_serializer=milvus__pb2.GetCompactionStateRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetCompactionStateResponse.FromString,
+                )
+        self.ManualCompaction = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ManualCompaction',
+                request_serializer=milvus__pb2.ManualCompactionRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ManualCompactionResponse.FromString,
+                )
+        self.GetCompactionStateWithPlans = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetCompactionStateWithPlans',
+                request_serializer=milvus__pb2.GetCompactionPlansRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetCompactionPlansResponse.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -407,6 +422,24 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetCompactionState(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ManualCompaction(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetCompactionStateWithPlans(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -584,6 +617,21 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.LoadBalance,
                     request_deserializer=milvus__pb2.LoadBalanceRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'GetCompactionState': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetCompactionState,
+                    request_deserializer=milvus__pb2.GetCompactionStateRequest.FromString,
+                    response_serializer=milvus__pb2.GetCompactionStateResponse.SerializeToString,
+            ),
+            'ManualCompaction': grpc.unary_unary_rpc_method_handler(
+                    servicer.ManualCompaction,
+                    request_deserializer=milvus__pb2.ManualCompactionRequest.FromString,
+                    response_serializer=milvus__pb2.ManualCompactionResponse.SerializeToString,
+            ),
+            'GetCompactionStateWithPlans': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetCompactionStateWithPlans,
+                    request_deserializer=milvus__pb2.GetCompactionPlansRequest.FromString,
+                    response_serializer=milvus__pb2.GetCompactionPlansResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -1187,6 +1235,57 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/LoadBalance',
             milvus__pb2.LoadBalanceRequest.SerializeToString,
             common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetCompactionState(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetCompactionState',
+            milvus__pb2.GetCompactionStateRequest.SerializeToString,
+            milvus__pb2.GetCompactionStateResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ManualCompaction(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ManualCompaction',
+            milvus__pb2.ManualCompactionRequest.SerializeToString,
+            milvus__pb2.ManualCompactionResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetCompactionStateWithPlans(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetCompactionStateWithPlans',
+            milvus__pb2.GetCompactionPlansRequest.SerializeToString,
+            milvus__pb2.GetCompactionPlansResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
