@@ -41,7 +41,6 @@ from .exceptions import (
     BaseException,
 )
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -548,7 +547,8 @@ class GrpcHandler:
 
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
-        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields, round_decimal,
+        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields,
+                                                 round_decimal,
                                                  schema=collection_schema)
 
         return requests, auto_id
@@ -563,7 +563,6 @@ class GrpcHandler:
 
             # step 1: get future object
             for request in requests:
-
                 ft = self._stub.Search.future(request, wait_for_ready=True, timeout=timeout)
                 futures.append(ft)
 
@@ -607,8 +606,8 @@ class GrpcHandler:
     @error_handler(None)
     @check_has_collection
     def search(self, collection_name, data, anns_field, param, limit,
-                               expression=None, partition_names=None, output_fields=None,
-                               timeout=None, round_decimal=-1, **kwargs):
+               expression=None, partition_names=None, output_fields=None,
+               timeout=None, round_decimal=-1, **kwargs):
         _kwargs = copy.deepcopy(kwargs)
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
@@ -806,7 +805,7 @@ class GrpcHandler:
 
     @error_handler()
     def load_collection(self, db_name, collection_name, timeout=None, **kwargs):
-        request = Prepare.load_collection(db_name, collection_name)
+        request = Prepare.load_collection(db_name, collection_name, seek_to_latest=kwargs.get("seek_to_latest", False))
         rf = self._stub.LoadCollection.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
@@ -1191,6 +1190,7 @@ class GrpcHandler:
         elif len(response.float_dist.data) > 0:
             def is_l2(val):
                 return val == "L2" or val == "l2"
+
             if is_l2(params["metric"]) and "sqrt" in params.keys() and params["sqrt"] is True:
                 for i in range(len(response.float_dist.data)):
                     response.float_dist.data[i] = math.sqrt(response.float_dist.data[i])
