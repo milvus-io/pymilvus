@@ -39,6 +39,7 @@ from .exceptions import (
     ExceptionsMessage,
 )
 from .future import SearchFuture, MutationFuture
+from ..client.types import CompactionState, CompactionPlans
 
 
 def _check_schema(schema):
@@ -1211,3 +1212,51 @@ class Collection:
         """
         conn = self._get_connection()
         conn.alter_alias(self._name, alias, timeout=timeout, **kwargs)
+
+    def compact(self, timeout=None, **kwargs):
+        """
+        Compact merge the small segments in a collection
+
+        :param collection_name: The name of the collection.
+        :type  alias: str.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :raises BaseException: If the collection does not exist.
+
+        :example:
+        """
+        conn = self._get_connection()
+        self.compaction_id = conn.compact(self._name, timeout=timeout, **kwargs)
+
+    def get_compaction_state(self, timeout=None, **kwargs) -> CompactionState:
+        """
+        get_compaction_state returns the current collection's compaction state
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :raises BaseException: If the collection does not exist.
+
+        :example:
+        """
+        conn = self._get_connection()
+        return conn.get_compaction_state(self.compaction_id, timeout=timeout, **kwargs)
+
+    def get_compaction_plans(self, timeout=None, **kwargs) -> CompactionPlans:
+        """
+        get_compaction_state returns the current collection's compaction state
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :raises BaseException: If the collection does not exist.
+
+        :example:
+        """
+        conn = self._get_connection()
+        return conn.get_compaction_plans(self.compaction_id, timeout=timeout, **kwargs)

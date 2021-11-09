@@ -16,7 +16,17 @@ from ..grpc_gen import milvus_pb2 as milvus_types
 
 from .abstract import CollectionSchema, ChunkedQueryResult, MutationResult
 from .prepare import Prepare
-from .types import Status, IndexState, DataType, DeployMode, ErrorCode
+from .types import (
+    Status,
+    IndexState,
+    DataType,
+    ErrorCode,
+    CompactionState,
+    State,
+    CompactionPlans,
+    Plan,
+)
+
 from .check import is_legal_host, is_legal_port
 from .utils import len_of
 from ..settings import DefaultConfig as config
@@ -1201,3 +1211,51 @@ class GrpcHandler:
         status = future.result()
         if status.error_code != 0:
             raise BaseException(status.error_code, status.reason)
+
+    @error_handler()
+    def compact(self, collection_name, timeout=None, **kwargs) -> int:
+        request = Prepare.describe_collection_request(collection_name)
+        rf = self._stub.DescribeCollection.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
+
+        req = Prepare.manual_compaction(response.collectionID, 0)
+        future = self._stub.ManualCompaction.future(req, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
+
+        return response.compactionID
+
+    @error_handler()
+    def get_compaction_state(self, compaction_id, timeout=None, **kwargs) -> CompactionState:
+        req = Prepare.get_compaction_state(compaction_id)
+
+        future = self._stub.GetCompactionState.future(req, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
+
+        return CompactionState(
+            compaction_id,
+            State.new(response.state),
+            response.executingPlanNo,
+            response.timeoutPlanNo,
+            response.completedPlanNo
+        )
+
+    @error_handler()
+    def get_compaction_plans(self, compaction_id, timeout=None, **kwargs) -> CompactionPlans:
+        req = Prepare.get_compaction_state_with_plans(compaction_id)
+
+        future = self._stub.GetCompactionStateWithPlans.future(req, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
+
+        cp = CompactionPlans(compaction_id, response.state)
+
+        cp.plans = [Plan(m.sources, m.target) for m in response.mergeInfos]
+
+        return cp

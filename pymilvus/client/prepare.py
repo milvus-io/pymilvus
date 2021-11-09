@@ -348,7 +348,7 @@ class Prepare:
 
         insert_request.num_rows = row_num
 
-        # insert_request.hash_keys won't be filled in client. 
+        # insert_request.hash_keys won't be filled in client.
         # It will be filled in proxy.
 
         return insert_request
@@ -891,4 +891,36 @@ class Prepare:
         request.dst_nodeIDs.extend(dst_node_ids)
         request.sealed_segmentIDs.extend(sealed_segment_ids)
 
+        return request
+
+    @classmethod
+    def manual_compaction(cls, collection_id, timetravel):
+        if collection_id is None or not isinstance(collection_id, int):
+            raise ParamError(f"collection_id value {collection_id} is illegal")
+
+        if timetravel is None or not isinstance(timetravel, int):
+            raise ParamError(f"timetravel value {timetravel} is illegal")
+
+        request = milvus_types.ManualCompactionRequest()
+        request.collectionID = collection_id
+        request.timetravel = timetravel
+
+        return request
+
+    @classmethod
+    def get_compaction_state(cls, compaction_id: int):
+        if compaction_id is None or not isinstance(compaction_id, int):
+            raise ParamError(f"compaction_id value {compaction_id} is illegal")
+
+        request = milvus_types.GetCompactionStateRequest()
+        request.compactionID = compaction_id
+        return request
+
+    @classmethod
+    def get_compaction_state_with_plans(cls, compaction_id: int):
+        if compaction_id is None or not isinstance(compaction_id, int):
+            raise ParamError(f"compaction_id value {compaction_id} is illegal")
+
+        request = milvus_types.GetCompactionPlansRequest()
+        request.compactionID = compaction_id
         return request
