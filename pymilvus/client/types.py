@@ -176,3 +176,67 @@ class PlaceholderType(IntEnum):
 class DeployMode:
     Distributed = "DISTRIBUTED"
     StandAlone = "STANDALONE"
+
+
+class State(IntEnum):
+    UndefiedState = 0
+    Executing = 1
+    Completed = 2
+
+    @staticmethod
+    def new(s: int):
+        if s == State.Executing:
+            return State.Executing
+        elif s == State.Completed:
+            return State.Completed
+        else:
+            return State.UndefiedState
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+
+    def __str__(self):
+        return self._name_
+
+
+class CompactionState:
+    def __init__(self, compaction_id: int, state: State, in_excuting: int, in_timeout: int, completed: int):
+        self.compaction_id = compaction_id
+        self.state = state
+        self.in_excuting = in_excuting
+        self.in_timeout = in_timeout
+        self.completed = completed
+
+    def __repr__(self):
+        return f"""compaction id: {self.compaction_id}
+ - State: {self.state}
+ - executing plan number: {self.in_excuting}
+ - timeout plan number: {self.in_timeout}
+ - complete plan number: {self.completed}
+"""
+
+
+class Plan:
+    def __init__(self, sources: list, target: int):
+        self.sources = sources
+        self.target = target
+
+    def __repr__(self):
+        return f"""Plan:
+ - sources: {self.sources}
+ - target: {self.target}
+"""
+
+
+class CompactionPlans:
+    def __init__(self, compaction_id: int, state: int):
+        self.compaction_id = compaction_id
+        self.state = State.new(state)
+        self.plans = []
+
+    def __repr__(self):
+        return f"""Compaction Plans:
+ - compaction id: {self.compaction_id}
+ - state: {self.state}
+ - plans: {self.plans}
+ """

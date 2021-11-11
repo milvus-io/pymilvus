@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 
-import collections
 import functools
 import logging
 import time
@@ -8,15 +7,13 @@ import time
 import grpc
 from urllib.parse import urlparse
 
-from . import __version__
-from .types import Status, DataType, DeployMode
+from .types import CompactionState, DeployMode, CompactionPlans
 from .check import check_pass_param, is_legal_host, is_legal_port, is_legal_index_metric_type, \
     is_legal_binary_index_metric_type
 from .pool import ConnectionPool, SingleConnectionPool, SingletonThreadPool
 from .exceptions import BaseException, ParamError, DeprecatedError
 
 from ..settings import DefaultConfig as config
-from .utils import valid_binary_metric_types
 from .utils import valid_index_types
 from .utils import valid_binary_index_types
 from .utils import valid_index_params_keys
@@ -1201,3 +1198,59 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout, **kwargs)
+
+    def compact(self, collection_name, timeout=None, **kwargs) -> int:
+        """
+        Do compaction for the collection.
+
+        :param collection_name: The collection name to compact
+        :type  collection_name: str
+
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+
+        :return: the compaction ID
+        :rtype: int
+
+        :raises BaseException: If collection name not exist.
+        """
+        with self._connection() as handler:
+            return handler.compact(collection_name, timeout, **kwargs)
+
+    def get_compaction_state(self, compaction_id: int, timeout=None, **kwargs) -> CompactionState:
+        """
+        Get compaction states of a targeted compaction id
+
+        :param compaction_id: the id returned by compact
+        :type  compaction_id: int
+
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+
+        :return: the state of the compaction
+        :rtype: CompactionState
+
+        :raises BaseException: If compaction_id doesn't exist.
+        """
+
+        with self._connection() as handler:
+            return handler.get_compaction_state(compaction_id, timeout, **kwargs)
+
+    def get_compaction_plans(self, compaction_id: int, timeout=None, **kwargs) -> CompactionPlans:
+        """
+        Get compaction states of a targeted compaction id
+
+        :param compaction_id: the id returned by compact
+        :type  compaction_id: int
+
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+
+        :return: the state of the compaction
+        :rtype: CompactionState
+
+        :raises BaseException: If compaction_id doesn't exist.
+        """
+
+        with self._connection() as handler:
+            return handler.get_compaction_plans(compaction_id, timeout, **kwargs)
