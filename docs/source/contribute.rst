@@ -58,7 +58,7 @@ If you already have an existing local repository, always update it before you st
 .. code-block:: shell
    
    $ git remote add upstream git@github.com:milvus-io/pymilvus.git
-   $ git checkout main
+   $ git checkout master
    $ git pull upstream master
    $ git checkout -b my_working_branch
 
@@ -87,5 +87,5 @@ In the root directory, run ``pylint --rcfile=pylint.conf pymilvus`` to make sure
 **4. For documentations**
 
 You need to enter the ``doc`` directory and run ``make html``, please refer to
-`About this documentations <https://milvus.io/api-reference/pymilvus/v2.0.0rc5/about.html>`_.
+`About this documentations <https://milvus.io/api-reference/pymilvus/v2.0.0rc8/about.html>`_.
 
