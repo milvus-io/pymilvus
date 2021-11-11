@@ -11,7 +11,6 @@
 # the License.
 
 import copy
-import json
 from typing import List
 import pandas
 from pandas.api.types import is_list_like
@@ -70,10 +69,17 @@ class CollectionSchema:
         self._kwargs = copy.deepcopy(kwargs)
 
     def __repr__(self):
-        return json.dumps(self.to_dict())
-
-    def __str__(self):
-        return str(json.dumps(self.to_dict()))
+        _dict = {
+            "auto_id": self.auto_id,
+            "description": self._description,
+            "fields": self._fields,
+        }
+        r = ["{\n"]
+        s = "  {}: {}\n"
+        for k, v in _dict.items():
+            r.append(s.format(k, v))
+        r.append("}\n")
+        return "".join(r)
 
     def __len__(self):
         return len(self.fields)
@@ -150,7 +156,7 @@ class CollectionSchema:
         _dict = {
             "auto_id": self.auto_id,
             "description": self._description,
-            "fields": [f.to_dict() for f in self._fields]
+            "fields": [s.to_dict() for s in self._fields],
         }
         return _dict
 
@@ -179,6 +185,14 @@ class FieldSchema:
                 raise PrimaryKeyException(0, ExceptionsMessage.AutoIDOnlyOnPK)
 
         self._parse_type_params()
+
+    def __repr__(self):
+        r = ["{\n"]
+        s = "    {}: {}\n"
+        for k, v in self.to_dict().items():
+            r.append(s.format(k, v))
+        r.append("  }")
+        return "".join(r)
 
     def __deepcopy__(self, memodict=None):
         if memodict is None:
@@ -282,7 +296,6 @@ def parse_fields_from_data(datas):
         d_type = infer_dtype_bydata(d[0])
         fields.append(FieldSchema("", d_type))
     return fields
-
 
 
 def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
