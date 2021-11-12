@@ -502,11 +502,17 @@ class GrpcHandler:
             rf = self._stub.Insert.future(request, wait_for_ready=True, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
-                return MutationFuture(rf, cb)
+                future = MutationFuture(rf, cb)
+
+                future.add_callback(kwargs["_update_write_ts_cb"])
+
+                return future
 
             response = rf.result()
             if response.status.error_code == 0:
-                return MutationResult(response)
+                mutation_result = MutationResult(response)
+                kwargs["_update_write_ts_cb"](mutation_result)
+                return mutation_result
 
             raise BaseException(response.status.error_code, response.status.reason)
         except Exception as err:

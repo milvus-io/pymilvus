@@ -2,6 +2,7 @@
 
 import functools
 import logging
+import threading
 import time
 
 import grpc
@@ -120,6 +121,9 @@ class Milvus:
 
         self._deploy_mode = DeployMode.Distributed
 
+        self._last_write_ts = 0
+        self._last_write_ts_lock = threading.Lock()
+
     def _wait_for_healthy(self, timeout=60):
         _timeout_on_every_retry = self._kw.get("timeout", 0)
         _timeout = _timeout_on_every_retry if _timeout_on_every_retry else timeout
@@ -167,6 +171,18 @@ class Milvus:
 
         if not channel:
             self._wait_for_healthy()
+
+    def _get_last_write_ts(self):
+        with self._last_write_ts_lock:
+            return self._last_write_ts
+
+    def _update_last_write_ts(self, ts):
+        with self._last_write_ts_lock:
+            if ts > self._last_write_ts:
+                self._last_write_ts = ts
+
+    def _callback_on_mutation_result(self, mutation_result):
+        self._update_last_write_ts(mutation_result.timestamp)
 
     @property
     def name(self):
@@ -902,6 +918,7 @@ class Milvus:
         if not check_invalid_binary_vector(entities):
             raise ParamError("Invalid binary vector data exists")
 
+        kwargs["_update_write_ts_cb"] = self._callback_on_mutation_result
         with self._connection() as handler:
             return handler.bulk_insert(collection_name, entities, partition_name, timeout, **kwargs)
 
@@ -1041,6 +1058,10 @@ class Milvus:
             output_fields=output_fields,
             travel_timestamp=kwargs.get("travel_timestamp", 0),
         )
+
+        if not kwargs.get("guarantee_timestamp", 0):
+            kwargs["guarantee_timestamp"] = self._get_last_write_ts()
+
         with self._connection() as handler:
             kwargs["_deploy_mode"] = self._deploy_mode
             return handler.search(collection_name, data, anns_field, param, limit, expression,
