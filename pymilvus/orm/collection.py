@@ -143,12 +143,17 @@ class Collection:
                 raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)
 
     def __repr__(self):
-        return json.dumps({
+        _dict = {
             'name': self.name,
-            'schema': self._schema.to_dict(),
-            'partitions': [json.loads(p.__repr__()) for p in self.partitions],
+            'partitions': self.partitions,
             'description': self.description,
-        })
+            'schema': self._schema,
+        }
+        r = ["<Collection>:\n-------------\n"]
+        s = "<{}>: {}\n"
+        for k, v in _dict.items():
+            r.append(s.format(k, v))
+        return "".join(r)
 
     def _get_connection(self):
         conn = get_connection(self._using)
