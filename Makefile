@@ -1,4 +1,3 @@
-
 unittest:
 	PYTHONPATH=`pwd` python3 -m pytest tests --cov=pymilvus
 
@@ -17,4 +16,5 @@ example_index:
 package:
 	python3 -m build --sdist --wheel --outdir dist/ .
 
-
+gen_proto:
+	cd pymilvus/grpc_gen/proto && ./python_gen.sh

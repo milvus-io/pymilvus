@@ -112,7 +112,7 @@ message HasCollectionRequest {
   string db_name = 2;
   // The collection name you want to check.
   string collection_name = 3; 
-  // Not useful for now
+  // If time_stamp is not zero, will return true when time_stamp >= created collection timestamp, otherwise will return false.
   uint64 time_stamp = 4;
 }
 
@@ -135,11 +135,11 @@ message DescribeCollectionRequest {
   common.MsgBase base = 1;
   // Not useful for now
   string db_name = 2;
-  // The collection name you want to describe
+  // The collection name you want to describe, you can pass collection_name or collectionID
   string collection_name = 3;
-  // Not useful for now
+  // The collection ID you want to describe
   int64 collectionID = 4;
-  // Not useful for now
+  // If time_stamp is not zero, will describe collection success when time_stamp >= created collection timestamp, otherwise will throw error.
   uint64 time_stamp = 5;
 }
 
@@ -179,6 +179,8 @@ message LoadCollectionRequest {
   string db_name = 2;
   // The collection name you want to load
   string collection_name = 3;
+
+  bool seek_to_latest = 4;
 }
 
 /**
@@ -314,6 +316,8 @@ message LoadPartitionsRequest {
   string collection_name = 3;
   // The partition names you want to load
   repeated string partition_names = 4;
+
+  bool seek_to_latest = 5;
 }
 
 /*
@@ -331,11 +335,18 @@ message ReleasePartitionsRequest {
   repeated string partition_names = 4;
 }
 
+/*
+* Get partition statistics like row_count.
+*/
 message GetPartitionStatisticsRequest {
-  common.MsgBase base = 1; // must
+  // Not useful for now
+  common.MsgBase base = 1;
+  // Not useful for now
   string db_name = 2;
-  string collection_name = 3; // must
-  string partition_name = 4; // must
+  // The collection name in milvus
+  string collection_name = 3;
+  // The partition name you want to collect statistics
+  string partition_name = 4; 
 }
 
 message GetPartitionStatisticsResponse {
@@ -343,22 +354,41 @@ message GetPartitionStatisticsResponse {
   repeated common.KeyValuePair stats = 2;
 }
 
+/*
+* List all partitions for particular collection
+*/
 message ShowPartitionsRequest {
-  common.MsgBase base = 1; // must
+  // Not useful for now
+  common.MsgBase base = 1;
+  // Not useful for now
   string db_name = 2;
-  string collection_name = 3; // must
+  // The collection name you want to describe, you can pass collection_name or collectionID
+  string collection_name = 3;
+  // The collection id in milvus
   int64 collectionID = 4;
-  repeated string partition_names = 5; // show partition in querynode, showType = InMemory
+  // When type is InMemory, will return these patitions's inMemory_percentages.(Optional)
+  repeated string partition_names = 5;
+  // Decide return Loaded partitions or All partitions(Optional)
   ShowType type = 6;
 }
 
+/*
+* List all partitions for particular collection response.
+* The returned datas are all rows, we can format to columns by therir index.
+*/
 message ShowPartitionsResponse {
+  // Contain error_code and reason
   common.Status status = 1;
+  // All partition names for this collection
   repeated string partition_names = 2;
+  // All partition ids for this collection
   repeated int64 partitionIDs = 3;
-  repeated uint64 created_timestamps = 4; // hybrid timestamps
-  repeated uint64 created_utc_timestamps = 5; // physical timestamps
-  repeated int64 inMemory_percentages = 6; // load percentage on querynode
+  // All hybrid timestamps
+  repeated uint64 created_timestamps = 4;
+  // All utc timestamps calculated by created_timestamps
+  repeated uint64 created_utc_timestamps = 5;
+  // Load percentage on querynode
+  repeated int64 inMemory_percentages = 6;
 }
 
 message DescribeSegmentRequest {
@@ -385,31 +415,60 @@ message ShowSegmentsResponse {
   repeated int64 segmentIDs = 2;
 }
 
+/*
+* Create index for vector datas
+*/
 message CreateIndexRequest {
-  common.MsgBase base = 1; // must
+  // Not useful for now
+  common.MsgBase base = 1; 
+  // Not useful for now
   string db_name = 2;
-  string collection_name = 3; // must
-  string field_name = 4; // must
-  repeated common.KeyValuePair extra_params = 5; // must
+  // The particular collection name you want to create index.
+  string collection_name = 3;
+  // The vector field name in this particular collection
+  string field_name = 4;
+  // Support keys: index_type,metric_type, params. Different index_type may has different params.
+  repeated common.KeyValuePair extra_params = 5; 
 }
 
+/*
+* Get created index information. 
+* Current release of Milvus only supports showing latest built index.
+*/
 message DescribeIndexRequest {
-  common.MsgBase base = 1; // must
+  // Not useful for now
+  common.MsgBase base = 1;
+  // Not useful for now
   string db_name = 2;
-  string collection_name = 3; // must
+  // The particular collection name in Milvus
+  string collection_name = 3;
+   // The vector field name in this particular collection
   string field_name = 4;
-  string index_name = 5; // No need to set up for now @2021.06.30
+  // No need to set up for now @2021.06.30
+  string index_name = 5; 
 }
 
+/*
+* Index informations
+*/
 message IndexDescription {
+  // Index name
   string index_name = 1;
+  // Index id
   int64 indexID = 2;
+  // Will return index_type, metric_type, params(like nlist).
   repeated common.KeyValuePair params = 3;
+  // The vector field name
   string field_name = 4;
 }
 
+/*
+* Describe index response
+*/
 message DescribeIndexResponse {
+  // Response status
   common.Status status = 1;
+  // All index informations, for now only return tha latest index you created for the collection.
   repeated IndexDescription index_descriptions = 2;
 }
 
@@ -477,6 +536,7 @@ message DeleteRequest {
   string collection_name = 3;
   string partition_name = 4;
   string expr = 5;
+  repeated uint32 hash_keys = 6;
 }
 
 enum PlaceholderType {
@@ -509,6 +569,9 @@ message SearchRequest {
   repeated common.KeyValuePair search_params = 9; // must
   uint64 travel_timestamp = 10;
   uint64 guarantee_timestamp = 11; // guarantee_timestamp
+  bool merged = 12;
+  repeated int64 nqs = 13;
+  repeated int64 msg_ids = 14;
 }
 
 message Hits {

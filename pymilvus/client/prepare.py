@@ -366,7 +366,7 @@ class Prepare:
 
         check_str(collection_name, "collection_name")
         if partition_name is not None and partition_name != "":
-                check_str(partition_name, "partition_name")
+            check_str(partition_name, "partition_name")
         check_str(expr, "expr")
 
         request = milvus_types.DeleteRequest(collection_name=collection_name, expr=expr, partition_name=partition_name)
@@ -707,8 +707,9 @@ class Prepare:
         return milvus_types.GetIndexStateRequest(collection_name=collection_name, field_name=field_name)
 
     @classmethod
-    def load_collection(cls, db_name, collection_name):
-        return milvus_types.LoadCollectionRequest(db_name=db_name, collection_name=collection_name)
+    def load_collection(cls, db_name, collection_name, seek_to_latest=False):
+        return milvus_types.LoadCollectionRequest(db_name=db_name, collection_name=collection_name,
+                                                  seek_to_latest=seek_to_latest)
 
     @classmethod
     def release_collection(cls, db_name, collection_name):
