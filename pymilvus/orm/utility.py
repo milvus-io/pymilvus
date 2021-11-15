@@ -371,7 +371,7 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
         res_2_d.append(res[i * m:i * m + m])
     return res_2_d
 
-def load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, using="default"):
+def load_balance(src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeout=None, using="default"):
     """
     Do load balancing operation from source query node to destination query node.
 
@@ -400,6 +400,10 @@ def load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, us
         >>> sealed_segment_ids = []
         >>> res = utility.load_balance(src_node_id, dst_node_ids, sealed_segment_ids)
     """
+    if dst_node_ids is None:
+        dst_node_ids = []
+    if sealed_segment_ids is None:
+        sealed_segment_ids = []
     return _get_connection(using).load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout)
 
 def get_query_segment_info(collection_name, timeout=None, using="default"):
