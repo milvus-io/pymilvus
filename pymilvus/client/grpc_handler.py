@@ -1245,6 +1245,21 @@ class GrpcHandler:
             response.completedPlanNo
         )
 
+    @error_handler(False)
+    def wait_for_compaction_completed(self, compaction_id, timeout=None, **kwargs):
+        start = time.time()
+        while True:
+            time.sleep(0.5)
+            compaction_state = self.get_compaction_state(compaction_id, timeout, **kwargs)
+            if compaction_state.state == State.Completed:
+                return True
+            if compaction_state == State.UndefiedState:
+                return False
+            end = time.time()
+            if timeout is not None:
+                if end - start > timeout:
+                    raise BaseException(1, "Get compaction state timeout")
+
     @error_handler()
     def get_compaction_plans(self, compaction_id, timeout=None, **kwargs) -> CompactionPlans:
         req = Prepare.get_compaction_state_with_plans(compaction_id)
