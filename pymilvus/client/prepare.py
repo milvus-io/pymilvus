@@ -875,3 +875,17 @@ class Prepare:
         postcheck_params(type_right, params)
 
         return request
+
+    @classmethod
+    def set_graceful_time_request(cls, graceful_time, **kwargs):
+        if isinstance(graceful_time, int):
+            request = milvus_types.SetGracefulTimeRequest(graceful_time=graceful_time)
+            return request
+        raise ParamError("graceful_time type must be int")
+
+    @classmethod
+    def set_timetick_interval_request(cls, timetick_interval, **kwargs):
+        if isinstance(timetick_interval, int):
+            request = milvus_types.SetTimeTickIntervalRequest(time_tick_interval=timetick_interval)
+            return request
+        raise ParamError("timetick_interval type must be int")

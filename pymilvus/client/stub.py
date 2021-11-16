@@ -1178,3 +1178,13 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    def set_graceful_time(self, graceful_time=100, **kwargs):
+        with self._connection() as handler:
+            return handler.set_graceful_time(graceful_time, **kwargs)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    def set_timetick_interval(self, timetick_interval=100, **kwargs):
+        with self._connection() as handler:
+            return handler.set_timetick_interval(timetick_interval, **kwargs)
