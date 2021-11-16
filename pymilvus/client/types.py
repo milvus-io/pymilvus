@@ -179,6 +179,13 @@ class DeployMode:
 
 
 class State(IntEnum):
+    """
+    UndefiedState:  Unknown
+    Executing:      indicating this compaction has undone plans.
+    Completed:      indicating all the plans of this compaction are done,
+                    no matter successful or not.
+    """
+
     UndefiedState = 0
     Executing = 1
     Completed = 2
@@ -200,17 +207,25 @@ class State(IntEnum):
 
 
 class CompactionState:
-    def __init__(self, compaction_id: int, state: State, in_excuting: int, in_timeout: int, completed: int):
+    """
+    in_executing:   number of plans in executing
+    in_timeout:     number of plans failed of timeout
+    completed:      number of plans successfully completed
+    """
+
+    def __init__(self, compaction_id: int, state: State, in_executing: int, in_timeout: int, completed: int):
         self.compaction_id = compaction_id
         self.state = state
-        self.in_excuting = in_excuting
+        self.in_executing = in_executing
         self.in_timeout = in_timeout
         self.completed = completed
 
     def __repr__(self):
-        return f"""compaction id: {self.compaction_id}
+        return f"""
+CompactionState
+ - compaction id: {self.compaction_id}
  - State: {self.state}
- - executing plan number: {self.in_excuting}
+ - executing plan number: {self.in_executing}
  - timeout plan number: {self.in_timeout}
  - complete plan number: {self.completed}
 """
@@ -222,7 +237,8 @@ class Plan:
         self.target = target
 
     def __repr__(self):
-        return f"""Plan:
+        return f"""
+Plan:
  - sources: {self.sources}
  - target: {self.target}
 """
@@ -235,7 +251,8 @@ class CompactionPlans:
         self.plans = []
 
     def __repr__(self):
-        return f"""Compaction Plans:
+        return f"""
+Compaction Plans:
  - compaction id: {self.compaction_id}
  - state: {self.state}
  - plans: {self.plans}
