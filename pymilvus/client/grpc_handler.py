@@ -1196,3 +1196,21 @@ class GrpcHandler:
                     response.float_dist.data[i] = math.sqrt(response.float_dist.data[i])
             return response.float_dist.data
         raise BaseException(0, "Empty result returned")
+
+    @error_handler(None)
+    def set_graceful_time(self, graceful_time, **kwargs):
+        request = Prepare.set_graceful_time_request(graceful_time, **kwargs)
+        timeout = kwargs.get("timeout", None)
+        future = self._stub.SetGracefulTime.future(request, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)
+
+    @error_handler(None)
+    def set_timetick_interval(self, timetick_interval, **kwargs):
+        request = Prepare.set_timetick_interval_request(timetick_interval)
+        timeout = kwargs.get("timeout", None)
+        future = self._stub.SetTimeTickInterval.future(request, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        if response.error_code != 0:
+            raise BaseException(response.error_code, response.reason)

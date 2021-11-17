@@ -1205,3 +1205,12 @@ class Collection:
         """
         conn = self._get_connection()
         conn.alter_alias(self._name, alias, timeout=timeout, **kwargs)
+
+
+    def set_graceful_time(self, graceful_time=100, **kwargs):
+        conn = self._get_connection()
+        return conn.set_graceful_time(graceful_time, **kwargs)
+
+    def set_timetick_interval(self, timetick_interval=100, **kwargs):
+        conn = self._get_connection()
+        return conn.set_timetick_interval(timetick_interval, **kwargs)
