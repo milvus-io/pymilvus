@@ -273,11 +273,18 @@ class Partition:
         if conn.has_partition(self._collection.name, self._name) is False:
             raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
         entities = Prepare.prepare_insert_data(data, self._collection.schema)
+
         res = conn.insert(self._collection.name, entities=entities, ids=None,
                           partition_name=self._name, timeout=timeout, orm=True, **kwargs)
+
         if kwargs.get("_async", False):
-            return MutationFuture(res)
-        return MutationResult(res)
+            f = MutationFuture(res)
+            f._f.add_callback(self._collection._callback_on_mutation_result)
+            return f
+
+        m = MutationResult(res)
+        self._collection._callback_on_mutation_result(m)
+        return m
 
     def delete(self, expr, timeout=None, **kwargs):
         """
@@ -413,6 +420,10 @@ class Partition:
             - Top1 hit id: 8, distance: 0.10143111646175385, score: 0.10143111646175385
         """
         conn = self._get_connection()
+
+        if not kwargs.get("guarantee_timestamp", 0):
+            kwargs["guarantee_timestamp"] = self._collection._get_last_write_ts()
+
         res = conn.search(self._collection.name, data, anns_field, param, limit,
                           expr, [self._name], output_fields, timeout, round_decimal, **kwargs)
         if kwargs.get("_async", False):
