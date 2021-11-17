@@ -1236,6 +1236,11 @@ class Milvus:
         with self._connection() as handler:
             return handler.get_compaction_state(compaction_id, timeout, **kwargs)
 
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    def wait_for_compaction_completed(self, compaction_id: int, timeout=None, **kwargs) -> CompactionState:
+        with self._connection() as handler:
+            return handler.wait_for_compaction_completed(compaction_id, timeout=timeout, **kwargs)
+
     def get_compaction_plans(self, compaction_id: int, timeout=None, **kwargs) -> CompactionPlans:
         """
         Get compaction states of a targeted compaction id

@@ -1246,6 +1246,21 @@ class Collection:
         conn = self._get_connection()
         return conn.get_compaction_state(self.compaction_id, timeout=timeout, **kwargs)
 
+    def wait_for_compaction_completed(self, timeout=None, **kwargs) -> CompactionState:
+        """
+        Block until the current collection's compaction completed
+
+        :param timeout: The timeout for this method, unit: second
+                        when timeout is set to None, client waits until compaction completed or error occur
+        :type  timeout: float
+
+        :raises BaseException: If the time is up and the compression has not been completed
+
+        :example:
+        """
+        conn = self._get_connection()
+        return conn.wait_for_compaction_completed(self.compaction_id, timeout, **kwargs)
+
     def get_compaction_plans(self, timeout=None, **kwargs) -> CompactionPlans:
         """
         get_compaction_state returns the current collection's compaction state
