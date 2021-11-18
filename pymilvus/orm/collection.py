@@ -11,6 +11,7 @@
 # the License.
 import copy
 import json
+import threading
 
 import pandas
 
@@ -141,6 +142,21 @@ class Collection:
                 self._schema = schema
             else:
                 raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)
+
+        self._last_write_ts = 0
+        self._last_write_ts_lock = threading.Lock()
+
+    def _get_last_write_ts(self):
+        with self._last_write_ts_lock:
+            return self._last_write_ts
+
+    def _update_last_write_ts(self, ts):
+        with self._last_write_ts_lock:
+            if ts > self._last_write_ts:
+                self._last_write_ts = ts
+
+    def _callback_on_mutation_result(self, mutation_result):
+        self._update_last_write_ts(mutation_result.timestamp)
 
     def __repr__(self):
         return json.dumps({
@@ -530,9 +546,15 @@ class Collection:
         entities = Prepare.prepare_insert_data(data, self._schema)
         res = conn.insert(collection_name=self._name, entities=entities, ids=None,
                           partition_name=partition_name, timeout=timeout, **kwargs)
+
         if kwargs.get("_async", False):
-            return MutationFuture(res)
-        return MutationResult(res)
+            f = MutationFuture(res)
+            f._f.add_callback(self._callback_on_mutation_result)
+            return f
+
+        m = MutationResult(res)
+        self._callback_on_mutation_result(m)
+        return m
 
     def delete(self, expr, partition_name=None, timeout=None, **kwargs):
         """
@@ -586,9 +608,15 @@ class Collection:
         conn = self._get_connection()
         res = conn.delete(collection_name=self._name, expr=expr,
                           partition_name=partition_name, timeout=timeout, **kwargs)
+
         if kwargs.get("_async", False):
-            return MutationFuture(res)
-        return MutationResult(res)
+            f = MutationFuture(res)
+            f._f.add_callback(self._callback_on_mutation_result)
+            return f
+
+        m = MutationResult(res)
+        self._callback_on_mutation_result(m)
+        return m
 
     def search(self, data, anns_field, param, limit, expr=None, partition_names=None,
                output_fields=None, timeout=None, round_decimal=-1, **kwargs):
@@ -679,6 +707,10 @@ class Collection:
             raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
+
+        if not kwargs.get("guarantee_timestamp", 0):
+            kwargs["guarantee_timestamp"] = self._get_last_write_ts()
+
         res = conn.search(self._name, data, anns_field, param, limit, expr,
                           partition_names, output_fields, timeout, round_decimal, **kwargs)
         if kwargs.get("_async", False):
