@@ -277,6 +277,10 @@ def is_legal_travel_timestamp(ts: Any) -> bool:
     return isinstance(ts, int) and ts >= 0
 
 
+def is_legal_guarantee_timestamp(ts: Any) -> bool:
+    return isinstance(ts, int) and ts >= 0
+
+
 def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
     if kwargs is None:
         raise ParamError("Param should not be None")
@@ -332,6 +336,9 @@ def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too
                 _raise_param_error(key, value)
         elif key in ("travel_timestamp",):
             if not is_legal_travel_timestamp(value):
+                _raise_param_error(key, value)
+        elif key in ("guarantee_timestamp",):
+            if not is_legal_guarantee_timestamp(value):
                 _raise_param_error(key, value)
         # elif key in ("records",):
         #     if not is_legal_records(value):

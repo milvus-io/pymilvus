@@ -1040,6 +1040,7 @@ class Milvus:
             partition_name_array=partition_names,
             output_fields=output_fields,
             travel_timestamp=kwargs.get("travel_timestamp", 0),
+            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0)
         )
         with self._connection() as handler:
             kwargs["_deploy_mode"] = self._deploy_mode
