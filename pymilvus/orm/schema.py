@@ -78,7 +78,7 @@ class CollectionSchema:
         s = "  {}: {}\n"
         for k, v in _dict.items():
             r.append(s.format(k, v))
-        r.append("}\n")
+        r.append("}")
         return "".join(r)
 
     def __len__(self):
