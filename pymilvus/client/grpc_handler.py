@@ -51,7 +51,6 @@ from .exceptions import (
     BaseException,
 )
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -555,7 +554,8 @@ class GrpcHandler:
 
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
-        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields, round_decimal,
+        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields,
+                                                 round_decimal,
                                                  schema=collection_schema)
 
         return requests, auto_id
@@ -570,7 +570,6 @@ class GrpcHandler:
 
             # step 1: get future object
             for request in requests:
-
                 ft = self._stub.Search.future(request, wait_for_ready=True, timeout=timeout)
                 futures.append(ft)
 
@@ -614,8 +613,8 @@ class GrpcHandler:
     @error_handler(None)
     @check_has_collection
     def search(self, collection_name, data, anns_field, param, limit,
-                               expression=None, partition_names=None, output_fields=None,
-                               timeout=None, round_decimal=-1, **kwargs):
+               expression=None, partition_names=None, output_fields=None,
+               timeout=None, round_decimal=-1, **kwargs):
         _kwargs = copy.deepcopy(kwargs)
         collection_schema = self.describe_collection(collection_name, timeout)
         auto_id = collection_schema["auto_id"]
@@ -1035,6 +1034,16 @@ class GrpcHandler:
 
         raise BaseException(status.error_code, status.reason)
 
+    @error_handler()
+    def get_flush_state(self, segment_ids, timeout=None, **kwargs):
+        req = Prepare.get_flush_state_request(segment_ids)
+        future = self._stub.GetFlushState.future(req, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        status = response.status
+        if status.error_code == 0:
+            return response.flushed  # todo: A wrapper class of PersistentSegmentInfo
+        raise BaseException(status.error_code, status.reason)
+
     @error_handler(None)
     def get_persistent_segment_infos(self, collection_name, timeout=None, **kwargs):
         req = Prepare.get_persistent_segment_info_request(collection_name)
@@ -1046,38 +1055,27 @@ class GrpcHandler:
         raise BaseException(status.error_code, status.reason)
 
     @error_handler()
-    def _wait_for_flushed(self, collection_name, get_first_segment_ids_func, timeout=None, **kwargs):
-        def flushed(segment_ids_to_wait):
-            infos = self.get_persistent_segment_infos(collection_name, timeout, **kwargs)
-            need_cnt = len(segment_ids_to_wait)
-            have_cnt = 0
-            for info in infos:
-                if info.segmentID not in segment_ids_to_wait:
-                    continue
-
-                if info.state == common_types.SegmentState.Flushed:
-                    have_cnt += 1
-                    # return False
-            return need_cnt == have_cnt
-
-        first_segment_ids = get_first_segment_ids_func()
-        while True:
-            time.sleep(0.5)
-            if flushed(first_segment_ids):
-                return
+    def _wait_for_flushed(self, segment_ids, timeout=None, **kwargs):
+        flush_ret = False
+        while not flush_ret:
+            flush_ret = self.get_flush_state(segment_ids, timeout=timeout, **kwargs)
+            if not flush_ret:
+                time.sleep(0.5)
 
     @error_handler()
     def flush(self, collection_name_array: list, timeout=None, **kwargs):
         request = Prepare.flush_param(collection_name_array)
         future = self._stub.Flush.future(request, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
+
+        def _check():
+            for collection_name in collection_name_array:
+                segment_ids = future.result().coll_segIDs[collection_name].data
+                self._wait_for_flushed(segment_ids)
 
         if kwargs.get("_async", False):
-            def _check():
-                if kwargs.get("sync", True):
-                    for collection_name in collection_name_array:
-                        self._wait_for_flushed(collection_name,
-                                               lambda: future.result().coll_segIDs[collection_name].data)
-
             flush_future = FlushFuture(future)
             flush_future.add_callback(_check)
 
@@ -1087,13 +1085,7 @@ class GrpcHandler:
 
             return flush_future
 
-        response = future.result()
-        if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
-        sync = kwargs.get("sync", True)
-        if sync:
-            for collection_name in collection_name_array:
-                self._wait_for_flushed(collection_name, lambda: future.result().coll_segIDs[collection_name].data)
+        _check()
 
     @error_handler()
     def drop_index(self, collection_name, field_name, index_name, timeout=None, **kwargs):
@@ -1198,6 +1190,7 @@ class GrpcHandler:
         elif len(response.float_dist.data) > 0:
             def is_l2(val):
                 return val == "L2" or val == "l2"
+
             if is_l2(params["metric"]) and "sqrt" in params.keys() and params["sqrt"] is True:
                 for i in range(len(response.float_dist.data)):
                     response.float_dist.data[i] = math.sqrt(response.float_dist.data[i])
