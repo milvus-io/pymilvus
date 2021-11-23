@@ -128,6 +128,7 @@ class CollectionSchema:
         self.statistics = dict()
         self.auto_id = False  # auto_id is not in collection level any more later
         self.aliases = []
+        self.collection_id = 0
 
         #
         if self._raw:
@@ -137,6 +138,7 @@ class CollectionSchema:
         self.collection_name = raw.schema.name
         self.description = raw.schema.description
         self.aliases = raw.aliases
+        self.collection_id = raw.collectionID
         # self.params = dict()
         # TODO: extra_params here
         # for kv in raw.extra_params:
@@ -158,6 +160,7 @@ class CollectionSchema:
         _dict["description"] = self.description
         _dict["fields"] = [f.dict() for f in self.fields]
         _dict["aliases"] = self.aliases
+        _dict["collection_id"] = self.collection_id
         # for k, v in self.params.items():
         #     if isinstance(v, DataType):
         #         _dict[k] = v.value
@@ -165,6 +168,9 @@ class CollectionSchema:
         #         _dict[k] = v
 
         return _dict
+
+    def __str__(self):
+        return self.dict().__str__()
 
 
 class Entity:
