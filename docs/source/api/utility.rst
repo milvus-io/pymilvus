@@ -32,7 +32,16 @@ Methods
 +--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------+
 | `load_balance(src_node_id, dst_node_id, sealed_segment_ids, [timeout, using]) <#pymilvus.utility.load_balance>`_               | Do load balancing between query nodes.        |
 +--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------+
-
+| `mkts_from_hybridts(ts, [milliseconds, delta]) <#pymilvus.utility.mkts_from_hybridts>`_                                        | Generate hybrid timestamp.                    |
++--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------+
+| `mkts_from_unixtime(timestamp, [milliseconds, delta]) <#pymilvus.utility.mkts_from_unixtime>`_                                 | Generate hybrid timestamp.                    |
++--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------+
+| `mkts_from_datetime(d_time, [milliseconds, delta]) <#pymilvus.utility.mkts_from_datetime>`_                                    | Generate hybrid timestamp.                    |
++--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------+
+| `hybridts_to_unixtime(hybridts) <#pymilvus.utility.hybridts_to_unixtime>`_                                                     | Convert hybrid timestamp to UNIX Epoch time.  |
++--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------+
+| `hybridts_to_datetime(hybridts, [tz]) <#pymilvus.utility.hybridts_to_datetime>`_                                               | Convert hybrid timestamp to datetime.         |
++--------------------------------------------------------------------------------------------------------------------------------+-----------------------------------------------+
 APIs References
 ---------------
 
@@ -40,4 +49,6 @@ APIs References
    :member-order: bysource
    :members: loading_progress, wait_for_loading_complete, index_building_progress,
              wait_for_index_building_complete, has_collection, has_partition, list_collections,
-             drop_collection, calc_distance, get_query_segment_info, load_balance
+             drop_collection, calc_distance, get_query_segment_info, load_balance,
+             mkts_from_hybridts, mkts_from_unixtime, mkts_from_datetime,
+             hybridts_to_unixtime, hybridts_to_datetime,

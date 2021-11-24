@@ -505,13 +505,13 @@ class GrpcHandler:
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
                 f = MutationFuture(rf, cb)
-                f.add_callback(ts_utils.UpdateOnMutation(collection_id))
+                f.add_callback(ts_utils.update_ts_on_mutation(collection_id))
                 return f
 
             response = rf.result()
             if response.status.error_code == 0:
                 m = MutationResult(response)
-                ts_utils.Update(collection_id, m.timestamp)
+                ts_utils.update_collection_ts(collection_id, m.timestamp)
                 return m
 
             raise BaseException(response.status.error_code, response.status.reason)
@@ -531,7 +531,7 @@ class GrpcHandler:
             response = future.result()
             if response.status.error_code == 0:
                 m = MutationResult(response)
-                ts_utils.Update(collection_id, m.timestamp)
+                ts_utils.update_collection_ts(collection_id, m.timestamp)
                 return m
 
             raise BaseException(response.status.error_code, response.status.reason)
@@ -638,7 +638,7 @@ class GrpcHandler:
         _kwargs["round_decimal"] = round_decimal
 
         if not _kwargs.get("guarantee_timestamp", 0):
-            _kwargs["guarantee_timestamp"] = ts_utils.Get(collection_id)
+            _kwargs["guarantee_timestamp"] = ts_utils.get_collection_ts(collection_id)
 
         return self._execute_search_requests(requests, timeout, **_kwargs)
 
