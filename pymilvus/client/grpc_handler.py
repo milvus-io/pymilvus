@@ -31,6 +31,7 @@ from .check import is_legal_host, is_legal_port
 from .utils import len_of
 from ..settings import DefaultConfig as config
 from .configs import DefaultConfigs
+from . import ts_utils
 
 from .asynch import (
     SearchFuture,
@@ -497,15 +498,21 @@ class GrpcHandler:
     @error_handler([])
     def bulk_insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         try:
+            collection_id = self.describe_collection(collection_name, timeout, **kwargs)["collection_id"]
+
             request = self._prepare_bulk_insert_request(collection_name, entities, partition_name, timeout, **kwargs)
             rf = self._stub.Insert.future(request, wait_for_ready=True, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
-                return MutationFuture(rf, cb)
+                f = MutationFuture(rf, cb)
+                f.add_callback(ts_utils.UpdateOnMutation(collection_id))
+                return f
 
             response = rf.result()
             if response.status.error_code == 0:
-                return MutationResult(response)
+                m = MutationResult(response)
+                ts_utils.Update(collection_id, m.timestamp)
+                return m
 
             raise BaseException(response.status.error_code, response.status.reason)
         except Exception as err:
@@ -516,12 +523,16 @@ class GrpcHandler:
     @error_handler(None)
     def delete(self, collection_name, expression, partition_name=None, timeout=None, **kwargs):
         try:
+            collection_id = self.describe_collection(collection_name, timeout, **kwargs)["collection_id"]
+
             req = Prepare.delete_request(collection_name, partition_name, expression)
             future = self._stub.Delete.future(req, wait_for_ready=True, timeout=timeout)
 
             response = future.result()
             if response.status.error_code == 0:
-                return MutationResult(response)
+                m = MutationResult(response)
+                ts_utils.Update(collection_id, m.timestamp)
+                return m
 
             raise BaseException(response.status.error_code, response.status.reason)
         except Exception as err:
@@ -617,6 +628,7 @@ class GrpcHandler:
                timeout=None, round_decimal=-1, **kwargs):
         _kwargs = copy.deepcopy(kwargs)
         collection_schema = self.describe_collection(collection_name, timeout)
+        collection_id = collection_schema["collection_id"]
         auto_id = collection_schema["auto_id"]
         _kwargs["schema"] = collection_schema
         requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
@@ -624,6 +636,10 @@ class GrpcHandler:
         _kwargs.pop("schema")
         _kwargs["auto_id"] = auto_id
         _kwargs["round_decimal"] = round_decimal
+
+        if not _kwargs.get("guarantee_timestamp", 0):
+            _kwargs["guarantee_timestamp"] = ts_utils.Get(collection_id)
+
         return self._execute_search_requests(requests, timeout, **_kwargs)
 
     @error_handler(None)
