@@ -158,7 +158,7 @@ print(f"query before delete by expr=`{expr}` -> result: \n-{result[0]}\n-{result
 hello_milvus.delete(expr)
 
 result = hello_milvus.query(expr=expr, output_fields=["random", "embeddings"])
-print(f"query after delete by expr=`{expr}` -> result: \n-{result[0]}\n-{result[1]}")
+print(f"query after delete by expr=`{expr}` -> result: {result}\n")
 
 
 ###############################################################################
