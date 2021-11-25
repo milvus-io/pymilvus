@@ -25,7 +25,6 @@ from .client.exceptions import (
 #  from .client.asynch import MutationFuture
 from .client import __version__
 
-
 """client module"""
 from .orm.collection import Collection
 from .orm.connections import connections, Connections
@@ -43,12 +42,12 @@ from .orm.utility import (
     drop_collection,
     get_query_segment_info,
     load_balance,
+    mkts_from_hybridts, mkts_from_unixtime, mkts_from_datetime,
+    hybridts_to_unixtime, hybridts_to_datetime,
 )
 
 from .orm import utility
 from .orm.default_config import DefaultConfig
-
-from .client.utils import generate_timestamp
 
 from .orm.search import SearchResult, Hits, Hit
 from .orm.schema import FieldSchema, CollectionSchema
@@ -59,8 +58,10 @@ __all__ = [
     # pymilvus orm'styled APIs
     'Collection', 'Index', 'Partition',
     'connections',
-    'loading_progress', 'index_building_progress', 'wait_for_loading_complete', 'has_collection', 'has_partition', 'list_collections', 'wait_for_loading_complete', 'wait_for_index_building_complete', 'drop_collection',
-    'generate_timestamp',
+    'loading_progress', 'index_building_progress', 'wait_for_loading_complete', 'has_collection', 'has_partition',
+    'list_collections', 'wait_for_loading_complete', 'wait_for_index_building_complete', 'drop_collection',
+    'mkts_from_hybridts', 'mkts_from_unixtime', 'mkts_from_datetime',
+    'hybridts_to_unixtime', 'hybridts_to_datetime',
     'SearchResult', 'Hits', 'Hit',
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',

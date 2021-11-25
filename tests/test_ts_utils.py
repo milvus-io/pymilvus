@@ -22,17 +22,20 @@ class TestTsUtils:
 		t1.start()
 		t2.start()
 
+		t1.join()
+		t2.join()
+
 	def test_update_and_get(self):
 		ins = ts_utils._get_gts_dict()
-		assert ins.Get(1) == 0
+		assert ins.get(1) == 0
 
-		ins.Update(1, -1)
-		assert ins.Get(1) == 0
+		ins.update(1, -1)
+		assert ins.get(1) == 0
 
-		ins.Update(1, 2)
-		assert ins.Get(1) == 2
+		ins.update(1, 2)
+		assert ins.get(1) == 2
 
-		ins.Update(2, 100)
-		assert ins.Get(2) == 100
+		ins.update(2, 100)
+		assert ins.get(2) == 100
 
 		# test lru later if necessary.

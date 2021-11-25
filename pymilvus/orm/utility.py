@@ -18,6 +18,149 @@ from .exceptions import (
     ResultError,
 )
 
+from ..client.utils import mkts_from_hybridts as _mkts_from_hybridts
+from ..client.utils import mkts_from_unixtime as _mkts_from_unixtime
+from ..client.utils import mkts_from_datetime as _mkts_from_datetime
+from ..client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
+
+
+def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
+    """
+    Generate hybrid timestamp based on hybrid timestamp, timedelta and incremental time internval.
+
+    :param hybridts: The origin hybrid timestamp. Non-negative interger range from 0 to 18446744073709551615.
+    :type  hybridts: int
+
+    :param milliseconds: Incremental time interval. The unit of time is milliseconds.
+    :type  milliseconds: float
+
+    :param delta: A duration expressing the difference between two date, time, or datetime instances
+                  to microsecond resolution.
+    :type  delta: datetime.timedelta
+
+    :return int:
+        Hybrid timetamp is a non-negative interger range from 0 to 18446744073709551615.
+
+    :example:
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> _DIM = 128
+        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
+        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="get collection entities num")
+        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> import pandas as pd
+        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
+        >>> float_vector_series = [[random.random() for _ in range _DIM] for _ in range (10)]
+        >>> data = pd.DataFrame({"int64" : int64_series, "float_vector": float_vector_series})
+        >>> m = collection.insert(data)
+        >>> ts_new = utility.mkts_from_hybridts(m.timestamp, milliseconds=1000.0)
+    """
+    return _mkts_from_hybridts(hybridts, milliseconds=milliseconds, delta=delta)
+
+
+def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
+    """
+    Generate hybrid timestamp based on Unix Epoch time, timedelta and incremental time internval.
+
+    :param epoch: The origin Unix Epoch time.  The Unix Epoch time is the number of seconds
+                  that have elapsed since January 1, 1970 (midnight UTC/GMT).
+    :type  epoch: float
+
+    :param milliseconds: Incremental time interval. The unit of time is milliseconds.
+    :type  milliseconds: float
+
+    :param delta: A duration expressing the difference between two date, time, or datetime instances
+                  to microsecond resolution.
+    :type  delta: datetime.timedelta
+
+    :return int:
+        Hybrid timetamp is a non-negative interger range from 0 to 18446744073709551615.
+
+    :example:
+        >>> import time
+        >>> from pymilvus import utility
+        >>> epoch_t = time.time()
+        >>> ts = utility.mkts_from_unixtime(epoch_t, milliseconds=1000.0)
+    """
+    return _mkts_from_unixtime(epoch, milliseconds=milliseconds, delta=delta)
+
+
+def mkts_from_datetime(d_time, milliseconds=0., delta=None):
+    """
+    Generate hybrid timestamp based on datetime, timedelta and incremental time internval.
+
+    :param d_time: The origin datetime.
+    :type  d_time: datetime.datetime.
+
+    :param milliseconds: Incremental time interval. The unit of time is milliseconds.
+    :type  milliseconds: float
+
+    :param delta: A duration expressing the difference between two date, time, or datetime instances
+                  to microsecond resolution.
+    :type  delta:  datetime.timedelta
+
+    :return int:
+        Hybrid timetamp is a non-negative interger range from 0 to 18446744073709551615.
+
+    :example:
+        >>> import datetime
+        >>> from pymilvus import utility
+        >>> d = datetime.datetime.now()
+        >>> ts = utility.mkts_from_datetime(d, milliseconds=1000.0)
+    """
+    return _mkts_from_datetime(d_time, milliseconds=milliseconds, delta=delta)
+
+
+def hybridts_to_datetime(hybridts, tz=None):
+    """
+    Convert hybrid timestamp to the datetime according to timezone.
+
+    :param hybridts: The origin hybrid timestamp. Non-negative interger range from 0 to 18446744073709551615.
+    :type  hybridts: int
+    :param tz: Timezone defined by a fixed offset from UTC. If argument tz is None or not specified, the
+           hybridts is converted to the platform’s local date and time.
+    :type  tz: datetime.timezone
+
+    :return datetime:
+        The datetime object.
+
+    :raises Exception: If parameter tz is not of type datetime.timezone.
+
+    :example:
+        >>> import time
+        >>> from pymilvus import utility
+        >>> epoch_t = time.time()
+        >>> ts = utility.mkts_from_unixtime(epoch_t)
+        >>> d = utility.hybridts_to_datetime(ts)
+    """
+    import datetime
+    if tz is not None and not isinstance(tz, datetime.timezone):
+        raise Exception("parameter tz should be type of datetime.timezone")
+    epoch = _hybridts_to_unixtime(hybridts)
+    return datetime.datetime.fromtimestamp(epoch, tz=tz)
+
+
+def hybridts_to_unixtime(hybridts):
+    """
+    Convert hybrid timestamp to UNIX Epoch time ignoring the logic part.
+
+    :param hybridts: The origin hybrid timestamp. Non-negative interger range from 0 to 18446744073709551615.
+    :type  hybridts: int
+
+    :return float:
+        The Unix Epoch time is the number of seconds that have elapsed since January 1, 1970 (midnight UTC/GMT).
+
+    :example:
+        >>> import time
+        >>> from pymilvus import utility
+        >>> epoch1 = time.time()
+        >>> ts = utility.mkts_from_unixtime(epoch1)
+        >>> epoch2 = utility.hybridts_to_unixtime(ts)
+        >>> assert epoch1 == epoch2
+    """
+    return _hybridts_to_unixtime(hybridts)
+
 
 def _get_connection(alias):
     conn = get_connection(alias)
@@ -371,6 +514,7 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
         res_2_d.append(res[i * m:i * m + m])
     return res_2_d
 
+
 def load_balance(src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeout=None, using="default"):
     """
     Do load balancing operation from source query node to destination query node.
@@ -405,6 +549,7 @@ def load_balance(src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeou
     if sealed_segment_ids is None:
         sealed_segment_ids = []
     return _get_connection(using).load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout)
+
 
 def get_query_segment_info(collection_name, timeout=None, using="default"):
     """
