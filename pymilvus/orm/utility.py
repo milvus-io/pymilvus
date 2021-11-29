@@ -26,9 +26,9 @@ from ..client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
 
 def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
     """
-    Generate hybrid timestamp based on hybrid timestamp, timedelta and incremental time internval.
+    Generate a hybrid timestamp based on an existing hybrid timestamp, timedelta and incremental time internval.
 
-    :param hybridts: The origin hybrid timestamp. Non-negative interger range from 0 to 18446744073709551615.
+    :param hybridts: The original hybrid timestamp used to generate a new hybrid timestamp. Non-negative interger range from 0 to 18446744073709551615.
     :type  hybridts: int
 
     :param milliseconds: Incremental time interval. The unit of time is milliseconds.
@@ -61,9 +61,9 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
 
 def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
     """
-    Generate hybrid timestamp based on Unix Epoch time, timedelta and incremental time internval.
+    Generate a hybrid timestamp based on Unix Epoch time, timedelta and incremental time internval.
 
-    :param epoch: The origin Unix Epoch time.  The Unix Epoch time is the number of seconds
+    :param epoch: The known Unix Epoch time used to generate a hybrid timestamp.  The Unix Epoch time is the number of seconds
                   that have elapsed since January 1, 1970 (midnight UTC/GMT).
     :type  epoch: float
 
@@ -88,9 +88,9 @@ def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
 
 def mkts_from_datetime(d_time, milliseconds=0., delta=None):
     """
-    Generate hybrid timestamp based on datetime, timedelta and incremental time internval.
+    Generate a hybrid timestamp based on datetime, timedelta and incremental time internval.
 
-    :param d_time: The origin datetime.
+    :param d_time: The known datetime used to generate a hybrid timestamp.
     :type  d_time: datetime.datetime.
 
     :param milliseconds: Incremental time interval. The unit of time is milliseconds.
@@ -114,9 +114,9 @@ def mkts_from_datetime(d_time, milliseconds=0., delta=None):
 
 def hybridts_to_datetime(hybridts, tz=None):
     """
-    Convert hybrid timestamp to the datetime according to timezone.
+    Convert a hybrid timestamp to the datetime according to timezone.
 
-    :param hybridts: The origin hybrid timestamp. Non-negative interger range from 0 to 18446744073709551615.
+    :param hybridts: The known hybrid timestamp to convert to datetime. Non-negative interger range from 0 to 18446744073709551615.
     :type  hybridts: int
     :param tz: Timezone defined by a fixed offset from UTC. If argument tz is None or not specified, the
            hybridts is converted to the platform’s local date and time.
@@ -143,9 +143,9 @@ def hybridts_to_datetime(hybridts, tz=None):
 
 def hybridts_to_unixtime(hybridts):
     """
-    Convert hybrid timestamp to UNIX Epoch time ignoring the logic part.
+    Convert a hybrid timestamp to UNIX Epoch time ignoring the logic part.
 
-    :param hybridts: The origin hybrid timestamp. Non-negative interger range from 0 to 18446744073709551615.
+    :param hybridts: The known hybrid timestamp to convert to UNIX Epoch time. Non-negative interger range from 0 to 18446744073709551615.
     :type  hybridts: int
 
     :return float:
