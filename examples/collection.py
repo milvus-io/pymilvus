@@ -59,13 +59,13 @@ default_index = {"index_type": "IVF_FLAT", "params": {"nlist": 128}, "metric_typ
 default_binary_index = {"index_type": "BIN_FLAT", "params": {"nlist": 1024}, "metric_type": "JACCARD"}
 
 
-def gen_default_fields():
+def gen_default_fields(description="test collection"):
     default_fields = [
         FieldSchema(name="int64", dtype=DataType.INT64, is_primary=True),
         FieldSchema(name="double", dtype=DataType.DOUBLE),
         FieldSchema(name=default_float_vec_field_name, dtype=DataType.FLOAT_VECTOR, dim=default_dim)
     ]
-    default_schema = CollectionSchema(fields=default_fields, description="test collection")
+    default_schema = CollectionSchema(fields=default_fields, description=description)
     return default_schema
 
 
@@ -188,7 +188,7 @@ def test_exist_collection(name):
 
 def test_collection_only_name():
     name = gen_unique_str()
-    collection_temp = Collection(name=name, schema=gen_default_fields())
+    Collection(name=name, schema=gen_default_fields())
     collection = Collection(name=name)
     data = gen_float_data(default_nb)
     collection.insert(data)
@@ -239,58 +239,72 @@ def test_specify_primary_key():
     assert len(collection2.indexes) != 0
     collection2.drop()
 
+
 def test_alias():
-    def gen_collection(name, partitions):
-        if utility.has_collection(name):
-            collection = Collection(name=name)
-            return collection
+    """ Test alias follows the following steps
+    1. Prepare tests
+    2. Create collection_A and create an alias `latest_collection`
+    3. Create collection_B and shift alias `latest_collection` to collection_B
+    4. Drop alias `latest_collection`
+    5. Clear up tests
 
-        collection = Collection(name=name, schema=gen_default_fields())
-        for p in partitions:
-            collection.create_partition(p)
-        return collection
+    """
 
-    name_1 = "TestAlias_1"
-    name_2 = "TestAlias_2"
-    partitions_1 = ["a", "b", "c"]
-    partitions_2 = ["x", "y"]
-    collection_1 = gen_collection(name_1, partitions_1)
-    collection_2 = gen_collection(name_2, partitions_2)
+    name_A, name_B = "collection_A", "collection_B"
 
-    # here we got two collections, the collection_1's alias is "A"
-    alias = "A"
-    try:
-        collection_1.create_alias(alias)
-    except:
-        print("alias", alias, "already exist")
+    def setup() -> (Collection, Collection):
+        collection_A = Collection(name=name_A, schema=gen_default_fields("collection A"))
+        collection_B = Collection(name=name_B, schema=gen_default_fields("collection B"))
+        return collection_A, collection_B
 
-    # use the alias can do all things like collection name
-    # now we get partitions by the alias, it return partitions of collection_1
-    shift_collection = Collection(name=alias)
-    assert len(shift_collection.partitions) == len(partitions_1) + 1
+    def teardown():
+        if utility.has_collection(name_A):
+            utility.drop_collection(name_A)
+        if utility.has_collection(name_B):
+            utility.drop_collection(name_B)
 
-    # then we change the alias to collection_2
-    # get partition by the alias again, it return partitions of collection_2
-    collection_2.alter_alias(alias)
-    assert len(shift_collection.partitions) == len(partitions_2) + 1
+    def alias_cases():
+        teardown()
+        A, B = setup()
 
-    collection_1.drop()
-    collection_2.drop()
+        latest_coll_alias = "latest_collection"
 
-print("test collection and get an existing collection")
-name = test_create_collection()
-print("test an existing collection")
-test_exist_collection(name)
-print("test collection only name")
-test_collection_only_name()
-print("test collection with dataframe")
-test_collection_with_dataframe()
-print("test collection index float vector")
-test_create_index_float_vector()
-print("test collection binary vector")
-test_create_index_binary_vector()
-print("test collection specify primary key")
-test_specify_primary_key()
-print("test alias")
-test_alias()
-print("test end")
+        utility.create_alias(A.name, latest_coll_alias)
+
+        alias_collection = Collection(latest_coll_alias)
+        assert alias_collection.description == A.description
+
+        utility.alter_alias(B.name, latest_coll_alias)
+
+        alias_collection = Collection(latest_coll_alias)
+        assert alias_collection.description == B.description
+
+        utility.drop_alias(latest_coll_alias)
+        try:
+            alias_collection = Collection(latest_coll_alias)
+        except BaseException as e:
+            print(f" - Alias [{latest_coll_alias}] dropped, cannot get collection from it. Error msg: {e}")
+        finally:
+            teardown()
+
+    alias_cases()
+
+
+if __name__ == "__main__":
+    print("test collection and get an existing collection")
+    name = test_create_collection()
+    print("test an existing collection")
+    test_exist_collection(name)
+    print("test collection only name")
+    test_collection_only_name()
+    print("test collection with dataframe")
+    test_collection_with_dataframe()
+    print("test collection index float vector")
+    test_create_index_float_vector()
+    print("test collection binary vector")
+    test_create_index_binary_vector()
+    print("test collection specify primary key")
+    test_specify_primary_key()
+    print("test alias")
+    test_alias()
+    print("test end")
