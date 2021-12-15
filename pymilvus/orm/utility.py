@@ -536,9 +536,9 @@ def load_balance(src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeou
 
     :example:
         >>> from pymilvus import connections, utility
-        >>> 
+        >>>
         >>> connections.connect()
-        >>> 
+        >>>
         >>> src_node_id = 0
         >>> dst_node_ids = [1]
         >>> sealed_segment_ids = []
@@ -581,3 +581,133 @@ def get_query_segment_info(collection_name, timeout=None, using="default"):
         >>> res = utility.get_query_segment_info("test_get_segment_info")
     """
     return _get_connection(using).get_query_segment_info(collection_name, timeout=timeout)
+
+
+def create_alias(collection_name: str, alias: str, timeout=None, using="default"):
+    """ Specify alias for a collection.
+    Alias cannot be duplicated, you can't assign the same alias to different collections.
+    But you can specify multiple aliases for a collection, for example:
+        before create_alias("collection_1", "bob"):
+            aliases of collection_1 are ["tom"]
+        after create_alias("collection_1", "bob"):
+            aliases of collection_1 are ["tom", "bob"]
+
+    :param alias: The alias of the collection.
+    :type  alias: str.
+
+    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                    is set to None, client waits until server response or error occur
+    :type  timeout: float
+
+    :raises CollectionNotExistException: If the collection does not exist.
+    :raises BaseException: If the alias failed to create.
+
+    :example:
+        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
+        >>> connections.connect()
+        >>> schema = CollectionSchema([
+        ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+        ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+        ... ])
+        >>> collection = Collection("test_collection_create_alias", schema)
+        >>> utility.create_alias(collection.name, "alias")
+        Status(code=0, message='')
+    """
+    return _get_connection(using).create_alias(collection_name, alias, timeout=timeout)
+
+
+def drop_alias(alias: str, timeout=None, using="default"):
+    """ Delete the alias.
+    No need to provide collection name because an alias can only be assigned to one collection
+    and the server knows which collection it belongs.
+    For example:
+        before drop_alias("bob"):
+            aliases of collection_1 are ["tom", "bob"]
+        after drop_alias("bob"):
+            aliases of collection_1 are = ["tom"]
+
+    :param alias: The alias to drop.
+    :type  alias: str
+
+    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                    is set to None, client waits until server response or error occur
+    :type  timeout: float
+
+    :raises CollectionNotExistException: If the collection does not exist.
+    :raises BaseException: If the alias doesn't exist.
+
+    :example:
+        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
+        >>> connections.connect()
+        >>> schema = CollectionSchema([
+        ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+        ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+        ... ])
+        >>> collection = Collection("test_collection_drop_alias", schema)
+        >>> utility.create_alias(collection.name, "alias")
+        >>> utility.drop_alias("alias")
+        Status(code=0, message='')
+    """
+    return _get_connection(using).drop_alias(alias, timeout=timeout)
+
+
+def alter_alias(collection_name: str, alias: str, timeout=None, using="default"):
+    """ Change the alias of a collection to another collection.
+    Raise error if the alias doesn't exist.
+    Alias cannot be duplicated, you can't assign same alias to different collections.
+    This api can change alias owner collection, for example:
+        before alter_alias("collection_2", "bob"):
+            collection_1's aliases = ["bob"]
+            collection_2's aliases = []
+        after alter_alias("collection_2", "bob"):
+            collection_1's aliases = []
+            collection_2's aliases = ["bob"]
+
+    :param collection_name: The collection name to witch this alias is goting to alter.
+    :type  collection_name: str.
+
+    :param alias: The alias of the collection.
+    :type  alias: str
+
+    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                    is set to None, client waits until server response or error occur
+    :type  timeout: float
+
+    :raises CollectionNotExistException: If the collection does not exist.
+    :raises BaseException: If the alias failed to alter.
+
+    :example:
+        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
+        >>> connections.connect()
+        >>> schema = CollectionSchema([
+        ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+        ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+        ... ])
+        >>> collection = Collection("test_collection_alter_alias", schema)
+        >>> utility.alter_alias(collection.name, "alias")
+        if the alias exists, return Status(code=0, message='')
+        otherwise return Status(code=1, message='alias does not exist')
+    """
+    return _get_connection(using).alter_alias(collection_name, alias, timeout=timeout)
+
+
+def list_aliases(collection_name: str, timeout=None, using="default"):
+    """ Returns alias list of the collection.
+
+    :return list of str:
+        The collection aliases, returned when the operation succeeds.
+
+    :example:
+        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
+        >>> connections.connect()
+        >>> fields = [
+        ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+        ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
+        ... ]
+        >>> schema = CollectionSchema(fields)
+        >>> collection = Collection("test_collection_list_aliases", schema)
+        >>> utility.create_alias(collection.name, "tom")
+        >>> utility.list_aliases(collection.name)
+        ['tom']
+    """
+    pass

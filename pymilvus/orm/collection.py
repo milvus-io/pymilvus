@@ -9,9 +9,8 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
-import copy
-import json
 
+import copy
 import pandas
 
 from .connections import get_connection
@@ -913,37 +912,6 @@ class Collection:
         conn = self._get_connection()
         return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
-    # The server side not yet finished to return aliases by the describe_collection api.
-    # Disable this property until the work is done.
-    # @property
-    # def aliases(self) -> list:
-    #     """
-    #     Returns alias list of the collection.
-    #
-    #     :return list of str:
-    #         The collection aliases, returned when the operation succeeds.
-    #
-    #     :example:
-    #         >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-    #         >>> connections.connect()
-    #         >>> fields = [
-    #         ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-    #         ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
-    #         ... ]
-    #         >>> schema = CollectionSchema(fields)
-    #         >>> collection = Collection("test_collection_name", schema)
-    #         >>> collection.create_alias("tom")
-    #         >>> collection.alias
-    #         ['tom']
-    #     """
-    #     conn = self._get_connection()
-    #     has = conn.has_collection(self._name)
-    #     aliases = []
-    #     if has:
-    #         resp = conn.describe_collection(self._name)
-    #         aliases = resp['aliases']
-    #     return aliases
-
     @property
     def indexes(self) -> list:
         """
@@ -1112,118 +1080,12 @@ class Collection:
             index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True)
             index.drop(timeout=timeout, **kwargs)
 
-    def create_alias(self, alias, timeout=None, **kwargs):
-        """
-        Specify alias for a collection.
-        Alias cannot be duplicated, you can't assign same alias to different collections.
-        But you can specify multiple aliases for a collection, for example:
-            before create_alias("collection_1", "bob"):
-                collection_1's aliases = ["tom"]
-            after create_alias("collection_1", "bob"):
-                collection_1's aliases = ["tom", "bob"]
-
-        :param alias: The alias of the collection.
-        :type  alias: str.
-
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server response or error occur
-        :type  timeout: float
-
-        :raises CollectionNotExistException: If the collection does not exist.
-        :raises BaseException: If the alias failed to create.
-
-        :example:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
-            >>> schema = CollectionSchema([
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
-            ... ])
-            >>> collection = Collection("test_collection_create_index", schema)
-            >>> collection.create_alias("alias")
-            Status(code=0, message='')
-        """
-        conn = self._get_connection()
-        conn.create_alias(self._name, alias, timeout=timeout, **kwargs)
-
-    def drop_alias(self, alias, timeout=None, **kwargs):
-        """
-        Delete an alias.
-        This api no need to specify collection name because the milvus server knows which collection it belongs.
-        For example:
-            before drop_alias("bob"):
-                collection_1's aliases = ["tom", "bob"]
-            after drop_alias("bob"):
-                collection_1's aliases = ["tom"]
-
-        :param alias: The alias of the collection.
-        :type  alias: str.
-
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server response or error occur
-        :type  timeout: float
-
-        :raises CollectionNotExistException: If the collection does not exist.
-        :raises BaseException: If the alias doesn't exist.
-
-        :example:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
-            >>> schema = CollectionSchema([
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
-            ... ])
-            >>> collection = Collection("test_collection_create_index", schema)
-            >>> collection.create_alias("alias")
-            >>> collection.drop_alias("alias")
-            Status(code=0, message='')
-        """
-        conn = self._get_connection()
-        conn.drop_alias(alias, timeout=timeout, **kwargs)
-
-    def alter_alias(self, alias, timeout=None, **kwargs):
-        """
-        Change alias of a collection to another collection. If the alias doesn't exist, the api will return error.
-        Alias cannot be duplicated, you can't assign same alias to different collections.
-        This api can change alias owner collection, for example:
-            before alter_alias("collection_2", "bob"):
-                collection_1's aliases = ["bob"]
-                collection_2's aliases = []
-            after alter_alias("collection_2", "bob"):
-                collection_1's aliases = []
-                collection_2's aliases = ["bob"]
-
-        :param alias: The alias of the collection.
-        :type  alias: str.
-
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server response or error occur
-        :type  timeout: float
-
-        :raises CollectionNotExistException: If the collection does not exist.
-        :raises BaseException: If the alias failed to alter.
-
-        :example:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
-            >>> schema = CollectionSchema([
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
-            ... ])
-            >>> collection = Collection("test_collection_create_index", schema)
-            >>> collection.alter_alias("alias")
-            if the alias exists, return Status(code=0, message='')
-            otherwise return Status(code=1, message='alias does not exist')
-        """
-        conn = self._get_connection()
-        conn.alter_alias(self._name, alias, timeout=timeout, **kwargs)
-
     def compact(self, timeout=None, **kwargs):
         """
         Compact merge the small segments in a collection
 
         :param collection_name: The name of the collection.
-        :type  alias: str.
+        :type  collection_name: str.
 
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur
