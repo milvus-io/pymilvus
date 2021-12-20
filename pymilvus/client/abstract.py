@@ -1,14 +1,8 @@
 import abc
-import ujson
-
-from ..client.exceptions import ParamError
-
-from .check import check_pass_param
 
 from .types import DataType
-from . import blob
+from .constants import DEFAULT_CONSISTENCY_LEVEL
 
-from ..grpc_gen import milvus_pb2
 from ..grpc_gen import schema_pb2
 
 
@@ -129,6 +123,7 @@ class CollectionSchema:
         self.auto_id = False  # auto_id is not in collection level any more later
         self.aliases = []
         self.collection_id = 0
+        self.consistency_level = DEFAULT_CONSISTENCY_LEVEL  # by default
 
         #
         if self._raw:
@@ -139,6 +134,13 @@ class CollectionSchema:
         self.description = raw.schema.description
         self.aliases = raw.aliases
         self.collection_id = raw.collectionID
+
+        # keep compatible with older Milvus
+        try:
+            self.consistency_level = raw.consistency_level
+        except:
+            self.consistency_level = DEFAULT_CONSISTENCY_LEVEL
+
         # self.params = dict()
         # TODO: extra_params here
         # for kv in raw.extra_params:
@@ -161,6 +163,7 @@ class CollectionSchema:
         _dict["fields"] = [f.dict() for f in self.fields]
         _dict["aliases"] = self.aliases
         _dict["collection_id"] = self.collection_id
+        _dict["consistency_level"] = self.consistency_level
         # for k, v in self.params.items():
         #     if isinstance(v, DataType):
         #         _dict[k] = v.value

@@ -7,6 +7,8 @@ from .configs import DefaultConfigs
 from .exceptions import ParamError
 from .check import check_pass_param
 from .types import DataType, PlaceholderType, DeployMode
+from .types import get_consistency_level
+from .constants import DEFAULT_CONSISTENCY_LEVEL
 
 from ..grpc_gen import common_pb2 as common_types
 from ..grpc_gen import schema_pb2 as schema_types
@@ -117,8 +119,10 @@ class Prepare:
 
                 schema.fields.append(field_schema)
 
+        consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
         return milvus_types.CreateCollectionRequest(collection_name=collection_name,
-                                                    schema=bytes(schema.SerializeToString()), shards_num=shards_num)
+                                                    schema=bytes(schema.SerializeToString()), shards_num=shards_num,
+                                                    consistency_level=consistency_level)
 
     @classmethod
     def drop_collection_request(cls, collection_name):
