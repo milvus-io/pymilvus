@@ -21,6 +21,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Fetch tags
+      run: |
+        git fetch --prune --unshallow --tags
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
