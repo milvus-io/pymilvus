@@ -35,8 +35,6 @@ Methods
 +-----------------------------------------------------------------------------+---------------------------------------------------------+
 | `disconnect([alias]) <#pymilvus.Connections.disconnect>`_                   | Disconnect from Milvus and close the connection object. |
 +-----------------------------------------------------------------------------+---------------------------------------------------------+
-| `get_connection([alias]) <#pymilvus.Connections.get_connection>`_           | Retrieve a milvus connection by alias.                  |
-+-----------------------------------------------------------------------------+---------------------------------------------------------+
 | `list_connections() <#pymilvus.Connections.list_connections>`_              | List all connections.                                   |
 +-----------------------------------------------------------------------------+---------------------------------------------------------+
 | `get_connection_addr([alias]) <#pymilvus.Connections.get_connection_addr>`_ | Retrieves connection's configuration by alias.          |
@@ -49,4 +47,4 @@ APIs
 
 .. autoclass:: pymilvus.Connections
    :member-order: bysource
-   :members: add_connection, remove_connection, connect, disconnect, get_connection, list_connections, get_connection_addr
+   :members: add_connection, remove_connection, connect, disconnect, list_connections, get_connection_addr

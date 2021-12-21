@@ -1,12 +1,11 @@
 import copy
 import ujson
-import mmh3
 
 from . import blob
 from .configs import DefaultConfigs
 from .exceptions import ParamError
 from .check import check_pass_param
-from .types import DataType, PlaceholderType, DeployMode
+from .types import DataType, PlaceholderType
 from .types import get_consistency_level
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 
@@ -589,6 +588,7 @@ class Prepare:
     @classmethod
     def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, expr=None, partition_names=None,
                                   output_fields=None, round_decimal=-1, **kwargs):
+        # TODO Move this impl into server side
         schema = kwargs.get("schema", None)
         fields_schema = schema.get("fields", None)  # list
         fields_name_locs = {fields_schema[loc]["name"]: loc
@@ -610,12 +610,11 @@ class Prepare:
 
         nq = len(data)
         max_nq_per_batch = nq
-        if kwargs.get("_deploy_mode", DeployMode.Distributed):
-            factor = 10
-            max_nq_per_batch = DefaultConfigs.MaxSearchResultSize / (bytes_per_vector * limit * factor)
-            max_nq_per_batch = int(max_nq_per_batch)
-            if max_nq_per_batch <= 0:
-                raise ParamError(f"limit {limit} is too large!")
+        factor = 2
+        max_nq_per_batch = DefaultConfigs.MaxSearchResultSize / (bytes_per_vector * limit * factor)
+        max_nq_per_batch = int(max_nq_per_batch)
+        if max_nq_per_batch <= 1:
+            raise ParamError(f"limit {limit} is too large!")
 
         tag = "$0"
         if anns_field not in fields_name_locs:

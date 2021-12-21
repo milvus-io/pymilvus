@@ -11,12 +11,8 @@
 # the License.
 
 from . import constants
-from .connections import get_connection
-from .exceptions import (
-    ConnectionNotExistException,
-    ExceptionsMessage,
-    ResultError,
-)
+from .connections import connections
+from .exceptions import ResultError
 
 from ..client.utils import mkts_from_hybridts as _mkts_from_hybridts
 from ..client.utils import mkts_from_unixtime as _mkts_from_unixtime
@@ -163,10 +159,7 @@ def hybridts_to_unixtime(hybridts):
 
 
 def _get_connection(alias):
-    conn = get_connection(alias)
-    if conn is None:
-        raise ConnectionNotExistException(0, ExceptionsMessage.ConnectFirst)
-    return conn
+    return connections._fetch_handler(alias)
 
 
 def loading_progress(collection_name, partition_names=None, using="default"):

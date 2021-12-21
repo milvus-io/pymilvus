@@ -13,7 +13,7 @@
 import copy
 import pandas
 
-from .connections import get_connection
+from .connections import connections
 from .schema import (
     CollectionSchema,
     FieldSchema,
@@ -30,7 +30,6 @@ from .exceptions import (
     SchemaNotReadyException,
     DataTypeNotMatchException,
     DataNotMatchException,
-    ConnectionNotExistException,
     PartitionAlreadyExistException,
     PartitionNotExistException,
     IndexNotExistException,
@@ -72,10 +71,7 @@ def _check_data_schema(fields, data):
 
 
 class Collection:
-    """
-    This is a class corresponding to collection in milvus.
-
-        """
+    """ This is a class corresponding to collection in milvus. """
 
     def __init__(self, name, schema=None, using="default", shards_num=2, **kwargs):
         """
@@ -164,10 +160,7 @@ class Collection:
         return "".join(r)
 
     def _get_connection(self):
-        conn = get_connection(self._using)
-        if conn is None:
-            raise ConnectionNotExistException(0, ExceptionsMessage.ConnectFirst)
-        return conn
+        return connections._fetch_handler(self._using)
 
     def _check_insert_data_schema(self, data):
         """
@@ -365,8 +358,10 @@ class Collection:
             """
         conn = self._get_connection()
         conn.flush([self._name])
-        status = conn.get_collection_stats(db_name="", collection_name=self._name)
-        return status["row_count"]
+        stats = conn.get_collection_stats(db_name="", collection_name=self._name)
+        result = {stat.key: stat.value for stat in stats}
+        result["row_count"] = int(result["row_count"])
+        return result["row_count"]
 
     @property
     def primary_field(self) -> FieldSchema:
@@ -541,8 +536,8 @@ class Collection:
             raise SchemaNotReadyException(0, ExceptionsMessage.TypeOfDataAndSchemaInconsistent)
         conn = self._get_connection()
         entities = Prepare.prepare_insert_data(data, self._schema)
-        res = conn.insert(collection_name=self._name, entities=entities, ids=None,
-                          partition_name=partition_name, timeout=timeout, **kwargs)
+        res = conn.bulk_insert(self._name, entities, partition_name, ids=None, timeout=timeout, **kwargs)
+
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
@@ -597,8 +592,7 @@ class Collection:
         """
 
         conn = self._get_connection()
-        res = conn.delete(collection_name=self._name, expr=expr,
-                          partition_name=partition_name, timeout=timeout, **kwargs)
+        res = conn.delete(self._name, expr, partition_name, timeout, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
@@ -958,7 +952,7 @@ class Collection:
         """
         conn = self._get_connection()
         indexes = []
-        tmp_index = conn.describe_index(self._name)
+        tmp_index = conn.describe_index(self._name, "")
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
             indexes.append(Index(self, field_name, tmp_index, construct_only=True))
@@ -991,7 +985,7 @@ class Collection:
             <pymilvus.index.Index object at 0x7f44355a1460>
         """
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name)
+        tmp_index = conn.describe_index(self._name, "")
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
             return Index(self, field_name, tmp_index, construct_only=True)

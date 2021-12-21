@@ -1,172 +1,43 @@
-# -*- coding: UTF-8 -*-
+from urllib import parse
 
-import functools
-import logging
-import time
-
-import grpc
-from urllib.parse import urlparse
-
-from .types import CompactionState, DeployMode, CompactionPlans
-from .check import check_pass_param, is_legal_host, is_legal_port, is_legal_index_metric_type, \
-    is_legal_binary_index_metric_type
-from .pool import ConnectionPool, SingleConnectionPool, SingletonThreadPool
-from .exceptions import BaseException, ParamError, DeprecatedError
-
+from .grpc_handler import GrpcHandler
+from .exceptions import BaseException, ParamError
+from .types import CompactionState, CompactionPlans
 from ..settings import DefaultConfig as config
-from .utils import valid_index_types
-from .utils import valid_binary_index_types
-from .utils import valid_index_params_keys
-from .utils import check_invalid_binary_vector
+from ..decorators import deprecated
 
-LOGGER = logging.getLogger(__name__)
-
-
-def deprecated(func):
-    @functools.wraps(func)
-    def inner(*args, **kwargs):
-        error_str = "Function {} has been deprecated".format(func.__name__)
-        LOGGER.error(error_str)
-        raise DeprecatedError(error_str)
-
-    return inner
-
-
-def retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=True):
-    def wrapper(func):
-        @functools.wraps(func)
-        def handler(self, *args, **kwargs):
-            counter = 1
-            while True:
-                try:
-                    return func(self, *args, **kwargs)
-                except grpc.RpcError as e:
-                    # DEADLINE_EXCEEDED means that the task wat not completed
-                    # UNAVAILABLE means that the service is not reachable currently
-                    # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
-                    if e.code() != grpc.StatusCode.DEADLINE_EXCEEDED and e.code() != grpc.StatusCode.UNAVAILABLE:
-                        raise e
-                    if not retry_on_deadline and e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                        raise e
-                    if counter >= retry_times:
-                        if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                            raise BaseException(1, "rpc timeout")
-                        raise e
-                    time.sleep(wait)
-                    self._update_connection_pool()
-                except Exception as e:
-                    raise e
-                finally:
-                    counter += 1
-
-        return handler
-
-    return wrapper
-
-
-def _pool_args(**kwargs):
-    pool_kwargs = dict()
-    for k, v in kwargs.items():
-        if k in ("pool_size", "wait_timeout", "handler", "try_connect", "pre_ping", "max_retry"):
-            pool_kwargs[k] = v
-
-    return pool_kwargs
-
-
-def _set_uri(host, port, uri, handler="GRPC"):
-    default_port = config.GRPC_PORT if handler == "GRPC" else config.HTTP_PORT
-    default_uri = config.GRPC_URI if handler == "GRPC" else config.HTTP_URI
-    uri_prefix = "tcp://" if handler == "GRPC" else "http://"
-
-    if host is not None:
-        _port = port if port is not None else default_port
-        _host = host
-    elif port is None:
-        try:
-            _uri = urlparse(uri) if uri else urlparse(default_uri)
-            _host = _uri.hostname
-            _port = _uri.port
-        except (AttributeError, ValueError, TypeError) as e:
-            raise ParamError("uri is illegal: {}".format(e))
-    else:
-        raise ParamError("Param is not complete. Please invoke as follow:\n"
-                         "\t(host = ${HOST}, port = ${PORT})\n"
-                         "\t(uri = ${URI})\n")
-
-    if not is_legal_host(_host) or not is_legal_port(_port):
-        raise ParamError("host {} or port {} is illegal".format(_host, _port))
-
-    return "{}{}:{}".format(uri_prefix, str(_host), str(_port))
+from .check import (
+    is_legal_host,
+    is_legal_port,
+)
 
 
 class Milvus:
-    def __init__(self, host=None, port=None, handler="GRPC", pool="SingletonThread", channel=None, **kwargs):
-        self._name = kwargs.get('name', None)
-        self._uri = None
-        self._status = None
-        self._connected = False
-        self._handler = handler
-        # store extra key-words arguments
-        self._kw = kwargs
+    @deprecated
+    def __init__(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI, channel=None, **kwargs):
+        self.uri = self.__set_uri(host, port, uri)
+        self._handler = GrpcHandler(self.uri, channel=channel)
 
-        if handler != "GRPC":
-            raise NotImplementedError("only grpc handler is supported now!")
+    def __set_uri(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI):
+        if host is None and uri is None:
+            raise ParamError('Host and uri cannot both be None')
 
-        _uri = kwargs.get('uri', None)
-        self._pool_type = pool
-        self._pool_uri = _set_uri(host, port, _uri, self._handler)
-        self._pool_kwargs = _pool_args(handler=handler, **kwargs)
-        self._update_connection_pool(channel=channel)
+        elif host is None:
+            try:
+                parsed_uri = parse.urlparse(uri, "tcp")
+            except (Exception) as e:
+                raise ParamError(f"Illegal uri [{uri}]: {e}")
 
-        self._deploy_mode = DeployMode.Distributed
+            host, port = parsed_uri.hostname, parsed_uri.port
 
-    def _wait_for_healthy(self, timeout=60):
-        _timeout_on_every_retry = self._kw.get("timeout", 0)
-        _timeout = _timeout_on_every_retry if _timeout_on_every_retry else timeout
-        with self._connection() as handler:
-            start_time = time.time()
-            while (time.time() - start_time < _timeout):
-                try:
-                    status = handler.fake_register_link(_timeout)
-                    if status.error_code == 0:
-                        self._deploy_mode = status.reason
-                        return
-                except Exception:
-                    pass
-                finally:
-                    time.sleep(1)
-            raise Exception("server is not healthy, please try again later")
+        host, port = str(host), str(port)
+        if not (is_legal_host(host) and is_legal_port(port)):
+            raise ParamError(f"Illegal host [{host}] or port [{port}]")
 
-    def __enter__(self):
-        self._conn = self._pool.fetch()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._conn.close()
-        self._conn = None
-
-    def __del__(self):
-        self._pool = None
+        return f"{host}:{port}"
 
     def _connection(self):
-        if self._pool:
-            return self._pool.fetch()
-
-        raise Exception("Connection is already closed")
-
-    def _update_connection_pool(self, channel=None):
-        self._pool = None
-        if self._pool_type == "QueuePool":
-            self._pool = ConnectionPool(self._pool_uri, **self._pool_kwargs)
-        elif self._pool_type == "SingletonThread":
-            self._pool = SingletonThreadPool(self._pool_uri, channel=channel, **self._pool_kwargs)
-        elif self._pool_type == "Singleton":
-            self._pool = SingleConnectionPool(self._pool_uri, **self._pool_kwargs)
-        else:
-            raise ParamError("Unknown pool value: {}".format(self._pool_type))
-
-        if not channel:
-            self._wait_for_healthy()
+        return self.handler
 
     @property
     def name(self):
@@ -177,19 +48,14 @@ class Milvus:
         return self._handler
 
     def close(self):
-        """
-        Close client instance
-        """
-        if self._pool:
-            self._pool = None
-            return
+        if self._handler is None:
+            raise BaseException("Closing on closed handler")
+        self.handler.close()
+        self._handler = None
 
-        raise Exception("connection was already closed!")
-
-    @retry_on_rpc_failure(retry_times=10, wait=1)
+    #  @retry_on_rpc_failure(retry_times=10, wait=1)
     def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
-        """
-        Creates a collection.
+        """ Creates a collection.
 
         :param collection_name: The name of the collection. A collection name can only include
         numbers, letters, and underscores, and must not begin with a number.
@@ -230,10 +96,9 @@ class Milvus:
         with self._connection() as handler:
             return handler.create_collection(collection_name, fields, shards_num=shards_num, timeout=timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=False)
     def drop_collection(self, collection_name, timeout=None):
         """
-        Deletes a specified collection.
+        Delete a specified collection.
 
         :param collection_name: The name of the collection to delete.
         :type  collection_name: str
@@ -249,11 +114,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.drop_collection(collection_name, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def has_collection(self, collection_name, timeout=None):
         """
         Checks whether a specified collection exists.
@@ -272,11 +135,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.has_collection(collection_name, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def describe_collection(self, collection_name, timeout=None):
         """
         Returns the schema of specified collection.
@@ -299,11 +160,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.describe_collection(collection_name, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def load_collection(self, collection_name, timeout=None, **kwargs):
         """
         Loads a specified collection from disk to memory.
@@ -322,11 +181,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.load_collection("", collection_name=collection_name, timeout=timeout, **kwargs)
+            return handler.load_collection(collection_name=collection_name, timeout=timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def release_collection(self, collection_name, timeout=None):
         """
         Clear collection data from memory.
@@ -345,11 +202,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.release_collection(db_name="", collection_name=collection_name, timeout=timeout)
+            return handler.release_collection(collection_name=collection_name, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def get_collection_stats(self, collection_name, timeout=None, **kwargs):
         """
         Returns collection statistics information.
@@ -375,7 +230,6 @@ class Milvus:
             result["row_count"] = int(result["row_count"])
             return result
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def list_collections(self, timeout=None):
         """
         Returns a list of all collection names.
@@ -394,7 +248,6 @@ class Milvus:
         with self._connection() as handler:
             return handler.list_collections(timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def create_partition(self, collection_name, partition_name, timeout=None):
         """
         Creates a partition in a specified collection. You only need to import the
@@ -418,11 +271,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name, partition_name=partition_name)
         with self._connection() as handler:
             return handler.create_partition(collection_name, partition_name, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def drop_partition(self, collection_name, partition_name, timeout=None):
         """
         Deletes the specified partition in a collection. Note that the default partition
@@ -446,11 +297,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name, partition_name=partition_name)
         with self._connection() as handler:
             return handler.drop_partition(collection_name, partition_name, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def has_partition(self, collection_name, partition_name, timeout=None):
         """
         Checks if a specified partition exists in a collection.
@@ -472,11 +321,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name, partition_name=partition_name)
         with self._connection() as handler:
             return handler.has_partition(collection_name, partition_name, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def load_partitions(self, collection_name, partition_names, timeout=None):
         """
         Load specified partitions from disk to memory.
@@ -498,12 +345,10 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.load_partitions(db_name="", collection_name=collection_name,
+            return handler.load_partitions(collection_name=collection_name,
                                            partition_names=partition_names, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def release_partitions(self, collection_name, partition_names, timeout=None):
         """
         Clear partitions data from memory.
@@ -525,12 +370,10 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
-            return handler.release_partitions(db_name="", collection_name=collection_name,
+            return handler.release_partitions(collection_name=collection_name,
                                               partition_names=partition_names, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def list_partitions(self, collection_name, timeout=None):
         """
         Returns a list of all partition tags in a specified collection.
@@ -549,12 +392,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
-
         with self._connection() as handler:
             return handler.list_partitions(collection_name, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def get_partition_stats(self, collection_name, partition_name, timeout=None, **kwargs):
         """
         Returns partition statistics information.
@@ -577,14 +417,12 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             stats = handler.get_partition_stats(collection_name, partition_name, timeout, **kwargs)
             result = {stat.key: stat.value for stat in stats}
             result["row_count"] = int(result["row_count"])
             return result
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def create_alias(self, collection_name, alias, timeout=None, **kwargs):
         """
         Specify alias for a collection.
@@ -612,11 +450,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.create_alias(collection_name, alias, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def drop_alias(self, alias, timeout=None, **kwargs):
         """
         Delete an alias.
@@ -644,7 +480,6 @@ class Milvus:
         with self._connection() as handler:
             return handler.drop_alias(alias, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def alter_alias(self, collection_name, alias, timeout=None, **kwargs):
         """
         Change alias of a collection to another collection. If the alias doesn't exist, the api will return error.
@@ -674,11 +509,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.alter_alias(collection_name, alias, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         """
         Creates an index for a field in a specified collection. Milvus does not support creating multiple
@@ -780,41 +613,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        params = params or dict()
-        if not isinstance(params, dict):
-            raise ParamError("Params must be a dictionary type")
-        # params preliminary validate
-        if 'index_type' not in params:
-            raise ParamError("Params must contains key: 'index_type'")
-        if 'params' not in params:
-            raise ParamError("Params must contains key: 'params'")
-        if 'metric_type' not in params:
-            raise ParamError("Params must contains key: 'metric_type'")
-        if not isinstance(params['params'], dict):
-            raise ParamError("Params['params'] must be a dictionary type")
-        if params['index_type'] not in valid_index_types:
-            raise ParamError("Invalid index_type: " + params['index_type'] +
-                             ", which must be one of: " + str(valid_index_types))
-        for k in params['params'].keys():
-            if k not in valid_index_params_keys:
-                raise ParamError("Invalid params['params'].key: " + k)
-        for v in params['params'].values():
-            if not isinstance(v, int):
-                raise ParamError("Invalid params['params'].value: " + v + ", which must be an integer")
-
-        # filter invalid metric type
-        if params['index_type'] in valid_binary_index_types:
-            if not is_legal_binary_index_metric_type(params['index_type'], params['metric_type']):
-                raise ParamError("Invalid metric_type: " + params['metric_type'] +
-                                 ", which does not match the index type: " + params['index_type'])
-        else:
-            if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
-                raise ParamError("Invalid metric_type: " + params['metric_type'] +
-                                 ", which does not match the index type: " + params['index_type'])
         with self._connection() as handler:
             return handler.create_index(collection_name, field_name, params, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def drop_index(self, collection_name, field_name, timeout=None):
         """
         Removes the index of a field in a specified collection.
@@ -836,13 +637,10 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
-        check_pass_param(field_name=field_name)
         with self._connection() as handler:
             return handler.drop_index(collection_name=collection_name,
                                       field_name=field_name, index_name="_default_idx", timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def describe_index(self, collection_name, index_name="", timeout=None):
         """
         Returns the schema of index built on specified field.
@@ -865,11 +663,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.describe_index(collection_name, index_name, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         """
         Inserts entities in a specified collection.
@@ -903,14 +699,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        # filter invalid binary data #1352: https://github.com/zilliztech/milvus-distributed/issues/1352
-        if not check_invalid_binary_vector(entities):
-            raise ParamError("Invalid binary vector data exists")
-
         with self._connection() as handler:
             return handler.bulk_insert(collection_name, entities, partition_name, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def delete(self, collection_name, expr, partition_name=None, timeout=None, **kwargs):
         """
         Delete entities with an expression condition.
@@ -936,11 +727,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(collection_name=collection_name)
         with self._connection() as handler:
             return handler.delete(collection_name, expr, partition_name, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def flush(self, collection_names=None, timeout=None, **kwargs):
         """
         Internally, Milvus organizes data into segments, and indexes are built in a per-segment manner.
@@ -973,21 +762,9 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        if collection_names in (None, []):
-            raise ParamError("Collection name list can not be None or empty")
-
-        if not isinstance(collection_names, list):
-            raise ParamError("Collection name array must be type of list")
-
-        if len(collection_names) <= 0:
-            raise ParamError("Collection name array is not allowed to be empty")
-
-        for name in collection_names:
-            check_pass_param(collection_name=name)
         with self._connection() as handler:
             return handler.flush(collection_names, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=False)
     def search(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
                output_fields=None, timeout=None, round_decimal=-1, **kwargs):
         """
@@ -1040,22 +817,10 @@ class Milvus:
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
-        check_pass_param(
-            limit=limit,
-            round_decimal=round_decimal,
-            anns_field=anns_field,
-            search_data=data,
-            partition_name_array=partition_names,
-            output_fields=output_fields,
-            travel_timestamp=kwargs.get("travel_timestamp", 0),
-            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0)
-        )
         with self._connection() as handler:
-            kwargs["_deploy_mode"] = self._deploy_mode
             return handler.search(collection_name, data, anns_field, param, limit, expression,
                                   partition_names, output_fields, timeout, round_decimal, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def calc_distance(self, vectors_left, vectors_right, params=None, timeout=None, **kwargs):
         """
         Calculate distance between two vector arrays.
@@ -1102,7 +867,6 @@ class Milvus:
         with self._connection() as handler:
             return handler.calc_distance(vectors_left, vectors_right, params, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def get_query_segment_info(self, collection_name, timeout=None, **kwargs):
         """
         Notifies Proxy to return segments information from query nodes.
@@ -1117,44 +881,36 @@ class Milvus:
         :rtype: QuerySegmentInfo
         """
         with self._connection() as handler:
-            return handler.get_query_segment_infos(collection_name, timeout, **kwargs)
+            return handler.get_query_segment_info(collection_name, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def load_collection_progress(self, collection_name, timeout=None):
         with self._connection() as handler:
             return handler.load_collection_progress(collection_name, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def load_partitions_progress(self, collection_name, partition_names, timeout=None):
         with self._connection() as handler:
             return handler.load_partitions_progress(collection_name, partition_names, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def wait_for_loading_collection_complete(self, collection_name, timeout=None):
         with self._connection() as handler:
             return handler.wait_for_loading_collection(collection_name, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def wait_for_loading_partitions_complete(self, collection_name, partition_names, timeout=None):
         with self._connection() as handler:
             return handler.wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def get_index_build_progress(self, collection_name, index_name, timeout=None):
         with self._connection() as handler:
             return handler.get_index_build_progress(collection_name, index_name, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def wait_for_creating_index(self, collection_name, index_name, timeout=None):
         with self._connection() as handler:
             return handler.wait_for_creating_index(collection_name, index_name, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def dummy(self, request_type, timeout=None):
         with self._connection() as handler:
             return handler.dummy(request_type, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
         """
         Query with a set of criteria, and results in a list of records that match the query exactly.
@@ -1196,7 +952,6 @@ class Milvus:
         with self._connection() as handler:
             return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def load_balance(self, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
         """
         Do load balancing operation from source query node to destination query node.
@@ -1256,7 +1011,6 @@ class Milvus:
         with self._connection() as handler:
             return handler.get_compaction_state(compaction_id, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     def wait_for_compaction_completed(self, compaction_id: int, timeout=None, **kwargs) -> CompactionState:
         with self._connection() as handler:
             return handler.wait_for_compaction_completed(compaction_id, timeout=timeout, **kwargs)
@@ -1276,6 +1030,5 @@ class Milvus:
 
         :raises BaseException: If compaction_id doesn't exist.
         """
-
         with self._connection() as handler:
             return handler.get_compaction_plans(compaction_id, timeout, **kwargs)

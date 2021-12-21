@@ -65,7 +65,7 @@ class TestCreateCollection:
         self._real_time_channel = grpc_testing.channel(
             milvus_pb2.DESCRIPTOR.services_by_name.values(), self._real_time)
         self._servicer = milvus_pb2.DESCRIPTOR.services_by_name['MilvusService']
-        self._milvus = Milvus(channel=self._real_time_channel, try_connect=False, pre_ping=False)
+        self._milvus = Milvus(channel=self._real_time_channel)
 
     def teardown(self) -> None:
         pass

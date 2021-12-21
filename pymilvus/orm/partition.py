@@ -138,9 +138,10 @@ class Partition:
         """
         conn = self._get_connection()
         conn.flush([self._collection.name])
-        status = conn.get_partition_stats(db_name="", collection_name=self._collection.name,
-                                          partition_name=self._name)
-        return status["row_count"]
+        stats = conn.get_partition_stats(db_name="", collection_name=self._collection.name, partition_name=self._name)
+        result = {stat.key: stat.value for stat in stats}
+        result["row_count"] = int(result["row_count"])
+        return result["row_count"]
 
     def drop(self, timeout=None, **kwargs):
         """
@@ -273,8 +274,8 @@ class Partition:
         if conn.has_partition(self._collection.name, self._name) is False:
             raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
         entities = Prepare.prepare_insert_data(data, self._collection.schema)
-        res = conn.insert(self._collection.name, entities=entities, ids=None,
-                          partition_name=self._name, timeout=timeout, orm=True, **kwargs)
+        res = conn.bulk_insert(self._collection.name, entities=entities,
+                               partition_name=self._name, timeout=timeout, orm=True, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
