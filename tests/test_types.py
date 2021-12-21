@@ -11,6 +11,8 @@
 
 import pytest
 from pymilvus import DataType
+from pymilvus.client.exceptions import InvalidConsistencyLevel
+from pymilvus.client.types import get_consistency_level, ConsistencyLevel
 import pandas as pd
 import numpy as np
 
@@ -97,3 +99,19 @@ class TestTypes:
             actual.append(infer_dtype_bydata(d))
 
         assert actual == wants
+
+
+class TestConsistencyLevel:
+    def test_consistency_level_int(self):
+        for v in ConsistencyLevel.values():
+            assert v == get_consistency_level(v)
+
+    def test_consistency_level_str(self):
+        for k in ConsistencyLevel.keys():
+            assert ConsistencyLevel.Value(k) == get_consistency_level(k)
+
+    @pytest.mark.parametrize("invalid", [6, 100, "not supported", "中文", 1.0])
+    def test_consistency_level_invalid(self, invalid):
+        with pytest.raises(InvalidConsistencyLevel):
+            get_consistency_level(invalid)
+

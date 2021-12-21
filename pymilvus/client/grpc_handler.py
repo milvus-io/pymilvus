@@ -25,6 +25,7 @@ from .types import (
     State,
     CompactionPlans,
     Plan,
+    ConsistencyLevel,
 )
 
 from .check import is_legal_host, is_legal_port
@@ -32,6 +33,7 @@ from .utils import len_of
 from ..settings import DefaultConfig as config
 from .configs import DefaultConfigs
 from . import ts_utils
+from .constants import DEFAULT_GRACEFUL_TIME
 
 from .asynch import (
     SearchFuture,
@@ -630,15 +632,32 @@ class GrpcHandler:
         collection_schema = self.describe_collection(collection_name, timeout)
         collection_id = collection_schema["collection_id"]
         auto_id = collection_schema["auto_id"]
+        consistency_level = collection_schema["consistency_level"]
         _kwargs["schema"] = collection_schema
+
+        # as the user has already specific the consistency level, maybe the `guarantee_timestamp` here is useless.
+        if consistency_level == ConsistencyLevel.Strong:
+            # Milvus will assign a newest ts.
+            _kwargs["guarantee_timestamp"] = 0
+        elif consistency_level == ConsistencyLevel.Session:
+            # Using the last write ts of the collection.
+            _kwargs["guarantee_timestamp"] = ts_utils.get_collection_ts(collection_id)
+        elif consistency_level == ConsistencyLevel.Bounded:
+            # Using a timestamp which is close to but less than the current epoch.
+            graceful_time = _kwargs.get("graceful_time", DEFAULT_GRACEFUL_TIME)
+            _kwargs["guarantee_timestamp"] = ts_utils.get_current_bounded_ts(graceful_time)
+        elif consistency_level == ConsistencyLevel.Eventually:
+            # Using a very small timestamp.
+            _kwargs["guarantee_timestamp"] = ts_utils.get_eventually_ts()
+        else:
+            # Users customize the consistency level, no modification on `guarantee_timestamp`.
+            pass
+
         requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
                                                      partition_names, output_fields, round_decimal, **_kwargs)
         _kwargs.pop("schema")
         _kwargs["auto_id"] = auto_id
         _kwargs["round_decimal"] = round_decimal
-
-        if not _kwargs.get("guarantee_timestamp", 0):
-            _kwargs["guarantee_timestamp"] = ts_utils.get_collection_ts(collection_id)
 
         return self._execute_search_requests(requests, timeout, **_kwargs)
 

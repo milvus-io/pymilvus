@@ -2,7 +2,8 @@ import threading
 import datetime
 
 from .singleton_utils import Singleton
-from .utils import hybridts_to_unixtime
+from .utils import hybridts_to_unixtime, mkts_from_unixtime
+from .constants import DEFAULT_GRACEFUL_TIME, EVENTUALLY_TS
 
 
 class GTsDict(metaclass=Singleton):
@@ -57,3 +58,15 @@ def get_collection_timestamp(collection):
 def get_collection_datetime(collection, tz=None):
     timestamp = get_collection_timestamp(collection)
     return datetime.datetime.fromtimestamp(timestamp, tz=tz)
+
+
+# Get the bounded timestamp according to the current timestamp.
+# The default graceful time is 3000ms (greater than the time tick period, bigger enough).
+def get_current_bounded_ts(graceful_time_in_ms=DEFAULT_GRACEFUL_TIME):
+    # Fortunately, we're in 21th century and we don't need to worry about that bounded_ts < 0.
+    current = datetime.datetime.now().timestamp()
+    return mkts_from_unixtime(current, -graceful_time_in_ms)
+
+
+def get_eventually_ts():
+    return EVENTUALLY_TS

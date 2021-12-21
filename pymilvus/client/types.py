@@ -1,4 +1,6 @@
 from enum import IntEnum
+from ..grpc_gen.common_pb2 import ConsistencyLevel
+from .exceptions import InvalidConsistencyLevel
 
 
 class Status:
@@ -257,3 +259,16 @@ Compaction Plans:
  - state: {self.state}
  - plans: {self.plans}
  """
+
+
+def get_consistency_level(consistency_level):
+    if isinstance(consistency_level, int):
+        if consistency_level in ConsistencyLevel.values():
+            return consistency_level
+        raise InvalidConsistencyLevel(0, f"invalid consistency level: {consistency_level}")
+    if isinstance(consistency_level, str):
+        try:
+            return ConsistencyLevel.Value(consistency_level)
+        except ValueError as e:
+            raise InvalidConsistencyLevel(0, f"invalid consistency level: {consistency_level}") from e
+    raise InvalidConsistencyLevel(0, "invalid consistency level")

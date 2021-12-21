@@ -39,6 +39,8 @@ from .exceptions import (
 )
 from .future import SearchFuture, MutationFuture
 from ..client.types import CompactionState, CompactionPlans
+from ..client.types import get_consistency_level
+from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
 
 
 def _check_schema(schema):
@@ -93,6 +95,11 @@ class Collection:
                         can be used on insert.
         :type shards_num: int
 
+        :param kwargs:
+            * *consistency_level* (``str/int``) --
+            Which consistency level to use when search the collection. See details in
+            https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
+
         :example:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
@@ -136,7 +143,9 @@ class Collection:
                 raise SchemaNotReadyException(0, ExceptionsMessage.CollectionNotExistNoSchema % name)
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
-                conn.create_collection(self._name, fields=schema.to_dict(), shards_num=self._shards_num)
+                consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
+                conn.create_collection(self._name, fields=schema.to_dict(), shards_num=self._shards_num,
+                                       consistency_level=consistency_level)
                 self._schema = schema
             else:
                 raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)
@@ -629,6 +638,9 @@ class Collection:
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is provided, then Milvus will search all operations performed to date.
+            * *graceful_time* (``int``) --
+              Only used in bounded consistency level. If graceful_time is set, PyMilvus will use current timestamp minus
+              the graceful_time as the `guarantee_timestamp`. This option is 3s by default if not set.
             * *travel_timestamp* (``int``) --
               Users can specify a timestamp in a search to get results based on a data view
                         at a specified point in time.

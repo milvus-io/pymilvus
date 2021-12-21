@@ -93,3 +93,8 @@ class DescribeCollectionException(BaseException):
     def __init__(self, code, message):
         super().__init__(code, message)
 
+
+class InvalidConsistencyLevel(BaseException):
+    def __init__(self, code, message):
+        super().__init__(code, message)
+
