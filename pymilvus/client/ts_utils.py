@@ -5,6 +5,8 @@ from .singleton_utils import Singleton
 from .utils import hybridts_to_unixtime, mkts_from_unixtime
 from .constants import DEFAULT_GRACEFUL_TIME, EVENTUALLY_TS
 
+from ..grpc_gen.common_pb2 import ConsistencyLevel
+
 
 class GTsDict(metaclass=Singleton):
     def __init__(self):
@@ -70,3 +72,22 @@ def get_current_bounded_ts(graceful_time_in_ms=DEFAULT_GRACEFUL_TIME):
 
 def get_eventually_ts():
     return EVENTUALLY_TS
+
+
+def construct_guarantee_ts(consistency_level, collection_id, kwargs):
+    if consistency_level == ConsistencyLevel.Strong:
+        # Milvus will assign a newest ts.
+        kwargs["guarantee_timestamp"] = 0
+    elif consistency_level == ConsistencyLevel.Session:
+        # Using the last write ts of the collection.
+        kwargs["guarantee_timestamp"] = get_collection_ts(collection_id)
+    elif consistency_level == ConsistencyLevel.Bounded:
+        # Using a timestamp which is close to but less than the current epoch.
+        graceful_time = kwargs.get("graceful_time", DEFAULT_GRACEFUL_TIME)
+        kwargs["guarantee_timestamp"] = get_current_bounded_ts(graceful_time)
+    elif consistency_level == ConsistencyLevel.Eventually:
+        # Using a very small timestamp.
+        kwargs["guarantee_timestamp"] = get_eventually_ts()
+    else:
+        # Users customize the consistency level, no modification on `guarantee_timestamp`.
+        pass

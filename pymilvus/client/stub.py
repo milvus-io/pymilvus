@@ -1027,7 +1027,7 @@ class Milvus:
               such timestamp is provided, then Milvus will search all operations performed to date.
             * *graceful_time* (``int``) --
               Only used in bounded consistency level. If graceful_time is set, PyMilvus will use current timestamp minus
-              the graceful_time as the `guarantee_timestamp`. This option is 3s by default if not set.
+              the graceful_time as the `guarantee_timestamp`. This option is 5s by default if not set.
             * *travel_timestamp* (``int``) --
               Users can specify a timestamp in a search to get results based on a data view
                         at a specified point in time.
@@ -1155,7 +1155,7 @@ class Milvus:
             return handler.dummy(request_type, timeout=timeout)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
-    def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None):
+    def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
         """
         Query with a set of criteria, and results in a list of records that match the query exactly.
 
@@ -1178,12 +1178,23 @@ class Milvus:
         :return: A list that contains all results
         :rtype: list
 
+        :param kwargs:
+            * *guarantee_timestamp* (``int``) --
+              This function instructs Milvus to see all operations performed before a provided timestamp. If no
+              such timestamp is provided, then Milvus will search all operations performed to date.
+            * *graceful_time* (``int``) --
+              Only used in bounded consistency level. If graceful_time is set, PyMilvus will use current timestamp minus
+              the graceful_time as the `guarantee_timestamp`. This option is 5s by default if not set.
+            * *travel_timestamp* (``int``) --
+              Users can specify a timestamp in a search to get results based on a data view
+                        at a specified point in time.
+
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
         :raises BaseException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout)
+            return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     def load_balance(self, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
