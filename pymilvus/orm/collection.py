@@ -640,7 +640,7 @@ class Collection:
               such timestamp is provided, then Milvus will search all operations performed to date.
             * *graceful_time* (``int``) --
               Only used in bounded consistency level. If graceful_time is set, PyMilvus will use current timestamp minus
-              the graceful_time as the `guarantee_timestamp`. This option is 3s by default if not set.
+              the graceful_time as the `guarantee_timestamp`. This option is 5s by default if not set.
             * *travel_timestamp* (``int``) --
               Users can specify a timestamp in a search to get results based on a data view
                         at a specified point in time.
@@ -701,7 +701,7 @@ class Collection:
             return SearchFuture(res)
         return SearchResult(res)
 
-    def query(self, expr, output_fields=None, partition_names=None, timeout=None):
+    def query(self, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
         """
         Query with a set of criteria, and results in a list of records that match the query exactly.
 
@@ -717,6 +717,17 @@ class Collection:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur
         :type  timeout: float
+
+        :param kwargs:
+            * *guarantee_timestamp* (``int``) --
+              This function instructs Milvus to see all operations performed before a provided timestamp. If no
+              such timestamp is provided, then Milvus will search all operations performed to date.
+            * *graceful_time* (``int``) --
+              Only used in bounded consistency level. If graceful_time is set, PyMilvus will use current timestamp minus
+              the graceful_time as the `guarantee_timestamp`. This option is 5s by default if not set.
+            * *travel_timestamp* (``int``) --
+              Users can specify a timestamp in a search to get results based on a data view
+                        at a specified point in time.
 
         :return: A list that contains all results
         :rtype: list
@@ -758,7 +769,7 @@ class Collection:
             raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        res = conn.query(self._name, expr, output_fields, partition_names, timeout)
+        res = conn.query(self._name, expr, output_fields, partition_names, timeout, **kwargs)
         return res
 
     @property

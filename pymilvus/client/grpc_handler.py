@@ -635,23 +635,7 @@ class GrpcHandler:
         consistency_level = collection_schema["consistency_level"]
         _kwargs["schema"] = collection_schema
 
-        # as the user has already specific the consistency level, maybe the `guarantee_timestamp` here is useless.
-        if consistency_level == ConsistencyLevel.Strong:
-            # Milvus will assign a newest ts.
-            _kwargs["guarantee_timestamp"] = 0
-        elif consistency_level == ConsistencyLevel.Session:
-            # Using the last write ts of the collection.
-            _kwargs["guarantee_timestamp"] = ts_utils.get_collection_ts(collection_id)
-        elif consistency_level == ConsistencyLevel.Bounded:
-            # Using a timestamp which is close to but less than the current epoch.
-            graceful_time = _kwargs.get("graceful_time", DEFAULT_GRACEFUL_TIME)
-            _kwargs["guarantee_timestamp"] = ts_utils.get_current_bounded_ts(graceful_time)
-        elif consistency_level == ConsistencyLevel.Eventually:
-            # Using a very small timestamp.
-            _kwargs["guarantee_timestamp"] = ts_utils.get_eventually_ts()
-        else:
-            # Users customize the consistency level, no modification on `guarantee_timestamp`.
-            pass
+        ts_utils.construct_guarantee_ts(consistency_level, collection_id, kwargs)
 
         requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
                                                      partition_names, output_fields, round_decimal, **_kwargs)
@@ -1150,10 +1134,21 @@ class GrpcHandler:
         return future.result()
 
     @error_handler()
-    def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None):
+    def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError("Invalid query format. 'output_fields' must be a list")
-        request = Prepare.query_request(collection_name, expr, output_fields, partition_names)
+
+        collection_schema = self.describe_collection(collection_name, timeout)
+        collection_id = collection_schema["collection_id"]
+        consistency_level = collection_schema["consistency_level"]
+
+        ts_utils.construct_guarantee_ts(consistency_level, collection_id, kwargs)
+        guarantee_timestamp = kwargs.get("guarantee_timestamp", 0)
+        travel_timestamp = kwargs.get("travel_timestamp", 0)
+
+        request = Prepare.query_request(collection_name, expr, output_fields, partition_names, guarantee_timestamp,
+                                        travel_timestamp)
+
         future = self._stub.Query.future(request, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code == Status.EMPTY_COLLECTION:
