@@ -13,7 +13,7 @@ Projects in the Milvus community all welcome your contributions, and we welcome 
 We are committed to building a collaborative, exuberant open-source community for PyMilvus. Therefore, contributions to PyMilvus are welcome from everyone. Anyone who is familiar with the code and usage of PyMilvus is welcome to contribute to the community, help newcomers, and pass on the open-source, collaborative, and open spirit.
 
 
-# What contributions can you make?
+## What contributions can you make?
 
 Issues with label [good-first-issue](https://github.com/milvus-io/pymilvus/labels/good%20first%20issue) and [help-wanted](https://github.com/milvus-io/pymilvus/labels/help%20wanted) in this repo are entry-level issues. They are the perfect starting points if you are trying to get familiar with this project.
 
@@ -42,7 +42,7 @@ If you are interested in existing PRs, you can:
 
 Note: the problems, features, and questions mentioned here are not limited to Python code. They also refer to all kinds of documents (technical documents, API references, contributing guide, etc.)
 
-# PyMilvus Code Structure
+## PyMilvus Code Structure
 `docs/`: Contains source documentation (except for API Reference) that created by sphinx; most documentation are stored as `.rst` files under `docs/source`.
 
 `examples/`: Contains Python scripts, which can be run directly, for introducing the usage of PyMiluvs API through examples.
@@ -67,24 +67,6 @@ Note: the problems, features, and questions mentioned here are not limited to Py
 
 `setup.py`: Package script for PyMilvus.
 
-# Need-to-know before contribution
-
-### PyMilvus Github Workflow
-
-# Need-to-know before PR
-
-### How to write a commit message?
-
-### Sign DCO
-
-# Merge PR
-
-### What will reviewers focus on in reviewing PR?
-
-### What will approvers focus on in reviewing PR?
-
-### Pass all Github Actions
-
-# Congratulations! You are now the contributor to the Milvus community!
+## Congratulations! You are now the contributor to the Milvus community!
 
 Apart from dealing with codes and machines, you are always welcome to communicate with any member from the Milvus community. New faces join us every day, and they may as well encounter the same challenges as you faced beore. Feel free to help them. You can pass on the collaborative spirit from the assistance you acquired when you first joined the community. Let us build a collaborative, open-source, exuberant, and tolerant community together!
