@@ -987,7 +987,7 @@ class Milvus:
         with self._connection() as handler:
             return handler.flush(collection_names, timeout, **kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=False)
     def search(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
                output_fields=None, timeout=None, round_decimal=-1, **kwargs):
         """
