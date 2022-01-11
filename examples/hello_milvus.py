@@ -56,7 +56,7 @@ fields = [
 schema = CollectionSchema(fields, "hello_milvus is the simplest demo to introduce the APIs")
 
 print(fmt.format("Create collection `hello_milvus`"))
-hello_milvus = Collection("hello_milvus", schema)
+hello_milvus = Collection("hello_milvus", schema, consistency_level="Strong")
 
 ################################################################################
 # 3. insert data
@@ -67,11 +67,12 @@ hello_milvus = Collection("hello_milvus", schema)
 # - either automatically generated primary keys by Milvus if auto_id=True in the schema;
 # - or the existing primary key field from the entities if auto_id=False in the schema.
 print(fmt.format("Start inserting entities"))
+num_entities = 3000
 entities = [
     # provide the pk field because `auto_id` is set to False
-    [i for i in range(3000)],
-    [float(random.randrange(-20, -10)) for _ in range(3000)],  # field random
-    [[random.random() for _ in range(8)] for _ in range(3000)],  # field embeddings
+    [i for i in range(num_entities)],
+    [float(random.randrange(-20, -10)) for _ in range(num_entities)],  # field random
+    [[random.random() for _ in range(8)] for _ in range(num_entities)],  # field embeddings
 ]
 
 insert_result = hello_milvus.insert(entities)
