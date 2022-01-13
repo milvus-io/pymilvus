@@ -20,7 +20,7 @@ class TestCollections:
     #          connections.get_connection().drop_collection(name)
 
     def test_collection_by_DataFrame(self):
-        from pymilvus import Collection, connections
+        from pymilvus import Collection
         from pymilvus import FieldSchema, CollectionSchema
         from pymilvus import DataType
         coll_name = gen_collection_name()
@@ -30,21 +30,24 @@ class TestCollections:
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=128)
         ]
 
-        collection_schema = CollectionSchema(fields, primary_field="int64")
-        with mock.patch("pymilvus.Milvus.__init__", return_value=None):
-            connections.connect()
+        prefix = "pymilvus.client.grpc_handler.GrpcHandler"
 
-        with mock.patch("pymilvus.Milvus.create_collection", return_value=None):
-            with mock.patch("pymilvus.Milvus.has_collection", return_value=False):
+        collection_schema = CollectionSchema(fields, primary_field="int64")
+        with mock.patch(f"{prefix}.__init__", return_value=None):
+            with mock.patch(f"{prefix}._wait_for_channel_ready", return_value=None):
+                connections.connect()
+
+        with mock.patch(f"{prefix}.create_collection", return_value=None):
+            with mock.patch(f"{prefix}.has_collection", return_value=False):
                 collection = Collection(name=coll_name, schema=collection_schema)
 
-        with mock.patch("pymilvus.Milvus.create_collection", return_value=None):
-            with mock.patch("pymilvus.Milvus.has_collection", return_value=True):
-                with mock.patch("pymilvus.Milvus.describe_collection", return_value=collection_schema.to_dict()):
+        with mock.patch(f"{prefix}.create_collection", return_value=None):
+            with mock.patch(f"{prefix}.has_collection", return_value=True):
+                with mock.patch(f"{prefix}.describe_collection", return_value=collection_schema.to_dict()):
                     collection = Collection(name=coll_name)
 
-        with mock.patch("pymilvus.Milvus.drop_collection", return_value=None):
-            with mock.patch("pymilvus.Milvus.describe_index", return_value=None):
+        with mock.patch(f"{prefix}.drop_collection", return_value=None):
+            with mock.patch(f"{prefix}.describe_index", return_value=None):
                 collection.drop()
 
     @pytest.mark.xfail

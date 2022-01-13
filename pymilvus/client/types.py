@@ -175,11 +175,6 @@ class PlaceholderType(IntEnum):
     FloatVector = 101
 
 
-class DeployMode:
-    Distributed = "DISTRIBUTED"
-    StandAlone = "STANDALONE"
-
-
 class State(IntEnum):
     """
     UndefiedState:  Unknown

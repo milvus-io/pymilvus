@@ -13,10 +13,10 @@
 import copy
 import threading
 
-from ..client.stub import Milvus
+from ..client.grpc_handler import GrpcHandler
 
 from .default_config import DefaultConfig
-from .exceptions import ExceptionsMessage, ConnectionConfigException
+from .exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
 
 
 def synchronized(func):
@@ -117,15 +117,12 @@ class Connections(metaclass=SingleInstanceMetaClass):
         self.disconnect(alias)
         self._kwargs.pop(alias, None)
 
-    def connect(self, alias=DefaultConfig.DEFAULT_USING, **kwargs) -> Milvus:
+    def connect(self, alias=DefaultConfig.DEFAULT_USING, **kwargs):
         """
         Constructs a milvus connection and register it under given alias.
 
         :param alias: The name of milvus connection
         :type  alias: str
-
-        :return Milvus:
-            A milvus connection created by the passed parameters.
 
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.
@@ -135,7 +132,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :example:
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
-            <pymilvus.client.stub.Milvus object at 0x7f4045335f10>
         """
         if not isinstance(alias, str):
             raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
@@ -144,13 +140,14 @@ class Connections(metaclass=SingleInstanceMetaClass):
             tmp_kwargs = copy.deepcopy(kwargs)
             tmp_host = tmp_kwargs.pop("host", None)
             tmp_port = tmp_kwargs.pop("port", None)
-            handler = tmp_kwargs.pop("handler", DefaultConfig.DEFAULT_HANDLER)
-            pool = tmp_kwargs.pop("pool", DefaultConfig.DEFAULT_POOL)
-            return Milvus(tmp_host, tmp_port, handler, pool, **tmp_kwargs)
+            gh = GrpcHandler(host=str(tmp_host), port=str(tmp_port), **tmp_kwargs)
+            gh._wait_for_channel_ready()
+            return gh
         if alias in self._conns:
             if len(kwargs) > 0 and self._kwargs[alias] != kwargs:
                 raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf % alias)
-            return self._conns[alias]
+            #  return self._conns[alias]
+            return
 
         if alias in self._kwargs:
             if len(kwargs) > 0:
@@ -159,10 +156,12 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 conn = connect_milvus(**kwargs)
                 self._kwargs[alias] = copy.deepcopy(kwargs)
                 self._conns[alias] = conn
-                return conn
+                return
+                #  return conn
             conn = connect_milvus(**self._kwargs[alias])
             self._conns[alias] = conn
-            return conn
+            return
+            #  return conn
 
         if len(kwargs) > 0:
             if "host" not in kwargs or "port" not in kwargs:
@@ -170,43 +169,21 @@ class Connections(metaclass=SingleInstanceMetaClass):
             conn = connect_milvus(**kwargs)
             self._kwargs[alias] = copy.deepcopy(kwargs)
             self._conns[alias] = conn
-            return conn
+            return
+            #  return conn
         raise ConnectionConfigException(0, ExceptionsMessage.ConnLackConf % alias)
 
-    def get_connection(self, alias=DefaultConfig.DEFAULT_USING) -> Milvus:
-        """
-        Retrieves a milvus connection by alias.
-
-        :param alias: The name of milvus connection
-        :type  alias: str
-
-        :return Milvus:
-            A milvus connection which of the name is alias.
-
-        :raises KeyError: If there is no connection with alias.
-        :raises NotImplementedError: If handler in connection parameters is not GRPC.
-        :raises ParamError: If pool in connection parameters is not supported.
-        :raises Exception: If server specific in parameters is not ready, we cannot connect to
-                           server.
-        """
-        if not isinstance(alias, str):
-            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
-
-        return self._conns.get(alias, None)
-
     def list_connections(self) -> list:
-        """
-        Lists all connections.
+        """ List names of all connections.
 
         :return list:
             Names of all connections.
 
         :example:
-            >>> from pymilvus import connections as conn
-            >>> conn.connect("test", host="localhost", port="19530")
-            <pymilvus.client.stub.Milvus object at 0x7f05003f3e80>
-            >>> conn.list_connections()
-            [('default', None), ('test', <pymilvus.client.stub.Milvus object at 0x7f05003f3e80>)]
+            >>> from pymilvus import connections
+            >>> connections.connect("test", host="localhost", port="19530")
+            >>> connections.list_connections()
+            // TODO [('default', None), ('test', <pymilvus.client.grpc_handler.GrpcHandler object at 0x7f05003f3e80>)]
         """
         return [(k, self._conns.get(k, None)) for k in self._kwargs]
 
@@ -224,9 +201,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :example:
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
-            <pymilvus.client.stub.Milvus object at 0x7f4045335f10>
             >>> connections.list_connections()
-            [('default', None), ('test', <pymilvus.client.stub.Milvus object at 0x7f4045335f10>)]
+            [('default', None), ('test', <pymilvus.client.grpc_handler.GrpcHandler object at 0x7f4045335f10>)]
             >>> connections.get_connection_addr('test')
             {'host': 'localhost', 'port': '19530'}
         """
@@ -235,14 +211,42 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         return self._kwargs.get(alias, {})
 
+    def has_connection(self, alias: str) -> bool:
+        """
+        Retrieves connection configure by alias.
+
+        :param alias: The name of milvus connection
+        :type  alias: str
+
+        :return dict:
+            The connection configure which of the name is alias.
+            If alias does not exist, return empty dict.
+
+        :example:
+            >>> from pymilvus import connections
+            >>> connections.connect("test", host="localhost", port="19530")
+            >>> connections.list_connections()
+            [('default', None), ('test', <pymilvus.client.grpc_handler.GrpcHandler object at 0x7f4045335f10>)]
+            >>> connections.get_connection_addr('test')
+            {'host': 'localhost', 'port': '19530'}
+        """
+        if not isinstance(alias, str):
+            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
+
+        return alias in self._conns
+
+    def _fetch_handler(self, alias=DefaultConfig.DEFAULT_USING) -> GrpcHandler:
+        """ Retrieves a GrpcHandler by alias. """
+        if not isinstance(alias, str):
+            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
+
+        conn = self._conns.get(alias, None)
+        if conn is None:
+            raise ConnectionNotExistException(0, ExceptionsMessage.ConnectFirst)
+
+        return conn
+
 
 # Singleton Mode in Python
 
 connections = Connections()
-add_connection = connections.add_connection
-list_connections = connections.list_connections
-get_connection_addr = connections.get_connection_addr
-remove_connection = connections.remove_connection
-connect = connections.connect
-get_connection = connections.get_connection
-disconnect = connections.disconnect

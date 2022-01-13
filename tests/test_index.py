@@ -1,7 +1,7 @@
 import logging
 import pytest
 from utils import *
-from pymilvus import Collection, Index, connections, Connections
+from pymilvus import Collection, Index, connections
 
 LOGGER = logging.getLogger(__name__)
 

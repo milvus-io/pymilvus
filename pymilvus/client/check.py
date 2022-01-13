@@ -1,7 +1,6 @@
 import sys
 import datetime
 from typing import Any, Union
-from urllib.parse import urlparse
 from .exceptions import ParamError
 
 
@@ -10,27 +9,15 @@ def is_legal_host(host: Any) -> bool:
 
 
 def is_legal_port(port: Any) -> bool:
-    if isinstance(port, (str, int)):
+    if isinstance(port, str):
         try:
             _port = int(port)
         except ValueError:
             return False
         else:
-            if _port <= 0 or _port > 65535:
-                return False
+            return 0 <= _port < 65535
 
-    return True
-
-
-def is_legal_uri(uri: Any) -> bool:
-    if uri is None:
-        return True
-
-    try:
-        _uri = urlparse(uri)
-        return _uri.scheme == 'tcp'
-    except (AttributeError, ValueError, TypeError):
-        return False
+    return False
 
 
 def is_legal_vector(array: Any) -> bool:

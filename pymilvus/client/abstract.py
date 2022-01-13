@@ -2,7 +2,6 @@ import abc
 
 from .types import DataType
 from .constants import DEFAULT_CONSISTENCY_LEVEL
-
 from ..grpc_gen import schema_pb2
 
 
@@ -138,7 +137,7 @@ class CollectionSchema:
         # keep compatible with older Milvus
         try:
             self.consistency_level = raw.consistency_level
-        except:
+        except Exception:
             self.consistency_level = DEFAULT_CONSISTENCY_LEVEL
 
         # self.params = dict()
