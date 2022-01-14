@@ -341,7 +341,8 @@ class GrpcHandler:
 
         return request, auto_id
 
-    def _divide_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None, round_decimal=-1, **kwargs):
+    def _divide_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
+                               round_decimal=-1, **kwargs):
         rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
                                              timeout=timeout)
         reply = rf.result()
@@ -430,7 +431,7 @@ class GrpcHandler:
         consistency_level = collection_schema["consistency_level"]
         _kwargs["schema"] = collection_schema
 
-        ts_utils.construct_guarantee_ts(consistency_level, collection_id, kwargs)
+        ts_utils.construct_guarantee_ts(consistency_level, collection_id, _kwargs)
 
         requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
                                                      partition_names, output_fields, round_decimal, **_kwargs)
@@ -515,6 +516,7 @@ class GrpcHandler:
                 if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
                     raise ParamError("Invalid metric_type: " + params['metric_type'] +
                                      ", which does not match the index type: " + params['index_type'])
+
         check_index_params(params)
         collection_desc = self.describe_collection(collection_name, timeout=timeout, **kwargs)
         valid_field = False
