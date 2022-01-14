@@ -19,7 +19,6 @@ from ..client.types import DataType
 
 LOGGER = logging.getLogger(__name__)
 
-
 dtype_str_map = {
     "string": DataType.STRING,
     "floating": DataType.FLOAT,
@@ -142,3 +141,10 @@ def infer_dtype_bydata(data):
 def map_numpy_dtype_to_datatype(d_type):
     d_type_str = str(d_type)
     return numpy_dtype_str_map.get(d_type_str, DataType.UNKNOWN)
+
+
+CONSISTENCY_STRONG = "Strong"
+CONSISTENCY_BOUNDED = "Bounded"
+CONSISTENCY_SESSION = "Session"
+CONSISTENCY_EVENTUALLY = "Eventually"
+CONSISTENCY_CUSTOMIZED = "Customized"
