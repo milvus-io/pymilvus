@@ -90,9 +90,9 @@ class GrpcHandler:
                 grpc.channel_ready_future(self._channel).result(timeout=3)
                 return
             except grpc.FutureTimeoutError:
-                raise BaseException(f'Fail connecting to server on {self._uri}. Timeout')
+                raise BaseException(Status.CONNECT_FAILED, f'Fail connecting to server on {self._uri}. Timeout')
 
-        raise BaseException(f'Please setup grpc channel first')
+        raise BaseException(Status.CONNECT_FAILED, 'No channel in handler, please setup grpc channel first')
 
     def close(self):
         self._channel.close()
