@@ -429,6 +429,8 @@ class GrpcHandler:
         collection_id = collection_schema["collection_id"]
         auto_id = collection_schema["auto_id"]
         consistency_level = collection_schema["consistency_level"]
+        # overwrite the consistency level when user create collection
+        consistency_level = _kwargs.get("consistency_level", consistency_level)
         _kwargs["schema"] = collection_schema
 
         ts_utils.construct_guarantee_ts(consistency_level, collection_id, _kwargs)
@@ -976,6 +978,8 @@ class GrpcHandler:
         collection_schema = self.describe_collection(collection_name, timeout)
         collection_id = collection_schema["collection_id"]
         consistency_level = collection_schema["consistency_level"]
+        # overwrite the consistency level when user create collection
+        consistency_level = kwargs.get("consistency_level", consistency_level)
 
         ts_utils.construct_guarantee_ts(consistency_level, collection_id, kwargs)
         guarantee_timestamp = kwargs.get("guarantee_timestamp", 0)
