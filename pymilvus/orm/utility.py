@@ -230,10 +230,8 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
         >>> utility.wait_for_loading_complete("test_collection")
     """
     if not partition_names or len(partition_names) == 0:
-        return _get_connection(using).wait_for_loading_collection_complete(collection_name, timeout)
-    return _get_connection(using).wait_for_loading_partitions_complete(collection_name,
-                                                                       partition_names,
-                                                                       timeout)
+        return _get_connection(using).wait_for_loading_collection(collection_name, timeout)
+    return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout)
 
 
 def index_building_progress(collection_name, index_name="", using="default"):
