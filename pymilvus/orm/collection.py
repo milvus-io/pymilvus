@@ -93,9 +93,9 @@ class Collection:
 
         :param kwargs:
             * *consistency_level* (``str/int``) --
-            Which consistency level to use when search the collection. See details in
+            Which consistency level to use when searching in the collection. For details, see
             https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
-            Note: this parameter can be overwritten by the parameter specific in search.
+            Note: this parameter can be overwritten by the same parameter specified in search.
 
         :example:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
@@ -631,10 +631,10 @@ class Collection:
               The callback function which is invoked after server response successfully.
               It functions only if _async is set to True.
             * *consistency_level* (``str/int``) --
-              Which consistency level to use when search the collection. See details in
+              Which consistency level to use when searching in the collection. See details in
               https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
-              Note: this parameter will overwrite the consistency level of when user specify it in create_collection,
-              if no consistency level was provided, search will use the consistency level when you create collection.
+              Note: this parameter will overwrite the same parameter specified when user created the collection,
+              if no consistency level was specified, search will use the consistency level when you create the collection.
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is provided, then Milvus will search all operations performed to date.
@@ -721,13 +721,13 @@ class Collection:
 
         :param kwargs:
             * *consistency_level* (``str/int``) --
-              Which consistency level to use when query the collection. See details in
+              Which consistency level to use during a query on the collection. For details, see
               https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
-              Note: this parameter will overwrite the consistency level of when user specify it in create_collection,
-              if no consistency level was provided, query will use the consistency level when you create collection.
+              Note: this parameter will overwrite the same parameter specified when user created the collection,
+              if no consistency level was specified, query will use the consistency level when you create the collection.
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
-              such timestamp is provided, then Milvus will query all operations performed to date.
+              such timestamp is specified, Milvus queries all operations performed to date.
               Note: only used in Customized consistency level.
             * *graceful_time* (``int``) --
               Only used in bounded consistency level. If graceful_time is set, PyMilvus will use current timestamp minus
