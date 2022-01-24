@@ -425,13 +425,12 @@ class Collection:
         :param partition_names: The specified partitions to load.
         :type partition_names: list[str]
 
-        :param timeout:An optional duration of time in seconds to allow for the RPC. If timeout
-              is set to None, the client keeps waiting until the server responds or error occurs.
+        :param timeout: An optional duration of time in seconds to allow for the RPC. If timeout
+            is set to None, the client keeps waiting until the server responds or error occurs.
         :type timeout: float
 
         :param kwargs:
-            * *_async* (``bool``) --
-            Indicate if invoke asynchronously.
+            * *_async* (``bool``) -- Indicate if invoke asynchronously.
 
         :raises CollectionNotExistException: If the collection does not exist.
         :raises ParamError: If the parameters are invalid.
@@ -559,7 +558,7 @@ class Collection:
         :type  timeout: float
 
         :return: A MutationResult object contains a property named `delete_count` represents how many
-        entities will be deleted.
+                 entities will be deleted.
         :rtype: MutationResult
 
         :raises RpcError: If gRPC encounter an error
@@ -644,10 +643,9 @@ class Collection:
               the graceful_time as the `guarantee_timestamp`. This option is 5s by default if not set.
             * *travel_timestamp* (``int``) --
               Users can specify a timestamp in a search to get results based on a data view
-                        at a specified point in time.
+              at a specified point in time.
 
-        :return: SearchResult:
-            SearchResult is iterable and is a 2d-array-like class, the first dimension is
+        :return: SearchResult: SearchResult is iterable and is a 2d-array-like class, the first dimension is
             the number of vectors to query (nq), the second dimension is the number of limit(topk).
         :rtype: SearchResult
 
@@ -734,7 +732,7 @@ class Collection:
               the graceful_time as the `guarantee_timestamp`. This option is 5s by default if not set.
             * *travel_timestamp* (``int``) --
               Users can specify a timestamp in a search to get results based on a data view
-                        at a specified point in time.
+              at a specified point in time.
 
         :return: A list that contains all results
         :rtype: list
