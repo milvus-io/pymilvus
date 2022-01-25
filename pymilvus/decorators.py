@@ -5,7 +5,7 @@ import functools
 
 import grpc
 
-from .client.exceptions import CollectionNotExistException, IllegalCollectionNameException
+from .client.exceptions import CollectionNotExistException, BaseException
 from .client.types import ErrorCode, Status
 
 LOGGER = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=True):
                         raise e
                     if counter >= retry_times:
                         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                            raise BaseException(1, "rpc timeout")
+                            raise BaseException(Status.UNEXPECTED_ERROR, "rpc timeout")
                         raise e
                     time.sleep(wait)
                 except Exception as e:
@@ -66,14 +66,11 @@ def error_handler(func):
     def handler(*args, **kwargs):
         record_dict = {}
         try:
-            record_dict["API start"] = str(datetime.datetime.now())
-            #  if self._pre_ping:
-            #      self.ping()
             record_dict["RPC start"] = str(datetime.datetime.now())
             return func(*args, **kwargs)
         except BaseException as e:
-            LOGGER.error("Error: {}".format(e))
-
+            record_dict["RPC error"] = str(datetime.datetime.now())
+            LOGGER.error(f"RPC error: [{func.__name__}], {e}, <Time:{record_dict}>")
             raise e
         except grpc.FutureTimeoutError as e:
             record_dict["RPC timeout"] = str(datetime.datetime.now())
@@ -87,5 +84,4 @@ def error_handler(func):
             record_dict["Exception"] = str(datetime.datetime.now())
             LOGGER.error(f"UnExcepted error: {func.__name__}{record_dict}")
             raise e
-
     return handler
