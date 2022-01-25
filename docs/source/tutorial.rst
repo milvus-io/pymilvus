@@ -89,7 +89,7 @@ If you want to go further into Milvus with indexes, it's recommended to check ou
 `index examples <https://github.com/milvus-io/pymilvus/blob/master/examples/example_index.py>`_.
 
 If you're already known about indexes from ``index examples``, and you want a full lists of params supported
-by PyMilvus, you check out `Index <https://milvus.io/api-reference/pymilvus/v2.0.0rc9/param.html>`_
+by PyMilvus, you check out `Index <https://milvus.io/api-reference/pymilvus/v2.0/param.html>`_
 chapter of the PyMilvus documentation.
 
 Further more, if you want to get a thorough view of indexes, check our official website for
@@ -159,14 +159,14 @@ In the example below, you can perfrom search based on vector similarity.
 
 .. note::
     If the collection is index-built, you need to specify search param, and pass parameter `search_params` like: `collection.search(..., search_params={...})`.
-    You can refer to `Index params <https://milvus.io/cn/api-reference/pymilvus/v2.0.0rc9/param.html>`_ for more details.
+    You can refer to `Index params <https://milvus.io/cn/api-reference/pymilvus/v2.0/param.html>`_ for more details.
 
 .. note::
     If parameter `partition_names` is specified, milvus executes search request on these partition instead of whole collection.
 
 The returned ``results`` is a 2-D like structure, 1 for 1 entity querying, 2 for limit 2. For more clarity, we obtain
 the film as below. If you want to know how to deal with search result in a better way, you can refer to
-`search result <https://milvus.io/cn/api-reference/pymilvus/v2.0.0rc9/results.html>`_ in PyMilvus doc.
+`search result <https://milvus.io/cn/api-reference/pymilvus/v2.0/results.html>`_ in PyMilvus doc.
 
 >>> result = results[0]
 >>> embedding_1 = result[0]
