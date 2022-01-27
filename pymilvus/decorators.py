@@ -73,15 +73,15 @@ def error_handler(func):
             LOGGER.error(f"RPC error: [{func.__name__}], {e}, <Time:{record_dict}>")
             raise e
         except grpc.FutureTimeoutError as e:
-            record_dict["RPC timeout"] = str(datetime.datetime.now())
-            LOGGER.error(f"Request timeout: {func.__name__}{record_dict}")
+            record_dict["gRPC timeout"] = str(datetime.datetime.now())
+            LOGGER.error(f"grpc Timeout: [{func.__name__}], <{e.__class__.__name__}: {e.code()}, {e.details()}>, <Time:{record_dict}>")
             raise e
         except grpc.RpcError as e:
-            record_dict["RPC error"] = str(datetime.datetime.now())
-            LOGGER.error(f"RPC error: {func.__name__}{record_dict}")
+            record_dict["gRPC error"] = str(datetime.datetime.now())
+            LOGGER.error(f"grpc RpcError: [{func.__name__}], <{e.__class__.__name__}: {e.code()}, {e.details()}>, <Time:{record_dict}>")
             raise e
         except Exception as e:
             record_dict["Exception"] = str(datetime.datetime.now())
-            LOGGER.error(f"UnExcepted error: {func.__name__}{record_dict}")
+            LOGGER.error(f"Unexcepted error: [{func.__name__}], {e}, <Time: {record_dict}>")
             raise e
     return handler
