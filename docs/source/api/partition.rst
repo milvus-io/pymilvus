@@ -37,23 +37,23 @@ Methods
 ---------------------
 
 
-+--------------------------------------------+-------------------------------------------------------------------------+
-| API                                        | Description                                                             |
-+============================================+=========================================================================+
-| `drop() <#pymilvus.Partition.drop>`_       | Drop the Partition, as well as its corresponding index files.           |
-+--------------------------------------------+-------------------------------------------------------------------------+
-| `load() <#pymilvus.Partition.load>`_       | Load the Partition from disk to memory.                                 |
-+--------------------------------------------+-------------------------------------------------------------------------+
-| `release() <#pymilvus.Partition.release>`_ | Release the Partition from memory.                                      |
-+--------------------------------------------+-------------------------------------------------------------------------+
-| `insert() <#pymilvus.Partition.insert>`_   | Insert data into partition.                                             |
-+--------------------------------------------+-------------------------------------------------------------------------+
-| `delete() <#pymilvus.Partition.delete>`_   | Delete entities with an expression condition.                           |
-+---------------------------------------------------------------+------------------------------------------------------+
-| `search() <#pymilvus.Partition.search>`_   | Vector similarity search with an optional boolean expression as filters.|
-+--------------------------------------------+-------------------------------------------------------------------------+
-| `query() <#pymilvus.Partition.query>`_     | Query with a set of criteria.                                           |
-+--------------------------------------------+-------------------------------------------------------------------------+
++--------------------------------------------+--------------------------------------------------------------------------+
+| API                                        | Description                                                              |
++============================================+==========================================================================+
+| `drop() <#pymilvus.Partition.drop>`_       | Drop the Partition, as well as its corresponding index files.            |
++--------------------------------------------+--------------------------------------------------------------------------+
+| `load() <#pymilvus.Partition.load>`_       | Load the Partition from disk to memory.                                  |
++--------------------------------------------+--------------------------------------------------------------------------+
+| `release() <#pymilvus.Partition.release>`_ | Release the Partition from memory.                                       |
++--------------------------------------------+--------------------------------------------------------------------------+
+| `insert() <#pymilvus.Partition.insert>`_   | Insert data into partition.                                              |
++--------------------------------------------+--------------------------------------------------------------------------+
+| `delete() <#pymilvus.Partition.delete>`_   | Delete entities with an expression condition.                            |
++--------------------------------------------+--------------------------------------------------------------------------+
+| `search() <#pymilvus.Partition.search>`_   | Vector similarity search with an optional boolean expression as filters. |
++--------------------------------------------+--------------------------------------------------------------------------+
+| `query() <#pymilvus.Partition.query>`_     | Query with a set of criteria.                                            |
++--------------------------------------------+--------------------------------------------------------------------------+
 
 API Refereences
 ---------------
@@ -61,5 +61,5 @@ API Refereences
 
 .. autoclass:: pymilvus.Partition
    :member-order: bysource
-   :members: description, name, is_empty, num_entities, drop, load, release, insert, search, query
+   :members: description, name, is_empty, num_entities, drop, load, release, insert, search, query, delete
 
