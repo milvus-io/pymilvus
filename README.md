@@ -45,7 +45,7 @@ $ pip3 install --upgrade pymilvus
 
 ## Documentation
 
-Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.0/install.html.
+Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.0.0/install.html.
 
 
 ## Packages
