@@ -281,9 +281,7 @@ class Partition:
         return MutationResult(res)
 
     def delete(self, expr, timeout=None, **kwargs):
-        """
-        Delete entities with an expression condition.
-        And return results to show how many entities will be deleted.
+        """ Delete entities with an expression condition.
 
         :param expr: The expression to specify entities to be deleted
         :type  expr: str
@@ -293,7 +291,7 @@ class Partition:
         :type  timeout: float
 
         :return: A MutationResult object contains a property named `delete_count` represents how many
-        entities will be deleted.
+                 entities will be deleted.
         :rtype: MutationResult
 
         :raises RpcError: If gRPC encounter an error
@@ -305,28 +303,24 @@ class Partition:
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ...     FieldSchema("films", DataType.FLOAT_VECTOR, dim=2)
             ... ])
-            >>> collection = Collection("test_partition_insert", schema)
-            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> test_collection = Collection("test_partition_delete", schema)
+            >>> test_partition = test_collection.create_partition("comedy", "comedy films")
             >>> data = [
             ...     [i for i in range(10)],
             ...     [[float(i) for i in range(2)] for _ in range(10)],
             ... ]
-            >>> partition.insert(data)
-            >>> partition.num_entities
-            >>> partition.num_entities
-
-            >>> expr = "film_id in [ 0, 1 ]"
-            >>> res = partition.delete(expr)
-            >>> assert len(res) == 2
-            >>> print(f"- Deleted entities: {res}")
-            - Delete results: [0, 1]
+            >>> test_partition.insert(data)
+            (insert count: 10, delete count: 0, upsert count: 0, timestamp: 431044482906718212)
+            >>> test_partition.num_entities
+            10
+            >>> test_partition.delete("film_id in [0, 1]")
+            (insert count: 0, delete count: 2, upsert count: 0, timestamp: 431044582560759811)
         """
 
         conn = self._get_connection()
-        res = conn.delete(collection_name=self._collection.name, expr=expr,
-                          partition_name=self._partition_name, timeout=timeout, **kwargs)
+        res = conn.delete(self._collection.name, expr, self.name, timeout, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
