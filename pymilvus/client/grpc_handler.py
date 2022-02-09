@@ -76,6 +76,7 @@ class GrpcHandler:
             self._uri = uri
         self._max_retry = kwargs.get("max_retry", 5)
 
+        self._secure = kwargs.get("secure", False)
         self._setup_grpc_channel()
 
     def __enter__(self):
@@ -100,13 +101,24 @@ class GrpcHandler:
     def _setup_grpc_channel(self):
         """ Create a ddl grpc channel """
         if self._channel is None:
-            self._channel = grpc.insecure_channel(
-                self._uri,
-                options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
-                         (cygrpc.ChannelArgKey.max_receive_message_length, -1),
-                         ('grpc.enable_retries', 1),
-                         ('grpc.keepalive_time_ms', 55000)]
-            )
+            if not self._secure:
+                self._channel = grpc.insecure_channel(
+                    self._uri,
+                    options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
+                             (cygrpc.ChannelArgKey.max_receive_message_length, -1),
+                             ('grpc.enable_retries', 1),
+                             ('grpc.keepalive_time_ms', 55000)]
+                )
+            else:
+                creds = grpc.ssl_channel_credentials(root_certificates=None, private_key=None, certificate_chain=None)
+                self._channel = grpc.secure_channel(
+                    self._uri,
+                    creds,
+                    options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
+                             (cygrpc.ChannelArgKey.max_receive_message_length, -1),
+                             ('grpc.enable_retries', 1),
+                             ('grpc.keepalive_time_ms', 55000)]
+                )
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
 
     @property
