@@ -534,10 +534,10 @@ class Collection:
         # The following code will take care of different vector type
         if not isinstance(data[2], list):
             try:
-                data[2]=data[2].tolist() # numpy or torch tensor
+                data[2]=data[2].tolist() # check for numpy or torch tensor and convert to list
             except AttributeError:
                 try:
-                    data[2] = np.array(data[2]).tolist() #Tf tensor
+                    data[2] = np.array(data[2]).tolist() # for tensorflow tensor to list
                 except AttributeError:
                     raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
 
