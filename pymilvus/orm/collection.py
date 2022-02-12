@@ -12,6 +12,7 @@
 
 import copy
 import pandas
+import numpy as np
 
 from .connections import connections
 from .schema import (
@@ -530,6 +531,16 @@ class Collection:
             >>> collection.num_entities
             10
         """
+        # The following code will take care of different vector type
+        if not isinstance(data[2], list):
+            try:
+                data[2]=data[2].tolist() # numpy or torch tensor
+            except AttributeError:
+                try:
+                    data[2] = np.array(data[2]).tolist() #Tf tensor
+                except AttributeError:
+                    raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
+
         if data is None:
             return MutationResult(data)
         if not self._check_insert_data_schema(data):
