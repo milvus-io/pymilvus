@@ -532,14 +532,15 @@ class Collection:
             10
         """
         # The following code will take care of different vector type
-        if not isinstance(data[2], list):
-            try:
-                data[2]=data[2].tolist() # check for numpy or torch tensor and convert to list
-            except AttributeError:
+        for idx, _ in enumerate(data):
+            if not isinstance(data[idx], list):
                 try:
-                    data[2] = np.array(data[2]).tolist() # for tensorflow tensor to list
+                    data[idx] = data[idx].tolist()  # check for numpy or torch tensor and convert to list
                 except AttributeError:
-                    raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
+                    try:
+                        data[idx] = np.array(data[idx]).tolist()  # for tensorflow tensor to list
+                    except AttributeError:
+                        raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
 
         if data is None:
             return MutationResult(data)
