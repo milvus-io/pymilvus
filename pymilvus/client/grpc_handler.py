@@ -28,6 +28,7 @@ from .types import (
     State,
     CompactionPlans,
     Plan,
+    get_consistency_level,
 )
 
 from .utils import (
@@ -442,7 +443,7 @@ class GrpcHandler:
         auto_id = collection_schema["auto_id"]
         consistency_level = collection_schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
-        consistency_level = _kwargs.get("consistency_level", consistency_level)
+        consistency_level = get_consistency_level(_kwargs.get("consistency_level", consistency_level))
         _kwargs["schema"] = collection_schema
 
         ts_utils.construct_guarantee_ts(consistency_level, collection_id, _kwargs)
@@ -991,7 +992,7 @@ class GrpcHandler:
         collection_id = collection_schema["collection_id"]
         consistency_level = collection_schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
-        consistency_level = kwargs.get("consistency_level", consistency_level)
+        consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))
 
         ts_utils.construct_guarantee_ts(consistency_level, collection_id, kwargs)
         guarantee_timestamp = kwargs.get("guarantee_timestamp", 0)
