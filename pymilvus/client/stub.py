@@ -16,7 +16,7 @@ class Milvus:
     @deprecated
     def __init__(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI, channel=None, **kwargs):
         self.uri = self.__set_uri(host, port, uri)
-        self._handler = GrpcHandler(self.uri, channel=channel)
+        self._handler = GrpcHandler(self.uri, channel=channel, **kwargs)
 
     def __set_uri(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI):
         if host is None and uri is None:
