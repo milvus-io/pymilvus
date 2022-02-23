@@ -369,7 +369,7 @@ class Prepare:
 
         check_str(collection_name, "collection_name")
         if partition_name is not None and partition_name != "":
-                check_str(partition_name, "partition_name")
+            check_str(partition_name, "partition_name")
         check_str(expr, "expr")
 
         request = milvus_types.DeleteRequest(collection_name=collection_name, expr=expr, partition_name=partition_name)

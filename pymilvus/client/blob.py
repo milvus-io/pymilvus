@@ -30,9 +30,7 @@ def vectorBinaryToBytes(v):
     return bytes(v)
 
 def vectorFloatToBytes(v):
-    bs = bytes()
-    for f in v:
-        bs += floatToBytes(f)
+    bs = struct.pack('%sf'%len(v), *v)
     return bs
 
 def bytesToInt64(v):
