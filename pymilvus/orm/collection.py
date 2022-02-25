@@ -419,8 +419,7 @@ class Collection:
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
     def load(self, partition_names=None, timeout=None, **kwargs):
-        """
-        Loads the collection from disk to memory.
+        """ Load the collection from disk to memory.
 
         :param partition_names: The specified partitions to load.
         :type partition_names: list[str]
@@ -445,10 +444,7 @@ class Collection:
             ... ])
             >>> collection = Collection("test_collection_load", schema)
             >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
-            <pymilvus.search.MutationResult object at 0x7fabaf3e5d50>
             >>> collection.load()
-            >>> collection.num_entities
-            2
         """
         conn = self._get_connection()
         if partition_names is not None:
@@ -477,11 +473,8 @@ class Collection:
             ... ])
             >>> collection = Collection("test_collection_release", schema)
             >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
-            <pymilvus.search.MutationResult object at 0x7fabaf3e5d50>
             >>> collection.load()
-            >>> collection.num_entities
-            2
-            >>> collection.release()    # release the collection from memory
+            >>> collection.release()
         """
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=timeout, **kwargs)

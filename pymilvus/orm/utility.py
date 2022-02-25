@@ -163,8 +163,7 @@ def _get_connection(alias):
 
 
 def loading_progress(collection_name, partition_names=None, using="default"):
-    """
-    Show #loaded entities vs #total entities.
+    """ Show loading progress of sealed segments in percentage.
 
     :param collection_name: The name of collection is loading
     :type  collection_name: str
@@ -173,24 +172,28 @@ def loading_progress(collection_name, partition_names=None, using="default"):
     :type  partition_names: str list
 
     :return dict:
-        Loading progress is a dict contains num of loaded entities and num of total entities.
-        {'num_loaded_entities':loaded_segments_nums, 'num_total_entities': total_segments_nums}
+        {'load_progress': 100%}
     :raises PartitionNotExistException: If partition doesn't exist.
     :example:
         >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
-        >>> _DIM = 128
-        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="get collection entities num")
-        >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
-        >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
-        >>> float_vector_series = [[random.random() for _ in range _DIM] for _ in range (10)]
-        >>> data = pd.DataFrame({"int64" : int64_series, "float_vector": float_vector_series})
+        >>> import random
+        >>> connections.connect()
+        >>> fields = [
+        ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+        ...     FieldSchema("films", DataType.FLOAT_VECTOR, dim=8),
+        ... ]
+        >>> schema = CollectionSchema(fields)
+        >>> collection = Collection("test_loading_progress", schema)
+        >>> data = pd.DataFrame({
+        ...     "film_id" : pd.Series(data=list(range(10, 20)), index=list(range(10))),
+        ...     "films": [[random.random() for _ in range(8)] for _ in range (10)],
+        ... })
         >>> collection.insert(data)
-        >>> collection.load() # load collection to memory
-        >>> utility.loading_progress("test_collection")
+        >>> collection.create_index("films", {"index_type": "IVF_FLAT", "params": {"nlist": 8}, "metric_type": "L2"})
+        >>> collection.load(_async=True)
+        >>> utility.loading_progress("test_loading_progress")
+        {'loading_progress': '100%'}
     """
     if not partition_names or len(partition_names) == 0:
         return _get_connection(using).load_collection_progress(collection_name)
