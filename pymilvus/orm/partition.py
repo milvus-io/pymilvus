@@ -20,7 +20,7 @@ from .future import SearchFuture, MutationFuture
 
 
 class Partition:
-    # TODO(yukun): Need a place to store the description
+    # TODO: Need a place to store the description
     def __init__(self, collection, name, description="", **kwargs):
         from .collection import Collection
         if not isinstance(collection, Collection):
