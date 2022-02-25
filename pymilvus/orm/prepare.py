@@ -24,8 +24,9 @@ class Prepare:
             raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
 
         fields = schema.fields
-        entities = []
-        raw_lengths = []
+        entities = []  # Entities
+        raw_lengths = []  # Check if each row has the same numbers.
+
         if isinstance(data, pandas.DataFrame):
             if schema.auto_id:
                 if schema.primary_field.name in data:
@@ -34,7 +35,7 @@ class Prepare:
                     if not data[schema.primary_field.name].isnull().all():
                         raise DataNotMatchException(0, ExceptionsMessage.AutoIDWithData)
                 else:
-                    if len(fields) != len(data.columns)+1:
+                    if len(fields) != len(data.columns) + 1:
                         raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
             else:
                 if len(fields) != len(data.columns):
@@ -47,18 +48,19 @@ class Prepare:
                                  "values": list(data[field.name])})
                 raw_lengths.append(len(data[field.name]))
         else:
-            if schema.auto_id:
-                if len(data) + 1 != len(fields):
-                    raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
+            if schema.auto_id and len(data) != len(fields) - 1:
+                raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
 
             tmp_fields = copy.deepcopy(fields)
             for i, field in enumerate(tmp_fields):
+                #  TODO Goose: Checking auto_id and is_primary only, maybe different than
+                #  schema.is_primary, schema.auto_id, need to check why and how schema is built.
                 if field.is_primary and field.auto_id:
                     tmp_fields.pop(i)
 
             for i, field in enumerate(tmp_fields):
                 if isinstance(data[i], numpy.ndarray):
-                    raise DataTypeNotSupportException(0, ExceptionsMessage.NdArrayNotSupport)
+                    data[i] = data[i].tolist()
 
                 entities.append({
                     "name": field.name,
@@ -66,6 +68,7 @@ class Prepare:
                     "values": data[i]})
                 raw_lengths.append(len(data[i]))
 
+        # TODO Goose: check correctness AFTER copy is too expensive.
         lengths = list(set(raw_lengths))
         if len(lengths) > 1:
             raise DataNotMatchException(0, ExceptionsMessage.DataLengthsInconsistent)
