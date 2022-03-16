@@ -23,11 +23,10 @@ setuptools.setup(
     install_requires=[
         "grpcio==1.37.1",
         "grpcio-tools==1.37.1",
-        "ujson>=2.0.0,<=5.1.0",
+        "ujson>=1.3.5,<=5.1.0",
         "mmh3>=2.0,<=3.0.0",
         "pandas==1.1.5; python_version<'3.7'",
-        "pandas>=1.2.4,<=1.3.5; python_version>'3.6'",
-        "pandas>=1.2.4,<=1.4.1; python_version>='3.8'",
+        "pandas>1.2.4; python_version>3.6"
     ],
     classifiers=[
         "Programming Language :: Python :: 3.6",
