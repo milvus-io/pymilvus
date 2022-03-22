@@ -525,8 +525,8 @@ class Collection:
         """
         if data is None:
             return MutationResult(data)
-        if not self._check_insert_data_schema(data):
-            raise SchemaNotReadyException(0, ExceptionsMessage.TypeOfDataAndSchemaInconsistent)
+        # if not self._check_insert_data_schema(data):
+        #     raise SchemaNotReadyException(0, ExceptionsMessage.TypeOfDataAndSchemaInconsistent)
         conn = self._get_connection()
         entities = Prepare.prepare_insert_data(data, self._schema)
         res = conn.bulk_insert(self._name, entities, partition_name, ids=None, timeout=timeout, **kwargs)
