@@ -8,7 +8,7 @@ HERE = pathlib.Path(__file__).parent
 README = (HERE / 'README.md').read_text()
 
 setuptools.setup(
-    name="pymilvus",
+    name="pymilvus-perf",
     author='Milvus Team',
     author_email='milvus-team@zilliz.com',
     setup_requires=['setuptools_scm'],
