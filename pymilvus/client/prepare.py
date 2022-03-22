@@ -82,8 +82,8 @@ class Prepare:
                     raise ParamError("A collection should only have a field whose id is automatically generated")
 
                 if is_primary:
-                    if DataType(data_type) != DataType.INT64:
-                        raise ParamError("int64 is the only supported type of primary key")
+                    if DataType(data_type) not in [DataType.INT64, DataType.VARCHAR]:
+                        raise ParamError("int64 and varChar are the only supported types of primary key")
                     primary_field = field_name
 
                 if auto_id:
@@ -95,11 +95,11 @@ class Prepare:
                 type_params = field.get('params')
                 if isinstance(type_params, dict):
                     for tk, tv in type_params.items():
-                        if tk == "dim":
+                        if tk in ["dim", "max_length_per_row"]:
                             try:
                                 int(tv)
                             except (TypeError, ValueError):
-                                raise ParamError("invalid dim: " + str(tv)) from None
+                                raise ParamError("invalid" + str(tk) + str(tv)) from None
                         kv_pair = common_types.KeyValuePair(key=str(tk), value=str(tv))
                         field_schema.type_params.append(kv_pair)
 

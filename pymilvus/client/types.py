@@ -75,6 +75,7 @@ class DataType(IntEnum):
     DOUBLE = 11
 
     STRING = 20
+    VARCHAR = 21
 
     BINARY_VECTOR = 100
     FLOAT_VECTOR = 101
