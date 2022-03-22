@@ -176,6 +176,8 @@ message DescribeCollectionResponse {
   repeated common.KeyDataPair start_positions = 10;
   // The consistency level that the collection used, modification is not supported now.
   common.ConsistencyLevel consistency_level = 11;
+  // The collection name
+  string collection_name = 12;
 }
 
 /**
@@ -583,6 +585,7 @@ message SearchRequest {
   repeated common.KeyValuePair search_params = 9; // must
   uint64 travel_timestamp = 10;
   uint64 guarantee_timestamp = 11; // guarantee_timestamp
+  int32 nq = 12;
 }
 
 message Hits {
@@ -594,6 +597,7 @@ message Hits {
 message SearchResults {
   common.Status status = 1;
   schema.SearchResultData results = 2;
+  string collection_name = 3;
 }
 
 message FlushRequest {
@@ -622,6 +626,7 @@ message QueryRequest {
 message QueryResults {
   common.Status status = 1;
   repeated schema.FieldData fields_data = 2;
+  string collection_name = 3;
 }
 
 message VectorIDs {
