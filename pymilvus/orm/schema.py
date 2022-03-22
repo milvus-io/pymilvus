@@ -15,7 +15,7 @@ from typing import List
 import pandas
 from pandas.api.types import is_list_like
 
-from .constants import VECTOR_COMMON_TYPE_PARAMS
+from .constants import COMMON_TYPE_PARAMS
 from .types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
 from .exceptions import (
     CannotInferSchemaException,
@@ -50,7 +50,7 @@ class CollectionSchema:
         if self._primary_field is None:
             raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyNotExist)
 
-        if self._primary_field.dtype not in [DataType.INT64]:
+        if self._primary_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
             raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyType)
 
         self._auto_id = kwargs.get("auto_id", None)
@@ -60,6 +60,8 @@ class CollectionSchema:
             if self._primary_field.auto_id is not None and self._primary_field.auto_id != self._auto_id:
                 raise AutoIDException(0, ExceptionsMessage.AutoIDInconsistent)
             self._primary_field.auto_id = self._auto_id
+            if self._primary_field.auto_id and self._primary_field.dtype == DataType.VARCHAR:
+                raise AutoIDException(0, ExceptionsMessage.AutoIDFieldType)
         else:
             if self._primary_field.auto_id is None:
                 self._primary_field.auto_id = False
@@ -201,13 +203,13 @@ class FieldSchema:
 
     def _parse_type_params(self):
         # update self._type_params according to self._kwargs
-        if self._dtype not in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR):
+        if self._dtype not in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR, DataType.VARCHAR):
             return
         if not self._kwargs:
             return
         # currently only support ndim
         if self._kwargs:
-            for k in VECTOR_COMMON_TYPE_PARAMS:
+            for k in COMMON_TYPE_PARAMS:
                 if k in self._kwargs:
                     if self._type_params is None:
                         self._type_params = {}
