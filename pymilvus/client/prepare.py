@@ -645,6 +645,7 @@ class Prepare:
                 output_fields=output_fields,
                 guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
                 travel_timestamp=kwargs.get("travel_timestamp", 0),
+                nq=nq,
             )
             request.placeholder_group = plg_str
 
