@@ -20,7 +20,7 @@ from ..client.types import DataType
 LOGGER = logging.getLogger(__name__)
 
 dtype_str_map = {
-    "string": DataType.STRING,
+    "string": DataType.VARCHAR,
     "floating": DataType.FLOAT,
     "integer": DataType.INT64,
     "mixed-integer": DataType.INT64,
@@ -50,6 +50,8 @@ numpy_dtype_str_map = {
     "float16": DataType.FLOAT,
     "float32": DataType.FLOAT,
     "float64": DataType.DOUBLE,
+    "string": DataType.VARCHAR,
+    "str": DataType.VARCHAR,
 }
 
 
@@ -74,7 +76,7 @@ def infer_dtype_by_scaladata(data):
     if isinstance(data, int):
         return DataType.INT64
     if isinstance(data, str):
-        return DataType.STRING
+        return DataType.VARCHAR
     if isinstance(data, np.float64):
         return DataType.DOUBLE
     if isinstance(data, np.float32):

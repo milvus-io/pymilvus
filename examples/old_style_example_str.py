@@ -28,6 +28,10 @@ _NLIST = 1024
 _NPROBE = 16
 _TOPK = 10
 
+# string
+_STR_FIELD_NAME = "str"
+_MAX_LEN = 1024
+
 # Create milvus client instance
 milvus = Milvus(_HOST, _PORT)
 
@@ -44,7 +48,12 @@ def create_collection(name):
         "type": DataType.FLOAT_VECTOR,
         "params": {"dim": _DIM},
     }
-    fields = {"fields": [id_field, vector_field]}
+    str_field = {
+        "name": _STR_FIELD_NAME,
+        "type": DataType.VARCHAR,
+        "params": {"max_len_per_row": _MAX_LEN},
+    }
+    fields = {"fields": [id_field, vector_field, str_field]}
 
     milvus.create_collection(collection_name=name, fields=fields)
     print("collection created:", name)
@@ -70,8 +79,10 @@ def get_collection_stats(name):
 
 def insert(name, num, dim):
     vectors = [[random.random() for _ in range(dim)] for _ in range(num)]
+    strs = [str(random.random()) for _ in range(num)]
     entities = [
         {"name": _VECTOR_FIELD_NAME, "type": DataType.FLOAT_VECTOR, "values": vectors},
+        {"name": _STR_FIELD_NAME, "type": DataType.VARCHAR, "values": strs},
     ]
     ids = milvus.insert(name, entities)
     return ids, vectors
