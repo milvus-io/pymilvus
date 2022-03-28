@@ -273,6 +273,7 @@ class Partition:
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name) is False:
             raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
+        # TODO: check insert data schema here?
         entities = Prepare.prepare_insert_data(data, self._collection.schema)
         res = conn.bulk_insert(self._collection.name, entities=entities,
                                partition_name=self._name, timeout=timeout, orm=True, **kwargs)
