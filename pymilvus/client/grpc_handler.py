@@ -499,6 +499,9 @@ class GrpcHandler:
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
+        # for historical reason, index_name contained in kwargs.
+        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
+
         def check_index_params(params):
             params = params or dict()
             if not isinstance(params, dict):
@@ -532,28 +535,29 @@ class GrpcHandler:
                     raise ParamError("Invalid metric_type: " + params['metric_type'] +
                                      ", which does not match the index type: " + params['index_type'])
 
-        check_index_params(params)
         collection_desc = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+
         valid_field = False
         for fields in collection_desc["fields"]:
             if field_name != fields["name"]:
                 continue
-            if fields["type"] != DataType.FLOAT_VECTOR and fields["type"] != DataType.BINARY_VECTOR:
-                # TODO: add new error type
-                raise BaseException(Status.UNEXPECTED_ERROR,
-                                    "cannot create index on non-vector field: " + str(field_name))
             valid_field = True
-            break
+            if fields["type"] != DataType.FLOAT_VECTOR and fields["type"] != DataType.BINARY_VECTOR:
+                break
+            # check index params on vector field.
+            check_index_params(params)
+
         if not valid_field:
             # TODO: add new error type
             raise BaseException(Status.UNEXPECTED_ERROR,
                                 "cannot create index on non-existed field: " + str(field_name))
+
         index_type = params["index_type"].upper()
         if index_type == "FLAT":
             try:
                 index_desc = self.describe_index(collection_name, "", timeout=timeout, **kwargs)
                 if index_desc is not None:
-                    self.drop_index(collection_name, field_name, "_default_idx", timeout=timeout, **kwargs)
+                    self.drop_index(collection_name, field_name, index_name, timeout=timeout, **kwargs)
                 res_status = Status(Status.SUCCESS, "Warning: It is not necessary to build index with index_type: FLAT")
                 if kwargs.get("_async", False):
                     return CreateFlatIndexFuture(res_status)
@@ -568,14 +572,15 @@ class GrpcHandler:
         kwargs["_async"] = False
         self.flush([collection_name], timeout, **kwargs)
 
-        index_param = Prepare.create_index__request(collection_name, field_name, params)
+        index_param = Prepare.create_index__request(collection_name, field_name, params, index_name=index_name)
         future = self._stub.CreateIndex.future(index_param, wait_for_ready=True, timeout=timeout)
 
         if _async:
             def _check():
                 if kwargs.get("sync", True):
                     index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
-                                                                              field_name=field_name, timeout=timeout)
+                                                                              field_name=field_name, timeout=timeout,
+                                                                              index_name=index_name)
                     if not index_success:
                         raise BaseException(Status.UNEXPECTED_ERROR, fail_reason)
 
@@ -593,7 +598,8 @@ class GrpcHandler:
 
         if kwargs.get("sync", True):
             index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
-                                                                      field_name=field_name, timeout=timeout)
+                                                                      field_name=field_name, timeout=timeout,
+                                                                      index_name=index_name)
             if not index_success:
                 raise BaseException(Status.UNEXPECTED_ERROR, fail_reason)
 
@@ -630,8 +636,8 @@ class GrpcHandler:
         raise BaseException(status.error_code, status.reason)
 
     @error_handler
-    def get_index_state(self, collection_name, field_name, timeout=None):
-        request = Prepare.get_index_state_request(collection_name, field_name)
+    def get_index_state(self, collection_name, field_name, timeout=None, **kwargs):
+        request = Prepare.get_index_state_request(collection_name, field_name, **kwargs)
         rf = self._stub.GetIndexState.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         status = response.status
@@ -641,11 +647,11 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def wait_for_creating_index(self, collection_name, field_name, timeout=None):
+    def wait_for_creating_index(self, collection_name, field_name, timeout=None, **kwargs):
         start = time.time()
         while True:
             time.sleep(0.5)
-            state, fail_reason = self.get_index_state(collection_name, field_name, timeout)
+            state, fail_reason = self.get_index_state(collection_name, field_name, timeout, **kwargs)
             if state == IndexState.Finished:
                 return True, fail_reason
             if state == IndexState.Failed:

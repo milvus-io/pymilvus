@@ -13,6 +13,7 @@
 import copy
 
 from .exceptions import CollectionNotExistException, ExceptionsMessage, IndexNotExistException
+from ..client.configs import DefaultConfigs
 
 
 class Index:
@@ -28,6 +29,11 @@ class Index:
 
         :param index_params: Indexing parameters.
         :type  index_params: dict
+
+        :param kwargs:
+            * *index_name* (``str``) --
+              The name of index which will be created. Then you can use the index name to check the state of index.
+              If no index name is specified, default index name is used.
 
         :raises ParamError: If parameters are invalid.
         :raises IndexConflictException:
@@ -69,7 +75,7 @@ class Index:
         if index is not None:
             tmp_field_name = index.pop("field_name", None)
         if index is None or index != index_params or tmp_field_name != field_name:
-            conn.create_index(self._collection.name, self._field_name, self._index_params)
+            conn.create_index(self._collection.name, self._field_name, self._index_params, **self._kwargs)
 
     def _get_connection(self):
         return self._collection._get_connection()
@@ -133,7 +139,10 @@ class Index:
 
         :raises IndexNotExistException: If the specified index does not exist.
         """
+        copy_kwargs = copy.deepcopy(kwargs)
+        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
+        copy_kwargs.pop("index_name")
         conn = self._get_connection()
-        if conn.describe_index(self._collection.name, "") is None:
+        if conn.describe_index(self._collection.name, index_name) is None:
             raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
-        conn.drop_index(self._collection.name, self.field_name, "", timeout=timeout, **kwargs)
+        conn.drop_index(self._collection.name, self.field_name, index_name, timeout=timeout, **copy_kwargs)

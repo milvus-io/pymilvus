@@ -603,8 +603,9 @@ class Prepare:
         return milvus_types.AlterAliasRequest(collection_name=collection_name, alias=alias)
 
     @classmethod
-    def create_index__request(cls, collection_name, field_name, params):
-        index_params = milvus_types.CreateIndexRequest(collection_name=collection_name, field_name=field_name)
+    def create_index__request(cls, collection_name, field_name, params, **kwargs):
+        index_params = milvus_types.CreateIndexRequest(collection_name=collection_name, field_name=field_name,
+                                                       index_name=kwargs.get("index_name", DefaultConfigs.IndexName))
 
         # index_params.collection_name = collection_name
         # index_params.field_name = field_name
@@ -638,8 +639,9 @@ class Prepare:
         return milvus_types.GetIndexBuildProgressRequest(collection_name=collection_name, field_name=field_name)
 
     @classmethod
-    def get_index_state_request(cls, collection_name, field_name):
-        return milvus_types.GetIndexStateRequest(collection_name=collection_name, field_name=field_name)
+    def get_index_state_request(cls, collection_name, field_name, **kwargs):
+        return milvus_types.GetIndexStateRequest(collection_name=collection_name, field_name=field_name,
+                                                 index_name=kwargs.get("index_name", DefaultConfigs.IndexName))
 
     @classmethod
     def load_collection(cls, db_name, collection_name):
