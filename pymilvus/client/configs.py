@@ -5,3 +5,4 @@ class DefaultConfigs:
     MaxVarCharLengthKey = "max_len_per_row"
     MaxVarCharLength = 65536
     EncodeProtocol = 'utf-8'
+    IndexName = "_default_idx"

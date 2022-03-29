@@ -40,6 +40,7 @@ from .future import SearchFuture, MutationFuture
 from ..client.types import CompactionState, CompactionPlans
 from ..client.types import get_consistency_level
 from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
+from ..client.configs import DefaultConfigs
 
 
 def _check_schema(schema):
@@ -962,9 +963,13 @@ class Collection:
             indexes.append(Index(self, field_name, tmp_index, construct_only=True))
         return indexes
 
-    def index(self) -> Index:
+    def index(self, **kwargs) -> Index:
         """
         Fetches the index object of the of the specified name.
+
+        :param kwargs:
+            * *index_name* (``str``) --
+              The name of index. If no index is specified, the default index name is used.
 
         :return Index:
             Index object corresponding to index_name.
@@ -988,11 +993,12 @@ class Collection:
             >>> collection.index()
             <pymilvus.index.Index object at 0x7f44355a1460>
         """
+        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, "")
+        tmp_index = conn.describe_index(self._name, index_name)
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
-            return Index(self, field_name, tmp_index, construct_only=True)
+            return Index(self, field_name, tmp_index, construct_only=True, index_name=index_name)
         raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
 
     def create_index(self, field_name, index_params, timeout=None, **kwargs) -> Index:
@@ -1008,6 +1014,17 @@ class Collection:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur
         :type  timeout: float
+
+        :param kwargs:
+            * *_async* (``bool``) --
+              Indicate if invoke asynchronously. When value is true, method returns a IndexFuture object;
+              otherwise, method returns results from server.
+            * *_callback* (``function``) --
+              The callback function which is invoked after server response successfully. It only take
+              effect when _async is set to True.
+            * *index_name* (``str``) --
+              The name of index which will be created. Then you can use the index name to check the state of index.
+              If no index name is specified, the default index name is used.
 
         :raises CollectionNotExistException: If the collection does not exist.
         :raises ParamError: If the index parameters are invalid.
@@ -1032,7 +1049,7 @@ class Collection:
         return conn.create_index(self._name, field_name, index_params,
                                  timeout=timeout, **kwargs)
 
-    def has_index(self, timeout=None) -> bool:
+    def has_index(self, timeout=None, **kwargs) -> bool:
         """
         Checks whether a specified index exists.
 
@@ -1058,9 +1075,10 @@ class Collection:
             >>> collection.has_index()
             True
         """
+        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
         conn = self._get_connection()
         # TODO(yukun): Need field name, but provide index name
-        if conn.describe_index(self._name, "", timeout=timeout) is None:
+        if conn.describe_index(self._name, index_name, timeout=timeout) is None:
             return False
         return True
 
@@ -1073,6 +1091,10 @@ class Collection:
               An optional duration of time in seconds to allow for the RPC. If timeout
               is set to None, the client keeps waiting until the server responds or an error occurs.
               Optional. A duration of time in seconds.
+
+        :param kwargs:
+            * *index_name* (``str``) --
+              The name of index. If no index is specified, the default index name is used.
 
         :raises CollectionNotExistException: If the collection does not exist.
         :raises BaseException: If the index does not exist or has been dropped.
@@ -1093,12 +1115,13 @@ class Collection:
             >>> collection.has_index()
             False
         """
-        if self.has_index() is False:
+        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
+        if self.has_index(index_name=index_name) is False:
             raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, "")
+        tmp_index = conn.describe_index(self._name, index_name)
         if tmp_index is not None:
-            index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True)
+            index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True, index_name=index_name)
             index.drop(timeout=timeout, **kwargs)
 
     def compact(self, timeout=None, **kwargs):

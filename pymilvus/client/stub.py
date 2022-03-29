@@ -606,6 +606,9 @@ class Milvus:
             * *_callback* (``function``) --
               The callback function which is invoked after server response successfully. It only take
               effect when _async is set to True.
+            * *index_name* (``str``) --
+              The name of index which will be created. Then you can use the index name to check the state of index.
+              If no index name is specified, default index name is used.
 
         :return: None
         :rtype: NoneType
