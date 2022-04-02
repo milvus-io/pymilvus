@@ -1,7 +1,5 @@
 import pathlib
 import setuptools
-from datetime import datetime
-import re
 
 HERE = pathlib.Path(__file__).parent
 
@@ -12,7 +10,7 @@ setuptools.setup(
     author='Milvus Team',
     author_email='milvus-team@zilliz.com',
     setup_requires=['setuptools_scm'],
-    use_scm_version={'local_scheme': 'no-local-version'},
+    use_scm_version={'local_scheme': 'no-local-version', 'version_scheme': 'release-branch-semver'},
     description="Python Sdk for Milvus",
     long_description=README,
     long_description_content_type='text/markdown',
