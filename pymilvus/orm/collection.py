@@ -862,9 +862,9 @@ class Collection:
             ... ])
             >>> collection = Collection("test_collection_create_partition", schema)
             >>> collection.create_partition("comedy", description="comedy films")
-            {"name": "comedy", "description": "comedy films", "num_entities": 0}
+            {"name": "comedy", "collection_name": "test_collection_create_partition", "description": ""}
             >>> collection.partition("comedy")
-            {"name": "partition", "description": "comedy films", "num_entities": 0}
+            {"name": "comedy", "collection_name": "test_collection_create_partition", "description": ""}
         """
         if self.has_partition(partition_name) is True:
             raise PartitionAlreadyExistException(0, ExceptionsMessage.PartitionAlreadyExist)
