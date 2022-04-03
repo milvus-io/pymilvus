@@ -164,7 +164,7 @@ class Milvus:
         with self._connection() as handler:
             return handler.describe_collection(collection_name, timeout)
 
-    def load_collection(self, collection_name, timeout=None, **kwargs):
+    def load_collection(self, collection_name, timeout=None, replica_number=1, **kwargs):
         """
         Loads a specified collection from disk to memory.
 
@@ -174,6 +174,9 @@ class Milvus:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
+
+        :param replica_number: Number of replication in memory to load
+        :type replica_number: int
 
         :return: None
         :rtype: NoneType

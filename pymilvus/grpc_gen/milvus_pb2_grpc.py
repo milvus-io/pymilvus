@@ -210,6 +210,16 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.GetCompactionPlansRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetCompactionPlansResponse.FromString,
                 )
+        self.Import = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/Import',
+                request_serializer=milvus__pb2.ImportRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ImportResponse.FromString,
+                )
+        self.GetImportState = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetImportState',
+                request_serializer=milvus__pb2.GetImportStateRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetImportStateResponse.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -451,6 +461,19 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Import(self, request, context):
+        """https://wiki.lfaidata.foundation/display/MIL/MEP+24+--+Support+bulk+load
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetImportState(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -648,6 +671,16 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.GetCompactionStateWithPlans,
                     request_deserializer=milvus__pb2.GetCompactionPlansRequest.FromString,
                     response_serializer=milvus__pb2.GetCompactionPlansResponse.SerializeToString,
+            ),
+            'Import': grpc.unary_unary_rpc_method_handler(
+                    servicer.Import,
+                    request_deserializer=milvus__pb2.ImportRequest.FromString,
+                    response_serializer=milvus__pb2.ImportResponse.SerializeToString,
+            ),
+            'GetImportState': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetImportState,
+                    request_deserializer=milvus__pb2.GetImportStateRequest.FromString,
+                    response_serializer=milvus__pb2.GetImportStateResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -1319,6 +1352,40 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetCompactionStateWithPlans',
             milvus__pb2.GetCompactionPlansRequest.SerializeToString,
             milvus__pb2.GetCompactionPlansResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Import(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/Import',
+            milvus__pb2.ImportRequest.SerializeToString,
+            milvus__pb2.ImportResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetImportState(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetImportState',
+            milvus__pb2.GetImportStateRequest.SerializeToString,
+            milvus__pb2.GetImportStateResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

@@ -663,9 +663,9 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def load_collection(self, collection_name, timeout=None, **kwargs):
+    def load_collection(self, collection_name, timeout=None, replica_number=1, **kwargs):
         check_pass_param(collection_name=collection_name)
-        request = Prepare.load_collection("", collection_name)
+        request = Prepare.load_collection("", collection_name, replica_number)
         rf = self._stub.LoadCollection.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
@@ -679,56 +679,45 @@ class GrpcHandler:
     def load_collection_progress(self, collection_name, timeout=None):
         """ Return loading progress of collection """
 
-        loaded_segments_nums = sum(info.num_rows for info in
-                                   self.get_query_segment_info(collection_name, timeout))
-
-        total_segments_nums = sum(info.num_rows for info in
-                                  self.get_persistent_segment_infos(collection_name, timeout))
-
-        progress = (loaded_segments_nums / total_segments_nums) * 100 if loaded_segments_nums < total_segments_nums else 100
+        progress = self.get_collection_loading_progress(collection_name, timeout)
 
         return {'loading_progress': f"{progress:.0f}%"}
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
     def wait_for_loading_collection(self, collection_name, timeout=None):
-        return self._wait_for_loading_collection_v2(collection_name, timeout)
+        return self._wait_for_loading_collection(collection_name, timeout)
 
-    # TODO seems not in use
-    def _wait_for_loading_collection_v1(self, collection_name, timeout=None):
-        """ Block until load collection complete. """
-        unloaded_segments = {info.segmentID: info.num_rows for info in
-                             self.get_persistent_segment_infos(collection_name, timeout)}
-
-        while len(unloaded_segments) > 0:
-            time.sleep(0.5)
-
-            for info in self.get_query_segment_info(collection_name, timeout):
-                if 0 <= unloaded_segments.get(info.segmentID, -1) <= info.num_rows:
-                    unloaded_segments.pop(info.segmentID)
-
-    def _wait_for_loading_collection_v2(self, collection_name, timeout=None):
-        """ Block until load collection complete. """
+    def get_collection_loading_progress(self, collection_name: str, timeout=None) -> int:
         request = Prepare.show_collections_request([collection_name])
+        future = self._stub.ShowCollections.future(request, wait_for_ready=True, timeout=timeout)
+        response = future.result()
 
-        while True:
-            future = self._stub.ShowCollections.future(request, wait_for_ready=True, timeout=timeout)
-            response = future.result()
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
 
-            if response.status.error_code != 0:
-                raise BaseException(response.status.error_code, response.status.reason)
+        ol = len(response.collection_names)
+        pl = len(response.inMemory_percentages)
 
-            ol = len(response.collection_names)
-            pl = len(response.inMemory_percentages)
+        if ol != pl:
+            raise BaseException(ErrorCode.UnexpectedError,
+                                f"len(collection_names) ({ol}) != len(inMemory_percentages) ({pl})")
 
-            if ol != pl:
-                raise BaseException(ErrorCode.UnexpectedError,
-                                    f"len(collection_names) ({ol}) != len(inMemory_percentages) ({pl})")
+        for i, coll_name in enumerate(response.collection_names):
+            if coll_name == collection_name:
+                return response.inMemory_percentages[i]
 
-            for i, coll_name in enumerate(response.collection_names):
-                if coll_name == collection_name and response.inMemory_percentages[i] == 100:
-                    return
+    def _wait_for_loading_collection(self, collection_name, timeout=None):
+        """ Block until load collection complete. """
+        start = time.time()
 
+        def can_loop(t) -> bool:
+            return True if timeout is None else t > (start + timeout)
+
+        while can_loop(time.time()):
+            progress = self.get_collection_loading_progress(collection_name, timeout)
+            if progress >= 100:
+                return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
