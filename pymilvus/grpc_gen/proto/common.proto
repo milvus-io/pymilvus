@@ -1,8 +1,12 @@
 syntax = "proto3";
-
 package milvus.proto.common;
+
 option go_package="github.com/milvus-io/milvus/internal/proto/commonpb";
 
+option java_multiple_files = true;
+option java_package = "io.milvus.grpc";
+option java_outer_classname = "CommonProto";
+option java_generate_equals_and_hash = true;
 
 enum ErrorCode {
     Success = 0;
@@ -31,6 +35,8 @@ enum ErrorCode {
     OutOfMemory = 24;
     IndexNotExist = 25;
     EmptyCollection = 26;
+    UpdateImportTaskFailure = 27;
+    CollectionNameNotFound = 28;
 
     // internal error code.
     DDRequestRace = 1000;
@@ -110,6 +116,7 @@ enum MsgType {
     ReleaseSegments = 253;
     HandoffSegments = 254;
     LoadBalanceSegments = 255;
+    DescribeSegments = 256;
 
     /* DEFINITION REQUESTS: INDEX */
     CreateIndex = 300;
@@ -141,6 +148,7 @@ enum MsgType {
     SegmentInfo = 600;
     SystemInfo = 601;
     GetRecoveryInfo = 602;
+    GetSegmentState = 603;
 
     /* SYSTEM CONTROL */
     TimeTick = 1200;
@@ -190,4 +198,14 @@ enum ConsistencyLevel {
     Bounded = 2;
     Eventually = 3;
     Customized = 4; // Users pass their own `guarantee_timestamp`.
+}
+
+enum ImportState {
+    ImportPending = 0;
+    ImportFailed = 1;
+    ImportStarted = 2;
+    ImportDownloaded = 3;
+    ImportParsed = 4;
+    ImportPersisted = 5;
+    ImportCompleted = 6;
 }

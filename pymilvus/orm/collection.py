@@ -419,7 +419,7 @@ class Collection:
             index.drop(timeout=timeout, **kwargs)
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
-    def load(self, partition_names=None, timeout=None, **kwargs):
+    def load(self, partition_names=None, timeout=None, replica_number=1, **kwargs):
         """ Load the collection from disk to memory.
 
         :param partition_names: The specified partitions to load.
@@ -451,7 +451,7 @@ class Collection:
         if partition_names is not None:
             conn.load_partitions(self._name, partition_names, timeout=timeout, **kwargs)
         else:
-            conn.load_collection(self._name, timeout=timeout, **kwargs)
+            conn.load_collection(self._name, timeout=timeout, replica_number=replica_number, **kwargs)
 
     def release(self, timeout=None, **kwargs):
         """

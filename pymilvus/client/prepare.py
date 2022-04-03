@@ -644,8 +644,9 @@ class Prepare:
                                                  index_name=kwargs.get("index_name", DefaultConfigs.IndexName))
 
     @classmethod
-    def load_collection(cls, db_name, collection_name):
-        return milvus_types.LoadCollectionRequest(db_name=db_name, collection_name=collection_name)
+    def load_collection(cls, db_name, collection_name, replica_number):
+        return milvus_types.LoadCollectionRequest(db_name=db_name, collection_name=collection_name,
+                                                  replica_number=replica_number)
 
     @classmethod
     def release_collection(cls, db_name, collection_name):
