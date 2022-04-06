@@ -29,6 +29,7 @@ from .types import (
     CompactionPlans,
     Plan,
     get_consistency_level,
+    Replica, Shard, Group
 )
 
 from .utils import (
@@ -1147,3 +1148,21 @@ class GrpcHandler:
         cp.plans = [Plan(m.sources, m.target) for m in response.mergeInfos]
 
         return cp
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @error_handler
+    def get_replicas(self, collection_name, timeout=None, **kwargs) -> Replica:
+        collection_id = self.describe_collection(collection_name, timeout, **kwargs)["collection_id"]
+
+        req = Prepare.get_replicas(collection_id)
+        future = self._stub.GetReplicas.future(req, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
+
+        groups = []
+        for replica in response.replicas:
+            shards = [Shard(s.dm_channel_name, s.node_ids, s.leaderID) for s in replica.shard_replicas]
+            groups.append(Group(replica.replicaID, shards))
+
+        return Replica(groups)

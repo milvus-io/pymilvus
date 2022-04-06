@@ -175,6 +175,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.GetQuerySegmentInfoRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetQuerySegmentInfoResponse.FromString,
                 )
+        self.GetReplicas = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetReplicas',
+                request_serializer=milvus__pb2.GetReplicasRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetReplicasResponse.FromString,
+                )
         self.Dummy = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Dummy',
                 request_serializer=milvus__pb2.DummyRequest.SerializeToString,
@@ -417,6 +422,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetReplicas(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def Dummy(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -636,6 +647,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.GetQuerySegmentInfo,
                     request_deserializer=milvus__pb2.GetQuerySegmentInfoRequest.FromString,
                     response_serializer=milvus__pb2.GetQuerySegmentInfoResponse.SerializeToString,
+            ),
+            'GetReplicas': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetReplicas,
+                    request_deserializer=milvus__pb2.GetReplicasRequest.FromString,
+                    response_serializer=milvus__pb2.GetReplicasResponse.SerializeToString,
             ),
             'Dummy': grpc.unary_unary_rpc_method_handler(
                     servicer.Dummy,
@@ -1233,6 +1249,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetQuerySegmentInfo',
             milvus__pb2.GetQuerySegmentInfoRequest.SerializeToString,
             milvus__pb2.GetQuerySegmentInfoResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetReplicas(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetReplicas',
+            milvus__pb2.GetReplicasRequest.SerializeToString,
+            milvus__pb2.GetReplicasResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

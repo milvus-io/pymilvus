@@ -17,6 +17,7 @@ from .prepare import Prepare
 from .search import SearchResult
 from .mutation import MutationResult
 from .future import SearchFuture, MutationFuture
+from ..client.types import Replica
 
 
 class Partition:
@@ -494,3 +495,17 @@ class Partition:
         conn = self._get_connection()
         res = conn.query(self._collection.name, expr, output_fields, [self._name], timeout, **kwargs)
         return res
+
+    def get_replicas(self, timeout=None, **kwargs) -> Replica:
+        """get_replicas returns the current collection's replica information
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :raises BaseException: If the collection does not exist.
+
+        :example:
+        """
+        conn = self._get_connection()
+        return conn.get_replicas(self._collection.name, timeout=timeout, **kwargs)
