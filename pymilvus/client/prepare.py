@@ -869,3 +869,14 @@ class Prepare:
         request = milvus_types.GetCompactionPlansRequest()
         request.compactionID = compaction_id
         return request
+
+    @classmethod
+    def get_replicas(cls, collection_id: int):
+        if collection_id is None or not isinstance(collection_id, int):
+            raise ParamError(f"collection_id value {collection_id} is illegal")
+
+        request = milvus_types.GetReplicasRequest(
+            collectionID=collection_id,
+            with_shard_nodes=True,
+        )
+        return request

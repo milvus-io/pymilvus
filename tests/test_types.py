@@ -9,10 +9,14 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
-import pytest
 from pymilvus import DataType
 from pymilvus.client.exceptions import InvalidConsistencyLevel
-from pymilvus.client.types import get_consistency_level, ConsistencyLevel
+from pymilvus.client.types import (
+    get_consistency_level, ConsistencyLevel,
+    Shard, Group, Replica
+)
+
+import pytest
 import pandas as pd
 import numpy as np
 
@@ -115,3 +119,21 @@ class TestConsistencyLevel:
         with pytest.raises(InvalidConsistencyLevel):
             get_consistency_level(invalid)
 
+
+class TestReplica:
+    def test_shard(self):
+        s = Shard("channel-1", (1, 2, 3), 1)
+        assert s.channel_name == "channel-1"
+        assert s.shard_nodes == (1, 2, 3)
+        assert s.shard_leader == 1
+        print(s)
+
+        g = Group(2, [s])
+        assert g.id == 2
+        assert g.shards == [s]
+
+        print(g)
+
+        replica = Replica([g, g])
+        assert replica.groups == [g, g]
+        print(replica)

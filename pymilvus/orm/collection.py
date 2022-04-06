@@ -37,7 +37,7 @@ from .exceptions import (
     ExceptionsMessage,
 )
 from .future import SearchFuture, MutationFuture
-from ..client.types import CompactionState, CompactionPlans
+from ..client.types import CompactionState, CompactionPlans, Replica
 from ..client.types import get_consistency_level
 from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
 from ..client.configs import DefaultConfigs
@@ -1186,3 +1186,17 @@ class Collection:
         """
         conn = self._get_connection()
         return conn.get_compaction_plans(self.compaction_id, timeout=timeout, **kwargs)
+
+    def get_replicas(self, timeout=None, **kwargs) -> Replica:
+        """get_replicas returns the current collection's replica information
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :raises BaseException: If the collection does not exist.
+
+        :example:
+        """
+        conn = self._get_connection()
+        return conn.get_replicas(self.name, timeout=timeout, **kwargs)

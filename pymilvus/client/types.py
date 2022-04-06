@@ -268,3 +268,72 @@ def get_consistency_level(consistency_level):
         except ValueError as e:
             raise InvalidConsistencyLevel(0, f"invalid consistency level: {consistency_level}") from e
     raise InvalidConsistencyLevel(0, "invalid consistency level")
+
+
+class Shard:
+    def __init__(self, channel_name: str, shard_nodes, shard_leader: int):
+        self._channel_name = channel_name
+        self._shard_nodes = shard_nodes
+        self._shard_leader = shard_leader
+
+    def __repr__(self):
+        return f"""Shard: <channel_name:{self.channel_name}>, <shard_leader:{self.shard_leader}>, <shard_nodes:{self.shard_nodes}>"""
+
+    @property
+    def channel_name(self) -> str:
+        return self._channel_name
+
+    @property
+    def shard_nodes(self):
+        return self._shard_nodes
+
+    @property
+    def shard_leader(self) -> int:
+        return self._shard_leader
+
+
+class Group:
+    def __init__(self, group_id: int, shards: list):
+        self._id = group_id
+        self._shards = shards
+
+    def __repr__(self) -> str:
+        s = f"Group: <group_id:{self.id}>, <group_nodes:{self.group_nodes}>, <shards:{self.shards}>"
+        return s
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def group_nodes(self):
+        group_nodes = []
+        for shard in self.shards:
+            group_nodes.extend(shard.shard_nodes)
+
+        return tuple(group_nodes)
+
+    @property
+    def shards(self):
+        return self._shards
+
+
+class Replica:
+    """
+    Replica groups:
+        - Group: <group_id:2>, <group_nodes:(1, 2, 3)>, <shards:[Shard: <shard_id:10>, <channel_name:channel-1>, <shard_leader:1>, <shard_nodes:(1, 2, 3)>]>
+        - Group: <group_id:2>, <group_nodes:(1, 2, 3)>, <shards:[Shard: <shard_id:10>, <channel_name:channel-1>, <shard_leader:1>, <shard_nodes:(1, 2, 3)>]>
+    """
+
+    def __init__(self, groups: list):
+        self._groups = groups
+
+    def __repr__(self) -> str:
+        s = "Replica groups:"
+        for g in self.groups:
+            s += f"\n- {g}"
+        return s
+
+    @property
+    def groups(self):
+        return self._groups

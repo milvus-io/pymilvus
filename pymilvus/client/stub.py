@@ -2,7 +2,7 @@ from urllib import parse
 
 from .grpc_handler import GrpcHandler
 from .exceptions import BaseException, ParamError
-from .types import CompactionState, CompactionPlans
+from .types import CompactionState, CompactionPlans, Replica
 from ..settings import DefaultConfig as config
 from ..decorators import deprecated
 
@@ -1051,3 +1051,20 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.get_compaction_plans(compaction_id, timeout, **kwargs)
+
+    def get_replicas(self, collection_name: str, timeout=None, **kwargs) -> Replica:
+        """ Get replica infos of a collection
+
+        :param collection_name: the name of the collection
+        :type  collection_name: str
+
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+
+        :return: the replica info
+        :rtype: Replica
+
+        :raises BaseException: If collection_name doesn't exist.
+        """
+        with self._connection() as handler:
+            return handler.get_replicas(collection_name, timeout, **kwargs)
