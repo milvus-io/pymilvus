@@ -29,7 +29,8 @@ from .types import (
     CompactionPlans,
     Plan,
     get_consistency_level,
-    Replica, Shard, Group
+    Replica, Shard, Group,
+    BulkLoadState,
 )
 
 from .utils import (
@@ -1166,3 +1167,23 @@ class GrpcHandler:
             groups.append(Group(replica.replicaID, shards))
 
         return Replica(groups)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @error_handler
+    def bulk_load(self, collection_name, partition_name, is_row_based, files, timeout=None, **kwargs) -> list:
+        req = Prepare.bulk_load(collection_name, partition_name, is_row_based, files, **kwargs)
+        future = self._stub.Import.future(req, wait_for_ready=True, timeout=timeout)
+        response = future.result()
+        if response.status.error_code != 0:
+            raise BaseException(response.status.error_code, response.status.reason)
+        return response.tasks
+
+    @error_handler
+    def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> list:
+        req = Prepare.get_import_state(task_id)
+        future = self._stub.GetImportState.future(req, wait_for_ready=True, timeout=timeout)
+        resp = future.result()
+        if resp.status.error_code != 0:
+            raise BaseException(resp.status.error_code, resp.status.reason)
+        state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos)
+        return state

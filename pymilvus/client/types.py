@@ -1,5 +1,6 @@
 from enum import IntEnum
 from ..grpc_gen.common_pb2 import ConsistencyLevel
+from ..grpc_gen import common_pb2
 from .exceptions import InvalidConsistencyLevel
 
 
@@ -337,3 +338,66 @@ class Replica:
     @property
     def groups(self):
         return self._groups
+
+
+class BulkLoadState:
+    """ Bulk load state:
+- taskID    : 1,
+- state     : "BulkLoadDownloaded",
+- row_count : 1000,
+- infos     : {"info key": "info value"}
+"""
+
+    state_2_name = {
+        common_pb2.ImportPending: "BulkLoadPending",
+        common_pb2.ImportFailed: "BulkLoadFailed",
+        common_pb2.ImportStarted: "BulkLoadStarted",
+        common_pb2.ImportDownloaded: "BulkLoadDownloaded",
+        common_pb2.ImportParsed: "BulkLoadParsed",
+        common_pb2.ImportPersisted: "BulkLoadPersisted",
+        common_pb2.ImportCompleted: "BulkLoadCompleted",
+    }
+
+    def __init__(self, task_id, state, row_count: int, ids: list, infos):
+        self._task_id = task_id
+        self._state = state
+        self._row_count = row_count
+        self._ids = ids
+
+        self._infos = {kv.Key: kv.Value for kv in infos}
+
+    def __repr__(self) -> str:
+        fmt = """ Bulk load state:
+- taskID    : {},
+- state     : {},
+- row_count : {},
+- infos     : {}
+"""
+        fmt.format(self._task_id, self.state_name, self.row_count, self.infos)
+        return fmt
+
+    @property
+    def row_count(self):
+        """
+        If the task is finished, this value is the number of rows imported.
+        If the task is not finished, this value is the number of rows parsed.
+        """
+        return self._row_count
+
+    @property
+    def state(self):
+        return self._state
+
+    @property
+    def state_name(self) -> str:
+        return self.state_2_name.get(self._state, "unknown state")
+
+    @property
+    def ids(self):
+        """auto generated ids if the primary key is auto generated"""
+        return self._ids
+
+    @property
+    def infos(self):
+        """more informations about the task, progress percentage, file path, failed reason, etc."""
+        return self._infos
