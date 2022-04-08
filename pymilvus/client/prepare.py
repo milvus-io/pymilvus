@@ -880,3 +880,23 @@ class Prepare:
             with_shard_nodes=True,
         )
         return request
+
+    @classmethod
+    def bulk_load(collection_name: str, partition_name: str, is_row_based: bool, files: list, **kwargs):
+        req = milvus_types.ImportRequest(
+            collection_name=collection_name,
+            partition_name=partition_name,
+            row_based=is_row_based,
+            files=files,
+        )
+
+        for k, v in kwargs.items():
+            if k in ("bucket",):
+                kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
+        req.options.append(kv_pair)
+        return req
+
+    @classmethod
+    def get_import_state(task_id):
+        req = milvus_types.GetImportStateRequest(task_id)
+        return req

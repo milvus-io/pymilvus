@@ -12,7 +12,7 @@
 
 from .client.stub import Milvus
 from .client.prepare import Prepare
-from .client.types import Status, DataType, RangeType, IndexType, Replica, Group, Shard
+from .client.types import Status, DataType, RangeType, IndexType, Replica, Group, Shard, BulkLoadState
 from .client.exceptions import (
     ParamError,
     ConnectError,
@@ -44,6 +44,7 @@ from .orm.utility import (
     load_balance,
     mkts_from_hybridts, mkts_from_unixtime, mkts_from_datetime,
     hybridts_to_unixtime, hybridts_to_datetime,
+    bulk_load, get_bulk_load_state,
 )
 
 from .orm import utility
@@ -59,10 +60,10 @@ __all__ = [
     'Collection', 'Index', 'Partition',
     'connections',
     'loading_progress', 'index_building_progress', 'wait_for_loading_complete', 'has_collection', 'has_partition',
-    'list_collections', 'wait_for_loading_complete', 'wait_for_index_building_complete', 'drop_collection',
+    'list_collections', 'wait_for_loading_complete', 'wait_for_index_building_complete', 'drop_collection', 'bulk_load', 'get_bulk_load_state',
     'mkts_from_hybridts', 'mkts_from_unixtime', 'mkts_from_datetime',
     'hybridts_to_unixtime', 'hybridts_to_datetime',
-    'SearchResult', 'Hits', 'Hit', 'Replica', 'Group', 'Shard',
+    'SearchResult', 'Hits', 'Hit', 'Replica', 'Group', 'Shard', 'BulkLoadState'
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',
     'utility', 'DefaultConfig', 'ExceptionsMessage',

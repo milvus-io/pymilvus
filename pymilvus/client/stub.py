@@ -2,7 +2,7 @@ from urllib import parse
 
 from .grpc_handler import GrpcHandler
 from .exceptions import BaseException, ParamError
-from .types import CompactionState, CompactionPlans, Replica
+from .types import CompactionState, CompactionPlans, Replica, BulkLoadState
 from ..settings import DefaultConfig as config
 from ..decorators import deprecated
 
@@ -1068,3 +1068,43 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.get_replicas(collection_name, timeout, **kwargs)
+
+    def bulk_load(self, collection_name: str, partition_name: str, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
+        """ bulk load entities through files
+
+        :param collection_name: the name of the collection
+        :type  collection_name: str
+
+        :param partition_name: the name of the partition
+        :type  partition_name: str
+
+        :param is_row_based: indicate whether the files are row-based or coloumn based.
+        :type  is_row_based: bool
+
+        :param files: file names to bulk load
+        :type  files: list[str]
+
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+
+        :param kwargs: other infos
+
+        :return: ids of tasks
+        :rtype:  list[int]
+
+        :raises BaseException: If collection_name doesn't exist.
+        """
+        with self._connection() as handler:
+            return handler.bulk_load(collection_name, partition_name, is_row_based, files, timeout, **kwargs)
+
+    def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
+        """get bulk load state returns state of a certain task_id
+
+        :param task_id: the task id returned by bulk_load
+        :type  task_id: int
+
+        :return: BulkLoadState
+        :rtype:  BulkLoadState
+        """
+        with self._connection() as handler:
+            return handler.get_bulk_load_state(task_id, timeout, **kwargs)
