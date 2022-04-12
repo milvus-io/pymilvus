@@ -1,5 +1,6 @@
 import copy
 import ujson
+import base64
 
 from . import blob
 from .configs import DefaultConfigs
@@ -900,3 +901,19 @@ class Prepare:
     def get_import_state(task_id):
         req = milvus_types.GetImportStateRequest(task_id)
         return req
+
+    @classmethod
+    def create_credential_request(cls, user, password):
+        if not isinstance(user, str) or not isinstance(password, str):
+            raise ParamError(f"invalid user {user} or password {password}")
+        return milvus_types.CreateCredentialRequest(username=user, password=base64.b64encode(password.encode('utf-8')))
+
+    @classmethod
+    def delete_credential_request(cls, user):
+        if not isinstance(user, str):
+            raise ParamError(f"invalid user {user}")
+        return milvus_types.DeleteCredentialRequest(username=user)
+
+    @classmethod
+    def list_credential_request(cls):
+        return milvus_types.ListCredUsersRequest()

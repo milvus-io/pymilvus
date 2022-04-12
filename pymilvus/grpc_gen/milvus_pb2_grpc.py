@@ -225,6 +225,26 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.GetImportStateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetImportStateResponse.FromString,
                 )
+        self.CreateCredential = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CreateCredential',
+                request_serializer=milvus__pb2.CreateCredentialRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.UpdateCredential = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/UpdateCredential',
+                request_serializer=milvus__pb2.CreateCredentialRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.DeleteCredential = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DeleteCredential',
+                request_serializer=milvus__pb2.DeleteCredentialRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.ListCredUsers = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListCredUsers',
+                request_serializer=milvus__pb2.ListCredUsersRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListCredUsersResponse.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -485,6 +505,31 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateCredential(self, request, context):
+        """https://wiki.lfaidata.foundation/display/MIL/MEP+27+--+Support+Basic+Authentication
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateCredential(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteCredential(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListCredUsers(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -697,6 +742,26 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.GetImportState,
                     request_deserializer=milvus__pb2.GetImportStateRequest.FromString,
                     response_serializer=milvus__pb2.GetImportStateResponse.SerializeToString,
+            ),
+            'CreateCredential': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateCredential,
+                    request_deserializer=milvus__pb2.CreateCredentialRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'UpdateCredential': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateCredential,
+                    request_deserializer=milvus__pb2.CreateCredentialRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DeleteCredential': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteCredential,
+                    request_deserializer=milvus__pb2.DeleteCredentialRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'ListCredUsers': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListCredUsers,
+                    request_deserializer=milvus__pb2.ListCredUsersRequest.FromString,
+                    response_serializer=milvus__pb2.ListCredUsersResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -1419,6 +1484,74 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetImportState',
             milvus__pb2.GetImportStateRequest.SerializeToString,
             milvus__pb2.GetImportStateResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateCredential(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CreateCredential',
+            milvus__pb2.CreateCredentialRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def UpdateCredential(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/UpdateCredential',
+            milvus__pb2.CreateCredentialRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DeleteCredential(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DeleteCredential',
+            milvus__pb2.DeleteCredentialRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListCredUsers(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListCredUsers',
+            milvus__pb2.ListCredUsersRequest.SerializeToString,
+            milvus__pb2.ListCredUsersResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

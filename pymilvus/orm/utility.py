@@ -746,3 +746,49 @@ def get_bulk_load_state(task_id, timeout=None, using="default", **kwargs) -> Bul
     :rtype:  BulkLoadState
     """
     return _get_connection(using).get_bulk_load_state(task_id, timeout, **kwargs)
+
+
+def reset_password(user: str, password: str, using="default"):
+    """ Reset the user & password of the connection.
+    :param user: the user of the Milvus connection.
+    :type  user: str
+    :param password: the password of the Milvus connection.
+    :type  password: str
+    """
+    return _get_connection(using).reset_password(user, password)
+
+
+def create_credential(user: str, password: str, using="default"):
+    """ Create credential using the given user and password.
+    :param user: the user name.
+    :type  user: str
+    :param password: the password.
+    :type  password: str
+    """
+    return _get_connection(using).create_credential(user, password)
+
+
+def update_credential(user: str, password: str, using="default"):
+    """ Update credential using the given user and password.
+    :param user: the user name.
+    :type  user: str
+    :param password: the password.
+    :type  password: str
+    """
+    return _get_connection(using).update_credential(user, password)
+
+
+def delete_credential(user: str, using="default"):
+    """ Delete credential corresponding to the user.
+    :param user: the user name.
+    :type  user: str
+    """
+    return _get_connection(using).delete_credential(user)
+
+
+def list_cred_users(using="default"):
+    """ List all user names.
+    :return list of str:
+        The user names in Milvus instances.
+    """
+    return _get_connection(using).list_cred_users()
