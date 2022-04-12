@@ -735,10 +735,11 @@ class GrpcHandler:
         start = time.time()
 
         def can_loop(t) -> bool:
-            return True if timeout is None else t > (start + timeout)
+            return True if timeout is None else t <= (start + timeout)
 
         while can_loop(time.time()):
             progress = self.get_collection_loading_progress(collection_name, timeout)
+
             if progress >= 100:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
