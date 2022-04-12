@@ -45,6 +45,7 @@ from .orm.utility import (
     mkts_from_hybridts, mkts_from_unixtime, mkts_from_datetime,
     hybridts_to_unixtime, hybridts_to_datetime,
     bulk_load, get_bulk_load_state,
+    reset_password, create_credential, update_credential, delete_credential, list_cred_users,
 )
 
 from .orm import utility
@@ -63,6 +64,7 @@ __all__ = [
     'list_collections', 'wait_for_loading_complete', 'wait_for_index_building_complete', 'drop_collection', 'bulk_load', 'get_bulk_load_state',
     'mkts_from_hybridts', 'mkts_from_unixtime', 'mkts_from_datetime',
     'hybridts_to_unixtime', 'hybridts_to_datetime',
+    'reset_password', 'create_credential', 'update_credential', 'delete_credential', 'list_cred_users',
     'SearchResult', 'Hits', 'Hit', 'Replica', 'Group', 'Shard', 'BulkLoadState'
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',

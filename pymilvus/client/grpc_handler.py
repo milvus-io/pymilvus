@@ -3,6 +3,7 @@ import logging
 import json
 import copy
 import math
+import base64
 
 import grpc
 from grpc._cython import cygrpc
@@ -44,6 +45,7 @@ from .utils import (
 from ..settings import DefaultConfig as config
 from .configs import DefaultConfigs
 from . import ts_utils
+from . import interceptor
 
 from .asynch import (
     SearchFuture,
@@ -80,6 +82,8 @@ class GrpcHandler:
         self._max_retry = kwargs.get("max_retry", 5)
 
         self._secure = kwargs.get("secure", False)
+        self._authorization_interceptor = None
+        self._setup_authorization_interceptor(kwargs.get("user", None), kwargs.get("password", None))
         self._setup_grpc_channel()
 
     def __enter__(self):
@@ -100,6 +104,12 @@ class GrpcHandler:
 
     def close(self):
         self._channel.close()
+
+    def _setup_authorization_interceptor(self, user, password):
+        if user and password:
+            authorization = base64.b64encode(f"{user}:{password}".encode('utf-8'))
+            key = "authorization"
+            self._authorization_interceptor = interceptor.header_adder_interceptor(key, authorization)
 
     def _setup_grpc_channel(self):
         """ Create a ddl grpc channel """
@@ -122,12 +132,23 @@ class GrpcHandler:
                              ('grpc.enable_retries', 1),
                              ('grpc.keepalive_time_ms', 55000)]
                 )
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._channel)
+        # avoid to add duplicate headers.
+        self._final_channel = self._channel
+        if self._authorization_interceptor:
+            self._final_channel = grpc.intercept_channel(self._channel, self._authorization_interceptor)
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
 
     @property
     def server_address(self):
         """ Server network address """
         return self._uri
+
+    def reset_password(self, user, password):
+        """ reset password and then setup the grpc channel. """
+        check_pass_param(user=user, password=password)
+        self.update_credential(user, password)
+        self._setup_authorization_interceptor(user, password)
+        self._setup_grpc_channel()
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -1187,3 +1208,38 @@ class GrpcHandler:
             raise BaseException(resp.status.error_code, resp.status.reason)
         state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos)
         return state
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @error_handler
+    def create_credential(self, user, password, timeout=None, **kwargs):
+        check_pass_param(user=user, password=password)
+        req = Prepare.create_credential_request(user, password)
+        resp = self._stub.CreateCredential(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise BaseException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1, )
+    @error_handler
+    def update_credential(self, user, password, timeout=None, **kwargs):
+        check_pass_param(user=user, password=password)
+        req = Prepare.create_credential_request(user, password)
+        resp = self._stub.UpdateCredential(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise BaseException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @error_handler
+    def delete_credential(self, user, timeout=None, **kwargs):
+        req = Prepare.delete_credential_request(user)
+        resp = self._stub.DeleteCredential(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise BaseException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @error_handler
+    def list_cred_users(self, timeout=None, **kwargs):
+        req = Prepare.list_credential_request()
+        resp = self._stub.ListCredUsers(req, wait_for_ready=True, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise BaseException(resp.status.error_code, resp.status.reason)
+        return resp.usernames

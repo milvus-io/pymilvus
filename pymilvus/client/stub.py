@@ -47,6 +47,9 @@ class Milvus:
     def handler(self):
         return self._handler
 
+    def reset_password(self, user, password):
+        self._handler.reset_password(user, password)
+
     def close(self):
         if self._handler is None:
             raise BaseException("Closing on closed handler")
@@ -1108,3 +1111,47 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.get_bulk_load_state(task_id, timeout, **kwargs)
+
+    def create_credential(self, user, password, timeout=None, **kwargs):
+        """ Create credential using the given user and password.
+        :param user: the user name.
+        :type  user: str
+        :param password: the password.
+        :type  password: str
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+        """
+        with self._connection() as handler:
+            handler.create_credential(user, password, timeout, **kwargs)
+
+    def update_credential(self, user, password, timeout=None, **kwargs):
+        """ Update credential using the given user and password.
+        :param user: the user name.
+        :type  user: str
+        :param password: the password.
+        :type  password: str
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+        """
+        with self._connection() as handler:
+            handler.update_credential(user, password, timeout, **kwargs)
+
+    def delete_credential(self, user, timeout=None, **kwargs):
+        """ Delete credential corresponding to the user.
+        :param user: the user name.
+        :type  user: str
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+        """
+        with self._connection() as handler:
+            handler.delete_credential(user, timeout, **kwargs)
+
+    def list_cred_users(self, timeout=None, **kwargs):
+        """ List all user names.
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
+        :return list of str:
+            The user names in Milvus instances.
+        """
+        with self._connection() as handler:
+            return handler.list_cred_users(timeout, **kwargs)
