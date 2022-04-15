@@ -883,10 +883,11 @@ class Prepare:
         return request
 
     @classmethod
-    def bulk_load(collection_name: str, partition_name: str, is_row_based: bool, files: list, **kwargs):
+    def bulk_load(cls, collection_name: str, partition_name: str, channel_names: list, is_row_based: bool, files: list, **kwargs):
         req = milvus_types.ImportRequest(
             collection_name=collection_name,
             partition_name=partition_name,
+            channel_names=channel_names,
             row_based=is_row_based,
             files=files,
         )
@@ -894,12 +895,14 @@ class Prepare:
         for k, v in kwargs.items():
             if k in ("bucket",):
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
-        req.options.append(kv_pair)
+                req.options.append(kv_pair)
+
+        print(f"yx, {req.options}")
         return req
 
     @classmethod
-    def get_import_state(task_id):
-        req = milvus_types.GetImportStateRequest(task_id)
+    def get_import_state(cls, task_id):
+        req = milvus_types.GetImportStateRequest(task=task_id)
         return req
 
     @classmethod

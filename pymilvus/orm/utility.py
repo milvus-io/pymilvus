@@ -708,7 +708,7 @@ def list_aliases(collection_name: str, timeout=None, using="default"):
     pass
 
 
-def bulk_load(collection_name: str, partition_name: str, is_row_based: bool, files: list, timeout=None, using="default", **kwargs) -> list:
+def bulk_load(collection_name: str, partition_name: str, channel_names: list, is_row_based: bool, files: list, timeout=None, using="default", **kwargs) -> list:
         """ bulk load entities through files
 
         :param collection_name: the name of the collection
@@ -716,6 +716,9 @@ def bulk_load(collection_name: str, partition_name: str, is_row_based: bool, fil
 
         :param partition_name: the name of the partition
         :type  partition_name: str
+
+        :param channel_names: the target channel names of the imported collection
+        :type  channel_names: list[str]
 
         :param is_row_based: indicate whether the files are row-based or coloumn based.
         :type  is_row_based: bool
@@ -733,7 +736,7 @@ def bulk_load(collection_name: str, partition_name: str, is_row_based: bool, fil
 
         :raises BaseException: If collection_name doesn't exist.
         """
-        return _get_connection(using).bulk_load(collection_name, partition_name, is_row_based, files, timeout, **kwargs)
+        return _get_connection(using).bulk_load(collection_name, partition_name, channel_names, is_row_based, files, timeout=timeout, **kwargs)
 
 
 def get_bulk_load_state(task_id, timeout=None, using="default", **kwargs) -> BulkLoadState:
@@ -745,7 +748,7 @@ def get_bulk_load_state(task_id, timeout=None, using="default", **kwargs) -> Bul
     :return: BulkLoadState
     :rtype:  BulkLoadState
     """
-    return _get_connection(using).get_bulk_load_state(task_id, timeout, **kwargs)
+    return _get_connection(using).get_bulk_load_state(task_id, timeout=timeout, **kwargs)
 
 
 def reset_password(user: str, password: str, using="default"):

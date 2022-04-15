@@ -1072,7 +1072,7 @@ class Milvus:
         with self._connection() as handler:
             return handler.get_replicas(collection_name, timeout, **kwargs)
 
-    def bulk_load(self, collection_name: str, partition_name: str, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
+    def bulk_load(self, collection_name: str, partition_name: str, channel_names: list, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
         """ bulk load entities through files
 
         :param collection_name: the name of the collection
@@ -1080,6 +1080,9 @@ class Milvus:
 
         :param partition_name: the name of the partition
         :type  partition_name: str
+
+        :param channel_names: the target channel names of the imported collection
+        :type  channel_names: list[str]
 
         :param is_row_based: indicate whether the files are row-based or coloumn based.
         :type  is_row_based: bool
@@ -1098,7 +1101,7 @@ class Milvus:
         :raises BaseException: If collection_name doesn't exist.
         """
         with self._connection() as handler:
-            return handler.bulk_load(collection_name, partition_name, is_row_based, files, timeout, **kwargs)
+            return handler.bulk_load(collection_name, partition_name, channel_names, is_row_based, files, timeout=timeout, **kwargs)
 
     def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
         """get bulk load state returns state of a certain task_id
@@ -1110,7 +1113,7 @@ class Milvus:
         :rtype:  BulkLoadState
         """
         with self._connection() as handler:
-            return handler.get_bulk_load_state(task_id, timeout, **kwargs)
+            return handler.get_bulk_load_state(task_id, timeout=timeout, **kwargs)
 
     def create_credential(self, user, password, timeout=None, **kwargs):
         """ Create credential using the given user and password.
