@@ -1192,8 +1192,8 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def bulk_load(self, collection_name, partition_name, is_row_based, files, timeout=None, **kwargs) -> list:
-        req = Prepare.bulk_load(collection_name, partition_name, is_row_based, files, **kwargs)
+    def bulk_load(self, collection_name, partition_name, channel_names: list, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
+        req = Prepare.bulk_load(collection_name, partition_name, channel_names, is_row_based, files, **kwargs)
         future = self._stub.Import.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
