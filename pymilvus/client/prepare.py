@@ -897,7 +897,6 @@ class Prepare:
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
                 req.options.append(kv_pair)
 
-        print(f"yx, {req.options}")
         return req
 
     @classmethod

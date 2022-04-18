@@ -364,17 +364,16 @@ class BulkLoadState:
         self._row_count = row_count
         self._ids = ids
 
-        self._infos = {kv.Key: kv.Value for kv in infos}
+        self._infos = {kv.key: kv.value for kv in infos}
 
     def __repr__(self) -> str:
         fmt = """ Bulk load state:
 - taskID    : {},
 - state     : {},
 - row_count : {},
-- infos     : {}
+- infos     : {},
 """
-        fmt.format(self._task_id, self.state_name, self.row_count, self.infos)
-        return fmt
+        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos)
 
     @property
     def row_count(self):
