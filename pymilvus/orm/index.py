@@ -12,7 +12,7 @@
 
 import copy
 
-from .exceptions import CollectionNotExistException, ExceptionsMessage, IndexNotExistException
+from ..exceptions import CollectionNotExistException, ExceptionsMessage, IndexNotExistException
 from ..client.configs import DefaultConfigs
 
 

@@ -1,7 +1,7 @@
 import sys
 import datetime
 from typing import Any, Union
-from .exceptions import ParamError
+from ..exceptions import ParamError
 
 
 def is_legal_host(host: Any) -> bool:

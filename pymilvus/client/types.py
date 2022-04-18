@@ -1,7 +1,7 @@
 from enum import IntEnum
 from ..grpc_gen.common_pb2 import ConsistencyLevel
 from ..grpc_gen import common_pb2
-from .exceptions import InvalidConsistencyLevel
+from ..exceptions import InvalidConsistencyLevel
 
 
 class Status:

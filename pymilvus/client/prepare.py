@@ -4,7 +4,7 @@ import base64
 
 from . import blob
 from .configs import DefaultConfigs
-from .exceptions import ParamError
+from ..exceptions import ParamError,DataNotMatchException,ExceptionsMessage
 from .check import check_pass_param
 from .types import DataType, PlaceholderType
 from .types import get_consistency_level
@@ -276,12 +276,17 @@ class Prepare:
             raise ParamError(f"number of fields: {len(fields_info)}, number of entities: {len(entities)}")
 
         row_num = 0
-        for entity in entities:
-            if row_num != 0 and row_num != len(entity.get("values")):
-                raise ParamError(f"row num misaligned.")
-            row_num = len(entity.get("values"))
-            field_data = entity_helper.entity_to_field_data(entity, fields_info[location[entity.get("name")]])
-            insert_request.fields_data.append(field_data)
+        try:
+            for entity in entities:
+                if row_num != 0 and row_num != len(entity.get("values")):
+                    raise ParamError(f"row num misaligned.")
+                row_num = len(entity.get("values"))
+                field_data = entity_helper.entity_to_field_data(entity, fields_info[location[entity.get("name")]])
+                insert_request.fields_data.append(field_data)
+        except (TypeError, ValueError):
+            raise DataNotMatchException(0, ExceptionsMessage.DataTypeInconsistent)
+            #raise ParamError("topk is not illegal") from None
+
         insert_request.num_rows = row_num
 
         # insert_request.hash_keys won't be filled in client.

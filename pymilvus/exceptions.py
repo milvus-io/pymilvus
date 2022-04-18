@@ -65,7 +65,7 @@ class VersionError(AttributeError):
 
 class MilvusException(Exception):
 
-    def __init__(self, code, message):
+    def __init__(self, code=-1, message=""):
         super(MilvusException, self).__init__(message)
         self._code = code
         self._message = message
@@ -167,6 +167,10 @@ class FieldTypeException(MilvusException):
 
 
 class AutoIDException(MilvusException):
+    pass
+
+
+class InvalidConsistencyLevel(MilvusException):
     pass
 
 

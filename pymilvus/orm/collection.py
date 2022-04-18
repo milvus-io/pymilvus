@@ -26,7 +26,7 @@ from .index import Index
 from .search import SearchResult
 from .mutation import MutationResult
 from .types import DataType
-from .exceptions import (
+from ..exceptions import (
     SchemaNotReadyException,
     DataTypeNotMatchException,
     DataNotMatchException,
@@ -54,21 +54,6 @@ def _check_schema(schema):
             vector_fields.append(field.name)
     if len(vector_fields) < 1:
         raise SchemaNotReadyException(0, ExceptionsMessage.NoVector)
-
-
-def _check_data_schema(fields, data):
-    if isinstance(data, pandas.DataFrame):
-        for i, field in enumerate(fields):
-            for j, _ in enumerate(data[field.name]):
-                tmp_type = infer_dtype_bydata(data[field.name].iloc[j])
-                if tmp_type != field.dtype:
-                    raise DataNotMatchException(0, ExceptionsMessage.DataTypeInconsistent)
-    else:
-        for i, field in enumerate(fields):
-            for j, _ in enumerate(data[i]):
-                tmp_type = infer_dtype_bydata(data[i][j])
-                if tmp_type != field.dtype:
-                    raise DataNotMatchException(0, ExceptionsMessage.DataTypeInconsistent)
 
 
 class Collection:
@@ -187,8 +172,6 @@ class Collection:
         if len(infer_fields) != len(tmp_fields):
             raise DataTypeNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
 
-        _check_data_schema(infer_fields, data)
-
         for x, y in zip(infer_fields, tmp_fields):
             if x.dtype != y.dtype:
                 return False
@@ -234,7 +217,6 @@ class Collection:
                 raise SchemaNotReadyException(0, ExceptionsMessage.AutoIDWithData)
 
         fields = parse_fields_from_data(dataframe)
-        _check_data_schema(fields, dataframe)
         if auto_id:
             fields.insert(pk_index, FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True, auto_id=True,
                                                 **kwargs))

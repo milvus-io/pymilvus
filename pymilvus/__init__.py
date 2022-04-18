@@ -13,13 +13,14 @@
 from .client.stub import Milvus
 from .client.prepare import Prepare
 from .client.types import Status, DataType, RangeType, IndexType, Replica, Group, Shard, BulkLoadState
-from .client.exceptions import (
+from .exceptions import (
     ParamError,
     ConnectError,
     NotConnectError,
     RepeatingConnectError,
     VersionError,
-    BaseException
+    MilvusException,
+    ExceptionsMessage
 )
 #  comment for dup
 #  from .client.asynch import MutationFuture
@@ -54,7 +55,6 @@ from .orm.default_config import DefaultConfig
 from .orm.search import SearchResult, Hits, Hit
 from .orm.schema import FieldSchema, CollectionSchema
 from .orm.future import SearchFuture, MutationFuture
-from .orm.exceptions import ExceptionsMessage
 
 __all__ = [
     # pymilvus orm'styled APIs
@@ -72,6 +72,6 @@ __all__ = [
 
     # pymilvus old style APIs
     'Milvus', 'Prepare', 'Status', 'DataType',
-    'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'BaseException',
+    'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'MilvusException',
     '__version__'
 ]

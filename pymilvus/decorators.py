@@ -5,7 +5,7 @@ import functools
 
 import grpc
 
-from .client.exceptions import CollectionNotExistException, BaseException
+from .exceptions import CollectionNotExistException, MilvusException
 from .client.types import ErrorCode, Status
 
 LOGGER = logging.getLogger(__name__)
@@ -44,13 +44,13 @@ def retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=True):
                     # UNAVAILABLE means that the service is not reachable currently
                     # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
                     if e.code() != grpc.StatusCode.DEADLINE_EXCEEDED and e.code() != grpc.StatusCode.UNAVAILABLE:
-                        raise e
+                        raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
                     if not retry_on_deadline and e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                        raise e
+                        raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
                     if counter >= retry_times:
                         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                            raise BaseException(Status.UNEXPECTED_ERROR, "rpc timeout")
-                        raise e
+                            raise MilvusException(Status.UNEXPECTED_ERROR, "rpc timeout")
+                        raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
                     time.sleep(wait)
                 except Exception as e:
                     raise e
@@ -68,7 +68,7 @@ def error_handler(func):
         try:
             record_dict["RPC start"] = str(datetime.datetime.now())
             return func(*args, **kwargs)
-        except BaseException as e:
+        except MilvusException as e:
             record_dict["RPC error"] = str(datetime.datetime.now())
             LOGGER.error(f"RPC error: [{func.__name__}], {e}, <Time:{record_dict}>")
             raise e
