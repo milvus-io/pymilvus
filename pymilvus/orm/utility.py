@@ -12,7 +12,7 @@
 
 from . import constants
 from .connections import connections
-from .exceptions import ResultError
+from ..exceptions import ResultError
 
 from ..client.utils import mkts_from_hybridts as _mkts_from_hybridts
 from ..client.utils import mkts_from_unixtime as _mkts_from_unixtime

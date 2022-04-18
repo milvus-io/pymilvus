@@ -17,7 +17,7 @@ from pandas.api.types import is_list_like
 
 from .constants import COMMON_TYPE_PARAMS
 from .types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
-from .exceptions import (
+from ..exceptions import (
     CannotInferSchemaException,
     DataTypeNotSupportException,
     PrimaryKeyException,

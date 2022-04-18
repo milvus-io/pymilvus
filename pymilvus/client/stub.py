@@ -1,7 +1,7 @@
 from urllib import parse
 
 from .grpc_handler import GrpcHandler
-from .exceptions import BaseException, ParamError
+from ..exceptions import MilvusException, ParamError
 from .types import CompactionState, CompactionPlans, Replica, BulkLoadState
 from ..settings import DefaultConfig as config
 from ..decorators import deprecated
@@ -52,7 +52,7 @@ class Milvus:
 
     def close(self):
         if self._handler is None:
-            raise BaseException("Closing on closed handler")
+            raise MilvusException(message = "Closing on closed handler")
         self.handler.close()
         self._handler = None
 
@@ -95,7 +95,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.create_collection(collection_name, fields, shards_num=shards_num, timeout=timeout, **kwargs)
@@ -116,7 +116,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.drop_collection(collection_name, timeout)
@@ -137,7 +137,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.has_collection(collection_name, timeout)
@@ -162,7 +162,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.describe_collection(collection_name, timeout)
@@ -186,7 +186,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.load_collection(collection_name=collection_name, timeout=timeout, **kwargs)
@@ -207,7 +207,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.release_collection(collection_name=collection_name, timeout=timeout)
@@ -229,7 +229,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             stats = handler.get_collection_stats(collection_name, timeout, **kwargs)
@@ -250,7 +250,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.list_collections(timeout)
@@ -276,7 +276,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.create_partition(collection_name, partition_name, timeout)
@@ -302,7 +302,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.drop_partition(collection_name, partition_name, timeout)
@@ -326,7 +326,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.has_partition(collection_name, partition_name, timeout)
@@ -350,7 +350,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.load_partitions(collection_name=collection_name,
@@ -375,7 +375,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.release_partitions(collection_name=collection_name,
@@ -397,7 +397,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.list_partitions(collection_name, timeout)
@@ -422,7 +422,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             stats = handler.get_partition_stats(collection_name, partition_name, timeout, **kwargs)
@@ -455,7 +455,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.create_alias(collection_name, alias, timeout, **kwargs)
@@ -482,7 +482,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.drop_alias(alias, timeout, **kwargs)
@@ -514,7 +514,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.alter_alias(collection_name, alias, timeout, **kwargs)
@@ -621,7 +621,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.create_index(collection_name, field_name, params, timeout, **kwargs)
@@ -645,7 +645,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.drop_index(collection_name=collection_name,
@@ -671,7 +671,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.describe_index(collection_name, index_name, timeout)
@@ -707,7 +707,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.bulk_insert(collection_name, entities, partition_name, timeout, **kwargs)
@@ -735,7 +735,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.delete(collection_name, expr, partition_name, timeout, **kwargs)
@@ -770,7 +770,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.flush(collection_names, timeout, **kwargs)
@@ -831,7 +831,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.search(collection_name, data, anns_field, param, limit, expression,
@@ -969,7 +969,7 @@ class Milvus:
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
-        :raises BaseException: If the return result from server is not ok
+        :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
             return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout, **kwargs)
@@ -990,8 +990,8 @@ class Milvus:
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
 
-        :raises BaseException: If query nodes not exist.
-        :raises BaseException: If sealed segments not exist.
+        :raises MilvusException: If query nodes not exist.
+        :raises MilvusException: If sealed segments not exist.
         """
         with self._connection() as handler:
             return handler.load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout, **kwargs)
@@ -1009,7 +1009,7 @@ class Milvus:
         :return: the compaction ID
         :rtype: int
 
-        :raises BaseException: If collection name not exist.
+        :raises MilvusException: If collection name not exist.
         """
         with self._connection() as handler:
             return handler.compact(collection_name, timeout, **kwargs)
@@ -1027,7 +1027,7 @@ class Milvus:
         :return: the state of the compaction
         :rtype: CompactionState
 
-        :raises BaseException: If compaction_id doesn't exist.
+        :raises MilvusException: If compaction_id doesn't exist.
         """
 
         with self._connection() as handler:
@@ -1050,7 +1050,7 @@ class Milvus:
         :return: the state of the compaction
         :rtype: CompactionState
 
-        :raises BaseException: If compaction_id doesn't exist.
+        :raises MilvusException: If compaction_id doesn't exist.
         """
         with self._connection() as handler:
             return handler.get_compaction_plans(compaction_id, timeout, **kwargs)
@@ -1067,7 +1067,7 @@ class Milvus:
         :return: the replica info
         :rtype: Replica
 
-        :raises BaseException: If collection_name doesn't exist.
+        :raises MilvusException: If collection_name doesn't exist.
         """
         with self._connection() as handler:
             return handler.get_replicas(collection_name, timeout, **kwargs)
@@ -1098,7 +1098,7 @@ class Milvus:
         :return: ids of tasks
         :rtype:  list[int]
 
-        :raises BaseException: If collection_name doesn't exist.
+        :raises MilvusException: If collection_name doesn't exist.
         """
         with self._connection() as handler:
             return handler.bulk_load(collection_name, partition_name, channel_names, is_row_based, files, timeout=timeout, **kwargs)

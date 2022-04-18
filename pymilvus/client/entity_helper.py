@@ -1,6 +1,6 @@
 from ..grpc_gen import schema_pb2 as schema_types
 from .types import DataType
-from .exceptions import ParamError
+from ..exceptions import ParamError
 from .configs import DefaultConfigs
 
 

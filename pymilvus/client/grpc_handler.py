@@ -57,11 +57,11 @@ from .asynch import (
     ChunkedSearchFuture
 )
 
-from .exceptions import (
+from ..exceptions import (
     ParamError,
     CollectionNotExistException,
     DescribeCollectionException,
-    BaseException,
+    MilvusException,
 )
 
 from ..decorators import retry_on_rpc_failure, error_handler, check_has_collection
@@ -98,9 +98,9 @@ class GrpcHandler:
                 grpc.channel_ready_future(self._channel).result(timeout=3)
                 return
             except grpc.FutureTimeoutError:
-                raise BaseException(Status.CONNECT_FAILED, f'Fail connecting to server on {self._uri}. Timeout')
+                raise MilvusException(Status.CONNECT_FAILED, f'Fail connecting to server on {self._uri}. Timeout')
 
-        raise BaseException(Status.CONNECT_FAILED, 'No channel in handler, please setup grpc channel first')
+        raise MilvusException(Status.CONNECT_FAILED, 'No channel in handler, please setup grpc channel first')
 
     def close(self):
         self._channel.close()
@@ -165,7 +165,7 @@ class GrpcHandler:
         status = rf.result()
         if status.error_code != 0:
             LOGGER.error(status)
-            raise BaseException(status.error_code, status.reason)
+            raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=False)
     @error_handler
@@ -176,7 +176,7 @@ class GrpcHandler:
         rf = self._stub.DropCollection.future(request, wait_for_ready=True, timeout=timeout)
         status = rf.result()
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -189,7 +189,7 @@ class GrpcHandler:
         if reply.status.error_code == 0:
             return reply.value
 
-        raise BaseException(reply.status.error_code, reply.status.reason)
+        raise MilvusException(reply.status.error_code, reply.status.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -215,7 +215,7 @@ class GrpcHandler:
         if response.status.error_code == 0:
             return list(response.collection_names)
 
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -225,7 +225,7 @@ class GrpcHandler:
         rf = self._stub.CreatePartition.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -237,7 +237,7 @@ class GrpcHandler:
         response = rf.result()
 
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -250,7 +250,7 @@ class GrpcHandler:
         if status.error_code == 0:
             return response.value
 
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     # TODO: this is not inuse
     @error_handler
@@ -265,7 +265,7 @@ class GrpcHandler:
             for kv in statistics:
                 info_dict[kv.key] = kv.value
             return info_dict
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -279,7 +279,7 @@ class GrpcHandler:
         if status.error_code == 0:
             return list(response.partition_names)
 
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -292,7 +292,7 @@ class GrpcHandler:
         if status.error_code == 0:
             return response.stats
 
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     def _prepare_bulk_insert_request(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         insert_param = kwargs.get('insert_param', None)
@@ -324,7 +324,7 @@ class GrpcHandler:
             rf = self._stub.Insert.future(request, wait_for_ready=True, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
-                f = MutationFuture(rf, cb)
+                f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
                 f.add_callback(ts_utils.update_ts_on_mutation(collection_id))
                 return f
 
@@ -334,7 +334,7 @@ class GrpcHandler:
                 ts_utils.update_collection_ts(collection_id, m.timestamp)
                 return m
 
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
@@ -356,7 +356,7 @@ class GrpcHandler:
                 ts_utils.update_collection_ts(collection_id, m.timestamp)
                 return m
 
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
@@ -415,7 +415,7 @@ class GrpcHandler:
                 response = ft.result()
 
                 if response.status.error_code != 0:
-                    raise BaseException(response.status.error_code, response.status.reason)
+                    raise MilvusException(response.status.error_code, response.status.reason)
 
                 raws.append(response)
             round_decimal = kwargs.get("round_decimal", -1)
@@ -488,7 +488,7 @@ class GrpcHandler:
         status = response.status
         if status.error_code == 0:
             return response.infos  # todo: A wrapper class of QuerySegmentInfo
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -498,7 +498,7 @@ class GrpcHandler:
         rf = self._stub.CreateAlias.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -507,7 +507,7 @@ class GrpcHandler:
         rf = self._stub.DropAlias.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -517,7 +517,7 @@ class GrpcHandler:
         rf = self._stub.AlterAlias.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -572,7 +572,7 @@ class GrpcHandler:
 
         if not valid_field:
             # TODO: add new error type
-            raise BaseException(Status.UNEXPECTED_ERROR,
+            raise MilvusException(Status.UNEXPECTED_ERROR,
                                 "cannot create index on non-existed field: " + str(field_name))
 
         index_type = params["index_type"].upper()
@@ -605,7 +605,7 @@ class GrpcHandler:
                                                                               field_name=field_name, timeout=timeout,
                                                                               index_name=index_name)
                     if not index_success:
-                        raise BaseException(Status.UNEXPECTED_ERROR, fail_reason)
+                        raise MilvusException(Status.UNEXPECTED_ERROR, fail_reason)
 
             index_future = CreateIndexFuture(future)
             index_future.add_callback(_check)
@@ -617,14 +617,14 @@ class GrpcHandler:
         status = future.result()
 
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise MilvusException(status.error_code, status.reason)
 
         if kwargs.get("sync", True):
             index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
                                                                       field_name=field_name, timeout=timeout,
                                                                       index_name=index_name)
             if not index_success:
-                raise BaseException(Status.UNEXPECTED_ERROR, fail_reason)
+                raise MilvusException(Status.UNEXPECTED_ERROR, fail_reason)
 
         return Status(status.error_code, status.reason)
 
@@ -645,7 +645,7 @@ class GrpcHandler:
             return info_dict
         if status.error_code == Status.INDEX_NOT_EXIST:
             return None
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -656,7 +656,7 @@ class GrpcHandler:
         status = response.status
         if status.error_code == 0:
             return {'total_rows': response.total_rows, 'indexed_rows': response.indexed_rows}
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     @error_handler
     def get_index_state(self, collection_name, field_name, timeout=None, **kwargs):
@@ -666,7 +666,7 @@ class GrpcHandler:
         status = response.status
         if status.error_code == 0:
             return response.state, response.fail_reason
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -682,7 +682,7 @@ class GrpcHandler:
             end = time.time()
             if timeout is not None:
                 if end - start > timeout:
-                    raise BaseException(1, "CreateIndex Timeout")
+                    raise MilvusException(1, "CreateIndex Timeout")
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -692,7 +692,7 @@ class GrpcHandler:
         rf = self._stub.LoadCollection.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
         _async = kwargs.get("_async", False)
         if not _async:
             self.wait_for_loading_collection(collection_name, timeout)
@@ -717,13 +717,13 @@ class GrpcHandler:
         response = future.result()
 
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
 
         ol = len(response.collection_names)
         pl = len(response.inMemory_percentages)
 
         if ol != pl:
-            raise BaseException(ErrorCode.UnexpectedError,
+            raise MilvusException(ErrorCode.UnexpectedError,
                                 f"len(collection_names) ({ol}) != len(inMemory_percentages) ({pl})")
 
         for i, coll_name in enumerate(response.collection_names):
@@ -752,7 +752,7 @@ class GrpcHandler:
         rf = self._stub.ReleaseCollection.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -777,7 +777,7 @@ class GrpcHandler:
 
         response = future.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
         sync = kwargs.get("sync", True)
         if sync:
             self.wait_for_loading_partitions(collection_name, partition_names)
@@ -797,7 +797,7 @@ class GrpcHandler:
         response = rf.result()
         status = response.status
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise MilvusException(status.error_code, status.reason)
 
         pIDs = [response.partitionIDs[index] for index, p_name in enumerate(response.partition_names)
                 if p_name in partition_names]
@@ -825,13 +825,13 @@ class GrpcHandler:
 
             status = response.status
             if status.error_code != 0:
-                raise BaseException(status.error_code, status.reason)
+                raise MilvusException(status.error_code, status.reason)
 
             ol = len(response.partition_names)
             pl = len(response.inMemory_percentages)
 
             if ol != pl:
-                raise BaseException(ErrorCode.UnexpectedError,
+                raise MilvusException(ErrorCode.UnexpectedError,
                                     f"len(partition_names) ({ol}) != len(inMemory_percentages) ({pl})")
 
             loaded_histogram = dict()
@@ -858,7 +858,7 @@ class GrpcHandler:
         response = rf.result()
         status = response.status
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise MilvusException(status.error_code, status.reason)
 
         pIDs = []
         pNames = []
@@ -871,7 +871,7 @@ class GrpcHandler:
         for name in partition_names:
             if name not in pNames:
                 msg = "partitionID of partitionName:" + name + " can not be found"
-                raise BaseException(1, msg)
+                raise MilvusException(1, msg)
 
         total_segments_nums = sum(info.num_rows for info in
                                   self.get_persistent_segment_infos(collection_name, timeout)
@@ -893,7 +893,7 @@ class GrpcHandler:
         rf = self._stub.ReleasePartitions.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -906,7 +906,7 @@ class GrpcHandler:
         if status.error_code == 0:
             return response.stats
 
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     @error_handler
     def get_flush_state(self, segment_ids, timeout=None, **kwargs):
@@ -916,7 +916,7 @@ class GrpcHandler:
         status = response.status
         if status.error_code == 0:
             return response.flushed  # todo: A wrapper class of PersistentSegmentInfo
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     # TODO seem not in use
     @error_handler
@@ -927,7 +927,7 @@ class GrpcHandler:
         status = response.status
         if status.error_code == 0:
             return response.infos  # todo: A wrapper class of PersistentSegmentInfo
-        raise BaseException(status.error_code, status.reason)
+        raise MilvusException(status.error_code, status.reason)
 
     @error_handler
     def _wait_for_flushed(self, segment_ids, timeout=None, **kwargs):
@@ -950,7 +950,7 @@ class GrpcHandler:
         future = self._stub.Flush.future(request, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
 
         def _check():
             for collection_name in collection_names:
@@ -977,7 +977,7 @@ class GrpcHandler:
         future = self._stub.DropIndex.future(request, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.error_code != 0:
-            raise BaseException(response.error_code, response.reason)
+            raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -1025,18 +1025,18 @@ class GrpcHandler:
         if response.status.error_code == Status.EMPTY_COLLECTION:
             return list()
         if response.status.error_code != Status.SUCCESS:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
 
         num_fields = len(response.fields_data)
         # check has fields
         if num_fields == 0:
-            raise BaseException(0, "")
+            raise MilvusException(0, "")
 
         # check if all lists are of the same length
         it = iter(response.fields_data)
         num_entities = len_of(next(it))
         if not all(len_of(field_data) == num_entities for field_data in it):
-            raise BaseException(0, "The length of fields data is inconsistent")
+            raise MilvusException(0, "The length of fields data is inconsistent")
 
         # transpose
         results = list()
@@ -1044,7 +1044,7 @@ class GrpcHandler:
             result = dict()
             for field_data in response.fields_data:
                 if field_data.type == DataType.BOOL:
-                    raise BaseException(0, "Not support bool yet")
+                    raise MilvusException(0, "Not support bool yet")
                     # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
                     result[field_data.field_name] = field_data.scalars.int_data.data[index]
@@ -1055,7 +1055,7 @@ class GrpcHandler:
                 elif field_data.type == DataType.DOUBLE:
                     result[field_data.field_name] = field_data.scalars.double_data.data[index]
                 elif field_data.type == DataType.STRING:
-                    raise BaseException(0, "Not support string yet")
+                    raise MilvusException(0, "Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field_data.vectors.dim
@@ -1086,7 +1086,7 @@ class GrpcHandler:
         response = future.result()
         status = response.status
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise MilvusException(status.error_code, status.reason)
         if len(response.int_dist.data) > 0:
             return response.int_dist.data
         elif len(response.float_dist.data) > 0:
@@ -1097,7 +1097,7 @@ class GrpcHandler:
                 for i in range(len(response.float_dist.data)):
                     response.float_dist.data[i] = math.sqrt(response.float_dist.data[i])
             return response.float_dist.data
-        raise BaseException(0, "Empty result returned")
+        raise MilvusException(0, "Empty result returned")
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -1106,7 +1106,7 @@ class GrpcHandler:
         future = self._stub.LoadBalance.future(req, wait_for_ready=True, timeout=timeout)
         status = future.result()
         if status.error_code != 0:
-            raise BaseException(status.error_code, status.reason)
+            raise MilvusException(status.error_code, status.reason)
 
     @error_handler
     def compact(self, collection_name, timeout=None, **kwargs) -> int:
@@ -1114,13 +1114,13 @@ class GrpcHandler:
         rf = self._stub.DescribeCollection.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
 
         req = Prepare.manual_compaction(response.collectionID, 0)
         future = self._stub.ManualCompaction.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
 
         return response.compactionID
 
@@ -1131,7 +1131,7 @@ class GrpcHandler:
         future = self._stub.GetCompactionState.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
 
         return CompactionState(
             compaction_id,
@@ -1155,7 +1155,7 @@ class GrpcHandler:
             end = time.time()
             if timeout is not None:
                 if end - start > timeout:
-                    raise BaseException(1, "Get compaction state timeout")
+                    raise MilvusException(1, "Get compaction state timeout")
 
     @error_handler
     def get_compaction_plans(self, compaction_id, timeout=None, **kwargs) -> CompactionPlans:
@@ -1164,7 +1164,7 @@ class GrpcHandler:
         future = self._stub.GetCompactionStateWithPlans.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
 
         cp = CompactionPlans(compaction_id, response.state)
 
@@ -1181,7 +1181,7 @@ class GrpcHandler:
         future = self._stub.GetReplicas.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
 
         groups = []
         for replica in response.replicas:
@@ -1197,7 +1197,7 @@ class GrpcHandler:
         future = self._stub.Import.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
-            raise BaseException(response.status.error_code, response.status.reason)
+            raise MilvusException(response.status.error_code, response.status.reason)
         return response.tasks
 
     @error_handler
@@ -1206,7 +1206,7 @@ class GrpcHandler:
         future = self._stub.GetImportState.future(req, wait_for_ready=True, timeout=timeout)
         resp = future.result()
         if resp.status.error_code != 0:
-            raise BaseException(resp.status.error_code, resp.status.reason)
+            raise MilvusException(resp.status.error_code, resp.status.reason)
         state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos)
         return state
 
@@ -1217,7 +1217,7 @@ class GrpcHandler:
         req = Prepare.create_credential_request(user, password)
         resp = self._stub.CreateCredential(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
-            raise BaseException(resp.error_code, resp.reason)
+            raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1, )
     @error_handler
@@ -1226,7 +1226,7 @@ class GrpcHandler:
         req = Prepare.create_credential_request(user, password)
         resp = self._stub.UpdateCredential(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
-            raise BaseException(resp.error_code, resp.reason)
+            raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -1234,7 +1234,7 @@ class GrpcHandler:
         req = Prepare.delete_credential_request(user)
         resp = self._stub.DeleteCredential(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
-            raise BaseException(resp.error_code, resp.reason)
+            raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -1242,5 +1242,5 @@ class GrpcHandler:
         req = Prepare.list_credential_request()
         resp = self._stub.ListCredUsers(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:
-            raise BaseException(resp.status.error_code, resp.status.reason)
+            raise MilvusException(resp.status.error_code, resp.status.reason)
         return resp.usernames

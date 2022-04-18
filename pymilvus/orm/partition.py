@@ -12,7 +12,7 @@
 
 import json
 
-from .exceptions import CollectionNotExistException, PartitionNotExistException, ExceptionsMessage
+from ..exceptions import CollectionNotExistException, PartitionNotExistException, ExceptionsMessage
 from .prepare import Prepare
 from .search import SearchResult
 from .mutation import MutationResult

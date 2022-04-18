@@ -2,6 +2,7 @@ import datetime
 
 from .types import DataType
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
+from ..exceptions import MilvusException
 
 valid_index_types = [
     "FLAT",
@@ -50,15 +51,15 @@ def hybridts_to_unixtime(ts):
 
 def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
     if not isinstance(milliseconds, (int, float)):
-        raise Exception("parameter milliseconds should be type of int or float")
+        raise MilvusException(message = "parameter milliseconds should be type of int or float")
 
     if isinstance(delta, datetime.timedelta):
         milliseconds += (delta.microseconds / 1000.0)
     elif delta is not None:
-        raise Exception("parameter delta should be type of datetime.timedelta")
+        raise MilvusException(message = "parameter delta should be type of datetime.timedelta")
 
     if not isinstance(hybridts, int):
-        raise Exception("parameter hybridts should be type of int")
+        raise MilvusException(message = "parameter hybridts should be type of int")
 
     logical = hybridts & LOGICAL_BITS_MASK
     physical = hybridts >> LOGICAL_BITS
@@ -69,15 +70,15 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
 
 def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
     if not isinstance(epoch, (int, float)):
-        raise Exception("parameter epoch should be type of int or float")
+        raise MilvusException(message = "parameter epoch should be type of int or float")
 
     if not isinstance(milliseconds, (int, float)):
-        raise Exception("parameter milliseconds should be type of int or float")
+        raise MilvusException(message = "parameter milliseconds should be type of int or float")
 
     if isinstance(delta, datetime.timedelta):
         milliseconds += (delta.microseconds / 1000.0)
     elif delta is not None:
-        raise Exception("parameter delta should be type of datetime.timedelta")
+        raise MilvusException(message = "parameter delta should be type of datetime.timedelta")
 
     epoch += (milliseconds / 1000.0)
     int_msecs = int(epoch * 1000 // 1)
@@ -86,7 +87,7 @@ def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
 
 def mkts_from_datetime(d_time, milliseconds=0., delta=None):
     if not isinstance(d_time, datetime.datetime):
-        raise Exception("parameter d_time should be type of datetime.datetime")
+        raise MilvusException(message = "parameter d_time should be type of datetime.datetime")
 
     return mkts_from_unixtime(d_time.timestamp(), milliseconds=milliseconds, delta=delta)
 
@@ -125,15 +126,15 @@ def len_of(field_data) -> int:
         elif field_data.scalars.HasField("bytes_data"):
             return len(field_data.scalars.bytes_data.data)
         else:
-            raise BaseException("Unsupported scalar type")
+            raise MilvusException(message = "Unsupported scalar type")
     elif field_data.HasField("vectors"):
         dim = field_data.vectors.dim
         if field_data.vectors.HasField("float_vector"):
             total_len = len(field_data.vectors.float_vector.data)
             if total_len % dim != 0:
-                raise BaseException(f"Invalid vector length: total_len={total_len}, dim={dim}")
+                raise MilvusException(message = f"Invalid vector length: total_len={total_len}, dim={dim}")
             return int(total_len / dim)
         else:
             total_len = len(field_data.vectors.binary_vector)
             return int(total_len / (dim / 8))
-    raise BaseException("Unknown data type")
+    raise MilvusException(message = "Unknown data type")

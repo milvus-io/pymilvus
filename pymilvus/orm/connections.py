@@ -16,7 +16,7 @@ import threading
 from ..client.grpc_handler import GrpcHandler
 
 from .default_config import DefaultConfig
-from .exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
+from ..exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
 
 
 def synchronized(func):
