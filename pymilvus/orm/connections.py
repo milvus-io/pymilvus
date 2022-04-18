@@ -124,6 +124,18 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :param alias: The name of milvus connection
         :type  alias: str
 
+        :param kwargs:
+            * *host* (``str``) --
+                Required. The host of Milvus instance.
+            * *port* (``str/int``) --
+                Required. The port of Milvus instance.
+            * *user* (``str``) --
+                Optional. Use which user to connect to Milvus instance. If user and password
+                are provided, we will add related header in every RPC call.
+            * *password* (``str``) --
+                Optional and required when user is provided. The password corresponding to
+                the user.
+
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.
         :raises Exception: If server specified in parameters is not ready, we cannot connect to
