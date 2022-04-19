@@ -47,8 +47,8 @@ class Milvus:
     def handler(self):
         return self._handler
 
-    def reset_password(self, user, password):
-        self._handler.reset_password(user, password)
+    def reset_password(self, user, old_password, new_password):
+        self._handler.reset_password(user, old_password, new_password)
 
     def close(self):
         if self._handler is None:
@@ -1127,17 +1127,22 @@ class Milvus:
         with self._connection() as handler:
             handler.create_credential(user, password, timeout, **kwargs)
 
-    def update_credential(self, user, password, timeout=None, **kwargs):
-        """ Update credential using the given user and password.
+    def update_credential(self, user, old_password, new_password, timeout=None, **kwargs):
+        """
+            Update credential using the given user and password.
+            You must provide the original password to check if the operation is valid.
+            Note: after this operation, PyMilvus won't change the related header of this connection.
+            So if you update credential for this connection, the connection may be invalid.
+
         :param user: the user name.
         :type  user: str
-        :param password: the password.
-        :type  password: str
-        :param timeout: The timeout for this method, unit: second
-        :type  timeout: int
+        :param old_password: the original password.
+        :type  old_password: str
+        :param new_password: the newly password of this user.
+        :type  new_password: str
         """
         with self._connection() as handler:
-            handler.update_credential(user, password, timeout, **kwargs)
+            handler.update_credential(user, old_password, new_password, timeout, **kwargs)
 
     def delete_credential(self, user, timeout=None, **kwargs):
         """ Delete credential corresponding to the user.
