@@ -41,9 +41,9 @@ def create_credential(connection_name, user, password):
     utility.create_credential(user, password, using=connection_name)
 
 
-def update_credential(connection_name, user, password):
-    print(f"update credential, connection: {connection_name}, user: {user}, password: {password}\n")
-    utility.update_credential(user, password, using=connection_name)
+def update_credential(connection_name, user, old_password, new_password):
+    print(f"update credential, connection: {connection_name}, user: {user}, old_password: {old_password}, new_password: {new_password}\n")
+    utility.update_credential(user, old_password, new_password, using=connection_name)
 
 
 def delete_credential(connection_name, user):
@@ -51,9 +51,9 @@ def delete_credential(connection_name, user):
     utility.delete_credential(user, using=connection_name)
 
 
-def reset_password(connection_name, user, password):
-    print(f"reset password, connection: {connection_name}, user: {user}, password: {password}\n")
-    utility.reset_password(user, password, using=connection_name)
+def reset_password(connection_name, user, old_password, new_password):
+    print(f"reset password, connection: {connection_name}, user: {user}, old_password: {old_password}, new_password: {new_password}\n")
+    utility.reset_password(user, old_password, new_password, using=connection_name)
 
 
 def test_connection(connection_name):
@@ -76,11 +76,11 @@ def run():
     test_connection(_CONNECTION_NAME)
 
     create_credential(_CONNECTION_NAME, _ANOTHER_USER, _ANOTHER_PASSWORD)
-    update_credential(_CONNECTION_NAME, _ANOTHER_USER, _NEW_PASSWORD)
+    update_credential(_CONNECTION_NAME, _ANOTHER_USER, _ANOTHER_PASSWORD, _NEW_PASSWORD)
     connect_to_milvus(_ANOTHER_CONNECTION_NAME, _HOST, _PORT, _ANOTHER_USER, _NEW_PASSWORD)
     test_connection(_ANOTHER_CONNECTION_NAME)
 
-    reset_password(_CONNECTION_NAME, _USER, _NEW_PASSWORD)
+    reset_password(_CONNECTION_NAME, _USER, _PASSWORD, _NEW_PASSWORD)
     test_connection(_CONNECTION_NAME)
 
     delete_credential(_CONNECTION_NAME, _ANOTHER_USER)

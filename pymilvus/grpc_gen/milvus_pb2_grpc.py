@@ -232,7 +232,7 @@ class MilvusServiceStub(object):
                 )
         self.UpdateCredential = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/UpdateCredential',
-                request_serializer=milvus__pb2.CreateCredentialRequest.SerializeToString,
+                request_serializer=milvus__pb2.UpdateCredentialRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
         self.DeleteCredential = channel.unary_unary(
@@ -750,7 +750,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             ),
             'UpdateCredential': grpc.unary_unary_rpc_method_handler(
                     servicer.UpdateCredential,
-                    request_deserializer=milvus__pb2.CreateCredentialRequest.FromString,
+                    request_deserializer=milvus__pb2.UpdateCredentialRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
             'DeleteCredential': grpc.unary_unary_rpc_method_handler(
@@ -1516,7 +1516,7 @@ class MilvusService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/UpdateCredential',
-            milvus__pb2.CreateCredentialRequest.SerializeToString,
+            milvus__pb2.UpdateCredentialRequest.SerializeToString,
             common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

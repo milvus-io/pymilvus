@@ -143,11 +143,12 @@ class GrpcHandler:
         """ Server network address """
         return self._uri
 
-    def reset_password(self, user, password):
-        """ reset password and then setup the grpc channel. """
-        check_pass_param(user=user, password=password)
-        self.update_credential(user, password)
-        self._setup_authorization_interceptor(user, password)
+    def reset_password(self, user, old_password, new_password):
+        """
+        reset password and then setup the grpc channel.
+        """
+        self.update_credential(user, old_password, new_password)
+        self._setup_authorization_interceptor(user, new_password)
         self._setup_grpc_channel()
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
@@ -1219,11 +1220,10 @@ class GrpcHandler:
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1, )
+    @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def update_credential(self, user, password, timeout=None, **kwargs):
-        check_pass_param(user=user, password=password)
-        req = Prepare.create_credential_request(user, password)
+    def update_credential(self, user, old_password, new_password, timeout=None, **kwargs):
+        req = Prepare.update_credential_request(user, old_password, new_password)
         resp = self._stub.UpdateCredential(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)

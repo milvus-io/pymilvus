@@ -751,14 +751,20 @@ def get_bulk_load_state(task_id, timeout=None, using="default", **kwargs) -> Bul
     return _get_connection(using).get_bulk_load_state(task_id, timeout=timeout, **kwargs)
 
 
-def reset_password(user: str, password: str, using="default"):
-    """ Reset the user & password of the connection.
+def reset_password(user: str, old_password: str, new_password: str, using="default"):
+    """
+        Reset the user & password of the connection.
+        You must provide the original password to check if the operation is valid.
+        Note: after this operation, the connection is also ready to use.
+
     :param user: the user of the Milvus connection.
     :type  user: str
-    :param password: the password of the Milvus connection.
-    :type  password: str
+    :param old_password: the original password of the Milvus connection.
+    :type  old_password: str
+    :param new_password: the newly password of this user.
+    :type  new_password: str
     """
-    return _get_connection(using).reset_password(user, password)
+    return _get_connection(using).reset_password(user, old_password, new_password)
 
 
 def create_credential(user: str, password: str, using="default"):
@@ -771,14 +777,21 @@ def create_credential(user: str, password: str, using="default"):
     return _get_connection(using).create_credential(user, password)
 
 
-def update_credential(user: str, password: str, using="default"):
-    """ Update credential using the given user and password.
+def update_credential(user: str, old_password, new_password: str, using="default"):
+    """
+        Update credential using the given user and password.
+        You must provide the original password to check if the operation is valid.
+        Note: after this operation, PyMilvus won't change the related header of this connection.
+        So if you update credential for this connection, the connection may be invalid.
+
     :param user: the user name.
     :type  user: str
-    :param password: the password.
-    :type  password: str
+    :param old_password: the original password.
+    :type  old_password: str
+    :param new_password: the newly password of this user.
+    :type  new_password: str
     """
-    return _get_connection(using).update_credential(user, password)
+    return _get_connection(using).update_credential(user, old_password, new_password)
 
 
 def delete_credential(user: str, using="default"):
