@@ -4,7 +4,7 @@ import base64
 
 from . import blob
 from .configs import DefaultConfigs
-from ..exceptions import ParamError,DataNotMatchException,ExceptionsMessage
+from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
 from .check import check_pass_param
 from .types import DataType, PlaceholderType
 from .types import get_consistency_level
@@ -285,7 +285,6 @@ class Prepare:
                 insert_request.fields_data.append(field_data)
         except (TypeError, ValueError):
             raise DataNotMatchException(0, ExceptionsMessage.DataTypeInconsistent)
-            #raise ParamError("topk is not illegal") from None
 
         insert_request.num_rows = row_num
 
@@ -659,9 +658,10 @@ class Prepare:
         return milvus_types.ReleaseCollectionRequest(db_name=db_name, collection_name=collection_name)
 
     @classmethod
-    def load_partitions(cls, db_name, collection_name, partition_names):
+    def load_partitions(cls, db_name, collection_name, partition_names, replica_number):
         return milvus_types.LoadPartitionsRequest(db_name=db_name, collection_name=collection_name,
-                                                  partition_names=partition_names)
+                                                  partition_names=partition_names,
+                                                  replica_number=replica_number)
 
     @classmethod
     def release_partitions(cls, db_name, collection_name, partition_names):
@@ -827,21 +827,13 @@ class Prepare:
         return request
 
     @classmethod
-    def load_balance_request(cls, src_node_id, dst_node_ids, sealed_segment_ids):
-        if src_node_id is None or not isinstance(src_node_id, int):
-            raise ParamError("src_node_id value {} is illegal".format(src_node_id))
-
-        if dst_node_ids is None or not isinstance(dst_node_ids, list):
-            raise ParamError("dst_node_ids value {} is illegal".format(dst_node_ids))
-
-        if sealed_segment_ids is None or not isinstance(sealed_segment_ids, list):
-            raise ParamError("sealed_segment_ids value {} is illegal".format(sealed_segment_ids))
-
-        request = milvus_types.LoadBalanceRequest()
-        request.src_nodeID = src_node_id
-        request.dst_nodeIDs.extend(dst_node_ids)
-        request.sealed_segmentIDs.extend(sealed_segment_ids)
-
+    def load_balance_request(cls, collection_name, src_node_id, dst_node_ids, sealed_segment_ids):
+        request = milvus_types.LoadBalanceRequest(
+            collectionName=collection_name,
+            src_nodeID=src_node_id,
+            dst_nodeIDs=dst_node_ids,
+            sealed_segmentIDs=sealed_segment_ids,
+        )
         return request
 
     @classmethod
