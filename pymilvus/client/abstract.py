@@ -255,10 +255,20 @@ class Hits(LoopBase):
         self._entities = [item for item in self]
 
     def __len__(self):
-        return len(self._raw.ids.int_id.data)
+        if self._raw.ids.HasField("int_id"):
+            return len(self._raw.ids.int_id.data)
+        elif self._raw.ids.HasField("str_id"):
+            return len(self._raw.ids.str_id.data)
+        else:
+            raise MilvusException(message="Unsupported ids type")
 
     def get__item(self, item):
-        entity_id = self._raw.ids.int_id.data[item]
+        if self._raw.ids.HasField("int_id"):
+            entity_id = self._raw.ids.int_id.data[item]
+        elif self._raw.ids.HasField("str_id"):
+            entity_id = self._raw.ids.str_id.data[item]
+        else:
+            raise MilvusException(message="Unsupported ids type")
         entity_row_data = dict()
         if self._raw.fields_data:
             for field_data in self._raw.fields_data:
@@ -277,6 +287,9 @@ class Hits(LoopBase):
                 elif field_data.type == DataType.DOUBLE:
                     if len(field_data.scalars.double_data.data) >= item:
                         entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[item]
+                elif field_data.type == DataType.VARCHAR:
+                    if len(field_data.scalars.string_data.data) >= item:
+                        entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[item]
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(0, "Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
@@ -300,7 +313,12 @@ class Hits(LoopBase):
 
     @property
     def ids(self):
-        return self._raw.ids.int_id.data
+        if self._raw.ids.HasField("int_id"):
+            return self._raw.ids.int_id.data
+        elif self._raw.ids.HasField("str_id"):
+            return self._raw.ids.str_id.data
+        else:
+            raise MilvusException(message="Unsupported ids type")
 
     @property
     def distances(self):
@@ -381,7 +399,12 @@ class QueryResult(LoopBase):
             start_pos = offset
             end_pos = offset + raw.results.topks[i]
             hit.scores.append(raw.results.scores[start_pos: end_pos])
-            hit.ids.append(raw.results.ids.int_id.data[start_pos: end_pos])
+            if raw.results.ids.HasField("int_id"):
+                hit.ids.append(raw.results.ids.int_id.data[start_pos: end_pos])
+            elif raw.results.ids.HasField("str_id"):
+                hit.ids.append(raw.results.ids.str_id.data[start_pos: end_pos])
+            else:
+                raise MilvusException(message="Unsupported ids type")
             for field_data in raw.result.fields_data:
                 field = schema_pb2.FieldData()
                 field.type = field_data.type
@@ -397,6 +420,8 @@ class QueryResult(LoopBase):
                     field.scalars.float_data.data.extend(field_data.scalars.float_data.data[start_pos: end_pos])
                 elif field_data.type == DataType.DOUBLE:
                     field.scalars.double_data.data.extend(field_data.scalars.double_data.data[start_pos: end_pos])
+                elif field_data.type == DataType.VARCHAR:
+                    field.scalars.string_data.data.extend(field_data.scalars.string_data.data[start_pos: end_pos])
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(0, "Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
@@ -446,7 +471,12 @@ class ChunkedQueryResult(LoopBase):
                 start_pos = offset
                 end_pos = offset + raw.results.topks[i]
                 hit.scores.extend(raw.results.scores[start_pos: end_pos])
-                hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos: end_pos])
+                if raw.results.ids.HasField("int_id"):
+                    hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos: end_pos])
+                elif raw.results.ids.HasField("str_id"):
+                    hit.ids.str_id.data.extend(raw.results.ids.str_id.data[start_pos: end_pos])
+                else:
+                    raise MilvusException(message="Unsupported ids type")
                 for field_data in raw.results.fields_data:
                     field = schema_pb2.FieldData()
                     field.type = field_data.type
@@ -462,6 +492,8 @@ class ChunkedQueryResult(LoopBase):
                         field.scalars.float_data.data.extend(field_data.scalars.float_data.data[start_pos: end_pos])
                     elif field_data.type == DataType.DOUBLE:
                         field.scalars.double_data.data.extend(field_data.scalars.double_data.data[start_pos: end_pos])
+                    elif field_data.type == DataType.VARCHAR:
+                        field.scalars.string_data.data.extend(field_data.scalars.string_data.data[start_pos: end_pos])
                     elif field_data.type == DataType.STRING:
                         raise MilvusException(0, "Not support string yet")
                         # result[field_data.field_name] = field_data.scalars.string_data.data[index]

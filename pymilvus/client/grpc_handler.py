@@ -1055,6 +1055,8 @@ class GrpcHandler:
                     result[field_data.field_name] = round(field_data.scalars.float_data.data[index], 6)
                 elif field_data.type == DataType.DOUBLE:
                     result[field_data.field_name] = field_data.scalars.double_data.data[index]
+                elif field_data.type == DataType.VARCHAR:
+                    result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(0, "Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
