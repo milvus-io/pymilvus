@@ -510,9 +510,11 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
     return res_2_d
 
 
-def load_balance(src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeout=None, using="default"):
-    """
-    Do load balancing operation from source query node to destination query node.
+def load_balance(collection_name: str, src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeout=None, using="default"):
+    """ Do load balancing operation from source query node to destination query node.
+
+    :param collection_name: The collection to balance.
+    :type  collection_name: str
 
     :param src_node_id: The source query node id to balance.
     :type  src_node_id: int
@@ -537,13 +539,13 @@ def load_balance(src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeou
         >>> src_node_id = 0
         >>> dst_node_ids = [1]
         >>> sealed_segment_ids = []
-        >>> res = utility.load_balance(src_node_id, dst_node_ids, sealed_segment_ids)
+        >>> res = utility.load_balance("test_collection", src_node_id, dst_node_ids, sealed_segment_ids)
     """
     if dst_node_ids is None:
         dst_node_ids = []
     if sealed_segment_ids is None:
         sealed_segment_ids = []
-    return _get_connection(using).load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout)
+    return _get_connection(using).load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout)
 
 
 def get_query_segment_info(collection_name, timeout=None, using="default"):

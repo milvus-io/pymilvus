@@ -52,7 +52,7 @@ class Milvus:
 
     def close(self):
         if self._handler is None:
-            raise MilvusException(message = "Closing on closed handler")
+            raise MilvusException(message="Closing on closed handler")
         self.handler.close()
         self._handler = None
 
@@ -331,7 +331,7 @@ class Milvus:
         with self._connection() as handler:
             return handler.has_partition(collection_name, partition_name, timeout)
 
-    def load_partitions(self, collection_name, partition_names, timeout=None):
+    def load_partitions(self, collection_name, partition_names, replica_number=1, timeout=None):
         """
         Load specified partitions from disk to memory.
 
@@ -340,6 +340,9 @@ class Milvus:
 
         :param partition_names: The specified partitions to load.
         :type  partition_names: list[str]
+
+        :param replica_number: The replication numbers to load.
+        :type  replica_number: int
 
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
@@ -354,7 +357,8 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.load_partitions(collection_name=collection_name,
-                                           partition_names=partition_names, timeout=timeout)
+                                           partition_names=partition_names,
+                                           replica_number=replica_number, timeout=timeout)
 
     def release_partitions(self, collection_name, partition_names, timeout=None):
         """
@@ -974,9 +978,11 @@ class Milvus:
         with self._connection() as handler:
             return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout, **kwargs)
 
-    def load_balance(self, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
+    def load_balance(self, collection_name: str, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
         """
         Do load balancing operation from source query node to destination query node.
+        :param collection_name: The collection to balance.
+        :type  collection_name: str
 
         :param src_node_id: The source query node id to balance.
         :type  src_node_id: int
@@ -994,7 +1000,7 @@ class Milvus:
         :raises MilvusException: If sealed segments not exist.
         """
         with self._connection() as handler:
-            return handler.load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout, **kwargs)
+            return handler.load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout, **kwargs)
 
     def compact(self, collection_name, timeout=None, **kwargs) -> int:
         """

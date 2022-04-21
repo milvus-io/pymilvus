@@ -574,7 +574,7 @@ class GrpcHandler:
         if not valid_field:
             # TODO: add new error type
             raise MilvusException(Status.UNEXPECTED_ERROR,
-                                "cannot create index on non-existed field: " + str(field_name))
+                                  "cannot create index on non-existed field: " + str(field_name))
 
         index_type = params["index_type"].upper()
         if index_type == "FLAT":
@@ -725,7 +725,7 @@ class GrpcHandler:
 
         if ol != pl:
             raise MilvusException(ErrorCode.UnexpectedError,
-                                f"len(collection_names) ({ol}) != len(inMemory_percentages) ({pl})")
+                                  f"len(collection_names) ({ol}) != len(inMemory_percentages) ({pl})")
 
         for i, coll_name in enumerate(response.collection_names):
             if coll_name == collection_name:
@@ -757,9 +757,9 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def load_partitions(self, collection_name, partition_names, timeout=None, **kwargs):
+    def load_partitions(self, collection_name, partition_names, replica_number=1, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
-        request = Prepare.load_partitions("", collection_name, partition_names)
+        request = Prepare.load_partitions("", collection_name, partition_names, replica_number)
         future = self._stub.LoadPartitions.future(request, wait_for_ready=True, timeout=timeout)
 
         if kwargs.get("_async", False):
@@ -786,38 +786,11 @@ class GrpcHandler:
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
     def wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
-        return self._wait_for_loading_partitions_v2(collection_name, partition_names, timeout)
+        return self._wait_for_loading_partitions(collection_name, partition_names, timeout)
 
-    # TODO seems not in use
-    def _wait_for_loading_partitions_v1(self, collection_name, partition_names, timeout=None):
-        """
-        Block until load partition complete.
-        """
-        request = Prepare.show_partitions_request(collection_name)
-        rf = self._stub.ShowPartitions.future(request, wait_for_ready=True, timeout=timeout)
-        response = rf.result()
-        status = response.status
-        if status.error_code != 0:
-            raise MilvusException(status.error_code, status.reason)
+    def _wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
+        """ Block until load partition complete."""
 
-        pIDs = [response.partitionIDs[index] for index, p_name in enumerate(response.partition_names)
-                if p_name in partition_names]
-
-        unloaded_segments = {info.segmentID: info.num_rows for info in
-                             self.get_persistent_segment_infos(collection_name, timeout)
-                             if info.partitionID in pIDs}
-
-        while len(unloaded_segments) > 0:
-            time.sleep(0.5)
-
-            for info in self.get_query_segment_info(collection_name, timeout):
-                if 0 <= unloaded_segments.get(info.segmentID, -1) <= info.num_rows:
-                    unloaded_segments.pop(info.segmentID)
-
-    def _wait_for_loading_partitions_v2(self, collection_name, partition_names, timeout=None):
-        """
-        Block until load partition complete.
-        """
         request = Prepare.show_partitions_request(collection_name, partition_names)
 
         while True:
@@ -833,7 +806,7 @@ class GrpcHandler:
 
             if ol != pl:
                 raise MilvusException(ErrorCode.UnexpectedError,
-                                    f"len(partition_names) ({ol}) != len(inMemory_percentages) ({pl})")
+                                      f"len(partition_names) ({ol}) != len(inMemory_percentages) ({pl})")
 
             loaded_histogram = dict()
             for i, par_name in enumerate(response.partition_names):
@@ -1104,8 +1077,8 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def load_balance(self, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
-        req = Prepare.load_balance_request(src_node_id, dst_node_ids, sealed_segment_ids)
+    def load_balance(self, collection_name: str, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
+        req = Prepare.load_balance_request(collection_name, src_node_id, dst_node_ids, sealed_segment_ids)
         future = self._stub.LoadBalance.future(req, wait_for_ready=True, timeout=timeout)
         status = future.result()
         if status.error_code != 0:

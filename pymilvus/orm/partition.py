@@ -171,9 +171,12 @@ class Partition:
             raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
         return conn.drop_partition(self._collection.name, self._name, timeout=timeout, **kwargs)
 
-    def load(self, timeout=None, **kwargs):
+    def load(self, replica_number=1, timeout=None, **kwargs):
         """
         Load the partition from disk to memory.
+
+        :param replica_number: The replication numbers to load.
+        :type  replica_number: int
 
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur
@@ -198,7 +201,7 @@ class Partition:
         #  if index_names is not None, raise Exception Not Supported
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name):
-            return conn.load_partitions(self._collection.name, [self._name], timeout=timeout, **kwargs)
+            return conn.load_partitions(self._collection.name, [self._name], replica_number=replica_number, timeout=timeout, **kwargs)
         raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
 
     def release(self, timeout=None, **kwargs):

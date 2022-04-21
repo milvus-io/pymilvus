@@ -18,7 +18,6 @@ from .schema import (
     CollectionSchema,
     FieldSchema,
     parse_fields_from_data,
-    infer_dtype_bydata,
 )
 from .prepare import Prepare
 from .partition import Partition
@@ -401,7 +400,7 @@ class Collection:
             index.drop(timeout=timeout, **kwargs)
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
-    def load(self, partition_names=None, timeout=None, replica_number=1, **kwargs):
+    def load(self, partition_names=None, replica_number=1, timeout=None, **kwargs):
         """ Load the collection from disk to memory.
 
         :param partition_names: The specified partitions to load.
@@ -431,7 +430,7 @@ class Collection:
         """
         conn = self._get_connection()
         if partition_names is not None:
-            conn.load_partitions(self._name, partition_names, timeout=timeout, **kwargs)
+            conn.load_partitions(self._name, partition_names, replica_number=replica_number, timeout=timeout, **kwargs)
         else:
             conn.load_collection(self._name, timeout=timeout, replica_number=replica_number, **kwargs)
 
