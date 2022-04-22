@@ -260,7 +260,7 @@ class Hits(LoopBase):
         elif self._raw.ids.HasField("str_id"):
             return len(self._raw.ids.str_id.data)
         else:
-            raise MilvusException(message="Unsupported ids type")
+            return 0
 
     def get__item(self, item):
         if self._raw.ids.HasField("int_id"):
@@ -318,7 +318,7 @@ class Hits(LoopBase):
         elif self._raw.ids.HasField("str_id"):
             return self._raw.ids.str_id.data
         else:
-            raise MilvusException(message="Unsupported ids type")
+            return []
 
     @property
     def distances(self):
@@ -403,8 +403,6 @@ class QueryResult(LoopBase):
                 hit.ids.append(raw.results.ids.int_id.data[start_pos: end_pos])
             elif raw.results.ids.HasField("str_id"):
                 hit.ids.append(raw.results.ids.str_id.data[start_pos: end_pos])
-            else:
-                raise MilvusException(message="Unsupported ids type")
             for field_data in raw.result.fields_data:
                 field = schema_pb2.FieldData()
                 field.type = field_data.type
@@ -475,8 +473,6 @@ class ChunkedQueryResult(LoopBase):
                     hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos: end_pos])
                 elif raw.results.ids.HasField("str_id"):
                     hit.ids.str_id.data.extend(raw.results.ids.str_id.data[start_pos: end_pos])
-                else:
-                    raise MilvusException(message="Unsupported ids type")
                 for field_data in raw.results.fields_data:
                     field = schema_pb2.FieldData()
                     field.type = field_data.type
