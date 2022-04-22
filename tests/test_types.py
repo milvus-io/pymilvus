@@ -128,9 +128,10 @@ class TestReplica:
         assert s.shard_leader == 1
         print(s)
 
-        g = Group(2, [s])
+        g = Group(2, [s], [1, 2, 3])
         assert g.id == 2
         assert g.shards == [s]
+        assert g.group_nodes == (1, 2, 3)
 
         print(g)
 
