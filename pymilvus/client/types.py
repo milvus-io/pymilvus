@@ -294,8 +294,9 @@ class Shard:
 
 
 class Group:
-    def __init__(self, group_id: int, shards: list):
+    def __init__(self, group_id: int, nodes: list, shards: list):
         self._id = group_id
+        self._nodes = nodes
         self._shards = shards
 
     def __repr__(self) -> str:
@@ -308,11 +309,7 @@ class Group:
 
     @property
     def group_nodes(self):
-        group_nodes = []
-        for shard in self.shards:
-            group_nodes.extend(shard.shard_nodes)
-
-        return tuple(group_nodes)
+        return tuple(self._nodes)
 
     @property
     def shards(self):
