@@ -97,10 +97,17 @@ class Prepare:
                 type_params = field.get('params')
                 if isinstance(type_params, dict):
                     for tk, tv in type_params.items():
-                        if tk in ["dim", "max_length_per_row"]:
+                        if tk in ["dim",]:
                             try:
                                 int(tv)
                             except (TypeError, ValueError):
+                                raise ParamError("invalid" + str(tk) + str(tv)) from None
+                        if tk in [DefaultConfigs.MaxVarCharLengthKey,]:
+                            try:
+                                max_len = int(tv)
+                                if max_len > DefaultConfigs.MaxVarCharLength:
+                                    raise ParamError(f"{tk} {max_len} exceeds {DefaultConfigs.MaxVarCharLength}")
+                            except (TypeError, ValueError, ParamError):
                                 raise ParamError("invalid" + str(tk) + str(tv)) from None
                         kv_pair = common_types.KeyValuePair(key=str(tk), value=str(tv))
                         field_schema.type_params.append(kv_pair)

@@ -23,7 +23,7 @@ _COLLECTION_NAME = 'demo'
 _ID_FIELD_NAME = 'id_field'
 _VECTOR_FIELD_NAME = 'float_vector_field'
 _STR_FIELD_NAME = "str_field"
-_MAX_LEN_PER_ROW = 65536
+_MAX_LENGTH_PER_ROW = 65536
 
 # Vector parameters
 _DIM = 8
@@ -51,7 +51,7 @@ def create_collection(name, id_field, vector_field, str_field):
     field2 = FieldSchema(name=vector_field, dtype=DataType.FLOAT_VECTOR, description="float vector", dim=_DIM,
                          is_primary=False)
     field3 = FieldSchema(name=str_field, dtype=DataType.VARCHAR, description="string",
-                         max_len_per_row=_MAX_LEN_PER_ROW, is_primary=False)
+                         max_length_per_row=_MAX_LENGTH_PER_ROW, is_primary=False)
     schema = CollectionSchema(fields=[field1, field2, field3], description="collection description")
     collection = Collection(name=name, data=None, schema=schema)
     print("\ncollection created:", name)
