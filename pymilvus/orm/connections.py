@@ -61,7 +61,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
         Construct a Connections object.
         """
         self._kwargs = {"default": {"host": DefaultConfig.DEFAULT_HOST,
-                                    "port": DefaultConfig.DEFAULT_PORT}}
+                                    "port": DefaultConfig.DEFAULT_PORT,
+                                    "user": "",}}
         self._conns = {}
 
     def add_connection(self, **kwargs):
@@ -78,18 +79,22 @@ class Connections(metaclass=SingleInstanceMetaClass):
         The above example creates two milvus connections named default and dev.
         """
         for k in kwargs:
+            tmp_kwargs = copy.deepcopy(kwargs.get(k, {}))
+            tmp_kwargs.pop("password", None)
+            tmp_kwargs["user"] = tmp_kwargs.get("user", "")
+
             if k in self._conns:
-                if self._kwargs.get(k, None) != kwargs.get(k, None):
+                if self._kwargs.get(k, None) != tmp_kwargs:
                     raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf % k)
-            if "host" not in kwargs.get(k, {}) or "port" not in kwargs.get(k, {}):
+            if "host" not in tmp_kwargs or "port" not in tmp_kwargs:
                 raise ConnectionConfigException(0, ExceptionsMessage.NoHostPort)
 
-            if not isinstance(kwargs.get(k)["host"], str):
+            if not isinstance(tmp_kwargs["host"], str):
                 raise ConnectionConfigException(0, ExceptionsMessage.HostType)
-            if not isinstance(kwargs.get(k)["port"], (str, int)):
+            if not isinstance(tmp_kwargs["port"], (str, int)):
                 raise ConnectionConfigException(0, ExceptionsMessage.PortType)
 
-            self._kwargs[k] = kwargs.get(k, None)
+            self._kwargs[k] = tmp_kwargs
 
     def disconnect(self, alias: str):
         """
@@ -117,7 +122,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         self.disconnect(alias)
         self._kwargs.pop(alias, None)
 
-    def connect(self, alias=DefaultConfig.DEFAULT_USING, **kwargs):
+    def connect(self, alias=DefaultConfig.DEFAULT_USING, user="", password="", **kwargs):
         """
         Constructs a milvus connection and register it under given alias.
 
@@ -155,7 +160,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
             gh = GrpcHandler(host=str(tmp_host), port=str(tmp_port), **tmp_kwargs)
             gh._wait_for_channel_ready()
             return gh
+
         if alias in self._conns:
+            kwargs["user"] = user
             if len(kwargs) > 0 and self._kwargs[alias] != kwargs:
                 raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf % alias)
             #  return self._conns[alias]
@@ -165,12 +172,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
             if len(kwargs) > 0:
                 if "host" not in kwargs or "port" not in kwargs:
                     raise ConnectionConfigException(0, ExceptionsMessage.NoHostPort)
-                conn = connect_milvus(**kwargs)
+                kwargs["user"] = user
+                conn = connect_milvus(**kwargs, password=password)
                 self._kwargs[alias] = copy.deepcopy(kwargs)
                 self._conns[alias] = conn
                 return
                 #  return conn
-            conn = connect_milvus(**self._kwargs[alias])
+            conn = connect_milvus(**self._kwargs[alias], password=password)
             self._conns[alias] = conn
             return
             #  return conn
@@ -178,7 +186,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if len(kwargs) > 0:
             if "host" not in kwargs or "port" not in kwargs:
                 raise ConnectionConfigException(0, ExceptionsMessage.NoHostPort)
-            conn = connect_milvus(**kwargs)
+            kwargs["user"] = user
+            conn = connect_milvus(**kwargs, password=password)
             self._kwargs[alias] = copy.deepcopy(kwargs)
             self._conns[alias] = conn
             return
