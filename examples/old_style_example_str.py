@@ -51,7 +51,7 @@ def create_collection(name):
     str_field = {
         "name": _STR_FIELD_NAME,
         "type": DataType.VARCHAR,
-        "params": {"max_len_per_row": _MAX_LEN},
+        "params": {"max_length_per_row": _MAX_LEN},
     }
     fields = {"fields": [id_field, vector_field, str_field]}
 

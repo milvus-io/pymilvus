@@ -17,6 +17,7 @@ from pandas.api.types import is_list_like
 
 from .constants import COMMON_TYPE_PARAMS
 from .types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
+from ..client.configs import DefaultConfigs
 from ..exceptions import (
     CannotInferSchemaException,
     DataTypeNotSupportException,
@@ -323,6 +324,9 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
                     else:
                         vector_type_params['dim'] = len(values[i])
                     column_params_map[col_names[i]] = vector_type_params
+                if new_dtype in (DataType.VARCHAR,):
+                    str_type_params = {}
+                    str_type_params[DefaultConfigs.MaxVarCharLengthKey] = DefaultConfigs.MaxVarCharLength
                 data_types[i] = new_dtype
 
     if DataType.UNKNOWN in data_types:
