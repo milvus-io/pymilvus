@@ -982,7 +982,7 @@ class Collection:
             return Index(self, field_name, tmp_index, construct_only=True, index_name=index_name)
         raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
 
-    def create_index(self, field_name, index_params, timeout=None, **kwargs) -> Index:
+    def create_index(self, field_name, index_params={}, timeout=None, **kwargs) -> Index:
         """
         Creates index for a specified field. Return Index Object.
 
