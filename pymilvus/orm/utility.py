@@ -173,7 +173,7 @@ def loading_progress(collection_name, partition_names=None, using="default"):
     :type  partition_names: str list
 
     :return dict:
-        {'load_progress': 100%}
+        {'loading_progress': '100%', 'num_loaded_partitions': 3, 'not_loaded_partitions': []}
     :raises PartitionNotExistException: If partition doesn't exist.
     :example:
         >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
@@ -194,11 +194,9 @@ def loading_progress(collection_name, partition_names=None, using="default"):
         >>> collection.create_index("films", {"index_type": "IVF_FLAT", "params": {"nlist": 8}, "metric_type": "L2"})
         >>> collection.load(_async=True)
         >>> utility.loading_progress("test_loading_progress")
-        {'loading_progress': '100%'}
+        {'loading_progress': '100%', 'num_loaded_partitions': 1, 'not_loaded_partitions': []}
     """
-    if not partition_names or len(partition_names) == 0:
-        return _get_connection(using).load_collection_progress(collection_name)
-    return _get_connection(using).load_partitions_progress(collection_name, partition_names)
+    return _get_connection(using).general_loading_progress(collection_name, partition_names)
 
 
 def wait_for_loading_complete(collection_name, partition_names=None, timeout=None, using="default"):
