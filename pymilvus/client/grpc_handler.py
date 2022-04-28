@@ -703,10 +703,7 @@ class GrpcHandler:
     @error_handler
     def load_collection_progress(self, collection_name, timeout=None):
         """ Return loading progress of collection """
-
-        progress = self.get_collection_loading_progress(collection_name, timeout)
-
-        return {'loading_progress': f"{progress:.0f}%"}
+        return self.general_loading_progress(collection_name, timeout=timeout)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
@@ -824,41 +821,38 @@ class GrpcHandler:
 
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def load_partitions_progress(self, collection_name, partition_names, timeout=None):
-        """ Return loading progress of partitions """
-        request = Prepare.show_partitions_request(collection_name)
+    def general_loading_progress(self, collection_name, partition_names=None, timeout=None):
+        request = Prepare.show_partitions_request(collection_name, type_in_memory=True)
         rf = self._stub.ShowPartitions.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         status = response.status
         if status.error_code != 0:
             raise MilvusException(status.error_code, status.reason)
 
-        pIDs = []
-        pNames = []
-        for index, p_name in enumerate(response.partition_names):
-            if p_name in partition_names:
-                pIDs.append(response.partitionIDs[index])
-                pNames.append((p_name))
+        target_p_names = partition_names if partition_names is not None else self.list_partitions(collection_name)
 
-        # all partition names must be valid, otherwise throw exception
-        for name in partition_names:
-            if name not in pNames:
-                msg = "partitionID of partitionName:" + name + " can not be found"
-                raise MilvusException(1, msg)
+        all_names = response.partition_names
+        loaded_p_names = []
+        unloaded_p_names = []
 
-        total_segments_nums = sum(info.num_rows for info in
-                                  self.get_persistent_segment_infos(collection_name, timeout)
-                                  if info.partitionID in pIDs)
+        for p in target_p_names:
+            if p in all_names and response.inMemory_percentages[list(all_names).index(p)] == 100:
+                loaded_p_names.append(p)
+            else:
+                unloaded_p_names.append(p)
 
-        loaded_segments_nums = sum(info.num_rows for info in
-                                   self.get_query_segment_info(collection_name, timeout)
-                                   if info.partitionID in pIDs)
+        return {
+            "loading_progress": f"{len(loaded_p_names)*100/len(target_p_names):.0f}%",
+            "num_loaded_partitions": len(loaded_p_names),
+            "not_loaded_partitions": unloaded_p_names,
+        }
 
-        progress = (loaded_segments_nums / total_segments_nums) * 100 if loaded_segments_nums < total_segments_nums else 100
-
-        return {'loading_progress': f"{progress:.0f}%"}
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @error_handler
+    def load_partitions_progress(self, collection_name, partition_names, timeout=None):
+        """ Return loading progress of partitions """
+        return self.general_loading_progress(collection_name, partition_names, timeout)
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler

@@ -177,7 +177,7 @@ class Prepare:
         return milvus_types.PartitionStatsRequest(collection_name=collection_name, partition_name=partition_name)
 
     @classmethod
-    def show_partitions_request(cls, collection_name, partition_names=None):
+    def show_partitions_request(cls, collection_name, partition_names=None, type_in_memory=False):
         check_pass_param(collection_name=collection_name)
         req = milvus_types.ShowPartitionsRequest(collection_name=collection_name)
         if partition_names:
@@ -186,6 +186,8 @@ class Prepare:
             for partition_name in partition_names:
                 check_pass_param(partition_name=partition_name)
             req.partition_names.extend(partition_names)
+            req.type = milvus_types.ShowType.InMemory
+        if type_in_memory:
             req.type = milvus_types.ShowType.InMemory
         return req
 

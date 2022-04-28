@@ -904,10 +904,22 @@ class Milvus:
             return handler.get_query_segment_info(collection_name, timeout, **kwargs)
 
     def load_collection_progress(self, collection_name, timeout=None):
+        """ {
+            'loading_progress': '100%',
+            'num_loaded_partitions': 3,
+            'not_loaded_partitions': [],
+        }
+        """
         with self._connection() as handler:
             return handler.load_collection_progress(collection_name, timeout=timeout)
 
     def load_partitions_progress(self, collection_name, partition_names, timeout=None):
+        """ {
+            'loading_progress': '100%',
+            'num_loaded_partitions': 3,
+            'not_loaded_partitions': [],
+        }
+        """
         with self._connection() as handler:
             return handler.load_partitions_progress(collection_name, partition_names, timeout=timeout)
 
