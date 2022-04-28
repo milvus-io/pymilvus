@@ -189,7 +189,7 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.load_collection(collection_name=collection_name, timeout=timeout, **kwargs)
+            return handler.load_collection(collection_name=collection_name, timeout=timeout, replica_number=replica_number, **kwargs)
 
     def release_collection(self, collection_name, timeout=None):
         """
