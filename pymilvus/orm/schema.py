@@ -324,9 +324,9 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
                     else:
                         vector_type_params['dim'] = len(values[i])
                     column_params_map[col_names[i]] = vector_type_params
-                if new_dtype in (DataType.VARCHAR,):
-                    str_type_params = {}
-                    str_type_params[DefaultConfigs.MaxVarCharLengthKey] = DefaultConfigs.MaxVarCharLength
+                # if new_dtype in (DataType.VARCHAR,):
+                #     str_type_params = {}
+                #     str_type_params[DefaultConfigs.MaxVarCharLengthKey] = DefaultConfigs.MaxVarCharLength
                 data_types[i] = new_dtype
 
     if DataType.UNKNOWN in data_types:
