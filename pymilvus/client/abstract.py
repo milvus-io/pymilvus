@@ -1,5 +1,6 @@
 import abc
 
+from .configs import DefaultConfigs
 from .types import DataType
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 from ..grpc_gen import schema_pb2
@@ -85,7 +86,8 @@ class FieldSchema:
                 self.params[type_param.key] = json.loads(type_param.value)
             else:
                 self.params[type_param.key] = type_param.value
-                if "dim" == type_param.key:
+                # maybe we'd better not to check these fields in ORM.
+                if type_param.key in ["dim", DefaultConfigs.MaxVarCharLengthKey]:
                     self.params[type_param.key] = int(type_param.value)
 
         index_dict = dict()
