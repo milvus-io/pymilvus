@@ -101,14 +101,16 @@ class Prepare:
                             try:
                                 int(tv)
                             except (TypeError, ValueError):
-                                raise ParamError("invalid" + str(tk) + str(tv)) from None
+                                raise ParamError(f"invalid {tk}: {tv}") from None
                         if tk in [DefaultConfigs.MaxVarCharLengthKey,]:
                             try:
                                 max_len = int(tv)
                                 if max_len > DefaultConfigs.MaxVarCharLength:
                                     raise ParamError(f"{tk} {max_len} exceeds {DefaultConfigs.MaxVarCharLength}")
-                            except (TypeError, ValueError, ParamError):
-                                raise ParamError("invalid" + str(tk) + str(tv)) from None
+                            except (TypeError, ValueError):
+                                raise ParamError(f"invalid {tk}: {tv}") from None
+                            except ParamError as e:
+                                raise e from None
                         kv_pair = common_types.KeyValuePair(key=str(tk), value=str(tv))
                         field_schema.type_params.append(kv_pair)
 
