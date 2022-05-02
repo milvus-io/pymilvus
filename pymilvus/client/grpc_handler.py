@@ -82,6 +82,10 @@ class GrpcHandler:
         self._max_retry = kwargs.get("max_retry", 5)
 
         self._secure = kwargs.get("secure", False)
+        self._client_pem_path = kwargs.get("client_pem_path", "")
+        self._client_key_path = kwargs.get("client_key_path", "")
+        self._ca_pem_path = kwargs.get("ca_pem_path", "")
+        self._server_name = kwargs.get("server_name", "")
         self._authorization_interceptor = None
         self._setup_authorization_interceptor(kwargs.get("user", None), kwargs.get("password", None))
         self._setup_grpc_channel()
@@ -123,14 +127,26 @@ class GrpcHandler:
                              ('grpc.keepalive_time_ms', 55000)]
                 )
             else:
-                creds = grpc.ssl_channel_credentials(root_certificates=None, private_key=None, certificate_chain=None)
+                if self._client_pem_path != "" and self._client_key_path != "" and self._ca_pem_path != "" \
+                        and self._server_name != "":
+                    with open(self._client_pem_path, 'rb') as f:
+                        certificate_chain = f.read()
+                    with open(self._client_key_path, 'rb') as f:
+                        private_key = f.read()
+                    with open(self._ca_pem_path, 'rb') as f:
+                        root_certificates = f.read()
+                    creds = grpc.ssl_channel_credentials(root_certificates, private_key, certificate_chain)
+                else:
+                    creds = grpc.ssl_channel_credentials(root_certificates=None, private_key=None,
+                                                         certificate_chain=None)
                 self._channel = grpc.secure_channel(
                     self._uri,
                     creds,
-                    options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
+                    options=(('grpc.ssl_target_name_override', self._server_name, ),
+                             (cygrpc.ChannelArgKey.max_send_message_length, -1),
                              (cygrpc.ChannelArgKey.max_receive_message_length, -1),
                              ('grpc.enable_retries', 1),
-                             ('grpc.keepalive_time_ms', 55000)]
+                             ('grpc.keepalive_time_ms', 55000))
                 )
         # avoid to add duplicate headers.
         self._final_channel = self._channel
