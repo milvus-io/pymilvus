@@ -16,5 +16,8 @@ example_index:
 package:
 	python3 -m build --sdist --wheel --outdir dist/ .
 
-gen_proto:
-	cd pymilvus/grpc_gen/proto && ./python_gen.sh
+get_proto:
+	git submodule update --init
+
+gen_proto: get_proto
+	cd pymilvus/grpc_gen && ./python_gen.sh

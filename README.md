@@ -42,6 +42,29 @@ You can upgrade PyMilvus to the latest version by:
 $ pip3 install --upgrade pymilvus
 ```
 
+## FAQ
+Q1. How to get submodules?
+
+A1. The following command will only get the latest protos , for protos of certain version, see
+[milvus-proto](https://github.com/milvus-io/milvus-proto#usage) for details.
+```shell
+$ git sumodule update --init
+```
+
+Q2. How to generate python files from milvus-proto?
+
+A2.
+```shell
+$ make gen_proto
+```
+
+Q3. How to use the local PyMilvus repository for Milvus server?
+
+A3.
+```shell
+$ python setup.py install
+```
+
 
 ## Documentation
 
