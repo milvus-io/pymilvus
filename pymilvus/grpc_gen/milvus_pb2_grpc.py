@@ -225,6 +225,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.GetImportStateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetImportStateResponse.FromString,
                 )
+        self.ListImportTasks = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListImportTasks',
+                request_serializer=milvus__pb2.ListImportTasksRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListImportTasksResponse.FromString,
+                )
         self.CreateCredential = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateCredential',
                 request_serializer=milvus__pb2.CreateCredentialRequest.SerializeToString,
@@ -505,6 +510,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListImportTasks(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def CreateCredential(self, request, context):
         """https://wiki.lfaidata.foundation/display/MIL/MEP+27+--+Support+Basic+Authentication
         """
@@ -742,6 +753,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.GetImportState,
                     request_deserializer=milvus__pb2.GetImportStateRequest.FromString,
                     response_serializer=milvus__pb2.GetImportStateResponse.SerializeToString,
+            ),
+            'ListImportTasks': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListImportTasks,
+                    request_deserializer=milvus__pb2.ListImportTasksRequest.FromString,
+                    response_serializer=milvus__pb2.ListImportTasksResponse.SerializeToString,
             ),
             'CreateCredential': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateCredential,
@@ -1484,6 +1500,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetImportState',
             milvus__pb2.GetImportStateRequest.SerializeToString,
             milvus__pb2.GetImportStateResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListImportTasks(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListImportTasks',
+            milvus__pb2.ListImportTasksRequest.SerializeToString,
+            milvus__pb2.ListImportTasksResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
