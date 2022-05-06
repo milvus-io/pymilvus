@@ -23,7 +23,7 @@ _COLLECTION_NAME = 'demo'
 _ID_FIELD_NAME = 'id_field'
 _VECTOR_FIELD_NAME = 'float_vector_field'
 _STR_FIELD_NAME = "str_field"
-_MAX_LENGTH_PER_ROW = 65536
+_MAX_LENGTH_PER_ROW = 65535
 
 # Vector parameters
 _DIM = 8
