@@ -70,8 +70,9 @@ class Index:
         if self._kwargs.pop("construct_only", False):
             return
 
+        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
         conn = self._get_connection()
-        index = conn.describe_index(self._collection.name, "")
+        index = conn.describe_index(self._collection.name, index_name)
         if index is not None:
             tmp_field_name = index.pop("field_name", None)
         if index is None or index != index_params or tmp_field_name != field_name:
