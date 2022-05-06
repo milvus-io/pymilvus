@@ -36,10 +36,13 @@ from ..exceptions import (
     ExceptionsMessage,
 )
 from .future import SearchFuture, MutationFuture
+from .utility import _get_connection
+from .default_config import DefaultConfig
 from ..client.types import CompactionState, CompactionPlans, Replica
 from ..client.types import get_consistency_level
 from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
 from ..client.configs import DefaultConfigs
+
 
 
 def _check_schema(schema):
@@ -215,17 +218,28 @@ class Collection:
             else:
                 raise SchemaNotReadyException(0, ExceptionsMessage.AutoIDWithData)
 
-        fields = parse_fields_from_data(dataframe)
-        if auto_id:
-            fields.insert(pk_index, FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True, auto_id=True,
-                                                **kwargs))
+        using = kwargs.get("using", DefaultConfig.DEFAULT_USING)
+        conn = _get_connection(using)
+        if conn.has_collection(name):
+            resp = conn.describe_collection(name)
+            server_schema = CollectionSchema.construct_from_dict(resp)
+            schema = server_schema
         else:
-            for field in fields:
-                if field.name == primary_field:
-                    field.is_primary = True
-                    field.auto_id = False
+            fields_schema = parse_fields_from_data(dataframe)
+            if auto_id:
+                fields_schema.insert(pk_index,
+                                     FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True,
+                                                 auto_id=True,
+                                                 **kwargs))
+            else:
+                for field in fields_schema:
+                    if field.name == primary_field:
+                        field.is_primary = True
+                        field.auto_id = False
+                    if field.dtype == DataType.VARCHAR:
+                        field.params[DefaultConfigs.MaxVarCharLengthKey] = int(DefaultConfigs.MaxVarCharLength)
+            schema = CollectionSchema(fields=fields_schema)
 
-        schema = CollectionSchema(fields=fields)
         _check_schema(schema)
         collection = cls(name, schema, **kwargs)
         res = collection.insert(data=dataframe)
