@@ -891,14 +891,16 @@ class Prepare:
         return request
 
     @classmethod
-    def bulk_load(cls, collection_name: str, partition_name: str, channel_names: list, is_row_based: bool, files: list, **kwargs):
+    def bulk_load(cls, collection_name: str, partition_name: str, is_row_based: bool, files: list, **kwargs):
+        channel_names = kwargs.get("channel_names", None)
         req = milvus_types.ImportRequest(
             collection_name=collection_name,
             partition_name=partition_name,
-            channel_names=channel_names,
             row_based=is_row_based,
             files=files,
         )
+        if channel_names is not None:
+            req.channel_names.extend(channel_names)
 
         for k, v in kwargs.items():
             if k in ("bucket",):
@@ -911,6 +913,10 @@ class Prepare:
     def get_import_state(cls, task_id):
         req = milvus_types.GetImportStateRequest(task=task_id)
         return req
+
+    @classmethod
+    def list_import_tasks(cls):
+        return milvus_types.ListImportTasksRequest()
 
     @classmethod
     def create_credential_request(cls, user, password):
