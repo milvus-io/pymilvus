@@ -231,13 +231,13 @@ class Collection:
                                      FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True,
                                                  auto_id=True,
                                                  **kwargs))
-            else:
-                for field in fields_schema:
-                    if field.name == primary_field:
-                        field.is_primary = True
-                        field.auto_id = False
-                    if field.dtype == DataType.VARCHAR:
-                        field.params[DefaultConfigs.MaxVarCharLengthKey] = int(DefaultConfigs.MaxVarCharLength)
+
+            for field in fields_schema:
+                if auto_id is False and field.name == primary_field:
+                    field.is_primary = True
+                    field.auto_id = False
+                if field.dtype == DataType.VARCHAR:
+                    field.params[DefaultConfigs.MaxVarCharLengthKey] = int(DefaultConfigs.MaxVarCharLength)
             schema = CollectionSchema(fields=fields_schema)
 
         _check_schema(schema)
