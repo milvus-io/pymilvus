@@ -1179,8 +1179,8 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def bulk_load(self, collection_name, partition_name, channel_names: list, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
-        req = Prepare.bulk_load(collection_name, partition_name, channel_names, is_row_based, files, **kwargs)
+    def bulk_load(self, collection_name, partition_name, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
+        req = Prepare.bulk_load(collection_name, partition_name, is_row_based, files, **kwargs)
         future = self._stub.Import.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
@@ -1188,7 +1188,7 @@ class GrpcHandler:
         return response.tasks
 
     @error_handler
-    def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> list:
+    def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
         req = Prepare.get_import_state(task_id)
         future = self._stub.GetImportState.future(req, wait_for_ready=True, timeout=timeout)
         resp = future.result()
@@ -1196,6 +1196,19 @@ class GrpcHandler:
             raise MilvusException(resp.status.error_code, resp.status.reason)
         state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos)
         return state
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @error_handler
+    def list_bulk_load_tasks(self, timeout=None, **kwargs) -> list:
+        req = Prepare.list_import_tasks()
+        future = self._stub.ListImportTasks.future(req, wait_for_ready=True, timeout=timeout)
+        resp = future.result()
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        tasks = [BulkLoadState(t.id, t.state, t.row_count, t.id_list, t.infos)
+                 for t in resp.tasks]
+        return tasks
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
