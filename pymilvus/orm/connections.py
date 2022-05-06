@@ -140,6 +140,16 @@ class Connections(metaclass=SingleInstanceMetaClass):
             * *password* (``str``) --
                 Optional and required when user is provided. The password corresponding to
                 the user.
+            * *secure* (``bool``) --
+                Optional. Default is false. If set to true, tls will be enabled.
+            * *client_key_path* (``str``) --
+                Optional. If use a self-signed certificate, need to write the client.key path.
+            * *client_pem_path* (``str``) --
+                Optional. If use a self-signed certificate, need to write the client.pem path.
+            * *ca_pem_path* (``str``) --
+                Optional. If use a self-signed certificate, need to write the ca.pem path.
+            * *server_name* (``str``) --
+                Optional. If use a self-signed certificate, need to write the common name.
 
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.
