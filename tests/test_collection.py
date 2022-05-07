@@ -47,7 +47,7 @@ class TestCollections:
                     collection = Collection(name=coll_name)
 
         with mock.patch(f"{prefix}.drop_collection", return_value=None):
-            with mock.patch(f"{prefix}.describe_index", return_value=None):
+            with mock.patch(f"{prefix}.describe_indexes", return_value=[]):
                 collection.drop()
 
     @pytest.mark.xfail

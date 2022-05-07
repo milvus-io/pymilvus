@@ -12,6 +12,7 @@
 
 import copy
 import pandas
+import json
 
 from .connections import connections
 from .schema import (
@@ -411,7 +412,7 @@ class Collection:
         conn = self._get_connection()
         indexes = self.indexes
         for index in indexes:
-            index.drop(timeout=timeout, **kwargs)
+            index.drop(timeout=timeout, index_name=index.index_name, **kwargs)
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
     def load(self, partition_names=None, replica_number=1, timeout=None, **kwargs):
@@ -952,10 +953,13 @@ class Collection:
         """
         conn = self._get_connection()
         indexes = []
-        tmp_index = conn.describe_index(self._name, "")
-        if tmp_index is not None:
-            field_name = tmp_index.pop("field_name", None)
-            indexes.append(Index(self, field_name, tmp_index, construct_only=True))
+        tmp_index = conn.describe_indexes(self._name)
+        for index in tmp_index:
+            if index is not None:
+                info_dict = {kv.key: kv.value for kv in index.params}
+                if info_dict.get("params", None):
+                    info_dict["params"] = json.loads(info_dict["params"])
+                indexes.append(Index(self, index.field_name, info_dict, index_name=index.index_name, construct_only=True))
         return indexes
 
     def index(self, **kwargs) -> Index:

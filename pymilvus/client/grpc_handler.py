@@ -648,6 +648,21 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
+    def describe_indexes(self, collection_name, timeout=None, **kwargs):
+        check_pass_param(collection_name=collection_name)
+        request = Prepare.describe_index_request(collection_name, "")
+
+        rf = self._stub.DescribeIndex.future(request, wait_for_ready=True, timeout=timeout)
+        response = rf.result()
+        status = response.status
+        if status.error_code == 0:
+            return response.index_descriptions
+        if status.error_code == Status.INDEX_NOT_EXIST:
+            return []
+        raise MilvusException(status.error_code, status.reason)
+
+    @retry_on_rpc_failure(retry_times=10, wait=1)
+    @error_handler
     def describe_index(self, collection_name, index_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.describe_index_request(collection_name, index_name)
