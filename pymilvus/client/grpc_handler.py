@@ -10,6 +10,7 @@ from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
 from ..grpc_gen import milvus_pb2 as milvus_types
+from ..grpc_gen import common_pb2
 
 from .abstract import CollectionSchema, ChunkedQueryResult, MutationResult
 from .check import (
@@ -200,10 +201,9 @@ class GrpcHandler:
     def has_collection(self, collection_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.has_collection_request(collection_name)
-
-        rf = self._stub.HasCollection.future(request, wait_for_ready=True, timeout=timeout)
+        rf = self._stub.HasCollection.future(request, timeout=timeout)
         reply = rf.result()
-        if reply.status.error_code == 0:
+        if reply.status.error_code == common_pb2.Success:
             return reply.value
 
         raise MilvusException(reply.status.error_code, reply.status.reason)
