@@ -84,6 +84,7 @@ class Collection:
             * *consistency_level* (``str/int``) --
             Which consistency level to use when searching in the collection. For details, see
             https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
+            Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
             Note: this parameter can be overwritten by the same parameter specified in search.
 
         :example:
@@ -622,8 +623,10 @@ class Collection:
             * *consistency_level* (``str/int``) --
               Which consistency level to use when searching in the collection. See details in
               https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
+              Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
               Note: this parameter will overwrite the same parameter specified when user created the collection,
-              if no consistency level was specified, search will use the consistency level when you create the collection.
+              if no consistency level was specified, search will use the consistency level when you create the
+              collection.
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is provided, then Milvus will search all operations performed to date.
@@ -711,8 +714,10 @@ class Collection:
             * *consistency_level* (``str/int``) --
               Which consistency level to use during a query on the collection. For details, see
               https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
+              Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
               Note: this parameter will overwrite the same parameter specified when user created the collection,
-              if no consistency level was specified, query will use the consistency level when you create the collection.
+              if no consistency level was specified, query will use the consistency level when you create the
+              collection.
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is specified, Milvus queries all operations performed to date.
@@ -1055,6 +1060,10 @@ class Collection:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur
         :type  timeout: float
+
+        :param kwargs:
+            * *index_name* (``str``) --
+              The name of index. If no index is specified, the default index name is used.
 
         :return bool:
             Whether the specified index exists.
