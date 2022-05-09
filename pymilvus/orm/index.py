@@ -117,10 +117,10 @@ class Index:
     @property
     def index_name(self) -> str:
         """
-        Returns the corresponding field name.
+        Returns the corresponding index name.
 
         :return str:
-            The corresponding field name.
+            The corresponding index name.
         """
         return self._index_name
 
@@ -149,6 +149,10 @@ class Index:
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur
         :type  timeout: float
+
+        :param kwargs:
+            * *index_name* (``str``) --
+              The name of index. If no index is specified, the default index name is used.
 
         :raises IndexNotExistException: If the specified index does not exist.
         """
