@@ -1127,7 +1127,7 @@ class Collection:
         if self.has_index(index_name=index_name) is False:
             raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, index_name)
+        tmp_index = conn.describe_index(self._name, index_name, timeout)
         if tmp_index is not None:
             index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True, index_name=index_name)
             index.drop(timeout=timeout, **kwargs)

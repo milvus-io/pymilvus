@@ -543,6 +543,9 @@ class GrpcHandler:
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         # for historical reason, index_name contained in kwargs.
         index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
+        copy_kwargs = copy.deepcopy(kwargs)
+        if copy_kwargs.get("index_name"):
+            copy_kwargs.pop("index_name")
 
         def check_index_params(params):
             params = params or dict()
@@ -577,7 +580,7 @@ class GrpcHandler:
                     raise ParamError("Invalid metric_type: " + params['metric_type'] +
                                      ", which does not match the index type: " + params['index_type'])
 
-        collection_desc = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+        collection_desc = self.describe_collection(collection_name, timeout=timeout, **copy_kwargs)
 
         valid_field = False
         for fields in collection_desc["fields"]:
@@ -592,9 +595,9 @@ class GrpcHandler:
             index_type = params["index_type"].upper()
             if index_type == "FLAT":
                 try:
-                    index_desc = self.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
+                    index_desc = self.describe_index(collection_name, index_name, timeout=timeout, **copy_kwargs)
                     if index_desc is not None:
-                        self.drop_index(collection_name, field_name, index_name, timeout=timeout, **kwargs)
+                        self.drop_index(collection_name, field_name, index_name, timeout=timeout, **copy_kwargs)
                     res_status = Status(Status.SUCCESS,
                                         "Warning: It is not necessary to build index with index_type: FLAT")
                     if kwargs.get("_async", False):
