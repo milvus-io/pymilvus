@@ -50,6 +50,9 @@ class TestCollections:
             with mock.patch(f"{prefix}.describe_indexes", return_value=[]):
                 collection.drop()
 
+        with mock.patch(f"{prefix}.close", return_value=None):
+            connections.disconnect("default")
+
     @pytest.mark.xfail
     def test_constructor(self, collection):
         assert type(collection) is Collection
