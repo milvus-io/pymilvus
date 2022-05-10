@@ -44,13 +44,13 @@ def retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=True):
                     # UNAVAILABLE means that the service is not reachable currently
                     # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
                     if e.code() != grpc.StatusCode.DEADLINE_EXCEEDED and e.code() != grpc.StatusCode.UNAVAILABLE:
-                        raise e
+                        raise BaseException(Status.UNEXPECTED_ERROR, str(e)) from e
                     if not retry_on_deadline and e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                        raise e
+                        raise BaseException(Status.UNEXPECTED_ERROR, str(e)) from e
                     if counter >= retry_times:
                         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                            raise BaseException(Status.UNEXPECTED_ERROR, "rpc timeout")
-                        raise e
+                            raise BaseException(Status.UNEXPECTED_ERROR, "rpc timeout") from e
+                        raise BaseException(Status.UNEXPECTED_ERROR, str(e)) from e
                     time.sleep(wait)
                 except Exception as e:
                     raise e
