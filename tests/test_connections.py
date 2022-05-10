@@ -4,13 +4,109 @@ import pymilvus
 from unittest import mock
 
 from pymilvus import connections
-from pymilvus import DefaultConfig
+from pymilvus import DefaultConfig, MilvusException
 
 LOGGER = logging.getLogger(__name__)
 
 
-# TODO rewrite
-@pytest.mark.xfail
+class TestAddConnection:
+    @pytest.fixture(scope="function", params=[
+        {"host": "localhost", "port": "19530"},
+        {"host": "localhost", "port": "19531"},
+        {"host": "localhost", "port": "19530", "random": "useless"},
+    ])
+    def addr(self, request):
+        return request.param
+
+    @pytest.fixture(scope="function", params=[
+        {"host": None, "port": "19530"},
+        {"host": 1, "port": "19531"},
+        {"host": 1.0, "port": "19530", "random": "useless"},
+    ])
+    def invalid_host(self, request):
+        return request.param
+
+    @pytest.fixture(scope="function", params=[
+        {"host": "localhost", "port": None},
+        {"host": "localhost", "port": 1.0},
+        {"host": "localhost", "port": b'19530', "random": "useless"},
+    ])
+    def invalid_port(self, request):
+        return request.param
+
+    @pytest.mark.skip("TODO: empty user in connection addr")
+    def test_add_connection_no_error(self, addr):
+        add_connection = connections.add_connection
+
+        add_connection(test=addr)
+        assert connections.get_connection_addr("test") == addr
+
+        connections.remove_connection("test")
+
+    def test_add_connection_no_error_with_user(self):
+        add_connection = connections.add_connection
+
+        addr = {"host": "localhost", "port": "19530", "user": "_user"}
+
+        add_connection(test=addr)
+        assert connections.get_connection_addr("test") == addr
+
+        add_connection(default=addr)
+        assert connections.get_connection_addr("default") == addr
+
+        connections.remove_connection("test")
+        connections.remove_connection("default")
+
+    def test_add_connection_raise_NoHostPort(self, addr):
+        add_connection = connections.add_connection
+
+        host = addr.pop("host")
+        port = addr.pop("port")
+        LOGGER.info(f"Address: {addr}")
+        with pytest.raises(MilvusException):
+            add_connection(test=addr)
+
+        addr["host"] = host
+        LOGGER.info(f"Address: {addr}")
+        with pytest.raises(MilvusException) as excinfo:
+            add_connection(test=addr)
+
+        LOGGER.info(f"Exception info: {excinfo.value}")
+        assert "connection configuration must contain" in excinfo.value.message
+        assert 0 == excinfo.value.code
+
+        host = addr.pop("host")
+        addr["port"] = port
+        LOGGER.info(f"Address: {addr}")
+        with pytest.raises(MilvusException) as excinfo:
+            add_connection(test=addr)
+
+        LOGGER.info(f"Exception info: {excinfo.value}")
+        assert "connection configuration must contain" in excinfo.value.message
+        assert 0 == excinfo.value.code
+
+    def test_add_connection_raise_HostType(self, invalid_host):
+        add_connection = connections.add_connection
+
+        with pytest.raises(MilvusException) as excinfo:
+            add_connection(test=invalid_host)
+
+        LOGGER.info(f"Exception info: {excinfo.value}")
+        assert "Type of 'host' must be str." in excinfo.value.message
+        assert 0 == excinfo.value.code
+
+    def test_add_connection_raise_PortType(self, invalid_port):
+        add_connection = connections.add_connection
+
+        with pytest.raises(MilvusException) as excinfo:
+            add_connection(test=invalid_port)
+
+        LOGGER.info(f"Exception info: {excinfo.value}")
+        assert "Type of 'port' must be str" in excinfo.value.message
+        assert 0 == excinfo.value.code
+
+
+@pytest.mark.skip("to remove")
 class TestConnections:
     @pytest.fixture(scope="function")
     def c(self):
