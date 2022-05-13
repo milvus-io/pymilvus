@@ -57,12 +57,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
     """
 
     def __init__(self):
-        """ Construct a Connections object.  """
-        self._alias = {
-            "default": {"host": DefaultConfig.DEFAULT_HOST,
-                        "port": DefaultConfig.DEFAULT_PORT,
-                        "user": ""},
-        }
+        """ Constructs a milvus connection  """
+        self._alias = {"default": {"host": DefaultConfig.DEFAULT_HOST,
+                                   "port": DefaultConfig.DEFAULT_PORT,
+                                   "user": ""}}
+
         self._connected_alias = {}
 
     def add_connection(self, **kwargs):
@@ -166,40 +165,36 @@ class Connections(metaclass=SingleInstanceMetaClass):
             tmp_port = tmp_kwargs.pop("port", None)
             gh = GrpcHandler(host=str(tmp_host), port=str(tmp_port), **tmp_kwargs)
             gh._wait_for_channel_ready()
-            return gh
 
-        if alias in self._connected_alias:
-            kwargs["user"] = user
-            if len(kwargs) > 0 and self._alias[alias] != kwargs:
+            kwargs.pop('password')
+            self._connected_alias[alias] = gh
+            self._alias[alias] = copy.deepcopy(kwargs)
+            return
+
+        def dup_alias_consist(cached_kw, current_kw) -> bool:
+            if ("host" in current_kw and cached_kw[alias].get("host") != current_kw.get("host")) or \
+               ("port" in current_kw and cached_kw[alias].get("port") != current_kw.get("port")):
+                return False
+            return True
+
+        kwargs["user"] = user
+        if self.has_connection(alias):
+            if not dup_alias_consist(self._alias, kwargs):
                 raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf % alias)
-            #  return self._conns[alias]
             return
 
         if alias in self._alias:
-            if len(kwargs) > 0:
-                if "host" not in kwargs or "port" not in kwargs:
-                    raise ConnectionConfigException(0, ExceptionsMessage.NoHostPort)
-                kwargs["user"] = user
-                conn = connect_milvus(**kwargs, password=password)
-                self._alias[alias] = copy.deepcopy(kwargs)
-                self._connected_alias[alias] = conn
+            if "host" not in kwargs and "port" not in kwargs:
+                connect_milvus(**self._alias.get(alias), password=password)
                 return
-                #  return conn
-            conn = connect_milvus(**self._alias[alias], password=password)
-            self._connected_alias[alias] = conn
-            return
-            #  return conn
 
-        if len(kwargs) > 0:
-            if "host" not in kwargs or "port" not in kwargs:
-                raise ConnectionConfigException(0, ExceptionsMessage.NoHostPort)
-            kwargs["user"] = user
-            conn = connect_milvus(**kwargs, password=password)
-            self._alias[alias] = copy.deepcopy(kwargs)
-            self._connected_alias[alias] = conn
-            return
-            #  return conn
-        raise ConnectionConfigException(0, ExceptionsMessage.ConnLackConf % alias)
+        if "host" not in kwargs and "port" not in kwargs:
+            raise ConnectionConfigException(0, ExceptionsMessage.ConnLackConf % alias)
+
+        if "host" not in kwargs or "port" not in kwargs:
+            raise ConnectionConfigException(0, ExceptionsMessage.NoHostPort)
+
+        connect_milvus(**kwargs, password=password)
 
     def list_connections(self) -> list:
         """ List names of all connections.
@@ -240,15 +235,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
         return self._alias.get(alias, {})
 
     def has_connection(self, alias: str) -> bool:
-        """
-        Retrieves connection configure by alias.
+        """ Check if connection named alias exists.
 
         :param alias: The name of milvus connection
         :type  alias: str
 
-        :return dict:
-            The connection configure which of the name is alias.
-            If alias does not exist, return empty dict.
+        :return bool:
+            if the connection of name alias exists.
 
         :example:
             >>> from pymilvus import connections
@@ -260,7 +253,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
         """
         if not isinstance(alias, str):
             raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
-
         return alias in self._connected_alias
 
     def _fetch_handler(self, alias=DefaultConfig.DEFAULT_USING) -> GrpcHandler:

@@ -8,6 +8,109 @@ from pymilvus import DefaultConfig, MilvusException
 
 LOGGER = logging.getLogger(__name__)
 
+mock_prefix = "pymilvus.client.grpc_handler.GrpcHandler"
+
+
+class TestConnect:
+    """
+        Connect to a connected alias will:
+        - ignore and return if no configs are given
+        - raise ConnectionConfigException if inconsistent configs are given
+
+        Connect to an existing and not connected alias will:
+        - connect with the existing alias config if no configs are given
+        - connect with the providing configs if valid, and replace the old ones.
+
+        Connect to a new alias will:
+        - connect with the provieding configs if valid, store the new alias with these configs
+
+    """
+    @pytest.fixture(scope="function", params=[
+        {},
+        {"random": "not useful"},
+    ])
+    def no_host_port(self, request):
+        return request.param
+
+    @pytest.fixture(scope="function", params=[
+        {"port": "19530"},
+        {"host": "localhost"},
+    ])
+    def no_host_or_port(self, request):
+        return request.param
+
+    def test_connect_with_default_config(self):
+        alias = "default"
+        default_addr = {"host": "localhost", "port": "19530", "user": ""}
+
+        assert connections.has_connection(alias) is False
+        addr = connections.get_connection_addr(alias)
+
+        assert addr == default_addr
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
+            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                connections.connect()
+
+        assert connections.has_connection(alias) is True
+
+        addr = connections.get_connection_addr(alias)
+        assert addr == default_addr
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.disconnect(alias)
+
+    def test_connect_new_alias_with_configs(self):
+        alias = "exist"
+        addr = {"host": "localhost", "port": "19530"}
+
+        assert connections.has_connection(alias) is False
+        a = connections.get_connection_addr(alias)
+        assert a == {}
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
+            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                connections.connect(alias, **addr)
+
+        assert connections.has_connection(alias) is True
+
+        a = connections.get_connection_addr(alias)
+        a.pop("user")
+        assert a == addr
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    def test_connect_new_alias_with_configs_NoHostOrPort(self, no_host_or_port):
+        alias = "no_host_or_port"
+
+        assert connections.has_connection(alias) is False
+        a = connections.get_connection_addr(alias)
+        assert a == {}
+
+        with pytest.raises(MilvusException) as einfo:
+            with mock.patch(f"{mock_prefix}.__init__", return_value=None):
+                with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                    connections.connect(alias, **no_host_or_port)
+        assert "connection configuration must contain" in einfo.value.message
+
+        assert connections.has_connection(alias) is False
+
+    def test_connect_new_alias_with_configs_LackConfig(self, no_host_port):
+        alias = "no_host_port"
+
+        assert connections.has_connection(alias) is False
+        a = connections.get_connection_addr(alias)
+        assert a == {}
+
+        with pytest.raises(MilvusException) as einfo:
+            with mock.patch(f"{mock_prefix}.__init__", return_value=None):
+                with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                    connections.connect(alias, **no_host_port)
+        assert "You need to pass in" in einfo.value.message
+
+        assert connections.has_connection(alias) is False
+
 
 class TestAddConnection:
     @pytest.fixture(scope="function", params=[
