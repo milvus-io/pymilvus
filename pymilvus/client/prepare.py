@@ -324,129 +324,20 @@ class Prepare:
         return request
 
     @classmethod
-    def _prepare_placeholders(cls, vectors, nq, max_nq_per_batch, tag, pl_type, is_binary, dimension=0):
-        pls = []
-        for begin in range(0, nq, max_nq_per_batch):
-            end = min(begin + max_nq_per_batch, nq)
-            pl = milvus_types.PlaceholderValue(tag=tag)
-            pl.type = pl_type
-            for i in range(begin, end):
-                if is_binary:
-                    if len(vectors[i]) * 8 != dimension:
-                        raise ParamError("The dimension of query entities is different from schema")
-                    pl.values.append(blob.vectorBinaryToBytes(vectors[i]))
-                else:
-                    if len(vectors[i]) != dimension:
-                        raise ParamError("The dimension of query entities is different from schema")
-                    pl.values.append(blob.vectorFloatToBytes(vectors[i]))
-            pls.append(pl)
-        return pls
-
-    @classmethod
-    def divide_search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=1,
-                              **kwargs):
-        schema = kwargs.get("schema", None)
-        fields_schema = schema.get("fields", None)  # list
-        fields_name_locs = {fields_schema[loc]["name"]: loc
-                            for loc in range(len(fields_schema))}
-
-        if not isinstance(query_entities, (dict,)):
-            raise ParamError("Invalid query format. 'query_entities' must be a dict")
-
-        duplicated_entities = copy.deepcopy(query_entities)
-        vector_placeholders = dict()
-        vector_names = dict()
-
-        meta = {}  # TODO: ugly here, find a better method
-
-        def extract_vectors_param(param, placeholders, meta=None, names=None, round_decimal=-1):
-            if not isinstance(param, (dict, list)):
-                return
-
-            if isinstance(param, dict):
-                if "vector" in param:
-                    # TODO: Here may not replace ph
-                    ph = "$" + str(len(placeholders))
-
-                    for pk, pv in param["vector"].items():
-                        if "query" not in pv:
-                            raise ParamError("param vector must contain 'query'")
-                        if "topk" not in pv:
-                            raise ParamError("dsl must contain 'topk'")
-                        topk = pv["topk"]
-                        if not isinstance(topk, (int, str)):
-                            raise ParamError("topk must be int or str")
-                        try:
-                            topk = int(topk)
-                        except Exception:
-                            raise ParamError("topk is not illegal") from None
-                        if topk < 0:
-                            raise ParamError("topk must be greater than zero")
-                        meta["topk"] = topk
-                        placeholders[ph] = pv["query"]
-                        names[ph] = pk
-                        param["vector"][pk]["query"] = ph
-                        param["vector"][pk]["round_decimal"] = round_decimal
-
-                    return
-                else:
-                    for _, v in param.items():
-                        extract_vectors_param(v, placeholders, meta, names, round_decimal)
-
-            if isinstance(param, list):
-                for item in param:
-                    extract_vectors_param(item, placeholders, meta, names, round_decimal)
-
-        extract_vectors_param(duplicated_entities, vector_placeholders, meta, vector_names, round_decimal)
-        if len(vector_placeholders) > 1:
-            raise ParamError("query on two vector field is not supported now!")
-
-        requests = []
-        factor = 10
-        topk = meta.get("topk", 100)  # TODO: ugly here, find a better method
-        for tag, vectors in vector_placeholders.items():
-            if len(vectors) <= 0:
-                continue
-
-            if isinstance(vectors[0], bytes):
-                bytes_per_vector = len(vectors[0])
+    def _prepare_placeholders(cls, vectors, nq, tag, pl_type, is_binary, dimension=0):
+        pl = milvus_types.PlaceholderValue(tag=tag)
+        pl.type = pl_type
+        for i in range(0, nq):
+            if is_binary:
+                if len(vectors[i]) * 8 != dimension:
+                    raise ParamError("The dimension of query entities is different from schema")
+                pl.values.append(blob.vectorBinaryToBytes(vectors[i]))
             else:
-                bytes_per_vector = len(vectors[0]) * 4
+                if len(vectors[i]) != dimension:
+                    raise ParamError("The dimension of query entities is different from schema")
+                pl.values.append(blob.vectorFloatToBytes(vectors[i]))
+        return pl
 
-            nq = len(vectors)
-            max_nq_per_batch = DefaultConfigs.MaxSearchResultSize / (bytes_per_vector * topk * factor)
-            max_nq_per_batch = int(max_nq_per_batch)
-            if max_nq_per_batch <= 0:
-                raise ParamError(f"topk {topk} is too large!")
-
-            if isinstance(vectors[0], bytes):
-                is_binary = True
-                pl_type = PlaceholderType.BinaryVector
-            else:
-                is_binary = False
-                pl_type = PlaceholderType.FloatVector
-
-            fname = vector_names[tag]
-            if fname not in fields_name_locs:
-                raise ParamError(f"Field {fname} doesn't exist in schema")
-            dimension = int(fields_schema[fields_name_locs[fname]]["params"].get("dim", 0))
-            pls = cls._prepare_placeholders(vectors, nq, max_nq_per_batch, tag, pl_type, is_binary, dimension)
-
-            for pl in pls:
-                plg = milvus_types.PlaceholderGroup()
-                plg.placeholders.append(pl)
-                plg_str = milvus_types.PlaceholderGroup.SerializeToString(plg)
-                request = milvus_types.SearchRequest(
-                    collection_name=collection_name,
-                    partition_names=partition_names,
-                    output_fields=fields,
-                    guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
-                )
-                request.dsl = ujson.dumps(duplicated_entities)
-                request.placeholder_group = plg_str
-                requests.append(request)
-
-            return requests
 
     @classmethod
     def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1,
@@ -543,7 +434,6 @@ class Prepare:
                             for loc in range(len(fields_schema))}
 
         requests = []
-
         if len(data) <= 0:
             return requests
 
@@ -556,19 +446,10 @@ class Prepare:
             is_binary = False
             pl_type = PlaceholderType.FloatVector
 
-        nq = len(data)
-        max_nq_per_batch = nq
-        factor = 2
-        max_nq_per_batch = DefaultConfigs.MaxSearchResultSize / (bytes_per_vector * limit * factor)
-        max_nq_per_batch = int(max_nq_per_batch)
-        if max_nq_per_batch <= 1:
-            raise ParamError(f"limit {limit} is too large!")
-
         tag = "$0"
         if anns_field not in fields_name_locs:
             raise ParamError(f"Field {anns_field} doesn't exist in schema")
         dimension = int(fields_schema[fields_name_locs[anns_field]]["params"].get("dim", 0))
-        pls = cls._prepare_placeholders(data, nq, max_nq_per_batch, tag, pl_type, is_binary, dimension)
 
         param_copy = copy.deepcopy(param)
         metric_type = param_copy.pop("metric_type", "L2")
@@ -583,27 +464,27 @@ class Prepare:
                 return ujson.dumps(v)
             return str(v)
 
-        for pl in pls:
-            plg = milvus_types.PlaceholderGroup()
-            plg.placeholders.append(pl)
-            plg_str = milvus_types.PlaceholderGroup.SerializeToString(plg)
-            request = milvus_types.SearchRequest(
-                collection_name=collection_name,
-                partition_names=partition_names,
-                output_fields=output_fields,
-                guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
-                travel_timestamp=kwargs.get("travel_timestamp", 0),
-            )
-            request.placeholder_group = plg_str
+        nq = len(data)
+        pl = cls._prepare_placeholders(data, nq, tag, pl_type, is_binary, dimension)
+        plg = milvus_types.PlaceholderGroup()
+        plg.placeholders.append(pl)
+        plg_str = milvus_types.PlaceholderGroup.SerializeToString(plg)
+        request = milvus_types.SearchRequest(
+            collection_name=collection_name,
+            partition_names=partition_names,
+            output_fields=output_fields,
+            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
+            travel_timestamp=kwargs.get("travel_timestamp", 0),
+        )
+        request.placeholder_group = plg_str
 
-            request.dsl_type = common_types.DslType.BoolExprV1
-            if expr is not None:
-                request.dsl = expr
-            request.search_params.extend([common_types.KeyValuePair(key=str(key), value=dump(value))
-                                          for key, value in search_params.items()])
+        request.dsl_type = common_types.DslType.BoolExprV1
+        if expr is not None:
+            request.dsl = expr
+        request.search_params.extend([common_types.KeyValuePair(key=str(key), value=dump(value))
+                                      for key, value in search_params.items()])
 
-            requests.append(request)
-
+        requests.append(request)
         return requests
 
     @classmethod
