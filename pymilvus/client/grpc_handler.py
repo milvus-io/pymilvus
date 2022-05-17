@@ -381,37 +381,6 @@ class GrpcHandler:
                 return MutationFuture(None, None, err)
             raise err
 
-    def _prepare_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
-                                round_decimal=-1, **kwargs):
-        rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
-                                             timeout=timeout)
-        reply = rf.result()
-        if reply.status.error_code != 0 or not reply.value:
-            raise CollectionNotExistException(reply.status.error_code, "collection not exists")
-
-        collection_schema = self.describe_collection(collection_name, timeout)
-        auto_id = collection_schema["auto_id"]
-        request = Prepare.search_request(collection_name, query_entities, partition_names, fields, round_decimal,
-                                         schema=collection_schema)
-
-        return request, auto_id
-
-    def _divide_search_request(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
-                               round_decimal=-1, **kwargs):
-        rf = self._stub.HasCollection.future(Prepare.has_collection_request(collection_name), wait_for_ready=True,
-                                             timeout=timeout)
-        reply = rf.result()
-        if reply.status.error_code != 0 or not reply.value:
-            raise CollectionNotExistException(reply.status.error_code, "collection not exists")
-
-        collection_schema = self.describe_collection(collection_name, timeout)
-        auto_id = collection_schema["auto_id"]
-        requests = Prepare.divide_search_request(collection_name, query_entities, partition_names, fields,
-                                                 round_decimal,
-                                                 schema=collection_schema)
-
-        return requests, auto_id
-
     @error_handler
     def _execute_search_requests(self, requests, timeout=None, **kwargs):
         auto_id = kwargs.get("auto_id", True)
@@ -444,23 +413,6 @@ class GrpcHandler:
             if kwargs.get("_async", False):
                 return SearchFuture(None, None, True, pre_err)
             raise pre_err
-
-    def _batch_search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
-                      round_decimal=-1, **kwargs):
-        requests, auto_id = self._divide_search_request(collection_name, query_entities, partition_names,
-                                                        fields, timeout, round_decimal, **kwargs)
-        kwargs["auto_id"] = auto_id
-        kwargs["round_decimal"] = round_decimal
-        return self._execute_search_requests(requests, timeout, **kwargs)
-
-    @error_handler
-    def _total_search(self, collection_name, query_entities, partition_names=None, fields=None, timeout=None,
-                      round_decimal=-1, **kwargs):
-        request, auto_id = self._prepare_search_request(collection_name, query_entities, partition_names,
-                                                        fields, timeout, round_decimal, **kwargs)
-        kwargs["auto_id"] = auto_id
-        kwargs["round_decimal"] = round_decimal
-        return self._execute_search_requests([request], timeout, **kwargs)
 
     @retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=False)
     @error_handler
