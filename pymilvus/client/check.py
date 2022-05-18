@@ -2,6 +2,7 @@ import sys
 import datetime
 from typing import Any, Union
 from ..exceptions import ParamError
+from ..grpc_gen import milvus_pb2 as milvus_types
 
 
 def is_legal_address(addr: Any) -> bool:
@@ -293,6 +294,40 @@ def is_legal_password(password) -> bool:
     return isinstance(password, str)
 
 
+def is_legal_role_name(role_name: Any) -> bool:
+    return role_name and isinstance(role_name, str)
+
+
+def is_legal_operate_user_role_type(operate_user_role_type: Any) -> bool:
+    return operate_user_role_type == milvus_types.OperateUserRoleType.AddUserToRole \
+           or operate_user_role_type == milvus_types.OperateUserRoleType.RemoveUserFromRole
+
+
+def is_legal_include_user_info(include_user_info: Any) -> bool:
+    return isinstance(include_user_info, bool)
+
+
+def is_legal_include_role_info(include_role_info: Any) -> bool:
+    return isinstance(include_role_info, bool)
+
+
+def is_legal_object(object: Any) -> bool:
+    return object and isinstance(object, str)
+
+
+def is_legal_object_name(object_name: Any) -> bool:
+    return object_name and isinstance(object_name, str)
+
+
+def is_legal_privilege(privilege: Any) -> bool:
+    return privilege and isinstance(privilege, str)
+
+
+def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
+    return operate_privilege_type == milvus_types.OperatePrivilegeType.Grant \
+           or operate_privilege_type == milvus_types.OperatePrivilegeType.Revoke
+
+
 def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
     if kwargs is None:
         raise ParamError("Param should not be None")
@@ -361,5 +396,29 @@ def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too
         # elif key in ("records",):
         #     if not is_legal_records(value):
         #         _raise_param_error(key, value)
+        elif key in ("role_name",):
+            if not is_legal_role_name(value):
+                _raise_param_error(key, value)
+        elif key in ("operate_user_role_type",):
+            if not is_legal_operate_user_role_type(value):
+                _raise_param_error(key, value)
+        elif key in ("include_user_info",):
+            if not is_legal_include_user_info(value):
+                _raise_param_error(key, value)
+        elif key in ("include_role_info",):
+            if not is_legal_include_role_info(value):
+                _raise_param_error(key, value)
+        elif key in ("object",):
+            if not is_legal_object(value):
+                _raise_param_error(key, value)
+        elif key in ("object_name",):
+            if not is_legal_object_name(value):
+                _raise_param_error(key, value)
+        elif key in ("privilege",):
+            if not is_legal_privilege(value):
+                _raise_param_error(key, value)
+        elif key in ("operate_privilege_type",):
+            if not is_legal_operate_privilege_type(value):
+                _raise_param_error(key, value)
         else:
             raise ParamError(f"unknown param `{key}`")

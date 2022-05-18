@@ -1191,3 +1191,128 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.list_usernames(timeout=timeout, **kwargs)
+
+    def create_role(self, role_name, timeout=None, **kwargs):
+        """ Create Role
+        :param role_name: the role name.
+        :type  role_name: str
+        """
+        with self._connection() as handler:
+            handler.create_role(role_name, timeout=timeout, **kwargs)
+
+    def drop_role(self, role_name, timeout=None, **kwargs):
+        """ Drop Role
+        :param role_name: role name.
+        :type  role_name: str
+        """
+        with self._connection() as handler:
+            handler.drop_role(role_name, timeout=timeout, **kwargs)
+
+    def add_user_to_role(self, username, role_name, timeout=None, **kwargs):
+        """ Add User To Role
+        :param username: user name.
+        :type  username: str
+        :param role_name: role name.
+        :type  role_name: str
+        """
+        with self._connection() as handler:
+            handler.add_user_to_role(username, role_name, timeout=timeout, **kwargs)
+
+    def remove_user_from_role(self, username, role_name, timeout=None, **kwargs):
+        """ Remove User From Role
+        :param username: user name.
+        :type  username: str
+        :param role_name: role name.
+        :type  role_name: str
+        """
+        with self._connection() as handler:
+            handler.remove_user_from_role(username, role_name, timeout=timeout, **kwargs)
+
+    def select_one_role(self, role_name, include_user_info, timeout=None, **kwargs):
+        """ Select One Role Info
+        :param role_name: role name.
+        :type  role_name: str
+        :param include_user_info: whether to obtain the user information associated with the role
+        :type  include_user_info: bool
+        """
+        with self._connection() as handler:
+            handler.select_one_role(role_name, include_user_info, timeout=timeout, **kwargs)
+
+    def select_all_role(self, include_user_info, timeout=None, **kwargs):
+        """ Select All Role Info
+        :param include_user_info: whether to obtain the user information associated with roles
+        :type  include_user_info: bool
+        """
+        with self._connection() as handler:
+            handler.select_all_role(include_user_info, timeout=timeout, **kwargs)
+
+    def select_one_user(self, username, include_role_info, timeout=None, **kwargs):
+        """ Select One User Info
+        :param username: user name.
+        :type  username: str
+        :param include_role_info: whether to obtain the role information associated with the user
+        :type  include_role_info: bool
+        """
+        with self._connection() as handler:
+            handler.select_one_user(username, include_role_info, timeout=timeout, **kwargs)
+
+    def select_all_user(self, include_role_info, timeout=None, **kwargs):
+        """ Select All User Info
+        :param include_role_info: whether to obtain the role information associated with users
+        :type  include_role_info: bool
+        """
+        with self._connection() as handler:
+            handler.select_all_role(include_role_info, timeout=timeout, **kwargs)
+
+    def grant_privilege(self, role_name, object, object_name, privilege,
+                        timeout=None, **kwargs):
+        """ Grant Privilege
+        :param role_name: role name.
+        :type  role_name: str
+        :param object: object that will be granted the privilege.
+        :type  object: str
+        :param object_name: identifies a specific resource name.
+        :type  object_name: str
+        :param privilege: privilege name.
+        :type  privilege: str
+        """
+        with self._connection() as handler:
+            handler.grant_privilege(role_name, object, object_name, privilege,
+                                    timeout=timeout, **kwargs)
+
+    def revoke_privilege(self, role_name, object, object_name, privilege,
+                         timeout=None, **kwargs):
+        """ Revoke Privilege
+        :param role_name: role name.
+        :type  role_name: str
+        :param object: object that will be granted the privilege.
+        :type  object: str
+        :param object_name: identifies a specific resource name.
+        :type  object_name: str
+        :param privilege: privilege name.
+        :type  privilege: str
+        """
+        with self._connection() as handler:
+            handler.revoke_privilege(role_name, object, object_name, privilege,
+                                     timeout=timeout, **kwargs)
+
+    def select_grant_for_one_role(self, role_name, timeout=None, **kwargs):
+        """ Select the grant info about the role
+        :param role_name: role name.
+        :type  role_name: str
+        """
+        with self._connection() as handler:
+            handler.select_grant_for_one_role(role_name, timeout=timeout, **kwargs)
+
+    def select_grant_for_role_and_object(self, role_name, object, object_name,
+                                         timeout=None, **kwargs):
+        """ Select the grant info about the role and specific object
+        :param role_name: role name.
+        :type  role_name: str
+        :param object: object that will be selected the privilege info.
+        :type  object: str
+        :param object_name: identifies a specific resource name.
+        :type  object_name: str
+        """
+        with self._connection() as handler:
+            handler.select_grant_for_role_and_object(role_name, object, object_name, timeout=timeout, **kwargs)

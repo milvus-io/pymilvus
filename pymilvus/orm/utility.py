@@ -810,8 +810,37 @@ def delete_user(user: str, using="default"):
 
 
 def list_usernames(using="default"):
-    """ List all user names.
+    """ List all usernames.
     :return list of str:
-        The user names in Milvus instances.
+        The usernames in Milvus instances.
     """
     return _get_connection(using).list_usernames()
+
+
+def list_roles(include_user_info: bool, using="default"):
+    """ List All Role Info
+    :param include_user_info: whether to obtain the user information associated with roles
+    :type  include_user_info: bool
+    :return RoleInfo
+    """
+    return _get_connection(using).select_one_role(include_user_info)
+
+
+def list_user(username: str, include_role_info: bool, using="default"):
+    """ List One User Info
+    :param username: user name.
+    :type  username: str
+    :param include_role_info: whether to obtain the role information associated with the user
+    :type  include_role_info: bool
+    :return UserInfo
+    """
+    return _get_connection(using).select_one_user(username, include_role_info)
+
+
+def list_users(include_role_info: bool, using="default"):
+    """ List All User Info
+    :param include_role_info: whether to obtain the role information associated with users
+    :type  include_role_info: bool
+    :return UserInfo
+    """
+    return _get_connection(using).select_all_user(include_role_info)
