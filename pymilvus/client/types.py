@@ -352,8 +352,6 @@ class BulkLoadState:
         common_pb2.ImportDownloaded: "BulkLoadDownloaded",
         common_pb2.ImportParsed: "BulkLoadParsed",
         common_pb2.ImportPersisted: "BulkLoadPersisted",
-        common_pb2.DataQueryable: "BulkLoadDataQueryable",
-        common_pb2.DataIndexed: "BulkLoadDataIndexed",
         common_pb2.ImportCompleted: "BulkLoadCompleted",
     }
 

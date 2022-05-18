@@ -325,7 +325,7 @@ class Prepare:
 
     @classmethod
     def _prepare_placeholders(cls, vectors, nq, tag, pl_type, is_binary, dimension=0):
-        pl = milvus_types.PlaceholderValue(tag=tag)
+        pl = common_types.PlaceholderValue(tag=tag)
         pl.type = pl_type
         for i in range(0, nq):
             if is_binary:
@@ -393,11 +393,11 @@ class Prepare:
         extract_vectors_param(duplicated_entities, vector_placeholders, vector_names, round_decimal)
         request.dsl = ujson.dumps(duplicated_entities)
 
-        plg = milvus_types.PlaceholderGroup()
+        plg = common_types.PlaceholderGroup()
         for tag, vectors in vector_placeholders.items():
             if len(vectors) <= 0:
                 continue
-            pl = milvus_types.PlaceholderValue(tag=tag)
+            pl = common_types.PlaceholderValue(tag=tag)
 
             fname = vector_names[tag]
             if fname not in fields_name_locs:
@@ -419,7 +419,7 @@ class Prepare:
             # vector_values_bytes = service_msg_types.VectorValues.SerializeToString(vector_values)
 
             plg.placeholders.append(pl)
-        plg_str = milvus_types.PlaceholderGroup.SerializeToString(plg)
+        plg_str = common_types.PlaceholderGroup.SerializeToString(plg)
         request.placeholder_group = plg_str
 
         return request
@@ -466,15 +466,16 @@ class Prepare:
 
         nq = len(data)
         pl = cls._prepare_placeholders(data, nq, tag, pl_type, is_binary, dimension)
-        plg = milvus_types.PlaceholderGroup()
+        plg = common_types.PlaceholderGroup()
         plg.placeholders.append(pl)
-        plg_str = milvus_types.PlaceholderGroup.SerializeToString(plg)
+        plg_str = common_types.PlaceholderGroup.SerializeToString(plg)
         request = milvus_types.SearchRequest(
             collection_name=collection_name,
             partition_names=partition_names,
             output_fields=output_fields,
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
             travel_timestamp=kwargs.get("travel_timestamp", 0),
+            nq=nq,
         )
         request.placeholder_group = plg_str
 
