@@ -139,13 +139,15 @@ class Connections(metaclass=SingleInstanceMetaClass):
             * *secure* (``bool``) --
                 Optional. Default is false. If set to true, tls will be enabled.
             * *client_key_path* (``str``) --
-                Optional. If use a self-signed certificate, need to write the client.key path.
+                Optional. If use tls two-way authentication, need to write the client.key path.
             * *client_pem_path* (``str``) --
-                Optional. If use a self-signed certificate, need to write the client.pem path.
+                Optional. If use tls two-way authentication, need to write the client.pem path.
             * *ca_pem_path* (``str``) --
-                Optional. If use a self-signed certificate, need to write the ca.pem path.
+                Optional. If use tls two-way authentication, need to write the ca.pem path.
+            * *server_pem_path* (``str``) --
+                Optional. If use tls one-way authentication, need to write the server.pem path.
             * *server_name* (``str``) --
-                Optional. If use a self-signed certificate, need to write the common name.
+                Optional. If use tls, need to write the common name.
 
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.
