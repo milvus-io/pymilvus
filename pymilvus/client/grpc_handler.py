@@ -337,20 +337,18 @@ class GrpcHandler:
             raise ParamError("Invalid binary vector data exists")
 
         try:
-            collection_id = self.describe_collection(collection_name, timeout, **kwargs)["collection_id"]
-
             request = self._prepare_bulk_insert_request(collection_name, entities, partition_name, timeout, **kwargs)
             rf = self._stub.Insert.future(request, wait_for_ready=True, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
                 f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
-                f.add_callback(ts_utils.update_ts_on_mutation(collection_id))
+                f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
                 return f
 
             response = rf.result()
             if response.status.error_code == 0:
                 m = MutationResult(response)
-                ts_utils.update_collection_ts(collection_id, m.timestamp)
+                ts_utils.update_collection_ts(collection_name, m.timestamp)
                 return m
 
             raise MilvusException(response.status.error_code, response.status.reason)
@@ -364,15 +362,13 @@ class GrpcHandler:
     def delete(self, collection_name, expression, partition_name=None, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         try:
-            collection_id = self.describe_collection(collection_name, timeout, **kwargs)["collection_id"]
-
             req = Prepare.delete_request(collection_name, partition_name, expression)
             future = self._stub.Delete.future(req, wait_for_ready=True, timeout=timeout)
 
             response = future.result()
             if response.status.error_code == 0:
                 m = MutationResult(response)
-                ts_utils.update_collection_ts(collection_id, m.timestamp)
+                ts_utils.update_collection_ts(collection_name, m.timestamp)
                 return m
 
             raise MilvusException(response.status.error_code, response.status.reason)
@@ -433,14 +429,13 @@ class GrpcHandler:
 
         _kwargs = copy.deepcopy(kwargs)
         collection_schema = self.describe_collection(collection_name, timeout)
-        collection_id = collection_schema["collection_id"]
         auto_id = collection_schema["auto_id"]
         consistency_level = collection_schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
         consistency_level = get_consistency_level(_kwargs.get("consistency_level", consistency_level))
         _kwargs["schema"] = collection_schema
 
-        ts_utils.construct_guarantee_ts(consistency_level, collection_id, _kwargs)
+        ts_utils.construct_guarantee_ts(consistency_level, collection_name, _kwargs)
 
         requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
                                                      partition_names, output_fields, round_decimal, **_kwargs)
@@ -965,12 +960,11 @@ class GrpcHandler:
             raise ParamError("Invalid query format. 'output_fields' must be a list")
 
         collection_schema = self.describe_collection(collection_name, timeout)
-        collection_id = collection_schema["collection_id"]
         consistency_level = collection_schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
         consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))
 
-        ts_utils.construct_guarantee_ts(consistency_level, collection_id, kwargs)
+        ts_utils.construct_guarantee_ts(consistency_level, collection_name, kwargs)
         guarantee_timestamp = kwargs.get("guarantee_timestamp", 0)
         travel_timestamp = kwargs.get("travel_timestamp", 0)
 

@@ -33,14 +33,14 @@ class TestTsUtils:
         ins = ts_utils._get_gts_dict()
         assert ins.get(1) == 0
 
-        ins.update(1, -1)
-        assert ins.get(1) == 0
+        ins.update("coll1", -1)
+        assert ins.get("coll1") == 0
 
-        ins.update(1, 2)
-        assert ins.get(1) == 2
+        ins.update("coll1", 2)
+        assert ins.get("coll1") == 2
 
-        ins.update(2, 100)
-        assert ins.get(2) == 100
+        ins.update("coll2", 100)
+        assert ins.get("coll2") == 100
 
     def test_get_current_bounded_ts(self):
         now = datetime.datetime.now().timestamp()
