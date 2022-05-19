@@ -2,9 +2,35 @@ pull_request_rules:
   - name: Test passed
     conditions:
       - base=master
+      - base=2.0
       - "status-success=Run Python Tests (3.8)"
     actions:
       label:
         add:
           - ci-passed
+  - name: Add needs-dco label when DCO check failed
+    conditions:
+      - or:
+        - base=master
+        - base=2.0
+      - -status-success=DCO
+    actions:
+      label:
+        remove:
+          - dco-passed
+        add:
+          - needs-dco
+
+  - name: Add dco-passed label when DCO check passed
+    conditions:
+      - or:
+        - base=master
+        - base=2.0
+      - status-success=DCO
+    actions:
+      label:
+        remove:
+          - needs-dco
+        add:
+          - dco-passed
 
