@@ -60,7 +60,7 @@ from .exceptions import (
     BaseException,
 )
 
-from ..decorators import retry_on_rpc_failure, error_handler, check_has_collection
+from ..decorators import retry_on_rpc_failure, error_handler
 
 LOGGER = logging.getLogger(__name__)
 
@@ -374,10 +374,9 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=False)
     @error_handler
-    @check_has_collection
     def search(self, collection_name, data, anns_field, param, limit,
                expression=None, partition_names=None, output_fields=None,
-               timeout=None, round_decimal=-1, **kwargs):
+               round_decimal=-1, timeout=None, **kwargs):
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
@@ -388,6 +387,10 @@ class GrpcHandler:
             travel_timestamp=kwargs.get("travel_timestamp", 0),
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0)
         )
+
+        if not self.has_collection(collection_name, timeout):
+            raise CollectionNotExistException(ErrorCode.CollectionNotExists,
+                                              f"collection {collection_name} doesn't exist!")
 
         _kwargs = copy.deepcopy(kwargs)
         collection_schema = self.describe_collection(collection_name, timeout)
