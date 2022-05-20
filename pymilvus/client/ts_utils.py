@@ -74,13 +74,13 @@ def get_eventually_ts():
     return EVENTUALLY_TS
 
 
-def construct_guarantee_ts(consistency_level, collection_id, kwargs):
+def construct_guarantee_ts(consistency_level, collection_name, kwargs):
     if consistency_level == ConsistencyLevel.Strong:
         # Milvus will assign a newest ts.
         kwargs["guarantee_timestamp"] = 0
     elif consistency_level == ConsistencyLevel.Session:
         # Using the last write ts of the collection.
-        kwargs["guarantee_timestamp"] = get_collection_ts(collection_id) or get_eventually_ts()
+        kwargs["guarantee_timestamp"] = get_collection_ts(collection_name) or get_eventually_ts()
     elif consistency_level == ConsistencyLevel.Bounded:
         # Using a timestamp which is close to but less than the current epoch.
         graceful_time = kwargs.get("graceful_time", DEFAULT_GRACEFUL_TIME)
