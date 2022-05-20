@@ -5,21 +5,10 @@ import functools
 
 import grpc
 
-from .exceptions import CollectionNotExistException, MilvusException
-from .client.types import ErrorCode, Status
+from .exceptions import MilvusException
+from .client.types import Status
 
 LOGGER = logging.getLogger(__name__)
-
-
-def check_has_collection(func):
-    @functools.wraps(func)
-    def handler(self, *args, **kwargs):
-        collection_name = args[0]
-        if not self.has_collection(collection_name):
-            raise CollectionNotExistException(ErrorCode.CollectionNotExists,
-                                              f"collection {collection_name} doesn't exist!")
-        return func(self, *args, **kwargs)
-    return handler
 
 
 def deprecated(func):
@@ -35,7 +24,23 @@ def retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=True):
     def wrapper(func):
         @functools.wraps(func)
         def handler(self, *args, **kwargs):
+            if "timeout" in kwargs:
+                _timeout = kwargs.get("timeout", None)
+            else:
+                _timeout = args[-1]
+
+            retry_timeout = _timeout if _timeout is not None and isinstance(_timeout, int) else None
             counter = 1
+            start_time = time.time()
+
+            def timeout(start_time) -> bool:
+                """ If timeout is valid, use timeout as the retry limits,
+                    If timeout is None, use retry_times as the retry limits.
+                """
+                if retry_timeout is not None:
+                    return time.time() - start_time >= retry_timeout
+                return counter >= retry_times
+
             while True:
                 try:
                     return func(self, *args, **kwargs)
@@ -47,7 +52,7 @@ def retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=True):
                         raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
                     if not retry_on_deadline and e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
                         raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
-                    if counter >= retry_times:
+                    if timeout(start_time):
                         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
                             raise MilvusException(Status.UNEXPECTED_ERROR, "rpc timeout")
                         raise MilvusException(Status.UNEXPECTED_ERROR, str(e))

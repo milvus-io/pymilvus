@@ -427,7 +427,7 @@ def list_collections(timeout=None, using="default") -> list:
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.list_collections()
     """
-    return _get_connection(using).list_collections()
+    return _get_connection(using).list_collections(timeout=timeout)
 
 
 def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using="default"):

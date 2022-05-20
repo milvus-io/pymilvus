@@ -167,7 +167,7 @@ class Milvus:
         with self._connection() as handler:
             return handler.describe_collection(collection_name, timeout)
 
-    def load_collection(self, collection_name, timeout=None, replica_number=1, **kwargs):
+    def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
         """
         Loads a specified collection from disk to memory.
 
@@ -189,7 +189,7 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.load_collection(collection_name=collection_name, timeout=timeout, replica_number=replica_number, **kwargs)
+            return handler.load_collection(collection_name=collection_name, replica_number=replica_number, timeout=timeout, **kwargs)
 
     def release_collection(self, collection_name, timeout=None):
         """

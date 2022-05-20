@@ -45,7 +45,6 @@ from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
 from ..client.configs import DefaultConfigs
 
 
-
 def _check_schema(schema):
     if schema is None:
         raise SchemaNotReadyException(0, ExceptionsMessage.NoSchema)
@@ -357,7 +356,7 @@ class Collection:
             """
         conn = self._get_connection()
         conn.flush([self._name])
-        stats = conn.get_collection_stats(db_name="", collection_name=self._name)
+        stats = conn.get_collection_stats(collection_name=self._name)
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
@@ -448,7 +447,7 @@ class Collection:
         if partition_names is not None:
             conn.load_partitions(self._name, partition_names, replica_number=replica_number, timeout=timeout, **kwargs)
         else:
-            conn.load_collection(self._name, timeout=timeout, replica_number=replica_number, **kwargs)
+            conn.load_collection(self._name, replica_number=replica_number, timeout=timeout, **kwargs)
 
     def release(self, timeout=None, **kwargs):
         """
@@ -688,7 +687,7 @@ class Collection:
 
         conn = self._get_connection()
         res = conn.search(self._name, data, anns_field, param, limit, expr,
-                          partition_names, output_fields, timeout, round_decimal, **kwargs)
+                          partition_names, output_fields, round_decimal, timeout, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
