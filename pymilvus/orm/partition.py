@@ -423,7 +423,7 @@ class Partition:
         """
         conn = self._get_connection()
         res = conn.search(self._collection.name, data, anns_field, param, limit,
-                          expr, [self._name], output_fields, timeout, round_decimal, **kwargs)
+                          expr, [self._name], output_fields, round_decimal, timeout, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
