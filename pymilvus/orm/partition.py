@@ -325,7 +325,7 @@ class Partition:
         """
 
         conn = self._get_connection()
-        res = conn.delete(self._collection.name, expr, self.name, timeout, **kwargs)
+        res = conn.delete(self._collection.name, expr, self.name, timeout=timeout, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
@@ -423,7 +423,7 @@ class Partition:
         """
         conn = self._get_connection()
         res = conn.search(self._collection.name, data, anns_field, param, limit,
-                          expr, [self._name], output_fields, round_decimal, timeout, **kwargs)
+                          expr, [self._name], output_fields, round_decimal, timeout=timeout, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
@@ -496,7 +496,7 @@ class Partition:
             - Query results: [{'film_id': 0, 'film_date': 2000}, {'film_id': 1, 'film_date': 2001}]
         """
         conn = self._get_connection()
-        res = conn.query(self._collection.name, expr, output_fields, [self._name], timeout, **kwargs)
+        res = conn.query(self._collection.name, expr, output_fields, [self._name], timeout=timeout, **kwargs)
         return res
 
     def get_replicas(self, timeout=None, **kwargs) -> Replica:

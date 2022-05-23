@@ -24,10 +24,8 @@ def retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=True):
     def wrapper(func):
         @functools.wraps(func)
         def handler(self, *args, **kwargs):
-            if "timeout" in kwargs:
-                _timeout = kwargs.get("timeout", None)
-            else:
-                _timeout = args[-1]
+            # This has to make sure every timeout parameter is passing throught kwargs form as `timeout=10`
+            _timeout = kwargs.get("timeout", None)
 
             retry_timeout = _timeout if _timeout is not None and isinstance(_timeout, int) else None
             counter = 1
