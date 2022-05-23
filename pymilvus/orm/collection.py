@@ -582,7 +582,7 @@ class Collection:
         """
 
         conn = self._get_connection()
-        res = conn.delete(self._name, expr, partition_name, timeout, **kwargs)
+        res = conn.delete(self._name, expr, partition_name, timeout=timeout, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
@@ -687,7 +687,7 @@ class Collection:
 
         conn = self._get_connection()
         res = conn.search(self._name, data, anns_field, param, limit, expr,
-                          partition_names, output_fields, round_decimal, timeout, **kwargs)
+                          partition_names, output_fields, round_decimal, timeout=timeout, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
@@ -768,7 +768,7 @@ class Collection:
             raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        res = conn.query(self._name, expr, output_fields, partition_names, timeout, **kwargs)
+        res = conn.query(self._name, expr, output_fields, partition_names, timeout=timeout, **kwargs)
         return res
 
     @property
@@ -1126,7 +1126,7 @@ class Collection:
         if self.has_index(index_name=index_name) is False:
             raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, index_name, timeout)
+        tmp_index = conn.describe_index(self._name, index_name, timeout=timeout)
         if tmp_index is not None:
             index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True, index_name=index_name)
             index.drop(timeout=timeout, **kwargs)
@@ -1177,7 +1177,7 @@ class Collection:
         :example:
         """
         conn = self._get_connection()
-        return conn.wait_for_compaction_completed(self.compaction_id, timeout, **kwargs)
+        return conn.wait_for_compaction_completed(self.compaction_id, timeout=timeout, **kwargs)
 
     def get_compaction_plans(self, timeout=None, **kwargs) -> CompactionPlans:
         """
