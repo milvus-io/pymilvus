@@ -43,11 +43,8 @@ class TestTsUtils:
         assert ins.get("coll2") == 100
 
     def test_get_current_bounded_ts(self):
-        now = datetime.datetime.now().timestamp()
-        ts1 = ts_utils.get_current_bounded_ts()
-        assert ts1 < ts_utils.mkts_from_unixtime(now)
-        ts2 = ts_utils.get_current_bounded_ts(200)
-        assert ts2 > ts1
+        ts = ts_utils.get_bounded_ts()
+        assert ts == ts_utils.BOUNDED_TS
 
     def test_get_eventually_ts(self):
         ts = ts_utils.get_eventually_ts()
