@@ -16,10 +16,12 @@ class ParamError(ValueError):
     Param of interface is illegal
     """
 
+
 class ResultError(ValueError):
     """
     Result of interface is illegal
     """
+
 
 class ConnectError(ValueError):
     """
@@ -80,6 +82,10 @@ class MilvusException(Exception):
 
     def __str__(self):
         return f"<{type(self).__name__}: (code={self._code}, message={self._message})>"
+
+
+class MilvusUnavaliableException(MilvusException):
+    pass
 
 
 class CollectionExistException(MilvusException):
