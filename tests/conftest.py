@@ -22,7 +22,7 @@ def channel(request):
 
 @pytest.fixture(scope="function")
 def client_thread(request):
-    client_execution_thread_pool = logging_pool.pool(1)
+    client_execution_thread_pool = logging_pool.pool(2)
 
     def teardown():
         client_execution_thread_pool.shutdown(wait=True)
