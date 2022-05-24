@@ -5,7 +5,7 @@ import functools
 
 import grpc
 
-from .client.exceptions import BaseException
+from .client.exceptions import BaseException, MilvusUnavaliableException
 from .client.types import Status
 
 LOGGER = logging.getLogger(__name__)
@@ -53,6 +53,8 @@ def retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=True):
                     if timeout(start_time):
                         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
                             raise BaseException(Status.UNEXPECTED_ERROR, "rpc timeout") from e
+                        if e.code() == grpc.StatusCode.UNAVAILABLE:
+                            raise MilvusUnavaliableException(Status.UNEXPECTED_ERROR, "server unavaliable")
                         raise BaseException(Status.UNEXPECTED_ERROR, str(e)) from e
                     time.sleep(wait)
                 except Exception as e:
