@@ -359,7 +359,7 @@ class Collection:
             """
         conn = self._get_connection()
         conn.flush([self._name])
-        stats = conn.get_collection_stats(db_name="", collection_name=self._name)
+        stats = conn.get_collection_stats(collection_name=self._name)
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
@@ -585,7 +585,7 @@ class Collection:
         """
 
         conn = self._get_connection()
-        res = conn.delete(self._name, expr, partition_name, timeout, **kwargs)
+        res = conn.delete(self._name, expr, partition_name, timeout=timeout, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
@@ -688,7 +688,7 @@ class Collection:
 
         conn = self._get_connection()
         res = conn.search(self._name, data, anns_field, param, limit, expr,
-                          partition_names, output_fields, timeout, round_decimal, **kwargs)
+                          partition_names, output_fields, round_decimal, timeout=timeout, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
@@ -767,7 +767,7 @@ class Collection:
             raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        res = conn.query(self._name, expr, output_fields, partition_names, timeout, **kwargs)
+        res = conn.query(self._name, expr, output_fields, partition_names, timeout=timeout, **kwargs)
         return res
 
     @property
@@ -1147,7 +1147,7 @@ class Collection:
         :example:
         """
         conn = self._get_connection()
-        return conn.wait_for_compaction_completed(self.compaction_id, timeout, **kwargs)
+        return conn.wait_for_compaction_completed(self.compaction_id, timeout=timeout, **kwargs)
 
     def get_compaction_plans(self, timeout=None, **kwargs) -> CompactionPlans:
         """

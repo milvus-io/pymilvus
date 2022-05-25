@@ -233,8 +233,8 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
         >>> utility.wait_for_loading_complete("test_collection")
     """
     if not partition_names or len(partition_names) == 0:
-        return _get_connection(using).wait_for_loading_collection(collection_name, timeout)
-    return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout)
+        return _get_connection(using).wait_for_loading_collection(collection_name, timeout=timeout)
+    return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
 
 
 def index_building_progress(collection_name, index_name="", using="default"):
@@ -328,7 +328,7 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> utility.loading_progress("test_collection")
 
     """
-    return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout)[0]
+    return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout=timeout)[0]
 
 
 def has_collection(collection_name, using="default"):
@@ -404,7 +404,7 @@ def drop_collection(collection_name, timeout=None, using="default"):
         >>> utility.has_collection("drop_collection_test")
         >>> False
     """
-    return _get_connection(using).drop_collection(collection_name, timeout)
+    return _get_connection(using).drop_collection(collection_name, timeout=timeout)
 
 
 def list_collections(timeout=None, using="default") -> list:
@@ -428,7 +428,7 @@ def list_collections(timeout=None, using="default") -> list:
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.list_collections()
     """
-    return _get_connection(using).list_collections()
+    return _get_connection(using).list_collections(timeout=timeout)
 
 
 def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using="default"):
@@ -485,7 +485,7 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
         >>> params = {"metric": "L2", "sqrt": True}
         >>> results = utility.calc_distance(vectors_left=op_l, vectors_right=op_r, params=params)
     """
-    res = _get_connection(using).calc_distance(vectors_left, vectors_right, params, timeout)
+    res = _get_connection(using).calc_distance(vectors_left, vectors_right, params, timeout=timeout)
 
     def vector_count(op):
         x = 0
@@ -542,7 +542,7 @@ def load_balance(src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeou
         dst_node_ids = []
     if sealed_segment_ids is None:
         sealed_segment_ids = []
-    return _get_connection(using).load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout)
+    return _get_connection(using).load_balance(src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout)
 
 
 def get_query_segment_info(collection_name, timeout=None, using="default"):
