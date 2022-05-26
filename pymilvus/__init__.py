@@ -19,7 +19,8 @@ from .client.exceptions import (
     NotConnectError,
     RepeatingConnectError,
     VersionError,
-    BaseException
+    BaseException,
+    MilvusUnavaliableException,
 )
 #  comment for dup
 #  from .client.asynch import MutationFuture
@@ -65,7 +66,7 @@ __all__ = [
     'SearchResult', 'Hits', 'Hit',
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',
-    'utility', 'DefaultConfig', 'ExceptionsMessage',
+    'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavaliableException'
 
     # pymilvus old style APIs
     'Milvus', 'Prepare', 'Status', 'DataType',

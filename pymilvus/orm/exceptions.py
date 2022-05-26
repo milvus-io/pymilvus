@@ -16,10 +16,12 @@ class ParamError(ValueError):
     Param of interface is illegal
     """
 
+
 class ResultError(ValueError):
     """
     Result of interface is illegal
     """
+
 
 class ConnectError(ValueError):
     """

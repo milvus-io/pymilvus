@@ -388,7 +388,7 @@ class GrpcHandler:
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0)
         )
 
-        if not self.has_collection(collection_name, timeout):
+        if not self.has_collection(collection_name, timeout=timeout):
             raise CollectionNotExistException(ErrorCode.CollectionNotExists,
                                               f"collection {collection_name} doesn't exist!")
 

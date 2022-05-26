@@ -64,6 +64,11 @@ class BaseException(Exception):
         return f"<{type(self).__name__}: (code={self._code}, message={self._message})>"
 
 
+class MilvusUnavaliableException(BaseException):
+    def __init__(self, code, message):
+        super().__init__(code, message)
+
+
 class CollectionExistException(BaseException):
     def __init__(self, code, message):
         super().__init__(code, message)
