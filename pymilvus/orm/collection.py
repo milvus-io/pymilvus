@@ -130,7 +130,9 @@ class Collection:
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
                 consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
-                conn.create_collection(self._name, fields=schema.to_dict(), shards_num=self._shards_num,
+                #  conn.create_collection(self._name, fields=schema.to_dict(), shards_num=self._shards_num,
+                #                         consistency_level=consistency_level)
+                conn.create_collection(self._name, fields=schema, shards_num=self._shards_num,
                                        consistency_level=consistency_level)
                 self._schema = schema
             else:
