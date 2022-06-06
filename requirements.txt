@@ -26,6 +26,7 @@ sphinxcontrib-htmlhelp==1.0.2
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.2
 sphinxcontrib-serializinghtml==1.1.3
+sphinxcontrib-napoleon
 sphinxcontrib-prettyspecialmethods
 pytest==5.3.4
 pytest-cov==2.8.1
