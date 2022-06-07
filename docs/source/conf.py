@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'pymilvus'
-copyright = '2021, Milvus'
+copyright = '2019-2022, Milvus'
 author = 'Milvus'
 
 # The full version, including alpha/beta/rc tags
@@ -38,7 +38,8 @@ extensions = [
     'sphinx_copybutton',
     'm2r',
     'sphinx.ext.autosummary',
-    'sphinxcontrib.prettyspecialmethods'
+    'sphinxcontrib.prettyspecialmethods',
+    'sphinxcontrib.napoleon'
 ]
 
 
@@ -66,6 +67,21 @@ language = 'python'
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
+# napoleon styes
+napoleon_google_docstring = True
+napoleon_numpy_docstring = False
+napoleon_include_init_with_doc = False
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = False
+napoleon_use_admonition_for_examples = False
+napoleon_use_admonition_for_notes = False
+napoleon_use_admonition_for_references = False
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+napoleon_use_keyword = True
+napoleon_custom_sections = None
+
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -74,7 +90,7 @@ exclude_patterns = []
 # html_theme = 'alabaster'
 html_theme = 'sphinx_rtd_theme'
 html_show_sphinx = False
-copyright = '2019-2021 Zilliz. All rights reserved.'
+copyright = '2019-2022 Zilliz. All rights reserved.'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
