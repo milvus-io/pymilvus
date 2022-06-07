@@ -10,7 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-COMMON_TYPE_PARAMS = ("dim", "max_length_per_row")
+COMMON_TYPE_PARAMS = ("dim", "max_length")
 
 
 
