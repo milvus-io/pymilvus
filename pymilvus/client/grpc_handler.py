@@ -1163,7 +1163,7 @@ class GrpcHandler:
         resp = future.result()
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
-        state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos)
+        state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.data_queryable, resp.data_indexed)
         return state
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
@@ -1175,7 +1175,7 @@ class GrpcHandler:
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
 
-        tasks = [BulkLoadState(t.id, t.state, t.row_count, t.id_list, t.infos)
+        tasks = [BulkLoadState(t.id, t.state, t.row_count, t.id_list, t.infos, t.data_queryable, t.data_indexed)
                  for t in resp.tasks]
         return tasks
 

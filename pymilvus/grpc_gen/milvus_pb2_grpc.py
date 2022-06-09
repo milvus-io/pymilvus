@@ -250,6 +250,46 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.ListCredUsersRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListCredUsersResponse.FromString,
                 )
+        self.CreateRole = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CreateRole',
+                request_serializer=milvus__pb2.CreateRoleRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.DropRole = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DropRole',
+                request_serializer=milvus__pb2.DropRoleRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.OperateUserRole = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/OperateUserRole',
+                request_serializer=milvus__pb2.OperateUserRoleRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.SelectRole = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/SelectRole',
+                request_serializer=milvus__pb2.SelectRoleRequest.SerializeToString,
+                response_deserializer=milvus__pb2.SelectRoleResponse.FromString,
+                )
+        self.SelectUser = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/SelectUser',
+                request_serializer=milvus__pb2.SelectUserRequest.SerializeToString,
+                response_deserializer=milvus__pb2.SelectUserResponse.FromString,
+                )
+        self.SelectResource = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/SelectResource',
+                request_serializer=milvus__pb2.SelectResourceRequest.SerializeToString,
+                response_deserializer=milvus__pb2.SelectResourceResponse.FromString,
+                )
+        self.OperatePrivilege = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/OperatePrivilege',
+                request_serializer=milvus__pb2.OperatePrivilegeRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.SelectGrant = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/SelectGrant',
+                request_serializer=milvus__pb2.SelectGrantRequest.SerializeToString,
+                response_deserializer=milvus__pb2.SelectGrantResponse.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -541,6 +581,55 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateRole(self, request, context):
+        """https://wiki.lfaidata.foundation/display/MIL/MEP+29+--+Support+Role-Based+Access+Control
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropRole(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def OperateUserRole(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SelectRole(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SelectUser(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SelectResource(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def OperatePrivilege(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SelectGrant(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -778,6 +867,46 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.ListCredUsers,
                     request_deserializer=milvus__pb2.ListCredUsersRequest.FromString,
                     response_serializer=milvus__pb2.ListCredUsersResponse.SerializeToString,
+            ),
+            'CreateRole': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateRole,
+                    request_deserializer=milvus__pb2.CreateRoleRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DropRole': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropRole,
+                    request_deserializer=milvus__pb2.DropRoleRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'OperateUserRole': grpc.unary_unary_rpc_method_handler(
+                    servicer.OperateUserRole,
+                    request_deserializer=milvus__pb2.OperateUserRoleRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'SelectRole': grpc.unary_unary_rpc_method_handler(
+                    servicer.SelectRole,
+                    request_deserializer=milvus__pb2.SelectRoleRequest.FromString,
+                    response_serializer=milvus__pb2.SelectRoleResponse.SerializeToString,
+            ),
+            'SelectUser': grpc.unary_unary_rpc_method_handler(
+                    servicer.SelectUser,
+                    request_deserializer=milvus__pb2.SelectUserRequest.FromString,
+                    response_serializer=milvus__pb2.SelectUserResponse.SerializeToString,
+            ),
+            'SelectResource': grpc.unary_unary_rpc_method_handler(
+                    servicer.SelectResource,
+                    request_deserializer=milvus__pb2.SelectResourceRequest.FromString,
+                    response_serializer=milvus__pb2.SelectResourceResponse.SerializeToString,
+            ),
+            'OperatePrivilege': grpc.unary_unary_rpc_method_handler(
+                    servicer.OperatePrivilege,
+                    request_deserializer=milvus__pb2.OperatePrivilegeRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'SelectGrant': grpc.unary_unary_rpc_method_handler(
+                    servicer.SelectGrant,
+                    request_deserializer=milvus__pb2.SelectGrantRequest.FromString,
+                    response_serializer=milvus__pb2.SelectGrantResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -1585,6 +1714,142 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListCredUsers',
             milvus__pb2.ListCredUsersRequest.SerializeToString,
             milvus__pb2.ListCredUsersResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateRole(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CreateRole',
+            milvus__pb2.CreateRoleRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DropRole(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DropRole',
+            milvus__pb2.DropRoleRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def OperateUserRole(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/OperateUserRole',
+            milvus__pb2.OperateUserRoleRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SelectRole(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/SelectRole',
+            milvus__pb2.SelectRoleRequest.SerializeToString,
+            milvus__pb2.SelectRoleResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SelectUser(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/SelectUser',
+            milvus__pb2.SelectUserRequest.SerializeToString,
+            milvus__pb2.SelectUserResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SelectResource(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/SelectResource',
+            milvus__pb2.SelectResourceRequest.SerializeToString,
+            milvus__pb2.SelectResourceResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def OperatePrivilege(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/OperatePrivilege',
+            milvus__pb2.OperatePrivilegeRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SelectGrant(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/SelectGrant',
+            milvus__pb2.SelectGrantRequest.SerializeToString,
+            milvus__pb2.SelectGrantResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
