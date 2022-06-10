@@ -637,8 +637,8 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def get_index_build_progress(self, collection_name, index_name, timeout=None):
-        request = Prepare.get_index_build_progress(collection_name, index_name)
+    def get_index_build_progress(self, collection_name, field_name, index_name, timeout=None):
+        request = Prepare.get_index_build_progress(collection_name, field_name, index_name)
         rf = self._stub.GetIndexBuildProgress.future(request, wait_for_ready=True, timeout=timeout)
         response = rf.result()
         status = response.status

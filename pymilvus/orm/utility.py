@@ -236,7 +236,7 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
     return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
 
 
-def index_building_progress(collection_name, index_name="", using="default"):
+def index_building_progress(collection_name, index_name="", field_name="", using="default"):
     """
     Show # indexed entities vs. # total entities.
 
@@ -281,10 +281,10 @@ def index_building_progress(collection_name, index_name="", using="default"):
         >>> utility.index_building_progress("test_collection", "")
         >>> utility.loading_progress("test_collection")
     """
-    return _get_connection(using).get_index_build_progress(collection_name, index_name)
+    return _get_connection(using).get_index_build_progress(collection_name, field_name, index_name)
 
 
-def wait_for_index_building_complete(collection_name, index_name="", timeout=None, using="default"):
+def wait_for_index_building_complete(collection_name, index_name="", field_name="", timeout=None, using="default"):
     """
     Block until building is done or Raise Exception after timeout.
 
@@ -327,7 +327,7 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> utility.loading_progress("test_collection")
 
     """
-    return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout=timeout)[0]
+    return _get_connection(using).wait_for_creating_index(collection_name, field_name, timeout=timeout, index_name=index_name)[0]
 
 
 def has_collection(collection_name, using="default"):
