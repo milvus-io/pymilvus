@@ -533,8 +533,9 @@ class Prepare:
         return milvus_types.DescribeIndexProgressRequest(collection_name=collection_name, field_name=field_name)
 
     @classmethod
-    def get_index_build_progress(cls, collection_name, field_name):
-        return milvus_types.GetIndexBuildProgressRequest(collection_name=collection_name, field_name=field_name)
+    def get_index_build_progress(cls, collection_name, field_name, index_name):
+        return milvus_types.GetIndexBuildProgressRequest(collection_name=collection_name, field_name=field_name,
+                                                         index_name=index_name)
 
     @classmethod
     def get_index_state_request(cls, collection_name, field_name, **kwargs):
