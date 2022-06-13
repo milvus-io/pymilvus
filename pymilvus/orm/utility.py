@@ -705,7 +705,10 @@ def list_aliases(collection_name: str, timeout=None, using="default"):
         >>> utility.list_aliases(collection.name)
         ['tom']
     """
-    pass
+    conn = _get_connection(using)
+    resp = conn.describe_collection(collection_name, timeout=timeout)
+    aliases = resp["aliases"]
+    return aliases
 
 
 def bulk_load(collection_name: str, partition_name: str, is_row_based: bool, files: list, timeout=None, using="default", **kwargs) -> list:

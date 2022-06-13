@@ -257,6 +257,19 @@ class Collection:
         return self._schema
 
     @property
+    def aliases(self) -> list:
+        """
+        Returns the aliases of the collection.
+
+        :return list[str]:
+            Aliases of the collection.
+        """
+        conn = self._get_connection()
+        resp = conn.describe_collection(self._name)
+        aliases = resp["aliases"]
+        return aliases
+
+    @property
     def description(self) -> str:
         """
         Returns a text description of the collection.
