@@ -86,6 +86,7 @@ class GrpcHandler:
         self._client_pem_path = kwargs.get("client_pem_path", "")
         self._client_key_path = kwargs.get("client_key_path", "")
         self._ca_pem_path = kwargs.get("ca_pem_path", "")
+        self._server_pem_path = kwargs.get("server_pem_path", "")
         self._server_name = kwargs.get("server_name", "")
         self._authorization_interceptor = None
         self._setup_authorization_interceptor(kwargs.get("user", None), kwargs.get("password", None))
@@ -142,7 +143,11 @@ class GrpcHandler:
                     with open(self._ca_pem_path, 'rb') as f:
                         root_certificates = f.read()
                     creds = grpc.ssl_channel_credentials(root_certificates, private_key, certificate_chain)
-
+                elif self._server_pem_path != "" and self._server_name != "":
+                    opts.append(('grpc.ssl_target_name_override', self._server_name,), )
+                    with open(self._server_pem_path, 'rb') as f:
+                        server_pem = f.read()
+                    creds = grpc.ssl_channel_credentials(root_certificates=server_pem)
                 else:
                     creds = grpc.ssl_channel_credentials(root_certificates=None, private_key=None,
                                                          certificate_chain=None)
