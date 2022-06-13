@@ -339,10 +339,12 @@ class Replica:
 
 class BulkLoadState:
     """ Bulk load state:
-- taskID    : 1,
-- state     : "BulkLoadDownloaded",
-- row_count : 1000,
-- infos     : {"info key": "info value"}
+- taskID            : 1,
+- state             : "BulkLoadDownloaded",
+- row_count         : 1000,
+- infos             : {"info key": "info value"},
+- data_queryable    : True,
+- data_indexed      : True
 """
 
     state_2_name = {
@@ -355,22 +357,26 @@ class BulkLoadState:
         common_pb2.ImportCompleted: "BulkLoadCompleted",
     }
 
-    def __init__(self, task_id, state, row_count: int, ids: list, infos):
+    def __init__(self, task_id, state, row_count: int, ids: list, infos, data_queryable: bool, data_indexed: bool):
         self._task_id = task_id
         self._state = state
         self._row_count = row_count
         self._ids = ids
+        self._data_queryable = data_queryable
+        self._data_indexed = data_indexed
 
         self._infos = {kv.key: kv.value for kv in infos}
 
     def __repr__(self) -> str:
         fmt = """<Bulk load state:
-    - taskID    : {},
-    - state     : {},
-    - row_count : {},
-    - infos     : {}
+    - taskID          : {},
+    - state           : {},
+    - row_count       : {},
+    - infos           : {},
+    - data_queryable  : {},
+    - data_indexed    : {}
 >"""
-        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos)
+        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos, self._data_queryable, self._data_indexed)
 
     @property
     def row_count(self):
@@ -397,3 +403,11 @@ class BulkLoadState:
     def infos(self):
         """more informations about the task, progress percentage, file path, failed reason, etc."""
         return self._infos
+
+    @property
+    def data_queryable(self):
+        return self._data_queryable
+
+    @property
+    def data_indexed(self):
+        return self._data_indexed
