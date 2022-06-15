@@ -19,5 +19,5 @@ package:
 get_proto:
 	git submodule update --init
 
-gen_proto: get_proto
+gen_proto:
 	cd pymilvus/grpc_gen && ./python_gen.sh
