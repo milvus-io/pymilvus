@@ -21,3 +21,6 @@ get_proto:
 
 gen_proto:
 	cd pymilvus/grpc_gen && ./python_gen.sh
+
+check_proto_product: gen_proto
+	./check_proto_product.sh
