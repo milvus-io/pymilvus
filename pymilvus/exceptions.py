@@ -196,6 +196,7 @@ class ExceptionsMessage:
     AutoIDWithData = "Auto_id is True, primary field should not have data."
     AutoIDType = "Param auto_id must be bool type."
     AutoIDInconsistent = "The auto_id of the collection is inconsistent with the auto_id of the primary key field."
+    ConsistencyLevelInconsistent = "The collection already exist, but the consistency_level is not the same as the parameter passed in."
     AutoIDOnlyOnPK = "The auto_id can only be specified on the primary key field"
     AutoIDFieldType = "The auto_id can only be specified on field with DataType.INT64"
     FieldsNumInconsistent = "The data fields number is not match with schema."
