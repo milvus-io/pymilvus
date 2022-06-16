@@ -53,6 +53,8 @@ $ git sumodule update --init
 
 Q2. How to generate python files from milvus-proto?
 
+**Before generating python files, please install requirements in `requirements.txt`**
+
 A2.
 ```shell
 $ make gen_proto
