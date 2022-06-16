@@ -322,7 +322,9 @@ class GrpcHandler:
         if not isinstance(entities, list):
             raise ParamError("None entities, please provide valid entities.")
 
-        collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+        collection_schema = kwargs.get("schema", None)
+        if not collection_schema:
+            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
         fields_info = collection_schema["fields"]
 
@@ -427,12 +429,11 @@ class GrpcHandler:
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0)
         )
 
-        if not self.has_collection(collection_name, timeout):
-            raise CollectionNotExistException(ErrorCode.CollectionNotExists,
-                                              f"collection {collection_name} doesn't exist!")
-
         _kwargs = copy.deepcopy(kwargs)
-        collection_schema = self.describe_collection(collection_name, timeout)
+
+        collection_schema = kwargs.get("schema", None)
+        if not collection_schema:
+            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
         auto_id = collection_schema["auto_id"]
         consistency_level = collection_schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
@@ -962,8 +963,9 @@ class GrpcHandler:
     def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError("Invalid query format. 'output_fields' must be a list")
-
-        collection_schema = self.describe_collection(collection_name, timeout)
+        collection_schema = kwargs.get("schema", None)
+        if not collection_schema:
+            collection_schema = self.describe_collection(collection_name, timeout)
         consistency_level = collection_schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
         consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))

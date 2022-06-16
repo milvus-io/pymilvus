@@ -265,6 +265,28 @@ Compaction Plans:
  - plans: {self.plans}
  """
 
+def cmp_consistency_level(l1, l2):
+    if isinstance(l1, str):
+        try:
+            l1 = ConsistencyLevel.Value(l1)
+        except ValueError as e:
+            return False
+
+    if isinstance(l2, str):
+        try:
+            l2 = ConsistencyLevel.Value(l2)
+        except ValueError as e:
+            return False
+
+    if isinstance(l1, int):
+        if l1 not in ConsistencyLevel.values():
+            return False
+
+    if isinstance(l2, int):
+        if l2 not in ConsistencyLevel.values():
+            return False
+
+    return l1 == l2
 
 def get_consistency_level(consistency_level):
     if isinstance(consistency_level, int):

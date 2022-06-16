@@ -29,6 +29,8 @@ class Partition:
         self._collection = collection
         self._name = name
         self._description = description
+        self._schema = collection._schema
+        self._consistency_level = collection._consistency_level
         self._kwargs = kwargs
 
         conn = self._get_connection()
@@ -279,8 +281,10 @@ class Partition:
             raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
         # TODO: check insert data schema here?
         entities = Prepare.prepare_insert_data(data, self._collection.schema)
+        schema_dict = self._schema.to_dict()
+        schema_dict["consistency_level"] = self._consistency_level
         res = conn.bulk_insert(self._collection.name, entities=entities,
-                               partition_name=self._name, timeout=timeout, orm=True, **kwargs)
+                               partition_name=self._name, timeout=timeout, orm=True, schema=schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
@@ -422,8 +426,10 @@ class Partition:
             - Top1 hit id: 8, distance: 0.10143111646175385, score: 0.10143111646175385
         """
         conn = self._get_connection()
+        schema_dict = self._schema.to_dict()
+        schema_dict["consistency_level"] = self._consistency_level
         res = conn.search(self._collection.name, data, anns_field, param, limit,
-                          expr, [self._name], output_fields, round_decimal, timeout=timeout, **kwargs)
+                          expr, [self._name], output_fields, round_decimal, timeout=timeout, schema=schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
@@ -496,7 +502,9 @@ class Partition:
             - Query results: [{'film_id': 0, 'film_date': 2000}, {'film_id': 1, 'film_date': 2001}]
         """
         conn = self._get_connection()
-        res = conn.query(self._collection.name, expr, output_fields, [self._name], timeout=timeout, **kwargs)
+        schema_dict = self._schema.to_dict()
+        schema_dict["consistency_level"] = self._consistency_level
+        res = conn.query(self._collection.name, expr, output_fields, [self._name], timeout=timeout, schema=schema_dict, **kwargs)
         return res
 
     def get_replicas(self, timeout=None, **kwargs) -> Replica:

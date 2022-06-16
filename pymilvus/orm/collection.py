@@ -40,7 +40,7 @@ from .future import SearchFuture, MutationFuture
 from .utility import _get_connection
 from .default_config import DefaultConfig
 from ..client.types import CompactionState, CompactionPlans, Replica
-from ..client.types import get_consistency_level
+from ..client.types import get_consistency_level, cmp_consistency_level
 from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
 from ..client.configs import DefaultConfigs
 
@@ -114,7 +114,12 @@ class Collection:
         has = conn.has_collection(self._name)
         if has:
             resp = conn.describe_collection(self._name)
+            s_consistency_level = resp.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
+            arg_consistency_level = kwargs.get("consistency_level", s_consistency_level)
+            if not cmp_consistency_level(s_consistency_level, arg_consistency_level):
+                raise SchemaNotReadyException(0, ExceptionsMessage.ConsistencyLevelInconsistent)
             server_schema = CollectionSchema.construct_from_dict(resp)
+            self._consistency_level = s_consistency_level
             if schema is None:
                 self._schema = server_schema
             else:
@@ -135,6 +140,7 @@ class Collection:
                 conn.create_collection(self._name, fields=schema, shards_num=self._shards_num,
                                        consistency_level=consistency_level)
                 self._schema = schema
+                self._consistency_level = consistency_level
             else:
                 raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)
 
@@ -541,7 +547,9 @@ class Collection:
             raise SchemaNotReadyException(0, ExceptionsMessage.TypeOfDataAndSchemaInconsistent)
         conn = self._get_connection()
         entities = Prepare.prepare_insert_data(data, self._schema)
-        res = conn.bulk_insert(self._name, entities, partition_name, ids=None, timeout=timeout, **kwargs)
+        schema_dict = self._schema.to_dict()
+        schema_dict["consistency_level"] = self._consistency_level
+        res = conn.bulk_insert(self._name, entities, partition_name, ids=None, timeout=timeout, schema=schema_dict, **kwargs)
 
         if kwargs.get("_async", False):
             return MutationFuture(res)
@@ -701,8 +709,10 @@ class Collection:
             raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
+        schema_dict = self._schema.to_dict()
+        schema_dict["consistency_level"] = self._consistency_level
         res = conn.search(self._name, data, anns_field, param, limit, expr,
-                          partition_names, output_fields, round_decimal, timeout=timeout, **kwargs)
+                          partition_names, output_fields, round_decimal, timeout=timeout, schema=schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
@@ -783,7 +793,9 @@ class Collection:
             raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        res = conn.query(self._name, expr, output_fields, partition_names, timeout=timeout, **kwargs)
+        schema_dict = self._schema.to_dict()
+        schema_dict["consistency_level"] = self._consistency_level
+        res = conn.query(self._name, expr, output_fields, partition_names, timeout=timeout, schema=schema_dict, **kwargs)
         return res
 
     @property
