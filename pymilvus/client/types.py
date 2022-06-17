@@ -1,8 +1,11 @@
 from enum import IntEnum
 from ..grpc_gen.common_pb2 import ConsistencyLevel
 from ..grpc_gen import common_pb2
-from ..exceptions import InvalidConsistencyLevel
-
+from ..exceptions import (
+    AutoIDException,
+    ExceptionsMessage,
+    InvalidConsistencyLevel,
+)
 
 class Status:
     """
@@ -368,30 +371,58 @@ class Replica:
 
 
 class BulkLoadState:
-    """ Bulk load state:
-- taskID            : 1,
-- state             : "BulkLoadDownloaded",
-- row_count         : 1000,
-- infos             : {"info key": "info value"},
-- data_queryable    : True,
-- data_indexed      : True
-"""
+    """enum states of bulkload task"""
+    ImportPending = 0
+    ImportFailed = 1
+    ImportStarted = 2
+    ImportDownloaded = 3
+    ImportParsed = 4
+    ImportPersisted = 5
+    ImportUnknownState = 100
 
-    state_2_name = {
-        common_pb2.ImportPending: "BulkLoadPending",
-        common_pb2.ImportFailed: "BulkLoadFailed",
-        common_pb2.ImportStarted: "BulkLoadStarted",
-        common_pb2.ImportDownloaded: "BulkLoadDownloaded",
-        common_pb2.ImportParsed: "BulkLoadParsed",
-        common_pb2.ImportPersisted: "BulkLoadPersisted",
-        common_pb2.ImportCompleted: "BulkLoadCompleted",
+    """pre-defined keys of bulkload task info"""
+    FAILED_REASON = "failed_reason"
+    IMPORT_FILES = "files"
+    IMPORT_COLLECTION = "collection"
+    IMPORT_PARTITION = "partition"
+
+    """
+    Bulk load state example:
+        - taskID            : 44353845454358,
+        - state             : "BulkLoadPersisted",
+        - row_count         : 1000,
+        - infos             : {"files": "rows.json", "collection": "c1", "partition": "", "failed_reason": ""},
+        - data_queryable    : True,
+        - data_indexed      : False,
+        - id_list           : [44353845455401, 44353845456401]
+    """
+
+    state_2_state = {
+        common_pb2.ImportPending: ImportPending,
+        common_pb2.ImportFailed: ImportFailed,
+        common_pb2.ImportStarted: ImportStarted,
+        common_pb2.ImportDownloaded: ImportDownloaded,
+        common_pb2.ImportParsed: ImportParsed,
+        common_pb2.ImportPersisted: ImportPersisted,
+        common_pb2.ImportCompleted: ImportPersisted,
+        common_pb2.ImportAllocSegment: ImportParsed,
     }
 
-    def __init__(self, task_id, state, row_count: int, ids: list, infos, data_queryable: bool, data_indexed: bool):
+    state_2_name = {
+        ImportPending: "Pending",
+        ImportFailed: "Failed",
+        ImportStarted: "Started",
+        ImportDownloaded: "Downloaded",
+        ImportParsed: "Parsed",
+        ImportPersisted: "Persisted",
+        ImportUnknownState: "Unknown",
+    }
+
+    def __init__(self, task_id, state, row_count: int, id_ranges: list, infos, data_queryable: bool, data_indexed: bool):
         self._task_id = task_id
         self._state = state
         self._row_count = row_count
-        self._ids = ids
+        self._id_ranges = id_ranges
         self._data_queryable = data_queryable
         self._data_indexed = data_indexed
 
@@ -404,9 +435,17 @@ class BulkLoadState:
     - row_count       : {},
     - infos           : {},
     - data_queryable  : {},
-    - data_indexed    : {}
+    - data_indexed    : {},
+    - id_ranges       : {}
 >"""
-        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos, self._data_queryable, self._data_indexed)
+        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos, self._data_queryable, self._data_indexed, self._id_ranges)
+
+    @property
+    def task_id(self):
+        """
+        Return unique id of this task.
+        """
+        return self._task_id
 
     @property
     def row_count(self):
@@ -418,21 +457,69 @@ class BulkLoadState:
 
     @property
     def state(self):
-        return self._state
+        return self.state_2_state.get(self._state, BulkLoadState.ImportUnknownState)
 
     @property
     def state_name(self) -> str:
         return self.state_2_name.get(self._state, "unknown state")
 
     @property
+    def id_ranges(self):
+        """
+        auto generated id ranges if the primary key is auto generated
+
+        the id list of response is id ranges
+        for example, if the response return [1, 100, 200, 250]
+        the full id list should be [1, 2, 3 ... , 99, 100, 200, 201, 202 ... , 249, 250]
+        """
+        return self._id_ranges
+
+    @property
     def ids(self):
-        """auto generated ids if the primary key is auto generated"""
-        return self._ids
+        """
+        auto generated ids if the primary key is auto generated
+
+        the id list of response is id ranges
+        for example, if the response return [1, 100, 200, 250]
+        the full id list should be [1, 2, 3 ... , 99, 100, 200, 201, 202 ... , 249, 250]
+        """
+
+        if len(self._id_ranges)%2 != 0:
+            raise AutoIDException(0, ExceptionsMessage.AutoIDIllegalRanges)
+
+        ids = []
+        for i in range(len(self._id_ranges)/2):
+            begin = self._id_ranges[i*2]
+            end = self._id_ranges[i*2+1] + 1
+            for j in range(begin, end):
+                ids.append(j)
+
+        return ids
 
     @property
     def infos(self):
         """more informations about the task, progress percentage, file path, failed reason, etc."""
         return self._infos
+
+    @property
+    def failed_reason(self):
+        """failed reason of the bulkload task."""
+        return self._infos.get(BulkLoadState.FAILED_REASON, "")
+
+    @property
+    def files(self):
+        """data files of the bulkload task."""
+        return self._infos.get(BulkLoadState.IMPORT_FILES, "")
+
+    @property
+    def collection_name(self):
+        """target collection's name of the bulkload task."""
+        return self._infos.get(BulkLoadState.IMPORT_COLLECTION, "")
+
+    @property
+    def partition_name(self):
+        """target partition's name of the bulkload task."""
+        return self._infos.get(BulkLoadState.IMPORT_PARTITION, "")
 
     @property
     def data_queryable(self):
