@@ -1,17 +1,15 @@
 import copy
 import ujson
 import base64
-from typing import Dict, Iterable, Union
 
 from . import blob
-from . import entity_helper
 from .configs import DefaultConfigs
+from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
 from .check import check_pass_param
 from .types import DataType, PlaceholderType
 from .types import get_consistency_level
 from .constants import DEFAULT_CONSISTENCY_LEVEL
-from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
-from ..orm.schema import CollectionSchema
+from . import entity_helper
 
 from ..grpc_gen import common_pb2 as common_types
 from ..grpc_gen import schema_pb2 as schema_types
@@ -19,124 +17,122 @@ from ..grpc_gen import milvus_pb2 as milvus_types
 
 
 class Prepare:
-    @classmethod
-    def create_collection_request(cls, collection_name: str, fields: Union[Dict[str, Iterable], CollectionSchema], shards_num=2, **kwargs) -> milvus_types.CreateCollectionRequest:
-        """
-        :type fields: Union(Dict[str, Iterable], CollectionSchema)
-        :param fields: (Required)
 
-            `{"fields": [
-                    {"name": "A", "type": DataType.INT32}
-                    {"name": "B", "type": DataType.INT64, "auto_id": True, "is_primary": True},
-                    {"name": "C", "type": DataType.FLOAT},
-                    {"name": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}]
+    @classmethod
+    def create_collection_request(cls, collection_name, fields, shards_num=2, **kwargs):
+        """
+        :type param: dict
+        :param param: (Required)
+
+            ` {"fields": [
+                    {"field": "A", "type": DataType.INT32}
+                    {"field": "B", "type": DataType.INT64, "auto_id": True},
+                    {"field": "C", "type": DataType.FLOAT},
+                    {"field": "Vec", "type": DataType.FLOAT_VECTOR,
+                     "params": {"dim": 128}}
+                ]
             }`
 
-        :return: milvus_types.CreateCollectionRequest
+        :return: ttypes.TableSchema object
         """
-        if isinstance(fields, CollectionSchema):
-            schema = cls.get_schema_from_collection_schema(collection_name, fields, shards_num, **kwargs)
-        else:
-            schema = cls.get_schema(collection_name, fields, shards_num, **kwargs)
 
-        consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
-        return milvus_types.CreateCollectionRequest(collection_name=collection_name,
-                                                    schema=bytes(schema.SerializeToString()),
-                                                    shards_num=shards_num,
-                                                    consistency_level=consistency_level)
-
-    @classmethod
-    def get_schema_from_collection_schema(cls, collection_name: str, fields: CollectionSchema, shards_num=2, **kwargs) -> milvus_types.CreateCollectionRequest:
-        schema = schema_types.CollectionSchema(name=collection_name,
-                                               autoID=fields.auto_id,
-                                               description=fields.description)
-        for f in fields.fields:
-            field_schema = schema_types.FieldSchema(name=f.name,
-                                                    data_type=f.dtype,
-                                                    description=f.description,
-                                                    is_primary_key=f.is_primary,
-                                                    autoID=f.auto_id)
-            for k, v in f.params.items():
-                kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
-                field_schema.type_params.append(kv_pair)
-
-            schema.fields.append(field_schema)
-        return schema
-
-    @classmethod
-    def get_schema(cls, collection_name: str, fields: Dict[str, Iterable], shards_num=2, **kwargs) -> schema_types.CollectionSchema:
         if not isinstance(fields, dict):
             raise ParamError("Param fields must be a dict")
 
-        all_fields = fields.get("fields")
-        if all_fields is None:
-            raise ParamError("Param fields must contain key 'fields'")
-        if len(all_fields) == 0:
-            raise ParamError("Param fields value cannot be empty")
+        if "fields" not in fields:
+            raise ParamError("Param fields must contains key 'fields'")
 
-        schema = schema_types.CollectionSchema(name=collection_name,
-                                               autoID=False,
-                                               description=fields.pop('description', ""))
+        schema = schema_types.CollectionSchema(name=collection_name)
+
+        # auto_id = fields.get('auto_id', True)
+        schema.autoID = False
 
         primary_field = None
         auto_id_field = None
-        for field in all_fields:
-            field_name = field.get('name')
-            if field_name is None:
-                raise ParamError("You should specify the name of field!")
+        for fk, fv in fields.items():
+            if fk != 'fields':
+                if fk == 'description':
+                    schema.description = fv
+                continue
 
-            data_type = field.get('type')
-            if data_type is None:
-                raise ParamError("You should specify the data type of field!")
-            if not isinstance(data_type, (int, DataType)):
-                raise ParamError("Field type must be of DataType!")
+            for field in fv:
+                field_schema = schema_types.FieldSchema()
 
-            is_primary = field.get("is_primary", False)
-            if is_primary:
-                if primary_field is not None:
-                    raise ParamError("A collection should only have one primary field")
-                if DataType(data_type) not in [DataType.INT64, DataType.VARCHAR]:
-                    raise ParamError("int64 and varChar are the only supported types of primary key")
-                primary_field = field_name
+                field_name = field.get('name')
+                if field_name is None:
+                    raise ParamError("You should specify the name of field!")
+                field_schema.name = field_name
 
-            auto_id = field.get('auto_id', False)
-            if auto_id:
-                if auto_id_field is not None:
-                    raise ParamError("A collection should only have one field whose id is automatically generated")
-                if DataType(data_type) != DataType.INT64:
-                    raise ParamError("int64 is the only supported type of automatic generated id")
-                auto_id_field = field_name
+                data_type = field.get('type')
+                if data_type is None:
+                    raise ParamError("You should specify the data type of field!")
+                if not isinstance(data_type, (int, DataType)):
+                    raise ParamError("Field type must be of DataType!")
+                field_schema.data_type = data_type
 
-            field_schema = schema_types.FieldSchema(name=field_name,
-                                                    data_type=data_type,
-                                                    description=field.get('description', ''),
-                                                    is_primary_key=is_primary,
-                                                    autoID=auto_id)
+                field_schema.description = field.get('description', "")
 
-            #  TODO: dim with vector fields, MaxVarCharLengthKey with string fields
-            type_params = field.get('params')
-            if isinstance(type_params, dict):
-                for tk, tv in type_params.items():
-                    if tk in ["dim", ]:
-                        try:
-                            int(tv)
-                        except (TypeError, ValueError):
-                            raise ParamError(f"invalid {tk}: {tv}") from None
+                is_primary = field.get("is_primary", False)
+                auto_id = field.get('auto_id', False)
 
-                    if tk in [DefaultConfigs.MaxVarCharLengthKey, ]:
-                        try:
-                            max_len = int(tv)
-                            if max_len > DefaultConfigs.MaxVarCharLength:
-                                raise ParamError(f"{tk} {max_len} exceeds {DefaultConfigs.MaxVarCharLength}")
-                        except (TypeError, ValueError):
-                            raise ParamError(f"invalid {tk}: {tv}") from None
-                        except ParamError as e:
-                            raise e from None
-                    kv_pair = common_types.KeyValuePair(key=str(tk), value=str(tv))
-                    field_schema.type_params.append(kv_pair)
+                if is_primary and primary_field:
+                    raise ParamError("A collection should only have a primary field")
 
-            schema.fields.append(field_schema)
-        return schema
+                if auto_id and auto_id_field:
+                    if DataType(data_type) != DataType.INT64:
+                        raise ParamError("int64 is the only supported type of automatic generated id")
+                    raise ParamError("A collection should only have a field whose id is automatically generated")
+
+                if is_primary:
+                    if DataType(data_type) not in [DataType.INT64, DataType.VARCHAR]:
+                        raise ParamError("int64 and varChar are the only supported types of primary key")
+                    primary_field = field_name
+
+                if auto_id:
+                    auto_id_field = field_name
+
+                field_schema.is_primary_key = is_primary
+                field_schema.autoID = auto_id
+
+                type_params = field.get('params')
+                if isinstance(type_params, dict):
+                    for tk, tv in type_params.items():
+                        if tk in ["dim",]:
+                            try:
+                                int(tv)
+                            except (TypeError, ValueError):
+                                raise ParamError(f"invalid {tk}: {tv}") from None
+                        if tk in [DefaultConfigs.MaxVarCharLengthKey,]:
+                            try:
+                                max_len = int(tv)
+                                if max_len > DefaultConfigs.MaxVarCharLength:
+                                    raise ParamError(f"{tk} {max_len} exceeds {DefaultConfigs.MaxVarCharLength}")
+                            except (TypeError, ValueError):
+                                raise ParamError(f"invalid {tk}: {tv}") from None
+                            except ParamError as e:
+                                raise e from None
+                        kv_pair = common_types.KeyValuePair(key=str(tk), value=str(tv))
+                        field_schema.type_params.append(kv_pair)
+
+                # No longer supported
+                # index_params = field.get('indexes')
+                # if isinstance(index_params, list):
+                #     for index_param in index_params:
+                #         if not isinstance(index_param, dict):
+                #             raise ParamError("Every index param must be of dict type!")
+                #         for ik, iv in index_param.items():
+                #             if ik == "metric_type":
+                #                 if not isinstance(iv, MetricType) and not isinstance(iv, str):
+                #                     raise ParamError("metric_type must be of Milvus.MetricType or str!")
+                #             kv_pair = common_types.KeyValuePair(key=str(ik), value=str(iv))
+                #             field_schema.index_params.append(kv_pair)
+
+                schema.fields.append(field_schema)
+
+        consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
+        return milvus_types.CreateCollectionRequest(collection_name=collection_name,
+                                                    schema=bytes(schema.SerializeToString()), shards_num=shards_num,
+                                                    consistency_level=consistency_level)
 
     @classmethod
     def drop_collection_request(cls, collection_name):
@@ -341,6 +337,7 @@ class Prepare:
                     raise ParamError("The dimension of query entities is different from schema")
                 pl.values.append(blob.vectorFloatToBytes(vectors[i]))
         return pl
+
 
     @classmethod
     def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1,

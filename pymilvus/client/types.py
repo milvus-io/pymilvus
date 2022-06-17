@@ -86,14 +86,6 @@ class DataType(IntEnum):
 
     UNKNOWN = 999
 
-    @classmethod
-    def is_valid(cls, dtype: int) -> bool:
-        try:
-            DataType(dtype)
-        except ValueError:
-            return False
-        return dtype != DataType.UNKNOWN
-
 
 class RangeType(IntEnum):
     LT = 0  # less than

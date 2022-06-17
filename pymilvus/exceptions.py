@@ -207,7 +207,7 @@ class ExceptionsMessage:
     NoPrimaryKey = "Schema must have a primary key field."
     PrimaryKeyNotExist = "Primary field must in dataframe."
     PrimaryKeyOnlyOne = "Primary key field can only be one."
-    PrimaryKeyType = "Primary key type must be DataType.INT64 or DataType.VARCHAR."
+    PrimaryKeyType = "Primary key type must be DataType.INT64."
     IsPrimaryType = "Param is_primary must be bool type."
     DataTypeInconsistent = "The data in the same column must be of the same type."
     DataTypeNotSupport = "Data type is not support."
