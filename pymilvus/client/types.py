@@ -480,7 +480,7 @@ class BulkLoadState:
             raise AutoIDException(0, ExceptionsMessage.AutoIDIllegalRanges)
 
         ids = []
-        for i in range(len(self._id_ranges)/2):
+        for i in range(int(len(self._id_ranges)/2)):
             begin = self._id_ranges[i*2]
             end = self._id_ranges[i*2+1] + 1
             for j in range(begin, end):
