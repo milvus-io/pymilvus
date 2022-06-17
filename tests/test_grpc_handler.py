@@ -11,7 +11,7 @@ from pymilvus.grpc_gen import common_pb2
 descriptor = milvus_pb2.DESCRIPTOR.services_by_name['MilvusService']
 
 
-class TestHasCollection:
+class TestGrpcHandler:
     @pytest.mark.parametrize("ifHas", [True, False])
     def test_has_collection_no_error(self, channel, client_thread, ifHas):
         handler = GrpcHandler(channel=channel)

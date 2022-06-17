@@ -180,6 +180,10 @@ class GrpcHandler:
     def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
         request = Prepare.create_collection_request(collection_name, fields, shards_num=shards_num, **kwargs)
 
+        # TODO(wxyu): In grpcio==1.37.1, `wait_for_ready` is an EXPERIMENTAL argument, while it's not supported in
+        #  grpcio-testing==1.37.1 . So that we remove the argument in order to using grpc-testing in unittests.
+        # rf = self._stub.CreateCollection.future(request, wait_for_ready=True, timeout=timeout)
+
         rf = self._stub.CreateCollection.future(request, timeout=timeout)
         if kwargs.get("_async", False):
             return rf

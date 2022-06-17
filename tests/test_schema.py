@@ -1,112 +1,149 @@
 import logging
+
+import numpy
 import pytest
 
-from pymilvus import CollectionSchema, FieldSchema, DataType, MilvusException
-from pymilvus.client.configs import DefaultConfigs
+from pymilvus import CollectionSchema, FieldSchema, DataType
+from utils import *
 
 LOGGER = logging.getLogger(__name__)
 
 
 class TestCollectionSchema:
     @pytest.fixture(scope="function")
-    def default_fields(self, request):
-        return [
-            FieldSchema("vector_field", DataType.FLOAT_VECTOR, dim=128),
-            FieldSchema("primary_field", DataType.INT64, is_primary=True, auto_id=True),
+    def raw_dict(self):
+        _dict = {}
+        _dict["description"] = "TestCollectionSchema_description"
+        fields = [
+            {
+                "name": "vec1",
+                "description": "desc1",
+                "type": DataType.FLOAT_VECTOR,
+                "params": {"dim": 128},
+            },
+
+            {
+                "name": "vec2",
+                "description": "desc2",
+                "type": DataType.BINARY_VECTOR,
+                "params": {"dim": 128},
+            },
+            {
+                "name": "ID",
+                "description": "ID",
+                "type": DataType.INT64,
+                "is_primary": True,
+                "auto_id": False
+            },
         ]
+        _dict["fields"] = fields
 
-    def test_init_collcetion_schema(self, default_fields):
-        s = CollectionSchema(default_fields, description="Normal cases")
-        assert s.auto_id == default_fields[1].auto_id
-        assert s.primary_field == default_fields[1]
-        assert s.description == "Normal cases"
-        assert s.fields == default_fields
+        return _dict
 
-    def test_init_primary_field_failed(self, default_fields):
-        with pytest.raises(MilvusException):
-            CollectionSchema(default_fields, description="name not in fields", primary_field="random-name")
+    def test_constructor_from_dict(self, raw_dict):
+        schema = CollectionSchema.construct_from_dict(raw_dict)
+        assert schema.description, raw_dict['description']
+        assert len(schema.fields) == len(raw_dict['fields'])
+        f = schema.primary_field
+        assert isinstance(f, FieldSchema)
+        assert f.name == raw_dict['fields'][2]['name']
 
-        default_fields.append(FieldSchema("double_field", DataType.DOUBLE))
-        with pytest.raises(MilvusException):
-            CollectionSchema(default_fields, description="field_cannot_be_primary_field", primary_field="double_field")
-
-        default_fields.append(FieldSchema("int64_field", DataType.INT64))
-        with pytest.raises(MilvusException):
-            CollectionSchema(default_fields, description="two_pk_field", primary_field="int64_field")
+    def test_to_dict(self, raw_dict):
+        schema = CollectionSchema.construct_from_dict(raw_dict)
+        target = schema.to_dict()
+        target.pop("auto_id", None)
+        assert target == raw_dict
+        assert target is not raw_dict
 
 
 class TestFieldSchema:
-    get_fields_dict = [
-        {
-            "name": "TestFieldSchema_name_floatvector",
-            "type": DataType.FLOAT_VECTOR,
-            "params": {"dim": 128},
-            "description": "TestFieldSchema_description_floatvector",
-        },
-        {
-            "name": "TestFieldSchema_name_varchar",
-            "type": DataType.VARCHAR,
-            "params": {DefaultConfigs.MaxVarCharLengthKey: 128},
-            "description": "TestFieldSchema_description_varchar",
-        },
-        {
-            "name": "TestFieldSchema_name_binary_vector",
-            "type": DataType.BINARY_VECTOR,
-            "params": {"dim": 128},
-            "description": "TestFieldSchema_description_binary_vector",
-        },
-        {
-            "name": "TestFieldSchema_name_norm",
-            "type": DataType.INT64,
-            "description": "TestFieldSchema_description_norm",
-        },
-        {
-            "name": "TestFieldSchema_name_primary",
-            "type": DataType.INT64,
-            "is_primary": True,
-            "description": "TestFieldSchema_description_primary",
-        },
-        {
-            "name": "TestFieldSchema_name_primary_auto_id",
-            "type": DataType.INT64,
-            "is_primary": True,
-            "auto_id": True,
-            "description": "TestFieldSchema_description_primary_auto_id",
-        },
-    ]
+    @pytest.fixture(scope="function")
+    def raw_dict_float_vector(self):
+        _dict = dict()
+        _dict["name"] = "TestFieldSchema_name_floatvector"
+        _dict["description"] = "TestFieldSchema_description_floatvector"
+        _dict["type"] = DataType.FLOAT_VECTOR
+        _dict["params"] = {"dim": 128}
+        return _dict
 
-    @pytest.fixture(scope="function", params=get_fields_dict)
-    def field_dict(self, request):
-        yield request.param
+    @pytest.fixture(scope="function")
+    def raw_dict_binary_vector(self):
+        _dict = dict()
+        _dict["name"] = "TestFieldSchema_name_binary_vector"
+        _dict["description"] = "TestFieldSchema_description_binary_vector"
+        _dict["type"] = DataType.BINARY_VECTOR
+        _dict["params"] = {"dim": 128}
+        return _dict
 
-    def test_constructor_from_dict(self, field_dict):
-        field = FieldSchema.construct_from_dict(field_dict)
-        assert field.name == field_dict['name']
-        assert field.dtype == field_dict["type"]
-        assert field.description == field_dict['description']
-        assert field.is_primary is field_dict.get("is_primary", False)
-        assert field.params == field_dict.get('params', {})
+    @pytest.fixture(scope="function")
+    def raw_dict_norm(self):
+        _dict = dict()
+        _dict["name"] = "TestFieldSchema_name_norm"
+        _dict["description"] = "TestFieldSchema_description_norm"
+        _dict["type"] = DataType.INT64
+        return _dict
 
-    @pytest.mark.parametrize("invalid_params", [
-        {"is_primary": "not bool", "dtype": DataType.INT8},
-        {"is_primary": True, "dtype": DataType.BOOL},
-        {"is_primary": True, "dtype": DataType.NONE},
-        {"is_primary": True, "dtype": DataType.INT8},
-        {"is_primary": True, "dtype": DataType.INT16},
-        {"is_primary": True, "dtype": DataType.INT32},
-        {"is_primary": True, "dtype": DataType.FLOAT},
-        {"is_primary": True, "dtype": DataType.DOUBLE},
-        {"is_primary": True, "dtype": DataType.FLOAT_VECTOR},
-        {"is_primary": True, "dtype": DataType.BINARY_VECTOR},
-    ])
-    def test_check_valid_is_primary_error(self, invalid_params):
-        with pytest.raises(MilvusException):
-            FieldSchema._init_is_primary(**invalid_params)
+    @pytest.fixture(scope="function")
+    def dataframe1(self):
+        import pandas
+        data = {
+            'float': [1.0],
+            'int32': [2],
+            'float_vec': [numpy.array([3, 4.0], numpy.float32)]
+        }
+        df1 = pandas.DataFrame(data)
+        return df1
 
-    @pytest.mark.parametrize("invalid_params", [
-        {"auto_id": True, "is_primary": False, "dtype": DataType.INT64},
-        {"auto_id": "not bool", "is_primary": True, "dtype": DataType.INT64},
-    ])
-    def test_check_valid_auto_id(self, invalid_params):
-        with pytest.raises(MilvusException):
-            FieldSchema._init_auto_id(**invalid_params)
+    def test_constructor_from_float_dict(self, raw_dict_float_vector):
+        field = FieldSchema.construct_from_dict(raw_dict_float_vector)
+        assert field.dtype == DataType.FLOAT_VECTOR
+        assert field.description == raw_dict_float_vector['description']
+        assert field.is_primary == False
+        assert field.name == raw_dict_float_vector['name']
+        assert field.dim == raw_dict_float_vector['params']['dim']
+
+    def test_constructor_from_binary_dict(self, raw_dict_binary_vector):
+        field = FieldSchema.construct_from_dict(raw_dict_binary_vector)
+        assert field.dtype == DataType.BINARY_VECTOR
+        assert field.description == raw_dict_binary_vector['description']
+        assert field.is_primary == False
+        assert field.name == raw_dict_binary_vector['name']
+        assert field.dim == raw_dict_binary_vector['params']['dim']
+
+    def test_constructor_from_norm_dict(self, raw_dict_norm):
+        field = FieldSchema.construct_from_dict(raw_dict_norm)
+        assert field.dtype == DataType.INT64
+        assert field.description == raw_dict_norm['description']
+        assert field.is_primary == False
+        assert field.name == raw_dict_norm['name']
+        assert field.dim is None
+        assert field.dummy is None
+
+    def test_cmp(self, raw_dict_binary_vector):
+        import copy
+        field1 = FieldSchema.construct_from_dict(raw_dict_binary_vector)
+        field2 = FieldSchema.construct_from_dict(raw_dict_binary_vector)
+        assert field1 == field2
+        dict1 = copy.deepcopy(raw_dict_binary_vector)
+        dict1["name"] = dict1["name"] + "_"
+        field3 = FieldSchema.construct_from_dict(dict1)
+        assert field1 != field3
+
+    def test_to_dict(self, raw_dict_norm, raw_dict_float_vector, raw_dict_binary_vector):
+        fields = []
+        dicts = [raw_dict_norm, raw_dict_float_vector, raw_dict_binary_vector]
+        fields.append(FieldSchema.construct_from_dict(raw_dict_norm))
+        fields.append(FieldSchema.construct_from_dict(raw_dict_float_vector))
+        fields.append(FieldSchema.construct_from_dict(raw_dict_binary_vector))
+
+        for i, f in enumerate(fields):
+            target = f.to_dict()
+            assert target == dicts[i]
+            assert target is not dicts[i]
+
+    #  def test_parse_fields_from_dataframe(self, dataframe1):
+    #      fields = parse_fields_from_dataframe(dataframe1)
+    #      assert len(fields) == len(dataframe1.columns)
+    #      for f in fields:
+    #          if f.dtype == DataType.FLOAT_VECTOR:
+    #              assert f.dim == len(dataframe1['float_vec'].values[0])
