@@ -309,8 +309,8 @@ class GrpcHandler:
     @error_handler
     def get_partition_stats(self, collection_name, partition_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
-        index_param = Prepare.get_partition_stats_request(collection_name, partition_name)
-        future = self._stub.GetPartitionStatistics.future(index_param, wait_for_ready=True, timeout=timeout)
+        req = Prepare.get_partition_stats_request(collection_name, partition_name)
+        future = self._stub.GetPartitionStatistics.future(req, wait_for_ready=True, timeout=timeout)
         response = future.result()
         status = response.status
         if status.error_code == 0:
@@ -581,8 +581,8 @@ class GrpcHandler:
             def _check():
                 if kwargs.get("sync", True):
                     index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
-                                                                              field_name=field_name, timeout=timeout,
-                                                                              index_name=index_name)
+                                                                              index_name=index_name,
+                                                                              timeout=timeout)
                     if not index_success:
                         raise MilvusException(Status.UNEXPECTED_ERROR, fail_reason)
 
@@ -600,8 +600,8 @@ class GrpcHandler:
 
         if kwargs.get("sync", True):
             index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
-                                                                      field_name=field_name, timeout=timeout,
-                                                                      index_name=index_name)
+                                                                      index_name=index_name,
+                                                                      timeout=timeout)
             if not index_success:
                 raise MilvusException(Status.UNEXPECTED_ERROR, fail_reason)
 
@@ -643,9 +643,9 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def get_index_build_progress(self, collection_name, field_name, index_name, timeout=None):
-        request = Prepare.get_index_build_progress(collection_name, field_name, index_name)
-        rf = self._stub.GetIndexBuildProgress.future(request, wait_for_ready=True, timeout=timeout)
+    def get_index_build_progress(self, collection_name, index_name, timeout=None):
+        request = Prepare.get_index_build_progress(collection_name, index_name)
+        rf = self._stub.GetIndexBuildProgress.future(request, timeout=timeout)
         response = rf.result()
         status = response.status
         if status.error_code == 0:
@@ -653,9 +653,9 @@ class GrpcHandler:
         raise MilvusException(status.error_code, status.reason)
 
     @error_handler
-    def get_index_state(self, collection_name, field_name, timeout=None, **kwargs):
-        request = Prepare.get_index_state_request(collection_name, field_name, **kwargs)
-        rf = self._stub.GetIndexState.future(request, wait_for_ready=True, timeout=timeout)
+    def get_index_state(self, collection_name: str, index_name: str, timeout=None, **kwargs):
+        request = Prepare.get_index_state_request(collection_name=collection_name, index_name=index_name)
+        rf = self._stub.GetIndexState.future(request, timeout=timeout)
         response = rf.result()
         status = response.status
         if status.error_code == 0:
@@ -664,11 +664,11 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_times=10, wait=1)
     @error_handler
-    def wait_for_creating_index(self, collection_name, field_name, timeout=None, **kwargs):
+    def wait_for_creating_index(self, collection_name, index_name, timeout=None, **kwargs):
         start = time.time()
         while True:
             time.sleep(0.5)
-            state, fail_reason = self.get_index_state(collection_name, field_name, timeout, **kwargs)
+            state, fail_reason = self.get_index_state(collection_name=collection_name, index_name=index_name, timeout=timeout)
             if state == IndexState.Finished:
                 return True, fail_reason
             if state == IndexState.Failed:
