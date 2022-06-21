@@ -236,7 +236,7 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
     return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
 
 
-def index_building_progress(collection_name, index_name="", field_name="", using="default"):
+def index_building_progress(collection_name, index_name="", using="default"):
     """
     Show # indexed entities vs. # total entities.
 
@@ -257,34 +257,31 @@ def index_building_progress(collection_name, index_name="", field_name="", using
     :raises IndexNotExistException: If index doesn't exist.
     :example:
         >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
-        >>> _DIM = 128
-        >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
-        >>> collection = Collection(name="test_collection", schema=schema)
+        >>> connections.connect()
+        >>>
+        >>> fields = [
+        ...     FieldSchema("int64", DataType.INT64, is_primary=True, auto_id=True),
+        ...     FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=128),
+        ... ]
+        >>> schema = CollectionSchema(fields, description="test index_building_progress")
+        >>> c = Collection(name="test_index_building_progress", schema=schema)
+
         >>> import random
-        >>> import numpy as np
-        >>> import pandas as pd
         >>> vectors = [[random.random() for _ in range(_DIM)] for _ in range(5000)]
-        >>> int64_series = pd.Series(data=list(range(5000, 10000)), index=list(range(5000)))
-        >>> vectors = [[random.random() for _ in range(_DIM)] for _ in range (5000)]
-        >>> data = pd.DataFrame({"int64" : int64_series, "float_vector": vectors})
-        >>> collection.insert(data)
-        >>> collection.load() # load collection to memory
-        >>> index_param = {
-        >>>    "metric_type": "L2",
-        >>>    "index_type": "IVF_FLAT",
-        >>>    "params": {"nlist": 1024}
-        >>> }
-        >>> collection.create_index("float_vector", index_param)
-        >>> utility.index_building_progress("test_collection", "")
-        >>> utility.loading_progress("test_collection")
+        >>> c.insert([vectors])
+        >>> c.load()
+        >>> index_params = {
+        ...    "metric_type": "L2",
+        ...    "index_type": "IVF_FLAT",
+        ...    "params": {"nlist": 1024}
+        ... }
+        >>> index = c.create_index(field_name="float_vector", index_params=index_params, index_name="ivf_flat")
+        >>> utility.index_building_progress("test_collection", c.name)
     """
-    return _get_connection(using).get_index_build_progress(collection_name, field_name, index_name)
+    return _get_connection(using).get_index_build_progress(collection_name=collection_name, index_name=index_name)
 
 
-def wait_for_index_building_complete(collection_name, index_name="", field_name="", timeout=None, using="default"):
+def wait_for_index_building_complete(collection_name, index_name="", timeout=None, using="default"):
     """
     Block until building is done or Raise Exception after timeout.
 
@@ -327,7 +324,7 @@ def wait_for_index_building_complete(collection_name, index_name="", field_name=
         >>> utility.loading_progress("test_collection")
 
     """
-    return _get_connection(using).wait_for_creating_index(collection_name, field_name, timeout=timeout, index_name=index_name)[0]
+    return _get_connection(using).wait_for_creating_index(collection_name=collection_name, index_name=index_name, timeout=timeout)[0]
 
 
 def has_collection(collection_name, using="default"):
