@@ -56,4 +56,4 @@ jobs:
     - name: Smoke Test
       working-directory: milvus/tests/python_client
       run: |
-        pytest -n 2 --tags L0
+        pytest -n 2 --tags L0 L1
