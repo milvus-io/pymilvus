@@ -9,18 +9,20 @@ from .exceptions import MilvusException, MilvusUnavaliableException
 from .client.types import Status
 
 LOGGER = logging.getLogger(__name__)
+WARNING_COLOR = "\033[93m{}\033[0m"
 
 
 def deprecated(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
-        dup_msg = f"[WARNING] PyMilvus: class Milvus will be deprecated soon, please use Collection/utility instead"
-        LOGGER.warning(f"\033[93m{dup_msg}\033[0m")
+        dup_msg = "[WARNING] PyMilvus: class Milvus will be deprecated soon, please use Collection/utility instead"
+        LOGGER.warning(WARNING_COLOR.format(dup_msg))
         return func(*args, **kwargs)
     return inner
 
 
-def retry_on_rpc_failure(retry_times=10, initial_back_off=0.2, max_back_off=60, back_off_multiplier=2, retry_on_deadline=True):
+def retry_on_rpc_failure(retry_times=7, initial_back_off=0.2, max_back_off=60, back_off_multiplier=2, retry_on_deadline=True):
+    # the default 7 retry_times will cost about 26s
     def wrapper(func):
         @functools.wraps(func)
         @error_handler(func_name=func.__name__)
@@ -39,11 +41,10 @@ def retry_on_rpc_failure(retry_times=10, initial_back_off=0.2, max_back_off=60, 
                 """
                 if retry_timeout is not None:
                     return time.time() - start_time >= retry_timeout
-                return counter >= retry_times
+                return counter > retry_times
 
             while True:
                 try:
-                    LOGGER.debug(f"counter: {counter}, function: {func.__name__}")
                     return func(self, *args, **kwargs)
                 except grpc.RpcError as e:
                     # DEADLINE_EXCEEDED means that the task wat not completed
@@ -54,13 +55,19 @@ def retry_on_rpc_failure(retry_times=10, initial_back_off=0.2, max_back_off=60, 
                     if not retry_on_deadline and e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
                         raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
                     if timeout(start_time):
+                        timeout_msg = f"Retry timeout: {retry_timeout}s" if retry_timeout is not None \
+                            else f"Retry run out of {retry_times} retry times"
+
                         if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                            raise MilvusException(Status.UNEXPECTED_ERROR, "rpc timeout")
+                            raise MilvusException(Status.UNEXPECTED_ERROR, f"rpc deadline exceeded: {timeout_msg}")
                         if e.code() == grpc.StatusCode.UNAVAILABLE:
-                            raise MilvusUnavaliableException(Status.UNEXPECTED_ERROR, "server unavaliable")
+                            raise MilvusUnavaliableException(Status.UNEXPECTED_ERROR, f"server unavaliable: {timeout_msg}")
                         raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
+
+                    retry_msg = f"Retry [{func.__name__}] No.{counter} in {back_off}s, retry reason: <{e.__class__.__name__}: {e.code()}, {e.details()}>"
+                    LOGGER.warning(WARNING_COLOR.format(retry_msg))
+
                     time.sleep(back_off)
-                    LOGGER.warning(f"retry, counter: {counter}, grpc communication failed: [{func.__name__}], <{e.__class__.__name__}: {e.code()}, {e.details()}>")
                     back_off = min(back_off * back_off_multiplier, max_back_off)
                 except Exception as e:
                     raise e

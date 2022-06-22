@@ -2,7 +2,6 @@ import pytest
 import grpc
 from pymilvus import MilvusException, MilvusUnavaliableException
 from pymilvus.client.grpc_handler import GrpcHandler
-from pymilvus.decorators import retry_on_rpc_failure, error_handler
 from pymilvus.grpc_gen import milvus_pb2
 from pymilvus.grpc_gen import common_pb2
 
@@ -66,33 +65,3 @@ class TestGrpcHandler:
 
         with pytest.raises(MilvusUnavaliableException):
             has_collection_future.result()
-
-    def test_rpc_decorators(self):
-        self.count = 0
-        try:
-            self.rpc_func()
-        except Exception as e:
-            print(e)
-        finally:
-            assert self.count == 5
-
-        try:
-            self.err_func()
-        except Exception as e:
-            print(e)
-
-    @retry_on_rpc_failure(retry_times=5)
-    def rpc_func(self):
-        self.count += 1
-        raise CodeRpcError()
-
-    @error_handler()
-    def err_func(self):
-        raise CodeRpcError()
-
-class CodeRpcError(grpc.RpcError):
-    def code(self):
-        return grpc.StatusCode.UNAVAILABLE
-
-    def details(self):
-        return "details"
