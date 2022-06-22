@@ -120,19 +120,17 @@ class GrpcHandler:
     def _setup_grpc_channel(self):
         """ Create a ddl grpc channel """
         if self._channel is None:
+            opts = [(cygrpc.ChannelArgKey.max_send_message_length, -1),
+                    (cygrpc.ChannelArgKey.max_receive_message_length, -1),
+                    ('grpc.enable_retries', 1),
+                    ('grpc.keepalive_time_ms', 55000),
+                    ]
             if not self._secure:
                 self._channel = grpc.insecure_channel(
                     self._uri,
-                    options=[(cygrpc.ChannelArgKey.max_send_message_length, -1),
-                             (cygrpc.ChannelArgKey.max_receive_message_length, -1),
-                             ('grpc.enable_retries', 1),
-                             ('grpc.keepalive_time_ms', 55000)]
+                    options=opts,
                 )
             else:
-                opts = [(cygrpc.ChannelArgKey.max_send_message_length, -1),
-                        (cygrpc.ChannelArgKey.max_receive_message_length, -1),
-                        ('grpc.enable_retries', 1),
-                        ('grpc.keepalive_time_ms', 55000)]
                 if self._client_pem_path != "" and self._client_key_path != "" and self._ca_pem_path != "" \
                         and self._server_name != "":
                     opts.append(('grpc.ssl_target_name_override', self._server_name, ),)
@@ -175,8 +173,7 @@ class GrpcHandler:
         self._setup_authorization_interceptor(user, new_password)
         self._setup_grpc_channel()
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
         request = Prepare.create_collection_request(collection_name, fields, shards_num=shards_num, **kwargs)
 
@@ -192,8 +189,7 @@ class GrpcHandler:
             LOGGER.error(status)
             raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=False)
-    @error_handler
+    @retry_on_rpc_failure(retry_on_deadline=False)
     def drop_collection(self, collection_name, timeout=None):
         check_pass_param(collection_name=collection_name)
         request = Prepare.drop_collection_request(collection_name)
@@ -203,8 +199,7 @@ class GrpcHandler:
         if status.error_code != 0:
             raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def has_collection(self, collection_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.has_collection_request(collection_name)
@@ -215,8 +210,7 @@ class GrpcHandler:
 
         raise MilvusException(reply.status.error_code, reply.status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def describe_collection(self, collection_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.describe_collection_request(collection_name)
@@ -229,8 +223,7 @@ class GrpcHandler:
 
         raise DescribeCollectionException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def list_collections(self, timeout=None):
         request = Prepare.show_collections_request()
         rf = self._stub.ShowCollections.future(request, wait_for_ready=True, timeout=timeout)
@@ -241,8 +234,7 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def create_partition(self, collection_name, partition_name, timeout=None):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.create_partition_request(collection_name, partition_name)
@@ -251,8 +243,7 @@ class GrpcHandler:
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def drop_partition(self, collection_name, partition_name, timeout=None):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.drop_partition_request(collection_name, partition_name)
@@ -263,8 +254,7 @@ class GrpcHandler:
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def has_partition(self, collection_name, partition_name, timeout=None):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.has_partition_request(collection_name, partition_name)
@@ -277,7 +267,7 @@ class GrpcHandler:
         raise MilvusException(status.error_code, status.reason)
 
     # TODO: this is not inuse
-    @error_handler
+    @retry_on_rpc_failure()
     def get_partition_info(self, collection_name, partition_name, timeout=None):
         request = Prepare.partition_stats_request(collection_name, partition_name)
         rf = self._stub.DescribePartition.future(request, wait_for_ready=True, timeout=timeout)
@@ -291,8 +281,7 @@ class GrpcHandler:
             return info_dict
         raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def list_partitions(self, collection_name, timeout=None):
         check_pass_param(collection_name=collection_name)
         request = Prepare.show_partitions_request(collection_name)
@@ -305,8 +294,7 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def get_partition_stats(self, collection_name, partition_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         req = Prepare.get_partition_stats_request(collection_name, partition_name)
@@ -337,8 +325,7 @@ class GrpcHandler:
 
         return request
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def bulk_insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         if not check_invalid_binary_vector(entities):
             raise ParamError("Invalid binary vector data exists")
@@ -364,8 +351,7 @@ class GrpcHandler:
                 return MutationFuture(None, None, err)
             raise err
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def delete(self, collection_name, expression, partition_name=None, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         try:
@@ -384,7 +370,6 @@ class GrpcHandler:
                 return MutationFuture(None, None, err)
             raise err
 
-    @error_handler
     def _execute_search_requests(self, requests, timeout=None, **kwargs):
         auto_id = kwargs.get("auto_id", True)
 
@@ -417,8 +402,7 @@ class GrpcHandler:
                 return SearchFuture(None, None, True, pre_err)
             raise pre_err
 
-    @retry_on_rpc_failure(retry_times=10, wait=1, retry_on_deadline=False)
-    @error_handler
+    @retry_on_rpc_failure(retry_on_deadline=False)
     def search(self, collection_name, data, anns_field, param, limit,
                expression=None, partition_names=None, output_fields=None,
                round_decimal=-1, timeout=None, **kwargs):
@@ -454,8 +438,7 @@ class GrpcHandler:
 
         return self._execute_search_requests(requests, timeout, **_kwargs)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def get_query_segment_info(self, collection_name, timeout=30, **kwargs):
         req = Prepare.get_query_segment_info_request(collection_name)
         future = self._stub.GetQuerySegmentInfo.future(req, wait_for_ready=True, timeout=timeout)
@@ -465,8 +448,7 @@ class GrpcHandler:
             return response.infos  # todo: A wrapper class of QuerySegmentInfo
         raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def create_alias(self, collection_name, alias, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.create_alias_request(collection_name, alias)
@@ -475,8 +457,7 @@ class GrpcHandler:
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def drop_alias(self, alias, timeout=None, **kwargs):
         request = Prepare.drop_alias_request(alias)
         rf = self._stub.DropAlias.future(request, wait_for_ready=True, timeout=timeout)
@@ -484,8 +465,7 @@ class GrpcHandler:
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def alter_alias(self, collection_name, alias, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.alter_alias_request(collection_name, alias)
@@ -494,8 +474,7 @@ class GrpcHandler:
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         # for historical reason, index_name contained in kwargs.
         index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
@@ -607,8 +586,7 @@ class GrpcHandler:
 
         return Status(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def describe_indexes(self, collection_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.describe_index_request(collection_name, "")
@@ -622,8 +600,7 @@ class GrpcHandler:
             return []
         raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def describe_index(self, collection_name, index_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.describe_index_request(collection_name, index_name)
@@ -641,8 +618,7 @@ class GrpcHandler:
             return None
         raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def get_index_build_progress(self, collection_name, index_name, timeout=None):
         request = Prepare.get_index_build_progress(collection_name, index_name)
         rf = self._stub.GetIndexBuildProgress.future(request, timeout=timeout)
@@ -652,7 +628,7 @@ class GrpcHandler:
             return {'total_rows': response.total_rows, 'indexed_rows': response.indexed_rows}
         raise MilvusException(status.error_code, status.reason)
 
-    @error_handler
+    @retry_on_rpc_failure()
     def get_index_state(self, collection_name: str, index_name: str, timeout=None, **kwargs):
         request = Prepare.get_index_state_request(collection_name=collection_name, index_name=index_name)
         rf = self._stub.GetIndexState.future(request, timeout=timeout)
@@ -662,8 +638,7 @@ class GrpcHandler:
             return response.state, response.fail_reason
         raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def wait_for_creating_index(self, collection_name, index_name, timeout=None, **kwargs):
         start = time.time()
         while True:
@@ -678,8 +653,7 @@ class GrpcHandler:
                 if end - start > timeout:
                     raise MilvusException(1, "CreateIndex Timeout")
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.load_collection("", collection_name, replica_number)
@@ -691,14 +665,12 @@ class GrpcHandler:
         if not _async:
             self.wait_for_loading_collection(collection_name, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def load_collection_progress(self, collection_name, timeout=None):
         """ Return loading progress of collection """
         return self.general_loading_progress(collection_name, timeout=timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def wait_for_loading_collection(self, collection_name, timeout=None):
         return self._wait_for_loading_collection(collection_name, timeout)
 
@@ -735,8 +707,7 @@ class GrpcHandler:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def release_collection(self, collection_name, timeout=None):
         check_pass_param(collection_name=collection_name)
         request = Prepare.release_collection("", collection_name)
@@ -745,8 +716,7 @@ class GrpcHandler:
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def load_partitions(self, collection_name, partition_names, replica_number=1, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         request = Prepare.load_partitions("", collection_name, partition_names, replica_number)
@@ -773,8 +743,7 @@ class GrpcHandler:
         if sync:
             self.wait_for_loading_partitions(collection_name, partition_names)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
         return self._wait_for_loading_partitions(collection_name, partition_names, timeout)
 
@@ -813,7 +782,7 @@ class GrpcHandler:
 
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
 
-    @error_handler
+    @retry_on_rpc_failure()
     def general_loading_progress(self, collection_name, partition_names=None, timeout=None):
         request = Prepare.show_partitions_request(collection_name, type_in_memory=True)
         rf = self._stub.ShowPartitions.future(request, wait_for_ready=True, timeout=timeout)
@@ -840,14 +809,12 @@ class GrpcHandler:
             "not_loaded_partitions": unloaded_p_names,
         }
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def load_partitions_progress(self, collection_name, partition_names, timeout=None):
         """ Return loading progress of partitions """
         return self.general_loading_progress(collection_name, partition_names, timeout)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def release_partitions(self, collection_name, partition_names, timeout=None):
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         request = Prepare.release_partitions("", collection_name, partition_names)
@@ -856,8 +823,7 @@ class GrpcHandler:
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def get_collection_stats(self, collection_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         index_param = Prepare.get_collection_stats_request(collection_name)
@@ -869,7 +835,7 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    @error_handler
+    @retry_on_rpc_failure()
     def get_flush_state(self, segment_ids, timeout=None, **kwargs):
         req = Prepare.get_flush_state_request(segment_ids)
         future = self._stub.GetFlushState.future(req, wait_for_ready=True, timeout=timeout)
@@ -880,7 +846,7 @@ class GrpcHandler:
         raise MilvusException(status.error_code, status.reason)
 
     # TODO seem not in use
-    @error_handler
+    @retry_on_rpc_failure()
     def get_persistent_segment_infos(self, collection_name, timeout=None, **kwargs):
         req = Prepare.get_persistent_segment_info_request(collection_name)
         future = self._stub.GetPersistentSegmentInfo.future(req, wait_for_ready=True, timeout=timeout)
@@ -890,7 +856,6 @@ class GrpcHandler:
             return response.infos  # todo: A wrapper class of PersistentSegmentInfo
         raise MilvusException(status.error_code, status.reason)
 
-    @error_handler
     def _wait_for_flushed(self, segment_ids, timeout=None, **kwargs):
         flush_ret = False
         while not flush_ret:
@@ -898,8 +863,7 @@ class GrpcHandler:
             if not flush_ret:
                 time.sleep(0.5)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def flush(self, collection_names: list, timeout=None, **kwargs):
         if collection_names in (None, []) or not isinstance(collection_names, list):
             raise ParamError("Collection name list can not be None or empty")
@@ -930,8 +894,7 @@ class GrpcHandler:
 
         _check()
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def drop_index(self, collection_name, field_name, index_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, field_name=field_name)
         request = Prepare.drop_index_request(collection_name, field_name, index_name)
@@ -940,30 +903,28 @@ class GrpcHandler:
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def dummy(self, request_type, timeout=None, **kwargs):
         request = Prepare.dummy_request(request_type)
         future = self._stub.Dummy.future(request, wait_for_ready=True, timeout=timeout)
         return future.result()
 
     # TODO seems not in use
-    @error_handler
+    @retry_on_rpc_failure()
     def fake_register_link(self, timeout=None):
         request = Prepare.register_link_request()
         future = self._stub.RegisterLink.future(request, wait_for_ready=True, timeout=timeout)
         return future.result().status
 
     # TODO seems not in use
-    @error_handler
+    @retry_on_rpc_failure()
     def get(self, collection_name, ids, output_fields=None, partition_names=None, timeout=None):
         # TODO: some check
         request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
         future = self._stub.Retrieve.future(request, wait_for_ready=True, timeout=timeout)
         return future.result()
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError("Invalid query format. 'output_fields' must be a list")
@@ -1035,8 +996,7 @@ class GrpcHandler:
 
         return results
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def calc_distance(self, vectors_left, vectors_right, params, timeout=30, **kwargs):
         # both "metric" or "metric_type" are ok
         params = params or {"metric": config.CALC_DIST_METRIC}
@@ -1062,8 +1022,7 @@ class GrpcHandler:
             return response.float_dist.data
         raise MilvusException(0, "Empty result returned")
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def load_balance(self, collection_name: str, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
         req = Prepare.load_balance_request(collection_name, src_node_id, dst_node_ids, sealed_segment_ids)
         future = self._stub.LoadBalance.future(req, wait_for_ready=True, timeout=timeout)
@@ -1087,7 +1046,7 @@ class GrpcHandler:
 
         return response.compactionID
 
-    @error_handler
+    @retry_on_rpc_failure()
     def get_compaction_state(self, compaction_id, timeout=None, **kwargs) -> CompactionState:
         req = Prepare.get_compaction_state(compaction_id)
 
@@ -1104,8 +1063,7 @@ class GrpcHandler:
             response.completedPlanNo
         )
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def wait_for_compaction_completed(self, compaction_id, timeout=None, **kwargs):
         start = time.time()
         while True:
@@ -1120,7 +1078,7 @@ class GrpcHandler:
                 if end - start > timeout:
                     raise MilvusException(1, "Get compaction state timeout")
 
-    @error_handler
+    @retry_on_rpc_failure()
     def get_compaction_plans(self, compaction_id, timeout=None, **kwargs) -> CompactionPlans:
         req = Prepare.get_compaction_state_with_plans(compaction_id)
 
@@ -1135,8 +1093,7 @@ class GrpcHandler:
 
         return cp
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def get_replicas(self, collection_name, timeout=None, **kwargs) -> Replica:
         collection_id = self.describe_collection(collection_name, timeout, **kwargs)["collection_id"]
 
@@ -1153,8 +1110,7 @@ class GrpcHandler:
 
         return Replica(groups)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def bulk_load(self, collection_name, partition_name, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
         req = Prepare.bulk_load(collection_name, partition_name, is_row_based, files, **kwargs)
         future = self._stub.Import.future(req, wait_for_ready=True, timeout=timeout)
@@ -1163,7 +1119,7 @@ class GrpcHandler:
             raise MilvusException(response.status.error_code, response.status.reason)
         return response.tasks
 
-    @error_handler
+    @retry_on_rpc_failure()
     def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
         req = Prepare.get_import_state(task_id)
         future = self._stub.GetImportState.future(req, wait_for_ready=True, timeout=timeout)
@@ -1173,8 +1129,7 @@ class GrpcHandler:
         state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.data_queryable, resp.data_indexed)
         return state
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def list_bulk_load_tasks(self, timeout=None, **kwargs) -> list:
         req = Prepare.list_import_tasks()
         future = self._stub.ListImportTasks.future(req, wait_for_ready=True, timeout=timeout)
@@ -1186,8 +1141,7 @@ class GrpcHandler:
                  for t in resp.tasks]
         return tasks
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def create_credential(self, user, password, timeout=None, **kwargs):
         check_pass_param(user=user, password=password)
         req = Prepare.create_credential_request(user, password)
@@ -1195,24 +1149,21 @@ class GrpcHandler:
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def update_credential(self, user, old_password, new_password, timeout=None, **kwargs):
         req = Prepare.update_credential_request(user, old_password, new_password)
         resp = self._stub.UpdateCredential(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def delete_credential(self, user, timeout=None, **kwargs):
         req = Prepare.delete_credential_request(user)
         resp = self._stub.DeleteCredential(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
-    @retry_on_rpc_failure(retry_times=10, wait=1)
-    @error_handler
+    @retry_on_rpc_failure()
     def list_cred_users(self, timeout=None, **kwargs):
         req = Prepare.list_credential_request()
         resp = self._stub.ListCredUsers(req, wait_for_ready=True, timeout=timeout)
