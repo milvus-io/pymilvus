@@ -1030,7 +1030,7 @@ class GrpcHandler:
         if status.error_code != 0:
             raise MilvusException(status.error_code, status.reason)
 
-    @error_handler
+    @error_handler()
     def compact(self, collection_name, timeout=None, **kwargs) -> int:
         request = Prepare.describe_collection_request(collection_name)
         rf = self._stub.DescribeCollection.future(request, wait_for_ready=True, timeout=timeout)

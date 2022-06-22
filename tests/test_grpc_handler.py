@@ -74,11 +74,20 @@ class TestGrpcHandler:
         except Exception as e:
             print(e)
         finally:
-            assert self.count == 10
+            assert self.count == 5
 
-    @retry_on_rpc_failure()
+        try:
+            self.err_func()
+        except Exception as e:
+            print(e)
+
+    @retry_on_rpc_failure(retry_times=5)
     def rpc_func(self):
         self.count += 1
+        raise CodeRpcError()
+
+    @error_handler()
+    def err_func(self):
         raise CodeRpcError()
 
 class CodeRpcError(grpc.RpcError):

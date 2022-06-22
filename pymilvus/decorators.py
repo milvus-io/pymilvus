@@ -23,7 +23,7 @@ def deprecated(func):
 def retry_on_rpc_failure(retry_times=10, initial_back_off=0.2, max_back_off=60, back_off_multiplier=2, retry_on_deadline=True):
     def wrapper(func):
         @functools.wraps(func)
-        @error_handler
+        @error_handler(func_name=func.__name__)
         def handler(self, *args, **kwargs):
             # This has to make sure every timeout parameter is passing throught kwargs form as `timeout=10`
             _timeout = kwargs.get("timeout", None)
@@ -71,27 +71,32 @@ def retry_on_rpc_failure(retry_times=10, initial_back_off=0.2, max_back_off=60, 
     return wrapper
 
 
-def error_handler(func):
-    @functools.wraps(func)
-    def handler(*args, **kwargs):
-        record_dict = {}
-        try:
-            record_dict["RPC start"] = str(datetime.datetime.now())
-            return func(*args, **kwargs)
-        except MilvusException as e:
-            record_dict["RPC error"] = str(datetime.datetime.now())
-            LOGGER.error(f"RPC error: [{func.__name__}], {e}, <Time:{record_dict}>")
-            raise e
-        except grpc.FutureTimeoutError as e:
-            record_dict["gRPC timeout"] = str(datetime.datetime.now())
-            LOGGER.error(f"grpc Timeout: [{func.__name__}], <{e.__class__.__name__}: {e.code()}, {e.details()}>, <Time:{record_dict}>")
-            raise e
-        except grpc.RpcError as e:
-            record_dict["gRPC error"] = str(datetime.datetime.now())
-            LOGGER.error(f"grpc RpcError: [{func.__name__}], <{e.__class__.__name__}: {e.code()}, {e.details()}>, <Time:{record_dict}>")
-            raise e
-        except Exception as e:
-            record_dict["Exception"] = str(datetime.datetime.now())
-            LOGGER.error(f"Unexcepted error: [{func.__name__}], {e}, <Time: {record_dict}>")
-            raise e
-    return handler
+def error_handler(func_name=""):
+    def wrapper(func):
+        @functools.wraps(func)
+        def handler(*args, **kwargs):
+            inner_name = func_name
+            if inner_name == "":
+                inner_name = func.__name__
+            record_dict = {}
+            try:
+                record_dict["RPC start"] = str(datetime.datetime.now())
+                return func(*args, **kwargs)
+            except MilvusException as e:
+                record_dict["RPC error"] = str(datetime.datetime.now())
+                LOGGER.error(f"RPC error: [{inner_name}], {e}, <Time:{record_dict}>")
+                raise e
+            except grpc.FutureTimeoutError as e:
+                record_dict["gRPC timeout"] = str(datetime.datetime.now())
+                LOGGER.error(f"grpc Timeout: [{inner_name}], <{e.__class__.__name__}: {e.code()}, {e.details()}>, <Time:{record_dict}>")
+                raise e
+            except grpc.RpcError as e:
+                record_dict["gRPC error"] = str(datetime.datetime.now())
+                LOGGER.error(f"grpc RpcError: [{inner_name}], <{e.__class__.__name__}: {e.code()}, {e.details()}>, <Time:{record_dict}>")
+                raise e
+            except Exception as e:
+                record_dict["Exception"] = str(datetime.datetime.now())
+                LOGGER.error(f"Unexcepted error: [{inner_name}], {e}, <Time: {record_dict}>")
+                raise e
+        return handler
+    return wrapper
