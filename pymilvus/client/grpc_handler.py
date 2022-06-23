@@ -1110,36 +1110,36 @@ class GrpcHandler:
 
         return Replica(groups)
 
-    @retry_on_rpc_failure()
-    def bulk_load(self, collection_name, partition_name, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
-        req = Prepare.bulk_load(collection_name, partition_name, is_row_based, files, **kwargs)
-        future = self._stub.Import.future(req, wait_for_ready=True, timeout=timeout)
-        response = future.result()
-        if response.status.error_code != 0:
-            raise MilvusException(response.status.error_code, response.status.reason)
-        return response.tasks
-
-    @retry_on_rpc_failure()
-    def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
-        req = Prepare.get_import_state(task_id)
-        future = self._stub.GetImportState.future(req, wait_for_ready=True, timeout=timeout)
-        resp = future.result()
-        if resp.status.error_code != 0:
-            raise MilvusException(resp.status.error_code, resp.status.reason)
-        state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.data_queryable, resp.data_indexed)
-        return state
-
-    @retry_on_rpc_failure()
-    def list_bulk_load_tasks(self, timeout=None, **kwargs) -> list:
-        req = Prepare.list_import_tasks()
-        future = self._stub.ListImportTasks.future(req, wait_for_ready=True, timeout=timeout)
-        resp = future.result()
-        if resp.status.error_code != 0:
-            raise MilvusException(resp.status.error_code, resp.status.reason)
-
-        tasks = [BulkLoadState(t.id, t.state, t.row_count, t.id_list, t.infos, t.data_queryable, t.data_indexed)
-                 for t in resp.tasks]
-        return tasks
+    # @retry_on_rpc_failure()
+    # def bulk_load(self, collection_name, partition_name, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
+    #     req = Prepare.bulk_load(collection_name, partition_name, is_row_based, files, **kwargs)
+    #     future = self._stub.Import.future(req, wait_for_ready=True, timeout=timeout)
+    #     response = future.result()
+    #     if response.status.error_code != 0:
+    #         raise MilvusException(response.status.error_code, response.status.reason)
+    #     return response.tasks
+    #
+    # @retry_on_rpc_failure()
+    # def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
+    #     req = Prepare.get_import_state(task_id)
+    #     future = self._stub.GetImportState.future(req, wait_for_ready=True, timeout=timeout)
+    #     resp = future.result()
+    #     if resp.status.error_code != 0:
+    #         raise MilvusException(resp.status.error_code, resp.status.reason)
+    #     state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.data_queryable, resp.data_indexed)
+    #     return state
+    #
+    # @retry_on_rpc_failure()
+    # def list_bulk_load_tasks(self, timeout=None, **kwargs) -> list:
+    #     req = Prepare.list_import_tasks()
+    #     future = self._stub.ListImportTasks.future(req, wait_for_ready=True, timeout=timeout)
+    #     resp = future.result()
+    #     if resp.status.error_code != 0:
+    #         raise MilvusException(resp.status.error_code, resp.status.reason)
+    #
+    #     tasks = [BulkLoadState(t.id, t.state, t.row_count, t.id_list, t.infos, t.data_queryable, t.data_indexed)
+    #              for t in resp.tasks]
+    #     return tasks
 
     @retry_on_rpc_failure()
     def create_credential(self, user, password, timeout=None, **kwargs):
