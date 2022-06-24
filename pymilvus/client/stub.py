@@ -15,10 +15,10 @@ from .check import (
 class Milvus:
     @deprecated
     def __init__(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI, channel=None, **kwargs):
-        self.uri = self.__set_uri(host, port, uri)
-        self._handler = GrpcHandler(self.uri, channel=channel, **kwargs)
+        self.address = self.__get_address(host, port, uri)
+        self._handler = GrpcHandler(addres=self.address, channel=channel, **kwargs)
 
-    def __set_uri(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI):
+    def __get_address(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI):
         if host is None and uri is None:
             raise ParamError('Host and uri cannot both be None')
 

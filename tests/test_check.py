@@ -6,6 +6,68 @@ from pymilvus.client.utils import mkts_from_unixtime, mkts_from_datetime, mkts_f
     hybridts_to_unixtime
 from pymilvus.client import get_commit
 
+from pymilvus.client.check import (
+    is_legal_address,
+    is_legal_host,
+    is_legal_port,
+)
+
+
+class TestChecks:
+    @pytest.mark.parametrize("valid_address", [
+        "localhost:19530",
+        "example.com:19530"
+    ])
+    def test_check_is_legal_address_true(self, valid_address):
+        valid = is_legal_address(valid_address)
+        assert valid is True
+
+    @pytest.mark.parametrize("invalid_address", [
+        "-1",
+        "localhost",
+        ":19530",
+        "localhost:localhost",
+    ])
+    def test_check_is_legal_address_false(self, invalid_address):
+        valid = is_legal_address(invalid_address)
+        assert valid is False
+
+    @pytest.mark.parametrize("valid_host", [
+        "localhost",
+        "example.com"
+    ])
+    def test_check_is_legal_host_true(self, valid_host):
+        valid = is_legal_host(valid_host)
+        assert valid is True
+
+    @pytest.mark.parametrize("invalid_host", [
+        -1,
+        1.0,
+        "",
+        is_legal_address,
+    ])
+    def test_check_is_legal_host_false(self, invalid_host):
+        valid = is_legal_host(invalid_host)
+        assert valid is False
+
+    @pytest.mark.parametrize("valid_port", [
+        "19530",
+        "222",
+        123,
+    ])
+    def test_check_is_legal_port_true(self, valid_port):
+        valid = is_legal_port(valid_port)
+        assert valid is True
+
+    @pytest.mark.parametrize("invalid_port", [
+        is_legal_address,
+        "abc",
+        0.3,
+    ])
+    def test_check_is_legal_port_false(self, invalid_port):
+        valid = is_legal_port(invalid_port)
+        assert valid is False
+
 
 class TestCheckPassParam:
     def test_check_pass_param_valid(self):

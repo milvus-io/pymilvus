@@ -4,6 +4,7 @@ import json
 import copy
 import math
 import base64
+from urllib import parse
 
 import grpc
 from grpc._cython import cygrpc
@@ -71,26 +72,36 @@ LOGGER = logging.getLogger(__name__)
 
 
 class GrpcHandler:
-    def __init__(self, uri=config.GRPC_ADDRESS, host=None, port=None, channel=None, **kwargs):
+    def __init__(self, uri=config.GRPC_URI, host="", port="", channel=None, **kwargs):
         self._stub = None
         self._channel = channel
 
-        if host is not None and port is not None \
-                and is_legal_host(host) and is_legal_port(port):
-            self._uri = f"{host}:{port}"
-        else:
-            self._uri = uri
-        self._max_retry = kwargs.get("max_retry", 5)
+        addr = kwargs.get("address")
+        self._address = addr if addr is not None else self.__get_address(uri, host, port)
 
+        self._set_authorization(**kwargs)
+        self._setup_grpc_channel()
+
+    def __get_address(self, uri: str, host: str, port: str) -> str:
+        if host != "" and port != "" and is_legal_host(host) and is_legal_port(port):
+            return f"{host}:{port}"
+        else:
+            try:
+                parsed_uri = parse.urlparse(uri)
+            except (Exception) as e:
+                raise ParamError(f"Illegal uri: [{uri}], {e}")
+            return parsed_uri.netloc
+
+    def _set_authorization(self, **kwargs):
         self._secure = kwargs.get("secure", False)
         self._client_pem_path = kwargs.get("client_pem_path", "")
         self._client_key_path = kwargs.get("client_key_path", "")
         self._ca_pem_path = kwargs.get("ca_pem_path", "")
         self._server_pem_path = kwargs.get("server_pem_path", "")
         self._server_name = kwargs.get("server_name", "")
+
         self._authorization_interceptor = None
         self._setup_authorization_interceptor(kwargs.get("user", None), kwargs.get("password", None))
-        self._setup_grpc_channel()
 
     def __enter__(self):
         return self
@@ -104,7 +115,7 @@ class GrpcHandler:
                 grpc.channel_ready_future(self._channel).result(timeout=3)
                 return
             except grpc.FutureTimeoutError:
-                raise MilvusException(Status.CONNECT_FAILED, f'Fail connecting to server on {self._uri}. Timeout')
+                raise MilvusException(Status.CONNECT_FAILED, f'Fail connecting to server on {self._address}. Timeout')
 
         raise MilvusException(Status.CONNECT_FAILED, 'No channel in handler, please setup grpc channel first')
 
@@ -127,7 +138,7 @@ class GrpcHandler:
                     ]
             if not self._secure:
                 self._channel = grpc.insecure_channel(
-                    self._uri,
+                    self._address,
                     options=opts,
                 )
             else:
@@ -150,7 +161,7 @@ class GrpcHandler:
                     creds = grpc.ssl_channel_credentials(root_certificates=None, private_key=None,
                                                          certificate_chain=None)
                 self._channel = grpc.secure_channel(
-                    self._uri,
+                    self._address,
                     creds,
                     options=opts
                 )
@@ -163,7 +174,7 @@ class GrpcHandler:
     @property
     def server_address(self):
         """ Server network address """
-        return self._uri
+        return self._address
 
     def reset_password(self, user, old_password, new_password):
         """

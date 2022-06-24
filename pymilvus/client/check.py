@@ -4,19 +4,36 @@ from typing import Any, Union
 from ..exceptions import ParamError
 
 
+def is_legal_address(addr: Any) -> bool:
+    if not isinstance(addr, str):
+        return False
+
+    a = addr.split(":")
+    if len(a) != 2:
+        return False
+
+    if not is_legal_host(a[0]) or not is_legal_port(a[1]):
+        return False
+
+    return True
+
+
 def is_legal_host(host: Any) -> bool:
-    return isinstance(host, str)
+    if not isinstance(host, str):
+        return False
+    elif len(host) == 0:
+        return False
+    return True
 
 
 def is_legal_port(port: Any) -> bool:
-    if isinstance(port, str):
+    if isinstance(port, (str, int)):
         try:
-            _port = int(port)
+            int(port)
         except ValueError:
             return False
         else:
-            return 0 <= _port < 65535
-
+            return True
     return False
 
 
