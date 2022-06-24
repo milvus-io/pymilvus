@@ -39,9 +39,18 @@ class TestConnect:
     def no_host_or_port(self, request):
         return request.param
 
+    @pytest.fixture(scope="function", params=[
+        {"uri": "https://127.0.0.1:19530"},
+        {"uri": "tcp://127.0.0.1:19530"},
+        {"uri": "http://127.0.0.1:19530"},
+        {"uri": "http://example.com:80"},
+    ])
+    def uri(self, request):
+        return request.param
+
     def test_connect_with_default_config(self):
         alias = "default"
-        default_addr = {"host": "localhost", "port": "19530", "user": ""}
+        default_addr = {"address": "localhost:19530", "user": ""}
 
         assert connections.has_connection(alias) is False
         addr = connections.get_connection_addr(alias)
@@ -62,7 +71,7 @@ class TestConnect:
 
     def test_connect_new_alias_with_configs(self):
         alias = "exist"
-        addr = {"host": "localhost", "port": "19530"}
+        addr = {"address": "localhost:19530"}
 
         assert connections.has_connection(alias) is False
         a = connections.get_connection_addr(alias)
@@ -88,28 +97,46 @@ class TestConnect:
         a = connections.get_connection_addr(alias)
         assert a == {}
 
-        with pytest.raises(MilvusException) as einfo:
-            with mock.patch(f"{mock_prefix}.__init__", return_value=None):
-                with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                    connections.connect(alias, **no_host_or_port)
-        assert "connection configuration must contain" in einfo.value.message
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
+            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                connections.connect(alias, **no_host_or_port)
 
-        assert connections.has_connection(alias) is False
+        assert connections.has_connection(alias) is True
+        assert connections.get_connection_addr(alias) == {"address": "localhost:19530", "user": ""}
 
-    def test_connect_new_alias_with_configs_LackConfig(self, no_host_port):
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    def test_connect_new_alias_with_no_config(self):
         alias = "no_host_port"
 
         assert connections.has_connection(alias) is False
         a = connections.get_connection_addr(alias)
         assert a == {}
 
-        with pytest.raises(MilvusException) as einfo:
-            with mock.patch(f"{mock_prefix}.__init__", return_value=None):
-                with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                    connections.connect(alias, **no_host_port)
-        assert "You need to pass in" in einfo.value.message
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
+            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                connections.connect(alias)
 
-        assert connections.has_connection(alias) is False
+        assert connections.has_connection(alias) is True
+        assert connections.get_connection_addr(alias) == {"address": "localhost:19530", "user": ""}
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    def test_connect_with_uri(self, uri):
+        alias = "test_connect_with_uri"
+        with mock.patch(f"{mock_prefix}._setup_grpc_channel", return_value=None):
+            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                connections.connect(alias, **uri)
+
+        addr = connections.get_connection_addr(alias)
+        LOGGER.debug(addr)
+
+        assert connections.has_connection(alias) is True
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
 
 
 class TestAddConnection:
@@ -137,12 +164,11 @@ class TestAddConnection:
     def invalid_port(self, request):
         return request.param
 
-    @pytest.mark.skip("TODO: empty user in connection addr")
     def test_add_connection_no_error(self, addr):
         add_connection = connections.add_connection
 
         add_connection(test=addr)
-        assert connections.get_connection_addr("test") == addr
+        assert connections.get_connection_addr("test").get("address") == f"{addr['host']}:{addr['port']}"
 
         connections.remove_connection("test")
 
@@ -152,41 +178,18 @@ class TestAddConnection:
         addr = {"host": "localhost", "port": "19530", "user": "_user"}
 
         add_connection(test=addr)
-        assert connections.get_connection_addr("test") == addr
+
+        config = connections.get_connection_addr("test")
+        assert config.get("address") == f"{addr['host']}:{addr['port']}"
+        assert config.get("user") == addr['user']
 
         add_connection(default=addr)
-        assert connections.get_connection_addr("default") == addr
+        config = connections.get_connection_addr("default")
+        assert config.get("address") == f"{addr['host']}:{addr['port']}"
+        assert config.get("user") == addr['user']
 
         connections.remove_connection("test")
-        connections.remove_connection("default")
-
-    def test_add_connection_raise_NoHostPort(self, addr):
-        add_connection = connections.add_connection
-
-        host = addr.pop("host")
-        port = addr.pop("port")
-        LOGGER.info(f"Address: {addr}")
-        with pytest.raises(MilvusException):
-            add_connection(test=addr)
-
-        addr["host"] = host
-        LOGGER.info(f"Address: {addr}")
-        with pytest.raises(MilvusException) as excinfo:
-            add_connection(test=addr)
-
-        LOGGER.info(f"Exception info: {excinfo.value}")
-        assert "connection configuration must contain" in excinfo.value.message
-        assert 0 == excinfo.value.code
-
-        host = addr.pop("host")
-        addr["port"] = port
-        LOGGER.info(f"Address: {addr}")
-        with pytest.raises(MilvusException) as excinfo:
-            add_connection(test=addr)
-
-        LOGGER.info(f"Exception info: {excinfo.value}")
-        assert "connection configuration must contain" in excinfo.value.message
-        assert 0 == excinfo.value.code
+        connections.disconnect("default")
 
     def test_add_connection_raise_HostType(self, invalid_host):
         add_connection = connections.add_connection

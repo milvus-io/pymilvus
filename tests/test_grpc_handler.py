@@ -2,8 +2,7 @@ import pytest
 import grpc
 from pymilvus import MilvusException, MilvusUnavaliableException
 from pymilvus.client.grpc_handler import GrpcHandler
-from pymilvus.grpc_gen import milvus_pb2
-from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import milvus_pb2, common_pb2
 
 descriptor = milvus_pb2.DESCRIPTOR.services_by_name['MilvusService']
 
