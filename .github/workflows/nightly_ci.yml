@@ -49,6 +49,7 @@ jobs:
 
     - name: Install PyMilvus
       run: |
+        python3 -m pip install --upgrade setuptools
         python3 -m pip install --no-cache-dir -r milvus/tests/python_client/requirements.txt
         python3 -m pip uninstall -y pymilvus
         python3 setup.py install
