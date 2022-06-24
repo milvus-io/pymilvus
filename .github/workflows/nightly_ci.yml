@@ -1,5 +1,7 @@
 name: Nightly CI
 on:
+  workflow_dispatch:
+
   schedule:
     # * is a special character in YAML so you have to quote this string
     #         ┌───────────── minute (0 - 59)
@@ -49,6 +51,7 @@ jobs:
 
     - name: Install PyMilvus
       run: |
+        python3 -m pip install setuptools --upgrade
         python3 -m pip install --no-cache-dir -r milvus/tests/python_client/requirements.txt
         python3 -m pip uninstall -y pymilvus
         python3 setup.py install
