@@ -795,12 +795,19 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def general_loading_progress(self, collection_name, partition_names=None, timeout=None):
+        check_pass_param(partition_name_array=partition_names)
+
+        # check if partitions exists
+        request = Prepare.show_partitions_request(collection_name, partition_names)
+        response = self._stub.ShowPartitions.future(request, timeout=timeout).result()
+        if response.status.error_code != 0:
+            raise MilvusException(response.status.error_code, response.status.reason)
+
+        # check in memory partitions
         request = Prepare.show_partitions_request(collection_name, type_in_memory=True)
-        rf = self._stub.ShowPartitions.future(request, wait_for_ready=True, timeout=timeout)
-        response = rf.result()
-        status = response.status
-        if status.error_code != 0:
-            raise MilvusException(status.error_code, status.reason)
+        response = self._stub.ShowPartitions.future(request, timeout=timeout).result()
+        if response.status.error_code != 0:
+            raise MilvusException(response.status.error_code, response.status.reason)
 
         target_p_names = partition_names if partition_names is not None else self.list_partitions(collection_name)
 

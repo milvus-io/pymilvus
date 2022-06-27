@@ -180,7 +180,7 @@ class Prepare:
 
     @classmethod
     def show_partitions_request(cls, collection_name, partition_names=None, type_in_memory=False):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         req = milvus_types.ShowPartitionsRequest(collection_name=collection_name)
         if partition_names:
             if not isinstance(partition_names, (list,)):
