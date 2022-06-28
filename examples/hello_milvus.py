@@ -40,7 +40,7 @@ print(f"Does collection hello_milvus exist in Milvus: {has}")
 # +-+------------+------------+------------------+------------------------------+
 # | | field name | field type | other attributes |       field description      |
 # +-+------------+------------+------------------+------------------------------+
-# |1|    "pk"    |    Int64   |  is_primary=True |      "primary field"         |
+# |1|    "pk"    |   VarChar  |  is_primary=True |      "primary field"         |
 # | |            |            |   auto_id=False  |                              |
 # +-+------------+------------+------------------+------------------------------+
 # |2|  "random"  |    Double  |                  |      "a double field"        |
@@ -48,7 +48,7 @@ print(f"Does collection hello_milvus exist in Milvus: {has}")
 # |3|"embeddings"| FloatVector|     dim=8        |  "float vector with dim 8"   |
 # +-+------------+------------+------------------+------------------------------+
 fields = [
-    FieldSchema(name="pk", dtype=DataType.INT64, is_primary=True, auto_id=False),
+    FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=100),
     FieldSchema(name="random", dtype=DataType.DOUBLE),
     FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=dim)
 ]
@@ -71,7 +71,7 @@ print(fmt.format("Start inserting entities"))
 rng = np.random.default_rng(seed=19530)
 entities = [
     # provide the pk field because `auto_id` is set to False
-    [i for i in range(num_entities)],
+    [str(i) for i in range(num_entities)],
     rng.random(num_entities).tolist(),  # field random, only supports list
     rng.random((num_entities, dim)),    # field embeddings, supports numpy.ndarray and list
 ]
@@ -151,7 +151,8 @@ print(search_latency_fmt.format(end_time - start_time))
 # 6. delete entities by PK
 # You can delete entities by their PK values using boolean expressions.
 ids = insert_result.primary_keys
-expr = f"pk in [{ids[0]}, {ids[1]}]"
+
+expr = f'pk in ["{ids[0]}" , "{ids[1]}"]'
 print(fmt.format(f"Start deleting with expr `{expr}`"))
 
 result = hello_milvus.query(expr=expr, output_fields=["random", "embeddings"])
