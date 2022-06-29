@@ -119,7 +119,7 @@ class TestConnect:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "You need to pass in the configuration" in excinfo.value.message
-        assert 0 == excinfo.value.code
+        assert -1 == excinfo.value.code
 
     def test_connect_with_uri(self, uri):
         alias = self.test_connect_with_uri.__name__
@@ -216,7 +216,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Type of 'host' must be str." in excinfo.value.message
-        assert 0 == excinfo.value.code
+        assert -1 == excinfo.value.code
 
     def test_add_connection_raise_PortType(self, invalid_port):
         add_connection = connections.add_connection
@@ -226,7 +226,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Type of 'port' must be str" in excinfo.value.message
-        assert 0 == excinfo.value.code
+        assert -1 == excinfo.value.code
 
     @pytest.mark.parametrize("valid_addr", [
         {"address": "127.0.0.1:19530"},
@@ -256,8 +256,8 @@ class TestAddConnection:
             connections.add_connection(**config)
 
         LOGGER.info(f"Exception info: {excinfo.value}")
-        assert "illegal address" in excinfo.value.message
-        assert 0 == excinfo.value.code
+        assert "Illegal address" in excinfo.value.message
+        assert -1 == excinfo.value.code
 
     @pytest.mark.parametrize("valid_uri", [
         {"uri": "http://127.0.0.1:19530"},
@@ -295,9 +295,8 @@ class TestAddConnection:
             connections.add_connection(**config)
 
         LOGGER.info(f"Exception info: {excinfo.value}")
-        assert "illegal uri" in excinfo.value.message
-        assert 0 == excinfo.value.code
-
+        assert "Illegal uri" in excinfo.value.message
+        assert -1 == excinfo.value.code
 
 
 @pytest.mark.skip("to remove")
