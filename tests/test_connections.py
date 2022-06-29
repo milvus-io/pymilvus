@@ -108,24 +108,22 @@ class TestConnect:
             connections.remove_connection(alias)
 
     def test_connect_new_alias_with_no_config(self):
-        alias = "no_host_port"
+        alias = self.test_connect_new_alias_with_no_config.__name__
 
         assert connections.has_connection(alias) is False
         a = connections.get_connection_addr(alias)
         assert a == {}
 
-        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
-            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                connections.connect(alias)
+        with pytest.raises(MilvusException) as excinfo:
+            connections.connect(alias)
 
-        assert connections.has_connection(alias) is True
-        assert connections.get_connection_addr(alias) == {"address": "localhost:19530", "user": ""}
-
-        with mock.patch(f"{mock_prefix}.close", return_value=None):
-            connections.remove_connection(alias)
+        LOGGER.info(f"Exception info: {excinfo.value}")
+        assert "You need to pass in the configuration" in excinfo.value.message
+        assert 0 == excinfo.value.code
 
     def test_connect_with_uri(self, uri):
-        alias = "test_connect_with_uri"
+        alias = self.test_connect_with_uri.__name__
+
         with mock.patch(f"{mock_prefix}._setup_grpc_channel", return_value=None):
             with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 connections.connect(alias, **uri)
@@ -138,6 +136,25 @@ class TestConnect:
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.remove_connection(alias)
 
+    def test_add_connection_then_connect(self, uri):
+        alias = self.test_add_connection_then_connect.__name__
+
+        connections.add_connection(**{alias: uri})
+        addr1 = connections.get_connection_addr(alias)
+        LOGGER.debug(f"addr1: {addr1}")
+
+        with mock.patch(f"{mock_prefix}._setup_grpc_channel", return_value=None):
+            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                connections.connect(alias)
+
+        addr2 = connections.get_connection_addr(alias)
+        LOGGER.debug(f"addr2: {addr2}")
+
+        assert addr1 == addr2
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
 
 class TestAddConnection:
     @pytest.fixture(scope="function", params=[
@@ -145,7 +162,7 @@ class TestAddConnection:
         {"host": "localhost", "port": "19531"},
         {"host": "localhost", "port": "19530", "random": "useless"},
     ])
-    def addr(self, request):
+    def host_port(self, request):
         return request.param
 
     @pytest.fixture(scope="function", params=[
@@ -164,29 +181,29 @@ class TestAddConnection:
     def invalid_port(self, request):
         return request.param
 
-    def test_add_connection_no_error(self, addr):
+    def test_add_connection_no_error(self, host_port):
         add_connection = connections.add_connection
 
-        add_connection(test=addr)
-        assert connections.get_connection_addr("test").get("address") == f"{addr['host']}:{addr['port']}"
+        add_connection(test=host_port)
+        assert connections.get_connection_addr("test").get("address") == f"{host_port['host']}:{host_port['port']}"
 
         connections.remove_connection("test")
 
     def test_add_connection_no_error_with_user(self):
         add_connection = connections.add_connection
 
-        addr = {"host": "localhost", "port": "19530", "user": "_user"}
+        host_port = {"host": "localhost", "port": "19530", "user": "_user"}
 
-        add_connection(test=addr)
+        add_connection(test=host_port)
 
         config = connections.get_connection_addr("test")
-        assert config.get("address") == f"{addr['host']}:{addr['port']}"
-        assert config.get("user") == addr['user']
+        assert config.get("address") == f"{host_port['host']}:{host_port['port']}"
+        assert config.get("user") == host_port['user']
 
-        add_connection(default=addr)
+        add_connection(default=host_port)
         config = connections.get_connection_addr("default")
-        assert config.get("address") == f"{addr['host']}:{addr['port']}"
-        assert config.get("user") == addr['user']
+        assert config.get("address") == f"{host_port['host']}:{host_port['port']}"
+        assert config.get("user") == host_port['user']
 
         connections.remove_connection("test")
         connections.disconnect("default")
@@ -210,6 +227,77 @@ class TestAddConnection:
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Type of 'port' must be str" in excinfo.value.message
         assert 0 == excinfo.value.code
+
+    @pytest.mark.parametrize("valid_addr", [
+        {"address": "127.0.0.1:19530"},
+        {"address": "example.com:19530"},
+    ])
+    def test_add_connection_address(self, valid_addr):
+        alias = self.test_add_connection_address.__name__
+        config = {alias: valid_addr}
+        connections.add_connection(**config)
+
+        addr = connections.get_connection_addr(alias)
+        assert addr.get("address") == valid_addr.get("address")
+        LOGGER.info(f"addr: {addr}")
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    @pytest.mark.parametrize("invalid_addr", [
+        {"address": "127.0.0.1"},
+        {"address": "19530"},
+    ])
+    def test_add_connection_address_invalid(self, invalid_addr):
+        alias = self.test_add_connection_address_invalid.__name__
+        config = {alias: invalid_addr}
+
+        with pytest.raises(MilvusException) as excinfo:
+            connections.add_connection(**config)
+
+        LOGGER.info(f"Exception info: {excinfo.value}")
+        assert "illegal address" in excinfo.value.message
+        assert 0 == excinfo.value.code
+
+    @pytest.mark.parametrize("valid_uri", [
+        {"uri": "http://127.0.0.1:19530"},
+        {"uri": "http://localhost:19530"},
+        {"uri": "http://example.com:80"},
+        {"uri": "http://example.com"},
+    ])
+    def test_add_connection_uri(self, valid_uri):
+        alias = self.test_add_connection_uri.__name__
+        config = {alias: valid_uri}
+        connections.add_connection(**config)
+
+        addr = connections.get_connection_addr(alias)
+        LOGGER.info(f"addr: {addr}")
+
+        host, port = addr["address"].split(':')
+        assert host in valid_uri['uri'] or host in DefaultConfig.DEFAULT_HOST
+        assert port in valid_uri['uri'] or port in DefaultConfig.DEFAULT_PORT
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    @pytest.mark.parametrize("invalid_uri", [
+        {"uri": "http://:19530"},
+        {"uri": "localhost:19530"},
+        {"uri": ":80"},
+        {"uri": None},
+        {"uri": -1},
+    ])
+    def test_add_connection_uri_invalid(self, invalid_uri):
+        alias = self.test_add_connection_uri_invalid.__name__
+        config = {alias: invalid_uri}
+
+        with pytest.raises(MilvusException) as excinfo:
+            connections.add_connection(**config)
+
+        LOGGER.info(f"Exception info: {excinfo.value}")
+        assert "illegal uri" in excinfo.value.message
+        assert 0 == excinfo.value.code
+
 
 
 @pytest.mark.skip("to remove")

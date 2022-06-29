@@ -13,7 +13,7 @@
 import copy
 import threading
 from urllib import parse
-from typing import Dict
+from typing import Tuple
 
 from ..client.check import is_legal_host, is_legal_port, is_legal_address
 from ..client.grpc_handler import GrpcHandler
@@ -116,24 +116,29 @@ class Connections(metaclass=SingleInstanceMetaClass):
             self._alias[alias] = alias_config
 
     def __get_full_address(self, address: str="", uri: str="", host: str="", port: str="") -> str:
-        if address == "":
+        if address != "":
+            if not is_legal_address(address):
+                raise ConnectionConfigException(0, f"illegal address: {address}, should be in form 'localhost:19530'")
+        else:
             address = self.__generate_address(uri, host, port)
 
-        if not is_legal_address(address):
-            raise ConnectionConfigException(-1, f"illegal address: {address}, should be in form 'localhost:19530'")
         return address
 
     def __generate_address(self, uri: str, host: str, port: str) -> str:
+        illegal_uri_msg = "illegal uri: [{}], should be in form 'http://example.com' or 'tcp://6.6.6.6:12345'"
         if uri != "":
             try:
                 parsed_uri = parse.urlparse(uri)
             except (Exception) as e:
-                raise ConnectionConfigException(f"Illegal uri: [{uri}], should be in form 'http://example.com' or 'tcp://6.6.6.6:12345'\n{e}") from None
+                raise ConnectionConfigException(0, f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
 
-            if parsed_uri.netloc == "":
-                raise ConnectionConfigException(f"Illegal uri: [{uri}], should be in form 'http://example.com' or 'tcp://6.6.6.6:12345'")
+            if len(parsed_uri.netloc) == 0:
+                raise ConnectionConfigException(0, f"illegal uri: [{uri}], should be in form 'http://example.com' or 'tcp://6.6.6.6:12345'")
+                raise ConnectionConfigException(0, illegal_uri_msg.format(uri))
 
             addr = parsed_uri.netloc if ":" in parsed_uri.netloc else f"{parsed_uri.netloc}:{DefaultConfig.DEFAULT_PORT}"
+            if not is_legal_address(addr):
+                raise ConnectionConfigException(0, illegal_uri_msg.format(uri))
             return addr
 
         else:
@@ -233,29 +238,35 @@ class Connections(metaclass=SingleInstanceMetaClass):
             self._alias[alias] = copy.deepcopy(kwargs)
             return
 
-        def dup_alias_consist(cached_kw, current_kw) -> bool:
-            if ("host" in current_kw and cached_kw[alias].get("host") != current_kw.get("host")) or \
-               ("port" in current_kw and cached_kw[alias].get("port") != current_kw.get("port")):
-                return False
-            return True
+        def with_config(config: Tuple) -> bool:
+            for c in config:
+                if c != "":
+                    return True
 
-        addr = self.__get_full_address(
+            return False
+
+        config = (
             kwargs.pop("address", ""),
             kwargs.pop("uri", ""),
             kwargs.pop("host", ""),
             kwargs.pop("port", ""))
-        kwargs["address"] = addr
-        kwargs["user"] = user
 
-        if self.has_connection(alias):
-            if self._alias[alias].get("address") != addr:
-                raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf % alias)
+        if with_config(config):
+            in_addr = self.__get_full_address(*config)
+            kwargs["address"] = in_addr
+            kwargs["user"] = user
 
-        if alias in self._alias:
-            if self._alias[alias].get("address") == addr:
-                connect_milvus(**self._alias[alias], password=password)
+            if self.has_connection(alias):
+                if self._alias[alias].get("address") != in_addr:
+                    raise ConnectionConfigException(0, ExceptionsMessage.ConnDiffConf % alias)
 
-        connect_milvus(**kwargs, password=password)
+            connect_milvus(**kwargs, password=password)
+
+        else:
+            if alias not in self._alias:
+                raise ConnectionConfigException(0, ExceptionsMessage.ConnLackConf % alias)
+
+            connect_milvus(**self._alias[alias], password=password)
 
     def list_connections(self) -> list:
         """ List names of all connections.
