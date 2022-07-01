@@ -16,7 +16,10 @@ class Milvus:
     @deprecated
     def __init__(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI, channel=None, **kwargs):
         self.address = self.__get_address(host, port, uri)
-        self._handler = GrpcHandler(addres=self.address, channel=channel, **kwargs)
+        self._handler = GrpcHandler(address=self.address, channel=channel, **kwargs)
+
+        if kwargs.get("pre_ping", False) is True:
+            self._handler._wait_for_channel_ready()
 
     def __get_address(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI):
         if host is None and uri is None:
