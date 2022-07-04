@@ -14,32 +14,26 @@
 class MutationResult:
     def __init__(self, mr):
         self._mr = mr
-        self._primary_keys = list()
-        self._insert_cnt = 0
-        self._delete_cnt = 0
-        self._upsert_cnt = 0
-        self._timestamp = 0
-        self._pack(mr)
 
     @property
     def primary_keys(self):
-        return self._primary_keys
+        return self._mr.primary_keys
 
     @property
     def insert_count(self):
-        return self._insert_cnt
+        return self._mr.insert_count
 
     @property
     def delete_count(self):
-        return self._delete_cnt
+        return self._mr.delete_count
 
     @property
     def upsert_count(self):
-        return self._upsert_cnt
+        return self._mr.upsert_count
 
     @property
     def timestamp(self):
-        return self._timestamp
+        return self._mr.timestamp
 
     def __str__(self):
         """
@@ -48,8 +42,7 @@ class MutationResult:
         :return str:
             The information of mutation result.
         """
-        return "(insert count: {}, delete count: {}, upsert count: {}, timestamp: {})".\
-            format(self._insert_cnt, self._delete_cnt, self._upsert_cnt, self._timestamp)
+        return self._mr.__str__()
 
     __repr__ = __str__
 
@@ -59,12 +52,3 @@ class MutationResult:
     #
     # def error_reason(self):
     #     pass
-
-    def _pack(self, mr):
-        if mr is None:
-            return
-        self._primary_keys = mr.primary_keys
-        self._insert_cnt = mr.insert_count
-        self._delete_cnt = mr.delete_count
-        self._upsert_cnt = mr.upsert_count
-        self._timestamp = mr.timestamp

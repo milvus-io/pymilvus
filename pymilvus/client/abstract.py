@@ -336,6 +336,8 @@ class MutationResult:
         self._upsert_cnt = 0
         self._timestamp = 0
         self._pack(raw)
+        self._succ_index = list()
+        self._err_index = list()
 
     @property
     def primary_keys(self):
@@ -357,6 +359,29 @@ class MutationResult:
     def timestamp(self):
         return self._timestamp
 
+    @property
+    def succ_count(self):
+        return len(self._succ_index)
+
+    @property
+    def err_count(self):
+        return len(self._err_index)
+
+    @property
+    def succ_index(self):
+        return self._succ_index
+
+    @property
+    def err_index(self):
+        return self._err_index
+
+    def __str__(self):
+        return "(insert count: {}, delete count: {}, upsert count: {}, timestamp: {}, succ_count: {}, err_count:{})". \
+            format(self._insert_cnt, self._delete_cnt, self._upsert_cnt, self._timestamp, self.succ_count,
+                   self.err_count)
+
+    __repr__ = __str__
+
     # TODO
     # def error_code(self):
     #     pass
@@ -376,6 +401,8 @@ class MutationResult:
         self._delete_cnt = raw.delete_cnt
         self._upsert_cnt = raw.upsert_cnt
         self._timestamp = raw.timestamp
+        self._succ_index = raw.succ_index
+        self._err_index = raw.err_index
 
 
 class QueryResult(LoopBase):
