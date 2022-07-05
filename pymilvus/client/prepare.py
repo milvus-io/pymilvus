@@ -188,8 +188,9 @@ class Prepare:
             for partition_name in partition_names:
                 check_pass_param(partition_name=partition_name)
             req.partition_names.extend(partition_names)
-            req.type = milvus_types.ShowType.InMemory
-        if type_in_memory:
+        if type_in_memory is False:
+            req.type = milvus_types.ShowType.All
+        else:
             req.type = milvus_types.ShowType.InMemory
         return req
 

@@ -757,7 +757,7 @@ class GrpcHandler:
     def _wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
         """ Block until load partition complete."""
 
-        request = Prepare.show_partitions_request(collection_name, partition_names)
+        request = Prepare.show_partitions_request(collection_name, partition_names, type_in_memory=True)
 
         while True:
             future = self._stub.ShowPartitions.future(request, timeout=timeout)
