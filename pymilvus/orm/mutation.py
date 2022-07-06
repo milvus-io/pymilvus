@@ -17,23 +17,39 @@ class MutationResult:
 
     @property
     def primary_keys(self):
-        return self._mr.primary_keys
+        return self._mr.primary_keys if self._mr else list()
 
     @property
     def insert_count(self):
-        return self._mr.insert_count
+        return self._mr.insert_count if self._mr else 0
 
     @property
     def delete_count(self):
-        return self._mr.delete_count
+        return self._mr.delete_count if self._mr else 0
 
     @property
     def upsert_count(self):
-        return self._mr.upsert_count
+        return self._mr.upsert_count if self._mr else 0
 
     @property
     def timestamp(self):
-        return self._mr.timestamp
+        return self._mr.timestamp if self._mr else 0
+
+    @property
+    def succ_count(self):
+        return self._mr.succ_count if self._mr else 0
+
+    @property
+    def err_count(self):
+        return self._mr.err_count if self._mr else 0
+
+    @property
+    def succ_index(self):
+        return self._mr.succ_index if self._mr else list()
+
+    @property
+    def err_index(self):
+        return self._mr.err_index if self._mr else list()
 
     def __str__(self):
         """
@@ -42,7 +58,7 @@ class MutationResult:
         :return str:
             The information of mutation result.
         """
-        return self._mr.__str__()
+        return self._mr.__str__() if self._mr else ""
 
     __repr__ = __str__
 
