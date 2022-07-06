@@ -376,9 +376,9 @@ class MutationResult:
         return self._err_index
 
     def __str__(self):
-        return "(insert count: {}, delete count: {}, upsert count: {}, timestamp: {}, succ_count: {}, err_count:{})". \
-            format(self._insert_cnt, self._delete_cnt, self._upsert_cnt, self._timestamp, self.succ_count,
-                   self.err_count)
+        return "(insert count: {}, delete count: {}, upsert count: {}, timestamp: {}, " \
+               "success count: {}, err count: {})".format(self._insert_cnt, self._delete_cnt, self._upsert_cnt,
+                                                          self._timestamp, self.succ_count, self.err_count)
 
     __repr__ = __str__
 
