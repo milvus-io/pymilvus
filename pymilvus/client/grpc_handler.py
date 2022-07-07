@@ -793,26 +793,36 @@ class GrpcHandler:
     def general_loading_progress(self, collection_name, partition_names=None, timeout=None):
         check_pass_param(partition_name_array=partition_names)
 
-        # check if partitions exists
         request = Prepare.show_partitions_request(collection_name, partition_names)
         response = self._stub.ShowPartitions.future(request, timeout=timeout).result()
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
+        all_partitions = list(response.partition_names)
+        target_p_names = partition_names if partition_names is not None else all_partitions
+
+        # check if partitions exists
+        illegal_p = [p for p in target_p_names if p not in all_partitions]
+        if len(illegal_p) > 0:
+            raise MilvusException(-1, f"Partitions not exist: {illegal_p}")
 
         # check in memory partitions
         request = Prepare.show_partitions_request(collection_name, type_in_memory=True)
         response = self._stub.ShowPartitions.future(request, timeout=timeout).result()
-        if response.status.error_code != 0:
+
+        # TODO: this's a hack for ShowParitions, if the collection has never been loaded before, the server will return
+        #  error instead of an empty parition lists.
+        #
+        # The possible fix would be: use more meaningful error_code or don't return error for correct collection name.
+        # ShowPartitions in memeory should return empty partition lists if neither collection nor parititions ever been
+        #  loaded.
+        if response.status.error_code != 0 and "has not been loaded into QueryNode" not in response.status.reason:
             raise MilvusException(response.status.error_code, response.status.reason)
+        all_loaded_partitions = list(response.partition_names)
 
-        target_p_names = partition_names if partition_names is not None else self.list_partitions(collection_name)
-
-        all_names = response.partition_names
         loaded_p_names = []
         unloaded_p_names = []
-
         for p in target_p_names:
-            if p in all_names and response.inMemory_percentages[list(all_names).index(p)] == 100:
+            if p in all_loaded_partitions and response.inMemory_percentages[all_loaded_partitions.index(p)] == 100:
                 loaded_p_names.append(p)
             else:
                 unloaded_p_names.append(p)
