@@ -335,9 +335,10 @@ class MutationResult:
         self._delete_cnt = 0
         self._upsert_cnt = 0
         self._timestamp = 0
-        self._pack(raw)
         self._succ_index = list()
         self._err_index = list()
+
+        self._pack(raw)
 
     @property
     def primary_keys(self):
