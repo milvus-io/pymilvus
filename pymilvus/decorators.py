@@ -21,7 +21,7 @@ def deprecated(func):
     return inner
 
 
-def retry_on_rpc_failure(retry_times=7, initial_back_off=0.2, max_back_off=60, back_off_multiplier=2, retry_on_deadline=True):
+def retry_on_rpc_failure(retry_times=10, initial_back_off=0.01, max_back_off=60, back_off_multiplier=3, retry_on_deadline=True):
     # the default 7 retry_times will cost about 26s
     def wrapper(func):
         @functools.wraps(func)
@@ -64,8 +64,9 @@ def retry_on_rpc_failure(retry_times=7, initial_back_off=0.2, max_back_off=60, b
                             raise MilvusUnavaliableException(Status.UNEXPECTED_ERROR, f"server unavaliable: {timeout_msg}")
                         raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
 
-                    retry_msg = f"Retry [{func.__name__}] No.{counter} in {back_off}s, retry reason: <{e.__class__.__name__}: {e.code()}, {e.details()}>"
-                    LOGGER.warning(WARNING_COLOR.format(retry_msg))
+                    if counter > 3:
+                        retry_msg = f"[{func.__name__}] retry:{counter}, cost: {back_off}s, reason: <{e.__class__.__name__}: {e.code()}, {e.details()}>"
+                        LOGGER.warning(WARNING_COLOR.format(retry_msg))
 
                     time.sleep(back_off)
                     back_off = min(back_off * back_off_multiplier, max_back_off)

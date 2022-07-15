@@ -58,7 +58,7 @@ class TestDecorators:
             test_api(self, grpc.StatusCode.DEADLINE_EXCEEDED, timeout=1)
             print(e)
 
-        assert self.count_test_retry_decorators_timeout == 4
+        assert self.count_test_retry_decorators_timeout == 6
 
     @pytest.mark.skip("Do not open this unless you have loads of time, get some coffee and wait")
     def test_retry_decorators_default_behaviour(self):
