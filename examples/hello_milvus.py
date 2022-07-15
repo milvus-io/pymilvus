@@ -110,7 +110,7 @@ hello_milvus.load()
 print(fmt.format("Start searching based on vector similarity"))
 vectors_to_search = entities[-1][-2:]
 search_params = {
-    "metric_type": "l2",
+    "metric_type": "L2",
     "params": {"nprobe": 10},
 }
 
