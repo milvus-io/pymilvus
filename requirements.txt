@@ -12,7 +12,7 @@ protobuf==3.17.1
 pyparsing==2.4.7
 six==1.16.0
 toml==0.10.2
-ujson>=2.0.0,<=5.1.0
+ujson>=2.0.0,<=5.4.0
 urllib3==1.26.5
 sklearn==0.0
 m2r==0.2.1
