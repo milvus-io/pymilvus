@@ -1,6 +1,6 @@
 import pytest
 import grpc
-from pymilvus import MilvusException, MilvusUnavaliableException
+from pymilvus import MilvusException, MilvusUnavailableException
 from pymilvus.client.grpc_handler import GrpcHandler
 from pymilvus.grpc_gen import milvus_pb2, common_pb2
 
@@ -45,7 +45,7 @@ class TestGrpcHandler:
         with pytest.raises(MilvusException):
             has_collection_future.result()
 
-    def test_has_collection_UNAVALIABLE_exception(self, channel, client_thread):
+    def test_has_collection_Unavailable_exception(self, channel, client_thread):
         handler = GrpcHandler(channel=channel)
         channel.close()
 
@@ -60,7 +60,7 @@ class TestGrpcHandler:
         expected_result = milvus_pb2.BoolResponse(
             value=False)
 
-        rpc.terminate(expected_result, (), grpc.StatusCode.UNAVAILABLE, 'server unavaliable')
+        rpc.terminate(expected_result, (), grpc.StatusCode.UNAVAILABLE, 'server Unavailable')
 
-        with pytest.raises(MilvusUnavaliableException):
+        with pytest.raises(MilvusUnavailableException):
             has_collection_future.result()

@@ -2,7 +2,7 @@ import grpc
 import pytest
 
 from pymilvus.decorators import retry_on_rpc_failure, error_handler
-from pymilvus.exceptions import MilvusUnavaliableException, MilvusException
+from pymilvus.exceptions import MilvusUnavailableException, MilvusException
 
 
 class TestDecorators:
@@ -14,20 +14,20 @@ class TestDecorators:
 
     @pytest.mark.parametrize("times", [0, 1, 2, 3])
     def test_retry_decorators_unavailable(self, times):
-        self.count_test_retry_decorators_unavaliable = 0
+        self.count_test_retry_decorators_Unavailable = 0
 
         @retry_on_rpc_failure(retry_times=times)
         def test_api(self, code):
-            self.count_test_retry_decorators_unavaliable += 1
+            self.count_test_retry_decorators_Unavailable += 1
             self.mock_failure(code)
 
-        with pytest.raises(MilvusUnavaliableException) as e:
+        with pytest.raises(MilvusUnavailableException) as e:
             test_api(self, grpc.StatusCode.UNAVAILABLE)
             assert "unavailable" in e.reason()
             print(e)
 
         # the first execute + retry times
-        assert self.count_test_retry_decorators_unavaliable == times + 1
+        assert self.count_test_retry_decorators_Unavailable == times + 1
 
     @pytest.mark.parametrize("times", [0, 1, 2, 3])
     def test_retry_decorators_deadline_exceeded(self, times):
