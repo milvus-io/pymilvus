@@ -878,6 +878,7 @@ class Prepare:
             type=operate_privilege_type)
         pass
 
+
     @classmethod
     def select_grant_request(cls, role_name, object, object_name):
         check_pass_param(role_name=role_name)
@@ -889,3 +890,21 @@ class Prepare:
             entity=milvus_types.GrantEntity(role=milvus_types.RoleEntity(name=role_name),
                                             object=milvus_types.ObjectEntity(name=object) if object else None,
                                             object_name=object_name if object_name else None))
+    @classmethod
+    def create_function_request(cls, function_name, wat_body_base64, arg_types):
+        req = milvus_types.CreateFunctionRequest(
+            function_name=function_name,
+            wat_body_base64=wat_body_base64,
+        )
+
+        if arg_types is not None:
+            req.arg_types.extend(arg_types)
+
+        return req
+
+    @classmethod
+    def drop_function_request(cls, function_name):
+        req = milvus_types.DropFunctionRequest(
+            function_name=function_name,
+        )
+        return req
