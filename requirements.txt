@@ -16,7 +16,7 @@ ujson>=2.0.0,<=5.4.0
 urllib3==1.26.5
 sklearn==0.0
 m2r==0.2.1
-mistune==0.8.4
+mistune==2.0.3
 Sphinx==2.3.1
 sphinx-copybutton==0.3.1
 sphinx-rtd-theme==0.4.3
