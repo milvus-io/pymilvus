@@ -20,7 +20,7 @@ from .exceptions import (
     RepeatingConnectError,
     VersionError,
     MilvusException,
-    MilvusUnavaliableException,
+    MilvusUnavailableException,
     ExceptionsMessage
 )
 #  comment for dup
@@ -69,7 +69,7 @@ __all__ = [
     'SearchResult', 'Hits', 'Hit', 'Replica', 'Group', 'Shard', 'BulkLoadState'
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',
-    'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavaliableException'
+    'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavailableException'
 
     # pymilvus old style APIs
     'Milvus', 'Prepare', 'Status', 'DataType',
