@@ -27,7 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install grpcio-tools==1.37.1
+        python setup.py install
 
     - name: Try generate proto
       run: |
