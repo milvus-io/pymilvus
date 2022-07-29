@@ -4,11 +4,11 @@ chardet==4.0.0
 grpcio==1.47.0
 grpcio-testing==1.47.0
 grpcio-tools==1.47.0
+protobuf>=3.17.1
 idna==2.10
 mmh3>=2.0,<=3.0.0
 packaging==20.9
 pep517==0.10.0
-protobuf==3.17.1
 pyparsing==2.4.7
 six==1.16.0
 toml==0.10.2

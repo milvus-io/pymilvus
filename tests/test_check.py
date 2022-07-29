@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from pymilvus import *
 from pymilvus.client.check import check_pass_param
 from pymilvus.client.utils import mkts_from_unixtime, mkts_from_datetime, mkts_from_hybridts, \
     hybridts_to_unixtime
