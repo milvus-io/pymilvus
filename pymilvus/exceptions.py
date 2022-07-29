@@ -84,7 +84,7 @@ class MilvusException(Exception):
         return f"<{type(self).__name__}: (code={self._code}, message={self._message})>"
 
 
-class MilvusUnavaliableException(MilvusException):
+class MilvusUnavailableException(MilvusException):
     pass
 
 
