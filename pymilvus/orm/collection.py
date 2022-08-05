@@ -374,7 +374,6 @@ class Collection:
             2
             """
         conn = self._get_connection()
-        conn.flush([self._name])
         stats = conn.get_collection_stats(collection_name=self._name)
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
@@ -401,6 +400,11 @@ class Collection:
             'film_id'
         """
         return self._schema.primary_field
+
+    def flush(self, timeout=None, **kwargs):
+        """ Flush """
+        conn = self._get_connection()
+        conn.flush([self.name], timeout=timeout)
 
     def drop(self, timeout=None, **kwargs):
         """

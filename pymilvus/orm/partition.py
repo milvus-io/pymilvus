@@ -140,11 +140,15 @@ class Partition:
             10
         """
         conn = self._get_connection()
-        conn.flush([self._collection.name])
         stats = conn.get_partition_stats(db_name="", collection_name=self._collection.name, partition_name=self._name)
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
+
+    def flush(self, timeout=None, **kwargs):
+        """ Flush """
+        conn = self._get_connection()
+        conn.flush([self._collection.name], timeout=timeout)
 
     def drop(self, timeout=None, **kwargs):
         """
