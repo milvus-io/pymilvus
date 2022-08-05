@@ -16,12 +16,17 @@ class TestGrpcHandler:
             handler.has_collection, "fake")
 
         (invocation_metadata, request, rpc) = (
-            channel.take_unary_unary(descriptor.methods_by_name['HasCollection']))
+            channel.take_unary_unary(descriptor.methods_by_name['DescribeCollection']))
         rpc.send_initial_metadata(())
 
-        expected_result = milvus_pb2.BoolResponse(
-            status=common_pb2.Status(error_code=common_pb2.Success),
-            value=ifHas)
+        reason = "" if ifHas else "can't find collection"
+        error_code = common_pb2.Success if ifHas else common_pb2.UnexpectedError
+
+        expected_result = milvus_pb2.DescribeCollectionResponse(
+            status=common_pb2.Status(
+                error_code=error_code,
+                reason=reason),
+        )
         rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
 
         got_result = has_collection_future.result()
@@ -34,12 +39,14 @@ class TestGrpcHandler:
             handler.has_collection, "fake")
 
         (invocation_metadata, request, rpc) = (
-            channel.take_unary_unary(descriptor.methods_by_name['HasCollection']))
+            channel.take_unary_unary(descriptor.methods_by_name['DescribeCollection']))
         rpc.send_initial_metadata(())
 
-        expected_result = milvus_pb2.BoolResponse(
-            status=common_pb2.Status(error_code=common_pb2.UnexpectedError),
-            value=False)
+        expected_result = milvus_pb2.DescribeCollectionResponse(
+            status=common_pb2.Status(
+                error_code=common_pb2.UnexpectedError,
+                reason="other reason"),
+        )
         rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
 
         with pytest.raises(MilvusException):
@@ -54,11 +61,10 @@ class TestGrpcHandler:
             handler.has_collection, "fake", timeout=0)
 
         (invocation_metadata, request, rpc) = (
-            channel.take_unary_unary(descriptor.methods_by_name['HasCollection']))
+            channel.take_unary_unary(descriptor.methods_by_name['DescribeCollection']))
         rpc.send_initial_metadata(())
 
-        expected_result = milvus_pb2.BoolResponse(
-            value=False)
+        expected_result = milvus_pb2.DescribeCollectionResponse()
 
         rpc.terminate(expected_result, (), grpc.StatusCode.UNAVAILABLE, 'server Unavailable')
 

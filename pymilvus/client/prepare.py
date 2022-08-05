@@ -139,6 +139,7 @@ class Prepare:
         return milvus_types.DropCollectionRequest(collection_name=collection_name)
 
     @classmethod
+    # TODO remove
     def has_collection_request(cls, collection_name):
         return milvus_types.HasCollectionRequest(collection_name=collection_name)
 

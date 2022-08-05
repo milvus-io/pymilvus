@@ -111,6 +111,7 @@ class Collection:
         self._shards_num = shards_num
         self._kwargs = kwargs
         conn = self._get_connection()
+
         has = conn.has_collection(self._name)
         if has:
             resp = conn.describe_collection(self._name)
