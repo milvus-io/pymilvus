@@ -209,11 +209,16 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def has_collection(self, collection_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
-        request = Prepare.has_collection_request(collection_name)
-        rf = self._stub.HasCollection.future(request, timeout=timeout)
+        request = Prepare.describe_collection_request(collection_name)
+        rf = self._stub.DescribeCollection.future(request, timeout=timeout)
+
         reply = rf.result()
         if reply.status.error_code == common_pb2.Success:
-            return reply.value
+            return True
+
+        # TODO: Workaround for unreasonable describe collection results and error_code
+        if reply.status.error_code == common_pb2.UnexpectedError and "can\'t find collection" in reply.status.reason:
+            return False
 
         raise MilvusException(reply.status.error_code, reply.status.reason)
 
