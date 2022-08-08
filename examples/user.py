@@ -36,19 +36,19 @@ def connect_to_milvus(connection_name, host, port, user, password):
                         )
 
 
-def create_credential(connection_name, user, password):
-    print(f"create credential, connection: {connection_name}, user: {user}, password: {password}\n")
-    utility.create_credential(user, password, using=connection_name)
+def create_user(connection_name, user, password):
+    print(f"create user, connection: {connection_name}, user: {user}, password: {password}\n")
+    utility.create_user(user, password, using=connection_name)
 
 
-def update_credential(connection_name, user, old_password, new_password):
-    print(f"update credential, connection: {connection_name}, user: {user}, old_password: {old_password}, new_password: {new_password}\n")
-    utility.update_credential(user, old_password, new_password, using=connection_name)
+def update_password(connection_name, user, old_password, new_password):
+    print(f"update password, connection: {connection_name}, user: {user}, old_password: {old_password}, new_password: {new_password}\n")
+    utility.update_password(user, old_password, new_password, using=connection_name)
 
 
-def delete_credential(connection_name, user):
-    print(f"delete credential, connection: {connection_name}, user: {user}\n")
-    utility.delete_credential(user, using=connection_name)
+def delete_user(connection_name, user):
+    print(f"delete user, connection: {connection_name}, user: {user}\n")
+    utility.delete_user(user, using=connection_name)
 
 
 def reset_password(connection_name, user, old_password, new_password):
@@ -60,7 +60,7 @@ def test_connection(connection_name):
     print(f"test for {connection_name}")
     has = utility.has_collection(_COLLECTION, using=connection_name)
     print(f"has collection {_COLLECTION}: {has}")
-    users = utility.list_cred_users(using=connection_name)
+    users = utility.list_usernames(using=connection_name)
     print(f"users in Milvus: {users}")
     print(f"test for {connection_name} done\n")
 
@@ -71,20 +71,20 @@ def run():
 
     # after credential created, _ROOT was not able to call rpc of Milvus.
     # we should use new connection to communicate with Milvus.
-    create_credential(_ROOT, _USER, _PASSWORD)
+    create_user(_ROOT, _USER, _PASSWORD)
     connect_to_milvus(_CONNECTION_NAME, _HOST, _PORT, _USER, _PASSWORD)
     test_connection(_CONNECTION_NAME)
 
-    create_credential(_CONNECTION_NAME, _ANOTHER_USER, _ANOTHER_PASSWORD)
-    update_credential(_CONNECTION_NAME, _ANOTHER_USER, _ANOTHER_PASSWORD, _NEW_PASSWORD)
+    create_user(_CONNECTION_NAME, _ANOTHER_USER, _ANOTHER_PASSWORD)
+    update_password(_CONNECTION_NAME, _ANOTHER_USER, _ANOTHER_PASSWORD, _NEW_PASSWORD)
     connect_to_milvus(_ANOTHER_CONNECTION_NAME, _HOST, _PORT, _ANOTHER_USER, _NEW_PASSWORD)
     test_connection(_ANOTHER_CONNECTION_NAME)
 
     reset_password(_CONNECTION_NAME, _USER, _PASSWORD, _NEW_PASSWORD)
     test_connection(_CONNECTION_NAME)
 
-    delete_credential(_CONNECTION_NAME, _ANOTHER_USER)
-    delete_credential(_CONNECTION_NAME, _USER)
+    delete_user(_CONNECTION_NAME, _ANOTHER_USER)
+    delete_user(_CONNECTION_NAME, _USER)
     test_connection(_ROOT)
 
 
