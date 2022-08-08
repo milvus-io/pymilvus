@@ -798,12 +798,12 @@ class Prepare:
         return milvus_types.ListImportTasksRequest()
 
     @classmethod
-    def create_credential_request(cls, user, password):
+    def create_user_request(cls, user, password):
         check_pass_param(user=user, password=password)
         return milvus_types.CreateCredentialRequest(username=user, password=base64.b64encode(password.encode('utf-8')))
 
     @classmethod
-    def update_credential_request(cls, user, old_password, new_password):
+    def update_password_request(cls, user, old_password, new_password):
         check_pass_param(user=user)
         check_pass_param(password=old_password)
         check_pass_param(password=new_password)
@@ -813,11 +813,11 @@ class Prepare:
                                                     )
 
     @classmethod
-    def delete_credential_request(cls, user):
+    def delete_user_request(cls, user):
         if not isinstance(user, str):
             raise ParamError(f"invalid user {user}")
         return milvus_types.DeleteCredentialRequest(username=user)
 
     @classmethod
-    def list_credential_request(cls):
+    def list_usernames_request(cls):
         return milvus_types.ListCredUsersRequest()

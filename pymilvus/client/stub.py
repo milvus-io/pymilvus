@@ -1143,8 +1143,8 @@ class Milvus:
         with self._connection() as handler:
             return handler.list_bulk_load_tasks(timeout=timeout, **kwargs)
 
-    def create_credential(self, user, password, timeout=None, **kwargs):
-        """ Create credential using the given user and password.
+    def create_user(self, user, password, timeout=None, **kwargs):
+        """ Create a user using the given user and password.
         :param user: the user name.
         :type  user: str
         :param password: the password.
@@ -1153,11 +1153,11 @@ class Milvus:
         :type  timeout: int
         """
         with self._connection() as handler:
-            handler.create_credential(user, password, timeout=timeout, **kwargs)
+            handler.create_user(user, password, timeout=timeout, **kwargs)
 
-    def update_credential(self, user, old_password, new_password, timeout=None, **kwargs):
+    def update_password(self, user, old_password, new_password, timeout=None, **kwargs):
         """
-            Update credential using the given user and password.
+            Update the user password using the given user and password.
             You must provide the original password to check if the operation is valid.
             Note: after this operation, PyMilvus won't change the related header of this connection.
             So if you update credential for this connection, the connection may be invalid.
@@ -1170,24 +1170,24 @@ class Milvus:
         :type  new_password: str
         """
         with self._connection() as handler:
-            handler.update_credential(user, old_password, new_password, timeout=timeout, **kwargs)
+            handler.update_password(user, old_password, new_password, timeout=timeout, **kwargs)
 
-    def delete_credential(self, user, timeout=None, **kwargs):
-        """ Delete credential corresponding to the user.
+    def delete_user(self, user, timeout=None, **kwargs):
+        """ Delete user corresponding to the username.
         :param user: the user name.
         :type  user: str
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
         """
         with self._connection() as handler:
-            handler.delete_credential(user, timeout=timeout, **kwargs)
+            handler.delete_user(user, timeout=timeout, **kwargs)
 
-    def list_cred_users(self, timeout=None, **kwargs):
-        """ List all user names.
+    def list_usernames(self, timeout=None, **kwargs):
+        """ List all usernames.
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
         :return list of str:
-            The user names in Milvus instances.
+            The usernames in Milvus instances.
         """
         with self._connection() as handler:
-            return handler.list_cred_users(timeout=timeout, **kwargs)
+            return handler.list_usernames(timeout=timeout, **kwargs)

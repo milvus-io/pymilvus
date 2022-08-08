@@ -774,19 +774,19 @@ def reset_password(user: str, old_password: str, new_password: str, using="defau
     return _get_connection(using).reset_password(user, old_password, new_password)
 
 
-def create_credential(user: str, password: str, using="default"):
-    """ Create credential using the given user and password.
+def create_user(user: str, password: str, using="default"):
+    """ Create User using the given user and password.
     :param user: the user name.
     :type  user: str
     :param password: the password.
     :type  password: str
     """
-    return _get_connection(using).create_credential(user, password)
+    return _get_connection(using).create_user(user, password)
 
 
-def update_credential(user: str, old_password, new_password: str, using="default"):
+def update_password(user: str, old_password, new_password: str, using="default"):
     """
-        Update credential using the given user and password.
+        Update user password using the given user and password.
         You must provide the original password to check if the operation is valid.
         Note: after this operation, PyMilvus won't change the related header of this connection.
         So if you update credential for this connection, the connection may be invalid.
@@ -798,20 +798,20 @@ def update_credential(user: str, old_password, new_password: str, using="default
     :param new_password: the newly password of this user.
     :type  new_password: str
     """
-    return _get_connection(using).update_credential(user, old_password, new_password)
+    return _get_connection(using).update_password(user, old_password, new_password)
 
 
-def delete_credential(user: str, using="default"):
-    """ Delete credential corresponding to the user.
+def delete_user(user: str, using="default"):
+    """ Delete User corresponding to the username.
     :param user: the user name.
     :type  user: str
     """
-    return _get_connection(using).delete_credential(user)
+    return _get_connection(using).delete_user(user)
 
 
-def list_cred_users(using="default"):
+def list_usernames(using="default"):
     """ List all user names.
     :return list of str:
         The user names in Milvus instances.
     """
-    return _get_connection(using).list_cred_users()
+    return _get_connection(using).list_usernames()

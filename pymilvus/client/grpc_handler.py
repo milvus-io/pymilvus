@@ -180,7 +180,7 @@ class GrpcHandler:
         """
         reset password and then setup the grpc channel.
         """
-        self.update_credential(user, old_password, new_password)
+        self.update_password(user, old_password, new_password)
         self._setup_authorization_interceptor(user, new_password)
         self._setup_grpc_channel()
 
@@ -1171,30 +1171,30 @@ class GrpcHandler:
     #     return tasks
 
     @retry_on_rpc_failure()
-    def create_credential(self, user, password, timeout=None, **kwargs):
+    def create_user(self, user, password, timeout=None, **kwargs):
         check_pass_param(user=user, password=password)
-        req = Prepare.create_credential_request(user, password)
+        req = Prepare.create_user_request(user, password)
         resp = self._stub.CreateCredential(req, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure()
-    def update_credential(self, user, old_password, new_password, timeout=None, **kwargs):
-        req = Prepare.update_credential_request(user, old_password, new_password)
+    def update_password(self, user, old_password, new_password, timeout=None, **kwargs):
+        req = Prepare.update_password_request(user, old_password, new_password)
         resp = self._stub.UpdateCredential(req, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure()
-    def delete_credential(self, user, timeout=None, **kwargs):
-        req = Prepare.delete_credential_request(user)
+    def delete_user(self, user, timeout=None, **kwargs):
+        req = Prepare.delete_user_request(user)
         resp = self._stub.DeleteCredential(req, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure()
-    def list_cred_users(self, timeout=None, **kwargs):
-        req = Prepare.list_credential_request()
+    def list_usernames(self, timeout=None, **kwargs):
+        req = Prepare.list_usernames_request()
         resp = self._stub.ListCredUsers(req, timeout=timeout)
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
