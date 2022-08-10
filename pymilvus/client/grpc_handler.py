@@ -990,8 +990,7 @@ class GrpcHandler:
             result = dict()
             for field_data in response.fields_data:
                 if field_data.type == DataType.BOOL:
-                    raise MilvusException(0, "Not support bool yet")
-                    # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
+                    result[field_data.field_name] = field_data.scalars.bool_data.data[index]
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
                     result[field_data.field_name] = field_data.scalars.int_data.data[index]
                 elif field_data.type == DataType.INT64:
