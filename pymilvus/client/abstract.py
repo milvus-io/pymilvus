@@ -275,8 +275,8 @@ class Hits(LoopBase):
         if self._raw.fields_data:
             for field_data in self._raw.fields_data:
                 if field_data.type == DataType.BOOL:
-                    raise MilvusException(0, "Not support bool yet")
-                    # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
+                    if len(field_data.scalars.bool_data.data) >= item:
+                        entity_row_data[field_data.field_name] = field_data.scalars.bool_data.data[item]
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
                     if len(field_data.scalars.int_data.data) >= item:
                         entity_row_data[field_data.field_name] = field_data.scalars.int_data.data[item]
@@ -438,8 +438,7 @@ class QueryResult(LoopBase):
                 field.type = field_data.type
                 field.field_name = field_data.field_name
                 if field_data.type == DataType.BOOL:
-                    raise MilvusException(0, "Not support bool yet")
-                    # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
+                    field.scalars.bool_data.data.extend(field_data.scalars.bool_data.data[start_pos: end_pos])
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
                     field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos: end_pos])
                 elif field_data.type == DataType.INT64:
@@ -508,8 +507,7 @@ class ChunkedQueryResult(LoopBase):
                     field.type = field_data.type
                     field.field_name = field_data.field_name
                     if field_data.type == DataType.BOOL:
-                        raise MilvusException(0, "Not support bool yet")
-                        # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
+                        field.scalars.bool_data.data.extend(field_data.scalars.bool_data.data[start_pos: end_pos])
                     elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
                         field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos: end_pos])
                     elif field_data.type == DataType.INT64:
