@@ -34,6 +34,7 @@ from .types import (
     get_consistency_level,
     Replica, Shard, Group,
     BulkLoadState,
+    GrantInfo, UserInfo, RoleInfo
 )
 
 from .utils import (
@@ -1198,3 +1199,98 @@ class GrpcHandler:
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
         return resp.usernames
+
+    @retry_on_rpc_failure()
+    def create_role(self, role_name, timeout=None, **kwargs):
+        req = Prepare.create_role_request(role_name)
+        resp = self._stub.CreateRole(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def drop_role(self, role_name, timeout=None, **kwargs):
+        req = Prepare.drop_role_request(role_name)
+        resp = self._stub.DropRole(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def add_user_to_role(self, username, role_name, timeout=None, **kwargs):
+        req = Prepare.operate_user_role_request(username, role_name, milvus_types.OperateUserRoleType.AddUserToRole)
+        resp = self._stub.OperateUserRole(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def remove_user_from_role(self, username, role_name, timeout=None, **kwargs):
+        req = Prepare.operate_user_role_request(username, role_name,
+                                                milvus_types.OperateUserRoleType.RemoveUserFromRole)
+        resp = self._stub.OperateUserRole(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def select_one_role(self, role_name, include_user_info, timeout=None, **kwargs):
+        req = Prepare.select_role_request(role_name, include_user_info)
+        resp = self._stub.SelectRole(req, wait_for_ready=True, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+        return RoleInfo(resp.results)
+
+    @retry_on_rpc_failure()
+    def select_all_role(self, include_user_info, timeout=None, **kwargs):
+        req = Prepare.select_role_request(None, include_user_info)
+        resp = self._stub.SelectRole(req, wait_for_ready=True, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+        return RoleInfo(resp.results)
+
+    @retry_on_rpc_failure()
+    def select_one_user(self, username, include_role_info, timeout=None, **kwargs):
+        req = Prepare.select_user_request(username, include_role_info)
+        resp = self._stub.SelectUser(req, wait_for_ready=True, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+        return UserInfo(resp.results)
+
+    @retry_on_rpc_failure()
+    def select_all_user(self, include_role_info, timeout=None, **kwargs):
+        req = Prepare.select_user_request(None, include_role_info)
+        resp = self._stub.SelectUser(req, wait_for_ready=True, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+        return UserInfo(resp.results)
+
+    @retry_on_rpc_failure()
+    def grant_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
+        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege,
+                                                milvus_types.OperatePrivilegeType.Grant)
+        resp = self._stub.OperatePrivilege(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def revoke_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
+        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege,
+                                                milvus_types.OperatePrivilegeType.Revoke)
+        resp = self._stub.OperatePrivilege(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def select_grant_for_one_role(self, role_name, timeout=None, **kwargs):
+        req = Prepare.select_grant_request(role_name, None, None)
+        resp = self._stub.SelectGrant(req, wait_for_ready=True, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return GrantInfo(resp.entities)
+
+    @retry_on_rpc_failure()
+    def select_grant_for_role_and_object(self, role_name, object, object_name, timeout=None, **kwargs):
+        req = Prepare.select_grant_request(role_name, object, object_name)
+        resp = self._stub.SelectGrant(req, wait_for_ready=True, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return GrantInfo(resp.entities)

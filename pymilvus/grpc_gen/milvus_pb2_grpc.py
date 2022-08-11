@@ -275,11 +275,6 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.SelectUserRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SelectUserResponse.FromString,
                 )
-        self.SelectResource = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/SelectResource',
-                request_serializer=milvus__pb2.SelectResourceRequest.SerializeToString,
-                response_deserializer=milvus__pb2.SelectResourceResponse.FromString,
-                )
         self.OperatePrivilege = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/OperatePrivilege',
                 request_serializer=milvus__pb2.OperatePrivilegeRequest.SerializeToString,
@@ -612,12 +607,6 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SelectResource(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def OperatePrivilege(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -892,11 +881,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.SelectUser,
                     request_deserializer=milvus__pb2.SelectUserRequest.FromString,
                     response_serializer=milvus__pb2.SelectUserResponse.SerializeToString,
-            ),
-            'SelectResource': grpc.unary_unary_rpc_method_handler(
-                    servicer.SelectResource,
-                    request_deserializer=milvus__pb2.SelectResourceRequest.FromString,
-                    response_serializer=milvus__pb2.SelectResourceResponse.SerializeToString,
             ),
             'OperatePrivilege': grpc.unary_unary_rpc_method_handler(
                     servicer.OperatePrivilege,
@@ -1799,23 +1783,6 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/SelectUser',
             milvus__pb2.SelectUserRequest.SerializeToString,
             milvus__pb2.SelectUserResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def SelectResource(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/SelectResource',
-            milvus__pb2.SelectResourceRequest.SerializeToString,
-            milvus__pb2.SelectResourceResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

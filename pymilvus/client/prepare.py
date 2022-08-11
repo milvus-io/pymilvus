@@ -821,3 +821,63 @@ class Prepare:
     @classmethod
     def list_usernames_request(cls):
         return milvus_types.ListCredUsersRequest()
+
+    @classmethod
+    def create_role_request(cls, role_name):
+        check_pass_param(role_name=role_name)
+        return milvus_types.CreateRoleRequest(entity=milvus_types.RoleEntity(name=role_name))
+
+    @classmethod
+    def drop_role_request(cls, role_name):
+        check_pass_param(role_name=role_name)
+        return milvus_types.DropRoleRequest(role_name=role_name)
+
+    @classmethod
+    def operate_user_role_request(cls, username, role_name, operate_user_role_type):
+        check_pass_param(user=username)
+        check_pass_param(role_name=role_name)
+        check_pass_param(operate_user_role_type=operate_user_role_type)
+        return milvus_types.OperateUserRoleRequest(username=username, role_name=role_name, type=operate_user_role_type)
+
+    @classmethod
+    def select_role_request(cls, role_name, include_user_info):
+        if role_name:
+            check_pass_param(role_name=role_name)
+        check_pass_param(include_user_info=include_user_info)
+        return milvus_types.SelectRoleRequest(role=milvus_types.RoleEntity(name=role_name) if role_name else None,
+                                              include_user_info=include_user_info)
+
+    @classmethod
+    def select_user_request(cls, username, include_role_info):
+        if username:
+            check_pass_param(user=username)
+        check_pass_param(include_role_info=include_role_info)
+        return milvus_types.SelectUserRequest(user=milvus_types.UserEntity(name=username) if username else None,
+                                              include_role_info=include_role_info)
+
+    @classmethod
+    def operate_privilege_request(cls, role_name, object, object_name, privilege, operate_privilege_type):
+        check_pass_param(role_name=role_name)
+        check_pass_param(object=object)
+        check_pass_param(object_name=object_name)
+        check_pass_param(privilege=privilege)
+        check_pass_param(operate_privilege_type=operate_privilege_type)
+        return milvus_types.OperatePrivilegeRequest(
+            entity=milvus_types.GrantEntity(role=milvus_types.RoleEntity(name=role_name),
+                                            object=milvus_types.ObjectEntity(name=object),
+                                            object_name=object_name,
+                                            grantor=milvus_types.GrantorEntity(privilege=milvus_types.PrivilegeEntity(name=privilege))),
+            type=operate_privilege_type)
+        pass
+
+    @classmethod
+    def select_grant_request(cls, role_name, object, object_name):
+        check_pass_param(role_name=role_name)
+        if object:
+            check_pass_param(object=object)
+        if object_name:
+            check_pass_param(object_name=object_name)
+        return milvus_types.SelectGrantRequest(
+            entity=milvus_types.GrantEntity(role=milvus_types.RoleEntity(name=role_name),
+                                            object=milvus_types.ObjectEntity(name=object) if object else None,
+                                            object_name=object_name if object_name else None))

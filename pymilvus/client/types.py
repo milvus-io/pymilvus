@@ -6,6 +6,8 @@ from ..exceptions import (
     ExceptionsMessage,
     InvalidConsistencyLevel,
 )
+from ..grpc_gen import milvus_pb2 as milvus_types
+
 
 class Status:
     """
@@ -260,6 +262,7 @@ Compaction Plans:
  - plans: {self.plans}
  """
 
+
 def cmp_consistency_level(l1, l2):
     if isinstance(l1, str):
         try:
@@ -282,6 +285,7 @@ def cmp_consistency_level(l1, l2):
             return False
 
     return l1 == l2
+
 
 def get_consistency_level(consistency_level):
     if isinstance(consistency_level, int):
@@ -476,13 +480,13 @@ class BulkLoadState:
         the full id list should be [1, 2, 3 ... , 99, 100, 200, 201, 202 ... , 249, 250]
         """
 
-        if len(self._id_ranges)%2 != 0:
+        if len(self._id_ranges) % 2 != 0:
             raise AutoIDException(0, ExceptionsMessage.AutoIDIllegalRanges)
 
         ids = []
-        for i in range(int(len(self._id_ranges)/2)):
-            begin = self._id_ranges[i*2]
-            end = self._id_ranges[i*2+1] + 1
+        for i in range(int(len(self._id_ranges) / 2)):
+            begin = self._id_ranges[i * 2]
+            end = self._id_ranges[i * 2 + 1] + 1
             for j in range(begin, end):
                 ids.append(j)
 
@@ -520,3 +524,158 @@ class BulkLoadState:
     @property
     def data_indexed(self):
         return self._data_indexed
+
+
+class GrantItem:
+    def __init__(self, entity):
+        self._object = entity.object.name
+        self._object_name = entity.object_name
+        self._role_name = entity.role.name
+        self._grantor_name = entity.grantor.user.name
+        self._privilege = entity.grantor.privilege.name
+
+    def __repr__(self) -> str:
+        s = f"GrantItem: <object:{self.object}>, <object_name:{self.object_name}>, " \
+            f"<role_name:{self.role_name}>, <grantor_name:{self.grantor_name}>, " \
+            f"<privilege:{self.privilege}>"
+        return s
+
+    @property
+    def object(self):
+        return self._object
+
+    @property
+    def object_name(self):
+        return self._object_name
+
+    @property
+    def role_name(self):
+        return self._role_name
+
+    @property
+    def grantor_name(self):
+        return self._grantor_name
+
+    @property
+    def privilege(self):
+        return self._privilege
+
+
+class GrantInfo:
+    """
+    GrantInfo groups:
+    - GrantItem: <object:Collection>, <object_name:foocol2>, <role_name:general31>, <grantor_name:root>, <privilege:Load>
+    - GrantItem: <object:Global>, <object_name:*>, <role_name:general31>, <grantor_name:root>, <privilege:CreateCollection>
+    """
+
+    def __init__(self, entities):
+        groups = []
+        for entity in entities:
+            if isinstance(entity, milvus_types.GrantEntity):
+                groups.append(GrantItem(entity))
+
+        self._groups = groups
+
+    def __repr__(self) -> str:
+        s = "GrantInfo groups:"
+        for g in self.groups:
+            s += f"\n- {g}"
+        return s
+
+    @property
+    def groups(self):
+        return self._groups
+
+
+class UserItem:
+    def __init__(self, username, entities):
+        self._username = username
+        roles = []
+        for entity in entities:
+            if isinstance(entity, milvus_types.RoleEntity):
+                roles.append(entity.name)
+        self._roles = tuple(roles)
+
+    def __repr__(self) -> str:
+        s = f"UserItem: <username:{self.username}>, <roles:{self.roles}>"
+        return s
+
+    @property
+    def username(self):
+        return self._username
+
+    @property
+    def roles(self):
+        return self._roles
+
+
+class UserInfo:
+    """
+    UserInfo groups:
+    - UserItem: <username:root>, <roles:('admin', 'public')>
+    """
+
+    def __init__(self, results):
+        groups = []
+        for result in results:
+            if isinstance(result, milvus_types.UserResult):
+                groups.append(UserItem(result.user.name, result.roles))
+
+        self._groups = groups
+
+    def __repr__(self) -> str:
+        s = "UserInfo groups:"
+        for g in self.groups:
+            s += f"\n- {g}"
+        return s
+
+    @property
+    def groups(self):
+        return self._groups
+
+
+class RoleItem:
+    def __init__(self, role_name, entities):
+        self._role_name = role_name
+        users = []
+        for entity in entities:
+            if isinstance(entity, milvus_types.UserEntity):
+                users.append(entity.name)
+        self._users = tuple(users)
+
+    def __repr__(self) -> str:
+        s = f"RoleItem: <role_name:{self.role_name}>, <users:{self.users}>"
+        return s
+
+    @property
+    def role_name(self):
+        return self._role_name
+
+    @property
+    def users(self):
+        return self._users
+
+
+class RoleInfo:
+    """
+    RoleInfo groups:
+    - UserItem: <role_name:admin>, <users:('root',)>
+    """
+
+    def __init__(self, results):
+        groups = []
+        for result in results:
+            if isinstance(result, milvus_types.RoleResult):
+                groups.append(RoleItem(result.role.name, result.users))
+
+        self._groups = groups
+
+    def __repr__(self) -> str:
+        s = "RoleInfo groups:"
+        for g in self.groups:
+            s += f"\n- {g}"
+        return s
+
+    @property
+    def groups(self):
+        return self._groups
