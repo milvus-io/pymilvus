@@ -1,10 +1,12 @@
 import logging
+import os
+
 import pytest
 import pymilvus
 from unittest import mock
 
 from pymilvus import connections
-from pymilvus import DefaultConfig, MilvusException
+from pymilvus import DefaultConfig, MilvusException, ENV_CONNECTION_CONF
 
 LOGGER = logging.getLogger(__name__)
 
@@ -68,6 +70,24 @@ class TestConnect:
 
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.disconnect(alias)
+
+    def test_connect_with_default_config_from_environment(self):
+        alias = "default"
+        test_list = [
+            ["", {"address": "localhost:19530", "user": ""}],
+            ["localhost", {"address": "localhost:19530", "user": ""}],
+            ["localhost:19530", {"address": "localhost:19530", "user": ""}],
+            ["abc@localhost", {"address": "localhost:19530", "user": "abc"}],
+            ["milvus_host", {"address": "milvus_host:19530", "user": ""}],
+            ["milvus_host:12012", {"address": "milvus_host:12012", "user": ""}],
+            ["abc@milvus_host:12012", {"address": "milvus_host:12012", "user": "abc"}],
+            ["abc@milvus_host", {"address": "milvus_host:19530", "user": "abc"}],
+        ]
+
+        for env_str, assert_config in test_list:
+            os.environ[ENV_CONNECTION_CONF] = env_str
+
+            assert assert_config == connections._read_default_config_from_os_env()
 
     def test_connect_new_alias_with_configs(self):
         alias = "exist"

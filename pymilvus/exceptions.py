@@ -223,3 +223,4 @@ class ExceptionsMessage:
     FieldType = "The field of schema type must be FieldSchema."
     FieldDtype = "Field dtype must be of DataType"
     ExprType = "The type of expr must be string ,but %r is given."
+    EnvConfigErr = "Environment variable %s has a wrong format, please check it: %s"

@@ -15,3 +15,6 @@ class DefaultConfig:
     DEFAULT_USING = "default"
     DEFAULT_HOST = "localhost"
     DEFAULT_PORT = "19530"
+
+
+ENV_CONNECTION_CONF = "MILVUS_DEFAULT_CONNECTION"
