@@ -823,7 +823,7 @@ def list_roles(include_user_info: bool, using="default"):
     :type  include_user_info: bool
     :return RoleInfo
     """
-    return _get_connection(using).select_one_role(include_user_info)
+    return _get_connection(using).select_all_role(include_user_info)
 
 
 def list_user(username: str, include_role_info: bool, using="default"):
