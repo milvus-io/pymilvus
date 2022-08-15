@@ -25,7 +25,7 @@ def connect_to_milvus(connection=_CONNECTION, user=_ROOT, password=_ROOT_PASSWOR
 
 def create_credential(user, password, connection=_CONNECTION):
     print(f"create credential, user: {user}, password: {password}")
-    utility.create_credential(user, password, using=connection)
+    utility.create_user(user, password, using=connection)
     print(f"create credential down\n")
 
 
@@ -37,7 +37,7 @@ def update_credential(user, password, old_password, connection=_CONNECTION):
 
 def drop_credential(user, connection=_CONNECTION):
     print(f"drop credential, user: {user}")
-    utility.delete_credential(user, using=connection)
+    utility.delete_user(user, using=connection)
     print(f"drop credential down\n")
 
 
@@ -124,7 +124,7 @@ def rbac_collection(connection=_CONNECTION):
 # rbac II
 def rbac_user(username, password, role_name, connection=_CONNECTION):
     update_credential(username, "pfoo1235", password, connection=connection)
-    select_one_user(username, connection=connection)
+    print(select_one_user(username, connection=connection))
     is_exception = False
     try:
         select_all_user(connection=connection)
@@ -134,19 +134,19 @@ def rbac_user(username, password, role_name, connection=_CONNECTION):
     assert is_exception
     role = Role(role_name, using=_CONNECTION)
     role.grant("User", "*", "SelectUser")
-    select_all_user(connection)
+    print(select_all_user(connection))
     role.revoke("User", "*", "SelectUser")
 
 
 def role_example():
-    role_name = "role_test3"
+    role_name = "role_test5"
     role = Role(role_name, using=_CONNECTION)
     print(f"create role, role_name: {role_name}")
     role.create()
     print(f"get users")
     role.get_users()
     print(f"select all role")
-    select_all_role()
+    print(select_all_role())
     print(f"drop role")
     role.drop()
 
@@ -159,8 +159,8 @@ def associate_users_with_roles_example():
     role.add_user(username)
     print(f"get users")
     role.get_users()
-    select_one_user(username)
-    select_all_user()
+    print(select_one_user(username))
+    print(select_all_user())
     print(f"remove user")
     role.remove_user(username)
 
@@ -168,9 +168,9 @@ def associate_users_with_roles_example():
 def privilege_example():
     print(f"privilege example")
 
-    username = "foo47"
+    username = "foo53"
     password = "pfoo123"
-    role_name = "general47"
+    role_name = "general53"
     privilege_create = "CreateCollection"
     privilege_insert = "Insert"
     object_name = _COLLECTION_NAME
@@ -184,11 +184,13 @@ def privilege_example():
     print(f"grant privilege")
     role.grant("Global", "*", privilege_create)
     role.grant("Collection", object_name, privilege_insert)
+    # role.grant("Collection", object_name, "*")
+    # role.grant("Collection", "*", privilege_insert)
 
     print(f"list grants")
-    role.list_grants()
+    print(role.list_grants())
     print(f"list grant")
-    role.list_grant("Collection", object_name)
+    print(role.list_grant("Collection", object_name))
 
     connect_to_milvus(connection=_FOO_CONNECTION, user=username, password=password)
     has_collection(_COLLECTION_NAME, connection=_FOO_CONNECTION)
@@ -198,6 +200,8 @@ def privilege_example():
     print(f"revoke privilege")
     role.revoke("Global", "*", privilege_create)
     role.revoke("Collection", object_name, privilege_insert)
+    # role.revoke("Collection", object_name, "*")
+    # role.revoke("Collection", "*", privilege_insert)
     print(f"remove user")
     role.remove_user(username)
     role.drop()
@@ -206,8 +210,8 @@ def privilege_example():
 
 def run():
     connect_to_milvus()
-    # role_example()
-    # associate_users_with_roles_example()
+    role_example()
+    associate_users_with_roles_example()
     privilege_example()
 
 
