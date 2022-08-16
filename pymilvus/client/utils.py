@@ -17,7 +17,8 @@ valid_index_types = [
     "RHNSW_PQ",
     "RHNSW_SQ",
     "BIN_FLAT",
-    "BIN_IVF_FLAT"
+    "BIN_IVF_FLAT",
+    "DISKANN"
 ]
 
 valid_index_params_keys = [
@@ -27,7 +28,10 @@ valid_index_params_keys = [
     "M",
     "efConstruction",
     "PQM",
-    "n_trees"
+    "n_trees",
+    "build_list",
+    "search_list",
+    "max_degree"
 ]
 
 valid_binary_index_types = [
