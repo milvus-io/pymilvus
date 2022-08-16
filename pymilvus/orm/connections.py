@@ -10,7 +10,9 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+import os
 import copy
+import re
 import threading
 from urllib import parse
 from typing import Tuple
@@ -18,7 +20,7 @@ from typing import Tuple
 from ..client.check import is_legal_host, is_legal_port, is_legal_address
 from ..client.grpc_handler import GrpcHandler
 
-from .default_config import DefaultConfig
+from .default_config import DefaultConfig, ENV_CONNECTION_CONF
 from ..exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
 
 
@@ -59,13 +61,49 @@ class Connections(metaclass=SingleInstanceMetaClass):
     def __init__(self):
         """ Constructs a default milvus alias config
 
-            self._alias = {"default": {"address": "localhost:19530",
-                                       "user": ""}}
+            default config will be read from env: MILVUS_DEFAULT_CONNECTION，
+            or "localhost:19530"
 
         """
-        self._alias = {"default": {"address": f"{DefaultConfig.DEFAULT_HOST}:{DefaultConfig.DEFAULT_PORT}",
-                                   "user": ""}}
+        self._alias = {}
         self._connected_alias = {}
+
+        self.add_connection(default=self._read_default_config_from_os_env())
+
+    def _read_default_config_from_os_env(self):
+        """ Read default connection config from environment variable: MILVUS_DEFAULT_CONNECTION.
+        Format is:
+            [<user>@]host[:<port>]
+
+            protocol is one of: http, https, tcp, or <empty>
+        Examples::
+            localhost
+            localhost:19530
+            test_user@localhost:19530
+        """
+
+        # no need to adjust http://xxx, https://xxx, tcp://xxxx,
+        # because protocol is ignored
+        # @see __generate_address
+
+        conf = os.getenv(ENV_CONNECTION_CONF, "").strip()
+        if not conf:
+            conf = DefaultConfig.DEFAULT_HOST
+
+        rex = re.compile(r"^(?:([^\s/\\:]+)@)?([^\s/\\:]+)(?::(\d{1,5}))?$")
+        matched = rex.search(conf)
+
+        if not matched:
+            raise ConnectionConfigException(-1, ExceptionsMessage.EnvConfigErr % (ENV_CONNECTION_CONF, conf))
+
+        user, host, port = matched.groups()
+        user = user or ""
+        port = port or DefaultConfig.DEFAULT_PORT
+
+        return {
+            "user": user,
+            "address": f"{host}:{port}"
+        }
 
     def add_connection(self, **kwargs):
         """ Configures a milvus connection.
