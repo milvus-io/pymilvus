@@ -28,10 +28,7 @@ valid_index_params_keys = [
     "M",
     "efConstruction",
     "PQM",
-    "n_trees",
-    "build_list",
-    "search_list",
-    "max_degree"
+    "n_trees"
 ]
 
 valid_binary_index_types = [
