@@ -63,7 +63,7 @@ class Role:
     """
     def is_exist(self):
         roles = self._get_connection().select_one_role(self._name, False)
-        return len(roles.groups) == 0
+        return len(roles.groups) != 0
 
     """ Grant a privilege for the role
     :param object: object type.
