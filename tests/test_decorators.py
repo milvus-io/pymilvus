@@ -11,6 +11,8 @@ class TestDecorators:
             raise MockUnavailableError()
         if code == MockDeadlineExceededError().code():
             raise MockDeadlineExceededError()
+        if code == MockResourceExhaustedError().code():
+            raise MockResourceExhaustedError()
 
     @pytest.mark.parametrize("times", [0, 1, 2, 3])
     def test_retry_decorators_unavailable(self, times):
@@ -75,6 +77,23 @@ class TestDecorators:
 
         assert self.test_retry_decorators_default_retry_times == 7 + 1
 
+    @pytest.mark.parametrize("times", [0, 1, 2, 3])
+    def test_retry_decorators_resource_exhausted(self, times):
+        self.count_test_retry_decorators_resource_exhausted = 0
+
+        @retry_on_rpc_failure(retry_times=times)
+        def test_api(self, code):
+            self.count_test_retry_decorators_resource_exhausted += 1
+            self.mock_failure(code)
+
+        with pytest.raises(MilvusException) as e:
+            test_api(self, grpc.StatusCode.RESOURCE_EXHAUSTED)
+            assert "resource exhausted" in e.reason()
+            print(e)
+
+        # the first execute + retry times
+        assert self.count_test_retry_decorators_resource_exhausted == times + 1
+
 
 class MockUnavailableError(grpc.RpcError):
     def code(self):
@@ -90,3 +109,10 @@ class MockDeadlineExceededError(grpc.RpcError):
 
     def details(self):
         return "details of deadline exceeded"
+
+class MockResourceExhaustedError(grpc.RpcError):
+    def code(self):
+        return grpc.StatusCode.RESOURCE_EXHAUSTED
+
+    def details(self):
+        return "details of resource exhausted"
