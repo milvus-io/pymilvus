@@ -55,7 +55,10 @@ class Role:
         - UserItem: <role_name:admin>, <users:('root',)>
     """
     def get_users(self):
-        return self._get_connection().select_one_role(self._name, True)
+        roles = self._get_connection().select_one_role(self._name, True)
+        if len(roles.groups) == 0:
+            return []
+        return roles.groups[0].users
 
     """ Check whether the role is existed.
     :return a bool value
