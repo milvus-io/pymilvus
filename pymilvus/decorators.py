@@ -26,6 +26,7 @@ def retry_on_rpc_failure(retry_times=10, initial_back_off=0.01, max_back_off=60,
     def wrapper(func):
         @functools.wraps(func)
         @error_handler(func_name=func.__name__)
+        @tracing_request()
         def handler(self, *args, **kwargs):
             # This has to make sure every timeout parameter is passing throught kwargs form as `timeout=10`
             _timeout = kwargs.get("timeout", None)
@@ -110,5 +111,20 @@ def error_handler(func_name=""):
                 record_dict["Exception"] = str(datetime.datetime.now())
                 LOGGER.error(f"Unexcepted error: [{inner_name}], {e}, <Time: {record_dict}>")
                 raise e
+        return handler
+    return wrapper
+
+def tracing_request():
+    def wrapper(func):
+        @functools.wraps(func)
+        def handler(self, *args, **kwargs):
+            level = kwargs.get("log_level", None)
+            req_id = kwargs.get("client_request_id", None)
+            if level:
+                self.set_onetime_loglevel(level)
+            if req_id:
+                self.set_onetime_request_id(req_id)
+            ret = func(self, *args, **kwargs)
+            return ret
         return handler
     return wrapper

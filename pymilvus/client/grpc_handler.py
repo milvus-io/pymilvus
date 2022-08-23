@@ -71,6 +71,10 @@ from ..decorators import retry_on_rpc_failure, error_handler
 
 LOGGER = logging.getLogger(__name__)
 
+DEBUG_LOG_LEVEL = "debug"
+INFO_LOG_LEVEL  = "info"
+WARN_LOG_LEVEL  = "warn"
+ERROR_LOG_LEVEL = "error"
 
 class GrpcHandler:
     def __init__(self, uri=config.GRPC_URI, host="", port="", channel=None, **kwargs):
@@ -79,7 +83,8 @@ class GrpcHandler:
 
         addr = kwargs.get("address")
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
-
+        self._log_level = None
+        self._request_id = None
         self._set_authorization(**kwargs)
         self._setup_grpc_channel()
 
@@ -169,9 +174,25 @@ class GrpcHandler:
         # avoid to add duplicate headers.
         self._final_channel = self._channel
         if self._authorization_interceptor:
-            self._final_channel = grpc.intercept_channel(self._channel, self._authorization_interceptor)
+            self._final_channel = grpc.intercept_channel(self._final_channel, self._authorization_interceptor)
+        if self._log_level:
+            log_level_interceptor =  interceptor.header_adder_interceptor("log_level", self._log_level)
+            self._final_channel = grpc.intercept_channel(self._final_channel, log_level_interceptor)
+            self._log_level = None
+        if self._request_id:            
+            request_id_interceptor = interceptor.header_adder_interceptor("client_request_id", self._request_id)
+            self._final_channel = grpc.intercept_channel(self._final_channel, request_id_interceptor)
+            self._request_id = None
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
 
+    def set_onetime_loglevel(self, log_level):
+        self._log_level = log_level
+        self._setup_grpc_channel()
+
+    def set_onetime_request_id(self, req_id):
+        self._request_id = req_id
+        self._setup_grpc_channel()
+    
     @property
     def server_address(self):
         """ Server network address """
