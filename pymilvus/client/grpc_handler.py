@@ -740,6 +740,7 @@ class GrpcHandler:
             if progress >= 100:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
+        raise MilvusException(-1, "wait for loading collection timeout")
 
     @retry_on_rpc_failure()
     def release_collection(self, collection_name, timeout=None):
