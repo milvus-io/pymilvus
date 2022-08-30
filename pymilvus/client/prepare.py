@@ -97,12 +97,12 @@ class Prepare:
                 type_params = field.get('params')
                 if isinstance(type_params, dict):
                     for tk, tv in type_params.items():
-                        if tk in ["dim",]:
+                        if tk in ["dim", ]:
                             try:
                                 int(tv)
                             except (TypeError, ValueError):
                                 raise ParamError(f"invalid {tk}: {tv}") from None
-                        if tk in [DefaultConfigs.MaxVarCharLengthKey,]:
+                        if tk in [DefaultConfigs.MaxVarCharLengthKey, ]:
                             try:
                                 max_len = int(tv)
                                 if max_len > DefaultConfigs.MaxVarCharLength:
@@ -340,10 +340,8 @@ class Prepare:
                 pl.values.append(blob.vectorFloatToBytes(vectors[i]))
         return pl
 
-
     @classmethod
-    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1,
-                       **kwargs):
+    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1, **kwargs):
         schema = kwargs.get("schema", None)
         fields_schema = schema.get("fields", None)  # list
         fields_name_locs = {fields_schema[loc]["name"]: loc
@@ -432,34 +430,34 @@ class Prepare:
         # TODO Move this impl into server side
         schema = kwargs.get("schema", None)
         fields_schema = schema.get("fields", None)  # list
-        fields_name_locs = {fields_schema[loc]["name"]: loc
-                            for loc in range(len(fields_schema))}
+        fields_name_locs = {fields_schema[loc]["name"]: loc for loc in range(len(fields_schema))}
 
         requests = []
         if len(data) <= 0:
             return requests
 
         if isinstance(data[0], bytes):
-            bytes_per_vector = len(data[0])
             is_binary = True
             pl_type = PlaceholderType.BinaryVector
         else:
-            bytes_per_vector = len(data[0]) * 4
             is_binary = False
             pl_type = PlaceholderType.FloatVector
 
-        tag = "$0"
         if anns_field not in fields_name_locs:
             raise ParamError(f"Field {anns_field} doesn't exist in schema")
         dimension = int(fields_schema[fields_name_locs[anns_field]]["params"].get("dim", 0))
 
-        param_copy = copy.deepcopy(param)
-        metric_type = param_copy.pop("metric_type", "L2")
-        params = param_copy.pop("params", {})
+        params = param.get("params", {})
         if not isinstance(params, dict):
-            raise ParamError("Search params must be a dict")
-        search_params = {"anns_field": anns_field, "topk": limit, "metric_type": metric_type, "params": params,
-                         "round_decimal": round_decimal}
+            raise ParamError(f"Search params must be a dict, got {type(params)}")
+        search_params = {
+            "anns_field": anns_field,
+            "topk": limit,
+            "metric_type": param.get("metric_type", "L2"),
+            "params": params,
+            "round_decimal": round_decimal,
+            "offset": param.get("offset", 0),
+        }
 
         def dump(v):
             if isinstance(v, dict):
@@ -467,6 +465,7 @@ class Prepare:
             return str(v)
 
         nq = len(data)
+        tag = "$0"
         pl = cls._prepare_placeholders(data, nq, tag, pl_type, is_binary, dimension)
         plg = common_types.PlaceholderGroup()
         plg.placeholders.append(pl)
