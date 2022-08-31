@@ -1,3 +1,4 @@
 [submodule "pymilvus/grpc_gen/milvus-proto"]
 	path = pymilvus/grpc_gen/milvus-proto
 	url = https://github.com/milvus-io/milvus-proto.git
+	branch = 2.1
