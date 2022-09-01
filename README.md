@@ -20,7 +20,7 @@ The following collection shows Milvus versions and recommended PyMilvus versions
 | 1.0.* | 1.0.1 |
 | 1.1.* | 1.1.2 |
 | 2.0.* | 2.0.2 |
-| 2.1.* | 2.1.0 |
+| 2.1.* | 2.1.1 |
 
 
 ## Installation
@@ -71,8 +71,7 @@ $ python setup.py install
 
 ## Documentation
 
-Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.1.0/install.html.
-
+Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.1.1/About.md
 
 ## Developing package releases
 
