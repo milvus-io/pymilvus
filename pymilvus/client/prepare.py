@@ -788,12 +788,12 @@ class Prepare:
         return req
 
     @classmethod
-    def get_import_state(cls, task_id):
+    def get_bulk_load_state(cls, task_id):
         req = milvus_types.GetImportStateRequest(task=task_id)
         return req
 
     @classmethod
-    def list_import_tasks(cls):
+    def list_bulk_load_tasks(cls):
         return milvus_types.ListImportTasksRequest()
 
     @classmethod
