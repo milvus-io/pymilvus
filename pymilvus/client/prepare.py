@@ -601,16 +601,25 @@ class Prepare:
                                             partition_names=partition_names)
 
     @classmethod
-    def query_request(cls, collection_name, expr, output_fields, partition_names, guarantee_timestamp,
-                      travel_timestamp):
-        return milvus_types.QueryRequest(db_name="",
-                                         collection_name=collection_name,
-                                         expr=expr,
-                                         output_fields=output_fields,
-                                         partition_names=partition_names,
-                                         guarantee_timestamp=guarantee_timestamp,
-                                         travel_timestamp=travel_timestamp,
-                                         )
+    def query_request(cls, collection_name, expr, output_fields, partition_names, **kwargs):
+        req = milvus_types.QueryRequest(db_name="",
+                                        collection_name=collection_name,
+                                        expr=expr,
+                                        output_fields=output_fields,
+                                        partition_names=partition_names,
+                                        guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
+                                        travel_timestamp=kwargs.get("travel_timestamp", 0),
+                                        )
+
+        limit = kwargs.get("limit", None)
+        if limit is not None:
+            req.query_params.append(common_types.KeyValuePair(key="limit", value=str(limit)))
+
+        offset = kwargs.get("offset", None)
+        if offset is not None:
+            req.query_params.append(common_types.KeyValuePair(key="offset", value=str(offset)))
+
+        return req
 
     @classmethod
     def calc_distance_request(cls, vectors_left, vectors_right, params):

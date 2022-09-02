@@ -755,6 +755,10 @@ class Collection:
             * *travel_timestamp* (``int``) --
               Users can specify a timestamp in a search to get results based on a data view
               at a specified point in time.
+            * *offset* (``int``) --
+              Combined with limit to enable pagination
+            * *limit* (``int``) --
+              Combined with limit to enable pagination
 
         :return: A list that contains all results
         :rtype: list

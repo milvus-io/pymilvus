@@ -988,11 +988,7 @@ class GrpcHandler:
         consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))
 
         ts_utils.construct_guarantee_ts(consistency_level, collection_name, kwargs)
-        guarantee_timestamp = kwargs.get("guarantee_timestamp", 0)
-        travel_timestamp = kwargs.get("travel_timestamp", 0)
-
-        request = Prepare.query_request(collection_name, expr, output_fields, partition_names, guarantee_timestamp,
-                                        travel_timestamp)
+        request = Prepare.query_request(collection_name, expr, output_fields, partition_names, **kwargs)
 
         future = self._stub.Query.future(request, timeout=timeout)
         response = future.result()
