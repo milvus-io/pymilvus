@@ -81,7 +81,12 @@ class MilvusException(Exception):
         return self._message
 
     def __str__(self):
-        return f"<{type(self).__name__}: (code={self._code}, message={self._message})>"
+        return f"<{type(self).__name__}: (code={self.code}, message={self.message})>"
+
+
+class ParamException(MilvusException):
+    def __init__(self, code=-1, message=""):
+        super().__init__(code, message)
 
 
 class MilvusUnavailableException(MilvusException):
