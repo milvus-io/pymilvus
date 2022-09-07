@@ -69,8 +69,7 @@ def entity_to_field_data(entity, field_info):
         field_data.vectors.float_vector.data.extend(all_floats)
     elif entity_type in (DataType.BINARY_VECTOR,):
         field_data.vectors.dim = len(entity.get("values")[0]) * 8
-        for vector in entity.get("values"):
-            field_data.vectors.binary_vector += vector
+        field_data.vectors.binary_vector = b''.join(entity.get("values"))
     elif entity_type in (DataType.VARCHAR,):
         field_data.scalars.string_data.data.extend(entity_to_str_arr(entity, field_info, True))
     else:
