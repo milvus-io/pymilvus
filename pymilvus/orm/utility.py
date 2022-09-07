@@ -708,55 +708,55 @@ def list_aliases(collection_name: str, timeout=None, using="default"):
     return aliases
 
 
-def bulk_load(collection_name: str, is_row_based: bool, files: list, partition_name=None, timeout=None, using="default", **kwargs) -> list:
-    """ bulk load entities through files
-
-    :param collection_name: the name of the collection
-    :type  collection_name: str
-
-    :param partition_name: the name of the partition
-    :type  partition_name: str
-
-    :param is_row_based: indicate whether the files are row-based or coloumn based.
-    :type  is_row_based: bool
-
-    :param files: file names to bulk load
-    :type  files: list[str]
-
-    :param timeout: The timeout for this method, unit: second
-    :type  timeout: int
-
-    :param kwargs: other infos
-
-    :return: ids of tasks
-    :rtype:  list[int]
-
-    :raises BaseException: If collection_name doesn't exist.
-    """
-    return _get_connection(using).bulk_load(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
-
-def get_bulk_load_state(task_id, timeout=None, using="default", **kwargs) -> BulkLoadState:
-    """get bulk load state returns state of a certain task_id
-
-    :param task_id: the task id returned by bulk_load
-    :type  task_id: int
-
-    :return: BulkLoadState
-    :rtype:  BulkLoadState
-    """
-    return _get_connection(using).get_bulk_load_state(task_id, timeout=timeout, **kwargs)
-
-
-def list_bulk_load_tasks(limit = 0, timeout=None, using="default", **kwargs) -> list:
-    """list_bulk_load_tasks lists all bulk load tasks
-    :param limit: how many tasks should be returned. set to 0 means return all tasks
-    :type  limit: int
-
-    :return: list[BulkLoadState]
-    :rtype:  list[BulkLoadState]
-
-    """
-    return _get_connection(using).list_bulk_load_tasks(limit, timeout=timeout, **kwargs)
+# def bulk_load(collection_name: str, is_row_based: bool, files: list, partition_name=None, timeout=None, using="default", **kwargs) -> list:
+#     """ bulk load entities through files
+#
+#     :param collection_name: the name of the collection
+#     :type  collection_name: str
+#
+#     :param partition_name: the name of the partition
+#     :type  partition_name: str
+#
+#     :param is_row_based: indicate whether the files are row-based or coloumn based.
+#     :type  is_row_based: bool
+#
+#     :param files: file names to bulk load
+#     :type  files: list[str]
+#
+#     :param timeout: The timeout for this method, unit: second
+#     :type  timeout: int
+#
+#     :param kwargs: other infos
+#
+#     :return: ids of tasks
+#     :rtype:  list[int]
+#
+#     :raises BaseException: If collection_name doesn't exist.
+#     """
+#     return _get_connection(using).bulk_load(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
+#
+# def get_bulk_load_state(task_id, timeout=None, using="default", **kwargs) -> BulkLoadState:
+#     """get bulk load state returns state of a certain task_id
+#
+#     :param task_id: the task id returned by bulk_load
+#     :type  task_id: int
+#
+#     :return: BulkLoadState
+#     :rtype:  BulkLoadState
+#     """
+#     return _get_connection(using).get_bulk_load_state(task_id, timeout=timeout, **kwargs)
+#
+#
+# def list_bulk_load_tasks(limit = 0, timeout=None, using="default", **kwargs) -> list:
+#     """list_bulk_load_tasks lists all bulk load tasks
+#     :param limit: how many tasks should be returned. set to 0 means return all tasks
+#     :type  limit: int
+#
+#     :return: list[BulkLoadState]
+#     :rtype:  list[BulkLoadState]
+#
+#     """
+#     return _get_connection(using).list_bulk_load_tasks(limit, timeout=timeout, **kwargs)
 
 
 def reset_password(user: str, old_password: str, new_password: str, using="default"):

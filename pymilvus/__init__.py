@@ -46,7 +46,7 @@ from .orm.utility import (
     load_balance,
     mkts_from_hybridts, mkts_from_unixtime, mkts_from_datetime,
     hybridts_to_unixtime, hybridts_to_datetime,
-    bulk_load, get_bulk_load_state, list_bulk_load_tasks,
+    # bulk_load, get_bulk_load_state, list_bulk_load_tasks,
     reset_password, create_credential, update_credential, delete_credential, list_cred_users,
 )
 
