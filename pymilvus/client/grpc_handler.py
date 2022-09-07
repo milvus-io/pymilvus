@@ -1134,44 +1134,44 @@ class GrpcHandler:
 
         return Replica(groups)
 
-    @retry_on_rpc_failure()
-    def bulk_load(self, collection_name, partition_name, is_row_based: bool, files: list, timeout=None,
-                  **kwargs) -> list:
-        req = Prepare.bulk_load(collection_name, partition_name, is_row_based, files, **kwargs)
-        future = self._stub.Import.future(req, timeout=timeout)
-        response = future.result()
-        if response.status.error_code != 0:
-            raise MilvusException(response.status.error_code, response.status.reason)
-        return response.tasks
-
-    @retry_on_rpc_failure()
-    def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
-        req = Prepare.get_bulk_load_state(task_id)
-        future = self._stub.GetImportState.future(req, timeout=timeout)
-        resp = future.result()
-        if resp.status.error_code != 0:
-            raise MilvusException(resp.status.error_code, resp.status.reason)
-        state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.create_ts)
-        return state
-
-    @retry_on_rpc_failure()
-    def list_bulk_load_tasks(self, limit=0, timeout=None, **kwargs) -> list:
-        req = Prepare.list_bulk_load_tasks()
-        future = self._stub.ListImportTasks.future(req, timeout=timeout)
-        resp = future.result()
-        if resp.status.error_code != 0:
-            raise MilvusException(resp.status.error_code, resp.status.reason)
-
-        tasks = [BulkLoadState(t.id, t.state, t.row_count, t.id_list, t.infos, t.create_ts)
-                 for t in resp.tasks]
-        # arrange tasks by create timestamp(first one is the newest)
-        tasks.sort(key=lambda x: x.create_timestamp, reverse=True)
-
-        # if limit value is specified
-        if limit > 0:
-            tasks = tasks[:limit]
-
-        return tasks
+    # @retry_on_rpc_failure()
+    # def bulk_load(self, collection_name, partition_name, is_row_based: bool, files: list, timeout=None,
+    #               **kwargs) -> list:
+    #     req = Prepare.bulk_load(collection_name, partition_name, is_row_based, files, **kwargs)
+    #     future = self._stub.Import.future(req, timeout=timeout)
+    #     response = future.result()
+    #     if response.status.error_code != 0:
+    #         raise MilvusException(response.status.error_code, response.status.reason)
+    #     return response.tasks
+    #
+    # @retry_on_rpc_failure()
+    # def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
+    #     req = Prepare.get_bulk_load_state(task_id)
+    #     future = self._stub.GetImportState.future(req, timeout=timeout)
+    #     resp = future.result()
+    #     if resp.status.error_code != 0:
+    #         raise MilvusException(resp.status.error_code, resp.status.reason)
+    #     state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.create_ts)
+    #     return state
+    #
+    # @retry_on_rpc_failure()
+    # def list_bulk_load_tasks(self, limit=0, timeout=None, **kwargs) -> list:
+    #     req = Prepare.list_bulk_load_tasks()
+    #     future = self._stub.ListImportTasks.future(req, timeout=timeout)
+    #     resp = future.result()
+    #     if resp.status.error_code != 0:
+    #         raise MilvusException(resp.status.error_code, resp.status.reason)
+    #
+    #     tasks = [BulkLoadState(t.id, t.state, t.row_count, t.id_list, t.infos, t.create_ts)
+    #              for t in resp.tasks]
+    #     # arrange tasks by create timestamp(first one is the newest)
+    #     tasks.sort(key=lambda x: x.create_timestamp, reverse=True)
+    #
+    #     # if limit value is specified
+    #     if limit > 0:
+    #         tasks = tasks[:limit]
+    #
+    #     return tasks
 
     @retry_on_rpc_failure()
     def create_credential(self, user, password, timeout=None, **kwargs):
