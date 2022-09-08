@@ -95,7 +95,10 @@ class GrpcHandler:
             return parsed_uri.netloc
 
     def _set_authorization(self, **kwargs):
-        self._secure = kwargs.get("secure", False)
+        secure = kwargs.get("secure", False)
+        if not isinstance(secure, bool):
+            raise ParamError("secure must be bool type")
+        self._secure = secure
         self._client_pem_path = kwargs.get("client_pem_path", "")
         self._client_key_path = kwargs.get("client_key_path", "")
         self._ca_pem_path = kwargs.get("ca_pem_path", "")
