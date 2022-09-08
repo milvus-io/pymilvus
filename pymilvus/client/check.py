@@ -1,8 +1,14 @@
 import sys
 import datetime
 from typing import Any, Union
-from ..exceptions import ParamError
+from ..exceptions import ParamError, ParamException
+from .types import Status
 from ..grpc_gen import milvus_pb2 as milvus_types
+from .utils import (
+    valid_index_types,
+    valid_binary_index_types,
+    valid_index_params_keys,
+)
 
 
 def is_legal_address(addr: Any) -> bool:
@@ -300,8 +306,8 @@ def is_legal_role_name(role_name: Any) -> bool:
 
 
 def is_legal_operate_user_role_type(operate_user_role_type: Any) -> bool:
-    return operate_user_role_type == milvus_types.OperateUserRoleType.AddUserToRole \
-           or operate_user_role_type == milvus_types.OperateUserRoleType.RemoveUserFromRole
+    return operate_user_role_type == milvus_types.OperateUserRoleType.AddUserToRole or \
+        operate_user_role_type == milvus_types.OperateUserRoleType.RemoveUserFromRole
 
 
 def is_legal_include_user_info(include_user_info: Any) -> bool:
@@ -325,8 +331,8 @@ def is_legal_privilege(privilege: Any) -> bool:
 
 
 def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
-    return operate_privilege_type == milvus_types.OperatePrivilegeType.Grant \
-           or operate_privilege_type == milvus_types.OperatePrivilegeType.Revoke
+    return operate_privilege_type == milvus_types.OperatePrivilegeType.Grant or \
+        operate_privilege_type == milvus_types.OperatePrivilegeType.Revoke
 
 
 def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
@@ -423,3 +429,37 @@ def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too
                 _raise_param_error(key, value)
         else:
             raise ParamError(f"unknown param `{key}`")
+
+
+def check_index_params(params):
+    params = params or dict()
+    if not isinstance(params, dict):
+        raise ParamException(Status.UNEXPECTED_ERROR, "Params must be a dictionary type")
+    # params preliminary validate
+    if 'index_type' not in params:
+        raise ParamException(Status.UNEXPECTED_ERROR, "Params must contains key: 'index_type'")
+    if 'params' not in params:
+        raise ParamException(Status.UNEXPECTED_ERROR, "Params must contains key: 'params'")
+    if 'metric_type' not in params:
+        raise ParamException(Status.UNEXPECTED_ERROR, "Params must contains key: 'metric_type'")
+    if not isinstance(params['params'], dict):
+        raise ParamException("Params['params'] must be a dictionary type")
+    if params['index_type'] not in valid_index_types:
+        raise ParamException(Status.UNEXPECTED_ERROR,
+                             f"Invalid index_type: {params['index_type']}, which must be one of: {str(valid_index_types)}")
+    for k in params['params'].keys():
+        if k not in valid_index_params_keys:
+            raise ParamException(Status.UNEXPECTED_ERROR, f"Invalid params['params'].key: {k}")
+    for v in params['params'].values():
+        if not isinstance(v, int):
+            raise ParamException(Status.UNEXPECTED_ERROR, f"Invalid params['params'].value: {v}, which must be an integer")
+
+    # filter invalid metric type
+    if params['index_type'] in valid_binary_index_types:
+        if not is_legal_binary_index_metric_type(params['index_type'], params['metric_type']):
+            raise ParamException(Status.UNEXPECTED_ERROR,
+                                 f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
+    else:
+        if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
+            raise ParamException(Status.UNEXPECTED_ERROR,
+                                 f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")

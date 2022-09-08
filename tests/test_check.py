@@ -1,10 +1,20 @@
 import datetime
-
 import pytest
+
+# For tests
 from pymilvus import *
-from pymilvus.client.check import check_pass_param
-from pymilvus.client.utils import mkts_from_unixtime, mkts_from_datetime, mkts_from_hybridts, \
+
+from pymilvus import MilvusException
+from pymilvus.client.check import (
+    check_pass_param,
+    check_index_params
+)
+from pymilvus.client.utils import (
+    mkts_from_unixtime,
+    mkts_from_datetime,
+    mkts_from_hybridts,
     hybridts_to_unixtime
+)
 from pymilvus.client import get_commit
 
 from pymilvus.client.check import (
@@ -152,3 +162,23 @@ class TestGetCommit:
 
                 print(f"group {rv.group()}")
                 print(f"group {rv.groups()}")
+
+
+class TestCheckIndexParams:
+    @pytest.mark.parametrize("invalid_params", [
+        ["params type wrong", None],
+        ["params missing index_type", {}],
+        ["params missing params", {"index_type": "IVF_FLAT"}],
+        ["params missing metric_type", {"index_type": "IVF_FLAT", "params": {}}],
+        ["params.params not a dict", {"index_type": "IVF_FLAT", "metric_type": "L2", "params": None}],
+        ["index_type invalid", {"index_type": "INVALID", "metric_type": "L2", "params": {}}],
+        ["params index key invalid", {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"INVALID": 1}}],
+        ["params index value invalid", {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": "INVALID"}}],
+        ["float metric_type invalid", {"index_type": "IVF_FLAT", "metric_type": "INVALIE", "params": {"nlist": 1}}],
+        ["binary metric_type invalid", {"index_type": "BIN_FLAT", "metric_type": "INVALIE", "params": {"nlist": 1}}],
+        ["binary metric_type None", {"index_type": "BIN_FLAT", "metric_type": None, "params": {"nlist": 1}}],
+    ])
+    def test_check_params_invalid(self, invalid_params):
+        with pytest.raises(MilvusException):
+            print(f"sub test: {invalid_params[0]}")
+            check_index_params(invalid_params[1])
