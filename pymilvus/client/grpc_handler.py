@@ -18,8 +18,7 @@ from .check import (
     is_legal_host,
     is_legal_port,
     check_pass_param,
-    is_legal_index_metric_type,
-    is_legal_binary_index_metric_type,
+    check_index_params,
 )
 from .prepare import Prepare
 from .types import (
@@ -33,14 +32,10 @@ from .types import (
     Plan,
     get_consistency_level,
     Replica, Shard, Group,
-    BulkLoadState,
     GrantInfo, UserInfo, RoleInfo
 )
 
 from .utils import (
-    valid_index_types,
-    valid_binary_index_types,
-    valid_index_params_keys,
     check_invalid_binary_vector,
     len_of
 )
@@ -62,9 +57,9 @@ from .asynch import (
 
 from ..exceptions import (
     ParamError,
-    CollectionNotExistException,
     DescribeCollectionException,
     MilvusException,
+    ParamException,
 )
 
 from ..decorators import retry_on_rpc_failure, error_handler
@@ -72,9 +67,10 @@ from ..decorators import retry_on_rpc_failure, error_handler
 LOGGER = logging.getLogger(__name__)
 
 DEBUG_LOG_LEVEL = "debug"
-INFO_LOG_LEVEL  = "info"
-WARN_LOG_LEVEL  = "warn"
+INFO_LOG_LEVEL = "info"
+WARN_LOG_LEVEL = "warn"
 ERROR_LOG_LEVEL = "error"
+
 
 class GrpcHandler:
     def __init__(self, uri=config.GRPC_URI, host="", port="", channel=None, **kwargs):
@@ -176,10 +172,10 @@ class GrpcHandler:
         if self._authorization_interceptor:
             self._final_channel = grpc.intercept_channel(self._final_channel, self._authorization_interceptor)
         if self._log_level:
-            log_level_interceptor =  interceptor.header_adder_interceptor("log_level", self._log_level)
+            log_level_interceptor = interceptor.header_adder_interceptor("log_level", self._log_level)
             self._final_channel = grpc.intercept_channel(self._final_channel, log_level_interceptor)
             self._log_level = None
-        if self._request_id:            
+        if self._request_id:
             request_id_interceptor = interceptor.header_adder_interceptor("client_request_id", self._request_id)
             self._final_channel = grpc.intercept_channel(self._final_channel, request_id_interceptor)
             self._request_id = None
@@ -192,7 +188,7 @@ class GrpcHandler:
     def set_onetime_request_id(self, req_id):
         self._request_id = req_id
         self._setup_grpc_channel()
-    
+
     @property
     def server_address(self):
         """ Server network address """
@@ -511,43 +507,8 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         # for historical reason, index_name contained in kwargs.
-        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
+        index_name = kwargs.pop("index_name", DefaultConfigs.IndexName)
         copy_kwargs = copy.deepcopy(kwargs)
-        if copy_kwargs.get("index_name"):
-            copy_kwargs.pop("index_name")
-
-        def check_index_params(params):
-            params = params or dict()
-            if not isinstance(params, dict):
-                raise ParamError("Params must be a dictionary type")
-            # params preliminary validate
-            if 'index_type' not in params:
-                raise ParamError("Params must contains key: 'index_type'")
-            if 'params' not in params:
-                raise ParamError("Params must contains key: 'params'")
-            if 'metric_type' not in params:
-                raise ParamError("Params must contains key: 'metric_type'")
-            if not isinstance(params['params'], dict):
-                raise ParamError("Params['params'] must be a dictionary type")
-            if params['index_type'] not in valid_index_types:
-                raise ParamError("Invalid index_type: " + params['index_type'] +
-                                 ", which must be one of: " + str(valid_index_types))
-            for k in params['params'].keys():
-                if k not in valid_index_params_keys:
-                    raise ParamError("Invalid params['params'].key: " + k)
-            for v in params['params'].values():
-                if not isinstance(v, int):
-                    raise ParamError("Invalid params['params'].value: " + v + ", which must be an integer")
-
-            # filter invalid metric type
-            if params['index_type'] in valid_binary_index_types:
-                if not is_legal_binary_index_metric_type(params['index_type'], params['metric_type']):
-                    raise ParamError("Invalid metric_type: " + params['metric_type'] +
-                                     ", which does not match the index type: " + params['index_type'])
-            else:
-                if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
-                    raise ParamError("Invalid metric_type: " + params['metric_type'] +
-                                     ", which does not match the index type: " + params['index_type'])
 
         collection_desc = self.describe_collection(collection_name, timeout=timeout, **copy_kwargs)
 
