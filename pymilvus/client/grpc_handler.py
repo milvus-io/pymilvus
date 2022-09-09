@@ -503,7 +503,7 @@ class GrpcHandler:
             if not isinstance(params['params'], dict):
                 raise ParamError("Params['params'] must be a dictionary type")
             if params['index_type'] not in valid_index_types:
-                raise ParamError("Invalid index_type: " + params['index_type'] +
+                raise ParamError("Invalid index_type: " + str(params['index_type']) +
                                  ", which must be one of: " + str(valid_index_types))
             for k in params['params'].keys():
                 if k not in valid_index_params_keys:
@@ -990,8 +990,7 @@ class GrpcHandler:
             result = dict()
             for field_data in response.fields_data:
                 if field_data.type == DataType.BOOL:
-                    raise MilvusException(0, "Not support bool yet")
-                    # result[field_data.name] = field_data.field.scalars.data.bool_data[index]
+                    result[field_data.field_name] = field_data.scalars.bool_data.data[index]
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
                     result[field_data.field_name] = field_data.scalars.int_data.data[index]
                 elif field_data.type == DataType.INT64:
