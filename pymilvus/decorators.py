@@ -7,6 +7,7 @@ import grpc
 
 from .exceptions import MilvusException, MilvusUnavailableException
 from .client.types import Status
+from .grpc_gen import common_pb2
 
 LOGGER = logging.getLogger(__name__)
 WARNING_COLOR = "\033[93m{}\033[0m"
@@ -30,7 +31,7 @@ def retry_on_rpc_failure(retry_times=10, initial_back_off=0.01, max_back_off=60,
         def handler(self, *args, **kwargs):
             # This has to make sure every timeout parameter is passing throught kwargs form as `timeout=10`
             _timeout = kwargs.get("timeout", None)
-            _retry_on_resource_exhausted = kwargs.get("retry_on_resource_exhausted", True)
+            _retry_on_rate_limit = kwargs.get("retry_on_rate_limit", True)
 
             retry_timeout = _timeout if _timeout is not None and isinstance(_timeout, int) else None
             counter = 1
@@ -51,13 +52,10 @@ def retry_on_rpc_failure(retry_times=10, initial_back_off=0.01, max_back_off=60,
                 except grpc.RpcError as e:
                     # DEADLINE_EXCEEDED means that the task wat not completed
                     # UNAVAILABLE means that the service is not reachable currently
-                    # RESOURCE_EXHAUSTED: Some resource has been exhausted, perhaps a per-user quota, or perhaps the entire file system is out of space
                     # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
-                    if e.code() != grpc.StatusCode.DEADLINE_EXCEEDED and e.code() != grpc.StatusCode.UNAVAILABLE and e.code() != grpc.StatusCode.RESOURCE_EXHAUSTED:
+                    if e.code() != grpc.StatusCode.DEADLINE_EXCEEDED and e.code() != grpc.StatusCode.UNAVAILABLE:
                         raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
                     if not retry_on_deadline and e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                        raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
-                    if not _retry_on_resource_exhausted and e.code() == grpc.StatusCode.RESOURCE_EXHAUSTED:
                         raise MilvusException(Status.UNEXPECTED_ERROR, str(e))
                     if timeout(start_time):
                         timeout_msg = f"Retry timeout: {retry_timeout}s" if retry_timeout is not None \
@@ -75,6 +73,20 @@ def retry_on_rpc_failure(retry_times=10, initial_back_off=0.01, max_back_off=60,
 
                     time.sleep(back_off)
                     back_off = min(back_off * back_off_multiplier, max_back_off)
+                except MilvusException as e:
+                    if timeout(start_time):
+                        timeout_msg = f"Retry timeout: {retry_timeout}s" if retry_timeout is not None \
+                            else f"Retry run out of {retry_times} retry times"
+                        LOGGER.warning(WARNING_COLOR.format(timeout_msg))
+                        raise MilvusException(e.code, f"{timeout_msg}, message={e.message}")
+                    if _retry_on_rate_limit and e.code == common_pb2.RateLimit:
+                        if counter > 3:
+                            retry_msg = f"[{func.__name__}] retry:{counter}, cost: {back_off}s, {e.__str__}"
+                            LOGGER.warning(WARNING_COLOR.format(retry_msg))
+                        time.sleep(back_off)
+                        back_off = min(back_off * back_off_multiplier, max_back_off)
+                    else:
+                        raise e
                 except Exception as e:
                     raise e
                 finally:
