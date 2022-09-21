@@ -27,7 +27,7 @@ from .exceptions import (
 #  from .client.asynch import MutationFuture
 from .client import __version__
 
-from .client.grpc_handler import DEBUG_LOG_LEVEL, INFO_LOG_LEVEL, WARN_LOG_LEVEL, ERROR_LOG_LEVEL
+from .settings import DEBUG_LOG_LEVEL, INFO_LOG_LEVEL, WARN_LOG_LEVEL, ERROR_LOG_LEVEL
 
 """client module"""
 from .orm.collection import Collection

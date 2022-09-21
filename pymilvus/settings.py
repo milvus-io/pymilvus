@@ -76,3 +76,9 @@ if LOG_LEVEL == 'DEBUG':
     }
 
 logging.config.dictConfig(LOGGING)
+
+DEBUG_LOG_LEVEL = "debug"
+INFO_LOG_LEVEL = "info"
+WARN_LOG_LEVEL = "warn"
+ERROR_LOG_LEVEL = "error"
+ 

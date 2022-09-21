@@ -10,14 +10,10 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-import logging
-
 from pandas.api.types import infer_dtype, is_list_like, is_scalar, is_float, is_array_like
 import numpy as np
 
 from ..client.types import DataType
-
-LOGGER = logging.getLogger(__name__)
 
 dtype_str_map = {
     "string": DataType.VARCHAR,

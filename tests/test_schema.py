@@ -1,12 +1,8 @@
-import logging
-
 import numpy
 import pytest
 
 from pymilvus import CollectionSchema, FieldSchema, DataType
 from utils import *
-
-LOGGER = logging.getLogger(__name__)
 
 
 class TestCollectionSchema:
@@ -98,7 +94,7 @@ class TestFieldSchema:
         field = FieldSchema.construct_from_dict(raw_dict_float_vector)
         assert field.dtype == DataType.FLOAT_VECTOR
         assert field.description == raw_dict_float_vector['description']
-        assert field.is_primary == False
+        assert field.is_primary is False
         assert field.name == raw_dict_float_vector['name']
         assert field.dim == raw_dict_float_vector['params']['dim']
 
@@ -106,7 +102,7 @@ class TestFieldSchema:
         field = FieldSchema.construct_from_dict(raw_dict_binary_vector)
         assert field.dtype == DataType.BINARY_VECTOR
         assert field.description == raw_dict_binary_vector['description']
-        assert field.is_primary == False
+        assert field.is_primary is False
         assert field.name == raw_dict_binary_vector['name']
         assert field.dim == raw_dict_binary_vector['params']['dim']
 
@@ -114,7 +110,7 @@ class TestFieldSchema:
         field = FieldSchema.construct_from_dict(raw_dict_norm)
         assert field.dtype == DataType.INT64
         assert field.description == raw_dict_norm['description']
-        assert field.is_primary == False
+        assert field.is_primary is False
         assert field.name == raw_dict_norm['name']
         assert field.dim is None
         assert field.dummy is None
