@@ -1,9 +1,14 @@
-import logging
 import pytest
-from utils import *
 from pymilvus import Collection, Index, connections
 
-LOGGER = logging.getLogger(__name__)
+from utils import (
+    gen_index_name,
+    gen_field_name,
+    gen_collection_name,
+    gen_schema,
+    gen_index,
+    gen_simple_index,
+)
 
 
 @pytest.mark.skip("Connect with the real server")

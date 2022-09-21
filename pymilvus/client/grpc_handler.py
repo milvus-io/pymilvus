@@ -64,13 +64,6 @@ from ..exceptions import (
 
 from ..decorators import retry_on_rpc_failure, error_handler
 
-LOGGER = logging.getLogger(__name__)
-
-DEBUG_LOG_LEVEL = "debug"
-INFO_LOG_LEVEL = "info"
-WARN_LOG_LEVEL = "warn"
-ERROR_LOG_LEVEL = "error"
-
 
 class GrpcHandler:
     def __init__(self, uri=config.GRPC_URI, host="", port="", channel=None, **kwargs):
@@ -214,7 +207,6 @@ class GrpcHandler:
             return rf
         status = rf.result()
         if status.error_code != 0:
-            LOGGER.error(status)
             raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure(retry_on_deadline=False)

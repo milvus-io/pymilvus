@@ -1,10 +1,13 @@
-import logging
-import unittest
 import pytest
-from utils import *
-from pymilvus import Collection, Partition
 
-LOGGER = logging.getLogger(__name__)
+from pymilvus import Collection, Partition
+from utils import (
+    gen_collection_name,
+    gen_schema,
+    gen_partition_name,
+    gen_list_data,
+    default_nb,
+)
 
 
 @pytest.mark.skip("Connect with the real server")
@@ -63,13 +66,13 @@ class TestPartition:
     def test_load(self, partition):
         try:
             partition.load()
-        except:
+        except Exception:
             assert False
 
     def test_release(self, partition):
         try:
             partition.release()
-        except:
+        except Exception:
             assert False
 
     def test_insert(self, partition):
