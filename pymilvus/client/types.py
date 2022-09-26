@@ -16,8 +16,8 @@ class Status:
     :attribute message: str (optional) current status message
     """
 
-    SUCCESS = 0
-    UNEXPECTED_ERROR = 1
+    SUCCESS = common_pb2.Success
+    UNEXPECTED_ERROR = common_pb2.UnexpectedError
     CONNECT_FAILED = 2
     PERMISSION_DENIED = 3
     COLLECTION_NOT_EXISTS = 4
@@ -148,34 +148,6 @@ class IndexState(IntEnum):
     Deleted = 5
 
 
-class ErrorCode(IntEnum):
-    Success = 0
-    UnexpectedError = 1
-    ConnectFailed = 2
-    PermissionDenied = 3
-    CollectionNotExists = 4
-    IllegalArgument = 5
-    IllegalDimension = 7
-    IllegalIndexType = 8
-    IllegalCollectionName = 9
-    IllegalTOPK = 10
-    IllegalRowRecord = 11
-    IllegalVectorID = 12
-    IllegalSearchResult = 13
-    FileNotFound = 14
-    MetaFailed = 15
-    CacheFailed = 16
-    CannotCreateFolder = 17
-    CannotCreateFile = 18
-    CannotDeleteFolder = 19
-    CannotDeleteFile = 20
-    BuildIndexError = 21
-    IllegalNLIST = 22
-    IllegalMetricType = 23
-    OutOfMemory = 24
-    IndexNotExist = 25
-
-
 class PlaceholderType(IntEnum):
     NoneType = 0
     BinaryVector = 100
@@ -291,13 +263,13 @@ def get_consistency_level(consistency_level):
     if isinstance(consistency_level, int):
         if consistency_level in ConsistencyLevel.values():
             return consistency_level
-        raise InvalidConsistencyLevel(0, f"invalid consistency level: {consistency_level}")
+        raise InvalidConsistencyLevel(message=f"invalid consistency level: {consistency_level}")
     if isinstance(consistency_level, str):
         try:
             return ConsistencyLevel.Value(consistency_level)
         except ValueError as e:
-            raise InvalidConsistencyLevel(0, f"invalid consistency level: {consistency_level}") from e
-    raise InvalidConsistencyLevel(0, "invalid consistency level")
+            raise InvalidConsistencyLevel(message=f"invalid consistency level: {consistency_level}") from e
+    raise InvalidConsistencyLevel(message="invalid consistency level")
 
 
 class Shard:
@@ -481,7 +453,7 @@ class BulkLoadState:
         """
 
         if len(self._id_ranges) % 2 != 0:
-            raise AutoIDException(0, ExceptionsMessage.AutoIDIllegalRanges)
+            raise AutoIDException(message=ExceptionsMessage.AutoIDIllegalRanges)
 
         ids = []
         for i in range(int(len(self._id_ranges) / 2)):
