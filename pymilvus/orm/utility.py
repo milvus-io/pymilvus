@@ -9,10 +9,12 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
+import time
 
 from . import constants
 from .connections import connections
-from ..exceptions import ResultError
+from ..client.configs import DefaultConfigs
+from ..exceptions import ResultError, MilvusException
 
 from ..client.utils import mkts_from_hybridts as _mkts_from_hybridts
 from ..client.utils import mkts_from_unixtime as _mkts_from_unixtime
@@ -196,7 +198,10 @@ def loading_progress(collection_name, partition_names=None, using="default"):
         >>> utility.loading_progress("test_loading_progress")
         {'loading_progress': '100%', 'num_loaded_partitions': 1, 'not_loaded_partitions': []}
     """
-    return _get_connection(using).general_loading_progress(collection_name, partition_names)
+    progress = _get_connection(using).get_loading_progress(collection_name, partition_names)
+    return {
+        "loading_progress": f"{progress:.0f}%",
+    }
 
 
 def wait_for_loading_complete(collection_name, partition_names=None, timeout=None, using="default"):
@@ -231,9 +236,18 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
         >>> collection.load() # load collection to memory
         >>> utility.wait_for_loading_complete("test_collection")
     """
-    if not partition_names or len(partition_names) == 0:
-        return _get_connection(using).wait_for_loading_collection(collection_name, timeout=timeout)
-    return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
+    start = time.time()
+
+    def can_loop(t) -> bool:
+        return True if timeout is None else t <= (start + timeout)
+
+    while can_loop(time.time()):
+        progress = _get_connection(using).get_loading_progress(collection_name, partition_names, timeout)
+
+        if progress >= 100:
+            return
+        time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
+    raise MilvusException(-1, "wait for loading complete timeout")
 
 
 def index_building_progress(collection_name, index_name="", using="default"):

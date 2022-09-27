@@ -651,18 +651,6 @@ class GrpcHandler:
         response = rf.result()
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
-        _async = kwargs.get("_async", False)
-        if not _async:
-            self.wait_for_loading_collection(collection_name, timeout)
-
-    @retry_on_rpc_failure()
-    def load_collection_progress(self, collection_name, timeout=None):
-        """ Return loading progress of collection """
-        return self.general_loading_progress(collection_name, timeout=timeout)
-
-    @retry_on_rpc_failure()
-    def wait_for_loading_collection(self, collection_name, timeout=None):
-        return self._wait_for_loading_collection(collection_name, timeout)
 
     def get_collection_loading_progress(self, collection_name: str, timeout=None) -> int:
         request = Prepare.show_collections_request([collection_name])
@@ -683,98 +671,7 @@ class GrpcHandler:
             if coll_name == collection_name:
                 return response.inMemory_percentages[i]
 
-    def _wait_for_loading_collection(self, collection_name, timeout=None):
-        """ Block until load collection complete. """
-        start = time.time()
-
-        def can_loop(t) -> bool:
-            return True if timeout is None else t <= (start + timeout)
-
-        while can_loop(time.time()):
-            progress = self.get_collection_loading_progress(collection_name, timeout)
-
-            if progress >= 100:
-                return
-            time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
-        raise MilvusException(-1, "wait for loading collection timeout")
-
-    @retry_on_rpc_failure()
-    def release_collection(self, collection_name, timeout=None):
-        check_pass_param(collection_name=collection_name)
-        request = Prepare.release_collection("", collection_name)
-        rf = self._stub.ReleaseCollection.future(request, timeout=timeout)
-        response = rf.result()
-        if response.error_code != 0:
-            raise MilvusException(response.error_code, response.reason)
-
-    @retry_on_rpc_failure()
-    def load_partitions(self, collection_name, partition_names, replica_number=1, timeout=None, **kwargs):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
-        request = Prepare.load_partitions("", collection_name, partition_names, replica_number)
-        future = self._stub.LoadPartitions.future(request, timeout=timeout)
-
-        if kwargs.get("_async", False):
-            def _check():
-                if kwargs.get("sync", True):
-                    self.wait_for_loading_partitions(collection_name, partition_names)
-
-            load_partitions_future = LoadPartitionsFuture(future)
-            load_partitions_future.add_callback(_check)
-
-            user_cb = kwargs.get("_callback", None)
-            if user_cb:
-                load_partitions_future.add_callback(user_cb)
-
-            return load_partitions_future
-
-        response = future.result()
-        if response.error_code != 0:
-            raise MilvusException(response.error_code, response.reason)
-        sync = kwargs.get("sync", True)
-        if sync:
-            self.wait_for_loading_partitions(collection_name, partition_names)
-
-    @retry_on_rpc_failure()
-    def wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
-        return self._wait_for_loading_partitions(collection_name, partition_names, timeout)
-
-    def _wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
-        """ Block until load partition complete."""
-
-        request = Prepare.show_partitions_request(collection_name, partition_names, type_in_memory=True)
-
-        while True:
-            future = self._stub.ShowPartitions.future(request, timeout=timeout)
-            response = future.result()
-
-            status = response.status
-            if status.error_code != 0:
-                raise MilvusException(status.error_code, status.reason)
-
-            ol = len(response.partition_names)
-            pl = len(response.inMemory_percentages)
-
-            if ol != pl:
-                raise MilvusException(ErrorCode.UnexpectedError,
-                                      f"len(partition_names) ({ol}) != len(inMemory_percentages) ({pl})")
-
-            loaded_histogram = dict()
-            for i, par_name in enumerate(response.partition_names):
-                loaded_histogram[par_name] = response.inMemory_percentages[i]
-
-            ok = True
-            for par_name in partition_names:
-                if loaded_histogram.get(par_name, 0) != 100:
-                    ok = False
-                    break
-
-            if ok:
-                return
-
-            time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
-
-    @retry_on_rpc_failure()
-    def general_loading_progress(self, collection_name, partition_names=None, timeout=None):
+    def get_partition_loading_progress(self, collection_name, partition_names=None, timeout=None):
         check_pass_param(partition_name_array=partition_names)
 
         request = Prepare.show_partitions_request(collection_name, partition_names)
@@ -803,24 +700,36 @@ class GrpcHandler:
             raise MilvusException(response.status.error_code, response.status.reason)
         all_loaded_partitions = list(response.partition_names)
 
-        loaded_p_names = []
-        unloaded_p_names = []
+        percentages = 0
         for p in target_p_names:
-            if p in all_loaded_partitions and response.inMemory_percentages[all_loaded_partitions.index(p)] == 100:
-                loaded_p_names.append(p)
-            else:
-                unloaded_p_names.append(p)
+            if p in all_loaded_partitions:
+                percentages += response.inMemory_percentages[all_loaded_partitions.index(p)]
 
-        return {
-            "loading_progress": f"{len(loaded_p_names)*100/len(target_p_names):.0f}%",
-            "num_loaded_partitions": len(loaded_p_names),
-            "not_loaded_partitions": unloaded_p_names,
-        }
+        return percentages / len(target_p_names) if len(target_p_names) != 0 else 0
 
     @retry_on_rpc_failure()
-    def load_partitions_progress(self, collection_name, partition_names, timeout=None):
-        """ Return loading progress of partitions """
-        return self.general_loading_progress(collection_name, partition_names, timeout)
+    def get_loading_progress(self, collection_name, partition_names=None, timeout=None):
+        return self.get_collection_loading_progress(collection_name, timeout) \
+            if partition_names else self.get_partition_loading_progress(collection_name, partition_names, timeout)
+
+    @retry_on_rpc_failure()
+    def release_collection(self, collection_name, timeout=None):
+        check_pass_param(collection_name=collection_name)
+        request = Prepare.release_collection("", collection_name)
+        rf = self._stub.ReleaseCollection.future(request, timeout=timeout)
+        response = rf.result()
+        if response.error_code != 0:
+            raise MilvusException(response.error_code, response.reason)
+
+    @retry_on_rpc_failure()
+    def load_partitions(self, collection_name, partition_names, replica_number=1, timeout=None, **kwargs):
+        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
+        request = Prepare.load_partitions("", collection_name, partition_names, replica_number)
+        future = self._stub.LoadPartitions.future(request, timeout=timeout)
+
+        response = future.result()
+        if response.error_code != 0:
+            raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure()
     def release_partitions(self, collection_name, partition_names, timeout=None):
