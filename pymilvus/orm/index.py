@@ -36,8 +36,6 @@ class Index:
               If no index name is specified, default index name is used.
 
         :raises ParamError: If parameters are invalid.
-        :raises IndexConflictException:
-        If an index of the same name but of different param already exists.
 
         :example:
         >>> from pymilvus import *
@@ -62,7 +60,7 @@ class Index:
         """
         from .collection import Collection
         if not isinstance(collection, Collection):
-            raise CollectionNotExistException(0, ExceptionsMessage.CollectionType)
+            raise CollectionNotExistException(message=ExceptionsMessage.CollectionType)
         self._collection = collection
         self._field_name = field_name
         self._index_params = index_params
@@ -162,5 +160,5 @@ class Index:
             copy_kwargs.pop("index_name")
         conn = self._get_connection()
         if conn.describe_index(self._collection.name, index_name) is None:
-            raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
+            raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
         conn.drop_index(self._collection.name, self.field_name, index_name, timeout=timeout, **copy_kwargs)

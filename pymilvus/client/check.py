@@ -1,8 +1,7 @@
 import sys
 import datetime
 from typing import Any, Union
-from ..exceptions import ParamError, ParamException
-from .types import Status
+from ..exceptions import ParamError, ErrorCode
 from ..grpc_gen import milvus_pb2 as milvus_types
 from .utils import (
     valid_index_types,
@@ -68,38 +67,6 @@ def is_legal_bin_vector(array: Any) -> bool:
 
 def is_legal_numpy_array(array: Any) -> bool:
     return not (array is None or array.size == 0)
-
-
-# def is_legal_records(value):
-#     param_error = ParamError(
-#         'A vector must be a non-empty, 2-dimensional array and '
-#         'must contain only elements with the float data type or the bytes data type.'
-#     )
-#
-#     if isinstance(value, np.ndarray):
-#         if not is_legal_numpy_array(value):
-#             raise param_error
-#
-#         return True
-#
-#     if not isinstance(value, list) or len(value) == 0:
-#         raise param_error
-#
-#     if isinstance(value[0], bytes):
-#         check_func = is_legal_bin_vector
-#     elif isinstance(value[0], list):
-#         check_func = is_legal_vector
-#     else:
-#         raise param_error
-#
-#     _dim = len(value[0])
-#     for record in value:
-#         if not check_func(record):
-#             raise param_error
-#         if _dim != len(record):
-#             raise ParamError('Whole vectors must have the same dimension')
-#
-#     return True
 
 
 def int_or_str(item: Union[int, str]) -> str:
@@ -174,13 +141,12 @@ def parser_range_date(date: Union[str, datetime.date]) -> str:
 
     if isinstance(date, str):
         if not is_correct_date_str(date):
-            raise ParamError('Date string should be YY-MM-DD format!')
+            raise ParamError(message='Date string should be YY-MM-DD format!')
 
         return date
 
-    raise ParamError(
-        'Date should be YY-MM-DD format string or datetime.date, '
-        'or datetime.datetime object')
+    raise ParamError(message='Date should be YY-MM-DD format string or datetime.date, '
+                     'or datetime.datetime object')
 
 
 def is_legal_date_range(start: str, end: str) -> bool:
@@ -278,7 +244,7 @@ def is_legal_binary_index_metric_type(index_type: str, metric_type: str) -> bool
 
 
 def _raise_param_error(param_name: str, param_value: Any) -> None:
-    raise ParamError(f"`{param_name}` value {param_value} is illegal")
+    raise ParamError(message=f"`{param_name}` value {param_value} is illegal")
 
 
 def is_legal_round_decimal(round_decimal: Any) -> bool:
@@ -337,7 +303,7 @@ def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
 
 def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
     if kwargs is None:
-        raise ParamError("Param should not be None")
+        raise ParamError(message="Param should not be None")
 
     for key, value in kwargs.items():
         if key in ("collection_name",):
@@ -428,38 +394,35 @@ def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too
             if not is_legal_operate_privilege_type(value):
                 _raise_param_error(key, value)
         else:
-            raise ParamError(f"unknown param `{key}`")
+            raise ParamError(message=f"unknown param `{key}`")
 
 
 def check_index_params(params):
     params = params or dict()
     if not isinstance(params, dict):
-        raise ParamException(Status.UNEXPECTED_ERROR, "Params must be a dictionary type")
+        raise ParamError(message="Params must be a dictionary type")
     # params preliminary validate
     if 'index_type' not in params:
-        raise ParamException(Status.UNEXPECTED_ERROR, "Params must contains key: 'index_type'")
+        raise ParamError(message="Params must contains key: 'index_type'")
     if 'params' not in params:
-        raise ParamException(Status.UNEXPECTED_ERROR, "Params must contains key: 'params'")
+        raise ParamError(message="Params must contains key: 'params'")
     if 'metric_type' not in params:
-        raise ParamException(Status.UNEXPECTED_ERROR, "Params must contains key: 'metric_type'")
+        raise ParamError(message="Params must contains key: 'metric_type'")
     if not isinstance(params['params'], dict):
-        raise ParamException("Params['params'] must be a dictionary type")
+        raise ParamError(message="Params['params'] must be a dictionary type")
     if params['index_type'] not in valid_index_types:
-        raise ParamException(Status.UNEXPECTED_ERROR,
-                             f"Invalid index_type: {params['index_type']}, which must be one of: {str(valid_index_types)}")
+        raise ParamError(message=f"Invalid index_type: {params['index_type']}, which must be one of: {str(valid_index_types)}")
     for k in params['params'].keys():
         if k not in valid_index_params_keys:
-            raise ParamException(Status.UNEXPECTED_ERROR, f"Invalid params['params'].key: {k}")
+            raise ParamError(message=f"Invalid params['params'].key: {k}")
     for v in params['params'].values():
         if not isinstance(v, int):
-            raise ParamException(Status.UNEXPECTED_ERROR, f"Invalid params['params'].value: {v}, which must be an integer")
+            raise ParamError(message=f"Invalid params['params'].value: {v}, which must be an integer")
 
     # filter invalid metric type
     if params['index_type'] in valid_binary_index_types:
         if not is_legal_binary_index_metric_type(params['index_type'], params['metric_type']):
-            raise ParamException(Status.UNEXPECTED_ERROR,
-                                 f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
+            raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
     else:
         if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
-            raise ParamException(Status.UNEXPECTED_ERROR,
-                                 f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
+            raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
