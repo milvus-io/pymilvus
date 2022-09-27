@@ -793,13 +793,23 @@ class Prepare:
         return req
 
     @classmethod
-    def get_import_state(cls, task_id):
+    def get_bulk_load_state(cls, task_id):
+        if task_id is None or not isinstance(task_id, int):
+            raise ParamError(f"task_id value {task_id} is not an integer")
+
         req = milvus_types.GetImportStateRequest(task=task_id)
         return req
 
     @classmethod
-    def list_import_tasks(cls):
-        return milvus_types.ListImportTasksRequest()
+    def list_bulk_load_tasks(cls, limit, collection_name):
+        if limit is None or not isinstance(limit, int):
+            raise ParamError(f"limit value {limit} is not an integer")
+
+        request = milvus_types.ListImportTasksRequest(
+            collection_name=collection_name,
+            limit=limit,
+        )
+        return request
 
     @classmethod
     def create_user_request(cls, user, password):

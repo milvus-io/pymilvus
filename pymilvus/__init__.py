@@ -12,7 +12,7 @@
 
 from .client.stub import Milvus
 from .client.prepare import Prepare
-from .client.types import Status, DataType, RangeType, IndexType, Replica, Group, Shard
+from .client.types import Status, DataType, RangeType, IndexType, Replica, Group, Shard, BulkLoadState
 from .exceptions import (
     ParamError,
     ConnectError,
@@ -48,7 +48,7 @@ from .orm.utility import (
     load_balance,
     mkts_from_hybridts, mkts_from_unixtime, mkts_from_datetime,
     hybridts_to_unixtime, hybridts_to_datetime,
-    # bulk_load, get_bulk_load_state,
+    bulk_load, get_bulk_load_state, list_bulk_load_tasks,
     reset_password, create_user, update_password, delete_user, list_usernames,
 )
 
@@ -71,7 +71,7 @@ __all__ = [
     'SearchResult', 'Hits', 'Hit', 'Replica', 'Group', 'Shard',
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',
-    'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavailableException',
+    'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavailableException', 'BulkLoadState',
 
     # pymilvus old style APIs
     'Milvus', 'Prepare', 'Status', 'DataType',
