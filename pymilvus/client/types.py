@@ -8,6 +8,7 @@ from ..exceptions import (
 )
 from ..grpc_gen import milvus_pb2 as milvus_types
 
+import time
 
 class Status:
     """
@@ -371,9 +372,9 @@ class BulkLoadState:
     ImportPending = 0
     ImportFailed = 1
     ImportStarted = 2
-    ImportDownloaded = 3
-    ImportParsed = 4
     ImportPersisted = 5
+    ImportCompleted = 6
+    ImportFailedAndCleaned = 7
     ImportUnknownState = 100
 
     """pre-defined keys of bulkload task info"""
@@ -388,39 +389,35 @@ class BulkLoadState:
         - state             : "BulkLoadPersisted",
         - row_count         : 1000,
         - infos             : {"files": "rows.json", "collection": "c1", "partition": "", "failed_reason": ""},
-        - data_queryable    : True,
-        - data_indexed      : False,
         - id_list           : [44353845455401, 44353845456401]
+        - create_ts         : 1661398759,
     """
 
     state_2_state = {
         common_pb2.ImportPending: ImportPending,
         common_pb2.ImportFailed: ImportFailed,
         common_pb2.ImportStarted: ImportStarted,
-        common_pb2.ImportDownloaded: ImportDownloaded,
-        common_pb2.ImportParsed: ImportParsed,
         common_pb2.ImportPersisted: ImportPersisted,
-        common_pb2.ImportCompleted: ImportPersisted,
-        common_pb2.ImportAllocSegment: ImportParsed,
+        common_pb2.ImportCompleted: ImportCompleted,
+        common_pb2.ImportFailedAndCleaned: ImportFailedAndCleaned,
     }
 
     state_2_name = {
         ImportPending: "Pending",
         ImportFailed: "Failed",
         ImportStarted: "Started",
-        ImportDownloaded: "Downloaded",
-        ImportParsed: "Parsed",
         ImportPersisted: "Persisted",
+        ImportCompleted: "Completed",
+        ImportFailedAndCleaned: "Failed and cleaned",
         ImportUnknownState: "Unknown",
     }
 
-    def __init__(self, task_id, state, row_count: int, id_ranges: list, infos, data_queryable: bool, data_indexed: bool):
+    def __init__(self, task_id, state, row_count: int, id_ranges: list, infos, create_ts: int):
         self._task_id = task_id
         self._state = state
         self._row_count = row_count
         self._id_ranges = id_ranges
-        self._data_queryable = data_queryable
-        self._data_indexed = data_indexed
+        self._create_ts = create_ts
 
         self._infos = {kv.key: kv.value for kv in infos}
 
@@ -430,11 +427,10 @@ class BulkLoadState:
     - state           : {},
     - row_count       : {},
     - infos           : {},
-    - data_queryable  : {},
-    - data_indexed    : {},
-    - id_ranges       : {}
+    - id_ranges       : {},
+    - create_ts       : {}
 >"""
-        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos, self._data_queryable, self._data_indexed, self._id_ranges)
+        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos, self.id_ranges, self.create_time_str)
 
     @property
     def task_id(self):
@@ -518,12 +514,15 @@ class BulkLoadState:
         return self._infos.get(BulkLoadState.IMPORT_PARTITION, "")
 
     @property
-    def data_queryable(self):
-        return self._data_queryable
+    def create_timestamp(self):
+        """the integer timestamp when this task is created."""
+        return self._create_ts
 
     @property
-    def data_indexed(self):
-        return self._data_indexed
+    def create_time_str(self):
+        """A readable string converted from the timestamp when this task is created."""
+        ts = time.localtime(self._create_ts)
+        return time.strftime("%Y-%m-%d %H:%M:%S", ts)
 
 
 class GrantItem:
