@@ -225,6 +225,7 @@ def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
                           "RHNSW_FLAT",
                           "RHNSW_PQ",
                           "RHNSW_SQ",
+                          "AUTOINDEX",
                           "DISKANN"):
         return False
     if metric_type not in ("L2", "IP"):
