@@ -18,7 +18,8 @@ valid_index_types = [
     "RHNSW_SQ",
     "BIN_FLAT",
     "BIN_IVF_FLAT",
-    "DISKANN"
+    "DISKANN",
+    "AUTOINDEX"
 ]
 
 valid_index_params_keys = [
