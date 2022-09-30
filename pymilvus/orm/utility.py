@@ -496,7 +496,7 @@ def calc_distance(vectors_left, vectors_right, params=None, timeout=None, using=
     n = vector_count(vectors_left)
     m = vector_count(vectors_right)
     if len(res) != n * m:
-        raise ResultError(message="Returned distance array is illegal")
+        raise ResultError("Returned distance array is illegal")
 
     # transform 1-d distances to 2-d distances
     res_2_d = []
