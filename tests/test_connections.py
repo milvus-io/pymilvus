@@ -7,7 +7,6 @@ from unittest import mock
 
 from pymilvus import connections
 from pymilvus import DefaultConfig, MilvusException, ENV_CONNECTION_CONF
-from pymilvus.exceptions import ErrorCode
 
 LOGGER = logging.getLogger(__name__)
 
@@ -73,6 +72,7 @@ class TestConnect:
             connections.disconnect(alias)
 
     def test_connect_with_default_config_from_environment(self):
+        alias = "default"
         test_list = [
             ["", {"address": "localhost:19530", "user": ""}],
             ["localhost", {"address": "localhost:19530", "user": ""}],
@@ -139,7 +139,7 @@ class TestConnect:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "You need to pass in the configuration" in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert -1 == excinfo.value.code
 
     def test_connect_with_uri(self, uri):
         alias = self.test_connect_with_uri.__name__
@@ -236,7 +236,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Type of 'host' must be str." in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert -1 == excinfo.value.code
 
     def test_add_connection_raise_PortType(self, invalid_port):
         add_connection = connections.add_connection
@@ -246,7 +246,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Type of 'port' must be str" in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert -1 == excinfo.value.code
 
     @pytest.mark.parametrize("valid_addr", [
         {"address": "127.0.0.1:19530"},
@@ -277,7 +277,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Illegal address" in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert -1 == excinfo.value.code
 
     @pytest.mark.parametrize("valid_uri", [
         {"uri": "http://127.0.0.1:19530"},
@@ -316,7 +316,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Illegal uri" in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert -1 == excinfo.value.code
 
 
 @pytest.mark.skip("to remove")
