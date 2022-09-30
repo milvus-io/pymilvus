@@ -72,12 +72,17 @@ class Index:
         if self._kwargs.pop("construct_only", False):
             return
 
+        copy_kwargs = copy.deepcopy(kwargs)
+        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
+        if copy_kwargs.get("index_name"):
+            copy_kwargs.pop("index_name")
+
         conn = self._get_connection()
-        index = conn.describe_index(self._collection.name, index_name)
+        index = conn.describe_index(self._collection.name, index_name, **copy_kwargs)
         if index is not None:
             tmp_field_name = index.pop("field_name", None)
         if index is None or index != index_params or tmp_field_name != field_name:
-            conn.create_index(self._collection.name, self._field_name, self._index_params, **self._kwargs)
+            conn.create_index(self._collection.name, self._field_name, self._index_params, **kwargs)
 
     def _get_connection(self):
         return self._collection._get_connection()
@@ -161,6 +166,6 @@ class Index:
         if copy_kwargs.get("index_name"):
             copy_kwargs.pop("index_name")
         conn = self._get_connection()
-        if conn.describe_index(self._collection.name, index_name) is None:
+        if conn.describe_index(self._collection.name, index_name, **copy_kwargs) is None:
             raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
         conn.drop_index(self._collection.name, self.field_name, index_name, timeout=timeout, **copy_kwargs)
