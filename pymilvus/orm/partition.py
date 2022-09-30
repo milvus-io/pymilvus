@@ -10,6 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+import copy
 import json
 
 from ..exceptions import (
@@ -41,9 +42,12 @@ class Partition:
         conn = self._get_connection()
         if kwargs.get("construct_only", False):
             return
-        has = conn.has_partition(self._collection.name, self._name)
+        copy_kwargs = copy.deepcopy(kwargs)
+        if copy_kwargs.get("partition_name"):
+            copy_kwargs.pop("partition_name")
+        has = conn.has_partition(self._collection.name, self._name, **copy_kwargs)
         if not has:
-            conn.create_partition(self._collection.name, self._name)
+            conn.create_partition(self._collection.name, self._name, **copy_kwargs)
 
     def __repr__(self):
         return json.dumps({
@@ -121,7 +125,7 @@ class Partition:
         return self.num_entities == 0
 
     @property
-    def num_entities(self) -> int:
+    def num_entities(self, **kwargs) -> int:
         """
         Return the number of entities.
 
@@ -145,7 +149,7 @@ class Partition:
             10
         """
         conn = self._get_connection()
-        stats = conn.get_partition_stats(db_name="", collection_name=self._collection.name, partition_name=self._name)
+        stats = conn.get_partition_stats(db_name="", collection_name=self._collection.name, partition_name=self._name, **kwargs)
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
@@ -153,7 +157,7 @@ class Partition:
     def flush(self, timeout=None, **kwargs):
         """ Flush """
         conn = self._get_connection()
-        conn.flush([self._collection.name], timeout=timeout)
+        conn.flush([self._collection.name], timeout=timeout, **kwargs)
 
     def drop(self, timeout=None, **kwargs):
         """
@@ -178,7 +182,7 @@ class Partition:
             >>> partition.drop()
         """
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self._name, timeout=timeout) is False:
+        if conn.has_partition(self._collection.name, self._name, timeout=timeout, **kwargs) is False:
             raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
         return conn.drop_partition(self._collection.name, self._name, timeout=timeout, **kwargs)
 
@@ -211,7 +215,7 @@ class Partition:
         #  raise Exception Not Supported,
         #  if index_names is not None, raise Exception Not Supported
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self._name):
+        if conn.has_partition(self._collection.name, self._name, **kwargs):
             return conn.load_partitions(self._collection.name, [self._name], replica_number=replica_number, timeout=timeout, **kwargs)
         raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
 
@@ -239,7 +243,7 @@ class Partition:
             >>> partition.release()
         """
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self._name):
+        if conn.has_partition(self._collection.name, self._name, **kwargs):
             return conn.release_partitions(self._collection.name, [self._name], timeout=timeout, **kwargs)
         raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
 
@@ -286,7 +290,7 @@ class Partition:
             10
         """
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self._name) is False:
+        if conn.has_partition(self._collection.name, self._name, **kwargs) is False:
             raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
         # TODO: check insert data schema here?
         entities = Prepare.prepare_insert_data(data, self._collection.schema)

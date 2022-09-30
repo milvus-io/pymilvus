@@ -112,9 +112,9 @@ class Collection:
         self._kwargs = kwargs
         conn = self._get_connection()
 
-        has = conn.has_collection(self._name)
+        has = conn.has_collection(self._name, **kwargs)
         if has:
-            resp = conn.describe_collection(self._name)
+            resp = conn.describe_collection(self._name, **kwargs)
             s_consistency_level = resp.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
             arg_consistency_level = kwargs.get("consistency_level", s_consistency_level)
             if not cmp_consistency_level(s_consistency_level, arg_consistency_level):
@@ -136,8 +136,7 @@ class Collection:
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
                 consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
-                conn.create_collection(self._name, fields=schema, shards_num=self._shards_num,
-                                       consistency_level=consistency_level)
+                conn.create_collection(self._name, fields=schema, shards_num=self._shards_num, **kwargs)
                 self._schema = schema
                 self._consistency_level = consistency_level
             else:
@@ -228,8 +227,8 @@ class Collection:
 
         using = kwargs.get("using", DefaultConfig.DEFAULT_USING)
         conn = _get_connection(using)
-        if conn.has_collection(name):
-            resp = conn.describe_collection(name)
+        if conn.has_collection(name, **kwargs):
+            resp = conn.describe_collection(name, **kwargs)
             server_schema = CollectionSchema.construct_from_dict(resp)
             schema = server_schema
         else:
@@ -264,7 +263,7 @@ class Collection:
         return self._schema
 
     @property
-    def aliases(self) -> list:
+    def aliases(self, **kwargs) -> list:
         """
         Returns the aliases of the collection.
 
@@ -272,7 +271,7 @@ class Collection:
             Aliases of the collection.
         """
         conn = self._get_connection()
-        resp = conn.describe_collection(self._name)
+        resp = conn.describe_collection(self._name, **kwargs)
         aliases = resp["aliases"]
         return aliases
 
@@ -351,7 +350,7 @@ class Collection:
 
     # read-only
     @property
-    def num_entities(self) -> int:
+    def num_entities(self, **kwargs) -> int:
         """
         Returns the number of entities in the collection.
 
@@ -375,7 +374,7 @@ class Collection:
             2
             """
         conn = self._get_connection()
-        stats = conn.get_collection_stats(collection_name=self._name)
+        stats = conn.get_collection_stats(collection_name=self._name, **kwargs)
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
@@ -405,7 +404,7 @@ class Collection:
     def flush(self, timeout=None, **kwargs):
         """ Flush """
         conn = self._get_connection()
-        conn.flush([self.name], timeout=timeout)
+        conn.flush([self.name], timeout=timeout, **kwargs)
 
     def drop(self, timeout=None, **kwargs):
         """
@@ -806,7 +805,7 @@ class Collection:
         return res
 
     @property
-    def partitions(self) -> list:
+    def partitions(self, **kwargs) -> list:
         """
         Return all partitions of the collection.
 
@@ -828,13 +827,13 @@ class Collection:
             [{"name": "_default", "description": "", "num_entities": 0}]
         """
         conn = self._get_connection()
-        partition_strs = conn.list_partitions(self._name)
+        partition_strs = conn.list_partitions(self._name, **kwargs)
         partitions = []
         for partition in partition_strs:
             partitions.append(Partition(self, partition, construct_only=True))
         return partitions
 
-    def partition(self, partition_name) -> Partition:
+    def partition(self, partition_name, **kwargs) -> Partition:
         """
         Return the partition corresponding to name. Return None if not existed.
 
@@ -861,11 +860,11 @@ class Collection:
             >>> collection.partition("partition")
 
         """
-        if self.has_partition(partition_name) is False:
+        if self.has_partition(partition_name, **kwargs) is False:
             return None
-        return Partition(self, partition_name, construct_only=True)
+        return Partition(self, partition_name, construct_only=True, **kwargs)
 
-    def create_partition(self, partition_name, description=""):
+    def create_partition(self, partition_name, description="", **kwargs):
         """
         Create the partition corresponding to name if not existed.
 
@@ -894,11 +893,11 @@ class Collection:
             >>> collection.partition("comedy")
             {"name": "comedy", "collection_name": "test_collection_create_partition", "description": ""}
         """
-        if self.has_partition(partition_name) is True:
+        if self.has_partition(partition_name, **kwargs) is True:
             raise PartitionAlreadyExistException(message=ExceptionsMessage.PartitionAlreadyExist)
-        return Partition(self, partition_name, description=description)
+        return Partition(self, partition_name, description=description, **kwargs)
 
-    def has_partition(self, partition_name, timeout=None) -> bool:
+    def has_partition(self, partition_name, timeout=None, **kwargs) -> bool:
         """
         Checks if a specified partition exists.
 
@@ -930,7 +929,7 @@ class Collection:
             False
         """
         conn = self._get_connection()
-        return conn.has_partition(self._name, partition_name, timeout=timeout)
+        return conn.has_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
     def drop_partition(self, partition_name, timeout=None, **kwargs):
         """
@@ -963,13 +962,13 @@ class Collection:
             >>> collection.has_partition("comedy")
             False
         """
-        if self.has_partition(partition_name) is False:
+        if self.has_partition(partition_name, **kwargs) is False:
             raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
         conn = self._get_connection()
         return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
     @property
-    def indexes(self) -> list:
+    def indexes(self, **kwargs) -> list:
         """
         Returns all indexes of the collection.
 
@@ -991,7 +990,7 @@ class Collection:
         """
         conn = self._get_connection()
         indexes = []
-        tmp_index = conn.describe_indexes(self._name)
+        tmp_index = conn.describe_indexes(self._name, **kwargs)
         for index in tmp_index:
             if index is not None:
                 info_dict = {kv.key: kv.value for kv in index.params}
@@ -1030,9 +1029,12 @@ class Collection:
             >>> collection.index()
             <pymilvus.index.Index object at 0x7f44355a1460>
         """
-        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
+        copy_kwargs = copy.deepcopy(kwargs)
+        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
+        if copy_kwargs.get("index_name"):
+            copy_kwargs.pop("index_name")
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, index_name)
+        tmp_index = conn.describe_index(self._name, index_name, **copy_kwargs)
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
             return Index(self, field_name, tmp_index, construct_only=True, index_name=index_name)
@@ -1116,10 +1118,13 @@ class Collection:
             >>> collection.has_index()
             True
         """
-        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
         conn = self._get_connection()
+        copy_kwargs = copy.deepcopy(kwargs)
+        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
+        if copy_kwargs.get("index_name"):
+            copy_kwargs.pop("index_name")
         # TODO(yukun): Need field name, but provide index name
-        if conn.describe_index(self._name, index_name, timeout=timeout) is None:
+        if conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs) is None:
             return False
         return True
 
@@ -1156,11 +1161,14 @@ class Collection:
             >>> collection.has_index()
             False
         """
-        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
-        if self.has_index(index_name=index_name) is False:
+        copy_kwargs = copy.deepcopy(kwargs)
+        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
+        if copy_kwargs.get("index_name"):
+            copy_kwargs.pop("index_name")
+        if self.has_index(index_name=index_name, **copy_kwargs) is False:
             raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, index_name, timeout=timeout)
+        tmp_index = conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs)
         if tmp_index is not None:
             index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True, index_name=index_name)
             index.drop(timeout=timeout, **kwargs)
