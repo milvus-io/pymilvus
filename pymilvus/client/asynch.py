@@ -5,6 +5,8 @@ from .abstract import QueryResult, ChunkedQueryResult, MutationResult
 from ..exceptions import MilvusException
 from .types import Status
 
+#import grpc
+
 
 # TODO: remove this to a common util
 def _parameter_is_empty(func):
@@ -91,7 +93,7 @@ class Future(AbstractFuture):
                     elif self._results is not None:
                         cb(self._results)
                     else:
-                        raise MilvusException(message="callback function is not legal!")
+                        raise MilvusException(1, "callback function is not legal!")
         self._callback_called = True
 
     def result(self, **kwargs):
@@ -107,7 +109,7 @@ class Future(AbstractFuture):
                     self._response = self._future.result(timeout=to)
                 #except grpc.RpcError as e:
                 except Exception as e:
-                    raise MilvusException(message=str(e))
+                    raise MilvusException(0, str(e))
                 self._results = self.on_response(self._response)
 
                 self._callback()
@@ -299,7 +301,7 @@ class CreateFlatIndexFuture(AbstractFuture):
                     elif self._results is not None:
                         cb(self._results)
                     else:
-                        raise MilvusException(message="callback function is not legal!")
+                        raise MilvusException(1, "callback function is not legal!")
             return self._results
 
     def cancel(self):
