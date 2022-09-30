@@ -21,7 +21,7 @@ class Prepare:
     @classmethod
     def prepare_insert_data(cls, data, schema):
         if not isinstance(data, (list, tuple, pandas.DataFrame)):
-            raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
+            raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
 
         fields = schema.fields
         entities = []  # Entities
@@ -31,15 +31,15 @@ class Prepare:
             if schema.auto_id:
                 if schema.primary_field.name in data:
                     if len(fields) != len(data.columns):
-                        raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
+                        raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
                     if not data[schema.primary_field.name].isnull().all():
-                        raise DataNotMatchException(message=ExceptionsMessage.AutoIDWithData)
+                        raise DataNotMatchException(0, ExceptionsMessage.AutoIDWithData)
                 else:
                     if len(fields) != len(data.columns) + 1:
-                        raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
+                        raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
             else:
                 if len(fields) != len(data.columns):
-                    raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
+                    raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
             for i, field in enumerate(fields):
                 if field.is_primary and field.auto_id:
                     continue
@@ -49,7 +49,7 @@ class Prepare:
                 raw_lengths.append(len(data[field.name]))
         else:
             if schema.auto_id and len(data) != len(fields) - 1:
-                raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
+                raise DataNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
 
             tmp_fields = copy.deepcopy(fields)
             for i, field in enumerate(tmp_fields):
@@ -72,6 +72,6 @@ class Prepare:
         # TODO Goose: check correctness AFTER copy is too expensive.
         lengths = list(set(raw_lengths))
         if len(lengths) > 1:
-            raise DataNotMatchException(message=ExceptionsMessage.DataLengthsInconsistent)
+            raise DataNotMatchException(0, ExceptionsMessage.DataLengthsInconsistent)
 
         return entities

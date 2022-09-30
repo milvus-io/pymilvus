@@ -31,37 +31,37 @@ from ..exceptions import (
 class CollectionSchema:
     def __init__(self, fields, description="", **kwargs):
         if not isinstance(fields, list):
-            raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
+            raise FieldsTypeException(0, ExceptionsMessage.FieldsType)
         self._fields = [copy.deepcopy(field) for field in fields]
         primary_field = kwargs.get("primary_field", None)
         for field in self._fields:
             if not isinstance(field, FieldSchema):
-                raise FieldTypeException(message=ExceptionsMessage.FieldType)
+                raise FieldTypeException(0, ExceptionsMessage.FieldType)
             if primary_field == field.name:
                 field.is_primary = True
         self._primary_field = None
         for field in self._fields:
             if field.is_primary:
                 if primary_field is not None and primary_field != field.name:
-                    raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyOnlyOne)
+                    raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyOnlyOne)
                 self._primary_field = field
                 primary_field = field.name
 
         if self._primary_field is None:
-            raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyNotExist)
+            raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyNotExist)
 
         if self._primary_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
-            raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyType)
+            raise PrimaryKeyException(0, ExceptionsMessage.PrimaryKeyType)
 
         self._auto_id = kwargs.get("auto_id", None)
         if "auto_id" in kwargs:
             if not isinstance(self._auto_id, bool):
-                raise AutoIDException(message=ExceptionsMessage.AutoIDType)
+                raise AutoIDException(0, ExceptionsMessage.AutoIDType)
             if self._primary_field.auto_id is not None and self._primary_field.auto_id != self._auto_id:
-                raise AutoIDException(message=ExceptionsMessage.AutoIDInconsistent)
+                raise AutoIDException(0, ExceptionsMessage.AutoIDInconsistent)
             self._primary_field.auto_id = self._auto_id
             if self._primary_field.auto_id and self._primary_field.dtype == DataType.VARCHAR:
-                raise AutoIDException(message=ExceptionsMessage.AutoIDFieldType)
+                raise AutoIDException(0, ExceptionsMessage.AutoIDFieldType)
         else:
             if self._primary_field.auto_id is None:
                 self._primary_field.auto_id = False
@@ -169,22 +169,22 @@ class FieldSchema:
         try:
             DataType(dtype)
         except ValueError:
-            raise DataTypeNotSupportException(message=ExceptionsMessage.FieldDtype) from None
+            raise DataTypeNotSupportException(0, ExceptionsMessage.FieldDtype) from None
         if dtype == DataType.UNKNOWN:
-            raise DataTypeNotSupportException(message=ExceptionsMessage.FieldDtype)
+            raise DataTypeNotSupportException(0, ExceptionsMessage.FieldDtype)
         self._dtype = dtype
         self._description = description
         self._type_params = {}
         self._kwargs = copy.deepcopy(kwargs)
         if not isinstance(kwargs.get("is_primary", False), bool):
-            raise PrimaryKeyException(message=ExceptionsMessage.IsPrimaryType)
+            raise PrimaryKeyException(0, ExceptionsMessage.IsPrimaryType)
         self.is_primary = kwargs.get("is_primary", False)
         self.auto_id = kwargs.get("auto_id", None)
         if "auto_id" in kwargs:
             if not isinstance(self.auto_id, bool):
-                raise AutoIDException(message=ExceptionsMessage.AutoIDType)
+                raise AutoIDException(0, ExceptionsMessage.AutoIDType)
             if not self.is_primary and self.auto_id:
-                raise PrimaryKeyException(message=ExceptionsMessage.AutoIDOnlyOnPK)
+                raise PrimaryKeyException(0, ExceptionsMessage.AutoIDOnlyOnPK)
 
         self._parse_type_params()
 
@@ -291,10 +291,10 @@ def parse_fields_from_data(datas):
         return parse_fields_from_dataframe(datas)
     fields = []
     if not isinstance(datas, list):
-        raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
+        raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
     for d in datas:
         if not is_list_like(d):
-            raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
+            raise DataTypeNotSupportException(0, ExceptionsMessage.DataTypeNotSupport)
         d_type = infer_dtype_bydata(d[0])
         fields.append(FieldSchema("", d_type))
     return fields
@@ -311,7 +311,7 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
 
     if DataType.UNKNOWN in data_types:
         if len(dataframe) == 0:
-            raise CannotInferSchemaException(message=ExceptionsMessage.DataFrameInvalid)
+            raise CannotInferSchemaException(0, ExceptionsMessage.DataFrameInvalid)
         values = dataframe.head(1).values[0]
         for i, dtype in enumerate(data_types):
             if dtype == DataType.UNKNOWN:
@@ -329,7 +329,7 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
                 data_types[i] = new_dtype
 
     if DataType.UNKNOWN in data_types:
-        raise CannotInferSchemaException(message=ExceptionsMessage.DataFrameInvalid)
+        raise CannotInferSchemaException(0, ExceptionsMessage.DataFrameInvalid)
 
     fields = []
     for name, dtype in zip(col_names, data_types):

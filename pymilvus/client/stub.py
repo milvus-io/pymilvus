@@ -23,19 +23,19 @@ class Milvus:
 
     def __get_address(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI):
         if host is None and uri is None:
-            raise ParamError(message='Host and uri cannot both be None')
+            raise ParamError('Host and uri cannot both be None')
 
         elif host is None:
             try:
                 parsed_uri = parse.urlparse(uri, "tcp")
             except (Exception) as e:
-                raise ParamError(message=f"Illegal uri [{uri}]: {e}")
+                raise ParamError(f"Illegal uri [{uri}]: {e}")
 
             host, port = parsed_uri.hostname, parsed_uri.port
 
         host, port = str(host), str(port)
         if not (is_legal_host(host) and is_legal_port(port)):
-            raise ParamError(message=f"Illegal host [{host}] or port [{port}]")
+            raise ParamError(f"Illegal host [{host}] or port [{port}]")
 
         return f"{host}:{port}"
 
