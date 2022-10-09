@@ -384,6 +384,12 @@ class GrpcHandler:
             req = Prepare.delete_request(collection_name, partition_name, expression)
             future = self._stub.Delete.future(req, timeout=timeout)
 
+            if kwargs.get("_async", False):
+                cb = kwargs.get("_callback", None)
+                f = MutationFuture(future, cb, timeout=timeout, **kwargs)
+                f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
+                return f
+
             response = future.result()
             if response.status.error_code == 0:
                 m = MutationResult(response)
