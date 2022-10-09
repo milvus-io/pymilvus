@@ -60,7 +60,7 @@ class Milvus:
         self._handler = None
 
     #  @retry_on_rpc_failure(retry_times=10, wait=1)
-    def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
+    def create_collection(self, collection_name, fields, shards_num=2, properties={}, timeout=None, **kwargs):
         """ Creates a collection.
 
         :param collection_name: The name of the collection. A collection name can only include
@@ -101,7 +101,7 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.create_collection(collection_name, fields, shards_num=shards_num, timeout=timeout, **kwargs)
+            return handler.create_collection(collection_name, fields, shards_num=shards_num, properties=properties, timeout=timeout, **kwargs)
 
     def drop_collection(self, collection_name, timeout=None):
         """
@@ -1316,3 +1316,7 @@ class Milvus:
         """
         with self._connection() as handler:
             handler.select_grant_for_role_and_object(role_name, object, object_name, timeout=timeout, **kwargs)
+
+    def get_version(self, timeout=None, **kwargs):
+        with self._connection() as handler:
+            handler.get_version(timeout=timeout, **kwargs)

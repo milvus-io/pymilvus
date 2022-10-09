@@ -20,7 +20,8 @@ from ..grpc_gen import milvus_pb2 as milvus_types
 
 class Prepare:
     @classmethod
-    def create_collection_request(cls, collection_name: str, fields: Union[Dict[str, Iterable], CollectionSchema], shards_num=2, **kwargs) -> milvus_types.CreateCollectionRequest:
+    def create_collection_request(cls, collection_name: str, fields: Union[Dict[str, Iterable], CollectionSchema],
+                                  shards_num=2, properties={}, **kwargs) -> milvus_types.CreateCollectionRequest:
         """
         :type fields: Union(Dict[str, Iterable], CollectionSchema)
         :param fields: (Required)
@@ -40,9 +41,13 @@ class Prepare:
             schema = cls.get_schema(collection_name, fields, shards_num, **kwargs)
 
         consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
+
+        properties = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()]
+
         return milvus_types.CreateCollectionRequest(collection_name=collection_name,
                                                     schema=bytes(schema.SerializeToString()),
                                                     shards_num=shards_num,
+                                                    properties=properties,
                                                     consistency_level=consistency_level)
 
     @classmethod
@@ -102,7 +107,8 @@ class Prepare:
                 if primary_field is not None:
                     raise ParamException(Status.UNEXPECTED_ERROR, "A collection should only have one primary field")
                 if DataType(data_type) not in [DataType.INT64, DataType.VARCHAR]:
-                    raise ParamException(Status.UNEXPECTED_ERROR, "int64 and varChar are the only supported types of primary key")
+                    raise ParamException(Status.UNEXPECTED_ERROR,
+                                         "int64 and varChar are the only supported types of primary key")
                 primary_field = field_name
 
             auto_id = field.get('auto_id', False)
@@ -110,9 +116,11 @@ class Prepare:
                 raise ParamException(Status.UNEXPECTED_ERROR, "auto_id must be boolean")
             if auto_id:
                 if auto_id_field is not None:
-                    raise ParamException(Status.UNEXPECTED_ERROR, "A collection should only have one field whose id is automatically generated")
+                    raise ParamException(Status.UNEXPECTED_ERROR,
+                                         "A collection should only have one field whose id is automatically generated")
                 if DataType(data_type) != DataType.INT64:
-                    raise ParamException(Status.UNEXPECTED_ERROR, "int64 is the only supported type of automatic generated id")
+                    raise ParamException(Status.UNEXPECTED_ERROR,
+                                         "int64 is the only supported type of automatic generated id")
                 auto_id_field = field_name
 
             field_schema = schema_types.FieldSchema(name=field_name,
@@ -142,6 +150,15 @@ class Prepare:
     @classmethod
     def describe_collection_request(cls, collection_name):
         return milvus_types.DescribeCollectionRequest(collection_name=collection_name)
+
+    @classmethod
+    def alter_collection_request(cls, collection_name, properties):
+        kvs = []
+        for k in properties:
+            kv = common_types.KeyValuePair(key=k, value=str(properties[k]))
+            kvs.append(kv)
+
+        return milvus_types.AlterCollectionRequest(collection_name=collection_name, properties=kvs)
 
     @classmethod
     def collection_stats_request(cls, collection_name):
@@ -888,7 +905,8 @@ class Prepare:
             entity=milvus_types.GrantEntity(role=milvus_types.RoleEntity(name=role_name),
                                             object=milvus_types.ObjectEntity(name=object),
                                             object_name=object_name,
-                                            grantor=milvus_types.GrantorEntity(privilege=milvus_types.PrivilegeEntity(name=privilege))),
+                                            grantor=milvus_types.GrantorEntity(
+                                                privilege=milvus_types.PrivilegeEntity(name=privilege))),
             type=operate_privilege_type)
         pass
 

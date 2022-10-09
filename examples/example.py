@@ -49,7 +49,7 @@ def create_collection(name, id_field, vector_field):
     field2 = FieldSchema(name=vector_field, dtype=DataType.FLOAT_VECTOR, description="float vector", dim=_DIM,
                          is_primary=False)
     schema = CollectionSchema(fields=[field1, field2], description="collection description")
-    collection = Collection(name=name, data=None, schema=schema)
+    collection = Collection(name=name, data=None, schema=schema, properties={"collection.ttl.seconds": 15})
     print("\ncollection created:", name)
     return collection
 
@@ -121,6 +121,10 @@ def search(collection, vector_field, id_field, search_vectors):
             print("Top {}: {}".format(j, res))
 
 
+def set_properties(collection):
+    collection.set_properties(properties={"collection.ttl.seconds": 1800})
+
+
 def main():
     # create a connection
     create_connection()
@@ -131,6 +135,9 @@ def main():
 
     # create collection
     collection = create_collection(_COLLECTION_NAME, _ID_FIELD_NAME, _VECTOR_FIELD_NAME)
+
+    # alter ttl properties of collection level
+    set_properties(collection)
 
     # show collections
     list_collections()

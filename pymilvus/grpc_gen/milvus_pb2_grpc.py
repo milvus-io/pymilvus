@@ -45,11 +45,6 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.DescribeCollectionRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeCollectionResponse.FromString,
                 )
-        self.DescribePartition = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/DescribePartition',
-                request_serializer=milvus__pb2.DescribePartitionRequest.SerializeToString,
-                response_deserializer=milvus__pb2.DescribePartitionResponse.FromString,
-                )
         self.GetCollectionStatistics = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetCollectionStatistics',
                 request_serializer=milvus__pb2.GetCollectionStatisticsRequest.SerializeToString,
@@ -59,6 +54,11 @@ class MilvusServiceStub(object):
                 '/milvus.proto.milvus.MilvusService/ShowCollections',
                 request_serializer=milvus__pb2.ShowCollectionsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ShowCollectionsResponse.FromString,
+                )
+        self.AlterCollection = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AlterCollection',
+                request_serializer=milvus__pb2.AlterCollectionRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
                 )
         self.CreatePartition = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreatePartition',
@@ -300,6 +300,16 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.SelectGrantRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SelectGrantResponse.FromString,
                 )
+        self.GetVersion = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetVersion',
+                request_serializer=milvus__pb2.GetVersionRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetVersionResponse.FromString,
+                )
+        self.CheckHealth = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CheckHealth',
+                request_serializer=milvus__pb2.CheckHealthRequest.SerializeToString,
+                response_deserializer=milvus__pb2.CheckHealthResponse.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -341,12 +351,6 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def DescribePartition(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
     def GetCollectionStatistics(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -354,6 +358,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ShowCollections(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AlterCollection(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -654,6 +664,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetVersion(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CheckHealth(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -687,11 +709,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.DescribeCollectionRequest.FromString,
                     response_serializer=milvus__pb2.DescribeCollectionResponse.SerializeToString,
             ),
-            'DescribePartition': grpc.unary_unary_rpc_method_handler(
-                    servicer.DescribePartition,
-                    request_deserializer=milvus__pb2.DescribePartitionRequest.FromString,
-                    response_serializer=milvus__pb2.DescribePartitionResponse.SerializeToString,
-            ),
             'GetCollectionStatistics': grpc.unary_unary_rpc_method_handler(
                     servicer.GetCollectionStatistics,
                     request_deserializer=milvus__pb2.GetCollectionStatisticsRequest.FromString,
@@ -701,6 +718,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.ShowCollections,
                     request_deserializer=milvus__pb2.ShowCollectionsRequest.FromString,
                     response_serializer=milvus__pb2.ShowCollectionsResponse.SerializeToString,
+            ),
+            'AlterCollection': grpc.unary_unary_rpc_method_handler(
+                    servicer.AlterCollection,
+                    request_deserializer=milvus__pb2.AlterCollectionRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
             ),
             'CreatePartition': grpc.unary_unary_rpc_method_handler(
                     servicer.CreatePartition,
@@ -942,6 +964,16 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.SelectGrantRequest.FromString,
                     response_serializer=milvus__pb2.SelectGrantResponse.SerializeToString,
             ),
+            'GetVersion': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetVersion,
+                    request_deserializer=milvus__pb2.GetVersionRequest.FromString,
+                    response_serializer=milvus__pb2.GetVersionResponse.SerializeToString,
+            ),
+            'CheckHealth': grpc.unary_unary_rpc_method_handler(
+                    servicer.CheckHealth,
+                    request_deserializer=milvus__pb2.CheckHealthRequest.FromString,
+                    response_serializer=milvus__pb2.CheckHealthResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'milvus.proto.milvus.MilvusService', rpc_method_handlers)
@@ -1055,23 +1087,6 @@ class MilvusService(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def DescribePartition(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DescribePartition',
-            milvus__pb2.DescribePartitionRequest.SerializeToString,
-            milvus__pb2.DescribePartitionResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
     def GetCollectionStatistics(request,
             target,
             options=(),
@@ -1102,6 +1117,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ShowCollections',
             milvus__pb2.ShowCollectionsRequest.SerializeToString,
             milvus__pb2.ShowCollectionsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def AlterCollection(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AlterCollection',
+            milvus__pb2.AlterCollectionRequest.SerializeToString,
+            common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -1918,6 +1950,40 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/SelectGrant',
             milvus__pb2.SelectGrantRequest.SerializeToString,
             milvus__pb2.SelectGrantResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetVersion(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetVersion',
+            milvus__pb2.GetVersionRequest.SerializeToString,
+            milvus__pb2.GetVersionResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CheckHealth(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CheckHealth',
+            milvus__pb2.CheckHealthRequest.SerializeToString,
+            milvus__pb2.CheckHealthResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

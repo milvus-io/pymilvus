@@ -126,6 +126,7 @@ class CollectionSchema:
         self.aliases = []
         self.collection_id = 0
         self.consistency_level = DEFAULT_CONSISTENCY_LEVEL  # by default
+        self.properties = dict()
 
         #
         if self._raw:
@@ -155,6 +156,8 @@ class CollectionSchema:
         # for s in raw.statistics:
         #     self.statistics[s.key] = s.value
 
+        self.properties = raw.properties
+
     def dict(self):
         if not self._raw:
             return dict()
@@ -166,6 +169,7 @@ class CollectionSchema:
         _dict["aliases"] = self.aliases
         _dict["collection_id"] = self.collection_id
         _dict["consistency_level"] = self.consistency_level
+        _dict["properties"] = self.properties
         # for k, v in self.params.items():
         #     if isinstance(v, DataType):
         #         _dict[k] = v.value
