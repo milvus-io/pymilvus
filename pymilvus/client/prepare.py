@@ -7,10 +7,10 @@ from . import blob
 from . import entity_helper
 from .configs import DefaultConfigs
 from .check import check_pass_param
-from .types import DataType, PlaceholderType, Status
+from .types import DataType, PlaceholderType
 from .types import get_consistency_level
 from .constants import DEFAULT_CONSISTENCY_LEVEL
-from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage, ParamException
+from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
 from ..orm.schema import CollectionSchema
 
 from ..grpc_gen import common_pb2 as common_types
@@ -54,7 +54,7 @@ class Prepare:
     def get_schema_from_collection_schema(cls, collection_name: str, fields: CollectionSchema, shards_num=2, **kwargs) -> milvus_types.CreateCollectionRequest:
         coll_description = fields.description
         if not isinstance(coll_description, (str, bytes)):
-            raise ParamException(Status.UNEXPECTED_ERROR, f"description [{coll_description}] has type {type(coll_description).__name__},  but expected one of: bytes, str")
+            raise ParamError(message=f"description [{coll_description}] has type {type(coll_description).__name__},  but expected one of: bytes, str")
 
         schema = schema_types.CollectionSchema(name=collection_name,
                                                autoID=fields.auto_id,
@@ -75,13 +75,13 @@ class Prepare:
     @classmethod
     def get_schema(cls, collection_name: str, fields: Dict[str, Iterable], shards_num=2, **kwargs) -> schema_types.CollectionSchema:
         if not isinstance(fields, dict):
-            raise ParamException(Status.UNEXPECTED_ERROR, "Param fields must be a dict")
+            raise ParamError(message="Param fields must be a dict")
 
         all_fields = fields.get("fields")
         if all_fields is None:
-            raise ParamException(Status.UNEXPECTED_ERROR, "Param fields must contain key 'fields'")
+            raise ParamError(message="Param fields must contain key 'fields'")
         if len(all_fields) == 0:
-            raise ParamException(Status.UNEXPECTED_ERROR, "Param fields value cannot be empty")
+            raise ParamError(message="Param fields value cannot be empty")
 
         schema = schema_types.CollectionSchema(name=collection_name,
                                                autoID=False,
@@ -92,35 +92,32 @@ class Prepare:
         for field in all_fields:
             field_name = field.get('name')
             if field_name is None:
-                raise ParamException(Status.UNEXPECTED_ERROR, "You should specify the name of field!")
+                raise ParamError(message="You should specify the name of field!")
 
             data_type = field.get('type')
             if data_type is None:
-                raise ParamException(Status.UNEXPECTED_ERROR, "You should specify the data type of field!")
+                raise ParamError(message="You should specify the data type of field!")
             if not isinstance(data_type, (int, DataType)):
-                raise ParamException(Status.UNEXPECTED_ERROR, "Field type must be of DataType!")
+                raise ParamError(message="Field type must be of DataType!")
 
             is_primary = field.get("is_primary", False)
             if not isinstance(is_primary, bool):
-                raise ParamException(Status.UNEXPECTED_ERROR, "is_primary must be boolean")
+                raise ParamError(message="is_primary must be boolean")
             if is_primary:
                 if primary_field is not None:
-                    raise ParamException(Status.UNEXPECTED_ERROR, "A collection should only have one primary field")
+                    raise ParamError(message="A collection should only have one primary field")
                 if DataType(data_type) not in [DataType.INT64, DataType.VARCHAR]:
-                    raise ParamException(Status.UNEXPECTED_ERROR,
-                                         "int64 and varChar are the only supported types of primary key")
+                    raise ParamError(message="int64 and varChar are the only supported types of primary key")
                 primary_field = field_name
 
             auto_id = field.get('auto_id', False)
             if not isinstance(auto_id, bool):
-                raise ParamException(Status.UNEXPECTED_ERROR, "auto_id must be boolean")
+                raise ParamError(message="auto_id must be boolean")
             if auto_id:
                 if auto_id_field is not None:
-                    raise ParamException(Status.UNEXPECTED_ERROR,
-                                         "A collection should only have one field whose id is automatically generated")
+                    raise ParamError(message="A collection should only have one field whose id is automatically generated")
                 if DataType(data_type) != DataType.INT64:
-                    raise ParamException(Status.UNEXPECTED_ERROR,
-                                         "int64 is the only supported type of automatic generated id")
+                    raise ParamError(message="int64 is the only supported type of automatic generated id")
                 auto_id_field = field_name
 
             field_schema = schema_types.FieldSchema(name=field_name,
@@ -131,7 +128,7 @@ class Prepare:
 
             type_params = field.get('params', {})
             if not isinstance(type_params, dict):
-                raise ParamException(Status.UNEXPECTED_ERROR, "params should be dictionary type")
+                raise ParamError(message="params should be dictionary type")
             kvs = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in type_params.items()]
             field_schema.type_params.extend(kvs)
 
@@ -169,7 +166,7 @@ class Prepare:
         req = milvus_types.ShowCollectionsRequest()
         if collection_names:
             if not isinstance(collection_names, (list,)):
-                raise ParamError(f"collection_names must be a list of strings, but got: {collection_names}")
+                raise ParamError(message=f"collection_names must be a list of strings, but got: {collection_names}")
             for collection_name in collection_names:
                 check_pass_param(collection_name=collection_name)
             req.collection_names.extend(collection_names)
@@ -198,7 +195,7 @@ class Prepare:
         req = milvus_types.ShowPartitionsRequest(collection_name=collection_name)
         if partition_names:
             if not isinstance(partition_names, (list,)):
-                raise ParamError(f"partition_names must be a list of strings, but got: {partition_names}")
+                raise ParamError(message=f"partition_names must be a list of strings, but got: {partition_names}")
             for partition_name in partition_names:
                 check_pass_param(partition_name=partition_name)
             req.partition_names.extend(partition_names)
@@ -228,9 +225,9 @@ class Prepare:
     @classmethod
     def partition_name(cls, collection_name, partition_name):
         if not isinstance(collection_name, str):
-            raise ParamError("collection_name must be of str type")
+            raise ParamError(message="collection_name must be of str type")
         if not isinstance(partition_name, str):
-            raise ParamError("partition_name must be of str type")
+            raise ParamError(message="partition_name must be of str type")
         return milvus_types.PartitionName(collection_name=collection_name,
                                           tag=partition_name)
 
@@ -242,7 +239,7 @@ class Prepare:
 
         for entity in entities:
             if not entity.get("name", None) or not entity.get("values", None) or not entity.get("type", None):
-                raise ParamError("Missing param in entities, a field must have type, name and values")
+                raise ParamError(message="Missing param in entities, a field must have type, name and values")
 
         fields_name = list()
         fields_type = list()
@@ -251,7 +248,7 @@ class Prepare:
             fields_name.append(entities[i]["name"])
 
         if not fields_info:
-            raise ParamError("Missing collection meta to validate entities")
+            raise ParamError(message="Missing collection meta to validate entities")
 
         location = dict()
         primary_key_loc = None
@@ -274,7 +271,7 @@ class Prepare:
 
                 if field_name == entity_name:
                     if field_type != entity_type:
-                        raise ParamError(f"Collection field type is {field_type}"
+                        raise ParamError(message=f"Collection field type is {field_type}"
                                          f", but entities field type is {entity_type}")
 
                     entity_dim = 0
@@ -284,11 +281,11 @@ class Prepare:
                         entity_dim = len(entities[j]["values"][0])
 
                     if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
-                        raise ParamError(f"Collection field dim is {field_dim}"
+                        raise ParamError(message=f"Collection field dim is {field_dim}"
                                          f", but entities field dim is {entity_dim}")
 
                     if entity_type in [DataType.BINARY_VECTOR, ] and entity_dim * 8 != field_dim:
-                        raise ParamError(f"Collection field dim is {field_dim}"
+                        raise ParamError(message=f"Collection field dim is {field_dim}"
                                          f", but entities field dim is {entity_dim * 8}")
 
                     location[field["name"]] = j
@@ -297,28 +294,28 @@ class Prepare:
                     break
 
             if not match_flag:
-                raise ParamError("Field {} don't match in entities".format(field["name"]))
+                raise ParamError(message=f"Field {field['name']} don't match in entities")
 
         # though impossible from sdk
         if primary_key_loc is None:
-            raise ParamError("primary key not found")
+            raise ParamError(message="primary key not found")
 
         if auto_id_loc is None and len(entities) != len(fields_info):
-            raise ParamError(f"number of fields: {len(fields_info)}, number of entities: {len(entities)}")
+            raise ParamError(message=f"number of fields: {len(fields_info)}, number of entities: {len(entities)}")
 
         if auto_id_loc is not None and len(entities) + 1 != len(fields_info):
-            raise ParamError(f"number of fields: {len(fields_info)}, number of entities: {len(entities)}")
+            raise ParamError(message=f"number of fields: {len(fields_info)}, number of entities: {len(entities)}")
 
         row_num = 0
         try:
             for entity in entities:
                 if row_num != 0 and row_num != len(entity.get("values")):
-                    raise ParamError(f"row num misaligned.")
+                    raise ParamError(message=f"row num misaligned.")
                 row_num = len(entity.get("values"))
                 field_data = entity_helper.entity_to_field_data(entity, fields_info[location[entity.get("name")]])
                 insert_request.fields_data.append(field_data)
         except (TypeError, ValueError):
-            raise DataNotMatchException(0, ExceptionsMessage.DataTypeInconsistent)
+            raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent)
 
         insert_request.num_rows = row_num
 
@@ -331,12 +328,11 @@ class Prepare:
     def delete_request(cls, collection_name, partition_name, expr):
         def check_str(instr, prefix):
             if instr is None:
-                raise ParamError(prefix + " cannot be None")
+                raise ParamError(message=f"{prefix} cannot be None")
             if not isinstance(instr, str):
-                msg = prefix + " value {} is illegal"
-                raise ParamError(msg.format(instr))
+                raise ParamError(message=f"{prefix} value {instr} is illegal")
             if instr == "":
-                raise ParamError(prefix + " cannot be empty")
+                raise ParamError(message=f"{prefix} cannot be empty")
 
         check_str(collection_name, "collection_name")
         if partition_name is not None and partition_name != "":
@@ -353,11 +349,11 @@ class Prepare:
         for i in range(0, nq):
             if is_binary:
                 if len(vectors[i]) * 8 != dimension:
-                    raise ParamError("The dimension of query entities is different from schema")
+                    raise ParamError(message=f"The dimension of query entities[{vectors[i]*8}] is different from schema [{dimension}]")
                 pl.values.append(blob.vectorBinaryToBytes(vectors[i]))
             else:
                 if len(vectors[i]) != dimension:
-                    raise ParamError("The dimension of query entities is different from schema")
+                    raise ParamError(message=f"The dimension of query entities[{vectors[i]*8}] is different from schema [{dimension}]")
                 pl.values.append(blob.vectorFloatToBytes(vectors[i]))
         return pl
 
@@ -369,10 +365,10 @@ class Prepare:
                             for loc in range(len(fields_schema))}
 
         if not isinstance(query_entities, (dict,)):
-            raise ParamError("Invalid query format. 'query_entities' must be a dict")
+            raise ParamError(message="Invalid query format. 'query_entities' must be a dict")
 
         if fields is not None and not isinstance(fields, (list,)):
-            raise ParamError("Invalid query format. 'fields' must be a list")
+            raise ParamError(message="Invalid query format. 'fields' must be a list")
 
         request = milvus_types.SearchRequest(
             collection_name=collection_name,
@@ -396,7 +392,7 @@ class Prepare:
 
                     for pk, pv in param["vector"].items():
                         if "query" not in pv:
-                            raise ParamError("param vector must contain 'query'")
+                            raise ParamError(message="param vector must contain 'query'")
                         placeholders[ph] = pv["query"]
                         names[ph] = pk
                         param["vector"][pk]["query"] = ph
@@ -422,20 +418,20 @@ class Prepare:
 
             fname = vector_names[tag]
             if fname not in fields_name_locs:
-                raise ParamError(f"Field {fname} doesn't exist in schema")
+                raise ParamError(message=f"Field {fname} doesn't exist in schema")
             dimension = int(fields_schema[fields_name_locs[fname]]["params"].get("dim", 0))
 
             if isinstance(vectors[0], bytes):
                 pl.type = PlaceholderType.BinaryVector
                 for vector in vectors:
                     if dimension != len(vector) * 8:
-                        raise ParamError("The dimension of query vector is different from schema")
+                        raise ParamError(message="The dimension of query vector is different from schema")
                     pl.values.append(blob.vectorBinaryToBytes(vector))
             else:
                 pl.type = PlaceholderType.FloatVector
                 for vector in vectors:
                     if dimension != len(vector):
-                        raise ParamError("The dimension of query vector is different from schema")
+                        raise ParamError(message="The dimension of query vector is different from schema")
                     pl.values.append(blob.vectorFloatToBytes(vector))
             # vector_values_bytes = service_msg_types.VectorValues.SerializeToString(vector_values)
 
@@ -465,12 +461,12 @@ class Prepare:
             pl_type = PlaceholderType.FloatVector
 
         if anns_field not in fields_name_locs:
-            raise ParamError(f"Field {anns_field} doesn't exist in schema")
+            raise ParamError(message=f"Field {anns_field} doesn't exist in schema")
         dimension = int(fields_schema[fields_name_locs[anns_field]]["params"].get("dim", 0))
 
         params = param.get("params", {})
         if not isinstance(params, dict):
-            raise ParamError(f"Search params must be a dict, got {type(params)}")
+            raise ParamError(message=f"Search params must be a dict, got {type(params)}")
         search_params = {
             "anns_field": anns_field,
             "topk": limit,
@@ -540,7 +536,7 @@ class Prepare:
             for tk, tv in params.items():
                 if tk == "dim":
                     if not tv or not isinstance(tv, int):
-                        raise ParamError("dim must be of int!")
+                        raise ParamError(message="dim must be of int!")
                 kv_pair = common_types.KeyValuePair(key=str(tk), value=dump(tv))
                 index_params.extra_params.append(kv_pair)
 
@@ -655,10 +651,10 @@ class Prepare:
     @classmethod
     def manual_compaction(cls, collection_id, timetravel):
         if collection_id is None or not isinstance(collection_id, int):
-            raise ParamError(f"collection_id value {collection_id} is illegal")
+            raise ParamError(message=f"collection_id value {collection_id} is illegal")
 
         if timetravel is None or not isinstance(timetravel, int):
-            raise ParamError(f"timetravel value {timetravel} is illegal")
+            raise ParamError(message=f"timetravel value {timetravel} is illegal")
 
         request = milvus_types.ManualCompactionRequest()
         request.collectionID = collection_id
@@ -669,7 +665,7 @@ class Prepare:
     @classmethod
     def get_compaction_state(cls, compaction_id: int):
         if compaction_id is None or not isinstance(compaction_id, int):
-            raise ParamError(f"compaction_id value {compaction_id} is illegal")
+            raise ParamError(message=f"compaction_id value {compaction_id} is illegal")
 
         request = milvus_types.GetCompactionStateRequest()
         request.compactionID = compaction_id
@@ -678,7 +674,7 @@ class Prepare:
     @classmethod
     def get_compaction_state_with_plans(cls, compaction_id: int):
         if compaction_id is None or not isinstance(compaction_id, int):
-            raise ParamError(f"compaction_id value {compaction_id} is illegal")
+            raise ParamError(message=f"compaction_id value {compaction_id} is illegal")
 
         request = milvus_types.GetCompactionPlansRequest()
         request.compactionID = compaction_id
@@ -687,7 +683,7 @@ class Prepare:
     @classmethod
     def get_replicas(cls, collection_id: int):
         if collection_id is None or not isinstance(collection_id, int):
-            raise ParamError(f"collection_id value {collection_id} is illegal")
+            raise ParamError(message=f"collection_id value {collection_id} is illegal")
 
         request = milvus_types.GetReplicasRequest(
             collectionID=collection_id,
@@ -751,7 +747,7 @@ class Prepare:
     @classmethod
     def delete_user_request(cls, user):
         if not isinstance(user, str):
-            raise ParamError(f"invalid user {user}")
+            raise ParamError(message=f"invalid user {user}")
         return milvus_types.DeleteCredentialRequest(username=user)
 
     @classmethod

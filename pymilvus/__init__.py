@@ -15,10 +15,6 @@ from .client.prepare import Prepare
 from .client.types import Status, DataType, RangeType, IndexType, Replica, Group, Shard, BulkInsertState
 from .exceptions import (
     ParamError,
-    ConnectError,
-    NotConnectError,
-    RepeatingConnectError,
-    VersionError,
     MilvusException,
     MilvusUnavailableException,
     ExceptionsMessage
@@ -60,7 +56,6 @@ from .orm.schema import FieldSchema, CollectionSchema
 from .orm.future import SearchFuture, MutationFuture
 
 __all__ = [
-    # pymilvus orm'styled APIs
     'Collection', 'Index', 'Partition',
     'connections',
     'loading_progress', 'index_building_progress', 'wait_for_loading_complete', 'has_collection', 'has_partition',
@@ -73,8 +68,7 @@ __all__ = [
     'SearchFuture', 'MutationFuture',
     'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavailableException', 'BulkInsertState',
 
-    # pymilvus old style APIs
     'Milvus', 'Prepare', 'Status', 'DataType',
-    'ParamError', 'ConnectError', 'NotConnectError', 'RepeatingConnectError', 'VersionError', 'MilvusException',
+    'MilvusException',
     '__version__'
 ]

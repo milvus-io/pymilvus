@@ -47,15 +47,15 @@ from ..client.configs import DefaultConfigs
 
 def _check_schema(schema):
     if schema is None:
-        raise SchemaNotReadyException(0, ExceptionsMessage.NoSchema)
+        raise SchemaNotReadyException(message=ExceptionsMessage.NoSchema)
     if len(schema.fields) < 1:
-        raise SchemaNotReadyException(0, ExceptionsMessage.EmptySchema)
+        raise SchemaNotReadyException(message=ExceptionsMessage.EmptySchema)
     vector_fields = []
     for field in schema.fields:
         if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
             vector_fields.append(field.name)
     if len(vector_fields) < 1:
-        raise SchemaNotReadyException(0, ExceptionsMessage.NoVector)
+        raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
 
 
 class Collection:
@@ -118,21 +118,21 @@ class Collection:
             s_consistency_level = resp.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
             arg_consistency_level = kwargs.get("consistency_level", s_consistency_level)
             if not cmp_consistency_level(s_consistency_level, arg_consistency_level):
-                raise SchemaNotReadyException(0, ExceptionsMessage.ConsistencyLevelInconsistent)
+                raise SchemaNotReadyException(message=ExceptionsMessage.ConsistencyLevelInconsistent)
             server_schema = CollectionSchema.construct_from_dict(resp)
             self._consistency_level = s_consistency_level
             if schema is None:
                 self._schema = server_schema
             else:
                 if not isinstance(schema, CollectionSchema):
-                    raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)
+                    raise SchemaNotReadyException(message=ExceptionsMessage.SchemaType)
                 if server_schema != schema:
-                    raise SchemaNotReadyException(0, ExceptionsMessage.SchemaInconsistent)
+                    raise SchemaNotReadyException(message=ExceptionsMessage.SchemaInconsistent)
                 self._schema = schema
 
         else:
             if schema is None:
-                raise SchemaNotReadyException(0, ExceptionsMessage.CollectionNotExistNoSchema % name)
+                raise SchemaNotReadyException(message=ExceptionsMessage.CollectionNotExistNoSchema % name)
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
                 consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
@@ -140,7 +140,7 @@ class Collection:
                 self._schema = schema
                 self._consistency_level = consistency_level
             else:
-                raise SchemaNotReadyException(0, ExceptionsMessage.SchemaType)
+                raise SchemaNotReadyException(message=ExceptionsMessage.SchemaType)
 
     def __repr__(self):
         _dict = {
@@ -168,7 +168,7 @@ class Collection:
             if isinstance(data, pandas.DataFrame):
                 if self._schema.primary_field.name in data:
                     if not data[self._schema.primary_field.name].isnull().all():
-                        raise DataNotMatchException(0, ExceptionsMessage.AutoIDWithData)
+                        raise DataNotMatchException(message=ExceptionsMessage.AutoIDWithData)
                     data = data.drop(self._schema.primary_field.name, axis=1)
 
         infer_fields = parse_fields_from_data(data)
@@ -179,7 +179,7 @@ class Collection:
                 tmp_fields.pop(i)
 
         if len(infer_fields) != len(tmp_fields):
-            raise DataTypeNotMatchException(0, ExceptionsMessage.FieldsNumInconsistent)
+            raise DataTypeNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
 
         for x, y in zip(infer_fields, tmp_fields):
             if x.dtype != y.dtype:
@@ -192,38 +192,38 @@ class Collection:
 
     def _check_schema(self):
         if self._schema is None:
-            raise SchemaNotReadyException(0, ExceptionsMessage.NoSchema)
+            raise SchemaNotReadyException(message=ExceptionsMessage.NoSchema)
 
     def _get_vector_field(self) -> str:
         for field in self._schema.fields:
             if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
                 return field.name
-        raise SchemaNotReadyException(0, ExceptionsMessage.NoVector)
+        raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
 
     @classmethod
     def construct_from_dataframe(cls, name, dataframe, **kwargs):
         if dataframe is None:
-            raise SchemaNotReadyException(0, ExceptionsMessage.NoneDataFrame)
+            raise SchemaNotReadyException(message=ExceptionsMessage.NoneDataFrame)
         if not isinstance(dataframe, pandas.DataFrame):
-            raise SchemaNotReadyException(0, ExceptionsMessage.DataFrameType)
+            raise SchemaNotReadyException(message=ExceptionsMessage.DataFrameType)
         primary_field = kwargs.pop("primary_field", None)
         if primary_field is None:
-            raise SchemaNotReadyException(0, ExceptionsMessage.NoPrimaryKey)
+            raise SchemaNotReadyException(message=ExceptionsMessage.NoPrimaryKey)
         pk_index = -1
         for i, field in enumerate(dataframe):
             if field == primary_field:
                 pk_index = i
         if pk_index == -1:
-            raise SchemaNotReadyException(0, ExceptionsMessage.PrimaryKeyNotExist)
+            raise SchemaNotReadyException(message=ExceptionsMessage.PrimaryKeyNotExist)
         if "auto_id" in kwargs:
             if not isinstance(kwargs.get("auto_id", None), bool):
-                raise AutoIDException(0, ExceptionsMessage.AutoIDType)
+                raise AutoIDException(message=ExceptionsMessage.AutoIDType)
         auto_id = kwargs.pop("auto_id", False)
         if auto_id:
             if dataframe[primary_field].isnull().all():
                 dataframe = dataframe.drop(primary_field, axis=1)
             else:
-                raise SchemaNotReadyException(0, ExceptionsMessage.AutoIDWithData)
+                raise SchemaNotReadyException(message=ExceptionsMessage.AutoIDWithData)
 
         using = kwargs.get("using", DefaultConfig.DEFAULT_USING)
         conn = _get_connection(using)
@@ -550,7 +550,7 @@ class Collection:
         if data is None:
             return MutationResult(data)
         if not self._check_insert_data_schema(data):
-            raise SchemaNotReadyException(0, ExceptionsMessage.TypeOfDataAndSchemaInconsistent)
+            raise SchemaNotReadyException(message=ExceptionsMessage.TypeOfDataAndSchemaInconsistent)
         conn = self._get_connection()
         entities = Prepare.prepare_insert_data(data, self._schema)
         schema_dict = self._schema.to_dict()
@@ -712,7 +712,7 @@ class Collection:
             - Top1 hit id: 8, distance: 0.10143111646175385, score: 0.10143111646175385
         """
         if expr is not None and not isinstance(expr, str):
-            raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
         schema_dict = self._schema.to_dict()
@@ -800,7 +800,7 @@ class Collection:
             - Query results: [{'film_id': 0, 'film_date': 2000}, {'film_id': 1, 'film_date': 2001}]
         """
         if not isinstance(expr, str):
-            raise DataTypeNotMatchException(0, ExceptionsMessage.ExprType % type(expr))
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
         schema_dict = self._schema.to_dict()
@@ -898,7 +898,7 @@ class Collection:
             {"name": "comedy", "collection_name": "test_collection_create_partition", "description": ""}
         """
         if self.has_partition(partition_name, **kwargs) is True:
-            raise PartitionAlreadyExistException(0, ExceptionsMessage.PartitionAlreadyExist)
+            raise PartitionAlreadyExistException(message=ExceptionsMessage.PartitionAlreadyExist)
         return Partition(self, partition_name, description=description, **kwargs)
 
     def has_partition(self, partition_name, timeout=None, **kwargs) -> bool:
@@ -967,7 +967,7 @@ class Collection:
             False
         """
         if self.has_partition(partition_name, **kwargs) is False:
-            raise PartitionNotExistException(0, ExceptionsMessage.PartitionNotExist)
+            raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
         conn = self._get_connection()
         return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
@@ -1042,7 +1042,7 @@ class Collection:
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
             return Index(self, field_name, tmp_index, construct_only=True, index_name=index_name)
-        raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
+        raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
 
     def create_index(self, field_name, index_params={}, timeout=None, **kwargs) -> Index:
         """
@@ -1170,7 +1170,7 @@ class Collection:
         if copy_kwargs.get("index_name"):
             copy_kwargs.pop("index_name")
         if self.has_index(index_name=index_name, **copy_kwargs) is False:
-            raise IndexNotExistException(0, ExceptionsMessage.IndexNotExist)
+            raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs)
         if tmp_index is not None:

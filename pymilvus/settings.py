@@ -12,6 +12,7 @@ class DefaultConfig:
 
     CALC_DIST_METRIC = "L2"
 
+
 # logging
 COLORS = {
     'HEADER': '\033[95m',

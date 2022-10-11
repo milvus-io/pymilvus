@@ -94,7 +94,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         matched = rex.search(conf)
 
         if not matched:
-            raise ConnectionConfigException(-1, ExceptionsMessage.EnvConfigErr % (ENV_CONNECTION_CONF, conf))
+            raise ConnectionConfigException(message=ExceptionsMessage.EnvConfigErr % (ENV_CONNECTION_CONF, conf))
 
         user, host, port = matched.groups()
         user = user or ""
@@ -144,7 +144,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             if alias in self._connected_alias:
                 if self._alias[alias].get("address") != addr:
-                    raise ConnectionConfigException(-1, ExceptionsMessage.ConnDiffConf % alias)
+                    raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
 
             alias_config = {
                 "address": addr,
@@ -156,7 +156,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
     def __get_full_address(self, address: str="", uri: str="", host: str="", port: str="") -> str:
         if address != "":
             if not is_legal_address(address):
-                raise ConnectionConfigException(-1, f"Illegal address: {address}, should be in form 'localhost:19530'")
+                raise ConnectionConfigException(message=f"Illegal address: {address}, should be in form 'localhost:19530'")
         else:
             address = self.__generate_address(uri, host, port)
 
@@ -168,14 +168,14 @@ class Connections(metaclass=SingleInstanceMetaClass):
             try:
                 parsed_uri = parse.urlparse(uri)
             except (Exception) as e:
-                raise ConnectionConfigException(-1, f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
+                raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
 
             if len(parsed_uri.netloc) == 0:
-                raise ConnectionConfigException(-1, illegal_uri_msg.format(uri))
+                raise ConnectionConfigException(message=illegal_uri_msg.format(uri))
 
             addr = parsed_uri.netloc if ":" in parsed_uri.netloc else f"{parsed_uri.netloc}:{DefaultConfig.DEFAULT_PORT}"
             if not is_legal_address(addr):
-                raise ConnectionConfigException(-1, illegal_uri_msg.format(uri))
+                raise ConnectionConfigException(message=illegal_uri_msg.format(uri))
             return addr
 
         else:
@@ -183,11 +183,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
             port = port if port != "" else DefaultConfig.DEFAULT_PORT
 
             if not is_legal_host(host):
-                raise ConnectionConfigException(-1, ExceptionsMessage.HostType)
+                raise ConnectionConfigException(message=ExceptionsMessage.HostType)
             if not is_legal_port(port):
-                raise ConnectionConfigException(-1, ExceptionsMessage.PortType)
+                raise ConnectionConfigException(message=ExceptionsMessage.PortType)
             if not 0 <= int(port) < 65535:
-                raise ConnectionConfigException(-1, f"port number {port} out of range, valid range [0, 65535)")
+                raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
 
             return f"{host}:{port}"
 
@@ -198,7 +198,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :type alias: str
         """
         if not isinstance(alias, str):
-            raise ConnectionConfigException(-1, ExceptionsMessage.AliasType % type(alias))
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
         if alias in self._connected_alias:
             self._connected_alias.pop(alias).close()
@@ -210,7 +210,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :type alias: str
         """
         if not isinstance(alias, str):
-            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
         self.disconnect(alias)
         self._alias.pop(alias, None)
@@ -264,7 +264,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> connections.connect("test", host="localhost", port="19530")
         """
         if not isinstance(alias, str):
-            raise ConnectionConfigException(-1, ExceptionsMessage.AliasType % type(alias))
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs)
@@ -295,13 +295,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             if self.has_connection(alias):
                 if self._alias[alias].get("address") != in_addr:
-                    raise ConnectionConfigException(-1, ExceptionsMessage.ConnDiffConf % alias)
+                    raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
 
             connect_milvus(**kwargs, password=password)
 
         else:
             if alias not in self._alias:
-                raise ConnectionConfigException(-1, ExceptionsMessage.ConnLackConf % alias)
+                raise ConnectionConfigException(message=ExceptionsMessage.ConnLackConf % alias)
 
             connect_milvus(**self._alias[alias], password=password)
 
@@ -339,7 +339,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             {'host': 'localhost', 'port': '19530'}
         """
         if not isinstance(alias, str):
-            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
         return self._alias.get(alias, {})
 
@@ -361,21 +361,20 @@ class Connections(metaclass=SingleInstanceMetaClass):
             {'host': 'localhost', 'port': '19530'}
         """
         if not isinstance(alias, str):
-            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
         return alias in self._connected_alias
 
     def _fetch_handler(self, alias=DefaultConfig.DEFAULT_USING) -> GrpcHandler:
         """ Retrieves a GrpcHandler by alias. """
         if not isinstance(alias, str):
-            raise ConnectionConfigException(0, ExceptionsMessage.AliasType % type(alias))
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
         conn = self._connected_alias.get(alias, None)
         if conn is None:
-            raise ConnectionNotExistException(0, ExceptionsMessage.ConnectFirst)
+            raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
 
         return conn
 
 
 # Singleton Mode in Python
-
 connections = Connections()

@@ -212,7 +212,7 @@ class Entity:
         if field in self._row_data:
             return self._row_data[field]
         else:
-            raise MilvusException(0, "Field {} is not in return entity".format(field))
+            raise MilvusException(message=f"Field {field} is not in return entity")
 
     def type_of_field(self, field):
         raise NotImplementedError('TODO: support field in Hits')
@@ -297,7 +297,7 @@ class Hits(LoopBase):
                     if len(field_data.scalars.string_data.data) >= item:
                         entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[item]
                 elif field_data.type == DataType.STRING:
-                    raise MilvusException(0, "Not support string yet")
+                    raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field_data.vectors.dim
@@ -454,7 +454,7 @@ class QueryResult(LoopBase):
                 elif field_data.type == DataType.VARCHAR:
                     field.scalars.string_data.data.extend(field_data.scalars.string_data.data[start_pos: end_pos])
                 elif field_data.type == DataType.STRING:
-                    raise MilvusException(0, "Not support string yet")
+                    raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field.vectors.dim
@@ -523,7 +523,7 @@ class ChunkedQueryResult(LoopBase):
                     elif field_data.type == DataType.VARCHAR:
                         field.scalars.string_data.data.extend(field_data.scalars.string_data.data[start_pos: end_pos])
                     elif field_data.type == DataType.STRING:
-                        raise MilvusException(0, "Not support string yet")
+                        raise MilvusException(message="Not support string yet")
                         # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                     elif field_data.type == DataType.FLOAT_VECTOR:
                         dim = field_data.vectors.dim
