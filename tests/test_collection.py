@@ -47,7 +47,7 @@ class TestCollections:
                     collection = Collection(name=coll_name)
 
         with mock.patch(f"{prefix}.drop_collection", return_value=None):
-            with mock.patch(f"{prefix}.describe_indexes", return_value=[]):
+            with mock.patch(f"{prefix}.list_indexes", return_value=[]):
                 collection.drop()
 
         with mock.patch(f"{prefix}.close", return_value=None):
