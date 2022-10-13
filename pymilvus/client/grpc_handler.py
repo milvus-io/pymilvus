@@ -63,7 +63,7 @@ from ..exceptions import (
     ParamException,
 )
 
-from ..decorators import retry_on_rpc_failure, error_handler
+from ..decorators import retry_on_rpc_failure, error_handler, deprecated
 
 
 class GrpcHandler:
@@ -584,7 +584,7 @@ class GrpcHandler:
         return Status(status.error_code, status.reason)
 
     @retry_on_rpc_failure()
-    def describe_indexes(self, collection_name, timeout=None, **kwargs):
+    def list_indexes(self, collection_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.describe_index_request(collection_name, "")
 
@@ -617,22 +617,24 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def get_index_build_progress(self, collection_name, index_name, timeout=None):
-        request = Prepare.get_index_build_progress(collection_name, index_name)
-        rf = self._stub.GetIndexBuildProgress.future(request, timeout=timeout)
+        request = Prepare.describe_index_request(collection_name, index_name)
+        rf = self._stub.DescribeIndex.future(request, timeout=timeout)
         response = rf.result()
         status = response.status
-        if status.error_code == 0:
-            return {'total_rows': response.total_rows, 'indexed_rows': response.indexed_rows}
+        if status.error_code == 0 and len(response.index_descriptions) > 0:
+            index_desc = response.index_descriptions[0]
+            return {'total_rows': index_desc.total_rows, 'indexed_rows': index_desc.indexed_rows}
         raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure()
     def get_index_state(self, collection_name: str, index_name: str, timeout=None, **kwargs):
-        request = Prepare.get_index_state_request(collection_name=collection_name, index_name=index_name)
-        rf = self._stub.GetIndexState.future(request, timeout=timeout)
+        request = Prepare.describe_index_request(collection_name, index_name)
+        rf = self._stub.DescribeIndex.future(request, timeout=timeout)
         response = rf.result()
         status = response.status
-        if status.error_code == 0:
-            return response.state, response.fail_reason
+        if status.error_code == 0 and len(response.index_descriptions) > 0:
+            index_desc = response.index_descriptions[0]
+            return index_desc.state, index_desc.index_state_fail_reason
         raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure()
@@ -665,41 +667,20 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def load_collection_progress(self, collection_name, timeout=None):
         """ Return loading progress of collection """
-        return self.general_loading_progress(collection_name, timeout=timeout)
+        progress = self.get_loading_progress(collection_name, timeout=timeout)
+        return {
+            "loading_progress": f"{progress:.0f}%",
+        }
 
     @retry_on_rpc_failure()
     def wait_for_loading_collection(self, collection_name, timeout=None):
-        return self._wait_for_loading_collection(collection_name, timeout)
-
-    def get_collection_loading_progress(self, collection_name: str, timeout=None) -> int:
-        request = Prepare.show_collections_request([collection_name])
-        future = self._stub.ShowCollections.future(request, timeout=timeout)
-        response = future.result()
-
-        if response.status.error_code != 0:
-            raise MilvusException(response.status.error_code, response.status.reason)
-
-        ol = len(response.collection_names)
-        pl = len(response.inMemory_percentages)
-
-        if ol != pl:
-            raise MilvusException(ErrorCode.UnexpectedError,
-                                  f"len(collection_names) ({ol}) != len(inMemory_percentages) ({pl})")
-
-        for i, coll_name in enumerate(response.collection_names):
-            if coll_name == collection_name:
-                return response.inMemory_percentages[i]
-
-    def _wait_for_loading_collection(self, collection_name, timeout=None):
-        """ Block until load collection complete. """
         start = time.time()
 
         def can_loop(t) -> bool:
             return True if timeout is None else t <= (start + timeout)
 
         while can_loop(time.time()):
-            progress = self.get_collection_loading_progress(collection_name, timeout)
-
+            progress = self.get_loading_progress(collection_name, timeout=timeout)
             if progress >= 100:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
@@ -743,91 +724,33 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
-        return self._wait_for_loading_partitions(collection_name, partition_names, timeout)
+        start = time.time()
 
-    def _wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
-        """ Block until load partition complete."""
+        def can_loop(t) -> bool:
+            return True if timeout is None else t <= (start + timeout)
 
-        request = Prepare.show_partitions_request(collection_name, partition_names, type_in_memory=True)
-
-        while True:
-            future = self._stub.ShowPartitions.future(request, timeout=timeout)
-            response = future.result()
-
-            status = response.status
-            if status.error_code != 0:
-                raise MilvusException(status.error_code, status.reason)
-
-            ol = len(response.partition_names)
-            pl = len(response.inMemory_percentages)
-
-            if ol != pl:
-                raise MilvusException(ErrorCode.UnexpectedError,
-                                      f"len(partition_names) ({ol}) != len(inMemory_percentages) ({pl})")
-
-            loaded_histogram = dict()
-            for i, par_name in enumerate(response.partition_names):
-                loaded_histogram[par_name] = response.inMemory_percentages[i]
-
-            ok = True
-            for par_name in partition_names:
-                if loaded_histogram.get(par_name, 0) != 100:
-                    ok = False
-                    break
-
-            if ok:
+        while can_loop(time.time()):
+            progress = self.get_loading_progress(collection_name, partition_names, timeout=timeout)
+            if progress >= 100:
                 return
-
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
+        raise MilvusException(-1, "wait for loading partition timeout")
 
     @retry_on_rpc_failure()
-    def general_loading_progress(self, collection_name, partition_names=None, timeout=None):
-        check_pass_param(partition_name_array=partition_names)
-
-        request = Prepare.show_partitions_request(collection_name, partition_names)
-        response = self._stub.ShowPartitions.future(request, timeout=timeout).result()
+    def get_loading_progress(self, collection_name, partition_names=None, timeout=None):
+        request = Prepare.get_loading_progress(collection_name, partition_names)
+        response = self._stub.GetLoadingProgress.future(request, timeout=timeout).result()
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
-        all_partitions = list(response.partition_names)
-        target_p_names = partition_names if partition_names is not None else all_partitions
-
-        # check if partitions exists
-        illegal_p = [p for p in target_p_names if p not in all_partitions]
-        if len(illegal_p) > 0:
-            raise MilvusException(-1, f"Partitions not exist: {illegal_p}")
-
-        # check in memory partitions
-        request = Prepare.show_partitions_request(collection_name, type_in_memory=True)
-        response = self._stub.ShowPartitions.future(request, timeout=timeout).result()
-
-        # TODO: this's a hack for ShowParitions, if the collection has never been loaded before, the server will return
-        #  error instead of an empty parition lists.
-        #
-        # The possible fix would be: use more meaningful error_code or don't return error for correct collection name.
-        # ShowPartitions in memeory should return empty partition lists if neither collection nor parititions ever been
-        #  loaded.
-        if response.status.error_code != 0 and "has not been loaded into QueryNode" not in response.status.reason:
-            raise MilvusException(response.status.error_code, response.status.reason)
-        all_loaded_partitions = list(response.partition_names)
-
-        loaded_p_names = []
-        unloaded_p_names = []
-        for p in target_p_names:
-            if p in all_loaded_partitions and response.inMemory_percentages[all_loaded_partitions.index(p)] == 100:
-                loaded_p_names.append(p)
-            else:
-                unloaded_p_names.append(p)
-
-        return {
-            "loading_progress": f"{len(loaded_p_names)*100/len(target_p_names):.0f}%",
-            "num_loaded_partitions": len(loaded_p_names),
-            "not_loaded_partitions": unloaded_p_names,
-        }
+        return response.progress
 
     @retry_on_rpc_failure()
     def load_partitions_progress(self, collection_name, partition_names, timeout=None):
         """ Return loading progress of partitions """
-        return self.general_loading_progress(collection_name, partition_names, timeout)
+        progress = self.get_loading_progress(collection_name, partition_names, timeout)
+        return {
+            "loading_progress": f"{progress:.0f}%",
+        }
 
     @retry_on_rpc_failure()
     def release_partitions(self, collection_name, partition_names, timeout=None):

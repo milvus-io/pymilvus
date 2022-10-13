@@ -990,7 +990,7 @@ class Collection:
         """
         conn = self._get_connection()
         indexes = []
-        tmp_index = conn.describe_indexes(self._name, **kwargs)
+        tmp_index = conn.list_indexes(self._name, **kwargs)
         for index in tmp_index:
             if index is not None:
                 info_dict = {kv.key: kv.value for kv in index.params}
