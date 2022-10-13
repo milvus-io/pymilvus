@@ -1263,3 +1263,19 @@ class GrpcHandler:
             raise MilvusException(resp.status.error_code, resp.status.reason)
 
         return GrantInfo(resp.entities)
+
+    @retry_on_rpc_failure()
+    def create_function(self, function_name, wat_body_base64, arg_types, timeout=None, **kwargs):
+        request = Prepare.create_function_request(function_name, wat_body_base64, arg_types)
+        rf = self._stub.CreateFunction.future(request, timeout=timeout)
+        response = rf.result()
+        if response.error_code != 0:
+            raise MilvusException(response.error_code, response.reason)
+
+    @retry_on_rpc_failure()
+    def drop_function(self, function_name, timeout=None, **kwargs):
+        request = Prepare.drop_function_request(function_name)
+        rf = self._stub.DropFunction.future(request, timeout=timeout)
+        response = rf.result()
+        if response.error_code != 0:
+            raise MilvusException(response.error_code, response.reason)

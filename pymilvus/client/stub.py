@@ -1316,3 +1316,41 @@ class Milvus:
         """
         with self._connection() as handler:
             handler.select_grant_for_role_and_object(role_name, object, object_name, timeout=timeout, **kwargs)
+
+    def create_function(self, function_name, wat_body, function_args, timeout=None, **kwargs):
+        """
+        Add wasm function to search expression
+
+        function_name cannot be duplicated, you can't add the same function_name to different wasm_binary file.
+
+        :param function_name: The name of the function.
+        :type  function_name: str.
+
+        :param wat_body: The wasm binary file of the function.
+        :type  wat_body: bytes.
+
+        :param function_args: The types of the function arguments.
+        :type  function_args: list.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+        """
+        with self._connection() as handler:
+            return handler.create_function(function_name, wat_body, function_args, timeout=timeout, **kwargs)
+
+    def drop_function(self, function_name, timeout=None, **kwargs):
+        """
+        Add wasm function to search expression
+
+        function_name cannot be duplicated, you can't add the same function_name to different wasm_binary file.
+
+        :param function_name: The name of the function.
+        :type  function_name: str.
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+        """
+        with self._connection() as handler:
+            return handler.drop_function(function_name, timeout=timeout, **kwargs)
