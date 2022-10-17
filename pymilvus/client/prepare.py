@@ -218,7 +218,7 @@ class Prepare:
                                           tag=partition_name)
 
     @classmethod
-    def bulk_insert_param(cls, collection_name, entities, partition_name, fields_info=None, **kwargs):
+    def batch_insert_param(cls, collection_name, entities, partition_name, fields_info=None, **kwargs):
         default_partition_name = "_default"  # should here?
         tag = partition_name or default_partition_name
         insert_request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
@@ -782,7 +782,7 @@ class Prepare:
         return request
 
     @classmethod
-    def bulk_load(cls, collection_name: str, partition_name: str, is_row_based: bool, files: list, **kwargs):
+    def bulk_insert(cls, collection_name: str, partition_name: str, is_row_based: bool, files: list, **kwargs):
         channel_names = kwargs.get("channel_names", None)
         req = milvus_types.ImportRequest(
             collection_name=collection_name,
@@ -801,7 +801,7 @@ class Prepare:
         return req
 
     @classmethod
-    def get_bulk_load_state(cls, task_id):
+    def get_bulk_insert_state(cls, task_id):
         if task_id is None or not isinstance(task_id, int):
             raise ParamError(f"task_id value {task_id} is not an integer")
 
@@ -809,7 +809,7 @@ class Prepare:
         return req
 
     @classmethod
-    def list_bulk_load_tasks(cls, limit, collection_name):
+    def list_bulk_insert_tasks(cls, limit, collection_name):
         if limit is None or not isinstance(limit, int):
             raise ParamError(f"limit value {limit} is not an integer")
 
