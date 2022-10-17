@@ -18,7 +18,7 @@ from ..client.utils import mkts_from_hybridts as _mkts_from_hybridts
 from ..client.utils import mkts_from_unixtime as _mkts_from_unixtime
 from ..client.utils import mkts_from_datetime as _mkts_from_datetime
 from ..client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
-from ..client.types import BulkLoadState
+from ..client.types import BulkInsertState
 
 
 def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
@@ -633,8 +633,8 @@ def list_aliases(collection_name: str, timeout=None, using="default"):
     return aliases
 
 
-def bulk_load(collection_name: str, is_row_based: bool, files: list, partition_name=None, timeout=None, using="default", **kwargs) -> list:
-    """ bulk load entities through files
+def bulk_insert(collection_name: str, is_row_based: bool, files: list, partition_name=None, timeout=None, using="default", **kwargs) -> list:
+    """ bulk_insert inserts entities through files
 
     :param collection_name: the name of the collection
     :type  collection_name: str
@@ -658,23 +658,23 @@ def bulk_load(collection_name: str, is_row_based: bool, files: list, partition_n
 
     :raises BaseException: If collection_name doesn't exist.
     """
-    return _get_connection(using).bulk_load(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
+    return _get_connection(using).bulk_insert(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
 
 
-def get_bulk_load_state(task_id, timeout=None, using="default", **kwargs) -> BulkLoadState:
-    """get bulk load state returns state of a certain task_id
+def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> BulkInsertState:
+    """get_bulk_insert_state returns state of a certain task_id
 
-    :param task_id: the task id returned by bulk_load
+    :param task_id: the task id returned by bulk_insert
     :type  task_id: int
 
-    :return: BulkLoadState
-    :rtype:  BulkLoadState
+    :return: BulkInsertState
+    :rtype:  BulkInsertState
     """
-    return _get_connection(using).get_bulk_load_state(task_id, timeout=timeout, **kwargs)
+    return _get_connection(using).get_bulk_insert_state(task_id, timeout=timeout, **kwargs)
 
 
-def list_bulk_load_tasks(limit=0, collection_name=None, timeout=None, using="default", **kwargs) -> list:
-    """list_bulk_load_tasks lists all bulk load tasks
+def list_bulk_insert_tasks(limit=0, collection_name=None, timeout=None, using="default", **kwargs) -> list:
+    """list_bulk_insert_tasks lists all bulk load tasks
 
     :param limit: maximum number of tasks returned, list all tasks if the value is 0
     :type  limit: int
@@ -682,11 +682,11 @@ def list_bulk_load_tasks(limit=0, collection_name=None, timeout=None, using="def
     :param collection_name: target collection name, list all tasks if the name is empty
     :type  collection_name: str
 
-    :return: list[BulkLoadState]
-    :rtype:  list[BulkLoadState]
+    :return: list[BulkInsertState]
+    :rtype:  list[BulkInsertState]
 
     """
-    return _get_connection(using).list_bulk_load_tasks(limit, collection_name, timeout=timeout, **kwargs)
+    return _get_connection(using).list_bulk_insert_tasks(limit, collection_name, timeout=timeout, **kwargs)
 
 
 def reset_password(user: str, old_password: str, new_password: str, using="default"):

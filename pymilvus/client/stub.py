@@ -2,7 +2,7 @@ from urllib import parse
 
 from .grpc_handler import GrpcHandler
 from ..exceptions import MilvusException, ParamError
-from .types import CompactionState, CompactionPlans, Replica, BulkLoadState
+from .types import CompactionState, CompactionPlans, Replica, BulkInsertState
 from ..settings import DefaultConfig as config
 from ..decorators import deprecated
 
@@ -1047,8 +1047,9 @@ class Milvus:
         with self._connection() as handler:
             return handler.get_replicas(collection_name, timeout=timeout, **kwargs)
 
-    def bulk_load(self, collection_name: str, partition_name: str, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
-        """ bulk load entities through files
+    def bulk_insert(self, collection_name: str, partition_name: str, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
+        """
+        Bulk insert entities through files
 
         :param collection_name: the name of the collection
         :type  collection_name: str
@@ -1073,29 +1074,31 @@ class Milvus:
         :raises MilvusException: If collection_name doesn't exist.
         """
         with self._connection() as handler:
-            return handler.bulk_load(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
+            return handler.bulk_insert(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
 
-    def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
-        """get bulk load state returns state of a certain task_id
+    def get_bulk_insert_state(self, task_id, timeout=None, **kwargs) -> BulkInsertState:
+        """
+        Get state of a certain task_id
 
-        :param task_id: the task id returned by bulk_load
+        :param task_id: the task id returned by bulk_insert
         :type  task_id: int
 
-        :return: BulkLoadState
-        :rtype:  BulkLoadState
+        :return: BulkInsertState
+        :rtype:  BulkInsertState
         """
         with self._connection() as handler:
-            return handler.get_bulk_load_state(task_id, timeout=timeout, **kwargs)
+            return handler.get_bulk_insert_state(task_id, timeout=timeout, **kwargs)
 
-    def list_bulk_load_tasks(self, timeout=None, **kwargs) -> list:
-        """list_bulk_load_tasks lists all bulk load tasks
+    def list_bulk_insert_tasks(self, timeout=None, **kwargs) -> list:
+        """
+        Lists all bulk insert tasks
 
-        :return: list[BulkLoadState]
-        :rtype:  list[BulkLoadState]
+        :return: list[BulkInsertState]
+        :rtype:  list[BulkInsertState]
 
         """
         with self._connection() as handler:
-            return handler.list_bulk_load_tasks(timeout=timeout, **kwargs)
+            return handler.list_bulk_insert_tasks(timeout=timeout, **kwargs)
 
     def create_user(self, user, password, timeout=None, **kwargs):
         """ Create a user using the given user and password.

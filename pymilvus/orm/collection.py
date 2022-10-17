@@ -551,7 +551,7 @@ class Collection:
         entities = Prepare.prepare_insert_data(data, self._schema)
         schema_dict = self._schema.to_dict()
         schema_dict["consistency_level"] = self._consistency_level
-        res = conn.bulk_insert(self._name, entities, partition_name, ids=None, timeout=timeout, schema=schema_dict, **kwargs)
+        res = conn.batch_insert(self._name, entities, partition_name, ids=None, timeout=timeout, schema=schema_dict, **kwargs)
 
         if kwargs.get("_async", False):
             return MutationFuture(res)

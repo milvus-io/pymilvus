@@ -367,8 +367,8 @@ class Replica:
         return self._groups
 
 
-class BulkLoadState:
-    """enum states of bulkload task"""
+class BulkInsertState:
+    """enum states of bulk insert task"""
     ImportPending = 0
     ImportFailed = 1
     ImportStarted = 2
@@ -377,14 +377,14 @@ class BulkLoadState:
     ImportFailedAndCleaned = 7
     ImportUnknownState = 100
 
-    """pre-defined keys of bulkload task info"""
+    """pre-defined keys of bulk insert task info"""
     FAILED_REASON = "failed_reason"
     IMPORT_FILES = "files"
     IMPORT_COLLECTION = "collection"
     IMPORT_PARTITION = "partition"
 
     """
-    Bulk load state example:
+    Bulk insert state example:
         - taskID            : 44353845454358,
         - state             : "BulkLoadPersisted",
         - row_count         : 1000,
@@ -422,7 +422,7 @@ class BulkLoadState:
         self._infos = {kv.key: kv.value for kv in infos}
 
     def __repr__(self) -> str:
-        fmt = """<Bulk load state:
+        fmt = """<Bulk insert state:
     - taskID          : {},
     - state           : {},
     - row_count       : {},
@@ -449,7 +449,7 @@ class BulkLoadState:
 
     @property
     def state(self):
-        return self.state_2_state.get(self._state, BulkLoadState.ImportUnknownState)
+        return self.state_2_state.get(self._state, BulkInsertState.ImportUnknownState)
 
     @property
     def state_name(self) -> str:
@@ -495,23 +495,23 @@ class BulkLoadState:
 
     @property
     def failed_reason(self):
-        """failed reason of the bulkload task."""
-        return self._infos.get(BulkLoadState.FAILED_REASON, "")
+        """failed reason of the bulk insert task."""
+        return self._infos.get(BulkInsertState.FAILED_REASON, "")
 
     @property
     def files(self):
-        """data files of the bulkload task."""
-        return self._infos.get(BulkLoadState.IMPORT_FILES, "")
+        """data files of the bulk insert task."""
+        return self._infos.get(BulkInsertState.IMPORT_FILES, "")
 
     @property
     def collection_name(self):
-        """target collection's name of the bulkload task."""
-        return self._infos.get(BulkLoadState.IMPORT_COLLECTION, "")
+        """target collection's name of the bulk insert task."""
+        return self._infos.get(BulkInsertState.IMPORT_COLLECTION, "")
 
     @property
     def partition_name(self):
-        """target partition's name of the bulkload task."""
-        return self._infos.get(BulkLoadState.IMPORT_PARTITION, "")
+        """target partition's name of the bulk insert task."""
+        return self._infos.get(BulkInsertState.IMPORT_PARTITION, "")
 
     @property
     def create_timestamp(self):

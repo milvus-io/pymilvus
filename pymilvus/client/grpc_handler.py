@@ -33,7 +33,7 @@ from .types import (
     get_consistency_level,
     Replica, Shard, Group,
     GrantInfo, UserInfo, RoleInfo,
-    BulkLoadState,
+    BulkInsertState,
 )
 
 from .utils import (
@@ -332,7 +332,7 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    def _prepare_bulk_insert_request(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
+    def _prepare_batch_insert_request(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         insert_param = kwargs.get('insert_param', None)
 
         if insert_param and not isinstance(insert_param, milvus_types.RowBatch):
@@ -347,17 +347,17 @@ class GrpcHandler:
         fields_info = collection_schema["fields"]
 
         request = insert_param if insert_param \
-            else Prepare.bulk_insert_param(collection_name, entities, partition_name, fields_info)
+            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
 
         return request
 
     @retry_on_rpc_failure()
-    def bulk_insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
+    def batch_insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         if not check_invalid_binary_vector(entities):
             raise ParamError("Invalid binary vector data exists")
 
         try:
-            request = self._prepare_bulk_insert_request(collection_name, entities, partition_name, timeout, **kwargs)
+            request = self._prepare_batch_insert_request(collection_name, entities, partition_name, timeout, **kwargs)
             rf = self._stub.Insert.future(request, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
@@ -1018,8 +1018,8 @@ class GrpcHandler:
         return Replica(groups)
 
     @retry_on_rpc_failure()
-    def bulk_load(self, collection_name, partition_name, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
-        req = Prepare.bulk_load(collection_name, partition_name, is_row_based, files, **kwargs)
+    def bulk_insert(self, collection_name, partition_name, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
+        req = Prepare.bulk_insert(collection_name, partition_name, is_row_based, files, **kwargs)
         future = self._stub.Import.future(req, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
@@ -1027,24 +1027,24 @@ class GrpcHandler:
         return response.tasks
 
     @retry_on_rpc_failure()
-    def get_bulk_load_state(self, task_id, timeout=None, **kwargs) -> BulkLoadState:
-        req = Prepare.get_bulk_load_state(task_id)
+    def get_bulk_insert_state(self, task_id, timeout=None, **kwargs) -> BulkInsertState:
+        req = Prepare.get_bulk_insert_state(task_id)
         future = self._stub.GetImportState.future(req, timeout=timeout)
         resp = future.result()
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
-        state = BulkLoadState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.create_ts)
+        state = BulkInsertState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.create_ts)
         return state
 
     @retry_on_rpc_failure()
-    def list_bulk_load_tasks(self, limit, collection_name, timeout=None, **kwargs) -> list:
-        req = Prepare.list_bulk_load_tasks(limit, collection_name)
+    def list_bulk_insert_tasks(self, limit, collection_name, timeout=None, **kwargs) -> list:
+        req = Prepare.list_bulk_insert_tasks(limit, collection_name)
         future = self._stub.ListImportTasks.future(req, timeout=timeout)
         resp = future.result()
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
 
-        tasks = [BulkLoadState(t.id, t.state, t.row_count, t.id_list, t.infos, t.create_ts)
+        tasks = [BulkInsertState(t.id, t.state, t.row_count, t.id_list, t.infos, t.create_ts)
                  for t in resp.tasks]
         return tasks
 

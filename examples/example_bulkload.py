@@ -9,14 +9,14 @@ from pymilvus import (
     FieldSchema, CollectionSchema, DataType,
     Collection,
     utility,
-    BulkLoadState,
+    BulkInsertState,
 )
 
 # This example shows how to:
 #   1. connect to Milvus server
 #   2. create a collection
-#   3. create some json files for bulkload operation
-#   4. do bulkload
+#   3. create some json files for bulk_insert operation
+#   4. do bulk_insert
 #   5. search
 
 # To run this example, start a standalone(local storage) milvus with the following configurations, in the milvus.yml:
@@ -32,7 +32,7 @@ _HOST = '127.0.0.1'
 _PORT = '19530'
 
 # Const names
-_COLLECTION_NAME = 'demo_bulkload'
+_COLLECTION_NAME = 'demo_bulk_insert'
 _ID_FIELD_NAME = 'id_field'
 _VECTOR_FIELD_NAME = 'float_vector_field'
 _STR_FIELD_NAME = "str_field"
@@ -125,7 +125,7 @@ def gen_json_rowbased(num, path):
 # Bulkload for row-based files, each file is converted to a task.
 # The rootcoord maintains a task list, each idle datanode will receive a task. If no datanode available, the task will
 # be put into pending list to wait, the max size of pending list is 32. If new tasks count exceed spare quantity of
-# pending list, the bulkload() method will return error.
+# pending list, the bulk_insert() method will return error.
 # Once a task is finished, the datanode become idle and will receive another task.
 #
 # The max size of each file is 1GB, if a file size is larger than 1GB, the task will failed and you will get error
@@ -135,7 +135,7 @@ def gen_json_rowbased(num, path):
 # will be split into 2 segments. So, basically, each task generates segment count is equal to shard number.
 # But if the segment.maxSize of milvus.yml is set to a small value, there could be shardNum*2, shardNum*3 segments
 # generated, or even more.
-def bulkload_rowbased(row_count_each_file, file_count, partition_name = None):
+def bulk_insert_rowbased(row_count_each_file, file_count, partition_name = None):
     # make sure the data path is exist
     exist = os.path.exists(MILVUS_DATA_PATH)
     if not exist:
@@ -148,13 +148,13 @@ def bulkload_rowbased(row_count_each_file, file_count, partition_name = None):
         gen_json_rowbased(row_count_each_file, MILVUS_DATA_PATH + filename)
 
     print("Bulkload row-based files:", file_names)
-    task_ids = utility.bulk_load(collection_name=_COLLECTION_NAME,
+    task_ids = utility.bulk_insert(collection_name=_COLLECTION_NAME,
                                  partition_name=partition_name,
                                  is_row_based=True,
                                  files=file_names)
     return wait_tasks_persisted(task_ids)
 
-# wait all bulkload tasks to be a certain state
+# wait all bulk insert tasks to be a certain state
 # return the states of all the tasks, including failed task
 def wait_tasks_to_state(task_ids, state_code):
     wait_ids = task_ids
@@ -163,8 +163,8 @@ def wait_tasks_to_state(task_ids, state_code):
         time.sleep(2)
         temp_ids = []
         for id in wait_ids:
-            state = utility.get_bulk_load_state(task_id=id)
-            if state.state == BulkLoadState.ImportFailed or state.state == BulkLoadState.ImportFailedAndCleaned:
+            state = utility.get_bulk_insert_state(task_id=id)
+            if state.state == BulkInsertState.ImportFailed or state.state == BulkInsertState.ImportFailedAndCleaned:
                 print(state)
                 print("The task", state.task_id, "failed, reason:", state.failed_reason)
                 continue
@@ -178,20 +178,20 @@ def wait_tasks_to_state(task_ids, state_code):
         wait_ids = temp_ids
         if len(wait_ids) == 0:
             break;
-        print(len(wait_ids), "tasks not reach state:", BulkLoadState.state_2_name.get(state_code, "unknown"), ", next round check")
+        print(len(wait_ids), "tasks not reach state:", BulkInsertState.state_2_name.get(state_code, "unknown"), ", next round check")
 
     return states
 
 
-# Get bulkload task state to check whether the data file has been parsed and persisted successfully.
+# Get bulk insert task state to check whether the data file has been parsed and persisted successfully.
 # Persisted state doesn't mean the data is queryable, to query the data, you need to wait until the segment is
 # loaded into memory.
 def wait_tasks_persisted(task_ids):
     print("=========================================================================================================")
-    states = wait_tasks_to_state(task_ids, BulkLoadState.ImportPersisted)
+    states = wait_tasks_to_state(task_ids, BulkInsertState.ImportPersisted)
     persist_count = 0
     for state in states:
-        if state.state == BulkLoadState.ImportPersisted or state.state == BulkLoadState.ImportCompleted:
+        if state.state == BulkInsertState.ImportPersisted or state.state == BulkInsertState.ImportCompleted:
             persist_count = persist_count + 1
         # print(state)
         # if you want to get the auto-generated primary keys, use state.ids to fetch
@@ -201,14 +201,14 @@ def wait_tasks_persisted(task_ids):
     print("=========================================================================================================\n")
     return states
 
-# Get bulkload task state to check whether the data file has been indexed successfully.
-# If the state of bulkload task is BulkLoadState.ImportCompleted, that means the data is queryable.
+# Get bulk insert task state to check whether the data file has been indexed successfully.
+# If the state of bulk insert task is BulkInsertState.ImportCompleted, that means the data is queryable.
 def wait_tasks_competed(task_ids):
     print("=========================================================================================================")
-    states = wait_tasks_to_state(task_ids, BulkLoadState.ImportCompleted)
+    states = wait_tasks_to_state(task_ids, BulkInsertState.ImportCompleted)
     complete_count = 0
     for state in states:
-        if state.state == BulkLoadState.ImportCompleted:
+        if state.state == BulkInsertState.ImportCompleted:
             complete_count = complete_count + 1
         # print(state)
         # if you want to get the auto-generated primary keys, use state.ids to fetch
@@ -247,14 +247,14 @@ def gen_json_columnbased(num, path, str_field_prefix, gen_vectors):
         json.dump(data, json_file)
 
 
-# Bulkload for column-based files, each call to bulkload(is_row_based=False) is processed as a single task.
+# Bulkload for column-based files, each call to bulk_insert(is_row_based=False) is processed as a single task.
 # The rootcoord maintains a task list, wait an idle datanode and send the task to it.
 # If no datanode available, the task will be put into pending list to wait, the max size of pending list is 32.
-# If new tasks count exceed spare quantity of pending list, the bulkload() method will return error.
+# If new tasks count exceed spare quantity of pending list, the bulk_insert() method will return error.
 #
 # The max size of each file is 1GB, if a file size is larger than 1GB, the task will failed and you will get error
 # from the "failed_reason" of the task state.
-def bulkload_columnbased_json(row_count, partition_name = None):
+def bulk_insert_columnbased_json(row_count, partition_name = None):
     # make sure the data path is exist
     exist = os.path.exists(MILVUS_DATA_PATH)
     if not exist:
@@ -267,7 +267,7 @@ def bulkload_columnbased_json(row_count, partition_name = None):
                          gen_vectors = True)
 
     print("Bulkload column-based files:", file_names)
-    task_ids = utility.bulk_load(collection_name=_COLLECTION_NAME,
+    task_ids = utility.bulk_insert(collection_name=_COLLECTION_NAME,
                                  partition_name=partition_name,
                                  is_row_based=False,
                                  files=file_names)
@@ -280,19 +280,19 @@ def gen_numpy_vectors(num, path):
     np.save(path, arr)
 
 
-# Bulkload for column-based files, each call to bulkload(is_row_based=False) is processed as a single task.
+# Bulkload for column-based files, each call to bulk_insert(is_row_based=False) is processed as a single task.
 # The rootcoord maintains a task list, wait an idle datanode and send the task to it.
 # If no datanode available, the task will be put into pending list to wait, the max size of pending list is 32.
-# If new tasks count exceed spare quantity of pending list, the bulkload() method will return error.
+# If new tasks count exceed spare quantity of pending list, the bulk_insert() method will return error.
 #
 # The max size of each file is 1GB, if a file size is larger than 1GB, the task will failed and you will get error
 # from the "failed_reason" of the task state.
 #
-# The bulkload() can support json/numpy format files for column-based data, here we use a numpy to store the vector
+# The bulk_insert() can support json/numpy format files for column-based data, here we use a numpy to store the vector
 # field, use a json file to store the string field.
 #
 # Note: for numpy file, the file name must be equal to the field name. Milvus use the file name to mapping to a field
-def bulkload_columnbased_numpy(row_count, partition_name = None):
+def bulk_insert_columnbased_numpy(row_count, partition_name = None):
     # make sure the data path is exist
     exist = os.path.exists(MILVUS_DATA_PATH)
     if not exist:
@@ -306,17 +306,17 @@ def bulkload_columnbased_numpy(row_count, partition_name = None):
     gen_numpy_vectors(row_count, MILVUS_DATA_PATH + file_names[1])
 
     print("Bulkload column-based files:", file_names)
-    task_ids = utility.bulk_load(collection_name=_COLLECTION_NAME,
+    task_ids = utility.bulk_insert(collection_name=_COLLECTION_NAME,
                                  partition_name=partition_name,
                                  is_row_based=False,
                                  files=file_names)
     return wait_tasks_persisted(task_ids)
 
 
-# List all bulkload tasks, including pending tasks, working tasks and finished tasks.
+# List all bulk insert tasks, including pending tasks, working tasks and finished tasks.
 # the parameter 'limit' is: how many latest tasks should be returned
-def list_all_bulkload_tasks(limit):
-    tasks = utility.list_bulk_load_tasks(limit)
+def list_all_bulk_insert_tasks(limit):
+    tasks = utility.list_bulk_insert_tasks(limit)
     print("=========================================================================================================")
     pending = 0
     started = 0
@@ -325,17 +325,17 @@ def list_all_bulkload_tasks(limit):
     failed = 0
     for task in tasks:
         print(task)
-        if task.state == BulkLoadState.ImportPending:
+        if task.state == BulkInsertState.ImportPending:
             pending = pending + 1
-        elif task.state == BulkLoadState.ImportStarted:
+        elif task.state == BulkInsertState.ImportStarted:
             started = started + 1
-        elif task.state == BulkLoadState.ImportPersisted:
+        elif task.state == BulkInsertState.ImportPersisted:
             persisted = persisted + 1
-        elif task.state == BulkLoadState.ImportCompleted:
+        elif task.state == BulkInsertState.ImportCompleted:
             completed = completed + 1
-        elif task.state == BulkLoadState.ImportFailed:
+        elif task.state == BulkInsertState.ImportFailed:
             failed = failed + 1
-    print("There are", len(tasks), "bulkload tasks.", pending, "pending,", started, "started,", persisted, "persisted,", completed, "completed,", failed, "failed")
+    print("There are", len(tasks), "bulk insert tasks.", pending, "pending,", started, "started,", persisted, "persisted,", completed, "completed,", failed, "failed")
     print("=========================================================================================================\n")
 
 # Get collection row count.
@@ -431,10 +431,10 @@ def main():
     # show collections
     list_collections()
 
-    # do bulkload, wait all tasks finish persisting
-    rowbased_tasks = bulkload_rowbased(row_count_each_file=3000, file_count=3)
-    columnbased_json_tasks = bulkload_columnbased_json(row_count=5000)
-    columnbased_numpy_tasks = bulkload_columnbased_numpy(row_count=10000, partition_name=a_partition)
+    # do bulk_insert, wait all tasks finish persisting
+    rowbased_tasks = bulk_insert_rowbased(row_count_each_file=3000, file_count=3)
+    columnbased_json_tasks = bulk_insert_columnbased_json(row_count=5000)
+    columnbased_numpy_tasks = bulk_insert_columnbased_numpy(row_count=10000, partition_name=a_partition)
 
     # wai until all tasks completed(completed means queryable)
     task_ids = []
@@ -446,7 +446,8 @@ def main():
         task_ids.append(task.task_id)
     wait_tasks_competed(task_ids)
 
-    list_all_bulkload_tasks(len(rowbased_tasks) + len(columnbased_json_tasks) + len(columnbased_numpy_tasks))
+    # list_all_bulk_insert_tasks(len(rowbased_tasks) + len(columnbased_json_tasks) + len(columnbased_numpy_tasks))
+    list_all_bulk_insert_tasks(len(rowbased_tasks))
 
     # get the number of entities
     get_entity_num(collection)
