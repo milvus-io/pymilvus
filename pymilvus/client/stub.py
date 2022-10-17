@@ -844,52 +844,6 @@ class Milvus:
             return handler.search(collection_name, data, anns_field, param, limit, expression,
                                   partition_names, output_fields, timeout=timeout, round_decimal=round_decimal, **kwargs)
 
-    def calc_distance(self, vectors_left, vectors_right, params=None, timeout=None, **kwargs):
-        """
-        Calculate distance between two vector arrays.
-
-        :param vectors_left: The vectors on the left of operator.
-        :type  vectors_left: dict
-        `{"ids": [1, 2, 3, .... n], "collection": "c_1", "partition": "p_1", "field": "v_1"}`
-        or
-        `{"float_vectors": [[1.0, 2.0], [3.0, 4.0], ... [9.0, 10.0]]}`
-        or
-        `{"bin_vectors": [b'\x94', b'N', ... b'\xca']}`
-
-        :param vectors_right: The vectors on the right of operator.
-        :type  vectors_right: dict
-        `{"ids": [1, 2, 3, .... n], "collection": "col_1", "partition": "p_1", "field": "v_1"}`
-        or
-        `{"float_vectors": [[1.0, 2.0], [3.0, 4.0], ... [9.0, 10.0]]}`
-        or
-        `{"bin_vectors": [b'\x94', b'N', ... b'\xca']}`
-
-        :param params: key-value pair parameters
-                       Key: "metric_type"/"metric"    Value: "L2"/"IP"/"HAMMING"/"TANIMOTO", default is "L2",
-                       Key: "sqrt"    Value: true or false, default is false    Only for "L2" distance
-                       Key: "dim"     Value: set this value if dimension is not a multiple of 8,
-                                             otherwise the dimension will be calculted by list length,
-                                             only for "HAMMING" and "TANIMOTO"
-        :type  params: dict
-            Examples of supported metric_type:
-                `{"metric_type": "L2", "sqrt": true}`
-                `{"metric_type": "IP"}`
-                `{"metric_type": "HAMMING", "dim": 17}`
-                `{"metric_type": "TANIMOTO"}`
-            Note: metric type are case insensitive
-
-        :return: 2-d array distances
-        :rtype: list[list[int]] for "HAMMING" or list[list[float]] for others
-            Assume the vectors_left: L_1, L_2, L_3
-            Assume the vectors_right: R_a, R_b
-            Distance between L_n and R_m we called "D_n_m"
-            The returned distances are arranged like this:
-              [D_1_a, D_1_b, D_2_a, D_2_b, D_3_a, D_3_b]
-
-        """
-        with self._connection() as handler:
-            return handler.calc_distance(vectors_left, vectors_right, params, timeout=timeout, **kwargs)
-
     def get_query_segment_info(self, collection_name, timeout=None, **kwargs):
         """
         Notifies Proxy to return segments information from query nodes.
