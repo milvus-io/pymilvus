@@ -26,8 +26,6 @@ Methods
 +--------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------+
 | `drop_collections(collection_name, [timeout, using]) <#pymilvus.utility.drop_collection>`_                                     | Drop a collection by name.                              |
 +--------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------+
-| `calc_distance(vectors_left, vectors_right, params, [timeout, using]) <#pymilvus.utility.calc_distance>`_                      | Calculate distance between two vector arrays.           |
-+--------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------+
 | `get_query_segment_info([timeout, using]) <#pymilvus.utility.get_query_segment_info>`_                                         | Get segments information from query nodes.              |
 +--------------------------------------------------------------------------------------------------------------------------------+---------------------------------------------------------+
 | `mkts_from_hybridts(ts, [milliseconds, delta]) <#pymilvus.utility.mkts_from_hybridts>`_                                        | Generate hybrid timestamp with a known one.             |
@@ -53,6 +51,6 @@ APIs References
    :member-order: bysource
    :members: loading_progress, wait_for_loading_complete, index_building_progress,
              wait_for_index_building_complete, has_collection, has_partition, list_collections,
-             drop_collection, calc_distance, get_query_segment_info,
+             drop_collection, get_query_segment_info,
              mkts_from_hybridts, mkts_from_unixtime, mkts_from_datetime,
              hybridts_to_unixtime, hybridts_to_datetime, create_alias, alter_alias, drop_alias

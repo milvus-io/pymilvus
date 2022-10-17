@@ -930,32 +930,6 @@ class GrpcHandler:
         return results
 
     @retry_on_rpc_failure()
-    def calc_distance(self, vectors_left, vectors_right, params, timeout=30, **kwargs):
-        # both "metric" or "metric_type" are ok
-        params = params or {"metric": config.CALC_DIST_METRIC}
-        if "metric_type" in params.keys():
-            params["metric"] = params["metric_type"]
-            params.pop("metric_type")
-
-        req = Prepare.calc_distance_request(vectors_left, vectors_right, params)
-        future = self._stub.CalcDistance.future(req, timeout=timeout)
-        response = future.result()
-        status = response.status
-        if status.error_code != 0:
-            raise MilvusException(status.error_code, status.reason)
-        if len(response.int_dist.data) > 0:
-            return response.int_dist.data
-        elif len(response.float_dist.data) > 0:
-            def is_l2(val):
-                return val == "L2" or val == "l2"
-
-            if is_l2(params["metric"]) and "sqrt" in params.keys() and params["sqrt"] is True:
-                for i in range(len(response.float_dist.data)):
-                    response.float_dist.data[i] = math.sqrt(response.float_dist.data[i])
-            return response.float_dist.data
-        raise MilvusException(0, "Empty result returned")
-
-    @retry_on_rpc_failure()
     def load_balance(self, collection_name: str, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
         req = Prepare.load_balance_request(collection_name, src_node_id, dst_node_ids, sealed_segment_ids)
         future = self._stub.LoadBalance.future(req, timeout=timeout)
