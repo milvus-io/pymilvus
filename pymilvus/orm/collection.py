@@ -61,7 +61,7 @@ def _check_schema(schema):
 class Collection:
     """ This is a class corresponding to collection in milvus. """
 
-    def __init__(self, name, schema=None, using="default", shards_num=2, **kwargs):
+    def __init__(self, name, schema=None, using="default", shards_num=2, properties={}, **kwargs):
         """
         Constructs a collection by name, schema and other parameters.
         Connection information is contained in kwargs.
@@ -136,7 +136,7 @@ class Collection:
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
                 consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
-                conn.create_collection(self._name, fields=schema, shards_num=self._shards_num, **kwargs)
+                conn.create_collection(self._name, fields=schema, shards_num=self._shards_num, properties=properties, **kwargs)
                 self._schema = schema
                 self._consistency_level = consistency_level
             else:
@@ -437,6 +437,10 @@ class Collection:
         for index in indexes:
             index.drop(timeout=timeout, index_name=index.index_name, **kwargs)
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
+
+    def set_properties(self, properties={}, timeout=None, **kwargs):
+        conn = self._get_connection()
+        conn.alter_collection(self.name, properties=properties, timeout=timeout)
 
     def load(self, partition_names=None, replica_number=1, timeout=None, **kwargs):
         """ Load the collection from disk to memory.
@@ -1249,3 +1253,7 @@ class Collection:
         """
         conn = self._get_connection()
         return conn.get_replicas(self.name, timeout=timeout, **kwargs)
+
+    def describe(self):
+        conn = self._get_connection()
+        return conn.describe_collection(self.name)

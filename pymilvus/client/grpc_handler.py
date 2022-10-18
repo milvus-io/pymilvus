@@ -200,8 +200,8 @@ class GrpcHandler:
         self._setup_grpc_channel()
 
     @retry_on_rpc_failure()
-    def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
-        request = Prepare.create_collection_request(collection_name, fields, shards_num=shards_num, **kwargs)
+    def create_collection(self, collection_name, fields, shards_num=2, properties={}, timeout=None, **kwargs):
+        request = Prepare.create_collection_request(collection_name, fields, shards_num=shards_num, properties=properties, **kwargs)
 
         rf = self._stub.CreateCollection.future(request, timeout=timeout)
         if kwargs.get("_async", False):
@@ -216,6 +216,15 @@ class GrpcHandler:
         request = Prepare.drop_collection_request(collection_name)
 
         rf = self._stub.DropCollection.future(request, timeout=timeout)
+        status = rf.result()
+        if status.error_code != 0:
+            raise MilvusException(status.error_code, status.reason)
+
+    @retry_on_rpc_failure()
+    def alter_collection(self, collection_name, properties, timeout=None, **kwargs):
+        check_pass_param(collection_name=collection_name, properties=properties)
+        request = Prepare.alter_collection_request(collection_name, properties)
+        rf = self._stub.AlterCollection.future(request, timeout=timeout)
         status = rf.result()
         if status.error_code != 0:
             raise MilvusException(status.error_code, status.reason)

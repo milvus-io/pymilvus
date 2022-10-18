@@ -308,7 +308,7 @@ def is_legal_role_name(role_name: Any) -> bool:
 
 def is_legal_operate_user_role_type(operate_user_role_type: Any) -> bool:
     return operate_user_role_type == milvus_types.OperateUserRoleType.AddUserToRole or \
-        operate_user_role_type == milvus_types.OperateUserRoleType.RemoveUserFromRole
+           operate_user_role_type == milvus_types.OperateUserRoleType.RemoveUserFromRole
 
 
 def is_legal_include_user_info(include_user_info: Any) -> bool:
@@ -331,9 +331,13 @@ def is_legal_privilege(privilege: Any) -> bool:
     return privilege and isinstance(privilege, str)
 
 
+def is_legal_colelction_properties(properties: Any) -> bool:
+    return properties and isinstance(properties, dict)
+
+
 def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
     return operate_privilege_type == milvus_types.OperatePrivilegeType.Grant or \
-        operate_privilege_type == milvus_types.OperatePrivilegeType.Revoke
+           operate_privilege_type == milvus_types.OperatePrivilegeType.Revoke
 
 
 def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
@@ -428,6 +432,9 @@ def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too
         elif key in ("operate_privilege_type",):
             if not is_legal_operate_privilege_type(value):
                 _raise_param_error(key, value)
+        elif key == "properties":
+            if not is_legal_colelction_properties(value):
+                _raise_param_error(key, value)
         else:
             raise ParamError(f"unknown param `{key}`")
 
@@ -453,7 +460,8 @@ def check_index_params(params):
             raise ParamException(Status.UNEXPECTED_ERROR, f"Invalid params['params'].key: {k}")
     for v in params['params'].values():
         if not isinstance(v, int):
-            raise ParamException(Status.UNEXPECTED_ERROR, f"Invalid params['params'].value: {v}, which must be an integer")
+            raise ParamException(Status.UNEXPECTED_ERROR,
+                                 f"Invalid params['params'].value: {v}, which must be an integer")
 
     # filter invalid metric type
     if params['index_type'] in valid_binary_index_types:
