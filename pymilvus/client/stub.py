@@ -717,7 +717,7 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.bulk_insert(collection_name, entities, partition_name, timeout=timeout, **kwargs)
+            return handler.batch_insert(collection_name, entities, partition_name, timeout=timeout, **kwargs)
 
     def delete(self, collection_name, expr, partition_name=None, timeout=None, **kwargs):
         """
