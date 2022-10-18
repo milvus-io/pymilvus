@@ -136,6 +136,14 @@ print(f"query result:\n-{result[0]}")
 print(search_latency_fmt.format(end_time - start_time))
 
 # -----------------------------------------------------------------------------
+# pagination
+r1 = hello_milvus.query(expr="random > 0.5", limit=4, output_fields=["random"])
+r2 = hello_milvus.query(expr="random > 0.5", offset=1, limit=3, output_fields=["random"])
+print(f"query pagination(limit=4):\n\t{r1}")
+print(f"query pagination(offset=1, limit=3):\n\t{r2}")
+
+
+# -----------------------------------------------------------------------------
 # hybrid search
 print(fmt.format("Start hybrid searching with `random > 0.5`"))
 
