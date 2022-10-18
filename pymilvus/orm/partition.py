@@ -291,7 +291,7 @@ class Partition:
         entities = Prepare.prepare_insert_data(data, self._collection.schema)
         schema_dict = self._schema.to_dict()
         schema_dict["consistency_level"] = self._consistency_level
-        res = conn.bulk_insert(self._collection.name, entities=entities,
+        res = conn.batch_insert(self._collection.name, entities=entities,
                                partition_name=self._name, timeout=timeout, orm=True, schema=schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
