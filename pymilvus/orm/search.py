@@ -137,7 +137,7 @@ class Hit:
         :return str:
             The information of hit record.
         """
-        return "(distance: {}, id: {})".format(self._hit.distance, self._hit.id)
+        return f"(distance: {self._hit.distance}, id: {self._hit.id})"
 
     __repr__ = __str__
 

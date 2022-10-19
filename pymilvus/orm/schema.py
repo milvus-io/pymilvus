@@ -225,10 +225,11 @@ class FieldSchema:
         return FieldSchema(raw['name'], raw['type'], raw['description'], **kwargs)
 
     def to_dict(self):
-        _dict = dict()
-        _dict["name"] = self.name
-        _dict["description"] = self._description
-        _dict["type"] = self.dtype
+        _dict = {
+            "name": self.name,
+            "description": self._description,
+            "type": self.dtype,
+        }
         if self._type_params:
             _dict["params"] = copy.deepcopy(self.params)
         if self.is_primary:
@@ -275,7 +276,7 @@ class FieldSchema:
         >>> field = FieldSchema("int64", DataType.INT64, description="int64", is_primary=False)
         >>> field.params
         {}
-        >>> fvec_field = FieldSchema("fvec", DataType.FLOAT_VECTOR, description="float vector", is_primary=False, dim=128)
+        >>> fvec_field = FieldSchema("fvec", DataType.FLOAT_VECTOR, is_primary=False, dim=128)
         >>> fvec_field.params
         {'dim': 128}
         """

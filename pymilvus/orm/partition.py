@@ -149,7 +149,7 @@ class Partition:
             10
         """
         conn = self._get_connection()
-        stats = conn.get_partition_stats(db_name="", collection_name=self._collection.name, partition_name=self._name, **kwargs)
+        stats = conn.get_partition_stats(collection_name=self._collection.name, partition_name=self._name, **kwargs)
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
@@ -216,7 +216,7 @@ class Partition:
         #  if index_names is not None, raise Exception Not Supported
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name, **kwargs):
-            return conn.load_partitions(self._collection.name, [self._name], replica_number=replica_number, timeout=timeout, **kwargs)
+            return conn.load_partitions(self._collection.name, [self._name], replica_number, timeout=timeout, **kwargs)
         raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
 
     def release(self, timeout=None, **kwargs):
@@ -347,8 +347,8 @@ class Partition:
             return MutationFuture(res)
         return MutationResult(res)
 
-    def search(self, data, anns_field, param, limit, expr=None, output_fields=None, timeout=None, round_decimal=-1,
-               **kwargs):
+    def search(self, data, anns_field, param, limit,
+               expr=None, output_fields=None, timeout=None, round_decimal=-1, **kwargs):
         """
         Vector similarity search with an optional boolean expression as filters.
 
@@ -379,8 +379,10 @@ class Partition:
             * *consistency_level* (``str/int``) --
               Which consistency level to use when searching in the partition. For details, see
               https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
+
               Note: this parameter will overwrite the same parameter specified when user created the collection,
-              if no consistency level was specified, search will use the consistency level when you create the collection.
+              if no consistency level was specified, search will use collection consistency level.
+
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is provided, then Milvus will search all operations performed to date.
@@ -441,8 +443,8 @@ class Partition:
         conn = self._get_connection()
         schema_dict = self._schema.to_dict()
         schema_dict["consistency_level"] = self._consistency_level
-        res = conn.search(self._collection.name, data, anns_field, param, limit,
-                          expr, [self._name], output_fields, round_decimal, timeout=timeout, schema=schema_dict, **kwargs)
+        res = conn.search(self._collection.name, data, anns_field, param, limit, expr, [self._name], output_fields,
+                          round_decimal=round_decimal, timeout=timeout, schema=schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
@@ -466,7 +468,7 @@ class Partition:
               Which consistency level to use during a query on the collection. For details, see
               https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
               Note: this parameter will overwrite the same parameter specified when user created the collection,
-              if no consistency level was specified, query will use the consistency level when you create the collection.
+              if no consistency level was specified, query will use the collection consistency level.
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is specified, Milvus will query all operations performed to date.
@@ -517,7 +519,8 @@ class Partition:
         conn = self._get_connection()
         schema_dict = self._schema.to_dict()
         schema_dict["consistency_level"] = self._consistency_level
-        res = conn.query(self._collection.name, expr, output_fields, [self._name], timeout=timeout, schema=schema_dict, **kwargs)
+        res = conn.query(self._collection.name, expr, output_fields, [self._name],
+                         timeout=timeout, schema=schema_dict, **kwargs)
         return res
 
     def get_replicas(self, timeout=None, **kwargs) -> Replica:

@@ -7,7 +7,7 @@ from ..grpc_gen import schema_pb2
 from ..exceptions import MilvusException
 
 
-class LoopBase(object):
+class LoopBase:
     def __init__(self):
         self.__index = 0
 
@@ -45,7 +45,7 @@ class LoopBase(object):
         raise NotImplementedError()
 
 
-class LoopCache(object):
+class LoopCache:
     def __init__(self):
         self._array = []
 
@@ -65,8 +65,8 @@ class FieldSchema:
         self.description = None
         self.auto_id = False
         self.type = DataType.UNKNOWN
-        self.indexes = list()
-        self.params = dict()
+        self.indexes = []
+        self.params = {}
 
         ##
         self.__pack(self._raw)
@@ -90,7 +90,7 @@ class FieldSchema:
                 if type_param.key in ["dim", DefaultConfigs.MaxVarCharLengthKey]:
                     self.params[type_param.key] = int(type_param.value)
 
-        index_dict = dict()
+        index_dict = {}
         for index_param in raw.index_params:
             if index_param.key == "params":
                 import json
@@ -101,14 +101,15 @@ class FieldSchema:
         self.indexes.extend([index_dict])
 
     def dict(self):
-        _dict = dict()
-        _dict["field_id"] = self.field_id
-        _dict["name"] = self.name
-        _dict["description"] = self.description
-        _dict["type"] = self.type
-        _dict["params"] = self.params or dict()
-        _dict["is_primary"] = self.is_primary
-        _dict["auto_id"] = self.auto_id
+        _dict = {
+            "field_id": self.field_id,
+            "name": self.name,
+            "description": self.description,
+            "type": self.type,
+            "params": self.params or {},
+            "is_primary": self.is_primary,
+            "auto_id": self.auto_id,
+        }
         return _dict
 
 
@@ -119,14 +120,14 @@ class CollectionSchema:
         #
         self.collection_name = None
         self.description = None
-        self.params = dict()
-        self.fields = list()
-        self.statistics = dict()
+        self.params = {}
+        self.fields = []
+        self.statistics = {}
         self.auto_id = False  # auto_id is not in collection level any more later
         self.aliases = []
         self.collection_id = 0
         self.consistency_level = DEFAULT_CONSISTENCY_LEVEL  # by default
-        self.properties = dict()
+        self.properties = {}
 
         #
         if self._raw:
@@ -160,22 +161,17 @@ class CollectionSchema:
 
     def dict(self):
         if not self._raw:
-            return dict()
-        _dict = dict()
-        _dict["collection_name"] = self.collection_name
-        _dict["auto_id"] = self.auto_id
-        _dict["description"] = self.description
-        _dict["fields"] = [f.dict() for f in self.fields]
-        _dict["aliases"] = self.aliases
-        _dict["collection_id"] = self.collection_id
-        _dict["consistency_level"] = self.consistency_level
-        _dict["properties"] = self.properties
-        # for k, v in self.params.items():
-        #     if isinstance(v, DataType):
-        #         _dict[k] = v.value
-        #     else:
-        #         _dict[k] = v
-
+            return {}
+        _dict = {
+            "collection_name": self.collection_name,
+            "auto_id": self.auto_id,
+            "description": self.description,
+            "fields": [f.dict() for f in self.fields],
+            "aliases": self.aliases,
+            "collection_id": self.collection_id,
+            "consistency_level": self.consistency_level,
+            "properties": self.properties,
+        }
         return _dict
 
     def __str__(self):
@@ -190,8 +186,7 @@ class Entity:
         self._distance = entity_score
 
     def __str__(self):
-        str_ = 'id: {}, distance: {}, entity: {},'.format(self._id, self._distance, self._row_data)
-        return str_
+        return f'id: {self._id}, distance: {self._distance}, entity: {self._row_data}'
 
     def __getattr__(self, item):
         return self.value_of_field(item)
@@ -209,10 +204,9 @@ class Entity:
         return self.value_of_field(field)
 
     def value_of_field(self, field):
-        if field in self._row_data:
-            return self._row_data[field]
-        else:
+        if field not in self._row_data:
             raise MilvusException(message=f"Field {field} is not in return entity")
+        return self._row_data[field]
 
     def type_of_field(self, field):
         raise NotImplementedError('TODO: support field in Hits')
@@ -226,7 +220,7 @@ class Hit:
         self._distance = entity_score
 
     def __str__(self):
-        return "(distance: {}, score: {}, id: {})".format(self._distance, self._score, self._id)
+        return f"(distance: {self._distance}, score: {self._score}, id: {self._id})"
 
     @property
     def entity(self):
@@ -254,19 +248,13 @@ class Hits(LoopBase):
             self._distances = [round(x, round_decimal) for x in self._raw.scores]
         else:
             self._distances = self._raw.scores
-        self._entities = []
-        self._pack(self._raw)
-
-    def _pack(self, raw):
-        self._entities = [item for item in self]
 
     def __len__(self):
         if self._raw.ids.HasField("int_id"):
             return len(self._raw.ids.int_id.data)
-        elif self._raw.ids.HasField("str_id"):
+        if self._raw.ids.HasField("str_id"):
             return len(self._raw.ids.str_id.data)
-        else:
-            return 0
+        return 0
 
     def get__item(self, item):
         if self._raw.ids.HasField("int_id"):
@@ -275,7 +263,7 @@ class Hits(LoopBase):
             entity_id = self._raw.ids.str_id.data[item]
         else:
             raise MilvusException(message="Unsupported ids type")
-        entity_row_data = dict()
+        entity_row_data = {}
         if self._raw.fields_data:
             for field_data in self._raw.fields_data:
                 if field_data.type == DataType.BOOL:
@@ -321,10 +309,9 @@ class Hits(LoopBase):
     def ids(self):
         if self._raw.ids.HasField("int_id"):
             return self._raw.ids.int_id.data
-        elif self._raw.ids.HasField("str_id"):
+        if self._raw.ids.HasField("str_id"):
             return self._raw.ids.str_id.data
-        else:
-            return []
+        return []
 
     @property
     def distances(self):
@@ -334,13 +321,13 @@ class Hits(LoopBase):
 class MutationResult:
     def __init__(self, raw):
         self._raw = raw
-        self._primary_keys = list()
+        self._primary_keys = []
         self._insert_cnt = 0
         self._delete_cnt = 0
         self._upsert_cnt = 0
         self._timestamp = 0
-        self._succ_index = list()
-        self._err_index = list()
+        self._succ_index = []
+        self._err_index = []
 
         self._pack(raw)
 
@@ -381,9 +368,8 @@ class MutationResult:
         return self._err_index
 
     def __str__(self):
-        return "(insert count: {}, delete count: {}, upsert count: {}, timestamp: {}, " \
-               "success count: {}, err count: {})".format(self._insert_cnt, self._delete_cnt, self._upsert_cnt,
-                                                          self._timestamp, self.succ_count, self.err_count)
+        return f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, " \
+                "timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
 
     __repr__ = __str__
 
@@ -418,9 +404,6 @@ class QueryResult(LoopBase):
         self._pack(raw.hits)
 
     def __len__(self):
-        return self._nq
-
-    def __len(self):
         return self._nq
 
     def _pack(self, raw):
@@ -485,9 +468,6 @@ class ChunkedQueryResult(LoopBase):
         self._pack(self._raw_list)
 
     def __len__(self):
-        return self._nq
-
-    def __len(self):
         return self._nq
 
     def _pack(self, raw_list):

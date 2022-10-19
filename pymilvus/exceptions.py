@@ -19,8 +19,8 @@ class ErrorCode(IntEnum):
 
 
 class MilvusException(Exception):
-
-    def __init__(self, code: int=ErrorCode.UNEXPECTED_ERROR, message: str=""):
+    def __init__(self, code: int = ErrorCode.UNEXPECTED_ERROR, message: str = ""):
+        super().__init__()
         self._code = code
         self._message = message
 
@@ -37,109 +37,83 @@ class MilvusException(Exception):
 
 
 class ParamError(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
-
-
-class ResultError(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when params are incorrect """
 
 
 class ConnectError(MilvusException):
     """ Connect server fail """
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
 
 
 class MilvusUnavailableException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when server's Unavaliable"""
 
 
 class CollectionNotExistException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when collections doesn't exist """
 
 
 class DescribeCollectionException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when fail to describe collection """
 
 
 class PartitionNotExistException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when partition doesn't exist """
 
 
 class PartitionAlreadyExistException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when create an exsiting partition """
 
 
 class IndexNotExistException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when index doesn't exist """
 
 
 class CannotInferSchemaException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when cannot trasfer dataframe to schema """
 
 
 class SchemaNotReadyException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when schema is wrong """
 
 
 class DataTypeNotMatchException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when datatype dosen't match """
 
 
 class DataTypeNotSupportException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when datatype isn't supported """
 
 
 class DataNotMatchException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when insert data isn't match with schema """
 
 
 class ConnectionNotExistException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when connections doesn't exist """
 
 
 class ConnectionConfigException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when configs of connection are invalid """
 
 
 class PrimaryKeyException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when primarykey are invalid """
 
 
 class FieldsTypeException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when fields is invalid """
 
 
 class FieldTypeException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when one field is invalid """
 
 
 class AutoIDException(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when autoID is invalid """
 
 
 class InvalidConsistencyLevel(MilvusException):
-    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
-        super().__init__(code, message)
+    """ Raise when consistency level is invalid """
 
 
 class ExceptionsMessage:
@@ -159,7 +133,7 @@ class ExceptionsMessage:
     AutoIDType = "Param auto_id must be bool type."
     AutoIDInconsistent = "The auto_id of the collection is inconsistent with the auto_id of the primary key field."
     AutoIDIllegalRanges = "The auto-generated id ranges should be pairs."
-    ConsistencyLevelInconsistent = "The collection already exist, but the consistency_level is not the same as the parameter passed in."
+    ConsistencyLevelInconsistent = "The parameter consistency_level is inconsistent with that of existed collection."
     AutoIDOnlyOnPK = "The auto_id can only be specified on the primary key field"
     AutoIDFieldType = "The auto_id can only be specified on field with DataType.INT64"
     FieldsNumInconsistent = "The data fields number is not match with schema."

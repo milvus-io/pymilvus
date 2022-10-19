@@ -10,9 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-from . import constants
 from .connections import connections
-from ..exceptions import ResultError
 
 from ..client.utils import mkts_from_hybridts as _mkts_from_hybridts
 from ..client.utils import mkts_from_unixtime as _mkts_from_unixtime
@@ -25,7 +23,8 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
     """
     Generate a hybrid timestamp based on an existing hybrid timestamp, timedelta and incremental time internval.
 
-    :param hybridts: The original hybrid timestamp used to generate a new hybrid timestamp. Non-negative interger range from 0 to 18446744073709551615.
+    :param hybridts: The original hybrid timestamp used to generate a new hybrid timestamp.
+                     Non-negative interger range from 0 to 18446744073709551615.
     :type  hybridts: int
 
     :param milliseconds: Incremental time interval. The unit of time is milliseconds.
@@ -43,7 +42,7 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
@@ -60,8 +59,9 @@ def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
     """
     Generate a hybrid timestamp based on Unix Epoch time, timedelta and incremental time internval.
 
-    :param epoch: The known Unix Epoch time used to generate a hybrid timestamp.  The Unix Epoch time is the number of seconds
-                  that have elapsed since January 1, 1970 (midnight UTC/GMT).
+    :param epoch: The known Unix Epoch time used to generate a hybrid timestamp.
+                  The Unix Epoch time is the number of seconds that have elapsed
+                  since January 1, 1970 (midnight UTC/GMT).
     :type  epoch: float
 
     :param milliseconds: Incremental time interval. The unit of time is milliseconds.
@@ -113,10 +113,11 @@ def hybridts_to_datetime(hybridts, tz=None):
     """
     Convert a hybrid timestamp to the datetime according to timezone.
 
-    :param hybridts: The known hybrid timestamp to convert to datetime. Non-negative interger range from 0 to 18446744073709551615.
+    :param hybridts: The known hybrid timestamp to convert to datetime.
+                     Non-negative interger range from 0 to 18446744073709551615.
     :type  hybridts: int
-    :param tz: Timezone defined by a fixed offset from UTC. If argument tz is None or not specified, the
-           hybridts is converted to the platform’s local date and time.
+    :param tz: Timezone defined by a fixed offset from UTC. If argument tz is None or not specified,
+               the hybridts is converted to the platform’s local date and time.
     :type  tz: datetime.timezone
 
     :return datetime:
@@ -142,7 +143,8 @@ def hybridts_to_unixtime(hybridts):
     """
     Convert a hybrid timestamp to UNIX Epoch time ignoring the logic part.
 
-    :param hybridts: The known hybrid timestamp to convert to UNIX Epoch time. Non-negative interger range from 0 to 18446744073709551615.
+    :param hybridts: The known hybrid timestamp to convert to UNIX Epoch time.
+                     Non-negative interger range from 0 to 18446744073709551615.
     :type  hybridts: int
 
     :return float:
@@ -223,8 +225,8 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="get collection entities num")
+        >>> field_fvec = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_fvec], description="get collection entities num")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
         >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
@@ -305,8 +307,8 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import random
         >>> import numpy as np
@@ -327,7 +329,7 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> utility.loading_progress("test_collection")
 
     """
-    return _get_connection(using).wait_for_creating_index(collection_name=collection_name, index_name=index_name, timeout=timeout)[0]
+    return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout=timeout)[0]
 
 
 def has_collection(collection_name, using="default"):
@@ -345,8 +347,8 @@ def has_collection(collection_name, using="default"):
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_collection("test_collection")
     """
@@ -371,8 +373,8 @@ def has_partition(collection_name, partition_name, using="default"):
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_partition("_default")
     """
@@ -422,8 +424,8 @@ def list_collections(timeout=None, using="default") -> list:
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="test")
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.list_collections()
     """
@@ -465,7 +467,8 @@ def load_balance(collection_name: str, src_node_id, dst_node_ids=None, sealed_se
         dst_node_ids = []
     if sealed_segment_ids is None:
         sealed_segment_ids = []
-    return _get_connection(using).load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout)
+    return _get_connection(using).\
+            load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout)
 
 
 def get_query_segment_info(collection_name, timeout=None, using="default"):
@@ -486,8 +489,8 @@ def get_query_segment_info(collection_name, timeout=None, using="default"):
         >>> connections.connect(alias="default")
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_float_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, description="float_vector", is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_float_vector], description="get collection entities num")
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="get collection entities num")
         >>> collection = Collection(name="test_get_segment_info", schema=schema)
         >>> import pandas as pd
         >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
@@ -658,7 +661,8 @@ def bulk_insert(collection_name: str, is_row_based: bool, files: list, partition
 
     :raises BaseException: If collection_name doesn't exist.
     """
-    return _get_connection(using).bulk_insert(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
+    return _get_connection(using).\
+            bulk_insert(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
 
 
 def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> BulkInsertState:

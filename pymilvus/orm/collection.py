@@ -11,8 +11,8 @@
 # the License.
 
 import copy
-import pandas
 import json
+import pandas
 
 from .connections import connections
 from .schema import (
@@ -52,7 +52,7 @@ def _check_schema(schema):
         raise SchemaNotReadyException(message=ExceptionsMessage.EmptySchema)
     vector_fields = []
     for field in schema.fields:
-        if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
+        if field.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR):
             vector_fields.append(field.name)
     if len(vector_fields) < 1:
         raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
@@ -61,7 +61,7 @@ def _check_schema(schema):
 class Collection:
     """ This is a class corresponding to collection in milvus. """
 
-    def __init__(self, name, schema=None, using="default", shards_num=2, properties={}, **kwargs):
+    def __init__(self, name, schema=None, using="default", shards_num=2, **kwargs):
         """
         Constructs a collection by name, schema and other parameters.
         Connection information is contained in kwargs.
@@ -85,6 +85,8 @@ class Collection:
             https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
             Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
             Note: this parameter can be overwritten by the same parameter specified in search.
+
+            * *properties* (``dictionary``) --
 
         :example:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
@@ -136,7 +138,7 @@ class Collection:
             if isinstance(schema, CollectionSchema):
                 _check_schema(schema)
                 consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
-                conn.create_collection(self._name, fields=schema, shards_num=self._shards_num, properties=properties, **kwargs)
+                conn.create_collection(self._name, schema, shards_num=self._shards_num, **kwargs)
                 self._schema = schema
                 self._consistency_level = consistency_level
             else:
@@ -196,7 +198,7 @@ class Collection:
 
     def _get_vector_field(self) -> str:
         for field in self._schema.fields:
-            if field.dtype == DataType.FLOAT_VECTOR or field.dtype == DataType.BINARY_VECTOR:
+            if field.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR):
                 return field.name
         raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
 
@@ -439,7 +441,7 @@ class Collection:
             index.drop(timeout=timeout, index_name=index.index_name, **kwargs)
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
-    def set_properties(self, properties={}, timeout=None, **kwargs):
+    def set_properties(self, properties, timeout=None, **kwargs):
         conn = self._get_connection()
         conn.alter_collection(self.name, properties=properties, timeout=timeout)
 
@@ -556,7 +558,7 @@ class Collection:
         entities = Prepare.prepare_insert_data(data, self._schema)
         schema_dict = self._schema.to_dict()
         schema_dict["consistency_level"] = self._consistency_level
-        res = conn.batch_insert(self._name, entities, partition_name, ids=None, timeout=timeout, schema=schema_dict, **kwargs)
+        res = conn.batch_insert(self._name, entities, partition_name, timeout=timeout, schema=schema_dict, **kwargs)
 
         if kwargs.get("_async", False):
             return MutationFuture(res)
@@ -804,9 +806,9 @@ class Collection:
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        schema_dict = self._schema.to_dict()
-        schema_dict["consistency_level"] = self._consistency_level
-        res = conn.query(self._name, expr, output_fields, partition_names, timeout=timeout, schema=schema_dict, **kwargs)
+        schema = self._schema.to_dict()
+        schema["consistency_level"] = self._consistency_level
+        res = conn.query(self._name, expr, output_fields, partition_names, timeout=timeout, schema=schema, **kwargs)
         return res
 
     @property
@@ -1001,7 +1003,9 @@ class Collection:
                 info_dict = {kv.key: kv.value for kv in index.params}
                 if info_dict.get("params", None):
                     info_dict["params"] = json.loads(info_dict["params"])
-                indexes.append(Index(self, index.field_name, info_dict, index_name=index.index_name, construct_only=True))
+
+                index_info = Index(self, index.field_name, info_dict, index_name=index.index_name, construct_only=True)
+                indexes.append(index_info)
         return indexes
 
     def index(self, **kwargs) -> Index:

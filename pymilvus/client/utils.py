@@ -94,20 +94,21 @@ def mkts_from_datetime(d_time, milliseconds=0., delta=None):
     return mkts_from_unixtime(d_time.timestamp(), milliseconds=milliseconds, delta=delta)
 
 
-def check_invalid_binary_vector(entities):
+def check_invalid_binary_vector(entities) -> bool:
     for entity in entities:
         if entity['type'] == DataType.BINARY_VECTOR:
             if not isinstance(entity['values'], list) and len(entity['values']) == 0:
                 return False
-            else:
-                dim = len(entity['values'][0]) * 8
-                if dim == 0:
+
+            dim = len(entity['values'][0]) * 8
+            if dim == 0:
+                return False
+
+            for values in entity['values']:
+                if len(values) * 8 != dim:
                     return False
-                for values in entity['values']:
-                    if len(values) * 8 != dim:
-                        return False
-                    if not isinstance(values, bytes):
-                        return False
+                if not isinstance(values, bytes):
+                    return False
     return True
 
 
@@ -115,28 +116,36 @@ def len_of(field_data) -> int:
     if field_data.HasField("scalars"):
         if field_data.scalars.HasField("bool_data"):
             return len(field_data.scalars.bool_data.data)
-        elif field_data.scalars.HasField("int_data"):
+
+        if field_data.scalars.HasField("int_data"):
             return len(field_data.scalars.int_data.data)
-        elif field_data.scalars.HasField("long_data"):
+
+        if field_data.scalars.HasField("long_data"):
             return len(field_data.scalars.long_data.data)
-        elif field_data.scalars.HasField("float_data"):
+
+        if field_data.scalars.HasField("float_data"):
             return len(field_data.scalars.float_data.data)
-        elif field_data.scalars.HasField("double_data"):
+
+        if field_data.scalars.HasField("double_data"):
             return len(field_data.scalars.double_data.data)
-        elif field_data.scalars.HasField("string_data"):
+
+        if field_data.scalars.HasField("string_data"):
             return len(field_data.scalars.string_data.data)
-        elif field_data.scalars.HasField("bytes_data"):
+
+        if field_data.scalars.HasField("bytes_data"):
             return len(field_data.scalars.bytes_data.data)
-        else:
-            raise MilvusException(message="Unsupported scalar type")
-    elif field_data.HasField("vectors"):
+
+        raise MilvusException(message="Unsupported scalar type")
+
+    if field_data.HasField("vectors"):
         dim = field_data.vectors.dim
         if field_data.vectors.HasField("float_vector"):
             total_len = len(field_data.vectors.float_vector.data)
             if total_len % dim != 0:
                 raise MilvusException(message=f"Invalid vector length: total_len={total_len}, dim={dim}")
             return int(total_len / dim)
-        else:
-            total_len = len(field_data.vectors.binary_vector)
-            return int(total_len / (dim / 8))
+
+        total_len = len(field_data.vectors.binary_vector)
+        return int(total_len / (dim / 8))
+
     raise MilvusException(message="Unknown data type")

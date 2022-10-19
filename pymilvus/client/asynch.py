@@ -105,9 +105,8 @@ class Future(AbstractFuture):
             if self._future and self._results is None:
                 try:
                     self._response = self._future.result(timeout=to)
-                #except grpc.RpcError as e:
                 except Exception as e:
-                    raise MilvusException(message=str(e))
+                    raise MilvusException(message=str(e)) from e
                 self._results = self.on_response(self._response)
 
                 self._callback()
@@ -123,8 +122,7 @@ class Future(AbstractFuture):
 
         if self._results:
             return self._results
-        else:
-            return self.on_response(self._response)
+        return self.on_response(self._response)
 
     def cancel(self):
         with self._condition:
@@ -204,8 +202,7 @@ class ChunkedSearchFuture(Future):
 
         if self._results:
             return self._results
-        else:
-            return self.on_response(self._response)
+        return self.on_response(self._response)
 
     def cancel(self):
         with self._condition:

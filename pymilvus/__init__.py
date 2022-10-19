@@ -19,13 +19,10 @@ from .exceptions import (
     MilvusUnavailableException,
     ExceptionsMessage
 )
-#  comment for dup
-#  from .client.asynch import MutationFuture
 from .client import __version__
 
 from .settings import DEBUG_LOG_LEVEL, INFO_LOG_LEVEL, WARN_LOG_LEVEL, ERROR_LOG_LEVEL
 
-"""client module"""
 from .orm.collection import Collection
 from .orm.connections import connections, Connections
 

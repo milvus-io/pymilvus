@@ -1,0 +1,28 @@
+name: Code checker on pull request
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  code-lint:
+    name: Code lint check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt
+      - name: Run pylint
+        shell: bash
+        run: |
+          make lint

@@ -153,7 +153,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             self._alias[alias] = alias_config
 
-    def __get_full_address(self, address: str="", uri: str="", host: str="", port: str="") -> str:
+    def __get_full_address(self, address: str = "", uri: str = "", host: str = "", port: str = "") -> str:
         if address != "":
             if not is_legal_address(address):
                 raise ConnectionConfigException(message=f"Illegal address: {address}, should be in form 'localhost:19530'")
@@ -178,18 +178,17 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 raise ConnectionConfigException(message=illegal_uri_msg.format(uri))
             return addr
 
-        else:
-            host = host if host != "" else DefaultConfig.DEFAULT_HOST
-            port = port if port != "" else DefaultConfig.DEFAULT_PORT
+        host = host if host != "" else DefaultConfig.DEFAULT_HOST
+        port = port if port != "" else DefaultConfig.DEFAULT_PORT
 
-            if not is_legal_host(host):
-                raise ConnectionConfigException(message=ExceptionsMessage.HostType)
-            if not is_legal_port(port):
-                raise ConnectionConfigException(message=ExceptionsMessage.PortType)
-            if not 0 <= int(port) < 65535:
-                raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
+        if not is_legal_host(host):
+            raise ConnectionConfigException(message=ExceptionsMessage.HostType)
+        if not is_legal_port(port):
+            raise ConnectionConfigException(message=ExceptionsMessage.PortType)
+        if not 0 <= int(port) < 65535:
+            raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
 
-            return f"{host}:{port}"
+        return f"{host}:{port}"
 
     def disconnect(self, alias: str):
         """ Disconnects connection from the registry.
@@ -268,12 +267,15 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs)
-            gh._wait_for_channel_ready()
+
+            t = kwargs.get("timeout")
+            timeout = t if isinstance(t, int) else DefaultConfig.DEFAULT_CONNECT_TIMEOUT
+
+            gh._wait_for_channel_ready(timeout=timeout)
             kwargs.pop('password')
 
             self._connected_alias[alias] = gh
             self._alias[alias] = copy.deepcopy(kwargs)
-            return
 
         def with_config(config: Tuple) -> bool:
             for c in config:

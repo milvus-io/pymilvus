@@ -1,7 +1,6 @@
 import time
 import json
 import copy
-import math
 import base64
 from urllib import parse
 
@@ -48,7 +47,6 @@ from .asynch import (
     SearchFuture,
     MutationFuture,
     CreateIndexFuture,
-    CreateFlatIndexFuture,
     FlushFuture,
     LoadPartitionsFuture,
     ChunkedSearchFuture
@@ -78,12 +76,12 @@ class GrpcHandler:
     def __get_address(self, uri: str, host: str, port: str) -> str:
         if host != "" and port != "" and is_legal_host(host) and is_legal_port(port):
             return f"{host}:{port}"
-        else:
-            try:
-                parsed_uri = parse.urlparse(uri)
-            except (Exception) as e:
-                raise ParamError(message=f"Illegal uri: [{uri}], {e}")
-            return parsed_uri.netloc
+
+        try:
+            parsed_uri = parse.urlparse(uri)
+        except (Exception) as e:
+            raise ParamError(message=f"Illegal uri: [{uri}], {e}") from e
+        return parsed_uri.netloc
 
     def _set_authorization(self, **kwargs):
         secure = kwargs.get("secure", False)
@@ -105,13 +103,14 @@ class GrpcHandler:
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def _wait_for_channel_ready(self):
+    def _wait_for_channel_ready(self, timeout=3):
         if self._channel is not None:
             try:
-                grpc.channel_ready_future(self._channel).result(timeout=3)
+                grpc.channel_ready_future(self._channel).result(timeout=timeout)
                 return
-            except grpc.FutureTimeoutError:
-                raise MilvusException(Status.CONNECT_FAILED, f'Fail connecting to server on {self._address}. Timeout')
+            except grpc.FutureTimeoutError as e:
+                raise MilvusException(Status.CONNECT_FAILED,
+                                      f'Fail connecting to server on {self._address}. Timeout') from e
 
         raise MilvusException(Status.CONNECT_FAILED, 'No channel in handler, please setup grpc channel first')
 
@@ -197,8 +196,8 @@ class GrpcHandler:
         self._setup_grpc_channel()
 
     @retry_on_rpc_failure()
-    def create_collection(self, collection_name, fields, shards_num=2, properties={}, timeout=None, **kwargs):
-        request = Prepare.create_collection_request(collection_name, fields, shards_num=shards_num, properties=properties, **kwargs)
+    def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
+        request = Prepare.create_collection_request(collection_name, fields, shards_num=shards_num, **kwargs)
 
         rf = self._stub.CreateCollection.future(request, timeout=timeout)
         if kwargs.get("_async", False):
@@ -307,7 +306,7 @@ class GrpcHandler:
         status = response.status
         if status.error_code == 0:
             statistics = response.statistics
-            info_dict = dict()
+            info_dict = {}
             for kv in statistics:
                 info_dict[kv.key] = kv.value
             return info_dict
@@ -646,15 +645,14 @@ class GrpcHandler:
         start = time.time()
         while True:
             time.sleep(0.5)
-            state, fail_reason = self.get_index_state(collection_name=collection_name, index_name=index_name, timeout=timeout)
+            state, fail_reason = self.get_index_state(collection_name, index_name, timeout=timeout)
             if state == IndexState.Finished:
                 return True, fail_reason
             if state == IndexState.Failed:
                 return False, fail_reason
             end = time.time()
-            if timeout is not None:
-                if end - start > timeout:
-                    raise MilvusException(message=f"CreateIndex Timeout, collection: {collection_name} , index_name: {index_name}")
+            if isinstance(timeout, int) and end - start > timeout:
+                raise MilvusException(message=f"collection {collection_name} create index {index_name} timeout in {timeout}s")
 
     @retry_on_rpc_failure()
     def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
@@ -889,7 +887,7 @@ class GrpcHandler:
         future = self._stub.Query.future(request, timeout=timeout)
         response = future.result()
         if response.status.error_code == Status.EMPTY_COLLECTION:
-            return list()
+            return []
         if response.status.error_code != Status.SUCCESS:
             raise MilvusException(response.status.error_code, response.status.reason)
 
@@ -905,9 +903,9 @@ class GrpcHandler:
             raise MilvusException(message="The length of fields data is inconsistent")
 
         # transpose
-        results = list()
+        results = []
         for index in range(0, num_entities):
-            result = dict()
+            result = {}
             for field_data in response.fields_data:
                 if field_data.type == DataType.BOOL:
                     result[field_data.field_name] = field_data.scalars.bool_data.data[index]

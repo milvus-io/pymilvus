@@ -1,6 +1,6 @@
-from pkg_resources import get_distribution, DistributionNotFound
 import subprocess
 import re
+from pkg_resources import get_distribution, DistributionNotFound
 
 __version__ = '0.0.0.dev'
 
