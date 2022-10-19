@@ -659,7 +659,7 @@ class GrpcHandler:
             end = time.time()
             if timeout is not None:
                 if end - start > timeout:
-                    raise MilvusException(1, "CreateIndex Timeout")
+                    raise MilvusException(1, "CreateIndex Timeout, collection " + collection_name + ", index_name " + index_name)
 
     @retry_on_rpc_failure()
     def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
@@ -693,7 +693,7 @@ class GrpcHandler:
             if progress >= 100:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
-        raise MilvusException(-1, "wait for loading collection timeout")
+        raise MilvusException(-1, "wait for loading collection timeout, collection " + collection_name)
 
     @retry_on_rpc_failure()
     def release_collection(self, collection_name, timeout=None):
@@ -743,7 +743,7 @@ class GrpcHandler:
             if progress >= 100:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
-        raise MilvusException(-1, "wait for loading partition timeout")
+        raise MilvusException(-1, "wait for loading partition timeout, collection " + collection_name + ", partitions" + partition_names)
 
     @retry_on_rpc_failure()
     def get_loading_progress(self, collection_name, partition_names=None, timeout=None):
@@ -805,10 +805,17 @@ class GrpcHandler:
 
     def _wait_for_flushed(self, segment_ids, timeout=None, **kwargs):
         flush_ret = False
+        start = time.time()
         while not flush_ret:
-            flush_ret = self.get_flush_state(segment_ids, timeout=timeout, **kwargs)
+            flush_ret = self.get_flush_state(segment_ids, timeout, **kwargs)
+            end = time.time()
+            if timeout is not None:
+                if end - start > timeout:
+                    raise MilvusException(1, "Wait for flush timeout, segment id" + segment_ids)
+                
             if not flush_ret:
                 time.sleep(0.5)
+
 
     @retry_on_rpc_failure()
     def flush(self, collection_names: list, timeout=None, **kwargs):
@@ -992,7 +999,7 @@ class GrpcHandler:
             end = time.time()
             if timeout is not None:
                 if end - start > timeout:
-                    raise MilvusException(1, "Get compaction state timeout")
+                    raise MilvusException(1, "Get compaction state timeout, compaction id" + compaction_id)
 
     @retry_on_rpc_failure()
     def get_compaction_plans(self, compaction_id, timeout=None, **kwargs) -> CompactionPlans:
