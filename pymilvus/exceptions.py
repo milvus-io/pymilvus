@@ -10,65 +10,17 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-
-class ParamError(ValueError):
-    """
-    Param of interface is illegal
-    """
+from enum import IntEnum
 
 
-class ResultError(ValueError):
-    """
-    Result of interface is illegal
-    """
-
-
-class ConnectError(ValueError):
-    """
-    Connect server failed
-    """
-
-
-class NotConnectError(ConnectError):
-    """
-    Disconnect error
-    """
-
-
-class RepeatingConnectError(ConnectError):
-    """
-    Try to connect repeatedly
-    """
-
-
-class ConnectionPoolError(ConnectError):
-    """
-    Waiting timeout error
-    """
-
-
-class FutureTimeoutError(TimeoutError):
-    """
-    Future timeout
-    """
-
-
-class DeprecatedError(AttributeError):
-    """
-    Deprecated
-    """
-
-
-class VersionError(AttributeError):
-    """
-    Version not match
-    """
+class ErrorCode(IntEnum):
+    SUCCESS = 0
+    UNEXPECTED_ERROR = 1
 
 
 class MilvusException(Exception):
 
-    def __init__(self, code=-1, message=""):
-        super(MilvusException, self).__init__(message)
+    def __init__(self, code: int=ErrorCode.UNEXPECTED_ERROR, message: str=""):
         self._code = code
         self._message = message
 
@@ -84,105 +36,110 @@ class MilvusException(Exception):
         return f"<{type(self).__name__}: (code={self.code}, message={self.message})>"
 
 
-class ParamException(MilvusException):
-    def __init__(self, code=-1, message=""):
+class ParamError(MilvusException):
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
+
+
+class ResultError(MilvusException):
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
+
+
+class ConnectError(MilvusException):
+    """ Connect server fail """
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
         super().__init__(code, message)
 
 
 class MilvusUnavailableException(MilvusException):
-    pass
-
-
-class CollectionExistException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class CollectionNotExistException(MilvusException):
-    pass
-
-
-class InvalidDimensionException(MilvusException):
-    pass
-
-
-class InvalidMetricTypeException(MilvusException):
-    pass
-
-
-class IllegalCollectionNameException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class DescribeCollectionException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class PartitionNotExistException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class PartitionAlreadyExistException(MilvusException):
-    pass
-
-
-class InvalidArgumentException(MilvusException):
-    pass
-
-
-class IndexConflictException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class IndexNotExistException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class CannotInferSchemaException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class SchemaNotReadyException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class DataTypeNotMatchException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class DataTypeNotSupportException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class DataNotMatchException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class ConnectionNotExistException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class ConnectionConfigException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class PrimaryKeyException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class FieldsTypeException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class FieldTypeException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class AutoIDException(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class InvalidConsistencyLevel(MilvusException):
-    pass
+    def __init__(self, code=ErrorCode.UNEXPECTED_ERROR, message=""):
+        super().__init__(code, message)
 
 
 class ExceptionsMessage:

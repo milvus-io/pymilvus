@@ -10,7 +10,7 @@ def entity_type_to_dtype(entity_type):
     if isinstance(entity_type, str):
         # case sensitive
         return schema_types.DataType.Value(entity_type)
-    raise ParamError(f"invalid entity type: {entity_type}")
+    raise ParamError(message=f"invalid entity type: {entity_type}")
 
 
 def get_max_len_of_var_char(field_info) -> int:
@@ -22,10 +22,9 @@ def get_max_len_of_var_char(field_info) -> int:
 def check_str_arr(str_arr, max_len):
     for s in str_arr:
         if not isinstance(s, str):
-            raise ParamError(f"expect string input, got: {type(s)}")
+            raise ParamError(message=f"expect string input, got: {type(s)}")
         if len(s) >= max_len:
-            raise ParamError(
-                f"invalid input, length of string exceeds max length. length: {len(s)}, max length: {max_len}")
+            raise ParamError(message=f"invalid input, length of string exceeds max length. length: {len(s)}, max length: {max_len}")
 
 
 def entity_to_str_arr(entity, field_info, check=True):
@@ -73,6 +72,6 @@ def entity_to_field_data(entity, field_info):
     elif entity_type in (DataType.VARCHAR,):
         field_data.scalars.string_data.data.extend(entity_to_str_arr(entity, field_info, True))
     else:
-        raise ParamError(f"UnSupported data type: {entity_type}")
+        raise ParamError(message=f"UnSupported data type: {entity_type}")
 
     return field_data

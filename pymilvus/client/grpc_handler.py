@@ -1,5 +1,4 @@
 import time
-import logging
 import json
 import copy
 import math
@@ -23,7 +22,6 @@ from .check import (
 from .prepare import Prepare
 from .types import (
     Status,
-    ErrorCode,
     IndexState,
     DataType,
     CompactionState,
@@ -60,10 +58,9 @@ from ..exceptions import (
     ParamError,
     DescribeCollectionException,
     MilvusException,
-    ParamException,
 )
 
-from ..decorators import retry_on_rpc_failure, error_handler, deprecated
+from ..decorators import retry_on_rpc_failure
 
 
 class GrpcHandler:
@@ -85,13 +82,13 @@ class GrpcHandler:
             try:
                 parsed_uri = parse.urlparse(uri)
             except (Exception) as e:
-                raise ParamError(f"Illegal uri: [{uri}], {e}")
+                raise ParamError(message=f"Illegal uri: [{uri}], {e}")
             return parsed_uri.netloc
 
     def _set_authorization(self, **kwargs):
         secure = kwargs.get("secure", False)
         if not isinstance(secure, bool):
-            raise ParamError("secure must be bool type")
+            raise ParamError(message="secure must be bool type")
         self._secure = secure
         self._client_pem_path = kwargs.get("client_pem_path", "")
         self._client_key_path = kwargs.get("client_key_path", "")
@@ -345,9 +342,9 @@ class GrpcHandler:
         insert_param = kwargs.get('insert_param', None)
 
         if insert_param and not isinstance(insert_param, milvus_types.RowBatch):
-            raise ParamError("The value of key 'insert_param' is invalid")
+            raise ParamError(message="The value of key 'insert_param' is invalid")
         if not isinstance(entities, list):
-            raise ParamError("None entities, please provide valid entities.")
+            raise ParamError(message="None entities, please provide valid entities.")
 
         collection_schema = kwargs.get("schema", None)
         if not collection_schema:
@@ -363,7 +360,7 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def batch_insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         if not check_invalid_binary_vector(entities):
-            raise ParamError("Invalid binary vector data exists")
+            raise ParamError(message="Invalid binary vector data exists")
 
         try:
             request = self._prepare_batch_insert_request(collection_name, entities, partition_name, timeout, **kwargs)
@@ -533,8 +530,8 @@ class GrpcHandler:
             # check index params on vector field.
             check_index_params(params)
 
-            index_type = params["index_type"].upper()
-            # if index_type == "FLAT":
+            #  index_type = params["index_type"].upper()
+            #  if index_type == "FLAT":
             #     try:
             #         index_desc = self.describe_index(collection_name, index_name, timeout=timeout, **copy_kwargs)
             #         if index_desc is not None:
@@ -550,9 +547,7 @@ class GrpcHandler:
             #         raise err
 
         if not valid_field:
-            # TODO: add new error type
-            raise MilvusException(Status.UNEXPECTED_ERROR,
-                                  "cannot create index on non-existed field: " + str(field_name))
+            raise MilvusException(message=f"cannot create index on non-existed field: {field_name}")
 
         # sync flush
         _async = kwargs.get("_async", False)
@@ -569,7 +564,7 @@ class GrpcHandler:
                                                                               index_name=index_name,
                                                                               timeout=timeout)
                     if not index_success:
-                        raise MilvusException(Status.UNEXPECTED_ERROR, fail_reason)
+                        raise MilvusException(message=fail_reason)
 
             index_future = CreateIndexFuture(future)
             index_future.add_callback(_check)
@@ -588,7 +583,7 @@ class GrpcHandler:
                                                                       index_name=index_name,
                                                                       timeout=timeout)
             if not index_success:
-                raise MilvusException(Status.UNEXPECTED_ERROR, fail_reason)
+                raise MilvusException(message=fail_reason)
 
         return Status(status.error_code, status.reason)
 
@@ -659,7 +654,7 @@ class GrpcHandler:
             end = time.time()
             if timeout is not None:
                 if end - start > timeout:
-                    raise MilvusException(1, "CreateIndex Timeout")
+                    raise MilvusException(message="CreateIndex Timeout")
 
     @retry_on_rpc_failure()
     def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
@@ -693,7 +688,7 @@ class GrpcHandler:
             if progress >= 100:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
-        raise MilvusException(-1, "wait for loading collection timeout")
+        raise MilvusException(message="wait for loading collection timeout")
 
     @retry_on_rpc_failure()
     def release_collection(self, collection_name, timeout=None):
@@ -743,7 +738,7 @@ class GrpcHandler:
             if progress >= 100:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
-        raise MilvusException(-1, "wait for loading partition timeout")
+        raise MilvusException(message="wait for loading partition timeout")
 
     @retry_on_rpc_failure()
     def get_loading_progress(self, collection_name, partition_names=None, timeout=None):
@@ -813,7 +808,7 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def flush(self, collection_names: list, timeout=None, **kwargs):
         if collection_names in (None, []) or not isinstance(collection_names, list):
-            raise ParamError("Collection name list can not be None or empty")
+            raise ParamError(message="Collection name list can not be None or empty")
 
         for name in collection_names:
             check_pass_param(collection_name=name)
@@ -874,7 +869,7 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
         if output_fields is not None and not isinstance(output_fields, (list,)):
-            raise ParamError("Invalid query format. 'output_fields' must be a list")
+            raise ParamError(message="Invalid query format. 'output_fields' must be a list")
         collection_schema = kwargs.get("schema", None)
         if not collection_schema:
             collection_schema = self.describe_collection(collection_name, timeout)
@@ -895,13 +890,13 @@ class GrpcHandler:
         num_fields = len(response.fields_data)
         # check has fields
         if num_fields == 0:
-            raise MilvusException(0, "")
+            raise MilvusException(message="No fields returned")
 
         # check if all lists are of the same length
         it = iter(response.fields_data)
         num_entities = len_of(next(it))
         if not all(len_of(field_data) == num_entities for field_data in it):
-            raise MilvusException(0, "The length of fields data is inconsistent")
+            raise MilvusException(message="The length of fields data is inconsistent")
 
         # transpose
         results = list()
@@ -921,7 +916,7 @@ class GrpcHandler:
                 elif field_data.type == DataType.VARCHAR:
                     result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.STRING:
-                    raise MilvusException(0, "Not support string yet")
+                    raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field_data.vectors.dim
@@ -946,7 +941,7 @@ class GrpcHandler:
         if status.error_code != 0:
             raise MilvusException(status.error_code, status.reason)
 
-    @error_handler()
+    @retry_on_rpc_failure()
     def compact(self, collection_name, timeout=None, **kwargs) -> int:
         request = Prepare.describe_collection_request(collection_name)
         rf = self._stub.DescribeCollection.future(request, timeout=timeout)
@@ -992,7 +987,7 @@ class GrpcHandler:
             end = time.time()
             if timeout is not None:
                 if end - start > timeout:
-                    raise MilvusException(1, "Get compaction state timeout")
+                    raise MilvusException(message="Get compaction state timeout")
 
     @retry_on_rpc_failure()
     def get_compaction_plans(self, compaction_id, timeout=None, **kwargs) -> CompactionPlans:
