@@ -433,6 +433,7 @@ class Collection:
             False
         """
         conn = self._get_connection()
+        self.release(timeout=timeout)
         indexes = self.indexes
         for index in indexes:
             index.drop(timeout=timeout, index_name=index.index_name, **kwargs)

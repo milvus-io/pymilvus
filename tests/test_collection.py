@@ -48,7 +48,8 @@ class TestCollections:
 
         with mock.patch(f"{prefix}.drop_collection", return_value=None):
             with mock.patch(f"{prefix}.list_indexes", return_value=[]):
-                collection.drop()
+                with mock.patch(f"{prefix}.release_collection", return_value=None):
+                    collection.drop()
 
         with mock.patch(f"{prefix}.close", return_value=None):
             connections.disconnect("default")
