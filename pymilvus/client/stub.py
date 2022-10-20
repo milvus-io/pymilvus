@@ -1046,7 +1046,7 @@ class Milvus:
         with self._connection() as handler:
             return handler.get_replicas(collection_name, timeout=timeout, **kwargs)
 
-    def bulk_insert(self, collection_name: str, partition_name: str, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
+    def bulk_insert(self, collection_name: str, partition_name: str, files: list, timeout=None, **kwargs) -> list:
         """
         Bulk insert entities through files
 
@@ -1055,9 +1055,6 @@ class Milvus:
 
         :param partition_name: the name of the partition
         :type  partition_name: str
-
-        :param is_row_based: indicate whether the files are row-based or coloumn based.
-        :type  is_row_based: bool
 
         :param files: file names to bulk load
         :type  files: list[str]
@@ -1073,7 +1070,7 @@ class Milvus:
         :raises MilvusException: If collection_name doesn't exist.
         """
         with self._connection() as handler:
-            return handler.bulk_insert(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
+            return handler.bulk_insert(collection_name, partition_name, files, timeout=timeout, **kwargs)
 
     def get_bulk_insert_state(self, task_id, timeout=None, **kwargs) -> BulkInsertState:
         """

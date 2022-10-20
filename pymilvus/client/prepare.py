@@ -681,12 +681,11 @@ class Prepare:
         return request
 
     @classmethod
-    def bulk_insert(cls, collection_name: str, partition_name: str, is_row_based: bool, files: list, **kwargs):
+    def bulk_insert(cls, collection_name: str, partition_name: str, files: list, **kwargs):
         channel_names = kwargs.get("channel_names", None)
         req = milvus_types.ImportRequest(
             collection_name=collection_name,
             partition_name=partition_name,
-            row_based=is_row_based,
             files=files,
         )
         if channel_names is not None:

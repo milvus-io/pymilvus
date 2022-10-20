@@ -1009,8 +1009,8 @@ class GrpcHandler:
         return Replica(groups)
 
     @retry_on_rpc_failure()
-    def bulk_insert(self, collection_name, partition_name, is_row_based: bool, files: list, timeout=None, **kwargs) -> list:
-        req = Prepare.bulk_insert(collection_name, partition_name, is_row_based, files, **kwargs)
+    def bulk_insert(self, collection_name, partition_name, files: list, timeout=None, **kwargs) -> list:
+        req = Prepare.bulk_insert(collection_name, partition_name, files, **kwargs)
         future = self._stub.Import.future(req, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:

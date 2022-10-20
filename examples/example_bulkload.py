@@ -2,7 +2,6 @@ import random
 import json
 import time
 import os
-import numpy as np
 
 from pymilvus import (
     connections,
@@ -107,11 +106,11 @@ def create_partition(collection, partition_name):
 #     ......
 #   ]
 # }
-def gen_json_rowbased(num, path):
+def gen_json_rowbased(num, path, tag):
     rows = []
     for i in range(num):
         rows.append({
-            _STR_FIELD_NAME: "row-based_" + str(i),
+            _STR_FIELD_NAME: tag + str(i),
             _VECTOR_FIELD_NAME: [round(random.random(), 6) for _ in range(_DIM)],
         })
 
@@ -135,7 +134,7 @@ def gen_json_rowbased(num, path):
 # will be split into 2 segments. So, basically, each task generates segment count is equal to shard number.
 # But if the segment.maxSize of milvus.yml is set to a small value, there could be shardNum*2, shardNum*3 segments
 # generated, or even more.
-def bulk_insert_rowbased(row_count_each_file, file_count, partition_name = None):
+def bulk_insert_rowbased(row_count_each_file, file_count, tag, partition_name = None):
     # make sure the data path is exist
     exist = os.path.exists(MILVUS_DATA_PATH)
     if not exist:
@@ -145,12 +144,11 @@ def bulk_insert_rowbased(row_count_each_file, file_count, partition_name = None)
     for i in range(file_count):
         file_names.append("rows_" + str(i) + ".json")
     for filename in file_names:
-        gen_json_rowbased(row_count_each_file, MILVUS_DATA_PATH + filename)
+        gen_json_rowbased(row_count_each_file, MILVUS_DATA_PATH + filename, tag)
 
     print("Bulkload row-based files:", file_names)
     task_ids = utility.bulk_insert(collection_name=_COLLECTION_NAME,
                                  partition_name=partition_name,
-                                 is_row_based=True,
                                  files=file_names)
     return wait_tasks_persisted(task_ids)
 
@@ -218,101 +216,6 @@ def wait_tasks_competed(task_ids):
     print("=========================================================================================================\n")
     return states
 
-# Generate a json file with column-based data.
-# Each field has its field name as key and following by a list of values, all these lists length must be equal.
-# No need to provide the auto-id field "id_field" since milvus will generate it.
-# The column-based json file looks like this:
-# {
-# 	"str_field": ["column-based_0", "column-based_1", ......],
-# 	"float_vector_field": [
-#     [0.650735, 0.73155, 0.130244, 0.435798, 0.944411, 0.156331, 0.278817, 0.945728],
-#     [0.251747, 0.069492, 0.868035, 0.740365, 0.117564, 0.60355, 0.309295, 0.274155],
-#     ......
-#   ]
-# }
-def gen_json_columnbased(num, path, str_field_prefix, gen_vectors):
-    data = {}
-    str_column = []
-    for i in range(num):
-        str_column.append(str_field_prefix + str(i))
-    data[_STR_FIELD_NAME] = str_column
-
-    if gen_vectors:
-        vector_column = []
-        for i in range(num):
-            vector_column.append([round(random.random(), 6) for _ in range(_DIM)])
-        data[_VECTOR_FIELD_NAME] = vector_column
-
-    with open(path, "w") as json_file:
-        json.dump(data, json_file)
-
-
-# Bulkload for column-based files, each call to bulk_insert(is_row_based=False) is processed as a single task.
-# The rootcoord maintains a task list, wait an idle datanode and send the task to it.
-# If no datanode available, the task will be put into pending list to wait, the max size of pending list is 32.
-# If new tasks count exceed spare quantity of pending list, the bulk_insert() method will return error.
-#
-# The max size of each file is 1GB, if a file size is larger than 1GB, the task will failed and you will get error
-# from the "failed_reason" of the task state.
-def bulk_insert_columnbased_json(row_count, partition_name = None):
-    # make sure the data path is exist
-    exist = os.path.exists(MILVUS_DATA_PATH)
-    if not exist:
-        os.mkdir(MILVUS_DATA_PATH)
-
-    file_names = ["columns_1.json"]
-    gen_json_columnbased(num = row_count,
-                         path = MILVUS_DATA_PATH + file_names[0],
-                         str_field_prefix = "column-based-json_",
-                         gen_vectors = True)
-
-    print("Bulkload column-based files:", file_names)
-    task_ids = utility.bulk_insert(collection_name=_COLLECTION_NAME,
-                                 partition_name=partition_name,
-                                 is_row_based=False,
-                                 files=file_names)
-    return wait_tasks_persisted(task_ids)
-
-
-# Generate a numpy binary file for vector field
-def gen_numpy_vectors(num, path):
-    arr = np.array([[random.random() for _ in range(_DIM)] for _ in range(num)])
-    np.save(path, arr)
-
-
-# Bulkload for column-based files, each call to bulk_insert(is_row_based=False) is processed as a single task.
-# The rootcoord maintains a task list, wait an idle datanode and send the task to it.
-# If no datanode available, the task will be put into pending list to wait, the max size of pending list is 32.
-# If new tasks count exceed spare quantity of pending list, the bulk_insert() method will return error.
-#
-# The max size of each file is 1GB, if a file size is larger than 1GB, the task will failed and you will get error
-# from the "failed_reason" of the task state.
-#
-# The bulk_insert() can support json/numpy format files for column-based data, here we use a numpy to store the vector
-# field, use a json file to store the string field.
-#
-# Note: for numpy file, the file name must be equal to the field name. Milvus use the file name to mapping to a field
-def bulk_insert_columnbased_numpy(row_count, partition_name = None):
-    # make sure the data path is exist
-    exist = os.path.exists(MILVUS_DATA_PATH)
-    if not exist:
-        os.mkdir(MILVUS_DATA_PATH)
-
-    file_names = ["str_field.json", _VECTOR_FIELD_NAME + ".npy"]
-    gen_json_columnbased(num = row_count,
-                         path = MILVUS_DATA_PATH + file_names[0],
-                         str_field_prefix = "column-based-npy_",
-                         gen_vectors = False)
-    gen_numpy_vectors(row_count, MILVUS_DATA_PATH + file_names[1])
-
-    print("Bulkload column-based files:", file_names)
-    task_ids = utility.bulk_insert(collection_name=_COLLECTION_NAME,
-                                 partition_name=partition_name,
-                                 is_row_based=False,
-                                 files=file_names)
-    return wait_tasks_persisted(task_ids)
-
-
 # List all bulk insert tasks, including pending tasks, working tasks and finished tasks.
 # the parameter 'limit' is: how many latest tasks should be returned
 def list_all_bulk_insert_tasks(limit):
@@ -367,7 +270,7 @@ def release_collection(collection):
 
 
 # ANN search
-def search(collection, vector_field, search_vectors, partiton_name = None, consistency_level = "Eventually"):
+def search(collection, vector_field, search_vectors, partition_name = None, consistency_level = "Eventually"):
     search_param = {
         "data": search_vectors,
         "anns_field": vector_field,
@@ -376,14 +279,14 @@ def search(collection, vector_field, search_vectors, partiton_name = None, consi
         "output_fields": [_STR_FIELD_NAME],
         "consistency_level": consistency_level,
     }
-    if partiton_name != None:
-        search_param["partition_names"] = [partiton_name]
+    if partition_name != None:
+        search_param["partition_names"] = [partition_name]
 
     results = collection.search(**search_param)
     print("=========================================================================================================")
     for i, result in enumerate(results):
-        if partiton_name != None:
-            print("Search result for {}th vector in partition '{}': ".format(i, partiton_name))
+        if partition_name != None:
+            print("Search result for {}th vector in partition '{}': ".format(i, partition_name))
         else:
             print("Search result for {}th vector: ".format(i))
 
@@ -432,25 +335,26 @@ def main():
     list_collections()
 
     # do bulk_insert, wait all tasks finish persisting
-    rowbased_tasks = bulk_insert_rowbased(row_count_each_file=3000, file_count=3)
-    columnbased_json_tasks = bulk_insert_columnbased_json(row_count=5000)
-    columnbased_numpy_tasks = bulk_insert_columnbased_numpy(row_count=10000, partition_name=a_partition)
+    task_ids = []
+    tasks = bulk_insert_rowbased(row_count_each_file=1000, file_count=1, tag="to_default_")
+    for task in tasks:
+        task_ids.append(task.task_id)
+    tasks = bulk_insert_rowbased(row_count_each_file=1000, file_count=3, tag="to_partition_", partition_name=a_partition)
+    for task in tasks:
+        task_ids.append(task.task_id)
 
     # wai until all tasks completed(completed means queryable)
-    task_ids = []
-    for task in rowbased_tasks:
-        task_ids.append(task.task_id)
-    for task in columnbased_json_tasks:
-        task_ids.append(task.task_id)
-    for task in columnbased_numpy_tasks:
-        task_ids.append(task.task_id)
     wait_tasks_competed(task_ids)
 
-    # list_all_bulk_insert_tasks(len(rowbased_tasks) + len(columnbased_json_tasks) + len(columnbased_numpy_tasks))
-    list_all_bulk_insert_tasks(len(rowbased_tasks))
+    # list all tasks
+    list_all_bulk_insert_tasks(len(task_ids))
 
     # get the number of entities
     get_entity_num(collection)
+
+    # bulk insert task complete state doesn't mean the data can be searched, wait seconds to load the data
+    print("wait 5 seconds to load the data")
+    time.sleep(5)
 
     # search in entire collection
     vector = [round(random.random(), 6) for _ in range(_DIM)]
@@ -458,17 +362,14 @@ def main():
     search(collection, _VECTOR_FIELD_NAME, vectors)
 
     # search in a partition
-    search(collection, _VECTOR_FIELD_NAME, vectors, partiton_name=a_partition)
+    search(collection, _VECTOR_FIELD_NAME, vectors, partition_name=a_partition)
 
     # pick some entities to delete
     delete_ids = []
-    for task in rowbased_tasks:
+    for task in tasks:
         delete_ids.append(task.ids[5])
-    for task in columnbased_json_tasks:
-        delete_ids.append(task.ids[10])
-    for task in columnbased_numpy_tasks:
-        delete_ids.append(task.ids[15])
     id_vectors = retrieve(collection, delete_ids)
+    print("Delete theses entities:", id_vectors)
     delete(collection, delete_ids)
 
     # search the delete entities to check existence, check the top0 of the search result
@@ -477,7 +378,7 @@ def main():
         vector = id_vector[_VECTOR_FIELD_NAME]
         print("Search id:", id, ", compare this id to the top0 of search result")
         # here we use Stong consistency level to do search, because we need to make sure the delete operation is applied
-        search(collection, _VECTOR_FIELD_NAME, [vector], partiton_name=None, consistency_level="Strong")
+        search(collection, _VECTOR_FIELD_NAME, [vector], partition_name=None, consistency_level="Strong")
 
     # release memory
     release_collection(collection)
