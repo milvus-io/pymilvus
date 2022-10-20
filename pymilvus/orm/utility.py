@@ -636,17 +636,14 @@ def list_aliases(collection_name: str, timeout=None, using="default"):
     return aliases
 
 
-def bulk_insert(collection_name: str, is_row_based: bool, files: list, partition_name=None, timeout=None, using="default", **kwargs) -> list:
-    """ bulk_insert inserts entities through files
+def bulk_insert(collection_name: str, files: list, partition_name=None, timeout=None, using="default", **kwargs) -> list:
+    """ bulk_insert inserts entities through files, currently supports row-based json file and column-based numpy files
 
     :param collection_name: the name of the collection
     :type  collection_name: str
 
     :param partition_name: the name of the partition
     :type  partition_name: str
-
-    :param is_row_based: indicate whether the files are row-based or coloumn based.
-    :type  is_row_based: bool
 
     :param files: file names to bulk load
     :type  files: list[str]
@@ -661,8 +658,7 @@ def bulk_insert(collection_name: str, is_row_based: bool, files: list, partition
 
     :raises BaseException: If collection_name doesn't exist.
     """
-    return _get_connection(using).\
-            bulk_insert(collection_name, partition_name, is_row_based, files, timeout=timeout, **kwargs)
+    return _get_connection(using).bulk_insert(collection_name, partition_name, files, timeout=timeout, **kwargs)
 
 
 def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> BulkInsertState:
