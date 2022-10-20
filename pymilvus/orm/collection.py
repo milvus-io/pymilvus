@@ -435,10 +435,6 @@ class Collection:
             False
         """
         conn = self._get_connection()
-        self.release(timeout=timeout)
-        indexes = self.indexes
-        for index in indexes:
-            index.drop(timeout=timeout, index_name=index.index_name, **kwargs)
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
     def set_properties(self, properties, timeout=None, **kwargs):
