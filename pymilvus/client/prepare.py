@@ -1,14 +1,14 @@
 import copy
-import ujson
 import base64
 from typing import Dict, Iterable, Union
+
+import ujson
 
 from . import blob
 from . import entity_helper
 from .configs import DefaultConfigs
-from .check import check_pass_param
-from .types import DataType, PlaceholderType
-from .types import get_consistency_level
+from .check import check_pass_param, is_legal_collection_properties
+from .types import DataType, PlaceholderType, get_consistency_level
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
 from ..orm.schema import CollectionSchema
@@ -21,7 +21,7 @@ from ..grpc_gen import milvus_pb2 as milvus_types
 class Prepare:
     @classmethod
     def create_collection_request(cls, collection_name: str, fields: Union[Dict[str, Iterable], CollectionSchema],
-                                  shards_num=2, properties={}, **kwargs) -> milvus_types.CreateCollectionRequest:
+                                  shards_num=2, **kwargs) -> milvus_types.CreateCollectionRequest:
         """
         :type fields: Union(Dict[str, Iterable], CollectionSchema)
         :param fields: (Required)
@@ -42,13 +42,16 @@ class Prepare:
 
         consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
 
-        properties = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()]
-
-        return milvus_types.CreateCollectionRequest(collection_name=collection_name,
+        req = milvus_types.CreateCollectionRequest(collection_name=collection_name,
                                                     schema=bytes(schema.SerializeToString()),
                                                     shards_num=shards_num,
-                                                    properties=properties,
                                                     consistency_level=consistency_level)
+
+        if is_legal_collection_properties(kwargs.get("properties")):
+            properties = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()]
+            req.properties = properties
+
+        return req
 
     @classmethod
     def get_schema_from_collection_schema(cls, collection_name: str, fields: CollectionSchema, shards_num=2, **kwargs) -> milvus_types.CreateCollectionRequest:
@@ -115,7 +118,7 @@ class Prepare:
                 raise ParamError(message="auto_id must be boolean")
             if auto_id:
                 if auto_id_field is not None:
-                    raise ParamError(message="A collection should only have one field whose id is automatically generated")
+                    raise ParamError(message="A collection should only have one autoID field")
                 if DataType(data_type) != DataType.INT64:
                     raise ParamError(message="int64 is the only supported type of automatic generated id")
                 auto_id_field = field_name
@@ -233,26 +236,18 @@ class Prepare:
 
     @classmethod
     def batch_insert_param(cls, collection_name, entities, partition_name, fields_info=None, **kwargs):
-        default_partition_name = "_default"  # should here?
-        tag = partition_name or default_partition_name
+        # insert_request.hash_keys won't be filled in client. It will be filled in proxy.
+
+        tag = partition_name or "_default" # should here?
         insert_request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
 
         for entity in entities:
             if not entity.get("name", None) or not entity.get("values", None) or not entity.get("type", None):
                 raise ParamError(message="Missing param in entities, a field must have type, name and values")
-
-        fields_name = list()
-        fields_type = list()
-        fields_len = len(entities)
-        for i in range(fields_len):
-            fields_name.append(entities[i]["name"])
-
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
-        location = dict()
-        primary_key_loc = None
-        auto_id_loc = None
+        location, primary_key_loc, auto_id_loc = {}, None, None
         for i, field in enumerate(fields_info):
             if field.get("is_primary", False):
                 primary_key_loc = i
@@ -265,20 +260,18 @@ class Prepare:
             field_name = field["name"]
             field_type = field["type"]
 
-            for j in range(fields_len):
-                entity_name = entities[j]["name"]
-                entity_type = entities[j]["type"]
+            for j, entity in enumerate(entities):
+                entity_name, entity_type = entity["name"], entity["type"]
 
                 if field_name == entity_name:
                     if field_type != entity_type:
                         raise ParamError(message=f"Collection field type is {field_type}"
                                          f", but entities field type is {entity_type}")
 
-                    entity_dim = 0
-                    field_dim = 0
+                    entity_dim, field_dim = 0, 0
                     if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
                         field_dim = field["params"]["dim"]
-                        entity_dim = len(entities[j]["values"][0])
+                        entity_dim = len(entity["values"][0])
 
                     if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
                         raise ParamError(message=f"Collection field dim is {field_dim}"
@@ -289,7 +282,6 @@ class Prepare:
                                          f", but entities field dim is {entity_dim * 8}")
 
                     location[field["name"]] = j
-                    fields_type.append(entities[j]["type"])
                     match_flag = True
                     break
 
@@ -309,18 +301,16 @@ class Prepare:
         row_num = 0
         try:
             for entity in entities:
-                if row_num != 0 and row_num != len(entity.get("values")):
-                    raise ParamError(message=f"row num misaligned.")
-                row_num = len(entity.get("values"))
+                current = len(entity.get("values"))
+                if row_num not in (0, current):
+                    raise ParamError(message="row num misaligned current[{current}]!= previous[{row_num}]")
+                row_num = current
                 field_data = entity_helper.entity_to_field_data(entity, fields_info[location[entity.get("name")]])
                 insert_request.fields_data.append(field_data)
-        except (TypeError, ValueError):
-            raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent)
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
 
         insert_request.num_rows = row_num
-
-        # insert_request.hash_keys won't be filled in client.
-        # It will be filled in proxy.
 
         return insert_request
 
@@ -378,8 +368,8 @@ class Prepare:
         )
 
         duplicated_entities = copy.deepcopy(query_entities)
-        vector_placeholders = dict()
-        vector_names = dict()
+        vector_placeholders = {}
+        vector_names = {}
 
         def extract_vectors_param(param, placeholders, names, round_decimal):
             if not isinstance(param, (dict, list)):
@@ -397,11 +387,10 @@ class Prepare:
                         names[ph] = pk
                         param["vector"][pk]["query"] = ph
                         param["vector"][pk]["round_decimal"] = round_decimal
-
                     return
-                else:
-                    for _, v in param.items():
-                        extract_vectors_param(v, placeholders, names, round_decimal)
+
+                for _, v in param.items():
+                    extract_vectors_param(v, placeholders, names, round_decimal)
 
             if isinstance(param, list):
                 for item in param:
@@ -801,7 +790,6 @@ class Prepare:
                                             grantor=milvus_types.GrantorEntity(
                                                 privilege=milvus_types.PrivilegeEntity(name=privilege))),
             type=operate_privilege_type)
-        pass
 
     @classmethod
     def select_grant_request(cls, role_name, object, object_name):

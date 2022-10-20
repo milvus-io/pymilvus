@@ -16,7 +16,7 @@ def entity_type_to_dtype(entity_type):
 def get_max_len_of_var_char(field_info) -> int:
     k = DefaultConfigs.MaxVarCharLengthKey
     v = DefaultConfigs.MaxVarCharLength
-    return field_info.get("params", dict()).get(k, v)
+    return field_info.get("params", {}).get(k, v)
 
 
 def check_str_arr(str_arr, max_len):
@@ -28,7 +28,7 @@ def check_str_arr(str_arr, max_len):
 
 
 def entity_to_str_arr(entity, field_info, check=True):
-    arr = list()
+    arr = []
     if DefaultConfigs.EncodeProtocol.lower() != 'utf-8'.lower():
         for s in entity.get("values"):
             arr.append(s.encode(DefaultConfigs.EncodeProtocol))

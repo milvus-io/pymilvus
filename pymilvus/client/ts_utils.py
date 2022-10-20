@@ -11,7 +11,7 @@ from ..grpc_gen.common_pb2 import ConsistencyLevel
 class GTsDict(metaclass=Singleton):
     def __init__(self):
         # collection id -> last write ts
-        self._last_write_ts_dict = dict()
+        self._last_write_ts_dict = {}
         self._last_write_ts_dict_lock = threading.Lock()
 
     def __repr__(self):

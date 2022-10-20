@@ -1,3 +1,4 @@
+import time
 from enum import IntEnum
 from ..grpc_gen.common_pb2 import ConsistencyLevel
 from ..grpc_gen import common_pb2
@@ -8,7 +9,6 @@ from ..exceptions import (
 )
 from ..grpc_gen import milvus_pb2 as milvus_types
 
-import time
 
 class Status:
     """
@@ -50,14 +50,11 @@ class Status:
         self.message = message
 
     def __repr__(self):
-        attr_list = ['%s=%r' % (key, value)
-                     for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(attr_list))
+        attr_list = [f'{key}={value}' for key, value in self.__dict__.items()]
+        return f"{self.__class__.__name__}({', '.join(attr_list)})"
 
     def __eq__(self, other):
-        """
-        Make Status comparable with self by code
-        """
+        """ Make Status comparable with self by code """
         if isinstance(other, int):
             return self.code == other
 
@@ -115,7 +112,7 @@ class IndexType(IntEnum):
     IVF_SQ8_H = IVF_SQ8H
 
     def __repr__(self):
-        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+        return f"<{self.__class__.__name__}: {self._name_}>"
 
     def __str__(self):
         return self._name_
@@ -134,7 +131,7 @@ class MetricType(IntEnum):
     SUPERSTRUCTURE = 7
 
     def __repr__(self):
-        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+        return f"<{self.__class__.__name__}: {self._name_}>"
 
     def __str__(self):
         return self._name_
@@ -171,13 +168,12 @@ class State(IntEnum):
     def new(s: int):
         if s == State.Executing:
             return State.Executing
-        elif s == State.Completed:
+        if s == State.Completed:
             return State.Completed
-        else:
-            return State.UndefiedState
+        return State.UndefiedState
 
     def __repr__(self):
-        return "<{}: {}>".format(self.__class__.__name__, self._name_)
+        return f"<{self.__class__.__name__}: {self._name_}>"
 
     def __str__(self):
         return self._name_
@@ -240,13 +236,13 @@ def cmp_consistency_level(l1, l2):
     if isinstance(l1, str):
         try:
             l1 = ConsistencyLevel.Value(l1)
-        except ValueError as e:
+        except ValueError:
             return False
 
     if isinstance(l2, str):
         try:
             l2 = ConsistencyLevel.Value(l2)
-        except ValueError as e:
+        except ValueError:
             return False
 
     if isinstance(l1, int):
@@ -321,8 +317,10 @@ class Group:
 class Replica:
     """
     Replica groups:
-        - Group: <group_id:2>, <group_nodes:(1, 2, 3)>, <shards:[Shard: <shard_id:10>, <channel_name:channel-1>, <shard_leader:1>, <shard_nodes:(1, 2, 3)>]>
-        - Group: <group_id:2>, <group_nodes:(1, 2, 3)>, <shards:[Shard: <shard_id:10>, <channel_name:channel-1>, <shard_leader:1>, <shard_nodes:(1, 2, 3)>]>
+        - Group: <group_id:2>, <group_nodes:(1, 2, 3)>,
+            <shards:[Shard: <shard_id:10>, <channel_name:channel-1>, <shard_leader:1>, <shard_nodes:(1, 2, 3)>]>
+        - Group: <group_id:2>, <group_nodes:(1, 2, 3)>,
+            <shards:[Shard: <shard_id:10>, <channel_name:channel-1>, <shard_leader:1>, <shard_nodes:(1, 2, 3)>]>
     """
 
     def __init__(self, groups: list):
@@ -402,7 +400,8 @@ class BulkInsertState:
     - id_ranges       : {},
     - create_ts       : {}
 >"""
-        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos, self.id_ranges, self.create_time_str)
+        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos,
+                          self.id_ranges, self.create_time_str)
 
     @property
     def task_id(self):
@@ -535,8 +534,8 @@ class GrantItem:
 class GrantInfo:
     """
     GrantInfo groups:
-    - GrantItem: <object:Collection>, <object_name:foocol2>, <role_name:general31>, <grantor_name:root>, <privilege:Load>
-    - GrantItem: <object:Global>, <object_name:*>, <role_name:general31>, <grantor_name:root>, <privilege:CreateCollection>
+    - GrantItem: <object:Collection>, <object_name:foo>, <role_name:x>, <grantor_name:root>, <privilege:Load>
+    - GrantItem: <object:Global>, <object_name:*>, <role_name:x>, <grantor_name:root>, <privilege:CreateCollection>
     """
 
     def __init__(self, entities):

@@ -17,7 +17,7 @@ class MutationResult:
 
     @property
     def primary_keys(self):
-        return self._mr.primary_keys if self._mr else list()
+        return self._mr.primary_keys if self._mr else []
 
     @property
     def insert_count(self):
@@ -45,11 +45,11 @@ class MutationResult:
 
     @property
     def succ_index(self):
-        return self._mr.succ_index if self._mr else list()
+        return self._mr.succ_index if self._mr else []
 
     @property
     def err_index(self):
-        return self._mr.err_index if self._mr else list()
+        return self._mr.err_index if self._mr else []
 
     def __str__(self):
         """

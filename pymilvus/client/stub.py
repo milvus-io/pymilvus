@@ -6,10 +6,7 @@ from .types import CompactionState, CompactionPlans, Replica, BulkInsertState
 from ..settings import DefaultConfig as config
 from ..decorators import deprecated
 
-from .check import (
-    is_legal_host,
-    is_legal_port,
-)
+from .check import is_legal_host, is_legal_port
 
 
 class Milvus:
@@ -25,11 +22,11 @@ class Milvus:
         if host is None and uri is None:
             raise ParamError(message='Host and uri cannot both be None')
 
-        elif host is None:
+        if host is None:
             try:
                 parsed_uri = parse.urlparse(uri, "tcp")
             except (Exception) as e:
-                raise ParamError(message=f"Illegal uri [{uri}]: {e}")
+                raise ParamError(message=f"Illegal uri [{uri}]: {e}") from e
 
             host, port = parsed_uri.hostname, parsed_uri.port
 
@@ -59,8 +56,7 @@ class Milvus:
         self.handler.close()
         self._handler = None
 
-    #  @retry_on_rpc_failure(retry_times=10, wait=1)
-    def create_collection(self, collection_name, fields, shards_num=2, properties={}, timeout=None, **kwargs):
+    def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
         """ Creates a collection.
 
         :param collection_name: The name of the collection. A collection name can only include
@@ -92,6 +88,8 @@ class Milvus:
             Which consistency level to use when searching in the collection. For details, see
             https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
             Note: this parameter can be overwritten by the same parameter specified in search.
+            * *properties* (``dict``) --
+
 
         :return: None
         :rtype: NoneType
@@ -101,7 +99,7 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.create_collection(collection_name, fields, shards_num=shards_num, properties=properties, timeout=timeout, **kwargs)
+            return handler.create_collection(collection_name, fields, shards_num=shards_num, timeout=timeout, **kwargs)
 
     def drop_collection(self, collection_name, timeout=None):
         """
@@ -192,7 +190,7 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.load_collection(collection_name=collection_name, replica_number=replica_number, timeout=timeout, **kwargs)
+            return handler.load_collection(collection_name, replica_number, timeout=timeout, **kwargs)
 
     def release_collection(self, collection_name, timeout=None):
         """
@@ -820,7 +818,7 @@ class Milvus:
               Which consistency level to use when searching in the collection. For details, see
               https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
               Note: this parameter will overwrite the same parameter user specified when creating the collection,
-              if no consistency level was specified, search will use the consistency level defined when you create collection.
+              if no consistency level was specified, search will use the collection consistency level.
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is provided, then Milvus will search all operations performed to date.
@@ -841,8 +839,8 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.search(collection_name, data, anns_field, param, limit, expression,
-                                  partition_names, output_fields, timeout=timeout, round_decimal=round_decimal, **kwargs)
+            return handler.search(collection_name, data, anns_field, param, limit, expression, partition_names,
+                                  output_fields, round_decimal=round_decimal, timeout=timeout, **kwargs)
 
     def get_query_segment_info(self, collection_name, timeout=None, **kwargs):
         """
@@ -928,7 +926,7 @@ class Milvus:
               Which consistency level to use during a query on the collection. For details, see
               https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
               Note: this parameter will overwrite the same parameter user specified when creating the collection,
-              if no consistency level was specified, query will use the consistency level defined when you create collection.
+              if no consistency level was specified, query will use the collection consistency level.
             * *guarantee_timestamp* (``int``) --
               This function instructs Milvus to see all operations performed before a provided timestamp. If no
               such timestamp is specified, Milvus queries all operations performed to date.
@@ -969,7 +967,8 @@ class Milvus:
         :raises MilvusException: If sealed segments not exist.
         """
         with self._connection() as handler:
-            return handler.load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout, **kwargs)
+            return handler.load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids,
+                                        timeout=timeout, **kwargs)
 
     def compact(self, collection_name, timeout=None, **kwargs) -> int:
         """

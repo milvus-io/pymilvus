@@ -79,9 +79,6 @@ def retry_on_rpc_failure(retry_times=10, initial_back_off=0.01, max_back_off=60,
                         LOGGER.warning(WARNING_COLOR.format(timeout_msg))
                         raise MilvusException(e.code, f"{timeout_msg}, message={e.message}") from e
                     if _retry_on_rate_limit and e.code == common_pb2.RateLimit:
-                        # if counter > 3:
-                        #     retry_msg = f"[{func.__name__}] retry:{counter}, cost: {back_off}s, {e.__str__}"
-                        #     LOGGER.warning(WARNING_COLOR.format(retry_msg))
                         time.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
                     else:

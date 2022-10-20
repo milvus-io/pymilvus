@@ -4,11 +4,11 @@ import logging.config
 class DefaultConfig:
     GRPC_PORT = "19530"
     GRPC_ADDRESS = "127.0.0.1:19530"
-    GRPC_URI = "tcp://{}".format(GRPC_ADDRESS)
+    GRPC_URI = f"tcp://{GRPC_ADDRESS}"
 
     HTTP_PORT = "19121"
     HTTP_ADDRESS = "127.0.0.1:19121"
-    HTTP_URI = "http://{}".format(HTTP_ADDRESS)
+    HTTP_URI = f"http://{HTTP_ADDRESS}"
 
     CALC_DIST_METRIC = "L2"
 
@@ -27,15 +27,14 @@ COLORS = {
 
 class ColorFulFormatColMixin:
     def format_col(self, message_str, level_name):
-        if level_name in COLORS.keys():
-            message_str = COLORS.get(level_name) + message_str + COLORS.get(
-                'ENDC')
+        if level_name in COLORS:
+            message_str = COLORS.get(level_name) + message_str + COLORS.get('ENDC')
         return message_str
 
 
 class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
     def format(self, record):
-        message_str = super(ColorfulFormatter, self).format(record)
+        message_str = super().format(record)
 
         return self.format_col(message_str, level_name=record.levelname)
 
@@ -82,4 +81,3 @@ DEBUG_LOG_LEVEL = "debug"
 INFO_LOG_LEVEL = "info"
 WARN_LOG_LEVEL = "warn"
 ERROR_LOG_LEVEL = "error"
- 

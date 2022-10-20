@@ -2,7 +2,7 @@ import threading
 
 
 class Singleton(type):
-    _ins = dict()
+    _ins = {}
     _lock = threading.Lock()
 
     def __call__(cls, *args, **kwargs):

@@ -1,7 +1,7 @@
 import sys
 import datetime
 from typing import Any, Union
-from ..exceptions import ParamError, ErrorCode
+from ..exceptions import ParamError
 from ..grpc_gen import milvus_pb2 as milvus_types
 from .utils import (
     valid_index_types,
@@ -27,8 +27,10 @@ def is_legal_address(addr: Any) -> bool:
 def is_legal_host(host: Any) -> bool:
     if not isinstance(host, str):
         return False
-    elif len(host) == 0:
+
+    if len(host) == 0:
         return False
+
     return True
 
 
@@ -273,8 +275,8 @@ def is_legal_role_name(role_name: Any) -> bool:
 
 
 def is_legal_operate_user_role_type(operate_user_role_type: Any) -> bool:
-    return operate_user_role_type == milvus_types.OperateUserRoleType.AddUserToRole or \
-           operate_user_role_type == milvus_types.OperateUserRoleType.RemoveUserFromRole
+    return operate_user_role_type in \
+        (milvus_types.OperateUserRoleType.AddUserToRole, milvus_types.OperateUserRoleType.RemoveUserFromRole)
 
 
 def is_legal_include_user_info(include_user_info: Any) -> bool:
@@ -297,13 +299,13 @@ def is_legal_privilege(privilege: Any) -> bool:
     return privilege and isinstance(privilege, str)
 
 
-def is_legal_colelction_properties(properties: Any) -> bool:
+def is_legal_collection_properties(properties: Any) -> bool:
     return properties and isinstance(properties, dict)
 
 
 def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
-    return operate_privilege_type == milvus_types.OperatePrivilegeType.Grant or \
-           operate_privilege_type == milvus_types.OperatePrivilegeType.Revoke
+    return operate_privilege_type in \
+            (milvus_types.OperatePrivilegeType.Grant, milvus_types.OperatePrivilegeType.Revoke)
 
 
 def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
@@ -399,14 +401,14 @@ def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too
             if not is_legal_operate_privilege_type(value):
                 _raise_param_error(key, value)
         elif key == "properties":
-            if not is_legal_colelction_properties(value):
+            if not is_legal_collection_properties(value):
                 _raise_param_error(key, value)
         else:
             raise ParamError(message=f"unknown param `{key}`")
 
 
 def check_index_params(params):
-    params = params or dict()
+    params = params or {}
     if not isinstance(params, dict):
         raise ParamError(message="Params must be a dictionary type")
     # params preliminary validate
