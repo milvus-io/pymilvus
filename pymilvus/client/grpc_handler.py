@@ -514,7 +514,7 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         # for historical reason, index_name contained in kwargs.
-        index_name = kwargs.pop("index_name", DefaultConfigs.IndexName)
+        index_name = kwargs.pop("index_name", "")
         copy_kwargs = copy.deepcopy(kwargs)
 
         collection_desc = self.describe_collection(collection_name, timeout=timeout, **copy_kwargs)

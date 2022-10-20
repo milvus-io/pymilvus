@@ -6,7 +6,6 @@ import ujson
 
 from . import blob
 from . import entity_helper
-from .configs import DefaultConfigs
 from .check import check_pass_param, is_legal_collection_properties
 from .types import DataType, PlaceholderType, get_consistency_level
 from .constants import DEFAULT_CONSISTENCY_LEVEL
@@ -510,7 +509,7 @@ class Prepare:
     @classmethod
     def create_index__request(cls, collection_name, field_name, params, **kwargs):
         index_params = milvus_types.CreateIndexRequest(collection_name=collection_name, field_name=field_name,
-                                                       index_name=kwargs.get("index_name", DefaultConfigs.IndexName))
+                                                       index_name=kwargs.get("index_name", ""))
 
         # index_params.collection_name = collection_name
         # index_params.field_name = field_name
