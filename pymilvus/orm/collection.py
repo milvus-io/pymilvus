@@ -1125,7 +1125,7 @@ class Collection:
         """
         conn = self._get_connection()
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
+        index_name = copy_kwargs.get("index_name", "")
         if copy_kwargs.get("index_name"):
             copy_kwargs.pop("index_name")
         # TODO(yukun): Need field name, but provide index name
@@ -1167,7 +1167,7 @@ class Collection:
             False
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
+        index_name = copy_kwargs.get("index_name", "")
         if copy_kwargs.get("index_name"):
             copy_kwargs.pop("index_name")
         if self.has_index(index_name=index_name, **copy_kwargs) is False:
