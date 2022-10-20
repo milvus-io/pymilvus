@@ -530,29 +530,12 @@ class GrpcHandler:
             # check index params on vector field.
             check_index_params(params)
 
-            #  index_type = params["index_type"].upper()
-            #  if index_type == "FLAT":
-            #     try:
-            #         index_desc = self.describe_index(collection_name, index_name, timeout=timeout, **copy_kwargs)
-            #         if index_desc is not None:
-            #             self.drop_index(collection_name, field_name, index_name, timeout=timeout, **copy_kwargs)
-            #         res_status = Status(Status.SUCCESS,
-            #                             "Warning: It is not necessary to build index with index_type: FLAT")
-            #         if kwargs.get("_async", False):
-            #             return CreateFlatIndexFuture(res_status)
-            #         return res_status
-            #     except Exception as err:
-            #         if kwargs.get("_async", False):
-            #             return CreateFlatIndexFuture(None, None, err)
-            #         raise err
-
         if not valid_field:
             raise MilvusException(message=f"cannot create index on non-existed field: {field_name}")
 
         # sync flush
         _async = kwargs.get("_async", False)
         kwargs["_async"] = False
-        self.flush([collection_name], timeout, **kwargs)
 
         index_param = Prepare.create_index__request(collection_name, field_name, params, index_name=index_name)
         future = self._stub.CreateIndex.future(index_param, timeout=timeout)
