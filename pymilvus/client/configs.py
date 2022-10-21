@@ -4,4 +4,4 @@ class DefaultConfigs:
     MaxVarCharLengthKey = "max_length"
     MaxVarCharLength = 65535
     EncodeProtocol = 'utf-8'
-    IndexName = "_default_idx"
+    IndexName = ""
