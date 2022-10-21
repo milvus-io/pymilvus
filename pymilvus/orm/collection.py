@@ -1036,12 +1036,13 @@ class Collection:
         """
         copy_kwargs = copy.deepcopy(kwargs)
         index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
-        if copy_kwargs.get("index_name"):
+        if "index_name" in copy_kwargs:
             copy_kwargs.pop("index_name")
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, index_name, **copy_kwargs)
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
+            index_name = tmp_index.get("index_name", index_name)
             return Index(self, field_name, tmp_index, construct_only=True, index_name=index_name)
         raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
 
@@ -1125,8 +1126,8 @@ class Collection:
         """
         conn = self._get_connection()
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.get("index_name", "")
-        if copy_kwargs.get("index_name"):
+        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
+        if "index_name" in copy_kwargs:
             copy_kwargs.pop("index_name")
         # TODO(yukun): Need field name, but provide index name
         if conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs) is None:
@@ -1167,8 +1168,8 @@ class Collection:
             False
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.get("index_name", "")
-        if copy_kwargs.get("index_name"):
+        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
+        if "index_name" in copy_kwargs:
             copy_kwargs.pop("index_name")
         if self.has_index(index_name=index_name, **copy_kwargs) is False:
             raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
