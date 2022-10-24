@@ -38,6 +38,20 @@ class TestPrepare:
 
 
 class TestCreateCollectionRequest:
+    @pytest.mark.parametrize("valid_properties", [
+        {"properties": {"p1": "o1"}},
+        {"properties": {}},
+        {"properties": {"p2": "o2", "p3": "o3"}},
+    ])
+    def test_create_collection_with_properties(self, valid_properties):
+        schema = CollectionSchema([
+            FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True)
+        ])
+        req = Prepare.create_collection_request("c_name", schema, **valid_properties)
+        
+        assert len(valid_properties.get("properties")) == len(req.properties)
+
     @pytest.mark.parametrize("invalid_fields", [
         list(),
         {"no_fields_key": 1},
