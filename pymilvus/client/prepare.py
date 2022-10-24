@@ -46,9 +46,10 @@ class Prepare:
                                                     shards_num=shards_num,
                                                     consistency_level=consistency_level)
 
-        if is_legal_collection_properties(kwargs.get("properties")):
+        properties = kwargs.get("properties")
+        if is_legal_collection_properties(properties):
             properties = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()]
-            req.properties = properties
+            req.properties.extend(properties)
 
         return req
 
