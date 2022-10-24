@@ -273,6 +273,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             gh._wait_for_channel_ready(timeout=timeout)
             kwargs.pop('password')
+            kwargs.pop('secure', None)
 
             self._connected_alias[alias] = gh
             self._alias[alias] = copy.deepcopy(kwargs)
@@ -288,24 +289,26 @@ class Connections(metaclass=SingleInstanceMetaClass):
             kwargs.pop("address", ""),
             kwargs.pop("uri", ""),
             kwargs.pop("host", ""),
-            kwargs.pop("port", ""))
+            kwargs.pop("port", "")
+        )
 
         if with_config(config):
             in_addr = self.__get_full_address(*config)
             kwargs["address"] = in_addr
-            kwargs["user"] = user
 
             if self.has_connection(alias):
                 if self._alias[alias].get("address") != in_addr:
                     raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
 
-            connect_milvus(**kwargs, password=password)
+            connect_milvus(**kwargs, user=user, password=password)
 
         else:
             if alias not in self._alias:
                 raise ConnectionConfigException(message=ExceptionsMessage.ConnLackConf % alias)
 
-            connect_milvus(**self._alias[alias], password=password)
+            connect_alias = dict(self._alias[alias].items())
+            connect_alias["user"] = user
+            connect_milvus(**connect_alias, password=password)
 
     def list_connections(self) -> list:
         """ List names of all connections.
