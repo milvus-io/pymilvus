@@ -1035,9 +1035,7 @@ class Collection:
             <pymilvus.index.Index object at 0x7f44355a1460>
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
-        if "index_name" in copy_kwargs:
-            copy_kwargs.pop("index_name")
+        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, index_name, **copy_kwargs)
         if tmp_index is not None:
@@ -1126,9 +1124,7 @@ class Collection:
         """
         conn = self._get_connection()
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
-        if "index_name" in copy_kwargs:
-            copy_kwargs.pop("index_name")
+        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
         # TODO(yukun): Need field name, but provide index name
         if conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs) is None:
             return False
@@ -1168,9 +1164,7 @@ class Collection:
             False
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
-        if "index_name" in copy_kwargs:
-            copy_kwargs.pop("index_name")
+        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
         if self.has_index(index_name=index_name, **copy_kwargs) is False:
             raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
         conn = self._get_connection()

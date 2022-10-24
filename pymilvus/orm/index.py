@@ -71,9 +71,7 @@ class Index:
             return
 
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
-        if "index_name" in copy_kwargs:
-            copy_kwargs.pop("index_name")
+        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
 
         conn = self._get_connection()
         index = conn.describe_index(self._collection.name, index_name, **copy_kwargs)
@@ -161,9 +159,7 @@ class Index:
         :raises IndexNotExistException: If the specified index does not exist.
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.get("index_name", DefaultConfigs.IndexName)
-        if copy_kwargs.get("index_name"):
-            copy_kwargs.pop("index_name")
+        index_name = copy_kwargs.pop("index_name")
         conn = self._get_connection()
         if conn.describe_index(self._collection.name, index_name, **copy_kwargs) is None:
             raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
