@@ -51,6 +51,7 @@ from .orm.default_config import DefaultConfig, ENV_CONNECTION_CONF
 from .orm.search import SearchResult, Hits, Hit
 from .orm.schema import FieldSchema, CollectionSchema
 from .orm.future import SearchFuture, MutationFuture
+from .orm.role import Role
 
 __all__ = [
     'Collection', 'Index', 'Partition',
@@ -64,6 +65,7 @@ __all__ = [
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',
     'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavailableException', 'BulkInsertState',
+    'Role',
 
     'Milvus', 'Prepare', 'Status', 'DataType',
     'MilvusException',

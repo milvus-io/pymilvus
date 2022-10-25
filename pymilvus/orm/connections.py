@@ -308,7 +308,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             connect_alias = dict(self._alias[alias].items())
             connect_alias["user"] = user
-            connect_milvus(**connect_alias, password=password)
+            connect_milvus(**connect_alias, password=password, **kwargs)
 
     def list_connections(self) -> list:
         """ List names of all connections.
