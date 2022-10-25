@@ -157,11 +157,11 @@ def main():
     # search
     search(collection, _VECTOR_FIELD_NAME, _ID_FIELD_NAME, vectors[:3])
 
-    # drop collection index
-    drop_index(collection)
-
     # release memory
     release_collection(collection)
+
+    # drop collection index
+    drop_index(collection)
 
     # drop collection
     drop_collection(_COLLECTION_NAME)

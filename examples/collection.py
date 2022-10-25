@@ -192,6 +192,8 @@ def test_collection_only_name():
     collection = Collection(name=name)
     data = gen_float_data(default_nb)
     collection.insert(data)
+    collection.flush()
+    collection.create_index(field_name=default_float_vec_field_name, index_params=default_index)
     collection.load()
     assert collection.is_empty is False
     assert collection.num_entities == default_nb
@@ -201,6 +203,8 @@ def test_collection_only_name():
 def test_collection_with_dataframe():
     data = gen_dataframe(default_nb)
     collection, _ = Collection.construct_from_dataframe(name=gen_unique_str(), dataframe=data, primary_field="int64")
+    collection.flush()
+    collection.create_index(field_name=default_float_vec_field_name, index_params=default_index)
     collection.load()
     assert collection.is_empty is False
     assert collection.num_entities == default_nb
@@ -212,7 +216,8 @@ def test_create_index_float_vector():
     collection = Collection(name=gen_unique_str(), data=data, schema=gen_default_fields())
     for index_param in gen_simple_index():
         collection.create_index(field_name=default_float_vec_field_name, index_params=index_param)
-    assert len(collection.indexes) != 0
+        assert len(collection.indexes) != 0
+        collection.drop_index()
     collection.drop()
 
 
@@ -230,13 +235,15 @@ def test_specify_primary_key():
     collection = Collection(name=gen_unique_str(), data=data, schema=gen_default_fields_with_primary_key_1())
     for index_param in gen_simple_index():
         collection.create_index(field_name=default_float_vec_field_name, index_params=index_param)
-    assert len(collection.indexes) != 0
+        assert len(collection.indexes) != 0
+        collection.drop_index()
     collection.drop()
 
     collection2 = Collection(name=gen_unique_str(), data=data, schema=gen_default_fields_with_primary_key_2())
     for index_param in gen_simple_index():
         collection2.create_index(field_name=default_float_vec_field_name, index_params=index_param)
-    assert len(collection2.indexes) != 0
+        assert len(collection2.indexes) != 0
+        collection2.drop_index()
     collection2.drop()
 
 
