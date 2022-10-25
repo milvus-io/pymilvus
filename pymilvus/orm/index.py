@@ -159,7 +159,7 @@ class Index:
         :raises IndexNotExistException: If the specified index does not exist.
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.pop("index_name")
+        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
         conn = self._get_connection()
         if conn.describe_index(self._collection.name, index_name, **copy_kwargs) is None:
             raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
