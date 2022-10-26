@@ -53,9 +53,11 @@ from .asynch import (
 )
 
 from ..exceptions import (
+    ExceptionsMessage,
     ParamError,
     DescribeCollectionException,
     MilvusException,
+    AmbiguousIndexName,
 )
 
 from ..decorators import retry_on_rpc_failure
@@ -514,7 +516,7 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         # for historical reason, index_name contained in kwargs.
-        index_name = kwargs.pop("index_name", "")
+        index_name = kwargs.pop("index_name", DefaultConfigs.IndexName)
         copy_kwargs = copy.deepcopy(kwargs)
 
         collection_desc = self.describe_collection(collection_name, timeout=timeout, **copy_kwargs)
@@ -536,7 +538,7 @@ class GrpcHandler:
         _async = kwargs.get("_async", False)
         kwargs["_async"] = False
 
-        index_param = Prepare.create_index__request(collection_name, field_name, params, index_name=index_name)
+        index_param = Prepare.create_index_request(collection_name, field_name, params, index_name=index_name)
         future = self._stub.CreateIndex.future(index_param, timeout=timeout)
 
         if _async:
@@ -544,7 +546,7 @@ class GrpcHandler:
                 if kwargs.get("sync", True):
                     index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
                                                                               index_name=index_name,
-                                                                              timeout=timeout)
+                                                                              timeout=timeout, field_name=field_name)
                     if not index_success:
                         raise MilvusException(message=fail_reason)
 
@@ -563,7 +565,7 @@ class GrpcHandler:
         if kwargs.get("sync", True):
             index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
                                                                       index_name=index_name,
-                                                                      timeout=timeout)
+                                                                      timeout=timeout, field_name=field_name)
             if not index_success:
                 raise MilvusException(message=fail_reason)
 
@@ -591,16 +593,19 @@ class GrpcHandler:
         rf = self._stub.DescribeIndex.future(request, timeout=timeout)
         response = rf.result()
         status = response.status
-        if status.error_code == 0:
+        if status.error_code == Status.INDEX_NOT_EXIST:
+            return None
+        if status.error_code != 0:
+            raise MilvusException(status.error_code, status.reason)
+        if len(response.index_descriptions) == 1:
             info_dict = {kv.key: kv.value for kv in response.index_descriptions[0].params}
             info_dict['field_name'] = response.index_descriptions[0].field_name
             info_dict['index_name'] = response.index_descriptions[0].index_name
             if info_dict.get("params", None):
                 info_dict["params"] = json.loads(info_dict["params"])
             return info_dict
-        if status.error_code == Status.INDEX_NOT_EXIST:
-            return None
-        raise MilvusException(status.error_code, status.reason)
+
+        raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
 
     @retry_on_rpc_failure()
     def get_index_build_progress(self, collection_name, index_name, timeout=None):
@@ -608,9 +613,11 @@ class GrpcHandler:
         rf = self._stub.DescribeIndex.future(request, timeout=timeout)
         response = rf.result()
         status = response.status
-        if status.error_code == 0 and len(response.index_descriptions) > 0:
-            index_desc = response.index_descriptions[0]
-            return {'total_rows': index_desc.total_rows, 'indexed_rows': index_desc.indexed_rows}
+        if status.error_code == 0:
+            if len(response.index_descriptions) == 1:
+                index_desc = response.index_descriptions[0]
+                return {'total_rows': index_desc.total_rows, 'indexed_rows': index_desc.indexed_rows}
+            raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
         raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure()
@@ -619,17 +626,27 @@ class GrpcHandler:
         rf = self._stub.DescribeIndex.future(request, timeout=timeout)
         response = rf.result()
         status = response.status
-        if status.error_code == 0 and len(response.index_descriptions) > 0:
+        if status.error_code != 0:
+            raise MilvusException(status.error_code, status.reason)
+
+        if len(response.index_descriptions) == 1:
             index_desc = response.index_descriptions[0]
             return index_desc.state, index_desc.index_state_fail_reason
-        raise MilvusException(status.error_code, status.reason)
+        # just for create_index.
+        field_name = kwargs.pop("field_name", "")
+        if field_name != "":
+            for index_desc in response.index_descriptions:
+                if index_desc.field_name == field_name:
+                    return index_desc.state, index_desc.index_state_fail_reason
+
+        raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
 
     @retry_on_rpc_failure()
     def wait_for_creating_index(self, collection_name, index_name, timeout=None, **kwargs):
         start = time.time()
         while True:
             time.sleep(0.5)
-            state, fail_reason = self.get_index_state(collection_name, index_name, timeout=timeout)
+            state, fail_reason = self.get_index_state(collection_name, index_name, timeout=timeout, **kwargs)
             if state == IndexState.Finished:
                 return True, fail_reason
             if state == IndexState.Failed:

@@ -145,6 +145,7 @@ def main():
     # insert 10000 vectors with 128 dimension
     vectors = insert(collection, 10000, _DIM)
 
+    collection.flush()
     # get the number of entities
     get_entity_num(collection)
 
