@@ -508,7 +508,7 @@ class Prepare:
         return milvus_types.AlterAliasRequest(collection_name=collection_name, alias=alias)
 
     @classmethod
-    def create_index__request(cls, collection_name, field_name, params, **kwargs):
+    def create_index_request(cls, collection_name, field_name, params, **kwargs):
         index_params = milvus_types.CreateIndexRequest(collection_name=collection_name, field_name=field_name,
                                                        index_name=kwargs.get("index_name", ""))
 

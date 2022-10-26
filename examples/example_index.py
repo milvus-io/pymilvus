@@ -143,6 +143,7 @@ def main():
     # insert 10000 vectors with 128 dimension
     vectors = insert(collection, 10000, _DIM)
 
+    collection.flush()
     # get the number of entities
     get_entity_num(collection)
 
@@ -153,8 +154,21 @@ def main():
         "metric_type": _METRIC_TYPE}
     scalar_index_param = {"index_type": "inverted_index"}  # TODO: replace this with real impl.
 
-    create_index(collection, _VECTOR_FIELD_NAME, vec_index_param, "vector_index")
-    create_index(collection, _ID_FIELD_NAME, scalar_index_param, "varchar_id_index")
+    vector_index_name = "vector_index"
+    create_index(collection, _VECTOR_FIELD_NAME, vec_index_param, vector_index_name)
+    print(f"has_index {vector_index_name}: ", collection.has_index())
+    print("index: ", collection.index().to_dict())
+    utility.wait_for_index_building_complete(collection.name)
+    print("index building progress: ", utility.index_building_progress(collection.name))
+
+    varchar_index_name = "varchar_id_index"
+    create_index(collection, _ID_FIELD_NAME, scalar_index_param, varchar_index_name)
+    print(f"has_index {varchar_index_name}: ", collection.has_index(index_name=varchar_index_name))
+    print("all indexes:")
+    for index in collection.indexes:
+        print(index.to_dict())
+    utility.wait_for_index_building_complete(collection.name, varchar_index_name)
+    print("index building progress: ", utility.index_building_progress(collection.name, varchar_index_name))
 
     # load data to memory
     load_collection(collection)
@@ -162,12 +176,12 @@ def main():
     # search
     search(collection, _VECTOR_FIELD_NAME, _ID_FIELD_NAME, vectors[:3])
 
-    # drop collection index
-    drop_index(collection, "vector_index")
-    drop_index(collection, "varchar_id_index")
-
     # release memory
     release_collection(collection)
+
+    # drop collection index
+    drop_index(collection, vector_index_name)
+    drop_index(collection, varchar_index_name)
 
     # drop collection
     drop_collection(_COLLECTION_NAME)

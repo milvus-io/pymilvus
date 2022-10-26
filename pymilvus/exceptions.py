@@ -68,6 +68,10 @@ class IndexNotExistException(MilvusException):
     """ Raise when index doesn't exist """
 
 
+class AmbiguousIndexName(MilvusException):
+    """Raise multiple index exist, need specify index_name"""
+
+
 class CannotInferSchemaException(MilvusException):
     """ Raise when cannot trasfer dataframe to schema """
 
@@ -160,3 +164,4 @@ class ExceptionsMessage:
     FieldDtype = "Field dtype must be of DataType"
     ExprType = "The type of expr must be string ,but %r is given."
     EnvConfigErr = "Environment variable %s has a wrong format, please check it: %s"
+    AmbiguousIndexName = "There are multiple indexes, please specify the index_name."

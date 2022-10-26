@@ -70,16 +70,13 @@ class Index:
         if self._kwargs.pop("construct_only", False):
             return
 
-        copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
-
         conn = self._get_connection()
-        index = conn.describe_index(self._collection.name, index_name, **copy_kwargs)
-        if index is not None:
-            tmp_field_name = index.pop("field_name", None)
-            self._index_name = index.get("index_name", index_name)
-        if index is None or index != index_params or tmp_field_name != field_name:
-            conn.create_index(self._collection.name, self._field_name, self._index_params, **kwargs)
+        conn.create_index(self._collection.name, self._field_name, self._index_params, **kwargs)
+        indexes = conn.list_indexes(self._collection.name)
+        for index in indexes:
+            if index.field_name == self._field_name:
+                self._index_name = index.index_name
+                break
 
     def _get_connection(self):
         return self._collection._get_connection()
