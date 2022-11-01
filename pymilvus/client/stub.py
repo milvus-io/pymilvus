@@ -1046,9 +1046,20 @@ class Milvus:
         with self._connection() as handler:
             return handler.get_replicas(collection_name, timeout=timeout, **kwargs)
 
-    def bulk_insert(self, collection_name: str, partition_name: str, files: list, timeout=None, **kwargs) -> list:
-        """
-        Bulk insert entities through files
+    def do_bulk_insert(self, collection_name: str, partition_name: str, files: list, timeout=None, **kwargs) -> int:
+        """ do_bulk_insert inserts entities through files, currently supports row-based json file.
+        User need to create the json file with a specified json format which is described in the official user guide.
+        Let's say a collection has two fields: "id" and "vec"(dimension=8), the row-based json format is:
+          {"rows": [
+              {"id": "0", "vec": [0.190, 0.046, 0.143, 0.972, 0.592, 0.238, 0.266, 0.995]},
+              {"id": "1", "vec": [0.149, 0.586, 0.012, 0.673, 0.588, 0.917, 0.949, 0.944]},
+              ......
+            ]
+          }
+        The json file must be uploaded to root path of MinIO/S3 storage which is accessed by milvus server.
+        For example:
+            the milvus.yml specify the MinIO/S3 storage bucketName as "a-bucket", user can upload his json file
+             to a-bucket/xxx.json, then call do_bulk_insert(files=["a-bucket/xxx.json"])
 
         :param collection_name: the name of the collection
         :type  collection_name: str
@@ -1056,7 +1067,8 @@ class Milvus:
         :param partition_name: the name of the partition
         :type  partition_name: str
 
-        :param files: file names to bulk load
+        :param files: related path of the file to be imported. for row-based json file, only allow
+                      one file each invocation.
         :type  files: list[str]
 
         :param timeout: The timeout for this method, unit: second
@@ -1064,17 +1076,17 @@ class Milvus:
 
         :param kwargs: other infos
 
-        :return: ids of tasks
-        :rtype:  list[int]
+        :return: id of the task
+        :rtype:  int
 
-        :raises MilvusException: If collection_name doesn't exist.
+        :raises BaseException: If collection_name doesn't exist.
+        :raises BaseException: If the files input is illegal.
         """
         with self._connection() as handler:
-            return handler.bulk_insert(collection_name, partition_name, files, timeout=timeout, **kwargs)
+            return handler.do_bulk_insert(collection_name, partition_name, files, timeout=timeout, **kwargs)
 
     def get_bulk_insert_state(self, task_id, timeout=None, **kwargs) -> BulkInsertState:
-        """
-        Get state of a certain task_id
+        """get_bulk_insert_state returns state of a certain task_id
 
         :param task_id: the task id returned by bulk_insert
         :type  task_id: int
@@ -1086,8 +1098,13 @@ class Milvus:
             return handler.get_bulk_insert_state(task_id, timeout=timeout, **kwargs)
 
     def list_bulk_insert_tasks(self, timeout=None, **kwargs) -> list:
-        """
-        Lists all bulk insert tasks
+        """list_bulk_insert_tasks lists all bulk load tasks
+
+        :param limit: maximum number of tasks returned, list all tasks if the value is 0, else return the latest tasks
+        :type  limit: int
+
+        :param collection_name: target collection name, list all tasks if the name is empty
+        :type  collection_name: str
 
         :return: list[BulkInsertState]
         :rtype:  list[BulkInsertState]
