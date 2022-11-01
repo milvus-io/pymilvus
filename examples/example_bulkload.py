@@ -14,8 +14,8 @@ from pymilvus import (
 # This example shows how to:
 #   1. connect to Milvus server
 #   2. create a collection
-#   3. create some json files for bulk_insert operation
-#   4. do bulk_insert
+#   3. create some json files for do_bulk_insert operation
+#   4. call do_bulk_insert
 #   5. search
 
 # To run this example, start a standalone(local storage) milvus with the following configurations, in the milvus.yml:
@@ -99,7 +99,7 @@ def create_partition(collection, partition_name):
 # Generate a json file with row-based data.
 # The json file must contain a root key "rows", its value is a list, each row must contain a value of each field.
 # No need to provide the auto-id field "id_field" since milvus will generate it.
-# The row-based json file looks like this:
+# The row-based json file looks like:
 # {"rows": [
 # 	  {"str_field": "row-based_0", "float_vector_field": [0.190, 0.046, 0.143, 0.972, 0.592, 0.238, 0.266, 0.995]},
 # 	  {"str_field": "row-based_1", "float_vector_field": [0.149, 0.586, 0.012, 0.673, 0.588, 0.917, 0.949, 0.944]},
@@ -124,7 +124,7 @@ def gen_json_rowbased(num, path, tag):
 # Bulkload for row-based files, each file is converted to a task.
 # The rootcoord maintains a task list, each idle datanode will receive a task. If no datanode available, the task will
 # be put into pending list to wait, the max size of pending list is 32. If new tasks count exceed spare quantity of
-# pending list, the bulk_insert() method will return error.
+# pending list, the do_bulk_insert() method will return error.
 # Once a task is finished, the datanode become idle and will receive another task.
 #
 # The max size of each file is 1GB, if a file size is larger than 1GB, the task will failed and you will get error
@@ -143,13 +143,16 @@ def bulk_insert_rowbased(row_count_each_file, file_count, tag, partition_name = 
     file_names = []
     for i in range(file_count):
         file_names.append("rows_" + str(i) + ".json")
-    for filename in file_names:
-        gen_json_rowbased(row_count_each_file, MILVUS_DATA_PATH + filename, tag)
 
-    print("Bulkload row-based files:", file_names)
-    task_ids = utility.bulk_insert(collection_name=_COLLECTION_NAME,
-                                 partition_name=partition_name,
-                                 files=file_names)
+    task_ids = []
+    for filename in file_names:
+        print("Generate row-based file:", MILVUS_DATA_PATH + filename)
+        gen_json_rowbased(row_count_each_file, MILVUS_DATA_PATH + filename, tag)
+        print("Import row-based file:", filename)
+        task_id = utility.do_bulk_insert(collection_name=_COLLECTION_NAME,
+                                     partition_name=partition_name,
+                                     files=[filename])
+        task_ids.append(task_id)
     return wait_tasks_persisted(task_ids)
 
 # wait all bulk insert tasks to be a certain state
@@ -217,10 +220,11 @@ def wait_tasks_competed(task_ids):
     return states
 
 # List all bulk insert tasks, including pending tasks, working tasks and finished tasks.
-# the parameter 'limit' is: how many latest tasks should be returned
+# the parameter 'limit' is: how many latest tasks should be returned, if the limit<=0, all the tasks will be returned
 def list_all_bulk_insert_tasks(limit):
     tasks = utility.list_bulk_insert_tasks(limit)
     print("=========================================================================================================")
+    print("list bulk insert tasks with limit", limit)
     pending = 0
     started = 0
     persisted = 0
@@ -359,9 +363,11 @@ def main():
     # search in entire collection
     vector = [round(random.random(), 6) for _ in range(_DIM)]
     vectors = [vector]
+    print("Use a random vector to search in entire collection")
     search(collection, _VECTOR_FIELD_NAME, vectors)
 
     # search in a partition
+    print("Use a random vector to search in partition:", a_partition)
     search(collection, _VECTOR_FIELD_NAME, vectors, partition_name=a_partition)
 
     # pick some entities to delete
@@ -369,14 +375,13 @@ def main():
     for task in tasks:
         delete_ids.append(task.ids[5])
     id_vectors = retrieve(collection, delete_ids)
-    print("Delete theses entities:", id_vectors)
     delete(collection, delete_ids)
 
     # search the delete entities to check existence, check the top0 of the search result
     for id_vector in id_vectors:
         id = id_vector[_ID_FIELD_NAME]
         vector = id_vector[_VECTOR_FIELD_NAME]
-        print("Search id:", id, ", compare this id to the top0 of search result")
+        print("Search id:", id, ", compare this id to the top0 of search result, the entity with the id has been deleted")
         # here we use Stong consistency level to do search, because we need to make sure the delete operation is applied
         search(collection, _VECTOR_FIELD_NAME, [vector], partition_name=None, consistency_level="Strong")
 

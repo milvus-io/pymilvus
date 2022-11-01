@@ -1027,13 +1027,15 @@ class GrpcHandler:
         return Replica(groups)
 
     @retry_on_rpc_failure()
-    def bulk_insert(self, collection_name, partition_name, files: list, timeout=None, **kwargs) -> list:
-        req = Prepare.bulk_insert(collection_name, partition_name, files, **kwargs)
+    def do_bulk_insert(self, collection_name, partition_name, files: list, timeout=None, **kwargs) -> int:
+        req = Prepare.do_bulk_insert(collection_name, partition_name, files, **kwargs)
         future = self._stub.Import.future(req, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
-        return response.tasks
+        if len(response.tasks) == 0:
+            raise MilvusException(common_pb2.UNEXPECTED_ERROR, "no task id returned from server")
+        return response.tasks[0]
 
     @retry_on_rpc_failure()
     def get_bulk_insert_state(self, task_id, timeout=None, **kwargs) -> BulkInsertState:
