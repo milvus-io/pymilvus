@@ -654,7 +654,7 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.drop_index(collection_name=collection_name,
-                                      field_name=field_name, index_name="_default_idx", timeout=timeout)
+                                      field_name=field_name, index_name="", timeout=timeout)
 
     def describe_index(self, collection_name, index_name="", timeout=None):
         """
