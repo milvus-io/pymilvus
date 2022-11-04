@@ -12,6 +12,7 @@
 
 import copy
 import json
+from typing import List
 import pandas
 
 from .connections import connections
@@ -19,6 +20,8 @@ from .schema import (
     CollectionSchema,
     FieldSchema,
     parse_fields_from_data,
+    check_insert_data_schema,
+    check_schema,
 )
 from .prepare import Prepare
 from .partition import Partition
@@ -29,7 +32,6 @@ from .types import DataType
 from ..exceptions import (
     SchemaNotReadyException,
     DataTypeNotMatchException,
-    DataNotMatchException,
     PartitionAlreadyExistException,
     PartitionNotExistException,
     IndexNotExistException,
@@ -44,18 +46,6 @@ from ..client.types import get_consistency_level, cmp_consistency_level
 from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
 from ..client.configs import DefaultConfigs
 
-
-def _check_schema(schema):
-    if schema is None:
-        raise SchemaNotReadyException(message=ExceptionsMessage.NoSchema)
-    if len(schema.fields) < 1:
-        raise SchemaNotReadyException(message=ExceptionsMessage.EmptySchema)
-    vector_fields = []
-    for field in schema.fields:
-        if field.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR):
-            vector_fields.append(field.name)
-    if len(vector_fields) < 1:
-        raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
 
 
 class Collection:
@@ -136,7 +126,7 @@ class Collection:
             if schema is None:
                 raise SchemaNotReadyException(message=ExceptionsMessage.CollectionNotExistNoSchema % name)
             if isinstance(schema, CollectionSchema):
-                _check_schema(schema)
+                check_schema(schema)
                 consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
                 conn.create_collection(self._name, schema, shards_num=self._shards_num, **kwargs)
                 self._schema = schema
@@ -159,48 +149,6 @@ class Collection:
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
-
-    def _check_insert_data_schema(self, data):
-        """
-        Checks whether the data type matches the schema.
-        """
-        if self._schema is None:
-            return False
-        if self._schema.auto_id:
-            if isinstance(data, pandas.DataFrame):
-                if self._schema.primary_field.name in data:
-                    if not data[self._schema.primary_field.name].isnull().all():
-                        raise DataNotMatchException(message=ExceptionsMessage.AutoIDWithData)
-                    data = data.drop(self._schema.primary_field.name, axis=1)
-
-        infer_fields = parse_fields_from_data(data)
-        tmp_fields = copy.deepcopy(self._schema.fields)
-
-        for i, field in enumerate(self._schema.fields):
-            if field.is_primary and field.auto_id:
-                tmp_fields.pop(i)
-
-        if len(infer_fields) != len(tmp_fields):
-            raise DataTypeNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
-
-        for x, y in zip(infer_fields, tmp_fields):
-            if x.dtype != y.dtype:
-                return False
-            if isinstance(data, pandas.DataFrame):
-                if x.name != y.name:
-                    return False
-            # todo check dim
-        return True
-
-    def _check_schema(self):
-        if self._schema is None:
-            raise SchemaNotReadyException(message=ExceptionsMessage.NoSchema)
-
-    def _get_vector_field(self) -> str:
-        for field in self._schema.fields:
-            if field.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR):
-                return field.name
-        raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
 
     @classmethod
     def construct_from_dataframe(cls, name, dataframe, **kwargs):
@@ -249,7 +197,7 @@ class Collection:
                     field.params[DefaultConfigs.MaxVarCharLengthKey] = int(DefaultConfigs.MaxVarCharLength)
             schema = CollectionSchema(fields=fields_schema)
 
-        _check_schema(schema)
+        check_schema(schema)
         collection = cls(name, schema, **kwargs)
         res = collection.insert(data=dataframe)
         return collection, res
@@ -502,37 +450,28 @@ class Collection:
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=timeout, **kwargs)
 
-    def insert(self, data, partition_name=None, timeout=None, **kwargs):
-        """
-        Insert data into the collection.
+    def insert(self, data: [List, pandas.DataFrame], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
+        """ Insert data into the collection.
 
-        :param data: The specified data to insert, the dimension of data needs to align with column
-                     number
-        :type  data: list-like(list, tuple) object or pandas.DataFrame
-        :param partition_name: The partition name which the data will be inserted to, if partition
-                               name is not passed, then the data will be inserted to "_default"
-                               partition
-        :type partition_name: str
+        Args:
+            data (list, tuple, pandas.DataFrame): The specified data to insert
+            partition_name (str): The partition name which the data will be inserted to,
+                if partition name is not passed, then the data will be inserted to "_default" partition
+            timeout (float, optional): A duration of time in seconds to allow for the RPC. Defaults to None.
+                If timeout is set to None, the client keeps waiting until the server responds or an error occurs.
+        Returns:
+            MutationResult: contains 2 properties `insert_count`, and, `primary_keys`
+                `insert_count`: how may entites have been inserted into Milvus,
+                `primary_keys`: list of primary keys of the inserted entities
+        Raises:
+            CollectionNotExistException: If the specified collection does not exist.
+            ParamError: If input parameters are invalid.
+            MilvusException: If the specified partition does not exist.
 
-        :param timeout:
-            * *timeout* (``float``) --
-              An optional duration of time in seconds to allow for the RPC. If timeout
-              is set to None, the client keeps waiting until the server responds or an error occurs.
-
-        :return: A MutationResult object contains a property named `insert_count` represents how many
-        entities have been inserted into milvus and a property named `primary_keys` is a list of primary
-        keys of the inserted entities.
-        :rtype: MutationResult
-
-        :raises CollectionNotExistException: If the specified collection does not exist.
-        :raises ParamError: If input parameters are invalid.
-        :raises BaseException: If the specified partition does not exist.
-
-        :example:
+        Examples:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
             >>> connections.connect()
-            <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -542,14 +481,14 @@ class Collection:
             ...     [random.randint(1, 100) for _ in range(10)],
             ...     [[random.random() for _ in range(2)] for _ in range(10)],
             ... ]
-            >>> collection.insert(data)
-            >>> collection.num_entities
+            >>> res = collection.insert(data)
+            >>> res.insert_count
             10
         """
         if data is None:
             return MutationResult(data)
-        if not self._check_insert_data_schema(data):
-            raise SchemaNotReadyException(message=ExceptionsMessage.TypeOfDataAndSchemaInconsistent)
+        check_insert_data_schema(self._schema, data)
+
         conn = self._get_connection()
         entities = Prepare.prepare_insert_data(data, self._schema)
         schema_dict = self._schema.to_dict()

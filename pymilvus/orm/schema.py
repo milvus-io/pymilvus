@@ -24,7 +24,9 @@ from ..exceptions import (
     FieldsTypeException,
     FieldTypeException,
     AutoIDException,
-    ExceptionsMessage
+    ExceptionsMessage,
+    DataNotMatchException,
+    SchemaNotReadyException,
 )
 
 
@@ -287,33 +289,72 @@ class FieldSchema:
         return self._dtype
 
 
-def parse_fields_from_data(datas):
-    if isinstance(datas, pandas.DataFrame):
-        return parse_fields_from_dataframe(datas)
-    fields = []
-    if not isinstance(datas, list):
-        raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
-    for d in datas:
+def check_insert_data_schema(schema: CollectionSchema, data: [List[List], pandas.DataFrame]) -> None:
+    """ check if the insert data is consist with the collection schema
+
+    Args:
+        schema (CollectionSchema): the schema of the collection
+        data (List[List], pandas.DataFrame): the data to be inserted
+
+    Raise:
+        SchemaNotReadyException: if the schema is None
+        DataNotMatchException: if the data is in consist with the schema
+    """
+    if schema is None:
+        raise SchemaNotReadyException(message="Schema shouldn't be None")
+    if schema.auto_id:
+        if isinstance(data, pandas.DataFrame):
+            if schema.primary_field.name in data:
+                if not data[schema.primary_field.name].isnull().all():
+                    raise DataNotMatchException(message=f"Please don't provide data for auto_id primary field: {schema.primary_field.name}")
+                data = data.drop(schema.primary_field.name, axis=1)
+
+    infer_fields = parse_fields_from_data(data)
+    tmp_fields = copy.deepcopy(schema.fields)
+
+    for i, field in enumerate(schema.fields):
+        if field.is_primary and field.auto_id:
+            tmp_fields.pop(i)
+
+    if len(infer_fields) != len(tmp_fields):
+
+        i_name = [f.name for f in infer_fields]
+        t_name = [f.name for f in tmp_fields]
+        raise DataNotMatchException(message=f"The fields don't match with schema fields, expected: {t_name}, got {i_name}")
+
+    for x, y in zip(infer_fields, tmp_fields):
+        if x.dtype != y.dtype:
+            raise DataNotMatchException(message=f"The data type of field {y.name} doesn't match, expected: {y.dtype.name}, got {x.dtype.name}")
+        if isinstance(data, pandas.DataFrame) and x.name != y.name:
+            raise DataNotMatchException(message=f"The name of field don't match, expected: {y.name}, got {x.name}")
+
+
+def parse_fields_from_data(data: [List[List], pandas.DataFrame]) -> List[FieldSchema]:
+    if not isinstance(data, (pandas.DataFrame, list)):
+        raise DataTypeNotSupportException(message="The type of data should be list or pandas.DataFrame")
+
+    if isinstance(data, pandas.DataFrame):
+        return parse_fields_from_dataframe(data)
+
+    for d in data:
         if not is_list_like(d):
-            raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
-        d_type = infer_dtype_bydata(d[0])
-        fields.append(FieldSchema("", d_type))
+            raise DataTypeNotSupportException(message="data should be a list of list")
+
+    fields = [FieldSchema("", infer_dtype_bydata(d[0])) for d in data]
     return fields
 
 
-def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
-    if not isinstance(dataframe, pandas.DataFrame):
-        return None
-    d_types = list(dataframe.dtypes)
+def parse_fields_from_dataframe(df: pandas.DataFrame) -> List[FieldSchema]:
+    d_types = list(df.dtypes)
     data_types = list(map(map_numpy_dtype_to_datatype, d_types))
-    col_names = list(dataframe.columns)
+    col_names = list(df.columns)
 
     column_params_map = {}
 
     if DataType.UNKNOWN in data_types:
-        if len(dataframe) == 0:
+        if len(df) == 0:
             raise CannotInferSchemaException(message=ExceptionsMessage.DataFrameInvalid)
-        values = dataframe.head(1).values[0]
+        values = df.head(1).values[0]
         for i, dtype in enumerate(data_types):
             if dtype == DataType.UNKNOWN:
                 new_dtype = infer_dtype_bydata(values[i])
@@ -324,9 +365,6 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
                     else:
                         vector_type_params['dim'] = len(values[i])
                     column_params_map[col_names[i]] = vector_type_params
-                # if new_dtype in (DataType.VARCHAR,):
-                #     str_type_params = {}
-                #     str_type_params[DefaultConfigs.MaxVarCharLengthKey] = DefaultConfigs.MaxVarCharLength
                 data_types[i] = new_dtype
 
     if DataType.UNKNOWN in data_types:
@@ -339,3 +377,16 @@ def parse_fields_from_dataframe(dataframe) -> List[FieldSchema]:
         fields.append(field_schema)
 
     return fields
+
+
+def check_schema(schema):
+    if schema is None:
+        raise SchemaNotReadyException(message=ExceptionsMessage.NoSchema)
+    if len(schema.fields) < 1:
+        raise SchemaNotReadyException(message=ExceptionsMessage.EmptySchema)
+    vector_fields = []
+    for field in schema.fields:
+        if field.dtype in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR):
+            vector_fields.append(field.name)
+    if len(vector_fields) < 1:
+        raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
