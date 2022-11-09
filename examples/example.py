@@ -113,7 +113,7 @@ def search(collection, vector_field, id_field, search_vectors):
         "anns_field": vector_field,
         "param": {"metric_type": _METRIC_TYPE, "params": {"nprobe": _NPROBE}},
         "limit": _TOPK,
-        "expr": "id_field > 0"}
+        "expr": "id_field >= 0"}
     results = collection.search(**search_param)
     for i, result in enumerate(results):
         print("\nSearch result for {}th vector: ".format(i))

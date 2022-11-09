@@ -3,6 +3,7 @@ import datetime
 from typing import Any, Union
 from ..exceptions import ParamError
 from ..grpc_gen import milvus_pb2 as milvus_types
+from .singleton_utils import Singleton
 from .utils import (
     valid_index_types,
     valid_binary_index_types,
@@ -308,103 +309,56 @@ def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
             (milvus_types.OperatePrivilegeType.Grant, milvus_types.OperatePrivilegeType.Revoke)
 
 
-def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
-    if kwargs is None:
-        raise ParamError(message="Param should not be None")
+class ParamChecker(metaclass=Singleton):
+    def __init__(self) -> None:
+        self.check_dict = {
+            "collection_name": is_legal_table_name,
+            "field_name": is_legal_field_name,
+            "dimension": is_legal_dimension,
+            "index_file_size": is_legal_index_size,
+            "topk": is_legal_topk,
+            "ids": is_legal_ids,
+            "nprobe": is_legal_nprobe,
+            "nlist": is_legal_nlist,
+            "cmd": is_legal_cmd,
+            "partition_name": is_legal_partition_name,
+            "partition_name_array": is_legal_partition_name_array,
+            "limit": is_legal_limit,
+            "anns_field": is_legal_anns_field,
+            "search_data": is_legal_search_data,
+            "output_fields": is_legal_output_fields,
+            "round_decimal": is_legal_round_decimal,
+            "travel_timestamp": is_legal_travel_timestamp,
+            "guarantee_timestamp": is_legal_guarantee_timestamp,
+            "user": is_legal_user,
+            "password": is_legal_password,
+            "role_name": is_legal_role_name,
+            "operate_user_role_type": is_legal_operate_user_role_type,
+            "include_user_info": is_legal_include_user_info,
+            "include_role_info": is_legal_include_role_info,
+            "object": is_legal_object,
+            "object_name": is_legal_object_name,
+            "privilege": is_legal_privilege,
+            "operate_privilege_type": is_legal_operate_privilege_type,
+            "properties": is_legal_collection_properties,
+        }
 
-    for key, value in kwargs.items():
-        if key in ("collection_name",):
-            if not is_legal_table_name(value):
-                _raise_param_error(key, value)
-        elif key == "field_name":
-            if not is_legal_field_name(value):
-                _raise_param_error(key, value)
-        elif key == "dimension":
-            if not is_legal_dimension(value):
-                _raise_param_error(key, value)
-        elif key == "index_file_size":
-            if not is_legal_index_size(value):
-                _raise_param_error(key, value)
-        elif key in ("topk", "top_k"):
-            if not is_legal_topk(value):
-                _raise_param_error(key, value)
-        elif key in ("ids",):
-            if not is_legal_ids(value):
-                _raise_param_error(key, value)
-        elif key in ("nprobe",):
-            if not is_legal_nprobe(value):
-                _raise_param_error(key, value)
-        elif key in ("nlist",):
-            if not is_legal_nlist(value):
-                _raise_param_error(key, value)
-        elif key in ("cmd",):
-            if not is_legal_cmd(value):
-                _raise_param_error(key, value)
-        elif key in ("partition_name",):
-            if not is_legal_partition_name(value):
-                _raise_param_error(key, value)
-        elif key in ("partition_name_array",):
-            if not is_legal_partition_name_array(value):
-                _raise_param_error(key, value)
-        elif key in ("limit",):
-            if not is_legal_limit(value):
-                _raise_param_error(key, value)
-        elif key in ("anns_field",):
-            if not is_legal_anns_field(value):
-                _raise_param_error(key, value)
-        elif key in ("search_data",):
-            if not is_legal_search_data(value):
-                _raise_param_error(key, value)
-        elif key in ("output_fields",):
-            if not is_legal_output_fields(value):
-                _raise_param_error(key, value)
-        elif key in ("round_decimal",):
-            if not is_legal_round_decimal(value):
-                _raise_param_error(key, value)
-        elif key in ("travel_timestamp",):
-            if not is_legal_travel_timestamp(value):
-                _raise_param_error(key, value)
-        elif key in ("guarantee_timestamp",):
-            if not is_legal_guarantee_timestamp(value):
-                _raise_param_error(key, value)
-        elif key in ("user",):
-            if not is_legal_user(value):
-                _raise_param_error(key, value)
-        elif key in ("password",):
-            if not is_legal_password(value):
-                _raise_param_error(key, value)
-        # elif key in ("records",):
-        #     if not is_legal_records(value):
-        #         _raise_param_error(key, value)
-        elif key in ("role_name",):
-            if not is_legal_role_name(value):
-                _raise_param_error(key, value)
-        elif key in ("operate_user_role_type",):
-            if not is_legal_operate_user_role_type(value):
-                _raise_param_error(key, value)
-        elif key in ("include_user_info",):
-            if not is_legal_include_user_info(value):
-                _raise_param_error(key, value)
-        elif key in ("include_role_info",):
-            if not is_legal_include_role_info(value):
-                _raise_param_error(key, value)
-        elif key in ("object",):
-            if not is_legal_object(value):
-                _raise_param_error(key, value)
-        elif key in ("object_name",):
-            if not is_legal_object_name(value):
-                _raise_param_error(key, value)
-        elif key in ("privilege",):
-            if not is_legal_privilege(value):
-                _raise_param_error(key, value)
-        elif key in ("operate_privilege_type",):
-            if not is_legal_operate_privilege_type(value):
-                _raise_param_error(key, value)
-        elif key == "properties":
-            if not is_legal_collection_properties(value):
+    def check(self, key, value):
+        if key in self.check_dict:
+            if not self.check_dict[key](value):
                 _raise_param_error(key, value)
         else:
             raise ParamError(message=f"unknown param `{key}`")
+
+def _get_param_checker():
+    return ParamChecker()
+
+def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
+    if kwargs is None:
+        raise ParamError(message="Param should not be None")
+    checker = _get_param_checker()
+    for key, value in kwargs.items():
+        checker.check(key, value)
 
 
 def check_index_params(params):

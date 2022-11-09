@@ -1,6 +1,6 @@
-=========
+==========
 Collection
-=========
+==========
 
 The scheme of a collection is fixed when collection created. Collection scheme consists of many fields,
 and must contain a vector field. A field to collection is like a column to RDBMS table. Data type are the same in one field.
