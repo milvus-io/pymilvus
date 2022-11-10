@@ -41,62 +41,46 @@ from ..exceptions import (
 from .future import SearchFuture, MutationFuture
 from .utility import _get_connection
 from .default_config import DefaultConfig
-from ..client.types import CompactionState, CompactionPlans, Replica
-from ..client.types import get_consistency_level, cmp_consistency_level
+from ..client.types import CompactionState, CompactionPlans, Replica, get_consistency_level, cmp_consistency_level
 from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
 from ..client.configs import DefaultConfigs
 
 
 
 class Collection:
-    """ This is a class corresponding to collection in milvus. """
+    def __init__(self, name: str, schema: CollectionSchema=None, using: str="default", shards_num: int=2, **kwargs):
+        """ Constructs a collection by name, schema and other parameters.
 
-    def __init__(self, name, schema=None, using="default", shards_num=2, **kwargs):
-        """
-        Constructs a collection by name, schema and other parameters.
-        Connection information is contained in kwargs.
+        Args:
+            name (str): the name of collection
+            schema (CollectionSchema, optional): the schema of collection, defaults to None.
+            using (str, optional): Milvus connection alias name, defaults to "default".
+            shards_num (int, optional): how many shards will the insert data be divided, defaults to 2.
+            kwargs: other arbitrary keyword arguments.
+                - *consistency_level* (int, str): Which consistency level to use when searching in the collection.
+                See https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
+                Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
+                Note: this parameter can be overwritten by the same parameter specified in search.
 
-        :param name: the name of collection
-        :type name: str
+                - *properties* (dict, optional): collection properties.
 
-        :param schema: the schema of collection
-        :type schema: class `schema.CollectionSchema`
+                - *timeout* (float): an optional duration of time in seconds to allow for the RPCs.
+                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
 
-        :param using: Milvus link of create collection
-        :type using: str
+        Raises:
+            SchemaNotReadyException: if the schema is wrong.
 
-        :param shards_num: How wide to scale collection. Corresponds to how many active datanodes
-                        can be used on insert.
-        :type shards_num: int
-
-        :param kwargs:
-            * *consistency_level* (``str/int``) --
-            Which consistency level to use when searching in the collection. For details, see
-            https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
-            Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
-            Note: this parameter can be overwritten by the same parameter specified in search.
-
-            * *properties* (``dictionary``) --
-
-        :example:
+        Examples:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
-            <pymilvus.client.stub.Milvus object at 0x7f9a190ca898>
             >>> fields = [
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
             ... ]
-            >>> description="This is a new collection description."
-            >>> schema = CollectionSchema(fields=fields, description=description)
+            >>> schema = CollectionSchema(fields=fields)
             >>> collection = Collection(name="test_collection_init", schema=schema)
             >>> collection.name
             'test_collection_init'
-            >>> collection.description
-            'This is a new collection description.'
-            >>> collection.is_empty
-            True
-            >>> collection.num_entities
-            0
         """
         self._name = name
         self._using = using
@@ -204,22 +188,12 @@ class Collection:
 
     @property
     def schema(self) -> CollectionSchema:
-        """
-        Returns the schema of the collection.
-
-        :return schema.CollectionSchema:
-            Schema of the collection.
-        """
+        """CollectionSchema: schema of the collection."""
         return self._schema
 
     @property
     def aliases(self, **kwargs) -> list:
-        """
-        Returns the aliases of the collection.
-
-        :return list[str]:
-            Aliases of the collection.
-        """
+        """List[str]: all the aliases of the collection."""
         conn = self._get_connection()
         resp = conn.describe_collection(self._name, **kwargs)
         aliases = resp["aliases"]
@@ -227,102 +201,22 @@ class Collection:
 
     @property
     def description(self) -> str:
-        """
-        Returns a text description of the collection.
-
-        :return str:
-            Collection description text, returned when the operation succeeds.
-
-        :example:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
-            >>> fields = [
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
-            ... ]
-            >>> description="This is an example text description."
-            >>> schema = CollectionSchema(fields=fields, description=description)
-            >>> collection = Collection(name="test_collection_description", schema=schema)
-            >>> collection.description
-            'This is an example text description.'
-        """
-
+        """str: a text description of the collection."""
         return self._schema.description
 
     @property
     def name(self) -> str:
-        """
-        Returns the collection name.
-
-        :return str:
-            The collection name, returned when the operation succeeds.
-
-        :example:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
-            >>> fields = [
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
-            ... ]
-            >>> schema = CollectionSchema(fields)
-            >>> collection = Collection("test_collection_name", schema)
-            >>> collection.name
-            'test_collection_name'
-        """
+        """str: the name of the collection."""
         return self._name
 
     @property
     def is_empty(self) -> bool:
-        """
-        Whether the collection is empty.
-        This method need to call `num_entities <#pymilvus.Collection.num_entities>`_.
-
-        :return bool:
-            * True: The collection is empty.
-            * False: The collection is  gfghnot empty.
-
-        :example:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
-            >>> schema = CollectionSchema([
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
-            ... ])
-            >>> collection = Collection("test_collection_is_empty", schema)
-            >>> collection.is_empty
-            True
-            >>> collection.insert([[1], [[1.0, 2.0]]])
-            <pymilvus.search.MutationResult object at 0x7fabaf3e5d50>
-            >>> collection.is_empty
-            False
-        """
+        """bool: whether the collection is empty or not."""
         return self.num_entities == 0
 
-    # read-only
     @property
     def num_entities(self, **kwargs) -> int:
-        """
-        Returns the number of entities in the collection.
-
-        :return int:
-            Number of entities in the collection.
-
-        :raises CollectionNotExistException: If the collection does not exist.
-
-        :example:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
-            >>> schema = CollectionSchema([
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
-            ... ])
-            >>> collection = Collection("test_collection_num_entities", schema)
-            >>> collection.num_entities
-            0
-            >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
-            >>> collection.num_entities
-            2
-            """
+        """int: The number of entities in the collection, not real time."""
         conn = self._get_connection()
         stats = conn.get_collection_stats(collection_name=self._name, **kwargs)
         result = {stat.key: stat.value for stat in stats}
@@ -331,24 +225,7 @@ class Collection:
 
     @property
     def primary_field(self) -> FieldSchema:
-        """
-        Returns the primary field of the collection.
-
-        :return schema.FieldSchema:
-            The primary field of the collection.
-
-        :example:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
-            >>> schema = CollectionSchema([
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("film_length", DataType.INT64, description="length in miniute"),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
-            ... ])
-            >>> collection = Collection("test_collection_primary_field", schema)
-            >>> collection.primary_field.name
-            'film_id'
-        """
+        """FieldSchema: the primary field of the collection."""
         return self._schema.primary_field
 
     def flush(self, timeout=None, **kwargs):
