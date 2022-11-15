@@ -413,21 +413,17 @@ class GrpcHandler:
         auto_id = kwargs.get("auto_id", True)
 
         try:
-            raws = []
-            futures = []
-
-            # step 1: get future object
-            for request in requests:
-                ft = self._stub.Search.future(request, timeout=timeout)
-                futures.append(ft)
-
             if kwargs.get("_async", False):
+                futures = []
+                for request in requests:
+                    ft = self._stub.Search.future(request, timeout=timeout)
+                    futures.append(ft)
                 func = kwargs.get("_callback", None)
                 return ChunkedSearchFuture(futures, func, auto_id)
 
-            # step2: get results
-            for ft in futures:
-                response = ft.result()
+            raws = []
+            for request in requests:
+                response = self._stub.Search(request, timeout=timeout)
 
                 if response.status.error_code != 0:
                     raise MilvusException(response.status.error_code, response.status.reason)
@@ -444,7 +440,7 @@ class GrpcHandler:
     @retry_on_rpc_failure(retry_on_deadline=False)
     def search(self, collection_name, data, anns_field, param, limit,
                expression=None, partition_names=None, output_fields=None,
-               round_decimal=-1, timeout=None, **kwargs):
+               round_decimal=-1, timeout=None, collection_schema=None, **kwargs):
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
@@ -456,26 +452,21 @@ class GrpcHandler:
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0)
         )
 
-        _kwargs = copy.deepcopy(kwargs)
-
-        collection_schema = kwargs.get("schema", None)
         if not collection_schema:
             collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
-        auto_id = collection_schema["auto_id"]
+
         consistency_level = collection_schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
-        consistency_level = get_consistency_level(_kwargs.get("consistency_level", consistency_level))
-        _kwargs["schema"] = collection_schema
+        consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))
 
-        ts_utils.construct_guarantee_ts(consistency_level, collection_name, _kwargs)
+        ts_utils.construct_guarantee_ts(consistency_level, collection_name, kwargs)
 
-        requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, expression,
-                                                     partition_names, output_fields, round_decimal, **_kwargs)
-        _kwargs.pop("schema")
-        _kwargs["auto_id"] = auto_id
-        _kwargs["round_decimal"] = round_decimal
+        requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, collection_schema,
+                                                     expression, partition_names, output_fields, round_decimal,
+                                                     **kwargs)
 
-        return self._execute_search_requests(requests, timeout, **_kwargs)
+        auto_id = collection_schema["auto_id"]
+        return self._execute_search_requests(requests, timeout, round_decimal=round_decimal, auto_id=auto_id, **kwargs)
 
     @retry_on_rpc_failure()
     def get_query_segment_info(self, collection_name, timeout=30, **kwargs):
