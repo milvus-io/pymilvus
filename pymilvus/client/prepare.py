@@ -431,10 +431,9 @@ class Prepare:
         return request
 
     @classmethod
-    def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, expr=None, partition_names=None,
+    def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, schema, expr=None, partition_names=None,
                                   output_fields=None, round_decimal=-1, **kwargs):
         # TODO Move this impl into server side
-        schema = kwargs.get("schema", None)
         fields_schema = schema.get("fields", None)  # list
         fields_name_locs = {fields_schema[loc]["name"]: loc for loc in range(len(fields_schema))}
 

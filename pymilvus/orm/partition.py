@@ -444,7 +444,7 @@ class Partition:
         schema_dict = self._schema.to_dict()
         schema_dict["consistency_level"] = self._consistency_level
         res = conn.search(self._collection.name, data, anns_field, param, limit, expr, [self._name], output_fields,
-                          round_decimal=round_decimal, timeout=timeout, schema=schema_dict, **kwargs)
+                          round_decimal=round_decimal, timeout=timeout, collection_schema=schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)

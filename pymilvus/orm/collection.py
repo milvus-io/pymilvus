@@ -134,6 +134,9 @@ class Collection:
             else:
                 raise SchemaNotReadyException(message=ExceptionsMessage.SchemaType)
 
+        self._schema_dict = self._schema.to_dict()
+        self._schema_dict["consistency_level"] = self._consistency_level
+
     def __repr__(self):
         _dict = {
             'name': self.name,
@@ -653,10 +656,9 @@ class Collection:
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        schema_dict = self._schema.to_dict()
-        schema_dict["consistency_level"] = self._consistency_level
         res = conn.search(self._name, data, anns_field, param, limit, expr,
-                          partition_names, output_fields, round_decimal, timeout=timeout, schema=schema_dict, **kwargs)
+                          partition_names, output_fields, round_decimal, timeout=timeout,
+                          collection_schema=self._schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
