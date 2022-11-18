@@ -63,6 +63,7 @@ class Collection:
                 Note: this parameter can be overwritten by the same parameter specified in search.
 
                 - *properties* (dict, optional): collection properties.
+                     only support collection TTL with key `collection.ttl.seconds`
 
                 - *timeout* (float): an optional duration of time in seconds to allow for the RPCs.
                 If timeout is not set, the client keeps waiting until the server responds or an error occurs.
@@ -78,7 +79,8 @@ class Collection:
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
             ... ]
             >>> schema = CollectionSchema(fields=fields)
-            >>> collection = Collection(name="test_collection_init", schema=schema)
+            >>> properties = {"collection.ttl.seconds": 1800}
+            >>> collection = Collection(name="test_collection_init", schema=schema, properties=properties)
             >>> collection.name
             'test_collection_init'
         """
@@ -219,7 +221,25 @@ class Collection:
 
     @property
     def num_entities(self, **kwargs) -> int:
-        """int: The number of entities in the collection, not real time."""
+        """int: The number of entities in the collection, not real time.
+
+        Examples:
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_collection_num_entities", schema)
+            >>> collection.num_entities
+            0
+            >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
+            >>> collection.num_entities
+            0
+            >>> collection.flush()
+            >>> collection.num_entities
+            2
+        """
         conn = self._get_connection()
         stats = conn.get_collection_stats(collection_name=self._name, **kwargs)
         result = {stat.key: stat.value for stat in stats}
@@ -497,7 +517,6 @@ class Collection:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
             >>> connections.connect()
-            <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -509,14 +528,13 @@ class Collection:
             ...     [[random.random() for _ in range(2)] for _ in range(10)],
             ... ]
             >>> collection.insert(data)
-            >>> collection.num_entities
-            10
+            >>> collection.create_index("films", {"index_type": "FLAT", "metric_type": "L2", "params": {}})
             >>> collection.load()
             >>> # search
             >>> search_param = {
             ...     "data": [[1.0, 1.0]],
             ...     "anns_field": "films",
-            ...     "param": {"metric_type": "L2"},
+            ...     "param": {"metric_type": "L2", "offset": 1},
             ...     "limit": 2,
             ...     "expr": "film_id > 0",
             ... }
@@ -592,7 +610,6 @@ class Collection:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
             >>> connections.connect()
-            <pymilvus.client.stub.Milvus object at 0x7f8579002dc0>
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("film_date", DataType.INT64),
@@ -606,15 +623,14 @@ class Collection:
             ...     [[random.random() for _ in range(2)] for _ in range(10)],
             ... ]
             >>> collection.insert(data)
-            >>> collection.num_entities
-            10
+            >>> collection.create_index("films", {"index_type": "FLAT", "metric_type": "L2", "params": {}})
             >>> collection.load()
             >>> # query
-            >>> expr = "film_id in [ 0, 1 ]"
-            >>> res = collection.query(expr, output_fields=["film_date"])
-            >>> assert len(res) == 2
+            >>> expr = "film_id <= 1"
+            >>> res = collection.query(expr, output_fields=["film_date"], offset=1, limit=1)
+            >>> assert len(res) == 1
             >>> print(f"- Query results: {res}")
-            - Query results: [{'film_id': 0, 'film_date': 2000}, {'film_id': 1, 'film_date': 2001}]
+            - Query results: [{'film_id': 1, 'film_date': 2001}]
         """
         if not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
@@ -863,8 +879,7 @@ class Collection:
         raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
 
     def create_index(self, field_name, index_params={}, timeout=None, **kwargs) -> Index:
-        """
-        Creates index for a specified field. Return Index Object.
+        """ Creates index for a specified field, the collection must have index before load.
 
         :param field_name: The name of the field to create an index for.
         :type  field_name: str
@@ -901,10 +916,8 @@ class Collection:
             ... ])
             >>> collection = Collection("test_collection_create_index", schema)
             >>> index = {"index_type": "IVF_FLAT", "params": {"nlist": 128}, "metric_type": "L2"}
-            >>> collection.create_index("films", index)
+            >>> collection.create_index("films", index, index_name="idx")
             Status(code=0, message='')
-            >>> collection.index()
-            <pymilvus.index.Index object at 0x7f44355a1460>
         """
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params,
