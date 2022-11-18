@@ -24,7 +24,8 @@ from pymilvus import (
 # rocksmq:
 #   path: /tmp/milvus/rdb_data
 # storageType: local
-MILVUS_DATA_PATH = "/tmp/milvus/data/"
+
+FILES_PATH = "/tmp/milvus_bulkinsert/"
 
 # Milvus service address
 _HOST = '127.0.0.1'
@@ -126,7 +127,7 @@ def gen_json_rowbased(num, path, tag):
         json.dump(data, json_file)
 
 
-# Bulkload for row-based files, each file is converted to a task.
+# For row-based files, each file is converted to a task. Each time you can call do_bulk_insert() to insert one file.
 # The rootcoord maintains a task list, each idle datanode will receive a task. If no datanode available, the task will
 # be put into pending list to wait, the max size of pending list is 32. If new tasks count exceed spare quantity of
 # pending list, the do_bulk_insert() method will return error.
@@ -140,27 +141,22 @@ def gen_json_rowbased(num, path, tag):
 # But if the segment.maxSize of milvus.yml is set to a small value, there could be shardNum*2, shardNum*3 segments
 # generated, or even more.
 def bulk_insert_rowbased(row_count_each_file, file_count, tag, partition_name = None):
-    # make sure the data path is exist
-    exist = os.path.exists(MILVUS_DATA_PATH)
-    if not exist:
-        os.mkdir(MILVUS_DATA_PATH)
-
-    file_names = []
-    for i in range(file_count):
-        file_names.append("rows_" + str(i) + ".json")
+    # make sure the files folder is created
+    os.makedirs(name=FILES_PATH, exist_ok=True)
 
     task_ids = []
-    for filename in file_names:
-        print("Generate row-based file:", MILVUS_DATA_PATH + filename)
-        gen_json_rowbased(row_count_each_file, MILVUS_DATA_PATH + filename, tag)
-        print("Import row-based file:", filename)
+    for i in range(file_count):
+        file_path = FILES_PATH + "rows_" + str(i) + ".json"
+        print("Generate row-based file:", file_path)
+        gen_json_rowbased(row_count_each_file, file_path, tag)
+        print("Import row-based file:", file_path)
         task_id = utility.do_bulk_insert(collection_name=_COLLECTION_NAME,
                                      partition_name=partition_name,
-                                     files=[filename])
+                                     files=[file_path])
         task_ids.append(task_id)
     return wait_tasks_persisted(task_ids)
 
-# wait all bulk insert tasks to be a certain state
+# Wait all bulk insert tasks to be a certain state
 # return the states of all the tasks, including failed task
 def wait_tasks_to_state(task_ids, state_code):
     wait_ids = task_ids
@@ -191,7 +187,7 @@ def wait_tasks_to_state(task_ids, state_code):
 
 # Get bulk insert task state to check whether the data file has been parsed and persisted successfully.
 # Persisted state doesn't mean the data is queryable, to query the data, you need to wait until the segment is
-# loaded into memory.
+# indexed successfully and loaded into memory.
 def wait_tasks_persisted(task_ids):
     print("=========================================================================================================")
     states = wait_tasks_to_state(task_ids, BulkInsertState.ImportPersisted)
