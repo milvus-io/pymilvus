@@ -670,6 +670,17 @@ def do_bulk_insert(collection_name: str, files: list, partition_name=None, timeo
 
     :raises BaseException: If collection_name doesn't exist.
     :raises BaseException: If the files input is illegal.
+
+    :example:
+        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
+        >>> connections.connect()
+        >>> schema = CollectionSchema([
+        ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+        ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+        ... ])
+        >>> collection = Collection("test_collection_bulk_insert", schema)
+        >>> task_id = utility.do_bulk_insert(collection_name=collection.name, files=['data.json'])
+        >>> print(task_id)
     """
     return _get_connection(using).do_bulk_insert(collection_name, partition_name, files, timeout=timeout, **kwargs)
 
@@ -682,6 +693,13 @@ def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> B
 
     :return: BulkInsertState
     :rtype:  BulkInsertState
+
+    :example:
+        >>> from pymilvus import connections, utility, BulkInsertState
+        >>> connections.connect()
+        >>> state = utility.get_bulk_insert_state(task_id=id) # the id is returned by do_bulk_insert()
+        >>> if state.state == BulkInsertState.ImportFailed or state.state == BulkInsertState.ImportFailedAndCleaned:
+        >>>    print("task id:", state.task_id, "failed, reason:", state.failed_reason)
     """
     return _get_connection(using).get_bulk_insert_state(task_id, timeout=timeout, **kwargs)
 
@@ -698,6 +716,11 @@ def list_bulk_insert_tasks(limit=0, collection_name=None, timeout=None, using="d
     :return: list[BulkInsertState]
     :rtype:  list[BulkInsertState]
 
+    :example:
+        >>> from pymilvus import connections, utility, BulkInsertState
+        >>> connections.connect()
+        >>> tasks = utility.list_bulk_insert_tasks(collection_name=collection_name)
+        >>> print(tasks)
     """
     return _get_connection(using).list_bulk_insert_tasks(limit, collection_name, timeout=timeout, **kwargs)
 
