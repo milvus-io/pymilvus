@@ -737,6 +737,13 @@ def reset_password(user: str, old_password: str, new_password: str, using="defau
     :type  old_password: str
     :param new_password: the newly password of this user.
     :type  new_password: str
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> utility.reset_password(user, old_password, new_password)
+        >>> users = utility.list_usernames()
+        >>> print(f"users in Milvus: {users}")
     """
     return _get_connection(using).reset_password(user, old_password, new_password)
 
@@ -747,6 +754,14 @@ def create_user(user: str, password: str, using="default"):
     :type  user: str
     :param password: the password.
     :type  password: str
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> utility.create_user(user, password)
+        >>> connections.connect(user=user, password=password)
+        >>> users = utility.list_usernames()
+        >>> print(f"users in Milvus: {users}")
     """
     return _get_connection(using).create_user(user, password)
 
@@ -764,6 +779,14 @@ def update_password(user: str, old_password, new_password: str, using="default")
     :type  old_password: str
     :param new_password: the newly password of this user.
     :type  new_password: str
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> utility.update_password(user, old_password, new_password)
+        >>> connections.connect(user=user, password=new_password)
+        >>> users = utility.list_usernames()
+        >>> print(f"users in Milvus: {users}")
     """
     return _get_connection(using).update_password(user, old_password, new_password)
 
@@ -772,6 +795,13 @@ def delete_user(user: str, using="default"):
     """ Delete User corresponding to the username.
     :param user: the user name.
     :type  user: str
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> utility.delete_user(user)
+        >>> users = utility.list_usernames()
+        >>> print(f"users in Milvus: {users}")
     """
     return _get_connection(using).delete_user(user)
 
@@ -780,6 +810,12 @@ def list_usernames(using="default"):
     """ List all usernames.
     :return list of str:
         The usernames in Milvus instances.
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> users = utility.list_usernames()
+        >>> print(f"users in Milvus: {users}")
     """
     return _get_connection(using).list_usernames()
 
@@ -789,6 +825,12 @@ def list_roles(include_user_info: bool, using="default"):
     :param include_user_info: whether to obtain the user information associated with roles
     :type  include_user_info: bool
     :return RoleInfo
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> roles = utility.list_roles()
+        >>> print(f"roles in Milvus: {roles}")
     """
     return _get_connection(using).select_all_role(include_user_info)
 
@@ -800,6 +842,12 @@ def list_user(username: str, include_role_info: bool, using="default"):
     :param include_role_info: whether to obtain the role information associated with the user
     :type  include_role_info: bool
     :return UserInfo
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> user = utility.list_user(username, include_role_info)
+        >>> print(f"user info: {user}")
     """
     return _get_connection(using).select_one_user(username, include_role_info)
 
@@ -809,5 +857,11 @@ def list_users(include_role_info: bool, using="default"):
     :param include_role_info: whether to obtain the role information associated with users
     :type  include_role_info: bool
     :return UserInfo
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> users = utility.list_users(include_role_info)
+        >>> print(f"users info: {users}")
     """
     return _get_connection(using).select_all_user(include_role_info)
