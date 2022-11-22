@@ -252,7 +252,27 @@ class Collection:
         return self._schema.primary_field
 
     def flush(self, timeout=None, **kwargs):
-        """ Flush """
+        """ Seal all segments in the collection. Inserts after flushing will be written into
+            new segments. Only sealed segments can be indexed.
+
+        Args:
+            timeout (float): an optional duration of time in seconds to allow for the RPCs.
+                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+
+        Examples:
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> fields = [
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
+            ... ]
+            >>> schema = CollectionSchema(fields=fields)
+            >>> collection = Collection(name="test_collection_flush", schema=schema)
+            >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
+            >>> collection.flush()
+            >>> collection.num_entities
+            2
+        """
         conn = self._get_connection()
         conn.flush([self.name], timeout=timeout, **kwargs)
 
@@ -286,6 +306,25 @@ class Collection:
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
     def set_properties(self, properties, timeout=None, **kwargs):
+        """ Set properties for the collection
+
+        Args:
+            properties (dict): collection properties.
+                 only support collection TTL with key `collection.ttl.seconds`
+            timeout (float, optional): an optional duration of time in seconds to allow for the RPCs.
+                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+
+        Examples:
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> fields = [
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
+            ... ]
+            >>> schema = CollectionSchema(fields=fields)
+            >>> collection = Collection("test_set_properties", schema)
+            >>> collection.set_properties({"collection.ttl.seconds": 60})
+        """
         conn = self._get_connection()
         conn.alter_collection(self.name, properties=properties, timeout=timeout)
 
