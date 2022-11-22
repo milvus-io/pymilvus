@@ -22,12 +22,30 @@ class Role:
     def create(self):
         """ Create a role
             It will success if the role isn't existed, otherwise fail.
+
+        :example:
+            >>> from pymilvus import connections, utility
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(name=role_name)
+            >>> role.create()
+            >>> roles = utility.list_roles()
+            >>> print(f"roles in Milvus: {roles}")
         """
         return self._get_connection().create_role(self._name)
 
     def drop(self):
         """ Drop a role
             It will success if the role is existed, otherwise fail.
+
+        :example:
+            >>> from pymilvus import connections, utility
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(name=role_name)
+            >>> role.drop()
+            >>> roles = utility.list_roles()
+            >>> print(f"roles in Milvus: {roles}")
         """
         return self._get_connection().drop_role(self._name)
 
@@ -36,6 +54,15 @@ class Role:
             The user will get permissions that the role are allowed to perform operations.
             :param username: user name.
             :type  username: str
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(name=role_name)
+            >>> role.add_user(username)
+            >>> users = role.get_users()
+            >>> print(f"users added to the role: {users}")
         """
         return self._get_connection().add_user_to_role(username, self._name)
 
@@ -44,6 +71,15 @@ class Role:
             The user will remove permissions that the role are allowed to perform operations.
             :param username: user name.
             :type  username: str
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(name=role_name)
+            >>> role.remove_user(username)
+            >>> users = role.get_users()
+            >>> print(f"users added to the role: {users}")
         """
         return self._get_connection().remove_user_from_role(username, self._name)
 
@@ -54,6 +90,14 @@ class Role:
 
             RoleInfo groups:
             - UserItem: <role_name:admin>, <users:('root',)>
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(name=role_name)
+            >>> users = role.get_users()
+            >>> print(f"users added to the role: {users}")
         """
         roles = self._get_connection().select_one_role(self._name, True)
         if len(roles.groups) == 0:
@@ -64,6 +108,14 @@ class Role:
         """ Check whether the role is existed.
             :return a bool value
                 It will be True if the role is existed, otherwise False.
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(name=role_name)
+            >>> is_exist = role.is_exist()
+            >>> print(f"the role: {is_exist}")
         """
         roles = self._get_connection().select_one_role(self._name, False)
         return len(roles.groups) != 0
@@ -76,6 +128,13 @@ class Role:
             :type  object_name: str
             :param privilege: privilege name.
             :type  privilege: str
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(role_name)
+            >>> role.grant("Collection", collection_name, "Insert")
         """
         return self._get_connection().grant_privilege(self._name, object, object_name, privilege)
 
@@ -87,6 +146,13 @@ class Role:
             :type  object_name: str
             :param privilege: privilege name.
             :type  privilege: str
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(role_name)
+            >>> role.revoke("Collection", collection_name, "Insert")
         """
         return self._get_connection().revoke_privilege(self._name, object, object_name, privilege)
 
@@ -101,6 +167,13 @@ class Role:
 
             GrantInfo groups:
             - GrantItem: <object:Collection>, <object_name:foo>, <role_name:x>, <grantor_name:root>, <privilege:Load>
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(role_name)
+            >>> role.list_grant("Collection", collection_name)
         """
         return self._get_connection().select_grant_for_role_and_object(self._name, object, object_name)
 
@@ -111,5 +184,12 @@ class Role:
 
             GrantInfo groups:
             - GrantItem: <object:Collection>, <object_name:foo>, <role_name:x>, <grantor_name:root>, <privilege:Load>
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(role_name)
+            >>> role.list_grants()
         """
         return self._get_connection().select_grant_for_one_role(self._name)
