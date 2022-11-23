@@ -52,21 +52,24 @@ class Collection:
         """ Constructs a collection by name, schema and other parameters.
 
         Args:
-            name (str): the name of collection
-            schema (CollectionSchema, optional): the schema of collection, defaults to None.
-            using (str, optional): Milvus connection alias name, defaults to "default".
-            shards_num (int, optional): how many shards will the insert data be divided, defaults to 2.
-            kwargs: other arbitrary keyword arguments.
-                - *consistency_level* (int, str): Which consistency level to use when searching in the collection.
-                See https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
-                Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
-                Note: this parameter can be overwritten by the same parameter specified in search.
+            name (``str``): the name of collection
+            schema (``CollectionSchema``, optional): the schema of collection, defaults to None.
+            using (``str``, optional): Milvus connection alias name, defaults to 'default'.
+            shards_num (``int``, optional): how many shards will the insert data be divided, defaults to 2.
+            **kwargs (``dict``):
 
-                - *properties* (dict, optional): collection properties.
-                     only support collection TTL with key `collection.ttl.seconds`
+                * *consistency_level* (``int/ str``)
+                    Which consistency level to use when searching in the collection.
+                    Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
 
-                - *timeout* (float): an optional duration of time in seconds to allow for the RPCs.
-                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+                    Note: this parameter can be overwritten by the same parameter specified in search.
+
+                * *properties* (``dict``, optional)
+                    Collection properties.
+
+                * *timeout* (``float``)
+                    An optional duration of time in seconds to allow for the RPCs.
+                    If timeout is not set, the client keeps waiting until the server responds or an error occurs.
 
         Raises:
             SchemaNotReadyException: if the schema is wrong.
@@ -193,12 +196,12 @@ class Collection:
 
     @property
     def schema(self) -> CollectionSchema:
-        """CollectionSchema: schema of the collection."""
+        """CollectionSchema: schema of the collection. """
         return self._schema
 
     @property
     def aliases(self, **kwargs) -> list:
-        """List[str]: all the aliases of the collection."""
+        """List[str]: all the aliases of the collection. """
         conn = self._get_connection()
         resp = conn.describe_collection(self._name, **kwargs)
         aliases = resp["aliases"]
@@ -206,12 +209,12 @@ class Collection:
 
     @property
     def description(self) -> str:
-        """str: a text description of the collection."""
+        """str: a text description of the collection. """
         return self._schema.description
 
     @property
     def name(self) -> str:
-        """str: the name of the collection."""
+        """str: the name of the collection. """
         return self._name
 
     @property
@@ -495,64 +498,99 @@ class Collection:
 
     def search(self, data, anns_field, param, limit, expr=None, partition_names=None,
                output_fields=None, timeout=None, round_decimal=-1, **kwargs):
-        """
-        Conducts a vector similarity search with an optional boolean expression as filter.
+        """ Conducts a vector similarity search with an optional boolean expression as filter.
 
-        :param data: The vectors of search data, the length of data is number of query (nq), the
-                     dim of every vector in data must be equal to vector field's of collection.
-        :type  data: list[list[float]]
-        :param anns_field: The vector field used to search of collection.
-        :type  anns_field: str
-        :param param: The parameters of search, such as ``nprobe``.
-        :type  param: dict
-        :param limit: The max number of returned record, also known as ``topk``.
-        :type  limit: int
-        :param expr: The boolean expression used to filter attribute.
-        :type  expr: str
-        :param partition_names: The names of partitions to search.
-        :type  partition_names: list[str]
-        :param output_fields: The fields to return in the search result, not supported now.
-        :type  output_fields: list[str]
-        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                        is set to None, client waits until server response or error occur.
-        :type  timeout: float
-        :param round_decimal: The specified number of decimal places of returned distance
-        :type  round_decimal: int
-        :param kwargs:
-            * *_async* (``bool``) --
-              Indicate if invoke asynchronously. When value is true, method returns a
-              SearchFuture object; otherwise, method returns results from server directly.
-            * *_callback* (``function``) --
-              The callback function which is invoked after server response successfully.
-              It functions only if _async is set to True.
-            * *consistency_level* (``str/int``) --
-              Which consistency level to use when searching in the collection. See details in
-              https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
-              Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
-              Note: this parameter will overwrite the same parameter specified when user created the collection,
-              if no consistency level was specified, search will use the consistency level when you create the
-              collection.
-            * *guarantee_timestamp* (``int``) --
-              This function instructs Milvus to see all operations performed before a provided timestamp. If no
-              such timestamp is provided, then Milvus will search all operations performed to date.
-              Note: only used in Customized consistency level.
-            * *graceful_time* (``int``) --
-              Only used in bounded consistency level. If graceful_time is set, PyMilvus will use current timestamp minus
-              the graceful_time as the `guarantee_timestamp`. This option is 5s by default if not set.
-            * *travel_timestamp* (``int``) --
-              Users can specify a timestamp in a search to get results based on a data view
-              at a specified point in time.
+        Args:
+            data (``List[List[float]]``): The vectors of search data.
+                the length of data is number of query (nq), and the dim of every vector in data must be equal to
+                the vector field's of collection.
+            anns_field (``str``): The name of the vector field used to search of collection.
+            param (``dict[str, Any]``):
 
-        :return: SearchResult: SearchResult is iterable and is a 2d-array-like class, the first dimension is
-            the number of vectors to query (nq), the second dimension is the number of limit(topk).
-        :rtype: SearchResult
+                The parameters of search. The followings are valid keys of param.
 
-        :raises RpcError: If gRPC encounter an error.
-        :raises ParamError: If parameters are invalid.
-        :raises DataTypeNotMatchException: If wrong type of param is passed.
-        :raises BaseException: If the return result from server is not ok.
+                * *nprobe*, *ef*, *search_k*, etc
+                    Corresponding search params for a certain index.
 
-        :example:
+                * *metric_type* (``str``)
+                    similar metricy types, the value must be of type str.
+
+                * *offset* (``int``, optional)
+                    offset for pagination.
+
+                * *limit* (``int``, optional)
+                    limit for the search results and pagination.
+
+                example for param::
+
+                    {
+                        "nprobe": 128,
+                        "metric_type": "L2",
+                        "offset": 10,
+                        "limit": 10,
+                    }
+
+            limit (``int``): The max number of returned record, also known as `topk`.
+            expr (``str``): The boolean expression used to filter attribute. Default to None.
+
+                example for expr::
+
+                    "id_field >= 0", "id_field in [1, 2, 3, 4]"
+
+            partition_names (``List[str]``, optional): The names of partitions to search on. Default to None.
+            output_fields (``List[str]``, optional):
+                The name of fields to return in the search result.  Can only get scalar fields.
+            round_decimal (``int``, optional): The specified number of decimal places of returned distance.
+                Defaults to -1 means no round to returned distance.
+            **kwargs (``dict``): Optional search params
+
+                *  *_async* (``bool``, optional)
+                    Indicate if invoke asynchronously.
+                    Returns a SearchFuture if True, else returns results from server directly.
+
+                * *_callback* (``function``, optional)
+                    The callback function which is invoked after server response successfully.
+                    It functions only if _async is set to True.
+
+                * *consistency_level* (``str/int``, optional)
+                    Which consistency level to use when searching in the collection.
+
+                    Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
+
+                    Note: this parameter will overwrite the same parameter specified when user created the collection,
+                    if no consistency level was specified, search will use the consistency level when you create the
+                    collection.
+
+                * *guarantee_timestamp* (``int``, optional)
+                    Instructs Milvus to see all operations performed before this timestamp.
+                    By default Milvus will search all operations performed to date.
+
+                    Note: only valid in Customized consistency level.
+
+                * *graceful_time* (``int``, optional)
+                    Search will use the (current_timestamp - the graceful_time) as the
+                    `guarantee_timestamp`. By default with 5s.
+
+                    Note: only valid in Bounded consistency level
+
+                * *travel_timestamp* (``int``, optional)
+                    A specific timestamp to get results based on a data view at.
+
+        Returns:
+            SearchResult:
+                Returns ``SearchResult`` if `_async` is False , otherwise ``SearchFuture``
+
+        .. _Metric type documentations:
+            https://milvus.io/docs/v2.2.x/metric.md
+        .. _Index documentations:
+            https://milvus.io/docs/v2.2.x/index.md
+        .. _How guarantee ts works:
+            https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md
+
+        Raises:
+            MilvusException: If anything goes wrong
+
+        Examples:
             >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
             >>> connections.connect()
