@@ -800,3 +800,7 @@ class Prepare:
             entity=milvus_types.GrantEntity(role=milvus_types.RoleEntity(name=role_name),
                                             object=milvus_types.ObjectEntity(name=object) if object else None,
                                             object_name=object_name if object_name else None))
+
+    @classmethod
+    def get_server_version(cls):
+        return milvus_types.GetVersionRequest()

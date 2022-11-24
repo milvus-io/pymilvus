@@ -1174,3 +1174,12 @@ class GrpcHandler:
             raise MilvusException(resp.status.error_code, resp.status.reason)
 
         return GrantInfo(resp.entities)
+
+    @retry_on_rpc_failure()
+    def get_server_version(self, timeout=None, **kwargs) -> str:
+        req = Prepare.get_server_version()
+        resp = self._stub.GetVersion(req, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return resp.version
