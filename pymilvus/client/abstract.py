@@ -369,7 +369,7 @@ class MutationResult:
 
     def __str__(self):
         return f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, " \
-                "timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
+                f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
 
     __repr__ = __str__
 

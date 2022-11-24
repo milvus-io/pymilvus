@@ -119,9 +119,19 @@ def test_partition():
 
     data = gen_data(default_nb)
     print("insert data to partition")
-    partition.insert(data)
+    res = partition.insert(data)
+    collection.flush()
+    print(res.insert_count)
     assert partition.is_empty is False
     assert partition.num_entities == default_nb
+
+    print("start to create index")
+    index = {
+        "index_type": "IVF_FLAT",
+        "metric_type": "L2",
+        "params": {"nlist": 128},
+    }
+    collection.create_index(default_float_vec_field_name, index)
 
     print("load partition")
     partition.load()
