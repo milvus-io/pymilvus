@@ -5,6 +5,7 @@ import base64
 from urllib import parse
 
 import grpc
+import numpy as np
 from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
@@ -906,7 +907,7 @@ class GrpcHandler:
                 elif field_data.type == DataType.INT64:
                     result[field_data.field_name] = field_data.scalars.long_data.data[index]
                 elif field_data.type == DataType.FLOAT:
-                    result[field_data.field_name] = round(field_data.scalars.float_data.data[index], 6)
+                    result[field_data.field_name] = np.single(field_data.scalars.float_data.data[index])
                 elif field_data.type == DataType.DOUBLE:
                     result[field_data.field_name] = field_data.scalars.double_data.data[index]
                 elif field_data.type == DataType.VARCHAR:
@@ -918,7 +919,7 @@ class GrpcHandler:
                     dim = field_data.vectors.dim
                     start_pos = index * dim
                     end_pos = index * dim + dim
-                    result[field_data.field_name] = [round(x, 6) for x in
+                    result[field_data.field_name] = [np.single(x) for x in
                                                      field_data.vectors.float_vector.data[start_pos:end_pos]]
                 elif field_data.type == DataType.BINARY_VECTOR:
                     dim = field_data.vectors.dim
