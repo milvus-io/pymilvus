@@ -70,3 +70,43 @@ class TestGrpcHandler:
 
         with pytest.raises(MilvusUnavailableException):
             has_collection_future.result()
+
+    def test_get_server_version_error(self, channel, client_thread):
+        handler = GrpcHandler(channel=channel)
+
+        get_version_future = client_thread.submit(
+            handler.get_server_version)
+
+        (invocation_metadata, request, rpc) = (
+            channel.take_unary_unary(descriptor.methods_by_name['GetVersion']))
+        rpc.send_initial_metadata(())
+
+        expected_result = milvus_pb2.GetVersionResponse(
+            status=common_pb2.Status(
+                error_code=common_pb2.UnexpectedError,
+                reason="unexpected error"),
+        )
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
+
+        with pytest.raises(MilvusException):
+            get_version_future.result()
+
+    def test_get_server_version_error(self, channel, client_thread):
+        version = "2.2.0"
+        handler = GrpcHandler(channel=channel)
+
+        get_version_future = client_thread.submit(
+            handler.get_server_version)
+
+        (invocation_metadata, request, rpc) = (
+            channel.take_unary_unary(descriptor.methods_by_name['GetVersion']))
+        rpc.send_initial_metadata(())
+
+        expected_result = milvus_pb2.GetVersionResponse(
+            status=common_pb2.Status(error_code=common_pb2.Success),
+            version=version,
+        )
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
+
+        got_result = get_version_future.result()
+        assert got_result == version

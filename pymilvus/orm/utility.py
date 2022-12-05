@@ -865,3 +865,17 @@ def list_users(include_role_info: bool, using="default"):
         >>> print(f"users info: {users}")
     """
     return _get_connection(using).select_all_user(include_role_info)
+
+def get_server_version(using="default", timeout=None) -> str:
+    """ get the running server's version
+
+    :returns: server's version
+    :rtype: str
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> utility.get_server_version()
+        >>> "2.2.0"
+    """
+    return _get_connection(using).get_server_version(timeout=timeout)
