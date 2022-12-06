@@ -440,7 +440,7 @@ class GrpcHandler:
     @retry_on_rpc_failure(retry_on_deadline=False)
     def search(self, collection_name, data, anns_field, param, limit,
                expression=None, partition_names=None, output_fields=None,
-               round_decimal=-1, timeout=None, collection_schema=None, **kwargs):
+               round_decimal=-1, timeout=None, schema=None, **kwargs):
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
@@ -452,20 +452,20 @@ class GrpcHandler:
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0)
         )
 
-        if not collection_schema:
-            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+        if schema is None:
+            schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
-        consistency_level = collection_schema["consistency_level"]
+        consistency_level = schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
         consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))
 
         ts_utils.construct_guarantee_ts(consistency_level, collection_name, kwargs)
 
-        requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, collection_schema,
+        requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, schema,
                                                      expression, partition_names, output_fields, round_decimal,
                                                      **kwargs)
 
-        auto_id = collection_schema["auto_id"]
+        auto_id = schema["auto_id"]
         return self._execute_search_requests(requests, timeout, round_decimal=round_decimal, auto_id=auto_id, **kwargs)
 
     @retry_on_rpc_failure()
