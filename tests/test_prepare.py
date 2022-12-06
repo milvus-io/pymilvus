@@ -49,7 +49,6 @@ class TestCreateCollectionRequest:
             FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True)
         ])
         req = Prepare.create_collection_request("c_name", schema, **valid_properties)
-        
         assert len(valid_properties.get("properties")) == len(req.properties)
 
     @pytest.mark.parametrize("invalid_fields", [
