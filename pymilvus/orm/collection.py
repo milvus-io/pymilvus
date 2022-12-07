@@ -419,12 +419,11 @@ class Collection:
         if data is None:
             return MutationResult(data)
         check_insert_data_schema(self._schema, data)
+        entities = Prepare.prepare_insert_data(data, self._schema)
 
         conn = self._get_connection()
-        entities = Prepare.prepare_insert_data(data, self._schema)
-        schema_dict = self._schema.to_dict()
-        schema_dict["consistency_level"] = self._consistency_level
-        res = conn.batch_insert(self._name, entities, partition_name, timeout=timeout, schema=schema_dict, **kwargs)
+        res = conn.batch_insert(self._name, entities, partition_name,
+                                timeout=timeout, schema=self._schema_dict, **kwargs)
 
         if kwargs.get("_async", False):
             return MutationFuture(res)
@@ -609,7 +608,7 @@ class Collection:
         conn = self._get_connection()
         res = conn.search(self._name, data, anns_field, param, limit, expr,
                           partition_names, output_fields, round_decimal, timeout=timeout,
-                          collection_schema=self._schema_dict, **kwargs)
+                          schema=self._schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
@@ -691,9 +690,8 @@ class Collection:
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        schema = self._schema.to_dict()
-        schema["consistency_level"] = self._consistency_level
-        res = conn.query(self._name, expr, output_fields, partition_names, timeout=timeout, schema=schema, **kwargs)
+        res = conn.query(self._name, expr, output_fields, partition_names,
+                         timeout=timeout, schema=self._schema_dict, **kwargs)
         return res
 
     @property
