@@ -1081,6 +1081,6 @@ class Collection:
         conn = self._get_connection()
         return conn.get_replicas(self.name, timeout=timeout, **kwargs)
 
-    def describe(self):
+    def describe(self, timeout=None):
         conn = self._get_connection()
-        return conn.describe_collection(self.name)
+        return conn.describe_collection(self.name, timeout=timeout)

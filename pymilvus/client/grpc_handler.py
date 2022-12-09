@@ -189,11 +189,11 @@ class GrpcHandler:
         """ Server network address """
         return self._address
 
-    def reset_password(self, user, old_password, new_password):
+    def reset_password(self, user, old_password, new_password, timeout=None):
         """
         reset password and then setup the grpc channel.
         """
-        self.update_password(user, old_password, new_password)
+        self.update_password(user, old_password, new_password, timeout=timeout)
         self._setup_authorization_interceptor(user, new_password)
         self._setup_grpc_channel()
 
