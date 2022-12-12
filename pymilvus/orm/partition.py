@@ -49,6 +49,9 @@ class Partition:
         if not has:
             conn.create_partition(self._collection.name, self._name, **copy_kwargs)
 
+        self._schema_dict = self._schema.to_dict()
+        self._schema_dict["consistency_level"] = self._consistency_level
+
     def __repr__(self):
         return json.dumps({
             'name': self.name,
@@ -294,10 +297,8 @@ class Partition:
             raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
         # TODO: check insert data schema here?
         entities = Prepare.prepare_insert_data(data, self._collection.schema)
-        schema_dict = self._schema.to_dict()
-        schema_dict["consistency_level"] = self._consistency_level
-        res = conn.batch_insert(self._collection.name, entities=entities,
-                               partition_name=self._name, timeout=timeout, orm=True, schema=schema_dict, **kwargs)
+        res = conn.batch_insert(self._collection.name, entities=entities, partition_name=self._name,
+            timeout=timeout, orm=True, schema=self._schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
@@ -476,10 +477,8 @@ class Partition:
             - Top1 hit id: 8, distance: 0.10143111646175385, score: 0.10143111646175385
         """
         conn = self._get_connection()
-        schema_dict = self._schema.to_dict()
-        schema_dict["consistency_level"] = self._consistency_level
         res = conn.search(self._collection.name, data, anns_field, param, limit, expr, [self._name], output_fields,
-                          round_decimal=round_decimal, timeout=timeout, collection_schema=schema_dict, **kwargs)
+                          round_decimal=round_decimal, timeout=timeout, schema=self._schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
@@ -552,10 +551,8 @@ class Partition:
             - Query results: [{'film_id': 0, 'film_date': 2000}, {'film_id': 1, 'film_date': 2001}]
         """
         conn = self._get_connection()
-        schema_dict = self._schema.to_dict()
-        schema_dict["consistency_level"] = self._consistency_level
         res = conn.query(self._collection.name, expr, output_fields, [self._name],
-                         timeout=timeout, schema=schema_dict, **kwargs)
+                         timeout=timeout, schema=self._schema_dict, **kwargs)
         return res
 
     def get_replicas(self, timeout=None, **kwargs) -> Replica:

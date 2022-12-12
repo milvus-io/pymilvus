@@ -165,7 +165,7 @@ def _get_connection(alias):
     return connections._fetch_handler(alias)
 
 
-def loading_progress(collection_name, partition_names=None, using="default"):
+def loading_progress(collection_name, partition_names=None, using="default", timeout=None):
     """ Show loading progress of sealed segments in percentage.
 
     :param collection_name: The name of collection is loading
@@ -198,7 +198,7 @@ def loading_progress(collection_name, partition_names=None, using="default"):
         >>> utility.loading_progress("test_loading_progress")
         {'loading_progress': '100%'}
     """
-    progress = _get_connection(using).get_loading_progress(collection_name, partition_names)
+    progress = _get_connection(using).get_loading_progress(collection_name, partition_names, timeout=timeout)
     return {
         "loading_progress": f"{progress:.0f}%",
     }
@@ -241,7 +241,7 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
     return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
 
 
-def index_building_progress(collection_name, index_name="", using="default"):
+def index_building_progress(collection_name, index_name="", using="default", timeout=None):
     """
     Show # indexed entities vs. # total entities.
 
@@ -283,7 +283,8 @@ def index_building_progress(collection_name, index_name="", using="default"):
         >>> index = c.create_index(field_name="float_vector", index_params=index_params, index_name="ivf_flat")
         >>> utility.index_building_progress("test_collection", c.name)
     """
-    return _get_connection(using).get_index_build_progress(collection_name=collection_name, index_name=index_name)
+    return _get_connection(using).get_index_build_progress(
+        collection_name=collection_name, index_name=index_name, timeout=timeout)
 
 
 def wait_for_index_building_complete(collection_name, index_name="", timeout=None, using="default"):
@@ -332,7 +333,7 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
     return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout=timeout)[0]
 
 
-def has_collection(collection_name, using="default"):
+def has_collection(collection_name, using="default", timeout=None):
     """
     Checks whether a specified collection exists.
 
@@ -352,10 +353,10 @@ def has_collection(collection_name, using="default"):
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_collection("test_collection")
     """
-    return _get_connection(using).has_collection(collection_name)
+    return _get_connection(using).has_collection(collection_name, timeout=timeout)
 
 
-def has_partition(collection_name, partition_name, using="default"):
+def has_partition(collection_name, partition_name, using="default", timeout=None):
     """
     Checks if a specified partition exists in a collection.
 
@@ -378,7 +379,7 @@ def has_partition(collection_name, partition_name, using="default"):
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_partition("_default")
     """
-    return _get_connection(using).has_partition(collection_name, partition_name)
+    return _get_connection(using).has_partition(collection_name, partition_name, timeout=timeout)
 
 
 def drop_collection(collection_name, timeout=None, using="default"):
@@ -725,7 +726,7 @@ def list_bulk_insert_tasks(limit=0, collection_name=None, timeout=None, using="d
     return _get_connection(using).list_bulk_insert_tasks(limit, collection_name, timeout=timeout, **kwargs)
 
 
-def reset_password(user: str, old_password: str, new_password: str, using="default"):
+def reset_password(user: str, old_password: str, new_password: str, using="default", timeout=None):
     """
         Reset the user & password of the connection.
         You must provide the original password to check if the operation is valid.
@@ -745,10 +746,10 @@ def reset_password(user: str, old_password: str, new_password: str, using="defau
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).reset_password(user, old_password, new_password)
+    return _get_connection(using).reset_password(user, old_password, new_password, timeout=timeout)
 
 
-def create_user(user: str, password: str, using="default"):
+def create_user(user: str, password: str, using="default", timeout=None):
     """ Create User using the given user and password.
     :param user: the user name.
     :type  user: str
@@ -763,10 +764,10 @@ def create_user(user: str, password: str, using="default"):
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).create_user(user, password)
+    return _get_connection(using).create_user(user, password, timeout=timeout)
 
 
-def update_password(user: str, old_password, new_password: str, using="default"):
+def update_password(user: str, old_password, new_password: str, using="default", timeout=None):
     """
         Update user password using the given user and password.
         You must provide the original password to check if the operation is valid.
@@ -788,10 +789,10 @@ def update_password(user: str, old_password, new_password: str, using="default")
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).update_password(user, old_password, new_password)
+    return _get_connection(using).update_password(user, old_password, new_password, timeout=timeout)
 
 
-def delete_user(user: str, using="default"):
+def delete_user(user: str, using="default", timeout=None):
     """ Delete User corresponding to the username.
     :param user: the user name.
     :type  user: str
@@ -803,10 +804,10 @@ def delete_user(user: str, using="default"):
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).delete_user(user)
+    return _get_connection(using).delete_user(user, timeout=timeout)
 
 
-def list_usernames(using="default"):
+def list_usernames(using="default", timeout=None):
     """ List all usernames.
     :return list of str:
         The usernames in Milvus instances.
@@ -817,10 +818,10 @@ def list_usernames(using="default"):
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).list_usernames()
+    return _get_connection(using).list_usernames(timeout=timeout)
 
 
-def list_roles(include_user_info: bool, using="default"):
+def list_roles(include_user_info: bool, using="default", timeout=None):
     """ List All Role Info
     :param include_user_info: whether to obtain the user information associated with roles
     :type  include_user_info: bool
@@ -832,10 +833,10 @@ def list_roles(include_user_info: bool, using="default"):
         >>> roles = utility.list_roles()
         >>> print(f"roles in Milvus: {roles}")
     """
-    return _get_connection(using).select_all_role(include_user_info)
+    return _get_connection(using).select_all_role(include_user_info, timeout=timeout)
 
 
-def list_user(username: str, include_role_info: bool, using="default"):
+def list_user(username: str, include_role_info: bool, using="default", timeout=None):
     """ List One User Info
     :param username: user name.
     :type  username: str
@@ -849,10 +850,10 @@ def list_user(username: str, include_role_info: bool, using="default"):
         >>> user = utility.list_user(username, include_role_info)
         >>> print(f"user info: {user}")
     """
-    return _get_connection(using).select_one_user(username, include_role_info)
+    return _get_connection(using).select_one_user(username, include_role_info, timeout=timeout)
 
 
-def list_users(include_role_info: bool, using="default"):
+def list_users(include_role_info: bool, using="default", timeout=None):
     """ List All User Info
     :param include_role_info: whether to obtain the role information associated with users
     :type  include_role_info: bool
@@ -864,4 +865,18 @@ def list_users(include_role_info: bool, using="default"):
         >>> users = utility.list_users(include_role_info)
         >>> print(f"users info: {users}")
     """
-    return _get_connection(using).select_all_user(include_role_info)
+    return _get_connection(using).select_all_user(include_role_info, timeout=timeout)
+
+def get_server_version(using="default", timeout=None) -> str:
+    """ get the running server's version
+
+    :returns: server's version
+    :rtype: str
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> utility.get_server_version()
+        >>> "2.2.0"
+    """
+    return _get_connection(using).get_server_version(timeout=timeout)

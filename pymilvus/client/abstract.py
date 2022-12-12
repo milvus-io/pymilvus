@@ -1,5 +1,6 @@
 import abc
 
+import numpy as np
 from .configs import DefaultConfigs
 from .types import DataType
 from .constants import DEFAULT_CONSISTENCY_LEVEL
@@ -277,7 +278,7 @@ class Hits(LoopBase):
                         entity_row_data[field_data.field_name] = field_data.scalars.long_data.data[item]
                 elif field_data.type == DataType.FLOAT:
                     if len(field_data.scalars.float_data.data) >= item:
-                        entity_row_data[field_data.field_name] = round(field_data.scalars.float_data.data[item], 6)
+                        entity_row_data[field_data.field_name] = np.single(field_data.scalars.float_data.data[item])
                 elif field_data.type == DataType.DOUBLE:
                     if len(field_data.scalars.double_data.data) >= item:
                         entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[item]
@@ -292,7 +293,7 @@ class Hits(LoopBase):
                     if len(field_data.vectors.float_vector.data) >= item * dim:
                         start_pos = item * dim
                         end_pos = item * dim + dim
-                        entity_row_data[field_data.field_name] = [round(x, 6) for x in
+                        entity_row_data[field_data.field_name] = [np.single(x) for x in
                                                                   field_data.vectors.float_vector.data[
                                                                   start_pos:end_pos]]
                 elif field_data.type == DataType.BINARY_VECTOR:

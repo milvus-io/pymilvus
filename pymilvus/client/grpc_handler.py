@@ -5,6 +5,7 @@ import base64
 from urllib import parse
 
 import grpc
+import numpy as np
 from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
@@ -189,11 +190,11 @@ class GrpcHandler:
         """ Server network address """
         return self._address
 
-    def reset_password(self, user, old_password, new_password):
+    def reset_password(self, user, old_password, new_password, timeout=None):
         """
         reset password and then setup the grpc channel.
         """
-        self.update_password(user, old_password, new_password)
+        self.update_password(user, old_password, new_password, timeout=timeout)
         self._setup_authorization_interceptor(user, new_password)
         self._setup_grpc_channel()
 
@@ -906,7 +907,7 @@ class GrpcHandler:
                 elif field_data.type == DataType.INT64:
                     result[field_data.field_name] = field_data.scalars.long_data.data[index]
                 elif field_data.type == DataType.FLOAT:
-                    result[field_data.field_name] = round(field_data.scalars.float_data.data[index], 6)
+                    result[field_data.field_name] = np.single(field_data.scalars.float_data.data[index])
                 elif field_data.type == DataType.DOUBLE:
                     result[field_data.field_name] = field_data.scalars.double_data.data[index]
                 elif field_data.type == DataType.VARCHAR:
@@ -918,7 +919,7 @@ class GrpcHandler:
                     dim = field_data.vectors.dim
                     start_pos = index * dim
                     end_pos = index * dim + dim
-                    result[field_data.field_name] = [round(x, 6) for x in
+                    result[field_data.field_name] = [np.single(x) for x in
                                                      field_data.vectors.float_vector.data[start_pos:end_pos]]
                 elif field_data.type == DataType.BINARY_VECTOR:
                     dim = field_data.vectors.dim
@@ -1174,3 +1175,12 @@ class GrpcHandler:
             raise MilvusException(resp.status.error_code, resp.status.reason)
 
         return GrantInfo(resp.entities)
+
+    @retry_on_rpc_failure()
+    def get_server_version(self, timeout=None, **kwargs) -> str:
+        req = Prepare.get_server_version()
+        resp = self._stub.GetVersion(req, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return resp.version
