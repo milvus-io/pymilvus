@@ -1,5 +1,5 @@
 build==0.4.0
-certifi==2021.5.30
+certifi==2022.12.7
 chardet==4.0.0
 grpcio==1.47.0
 grpcio-testing==1.47.0
