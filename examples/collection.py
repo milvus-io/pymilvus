@@ -10,6 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
 from pymilvus import Collection, connections, FieldSchema, CollectionSchema, DataType, utility
+from pymilvus.client.types import LoadState
 
 import random
 import numpy as np
@@ -177,6 +178,7 @@ def test_create_collection():
     collection = Collection(name=name, schema=gen_default_fields())
     assert collection.is_empty is True
     assert collection.num_entities == 0
+    assert utility.load_state(name) == LoadState.NotLoad
     return name
 
 
@@ -197,6 +199,7 @@ def test_collection_only_name():
     collection.load()
     assert collection.is_empty is False
     assert collection.num_entities == default_nb
+    assert utility.load_state(name) == LoadState.Loaded
     collection.drop()
 
 
