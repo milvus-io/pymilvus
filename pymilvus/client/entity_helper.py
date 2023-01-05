@@ -1,7 +1,7 @@
-from ..grpc_gen import schema_pb2 as schema_types
-from .types import DataType
 from ..exceptions import ParamError
+from ..grpc_gen import schema_pb2 as schema_types
 from .configs import DefaultConfigs
+from .types import DataType
 
 
 def entity_type_to_dtype(entity_type):
@@ -24,12 +24,14 @@ def check_str_arr(str_arr, max_len):
         if not isinstance(s, str):
             raise ParamError(message=f"expect string input, got: {type(s)}")
         if len(s) >= max_len:
-            raise ParamError(message=f"invalid input, length of string exceeds max length. length: {len(s)}, max length: {max_len}")
+            raise ParamError(
+                message=f"invalid input, length of string exceeds max length. length: {len(s)}, max length: {max_len}"
+            )
 
 
 def entity_to_str_arr(entity, field_info, check=True):
     arr = []
-    if DefaultConfigs.EncodeProtocol.lower() != 'utf-8'.lower():
+    if DefaultConfigs.EncodeProtocol.lower() != "utf-8".lower():
         for s in entity.get("values"):
             arr.append(s.encode(DefaultConfigs.EncodeProtocol))
     else:
@@ -68,9 +70,11 @@ def entity_to_field_data(entity, field_info):
         field_data.vectors.float_vector.data.extend(all_floats)
     elif entity_type in (DataType.BINARY_VECTOR,):
         field_data.vectors.dim = len(entity.get("values")[0]) * 8
-        field_data.vectors.binary_vector = b''.join(entity.get("values"))
+        field_data.vectors.binary_vector = b"".join(entity.get("values"))
     elif entity_type in (DataType.VARCHAR,):
-        field_data.scalars.string_data.data.extend(entity_to_str_arr(entity, field_info, True))
+        field_data.scalars.string_data.data.extend(
+            entity_to_str_arr(entity, field_info, True)
+        )
     else:
         raise ParamError(message=f"UnSupported data type: {entity_type}")
 

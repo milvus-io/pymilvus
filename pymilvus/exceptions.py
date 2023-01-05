@@ -37,35 +37,35 @@ class MilvusException(Exception):
 
 
 class ParamError(MilvusException):
-    """ Raise when params are incorrect """
+    """Raise when params are incorrect"""
 
 
 class ConnectError(MilvusException):
-    """ Connect server fail """
+    """Connect server fail"""
 
 
 class MilvusUnavailableException(MilvusException):
-    """ Raise when server's Unavaliable"""
+    """Raise when server's Unavaliable"""
 
 
 class CollectionNotExistException(MilvusException):
-    """ Raise when collections doesn't exist """
+    """Raise when collections doesn't exist"""
 
 
 class DescribeCollectionException(MilvusException):
-    """ Raise when fail to describe collection """
+    """Raise when fail to describe collection"""
 
 
 class PartitionNotExistException(MilvusException):
-    """ Raise when partition doesn't exist """
+    """Raise when partition doesn't exist"""
 
 
 class PartitionAlreadyExistException(MilvusException):
-    """ Raise when create an exsiting partition """
+    """Raise when create an exsiting partition"""
 
 
 class IndexNotExistException(MilvusException):
-    """ Raise when index doesn't exist """
+    """Raise when index doesn't exist"""
 
 
 class AmbiguousIndexName(MilvusException):
@@ -73,51 +73,51 @@ class AmbiguousIndexName(MilvusException):
 
 
 class CannotInferSchemaException(MilvusException):
-    """ Raise when cannot trasfer dataframe to schema """
+    """Raise when cannot trasfer dataframe to schema"""
 
 
 class SchemaNotReadyException(MilvusException):
-    """ Raise when schema is wrong """
+    """Raise when schema is wrong"""
 
 
 class DataTypeNotMatchException(MilvusException):
-    """ Raise when datatype dosen't match """
+    """Raise when datatype dosen't match"""
 
 
 class DataTypeNotSupportException(MilvusException):
-    """ Raise when datatype isn't supported """
+    """Raise when datatype isn't supported"""
 
 
 class DataNotMatchException(MilvusException):
-    """ Raise when insert data isn't match with schema """
+    """Raise when insert data isn't match with schema"""
 
 
 class ConnectionNotExistException(MilvusException):
-    """ Raise when connections doesn't exist """
+    """Raise when connections doesn't exist"""
 
 
 class ConnectionConfigException(MilvusException):
-    """ Raise when configs of connection are invalid """
+    """Raise when configs of connection are invalid"""
 
 
 class PrimaryKeyException(MilvusException):
-    """ Raise when primarykey are invalid """
+    """Raise when primarykey are invalid"""
 
 
 class FieldsTypeException(MilvusException):
-    """ Raise when fields is invalid """
+    """Raise when fields is invalid"""
 
 
 class FieldTypeException(MilvusException):
-    """ Raise when one field is invalid """
+    """Raise when one field is invalid"""
 
 
 class AutoIDException(MilvusException):
-    """ Raise when autoID is invalid """
+    """Raise when autoID is invalid"""
 
 
 class InvalidConsistencyLevel(MilvusException):
-    """ Raise when consistency level is invalid """
+    """Raise when consistency level is invalid"""
 
 
 class ExceptionsMessage:
@@ -128,7 +128,9 @@ class ExceptionsMessage:
     AliasType = "Alias should be string, but %r is given."
     ConnLackConf = "You need to pass in the configuration of the connection named %r ."
     ConnectFirst = "should create connect first."
-    CollectionNotExistNoSchema = "Collection %r not exist, or you can pass in schema to create one."
+    CollectionNotExistNoSchema = (
+        "Collection %r not exist, or you can pass in schema to create one."
+    )
     NoSchema = "Should be passed into the schema."
     EmptySchema = "The field of the schema cannot be empty."
     SchemaType = "Schema type must be schema.CollectionSchema."

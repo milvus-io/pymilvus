@@ -1,0 +1,43 @@
+exclude: "^docs/|/grpc_gen/|/.git/|/.tox/|/media/|/.pytest_cache/|^.idea/"
+default_stages: [commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.3.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-json
+      - id: check-xml
+      - id: check-executables-have-shebangs
+      - id: check-toml
+      - id: check-xml
+      - id: check-yaml
+      - id: debug-statements
+      - id: check-symlinks
+      - id: detect-aws-credentials
+        args: [ '--allow-missing-credentials' ]
+      - id: detect-private-key
+        exclude: ^examples|(?:tests/ssl)/
+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v2.34.0
+    hooks:
+      - id: pyupgrade
+        args: ['--py37-plus', '--keep-mock']
+
+  - repo: https://github.com/psf/black
+    rev: 22.10.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+
+# sets up .pre-commit-ci.yaml to ensure pre-commit dependencies stay up to date
+ci:
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

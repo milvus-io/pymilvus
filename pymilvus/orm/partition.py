@@ -13,23 +13,23 @@
 import copy
 import json
 
+from ..client.types import Replica
 from ..exceptions import (
     CollectionNotExistException,
-    PartitionNotExistException,
     ExceptionsMessage,
+    PartitionNotExistException,
 )
-
+from .future import MutationFuture, SearchFuture
+from .mutation import MutationResult
 from .prepare import Prepare
 from .search import SearchResult
-from .mutation import MutationResult
-from .future import SearchFuture, MutationFuture
-from ..client.types import Replica
 
 
 class Partition:
     def __init__(self, collection, name, description="", **kwargs):
         # TODO: Need a place to store the description
         from .collection import Collection
+
         if not isinstance(collection, Collection):
             raise CollectionNotExistException(message=ExceptionsMessage.CollectionType)
         self._collection = collection
@@ -53,18 +53,20 @@ class Partition:
         self._schema_dict["consistency_level"] = self._consistency_level
 
     def __repr__(self):
-        return json.dumps({
-            'name': self.name,
-            'collection_name': self._collection.name,
-            'description': self.description,
-        })
+        return json.dumps(
+            {
+                "name": self.name,
+                "collection_name": self._collection.name,
+                "description": self.description,
+            }
+        )
 
     def _get_connection(self):
         return self._collection._get_connection()
 
     @property
     def description(self) -> str:
-        """ Return the description text.
+        """Return the description text.
 
         :return:  Partition description
         :rtype: str
@@ -152,13 +154,15 @@ class Partition:
             10
         """
         conn = self._get_connection()
-        stats = conn.get_partition_stats(collection_name=self._collection.name, partition_name=self._name, **kwargs)
+        stats = conn.get_partition_stats(
+            collection_name=self._collection.name, partition_name=self._name, **kwargs
+        )
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
 
     def flush(self, timeout=None, **kwargs):
-        """ Flush """
+        """Flush"""
         conn = self._get_connection()
         conn.flush([self._collection.name], timeout=timeout, **kwargs)
 
@@ -185,9 +189,18 @@ class Partition:
             >>> partition.drop()
         """
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self._name, timeout=timeout, **kwargs) is False:
-            raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
-        return conn.drop_partition(self._collection.name, self._name, timeout=timeout, **kwargs)
+        if (
+            conn.has_partition(
+                self._collection.name, self._name, timeout=timeout, **kwargs
+            )
+            is False
+        ):
+            raise PartitionNotExistException(
+                message=ExceptionsMessage.PartitionNotExist
+            )
+        return conn.drop_partition(
+            self._collection.name, self._name, timeout=timeout, **kwargs
+        )
 
     def load(self, replica_number=1, timeout=None, **kwargs):
         """
@@ -219,7 +232,13 @@ class Partition:
         #  if index_names is not None, raise Exception Not Supported
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name, **kwargs):
-            return conn.load_partitions(self._collection.name, [self._name], replica_number, timeout=timeout, **kwargs)
+            return conn.load_partitions(
+                self._collection.name,
+                [self._name],
+                replica_number,
+                timeout=timeout,
+                **kwargs
+            )
         raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
 
     def release(self, timeout=None, **kwargs):
@@ -247,7 +266,9 @@ class Partition:
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name, **kwargs):
-            return conn.release_partitions(self._collection.name, [self._name], timeout=timeout, **kwargs)
+            return conn.release_partitions(
+                self._collection.name, [self._name], timeout=timeout, **kwargs
+            )
         raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
 
     def insert(self, data, timeout=None, **kwargs):
@@ -294,17 +315,26 @@ class Partition:
         """
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self._name, **kwargs) is False:
-            raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
+            raise PartitionNotExistException(
+                message=ExceptionsMessage.PartitionNotExist
+            )
         # TODO: check insert data schema here?
         entities = Prepare.prepare_insert_data(data, self._collection.schema)
-        res = conn.batch_insert(self._collection.name, entities=entities, partition_name=self._name,
-            timeout=timeout, orm=True, schema=self._schema_dict, **kwargs)
+        res = conn.batch_insert(
+            self._collection.name,
+            entities=entities,
+            partition_name=self._name,
+            timeout=timeout,
+            orm=True,
+            schema=self._schema_dict,
+            **kwargs
+        )
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
 
     def delete(self, expr, timeout=None, **kwargs):
-        """ Delete entities with an expression condition.
+        """Delete entities with an expression condition.
 
         :param expr: The expression to specify entities to be deleted
         :type  expr: str
@@ -343,14 +373,26 @@ class Partition:
         """
 
         conn = self._get_connection()
-        res = conn.delete(self._collection.name, expr, self.name, timeout=timeout, **kwargs)
+        res = conn.delete(
+            self._collection.name, expr, self.name, timeout=timeout, **kwargs
+        )
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
 
-    def search(self, data, anns_field, param, limit,
-               expr=None, output_fields=None, timeout=None, round_decimal=-1, **kwargs):
-        """ Conducts a vector similarity search with an optional boolean expression as filter.
+    def search(
+        self,
+        data,
+        anns_field,
+        param,
+        limit,
+        expr=None,
+        output_fields=None,
+        timeout=None,
+        round_decimal=-1,
+        **kwargs
+    ):
+        """Conducts a vector similarity search with an optional boolean expression as filter.
 
         Args:
             data (``List[List[float]]``): The vectors of search data.
@@ -477,8 +519,20 @@ class Partition:
             - Top1 hit id: 8, distance: 0.10143111646175385, score: 0.10143111646175385
         """
         conn = self._get_connection()
-        res = conn.search(self._collection.name, data, anns_field, param, limit, expr, [self._name], output_fields,
-                          round_decimal=round_decimal, timeout=timeout, schema=self._schema_dict, **kwargs)
+        res = conn.search(
+            self._collection.name,
+            data,
+            anns_field,
+            param,
+            limit,
+            expr,
+            [self._name],
+            output_fields,
+            round_decimal=round_decimal,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs
+        )
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
@@ -551,8 +605,15 @@ class Partition:
             - Query results: [{'film_id': 0, 'film_date': 2000}, {'film_id': 1, 'film_date': 2001}]
         """
         conn = self._get_connection()
-        res = conn.query(self._collection.name, expr, output_fields, [self._name],
-                         timeout=timeout, schema=self._schema_dict, **kwargs)
+        res = conn.query(
+            self._collection.name,
+            expr,
+            output_fields,
+            [self._name],
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs
+        )
         return res
 
     def get_replicas(self, timeout=None, **kwargs) -> Replica:

@@ -1,13 +1,10 @@
 import time
 from enum import IntEnum
-from ..grpc_gen.common_pb2 import ConsistencyLevel
+
+from ..exceptions import AutoIDException, ExceptionsMessage, InvalidConsistencyLevel
 from ..grpc_gen import common_pb2
-from ..exceptions import (
-    AutoIDException,
-    ExceptionsMessage,
-    InvalidConsistencyLevel,
-)
 from ..grpc_gen import milvus_pb2 as milvus_types
+from ..grpc_gen.common_pb2 import ConsistencyLevel
 
 
 class Status:
@@ -50,11 +47,11 @@ class Status:
         self.message = message
 
     def __repr__(self):
-        attr_list = [f'{key}={value}' for key, value in self.__dict__.items()]
+        attr_list = [f"{key}={value}" for key, value in self.__dict__.items()]
         return f"{self.__class__.__name__}({', '.join(attr_list)})"
 
     def __eq__(self, other):
-        """ Make Status comparable with self by code """
+        """Make Status comparable with self by code"""
         if isinstance(other, int):
             return self.code == other
 
@@ -186,7 +183,14 @@ class CompactionState:
     completed:      number of plans successfully completed
     """
 
-    def __init__(self, compaction_id: int, state: State, in_executing: int, in_timeout: int, completed: int):
+    def __init__(
+        self,
+        compaction_id: int,
+        state: State,
+        in_executing: int,
+        in_timeout: int,
+        completed: int,
+    ):
         self.compaction_id = compaction_id
         self.state = state
         self.in_executing = in_executing
@@ -260,12 +264,16 @@ def get_consistency_level(consistency_level):
     if isinstance(consistency_level, int):
         if consistency_level in ConsistencyLevel.values():
             return consistency_level
-        raise InvalidConsistencyLevel(message=f"invalid consistency level: {consistency_level}")
+        raise InvalidConsistencyLevel(
+            message=f"invalid consistency level: {consistency_level}"
+        )
     if isinstance(consistency_level, str):
         try:
             return ConsistencyLevel.Value(consistency_level)
         except ValueError as e:
-            raise InvalidConsistencyLevel(message=f"invalid consistency level: {consistency_level}") from e
+            raise InvalidConsistencyLevel(
+                message=f"invalid consistency level: {consistency_level}"
+            ) from e
     raise InvalidConsistencyLevel(message="invalid consistency level")
 
 
@@ -339,6 +347,7 @@ class Replica:
 
 class BulkInsertState:
     """enum states of bulk insert task"""
+
     ImportPending = 0
     ImportFailed = 1
     ImportStarted = 2
@@ -382,7 +391,9 @@ class BulkInsertState:
         ImportUnknownState: "Unknown",
     }
 
-    def __init__(self, task_id, state, row_count: int, id_ranges: list, infos, create_ts: int):
+    def __init__(
+        self, task_id, state, row_count: int, id_ranges: list, infos, create_ts: int
+    ):
         self._task_id = task_id
         self._state = state
         self._row_count = row_count
@@ -400,8 +411,14 @@ class BulkInsertState:
     - id_ranges       : {},
     - create_ts       : {}
 >"""
-        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos,
-                          self.id_ranges, self.create_time_str)
+        return fmt.format(
+            self._task_id,
+            self.state_name,
+            self.row_count,
+            self.infos,
+            self.id_ranges,
+            self.create_time_str,
+        )
 
     @property
     def task_id(self):
@@ -505,9 +522,11 @@ class GrantItem:
         self._privilege = entity.grantor.privilege.name
 
     def __repr__(self) -> str:
-        s = f"GrantItem: <object:{self.object}>, <object_name:{self.object_name}>, " \
-            f"<role_name:{self.role_name}>, <grantor_name:{self.grantor_name}>, " \
+        s = (
+            f"GrantItem: <object:{self.object}>, <object_name:{self.object_name}>, "
+            f"<role_name:{self.role_name}>, <grantor_name:{self.grantor_name}>, "
             f"<privilege:{self.privilege}>"
+        )
         return s
 
     @property

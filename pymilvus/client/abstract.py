@@ -1,11 +1,12 @@
 import abc
 
 import numpy as np
-from .configs import DefaultConfigs
-from .types import DataType
-from .constants import DEFAULT_CONSISTENCY_LEVEL
-from ..grpc_gen import schema_pb2
+
 from ..exceptions import MilvusException
+from ..grpc_gen import schema_pb2
+from .configs import DefaultConfigs
+from .constants import DEFAULT_CONSISTENCY_LEVEL
+from .types import DataType
 
 
 class LoopBase:
@@ -84,6 +85,7 @@ class FieldSchema:
         for type_param in raw.type_params:
             if type_param.key == "params":
                 import json
+
                 self.params[type_param.key] = json.loads(type_param.value)
             else:
                 self.params[type_param.key] = type_param.value
@@ -95,6 +97,7 @@ class FieldSchema:
         for index_param in raw.index_params:
             if index_param.key == "params":
                 import json
+
                 index_dict[index_param.key] = json.loads(index_param.value)
             else:
                 index_dict[index_param.key] = index_param.value
@@ -187,7 +190,7 @@ class Entity:
         self._distance = entity_score
 
     def __str__(self):
-        return f'id: {self._id}, distance: {self._distance}, entity: {self._row_data}'
+        return f"id: {self._id}, distance: {self._distance}, entity: {self._row_data}"
 
     def __getattr__(self, item):
         return self.value_of_field(item)
@@ -210,7 +213,7 @@ class Entity:
         return self._row_data[field]
 
     def type_of_field(self, field):
-        raise NotImplementedError('TODO: support field in Hits')
+        raise NotImplementedError("TODO: support field in Hits")
 
 
 class Hit:
@@ -269,22 +272,34 @@ class Hits(LoopBase):
             for field_data in self._raw.fields_data:
                 if field_data.type == DataType.BOOL:
                     if len(field_data.scalars.bool_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.bool_data.data[item]
+                        entity_row_data[
+                            field_data.field_name
+                        ] = field_data.scalars.bool_data.data[item]
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
                     if len(field_data.scalars.int_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.int_data.data[item]
+                        entity_row_data[
+                            field_data.field_name
+                        ] = field_data.scalars.int_data.data[item]
                 elif field_data.type == DataType.INT64:
                     if len(field_data.scalars.long_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.long_data.data[item]
+                        entity_row_data[
+                            field_data.field_name
+                        ] = field_data.scalars.long_data.data[item]
                 elif field_data.type == DataType.FLOAT:
                     if len(field_data.scalars.float_data.data) >= item:
-                        entity_row_data[field_data.field_name] = np.single(field_data.scalars.float_data.data[item])
+                        entity_row_data[field_data.field_name] = np.single(
+                            field_data.scalars.float_data.data[item]
+                        )
                 elif field_data.type == DataType.DOUBLE:
                     if len(field_data.scalars.double_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[item]
+                        entity_row_data[
+                            field_data.field_name
+                        ] = field_data.scalars.double_data.data[item]
                 elif field_data.type == DataType.VARCHAR:
                     if len(field_data.scalars.string_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[item]
+                        entity_row_data[
+                            field_data.field_name
+                        ] = field_data.scalars.string_data.data[item]
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
@@ -293,16 +308,20 @@ class Hits(LoopBase):
                     if len(field_data.vectors.float_vector.data) >= item * dim:
                         start_pos = item * dim
                         end_pos = item * dim + dim
-                        entity_row_data[field_data.field_name] = [np.single(x) for x in
-                                                                  field_data.vectors.float_vector.data[
-                                                                  start_pos:end_pos]]
+                        entity_row_data[field_data.field_name] = [
+                            np.single(x)
+                            for x in field_data.vectors.float_vector.data[
+                                start_pos:end_pos
+                            ]
+                        ]
                 elif field_data.type == DataType.BINARY_VECTOR:
                     dim = field_data.vectors.dim
                     if len(field_data.vectors.binary_vector.data) >= item * (dim / 8):
                         start_pos = item * (dim / 8)
                         end_pos = (item + 1) * (dim / 8)
                         entity_row_data[field_data.field_name] = [
-                            field_data.vectors.binary_vector.data[start_pos:end_pos]]
+                            field_data.vectors.binary_vector.data[start_pos:end_pos]
+                        ]
         entity_score = self._distances[item]
         return Hit(entity_id, entity_row_data, entity_score)
 
@@ -369,8 +388,10 @@ class MutationResult:
         return self._err_index
 
     def __str__(self):
-        return f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, " \
-                f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
+        return (
+            f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, "
+            f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
+        )
 
     __repr__ = __str__
 
@@ -416,27 +437,39 @@ class QueryResult(LoopBase):
             hit = schema_pb2.SearchResultData()
             start_pos = offset
             end_pos = offset + raw.results.topks[i]
-            hit.scores.append(raw.results.scores[start_pos: end_pos])
+            hit.scores.append(raw.results.scores[start_pos:end_pos])
             if raw.results.ids.HasField("int_id"):
-                hit.ids.append(raw.results.ids.int_id.data[start_pos: end_pos])
+                hit.ids.append(raw.results.ids.int_id.data[start_pos:end_pos])
             elif raw.results.ids.HasField("str_id"):
-                hit.ids.append(raw.results.ids.str_id.data[start_pos: end_pos])
+                hit.ids.append(raw.results.ids.str_id.data[start_pos:end_pos])
             for field_data in raw.result.fields_data:
                 field = schema_pb2.FieldData()
                 field.type = field_data.type
                 field.field_name = field_data.field_name
                 if field_data.type == DataType.BOOL:
-                    field.scalars.bool_data.data.extend(field_data.scalars.bool_data.data[start_pos: end_pos])
+                    field.scalars.bool_data.data.extend(
+                        field_data.scalars.bool_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                    field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos: end_pos])
+                    field.scalars.int_data.data.extend(
+                        field_data.scalars.int_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.INT64:
-                    field.scalars.long_data.data.extend(field_data.scalars.long_data.data[start_pos: end_pos])
+                    field.scalars.long_data.data.extend(
+                        field_data.scalars.long_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.FLOAT:
-                    field.scalars.float_data.data.extend(field_data.scalars.float_data.data[start_pos: end_pos])
+                    field.scalars.float_data.data.extend(
+                        field_data.scalars.float_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.DOUBLE:
-                    field.scalars.double_data.data.extend(field_data.scalars.double_data.data[start_pos: end_pos])
+                    field.scalars.double_data.data.extend(
+                        field_data.scalars.double_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.VARCHAR:
-                    field.scalars.string_data.data.extend(field_data.scalars.string_data.data[start_pos: end_pos])
+                    field.scalars.string_data.data.extend(
+                        field_data.scalars.string_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
@@ -444,12 +477,18 @@ class QueryResult(LoopBase):
                     dim = field.vectors.dim
                     field.vectors.dim = dim
                     field.vectors.float_vector.data.extend(
-                        field_data.vectors.float_data.data[start_pos * dim: end_pos * dim])
+                        field_data.vectors.float_data.data[
+                            start_pos * dim : end_pos * dim
+                        ]
+                    )
                 elif field_data.type == DataType.BINARY_VECTOR:
                     dim = field_data.vectors.dim
                     field.vectors.dim = dim
-                    field.vectors.binary_vector.data.extend(field_data.vectors.binary_vector.data[
-                                                            start_pos * (dim / 8): end_pos * (dim / 8)])
+                    field.vectors.binary_vector.data.extend(
+                        field_data.vectors.binary_vector.data[
+                            start_pos * (dim / 8) : end_pos * (dim / 8)
+                        ]
+                    )
                 hit.fields_data.append(field)
             self._hits.append(hit)
             offset += raw.results.topks[i]
@@ -482,40 +521,66 @@ class ChunkedQueryResult(LoopBase):
                 hit = schema_pb2.SearchResultData()
                 start_pos = offset
                 end_pos = offset + raw.results.topks[i]
-                hit.scores.extend(raw.results.scores[start_pos: end_pos])
+                hit.scores.extend(raw.results.scores[start_pos:end_pos])
                 if raw.results.ids.HasField("int_id"):
-                    hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos: end_pos])
+                    hit.ids.int_id.data.extend(
+                        raw.results.ids.int_id.data[start_pos:end_pos]
+                    )
                 elif raw.results.ids.HasField("str_id"):
-                    hit.ids.str_id.data.extend(raw.results.ids.str_id.data[start_pos: end_pos])
+                    hit.ids.str_id.data.extend(
+                        raw.results.ids.str_id.data[start_pos:end_pos]
+                    )
                 for field_data in raw.results.fields_data:
                     field = schema_pb2.FieldData()
                     field.type = field_data.type
                     field.field_name = field_data.field_name
                     if field_data.type == DataType.BOOL:
-                        field.scalars.bool_data.data.extend(field_data.scalars.bool_data.data[start_pos: end_pos])
-                    elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                        field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos: end_pos])
+                        field.scalars.bool_data.data.extend(
+                            field_data.scalars.bool_data.data[start_pos:end_pos]
+                        )
+                    elif field_data.type in (
+                        DataType.INT8,
+                        DataType.INT16,
+                        DataType.INT32,
+                    ):
+                        field.scalars.int_data.data.extend(
+                            field_data.scalars.int_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.INT64:
-                        field.scalars.long_data.data.extend(field_data.scalars.long_data.data[start_pos: end_pos])
+                        field.scalars.long_data.data.extend(
+                            field_data.scalars.long_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.FLOAT:
-                        field.scalars.float_data.data.extend(field_data.scalars.float_data.data[start_pos: end_pos])
+                        field.scalars.float_data.data.extend(
+                            field_data.scalars.float_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.DOUBLE:
-                        field.scalars.double_data.data.extend(field_data.scalars.double_data.data[start_pos: end_pos])
+                        field.scalars.double_data.data.extend(
+                            field_data.scalars.double_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.VARCHAR:
-                        field.scalars.string_data.data.extend(field_data.scalars.string_data.data[start_pos: end_pos])
+                        field.scalars.string_data.data.extend(
+                            field_data.scalars.string_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.STRING:
                         raise MilvusException(message="Not support string yet")
                         # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                     elif field_data.type == DataType.FLOAT_VECTOR:
                         dim = field_data.vectors.dim
                         field.vectors.dim = dim
-                        field.vectors.float_vector.data.extend(field_data.vectors.float_vector.data[
-                                                               start_pos * dim: end_pos * dim])
+                        field.vectors.float_vector.data.extend(
+                            field_data.vectors.float_vector.data[
+                                start_pos * dim : end_pos * dim
+                            ]
+                        )
                     elif field_data.type == DataType.BINARY_VECTOR:
                         dim = field_data.vectors.dim
                         field.vectors.dim = dim
-                        field.vectors.binary_vector.data.extend(field_data.vectors.binary_vector.data[
-                                                                start_pos * (dim / 8): end_pos * (dim / 8)])
+                        field.vectors.binary_vector.data.extend(
+                            field_data.vectors.binary_vector.data[
+                                start_pos * (dim / 8) : end_pos * (dim / 8)
+                            ]
+                        )
                     hit.fields_data.append(field)
                 self._hits.append(hit)
                 offset += raw.results.topks[i]
@@ -525,7 +590,7 @@ class ChunkedQueryResult(LoopBase):
 
 
 def _abstract():
-    raise NotImplementedError('You need to override this function')
+    raise NotImplementedError("You need to override this function")
 
 
 class ConnectIntf:
@@ -646,7 +711,9 @@ class ConnectIntf:
         """
         _abstract()
 
-    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges, **kwargs):
+    def search_vectors(
+        self, table_name, top_k, nprobe, query_records, query_ranges, **kwargs
+    ):
         """
         Query vectors in a table
         Should be implemented
@@ -670,8 +737,9 @@ class ConnectIntf:
         """
         _abstract()
 
-    def search_vectors_in_files(self, table_name, file_ids, query_records,
-                                top_k, nprobe, query_ranges, **kwargs):
+    def search_vectors_in_files(
+        self, table_name, file_ids, query_records, top_k, nprobe, query_ranges, **kwargs
+    ):
         """
         Query vectors in a table, query vector in specified files
         Should be implemented
