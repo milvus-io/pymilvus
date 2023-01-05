@@ -1,14 +1,11 @@
-import sys
 import datetime
+import sys
 from typing import Any, Union
+
 from ..exceptions import ParamError
 from ..grpc_gen import milvus_pb2 as milvus_types
 from .singleton_utils import Singleton
-from .utils import (
-    valid_index_types,
-    valid_binary_index_types,
-    valid_index_params_keys,
-)
+from .utils import valid_binary_index_types, valid_index_params_keys, valid_index_types
 
 
 def is_legal_address(addr: Any) -> bool:
@@ -47,9 +44,7 @@ def is_legal_port(port: Any) -> bool:
 
 
 def is_legal_vector(array: Any) -> bool:
-    if not array or \
-            not isinstance(array, list) or \
-            len(array) == 0:
+    if not array or not isinstance(array, list) or len(array) == 0:
         return False
 
     # for v in array:
@@ -60,9 +55,7 @@ def is_legal_vector(array: Any) -> bool:
 
 
 def is_legal_bin_vector(array: Any) -> bool:
-    if not array or \
-            not isinstance(array, bytes) or \
-            len(array) == 0:
+    if not array or not isinstance(array, bytes) or len(array) == 0:
         return False
 
     return True
@@ -81,7 +74,7 @@ def int_or_str(item: Union[int, str]) -> str:
 
 def is_correct_date_str(param: str) -> bool:
     try:
-        datetime.datetime.strptime(param, '%Y-%m-%d')
+        datetime.datetime.strptime(param, "%Y-%m-%d")
     except ValueError:
         return False
 
@@ -140,16 +133,18 @@ def is_legal_cmd(cmd: Any) -> bool:
 
 def parser_range_date(date: Union[str, datetime.date]) -> str:
     if isinstance(date, datetime.date):
-        return date.strftime('%Y-%m-%d')
+        return date.strftime("%Y-%m-%d")
 
     if isinstance(date, str):
         if not is_correct_date_str(date):
-            raise ParamError(message='Date string should be YY-MM-DD format!')
+            raise ParamError(message="Date string should be YY-MM-DD format!")
 
         return date
 
-    raise ParamError(message='Date should be YY-MM-DD format string or datetime.date, '
-                     'or datetime.datetime object')
+    raise ParamError(
+        message="Date should be YY-MM-DD format string or datetime.date, "
+        "or datetime.datetime object"
+    )
 
 
 def is_legal_date_range(start: str, end: str) -> bool:
@@ -175,6 +170,7 @@ def is_legal_anns_field(field: Any) -> bool:
 
 def is_legal_search_data(data: Any) -> bool:
     import numpy as np
+
     if not isinstance(data, (list, np.ndarray)):
         return False
 
@@ -217,19 +213,21 @@ def is_legal_partition_name_array(tag_array: Any) -> bool:
 
 # https://milvus.io/cn/docs/v1.0.0/metric.md#floating
 def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
-    if index_type not in ("FLAT",
-                          "IVF_FLAT",
-                          "IVF_SQ8",
-                          # "IVF_SQ8_HYBRID",
-                          "IVF_PQ",
-                          "HNSW",
-                          # "NSG",
-                          "ANNOY",
-                          "RHNSW_FLAT",
-                          "RHNSW_PQ",
-                          "RHNSW_SQ",
-                          "AUTOINDEX",
-                          "DISKANN"):
+    if index_type not in (
+        "FLAT",
+        "IVF_FLAT",
+        "IVF_SQ8",
+        # "IVF_SQ8_HYBRID",
+        "IVF_PQ",
+        "HNSW",
+        # "NSG",
+        "ANNOY",
+        "RHNSW_FLAT",
+        "RHNSW_PQ",
+        "RHNSW_SQ",
+        "AUTOINDEX",
+        "DISKANN",
+    ):
         return False
     if metric_type not in ("L2", "IP"):
         return False
@@ -239,7 +237,13 @@ def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
 # https://milvus.io/cn/docs/v1.0.0/metric.md#binary
 def is_legal_binary_index_metric_type(index_type: str, metric_type: str) -> bool:
     if index_type == "BIN_FLAT":
-        if metric_type in ("JACCARD", "TANIMOTO", "HAMMING", "SUBSTRUCTURE", "SUPERSTRUCTURE"):
+        if metric_type in (
+            "JACCARD",
+            "TANIMOTO",
+            "HAMMING",
+            "SUBSTRUCTURE",
+            "SUPERSTRUCTURE",
+        ):
             return True
     elif index_type == "BIN_IVF_FLAT":
         if metric_type in ("JACCARD", "TANIMOTO", "HAMMING"):
@@ -276,8 +280,10 @@ def is_legal_role_name(role_name: Any) -> bool:
 
 
 def is_legal_operate_user_role_type(operate_user_role_type: Any) -> bool:
-    return operate_user_role_type in \
-        (milvus_types.OperateUserRoleType.AddUserToRole, milvus_types.OperateUserRoleType.RemoveUserFromRole)
+    return operate_user_role_type in (
+        milvus_types.OperateUserRoleType.AddUserToRole,
+        milvus_types.OperateUserRoleType.RemoveUserFromRole,
+    )
 
 
 def is_legal_include_user_info(include_user_info: Any) -> bool:
@@ -305,8 +311,10 @@ def is_legal_collection_properties(properties: Any) -> bool:
 
 
 def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
-    return operate_privilege_type in \
-            (milvus_types.OperatePrivilegeType.Grant, milvus_types.OperatePrivilegeType.Revoke)
+    return operate_privilege_type in (
+        milvus_types.OperatePrivilegeType.Grant,
+        milvus_types.OperatePrivilegeType.Revoke,
+    )
 
 
 class ParamChecker(metaclass=Singleton):
@@ -350,10 +358,14 @@ class ParamChecker(metaclass=Singleton):
         else:
             raise ParamError(message=f"unknown param `{key}`")
 
+
 def _get_param_checker():
     return ParamChecker()
 
-def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
+
+def check_pass_param(
+    *_args: Any, **kwargs: Any
+) -> None:  # pylint: disable=too-many-statements
     if kwargs is None:
         raise ParamError(message="Param should not be None")
     checker = _get_param_checker()
@@ -366,26 +378,36 @@ def check_index_params(params):
     if not isinstance(params, dict):
         raise ParamError(message="Params must be a dictionary type")
     # params preliminary validate
-    if 'index_type' not in params:
+    if "index_type" not in params:
         raise ParamError(message="Params must contains key: 'index_type'")
-    if 'params' not in params:
+    if "params" not in params:
         raise ParamError(message="Params must contains key: 'params'")
-    if 'metric_type' not in params:
+    if "metric_type" not in params:
         raise ParamError(message="Params must contains key: 'metric_type'")
-    if not isinstance(params['params'], dict):
+    if not isinstance(params["params"], dict):
         raise ParamError(message="Params['params'] must be a dictionary type")
-    if params['index_type'] not in valid_index_types:
-        raise ParamError(message=f"Invalid index_type: {params['index_type']}, which must be one of: {str(valid_index_types)}")
-    for k in params['params'].keys():
+    if params["index_type"] not in valid_index_types:
+        raise ParamError(
+            message=f"Invalid index_type: {params['index_type']}, which must be one of: {str(valid_index_types)}"
+        )
+    for k in params["params"].keys():
         if k not in valid_index_params_keys:
             raise ParamError(message=f"Invalid params['params'].key: {k}")
-    for v in params['params'].values():
+    for v in params["params"].values():
         if not isinstance(v, int):
-            raise ParamError(message=f"Invalid params['params'].value: {v}, which must be an integer")
+            raise ParamError(
+                message=f"Invalid params['params'].value: {v}, which must be an integer"
+            )
     # filter invalid metric type
-    if params['index_type'] in valid_binary_index_types:
-        if not is_legal_binary_index_metric_type(params['index_type'], params['metric_type']):
-            raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
+    if params["index_type"] in valid_binary_index_types:
+        if not is_legal_binary_index_metric_type(
+            params["index_type"], params["metric_type"]
+        ):
+            raise ParamError(
+                message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}"
+            )
     else:
-        if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
-            raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
+        if not is_legal_index_metric_type(params["index_type"], params["metric_type"]):
+            raise ParamError(
+                message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}"
+            )
