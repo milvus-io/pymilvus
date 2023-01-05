@@ -26,3 +26,4 @@ jobs:
         shell: bash
         run: |
           make lint
+          pre-commit run --all-files
