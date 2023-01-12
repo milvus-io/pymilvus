@@ -352,6 +352,7 @@ class BulkInsertState:
     IMPORT_FILES = "files"
     IMPORT_COLLECTION = "collection"
     IMPORT_PARTITION = "partition"
+    IMPORT_PROGRESS = "progress_percent"
 
     """
     Bulk insert state example:
@@ -494,6 +495,12 @@ class BulkInsertState:
         """A readable string converted from the timestamp when this task is created."""
         ts = time.localtime(self._create_ts)
         return time.strftime("%Y-%m-%d %H:%M:%S", ts)
+
+    @property
+    def progress(self):
+        """working progress percent value."""
+        percent = self._infos.get(BulkInsertState.IMPORT_PROGRESS, "0")
+        return int(percent)
 
 
 class GrantItem:
