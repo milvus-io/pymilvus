@@ -1,14 +1,15 @@
 import abc
 import threading
 
-from .abstract import QueryResult, ChunkedQueryResult, MutationResult
 from ..exceptions import MilvusException
+from .abstract import ChunkedQueryResult, MutationResult, QueryResult
 from .types import Status
 
 
 # TODO: remove this to a common util
 def _parameter_is_empty(func):
     import inspect
+
     sig = inspect.signature(func)
     # params = sig.parameters
     # todo: add more check to parameter, such as `default parameter`,
@@ -26,29 +27,29 @@ def _parameter_is_empty(func):
 class AbstractFuture:
     @abc.abstractmethod
     def result(self, **kwargs):
-        '''Return deserialized result.
+        """Return deserialized result.
 
         It's a synchronous interface. It will wait executing until
         server respond or timeout occur(if specified).
 
         This API is thread-safe.
-        '''
+        """
         raise NotImplementedError()
 
     @abc.abstractmethod
     def cancel(self):
-        '''Cancle gRPC future.
+        """Cancle gRPC future.
 
         This API is thread-safe.
-        '''
+        """
         raise NotImplementedError()
 
     @abc.abstractmethod
     def done(self):
-        '''Wait for request done.
+        """Wait for request done.
 
         This API is thread-safe.
-        '''
+        """
         raise NotImplementedError()
 
 
@@ -75,8 +76,7 @@ class Future(AbstractFuture):
 
     @abc.abstractmethod
     def on_response(self, response):
-        ''' Parse response from gRPC server and return results.
-        '''
+        """Parse response from gRPC server and return results."""
         raise NotImplementedError()
 
     def _callback(self, **kwargs):
@@ -171,7 +171,9 @@ class SearchFuture(Future):
 # TODO: if ChunkedFuture is more common later, consider using ChunkedFuture as Base Class,
 #       then Future(future, done_cb, pre_exception) equal to ChunkedFuture([future], done_cb, pre_exception)
 class ChunkedSearchFuture(Future):
-    def __init__(self, future_list, done_callback=None, auto_id=True, pre_exception=None):
+    def __init__(
+        self, future_list, done_callback=None, auto_id=True, pre_exception=None
+    ):
         super().__init__(None, done_callback, pre_exception)
         self._auto_id = auto_id
         self._future_list = future_list
@@ -198,7 +200,9 @@ class ChunkedSearchFuture(Future):
         self.exception()
         if kwargs.get("raw", False) is True:
             # just return response object received from gRPC
-            raise AttributeError("Not supported to return response object received from gRPC")
+            raise AttributeError(
+                "Not supported to return response object received from gRPC"
+            )
 
         if self._results:
             return self._results

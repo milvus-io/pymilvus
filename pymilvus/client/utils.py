@@ -1,8 +1,9 @@
 import datetime
 
-from .types import DataType
-from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from ..exceptions import MilvusException
+from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
+from .types import DataType
+
 
 valid_index_types = [
     "FLAT",
@@ -19,7 +20,7 @@ valid_index_types = [
     "BIN_FLAT",
     "BIN_IVF_FLAT",
     "DISKANN",
-    "AUTOINDEX"
+    "AUTOINDEX",
 ]
 
 valid_index_params_keys = [
@@ -29,20 +30,17 @@ valid_index_params_keys = [
     "M",
     "efConstruction",
     "PQM",
-    "n_trees"
+    "n_trees",
 ]
 
-valid_binary_index_types = [
-    "BIN_FLAT",
-    "BIN_IVF_FLAT"
-]
+valid_binary_index_types = ["BIN_FLAT", "BIN_IVF_FLAT"]
 
 valid_binary_metric_types = [
     "JACCARD",
     "HAMMING",
     "TANIMOTO",
     "SUBSTRUCTURE",
-    "SUPERSTRUCTURE"
+    "SUPERSTRUCTURE",
 ]
 
 
@@ -51,14 +49,18 @@ def hybridts_to_unixtime(ts):
     return physical / 1000.0
 
 
-def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
+def mkts_from_hybridts(hybridts, milliseconds=0.0, delta=None):
     if not isinstance(milliseconds, (int, float)):
-        raise MilvusException(message="parameter milliseconds should be type of int or float")
+        raise MilvusException(
+            message="parameter milliseconds should be type of int or float"
+        )
 
     if isinstance(delta, datetime.timedelta):
-        milliseconds += (delta.microseconds / 1000.0)
+        milliseconds += delta.microseconds / 1000.0
     elif delta is not None:
-        raise MilvusException(message="parameter delta should be type of datetime.timedelta")
+        raise MilvusException(
+            message="parameter delta should be type of datetime.timedelta"
+        )
 
     if not isinstance(hybridts, int):
         raise MilvusException(message="parameter hybridts should be type of int")
@@ -66,45 +68,53 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
     logical = hybridts & LOGICAL_BITS_MASK
     physical = hybridts >> LOGICAL_BITS
 
-    new_ts = int((int((physical + milliseconds)) << LOGICAL_BITS) + logical)
+    new_ts = int((int(physical + milliseconds) << LOGICAL_BITS) + logical)
     return new_ts
 
 
-def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
+def mkts_from_unixtime(epoch, milliseconds=0.0, delta=None):
     if not isinstance(epoch, (int, float)):
         raise MilvusException(message="parameter epoch should be type of int or float")
 
     if not isinstance(milliseconds, (int, float)):
-        raise MilvusException(message="parameter milliseconds should be type of int or float")
+        raise MilvusException(
+            message="parameter milliseconds should be type of int or float"
+        )
 
     if isinstance(delta, datetime.timedelta):
-        milliseconds += (delta.microseconds / 1000.0)
+        milliseconds += delta.microseconds / 1000.0
     elif delta is not None:
-        raise MilvusException(message="parameter delta should be type of datetime.timedelta")
+        raise MilvusException(
+            message="parameter delta should be type of datetime.timedelta"
+        )
 
-    epoch += (milliseconds / 1000.0)
+    epoch += milliseconds / 1000.0
     int_msecs = int(epoch * 1000 // 1)
     return int(int_msecs << LOGICAL_BITS)
 
 
-def mkts_from_datetime(d_time, milliseconds=0., delta=None):
+def mkts_from_datetime(d_time, milliseconds=0.0, delta=None):
     if not isinstance(d_time, datetime.datetime):
-        raise MilvusException(message="parameter d_time should be type of datetime.datetime")
+        raise MilvusException(
+            message="parameter d_time should be type of datetime.datetime"
+        )
 
-    return mkts_from_unixtime(d_time.timestamp(), milliseconds=milliseconds, delta=delta)
+    return mkts_from_unixtime(
+        d_time.timestamp(), milliseconds=milliseconds, delta=delta
+    )
 
 
 def check_invalid_binary_vector(entities) -> bool:
     for entity in entities:
-        if entity['type'] == DataType.BINARY_VECTOR:
-            if not isinstance(entity['values'], list) and len(entity['values']) == 0:
+        if entity["type"] == DataType.BINARY_VECTOR:
+            if not isinstance(entity["values"], list) and len(entity["values"]) == 0:
                 return False
 
-            dim = len(entity['values'][0]) * 8
+            dim = len(entity["values"][0]) * 8
             if dim == 0:
                 return False
 
-            for values in entity['values']:
+            for values in entity["values"]:
                 if len(values) * 8 != dim:
                     return False
                 if not isinstance(values, bytes):
@@ -142,7 +152,9 @@ def len_of(field_data) -> int:
         if field_data.vectors.HasField("float_vector"):
             total_len = len(field_data.vectors.float_vector.data)
             if total_len % dim != 0:
-                raise MilvusException(message=f"Invalid vector length: total_len={total_len}, dim={dim}")
+                raise MilvusException(
+                    message=f"Invalid vector length: total_len={total_len}, dim={dim}"
+                )
             return int(total_len / dim)
 
         total_len = len(field_data.vectors.binary_vector)

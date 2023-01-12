@@ -3,5 +3,5 @@ class DefaultConfigs:
     WaitTimeDurationWhenLoad = 0.5  # in seconds
     MaxVarCharLengthKey = "max_length"
     MaxVarCharLength = 65535
-    EncodeProtocol = 'utf-8'
+    EncodeProtocol = "utf-8"
     IndexName = ""

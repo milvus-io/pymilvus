@@ -1,11 +1,10 @@
-import threading
 import datetime
-
-from .singleton_utils import Singleton
-from .utils import hybridts_to_unixtime
-from .constants import EVENTUALLY_TS, BOUNDED_TS
+import threading
 
 from ..grpc_gen.common_pb2 import ConsistencyLevel
+from .constants import BOUNDED_TS, EVENTUALLY_TS
+from .singleton_utils import Singleton
+from .utils import hybridts_to_unixtime
 
 
 class GTsDict(metaclass=Singleton):
@@ -77,7 +76,9 @@ def construct_guarantee_ts(consistency_level, collection_name, kwargs):
     elif consistency_level == ConsistencyLevel.Session:
         # Using the last write ts of the collection.
         # TODO: get a timestamp from server?
-        kwargs["guarantee_timestamp"] = get_collection_ts(collection_name) or get_eventually_ts()
+        kwargs["guarantee_timestamp"] = (
+            get_collection_ts(collection_name) or get_eventually_ts()
+        )
     elif consistency_level == ConsistencyLevel.Bounded:
         # Milvus will assign ts according to the server timestamp and a configured time interval
         kwargs["guarantee_timestamp"] = get_bounded_ts()

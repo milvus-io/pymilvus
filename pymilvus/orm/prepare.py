@@ -14,14 +14,20 @@ import copy
 import numpy
 import pandas
 
-from ..exceptions import DataNotMatchException, DataTypeNotSupportException, ExceptionsMessage
+from ..exceptions import (
+    DataNotMatchException,
+    DataTypeNotSupportException,
+    ExceptionsMessage,
+)
 
 
 class Prepare:
     @classmethod
     def prepare_insert_data(cls, data, schema):
         if not isinstance(data, (list, tuple, pandas.DataFrame)):
-            raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
+            raise DataTypeNotSupportException(
+                message=ExceptionsMessage.DataTypeNotSupport
+            )
 
         fields = schema.fields
         entities = []  # Entities
@@ -31,25 +37,39 @@ class Prepare:
             if schema.auto_id:
                 if schema.primary_field.name in data:
                     if len(fields) != len(data.columns):
-                        raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.FieldsNumInconsistent
+                        )
                     if not data[schema.primary_field.name].isnull().all():
-                        raise DataNotMatchException(message=ExceptionsMessage.AutoIDWithData)
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.AutoIDWithData
+                        )
                 else:
                     if len(fields) != len(data.columns) + 1:
-                        raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.FieldsNumInconsistent
+                        )
             else:
                 if len(fields) != len(data.columns):
-                    raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
+                    raise DataNotMatchException(
+                        message=ExceptionsMessage.FieldsNumInconsistent
+                    )
             for i, field in enumerate(fields):
                 if field.is_primary and field.auto_id:
                     continue
-                entities.append({"name": field.name,
-                                 "type": field.dtype,
-                                 "values": list(data[field.name])})
+                entities.append(
+                    {
+                        "name": field.name,
+                        "type": field.dtype,
+                        "values": list(data[field.name]),
+                    }
+                )
                 raw_lengths.append(len(data[field.name]))
         else:
             if schema.auto_id and len(data) != len(fields) - 1:
-                raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
+                raise DataNotMatchException(
+                    message=ExceptionsMessage.FieldsNumInconsistent
+                )
 
             tmp_fields = copy.deepcopy(fields)
             for i, field in enumerate(tmp_fields):
@@ -63,15 +83,16 @@ class Prepare:
                 if isinstance(data[i], numpy.ndarray):
                     data[i] = data[i].tolist()
 
-                entities.append({
-                    "name": field.name,
-                    "type": field.dtype,
-                    "values": data[i]})
+                entities.append(
+                    {"name": field.name, "type": field.dtype, "values": data[i]}
+                )
                 raw_lengths.append(len(data[i]))
 
         # TODO Goose: check correctness AFTER copy is too expensive.
         lengths = list(set(raw_lengths))
         if len(lengths) > 1:
-            raise DataNotMatchException(message=ExceptionsMessage.DataLengthsInconsistent)
+            raise DataNotMatchException(
+                message=ExceptionsMessage.DataLengthsInconsistent
+            )
 
         return entities

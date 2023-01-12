@@ -10,16 +10,15 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-from .connections import connections
-
+from ..client.types import BulkInsertState
+from ..client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
+from ..client.utils import mkts_from_datetime as _mkts_from_datetime
 from ..client.utils import mkts_from_hybridts as _mkts_from_hybridts
 from ..client.utils import mkts_from_unixtime as _mkts_from_unixtime
-from ..client.utils import mkts_from_datetime as _mkts_from_datetime
-from ..client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
-from ..client.types import BulkInsertState
+from .connections import connections
 
 
-def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
+def mkts_from_hybridts(hybridts, milliseconds=0.0, delta=None):
     """
     Generate a hybrid timestamp based on an existing hybrid timestamp, timedelta and incremental time internval.
 
@@ -55,7 +54,7 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
     return _mkts_from_hybridts(hybridts, milliseconds=milliseconds, delta=delta)
 
 
-def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
+def mkts_from_unixtime(epoch, milliseconds=0.0, delta=None):
     """
     Generate a hybrid timestamp based on Unix Epoch time, timedelta and incremental time internval.
 
@@ -83,7 +82,7 @@ def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
     return _mkts_from_unixtime(epoch, milliseconds=milliseconds, delta=delta)
 
 
-def mkts_from_datetime(d_time, milliseconds=0., delta=None):
+def mkts_from_datetime(d_time, milliseconds=0.0, delta=None):
     """
     Generate a hybrid timestamp based on datetime, timedelta and incremental time internval.
 
@@ -133,6 +132,7 @@ def hybridts_to_datetime(hybridts, tz=None):
         >>> d = utility.hybridts_to_datetime(ts)
     """
     import datetime
+
     if tz is not None and not isinstance(tz, datetime.timezone):
         raise Exception("parameter tz should be type of datetime.timezone")
     epoch = _hybridts_to_unixtime(hybridts)
@@ -165,8 +165,10 @@ def _get_connection(alias):
     return connections._fetch_handler(alias)
 
 
-def loading_progress(collection_name, partition_names=None, using="default", timeout=None):
-    """ Show loading progress of sealed segments in percentage.
+def loading_progress(
+    collection_name, partition_names=None, using="default", timeout=None
+):
+    """Show loading progress of sealed segments in percentage.
 
     :param collection_name: The name of collection is loading
     :type  collection_name: str
@@ -198,13 +200,17 @@ def loading_progress(collection_name, partition_names=None, using="default", tim
         >>> utility.loading_progress("test_loading_progress")
         {'loading_progress': '100%'}
     """
-    progress = _get_connection(using).get_loading_progress(collection_name, partition_names, timeout=timeout)
+    progress = _get_connection(using).get_loading_progress(
+        collection_name, partition_names, timeout=timeout
+    )
     return {
         "loading_progress": f"{progress:.0f}%",
     }
 
 
-def wait_for_loading_complete(collection_name, partition_names=None, timeout=None, using="default"):
+def wait_for_loading_complete(
+    collection_name, partition_names=None, timeout=None, using="default"
+):
     """
     Block until loading is done or Raise Exception after timeout.
 
@@ -237,11 +243,17 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
         >>> utility.wait_for_loading_complete("test_collection")
     """
     if not partition_names or len(partition_names) == 0:
-        return _get_connection(using).wait_for_loading_collection(collection_name, timeout=timeout)
-    return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
+        return _get_connection(using).wait_for_loading_collection(
+            collection_name, timeout=timeout
+        )
+    return _get_connection(using).wait_for_loading_partitions(
+        collection_name, partition_names, timeout=timeout
+    )
 
 
-def index_building_progress(collection_name, index_name="", using="default", timeout=None):
+def index_building_progress(
+    collection_name, index_name="", using="default", timeout=None
+):
     """
     Show # indexed entities vs. # total entities.
 
@@ -284,10 +296,13 @@ def index_building_progress(collection_name, index_name="", using="default", tim
         >>> utility.index_building_progress("test_collection", c.name)
     """
     return _get_connection(using).get_index_build_progress(
-        collection_name=collection_name, index_name=index_name, timeout=timeout)
+        collection_name=collection_name, index_name=index_name, timeout=timeout
+    )
 
 
-def wait_for_index_building_complete(collection_name, index_name="", timeout=None, using="default"):
+def wait_for_index_building_complete(
+    collection_name, index_name="", timeout=None, using="default"
+):
     """
     Block until building is done or Raise Exception after timeout.
 
@@ -330,7 +345,9 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> utility.loading_progress("test_collection")
 
     """
-    return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout=timeout)[0]
+    return _get_connection(using).wait_for_creating_index(
+        collection_name, index_name, timeout=timeout
+    )[0]
 
 
 def has_collection(collection_name, using="default", timeout=None):
@@ -379,7 +396,9 @@ def has_partition(collection_name, partition_name, using="default", timeout=None
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_partition("_default")
     """
-    return _get_connection(using).has_partition(collection_name, partition_name, timeout=timeout)
+    return _get_connection(using).has_partition(
+        collection_name, partition_name, timeout=timeout
+    )
 
 
 def drop_collection(collection_name, timeout=None, using="default"):
@@ -433,8 +452,15 @@ def list_collections(timeout=None, using="default") -> list:
     return _get_connection(using).list_collections(timeout=timeout)
 
 
-def load_balance(collection_name: str, src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeout=None, using="default"):
-    """ Do load balancing operation from source query node to destination query node.
+def load_balance(
+    collection_name: str,
+    src_node_id,
+    dst_node_ids=None,
+    sealed_segment_ids=None,
+    timeout=None,
+    using="default",
+):
+    """Do load balancing operation from source query node to destination query node.
 
     :param collection_name: The collection to balance.
     :type  collection_name: str
@@ -468,8 +494,9 @@ def load_balance(collection_name: str, src_node_id, dst_node_ids=None, sealed_se
         dst_node_ids = []
     if sealed_segment_ids is None:
         sealed_segment_ids = []
-    return _get_connection(using).\
-            load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout)
+    return _get_connection(using).load_balance(
+        collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout
+    )
 
 
 def get_query_segment_info(collection_name, timeout=None, using="default"):
@@ -501,11 +528,13 @@ def get_query_segment_info(collection_name, timeout=None, using="default"):
         >>> collection.load() # load collection to memory
         >>> res = utility.get_query_segment_info("test_get_segment_info")
     """
-    return _get_connection(using).get_query_segment_info(collection_name, timeout=timeout)
+    return _get_connection(using).get_query_segment_info(
+        collection_name, timeout=timeout
+    )
 
 
 def create_alias(collection_name: str, alias: str, timeout=None, using="default"):
-    """ Specify alias for a collection.
+    """Specify alias for a collection.
     Alias cannot be duplicated, you can't assign the same alias to different collections.
     But you can specify multiple aliases for a collection, for example:
         before create_alias("collection_1", "bob"):
@@ -538,7 +567,7 @@ def create_alias(collection_name: str, alias: str, timeout=None, using="default"
 
 
 def drop_alias(alias: str, timeout=None, using="default"):
-    """ Delete the alias.
+    """Delete the alias.
     No need to provide collection name because an alias can only be assigned to one collection
     and the server knows which collection it belongs.
     For example:
@@ -573,7 +602,7 @@ def drop_alias(alias: str, timeout=None, using="default"):
 
 
 def alter_alias(collection_name: str, alias: str, timeout=None, using="default"):
-    """ Change the alias of a collection to another collection.
+    """Change the alias of a collection to another collection.
     Raise error if the alias doesn't exist.
     Alias cannot be duplicated, you can't assign same alias to different collections.
     This api can change alias owner collection, for example:
@@ -613,7 +642,7 @@ def alter_alias(collection_name: str, alias: str, timeout=None, using="default")
 
 
 def list_aliases(collection_name: str, timeout=None, using="default"):
-    """ Returns alias list of the collection.
+    """Returns alias list of the collection.
 
     :return list of str:
         The collection aliases, returned when the operation succeeds.
@@ -637,8 +666,15 @@ def list_aliases(collection_name: str, timeout=None, using="default"):
     return aliases
 
 
-def do_bulk_insert(collection_name: str, files: list, partition_name=None, timeout=None, using="default", **kwargs) -> int:
-    """ do_bulk_insert inserts entities through files, currently supports row-based json file.
+def do_bulk_insert(
+    collection_name: str,
+    files: list,
+    partition_name=None,
+    timeout=None,
+    using="default",
+    **kwargs,
+) -> int:
+    """do_bulk_insert inserts entities through files, currently supports row-based json file.
     User need to create the json file with a specified json format which is described in the official user guide.
     Let's say a collection has two fields: "id" and "vec"(dimension=8), the row-based json format is:
       {"rows": [
@@ -683,10 +719,14 @@ def do_bulk_insert(collection_name: str, files: list, partition_name=None, timeo
         >>> task_id = utility.do_bulk_insert(collection_name=collection.name, files=['data.json'])
         >>> print(task_id)
     """
-    return _get_connection(using).do_bulk_insert(collection_name, partition_name, files, timeout=timeout, **kwargs)
+    return _get_connection(using).do_bulk_insert(
+        collection_name, partition_name, files, timeout=timeout, **kwargs
+    )
 
 
-def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> BulkInsertState:
+def get_bulk_insert_state(
+    task_id, timeout=None, using="default", **kwargs
+) -> BulkInsertState:
     """get_bulk_insert_state returns state of a certain task_id
 
     :param task_id: the task id returned by bulk_insert
@@ -702,10 +742,14 @@ def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> B
         >>> if state.state == BulkInsertState.ImportFailed or state.state == BulkInsertState.ImportFailedAndCleaned:
         >>>    print("task id:", state.task_id, "failed, reason:", state.failed_reason)
     """
-    return _get_connection(using).get_bulk_insert_state(task_id, timeout=timeout, **kwargs)
+    return _get_connection(using).get_bulk_insert_state(
+        task_id, timeout=timeout, **kwargs
+    )
 
 
-def list_bulk_insert_tasks(limit=0, collection_name=None, timeout=None, using="default", **kwargs) -> list:
+def list_bulk_insert_tasks(
+    limit=0, collection_name=None, timeout=None, using="default", **kwargs
+) -> list:
     """list_bulk_insert_tasks lists all bulk load tasks
 
     :param limit: maximum number of tasks returned, list all tasks if the value is 0, else return the latest tasks
@@ -723,10 +767,14 @@ def list_bulk_insert_tasks(limit=0, collection_name=None, timeout=None, using="d
         >>> tasks = utility.list_bulk_insert_tasks(collection_name=collection_name)
         >>> print(tasks)
     """
-    return _get_connection(using).list_bulk_insert_tasks(limit, collection_name, timeout=timeout, **kwargs)
+    return _get_connection(using).list_bulk_insert_tasks(
+        limit, collection_name, timeout=timeout, **kwargs
+    )
 
 
-def reset_password(user: str, old_password: str, new_password: str, using="default", timeout=None):
+def reset_password(
+    user: str, old_password: str, new_password: str, using="default", timeout=None
+):
     """
         Reset the user & password of the connection.
         You must provide the original password to check if the operation is valid.
@@ -746,11 +794,13 @@ def reset_password(user: str, old_password: str, new_password: str, using="defau
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).reset_password(user, old_password, new_password, timeout=timeout)
+    return _get_connection(using).reset_password(
+        user, old_password, new_password, timeout=timeout
+    )
 
 
 def create_user(user: str, password: str, using="default", timeout=None):
-    """ Create User using the given user and password.
+    """Create User using the given user and password.
     :param user: the user name.
     :type  user: str
     :param password: the password.
@@ -767,7 +817,9 @@ def create_user(user: str, password: str, using="default", timeout=None):
     return _get_connection(using).create_user(user, password, timeout=timeout)
 
 
-def update_password(user: str, old_password, new_password: str, using="default", timeout=None):
+def update_password(
+    user: str, old_password, new_password: str, using="default", timeout=None
+):
     """
         Update user password using the given user and password.
         You must provide the original password to check if the operation is valid.
@@ -789,11 +841,13 @@ def update_password(user: str, old_password, new_password: str, using="default",
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).update_password(user, old_password, new_password, timeout=timeout)
+    return _get_connection(using).update_password(
+        user, old_password, new_password, timeout=timeout
+    )
 
 
 def delete_user(user: str, using="default", timeout=None):
-    """ Delete User corresponding to the username.
+    """Delete User corresponding to the username.
     :param user: the user name.
     :type  user: str
 
@@ -808,7 +862,7 @@ def delete_user(user: str, using="default", timeout=None):
 
 
 def list_usernames(using="default", timeout=None):
-    """ List all usernames.
+    """List all usernames.
     :return list of str:
         The usernames in Milvus instances.
 
@@ -822,7 +876,7 @@ def list_usernames(using="default", timeout=None):
 
 
 def list_roles(include_user_info: bool, using="default", timeout=None):
-    """ List All Role Info
+    """List All Role Info
     :param include_user_info: whether to obtain the user information associated with roles
     :type  include_user_info: bool
     :return RoleInfo
@@ -837,7 +891,7 @@ def list_roles(include_user_info: bool, using="default", timeout=None):
 
 
 def list_user(username: str, include_role_info: bool, using="default", timeout=None):
-    """ List One User Info
+    """List One User Info
     :param username: user name.
     :type  username: str
     :param include_role_info: whether to obtain the role information associated with the user
@@ -850,11 +904,13 @@ def list_user(username: str, include_role_info: bool, using="default", timeout=N
         >>> user = utility.list_user(username, include_role_info)
         >>> print(f"user info: {user}")
     """
-    return _get_connection(using).select_one_user(username, include_role_info, timeout=timeout)
+    return _get_connection(using).select_one_user(
+        username, include_role_info, timeout=timeout
+    )
 
 
 def list_users(include_role_info: bool, using="default", timeout=None):
-    """ List All User Info
+    """List All User Info
     :param include_role_info: whether to obtain the role information associated with users
     :type  include_role_info: bool
     :return UserInfo
@@ -867,8 +923,9 @@ def list_users(include_role_info: bool, using="default", timeout=None):
     """
     return _get_connection(using).select_all_user(include_role_info, timeout=timeout)
 
+
 def get_server_version(using="default", timeout=None) -> str:
-    """ get the running server's version
+    """get the running server's version
 
     :returns: server's version
     :rtype: str

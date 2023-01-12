@@ -1,67 +1,56 @@
-import time
-import json
-import copy
 import base64
+import copy
+import json
+import time
 from urllib import parse
 
 import grpc
 import numpy as np
 from grpc._cython import cygrpc
 
-from ..grpc_gen import milvus_pb2_grpc
-from ..grpc_gen import milvus_pb2 as milvus_types
+from ..decorators import retry_on_rpc_failure
+from ..exceptions import (
+    AmbiguousIndexName,
+    DescribeCollectionException,
+    ExceptionsMessage,
+    MilvusException,
+    ParamError,
+)
 from ..grpc_gen import common_pb2
-
-from .abstract import CollectionSchema, ChunkedQueryResult, MutationResult
-from .check import (
-    is_legal_host,
-    is_legal_port,
-    check_pass_param,
-    check_index_params,
-)
-from .prepare import Prepare
-from .types import (
-    Status,
-    IndexState,
-    DataType,
-    CompactionState,
-    State,
-    CompactionPlans,
-    Plan,
-    get_consistency_level,
-    Replica, Shard, Group,
-    GrantInfo, UserInfo, RoleInfo,
-    BulkInsertState,
-)
-
-from .utils import (
-    check_invalid_binary_vector,
-    len_of
-)
-
+from ..grpc_gen import milvus_pb2 as milvus_types
+from ..grpc_gen import milvus_pb2_grpc
 from ..settings import DefaultConfig as config
-from .configs import DefaultConfigs
-from . import ts_utils
-from . import interceptor
-
+from . import interceptor, ts_utils
+from .abstract import ChunkedQueryResult, CollectionSchema, MutationResult
 from .asynch import (
-    SearchFuture,
-    MutationFuture,
+    ChunkedSearchFuture,
     CreateIndexFuture,
     FlushFuture,
     LoadPartitionsFuture,
-    ChunkedSearchFuture
+    MutationFuture,
+    SearchFuture,
 )
-
-from ..exceptions import (
-    ExceptionsMessage,
-    ParamError,
-    DescribeCollectionException,
-    MilvusException,
-    AmbiguousIndexName,
+from .check import check_index_params, check_pass_param, is_legal_host, is_legal_port
+from .configs import DefaultConfigs
+from .prepare import Prepare
+from .types import (
+    BulkInsertState,
+    CompactionPlans,
+    CompactionState,
+    DataType,
+    GrantInfo,
+    Group,
+    IndexState,
+    Plan,
+    Replica,
+    RoleInfo,
+    Shard,
+    State,
+    Status,
+    UserInfo,
+    get_consistency_level,
 )
-
-from ..decorators import retry_on_rpc_failure
+from .utils import check_invalid_binary_vector, len_of
 
 
 class GrpcHandler:
@@ -70,7 +59,9 @@ class GrpcHandler:
         self._channel = channel
 
         addr = kwargs.get("address")
-        self._address = addr if addr is not None else self.__get_address(uri, host, port)
+        self._address = (
+            addr if addr is not None else self.__get_address(uri, host, port)
+        )
         self._log_level = None
         self._request_id = None
         self._set_authorization(**kwargs)
@@ -98,7 +89,9 @@ class GrpcHandler:
         self._server_name = kwargs.get("server_name", "")
 
         self._authorization_interceptor = None
-        self._setup_authorization_interceptor(kwargs.get("user", None), kwargs.get("password", None))
+        self._setup_authorization_interceptor(
+            kwargs.get("user", None), kwargs.get("password", None)
+        )
 
     def __enter__(self):
         return self
@@ -112,68 +105,99 @@ class GrpcHandler:
                 grpc.channel_ready_future(self._channel).result(timeout=timeout)
                 return
             except grpc.FutureTimeoutError as e:
-                raise MilvusException(Status.CONNECT_FAILED,
-                                      f'Fail connecting to server on {self._address}. Timeout') from e
+                raise MilvusException(
+                    Status.CONNECT_FAILED,
+                    f"Fail connecting to server on {self._address}. Timeout",
+                ) from e
 
-        raise MilvusException(Status.CONNECT_FAILED, 'No channel in handler, please setup grpc channel first')
+        raise MilvusException(
+            Status.CONNECT_FAILED,
+            "No channel in handler, please setup grpc channel first",
+        )
 
     def close(self):
         self._channel.close()
 
     def _setup_authorization_interceptor(self, user, password):
         if user and password:
-            authorization = base64.b64encode(f"{user}:{password}".encode('utf-8'))
+            authorization = base64.b64encode(f"{user}:{password}".encode())
             key = "authorization"
-            self._authorization_interceptor = interceptor.header_adder_interceptor(key, authorization)
+            self._authorization_interceptor = interceptor.header_adder_interceptor(
+                key, authorization
+            )
 
     def _setup_grpc_channel(self):
-        """ Create a ddl grpc channel """
+        """Create a ddl grpc channel"""
         if self._channel is None:
-            opts = [(cygrpc.ChannelArgKey.max_send_message_length, -1),
-                    (cygrpc.ChannelArgKey.max_receive_message_length, -1),
-                    ('grpc.enable_retries', 1),
-                    ('grpc.keepalive_time_ms', 55000),
-                    ]
+            opts = [
+                (cygrpc.ChannelArgKey.max_send_message_length, -1),
+                (cygrpc.ChannelArgKey.max_receive_message_length, -1),
+                ("grpc.enable_retries", 1),
+                ("grpc.keepalive_time_ms", 55000),
+            ]
             if not self._secure:
                 self._channel = grpc.insecure_channel(
                     self._address,
                     options=opts,
                 )
             else:
-                if self._client_pem_path != "" and self._client_key_path != "" and self._ca_pem_path != "" \
-                        and self._server_name != "":
-                    opts.append(('grpc.ssl_target_name_override', self._server_name, ),)
-                    with open(self._client_pem_path, 'rb') as f:
+                if (
+                    self._client_pem_path != ""
+                    and self._client_key_path != ""
+                    and self._ca_pem_path != ""
+                    and self._server_name != ""
+                ):
+                    opts.append(
+                        (
+                            "grpc.ssl_target_name_override",
+                            self._server_name,
+                        ),
+                    )
+                    with open(self._client_pem_path, "rb") as f:
                         certificate_chain = f.read()
-                    with open(self._client_key_path, 'rb') as f:
+                    with open(self._client_key_path, "rb") as f:
                         private_key = f.read()
-                    with open(self._ca_pem_path, 'rb') as f:
+                    with open(self._ca_pem_path, "rb") as f:
                         root_certificates = f.read()
-                    creds = grpc.ssl_channel_credentials(root_certificates, private_key, certificate_chain)
+                    creds = grpc.ssl_channel_credentials(
+                        root_certificates, private_key, certificate_chain
+                    )
                 elif self._server_pem_path != "" and self._server_name != "":
-                    opts.append(('grpc.ssl_target_name_override', self._server_name,), )
-                    with open(self._server_pem_path, 'rb') as f:
+                    opts.append(
+                        (
+                            "grpc.ssl_target_name_override",
+                            self._server_name,
+                        ),
+                    )
+                    with open(self._server_pem_path, "rb") as f:
                         server_pem = f.read()
                     creds = grpc.ssl_channel_credentials(root_certificates=server_pem)
                 else:
-                    creds = grpc.ssl_channel_credentials(root_certificates=None, private_key=None,
-                                                         certificate_chain=None)
-                self._channel = grpc.secure_channel(
-                    self._address,
-                    creds,
-                    options=opts
-                )
+                    creds = grpc.ssl_channel_credentials(
+                        root_certificates=None, private_key=None, certificate_chain=None
+                    )
+                self._channel = grpc.secure_channel(self._address, creds, options=opts)
         # avoid to add duplicate headers.
         self._final_channel = self._channel
         if self._authorization_interceptor:
-            self._final_channel = grpc.intercept_channel(self._final_channel, self._authorization_interceptor)
+            self._final_channel = grpc.intercept_channel(
+                self._final_channel, self._authorization_interceptor
+            )
         if self._log_level:
-            log_level_interceptor = interceptor.header_adder_interceptor("log_level", self._log_level)
-            self._final_channel = grpc.intercept_channel(self._final_channel, log_level_interceptor)
+            log_level_interceptor = interceptor.header_adder_interceptor(
+                "log_level", self._log_level
+            )
+            self._final_channel = grpc.intercept_channel(
+                self._final_channel, log_level_interceptor
+            )
             self._log_level = None
         if self._request_id:
-            request_id_interceptor = interceptor.header_adder_interceptor("client_request_id", self._request_id)
-            self._final_channel = grpc.intercept_channel(self._final_channel, request_id_interceptor)
+            request_id_interceptor = interceptor.header_adder_interceptor(
+                "client_request_id", self._request_id
+            )
+            self._final_channel = grpc.intercept_channel(
+                self._final_channel, request_id_interceptor
+            )
             self._request_id = None
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
 
@@ -187,7 +211,7 @@ class GrpcHandler:
 
     @property
     def server_address(self):
-        """ Server network address """
+        """Server network address"""
         return self._address
 
     def reset_password(self, user, old_password, new_password, timeout=None):
@@ -199,8 +223,12 @@ class GrpcHandler:
         self._setup_grpc_channel()
 
     @retry_on_rpc_failure()
-    def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
-        request = Prepare.create_collection_request(collection_name, fields, shards_num=shards_num, **kwargs)
+    def create_collection(
+        self, collection_name, fields, shards_num=2, timeout=None, **kwargs
+    ):
+        request = Prepare.create_collection_request(
+            collection_name, fields, shards_num=shards_num, **kwargs
+        )
 
         rf = self._stub.CreateCollection.future(request, timeout=timeout)
         if kwargs.get("_async", False):
@@ -239,7 +267,10 @@ class GrpcHandler:
             return True
 
         # TODO: Workaround for unreasonable describe collection results and error_code
-        if reply.status.error_code == common_pb2.UnexpectedError and "can\'t find collection" in reply.status.reason:
+        if (
+            reply.status.error_code == common_pb2.UnexpectedError
+            and "can't find collection" in reply.status.reason
+        ):
             return False
 
         raise MilvusException(reply.status.error_code, reply.status.reason)
@@ -329,7 +360,9 @@ class GrpcHandler:
         raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure()
-    def get_partition_stats(self, collection_name, partition_name, timeout=None, **kwargs):
+    def get_partition_stats(
+        self, collection_name, partition_name, timeout=None, **kwargs
+    ):
         check_pass_param(collection_name=collection_name)
         req = Prepare.get_partition_stats_request(collection_name, partition_name)
         future = self._stub.GetPartitionStatistics.future(req, timeout=timeout)
@@ -340,8 +373,10 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    def _prepare_batch_insert_request(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
-        insert_param = kwargs.get('insert_param', None)
+    def _prepare_batch_insert_request(
+        self, collection_name, entities, partition_name=None, timeout=None, **kwargs
+    ):
+        insert_param = kwargs.get("insert_param", None)
 
         if insert_param and not isinstance(insert_param, milvus_types.RowBatch):
             raise ParamError(message="The value of key 'insert_param' is invalid")
@@ -350,22 +385,33 @@ class GrpcHandler:
 
         collection_schema = kwargs.get("schema", None)
         if not collection_schema:
-            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+            collection_schema = self.describe_collection(
+                collection_name, timeout=timeout, **kwargs
+            )
 
         fields_info = collection_schema["fields"]
 
-        request = insert_param if insert_param \
-            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
+        request = (
+            insert_param
+            if insert_param
+            else Prepare.batch_insert_param(
+                collection_name, entities, partition_name, fields_info
+            )
+        )
 
         return request
 
     @retry_on_rpc_failure()
-    def batch_insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
+    def batch_insert(
+        self, collection_name, entities, partition_name=None, timeout=None, **kwargs
+    ):
         if not check_invalid_binary_vector(entities):
             raise ParamError(message="Invalid binary vector data exists")
 
         try:
-            request = self._prepare_batch_insert_request(collection_name, entities, partition_name, timeout, **kwargs)
+            request = self._prepare_batch_insert_request(
+                collection_name, entities, partition_name, timeout, **kwargs
+            )
             rf = self._stub.Insert.future(request, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
@@ -386,7 +432,9 @@ class GrpcHandler:
             raise err
 
     @retry_on_rpc_failure()
-    def delete(self, collection_name, expression, partition_name=None, timeout=None, **kwargs):
+    def delete(
+        self, collection_name, expression, partition_name=None, timeout=None, **kwargs
+    ):
         check_pass_param(collection_name=collection_name)
         try:
             req = Prepare.delete_request(collection_name, partition_name, expression)
@@ -427,7 +475,9 @@ class GrpcHandler:
                 response = self._stub.Search(request, timeout=timeout)
 
                 if response.status.error_code != 0:
-                    raise MilvusException(response.status.error_code, response.status.reason)
+                    raise MilvusException(
+                        response.status.error_code, response.status.reason
+                    )
 
                 raws.append(response)
             round_decimal = kwargs.get("round_decimal", -1)
@@ -439,9 +489,21 @@ class GrpcHandler:
             raise pre_err
 
     @retry_on_rpc_failure(retry_on_deadline=False)
-    def search(self, collection_name, data, anns_field, param, limit,
-               expression=None, partition_names=None, output_fields=None,
-               round_decimal=-1, timeout=None, schema=None, **kwargs):
+    def search(
+        self,
+        collection_name,
+        data,
+        anns_field,
+        param,
+        limit,
+        expression=None,
+        partition_names=None,
+        output_fields=None,
+        round_decimal=-1,
+        timeout=None,
+        schema=None,
+        **kwargs,
+    ):
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
@@ -450,24 +512,40 @@ class GrpcHandler:
             partition_name_array=partition_names,
             output_fields=output_fields,
             travel_timestamp=kwargs.get("travel_timestamp", 0),
-            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0)
+            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
         )
 
         if schema is None:
-            schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+            schema = self.describe_collection(
+                collection_name, timeout=timeout, **kwargs
+            )
 
         consistency_level = schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
-        consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))
+        consistency_level = get_consistency_level(
+            kwargs.get("consistency_level", consistency_level)
+        )
 
         ts_utils.construct_guarantee_ts(consistency_level, collection_name, kwargs)
 
-        requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, schema,
-                                                     expression, partition_names, output_fields, round_decimal,
-                                                     **kwargs)
+        requests = Prepare.search_requests_with_expr(
+            collection_name,
+            data,
+            anns_field,
+            param,
+            limit,
+            schema,
+            expression,
+            partition_names,
+            output_fields,
+            round_decimal,
+            **kwargs,
+        )
 
         auto_id = schema["auto_id"]
-        return self._execute_search_requests(requests, timeout, round_decimal=round_decimal, auto_id=auto_id, **kwargs)
+        return self._execute_search_requests(
+            requests, timeout, round_decimal=round_decimal, auto_id=auto_id, **kwargs
+        )
 
     @retry_on_rpc_failure()
     def get_query_segment_info(self, collection_name, timeout=30, **kwargs):
@@ -511,34 +589,47 @@ class GrpcHandler:
         index_name = kwargs.pop("index_name", DefaultConfigs.IndexName)
         copy_kwargs = copy.deepcopy(kwargs)
 
-        collection_desc = self.describe_collection(collection_name, timeout=timeout, **copy_kwargs)
+        collection_desc = self.describe_collection(
+            collection_name, timeout=timeout, **copy_kwargs
+        )
 
         valid_field = False
         for fields in collection_desc["fields"]:
             if field_name != fields["name"]:
                 continue
             valid_field = True
-            if fields["type"] != DataType.FLOAT_VECTOR and fields["type"] != DataType.BINARY_VECTOR:
+            if (
+                fields["type"] != DataType.FLOAT_VECTOR
+                and fields["type"] != DataType.BINARY_VECTOR
+            ):
                 break
             # check index params on vector field.
             check_index_params(params)
 
         if not valid_field:
-            raise MilvusException(message=f"cannot create index on non-existed field: {field_name}")
+            raise MilvusException(
+                message=f"cannot create index on non-existed field: {field_name}"
+            )
 
         # sync flush
         _async = kwargs.get("_async", False)
         kwargs["_async"] = False
 
-        index_param = Prepare.create_index_request(collection_name, field_name, params, index_name=index_name)
+        index_param = Prepare.create_index_request(
+            collection_name, field_name, params, index_name=index_name
+        )
         future = self._stub.CreateIndex.future(index_param, timeout=timeout)
 
         if _async:
+
             def _check():
                 if kwargs.get("sync", True):
-                    index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
-                                                                              index_name=index_name,
-                                                                              timeout=timeout, field_name=field_name)
+                    index_success, fail_reason = self.wait_for_creating_index(
+                        collection_name=collection_name,
+                        index_name=index_name,
+                        timeout=timeout,
+                        field_name=field_name,
+                    )
                     if not index_success:
                         raise MilvusException(message=fail_reason)
 
@@ -555,9 +646,12 @@ class GrpcHandler:
             raise MilvusException(status.error_code, status.reason)
 
         if kwargs.get("sync", True):
-            index_success, fail_reason = self.wait_for_creating_index(collection_name=collection_name,
-                                                                      index_name=index_name,
-                                                                      timeout=timeout, field_name=field_name)
+            index_success, fail_reason = self.wait_for_creating_index(
+                collection_name=collection_name,
+                index_name=index_name,
+                timeout=timeout,
+                field_name=field_name,
+            )
             if not index_success:
                 raise MilvusException(message=fail_reason)
 
@@ -590,9 +684,11 @@ class GrpcHandler:
         if status.error_code != 0:
             raise MilvusException(status.error_code, status.reason)
         if len(response.index_descriptions) == 1:
-            info_dict = {kv.key: kv.value for kv in response.index_descriptions[0].params}
-            info_dict['field_name'] = response.index_descriptions[0].field_name
-            info_dict['index_name'] = response.index_descriptions[0].index_name
+            info_dict = {
+                kv.key: kv.value for kv in response.index_descriptions[0].params
+            }
+            info_dict["field_name"] = response.index_descriptions[0].field_name
+            info_dict["index_name"] = response.index_descriptions[0].index_name
             if info_dict.get("params", None):
                 info_dict["params"] = json.loads(info_dict["params"])
             return info_dict
@@ -608,12 +704,17 @@ class GrpcHandler:
         if status.error_code == 0:
             if len(response.index_descriptions) == 1:
                 index_desc = response.index_descriptions[0]
-                return {'total_rows': index_desc.total_rows, 'indexed_rows': index_desc.indexed_rows}
+                return {
+                    "total_rows": index_desc.total_rows,
+                    "indexed_rows": index_desc.indexed_rows,
+                }
             raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
         raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure()
-    def get_index_state(self, collection_name: str, index_name: str, timeout=None, **kwargs):
+    def get_index_state(
+        self, collection_name: str, index_name: str, timeout=None, **kwargs
+    ):
         request = Prepare.describe_index_request(collection_name, index_name)
         rf = self._stub.DescribeIndex.future(request, timeout=timeout)
         response = rf.result()
@@ -634,21 +735,29 @@ class GrpcHandler:
         raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
 
     @retry_on_rpc_failure()
-    def wait_for_creating_index(self, collection_name, index_name, timeout=None, **kwargs):
+    def wait_for_creating_index(
+        self, collection_name, index_name, timeout=None, **kwargs
+    ):
         start = time.time()
         while True:
             time.sleep(0.5)
-            state, fail_reason = self.get_index_state(collection_name, index_name, timeout=timeout, **kwargs)
+            state, fail_reason = self.get_index_state(
+                collection_name, index_name, timeout=timeout, **kwargs
+            )
             if state == IndexState.Finished:
                 return True, fail_reason
             if state == IndexState.Failed:
                 return False, fail_reason
             end = time.time()
             if isinstance(timeout, int) and end - start > timeout:
-                raise MilvusException(message=f"collection {collection_name} create index {index_name} timeout in {timeout}s")
+                raise MilvusException(
+                    message=f"collection {collection_name} create index {index_name} timeout in {timeout}s"
+                )
 
     @retry_on_rpc_failure()
-    def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
+    def load_collection(
+        self, collection_name, replica_number=1, timeout=None, **kwargs
+    ):
         check_pass_param(collection_name=collection_name)
         request = Prepare.load_collection("", collection_name, replica_number)
         rf = self._stub.LoadCollection.future(request, timeout=timeout)
@@ -661,7 +770,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def load_collection_progress(self, collection_name, timeout=None):
-        """ Return loading progress of collection """
+        """Return loading progress of collection"""
         progress = self.get_loading_progress(collection_name, timeout=timeout)
         return {
             "loading_progress": f"{progress:.0f}%",
@@ -679,7 +788,9 @@ class GrpcHandler:
             if progress >= 100:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
-        raise MilvusException(message=f"wait for loading collection timeout, collection: {collection_name}")
+        raise MilvusException(
+            message=f"wait for loading collection timeout, collection: {collection_name}"
+        )
 
     @retry_on_rpc_failure()
     def release_collection(self, collection_name, timeout=None):
@@ -691,12 +802,19 @@ class GrpcHandler:
             raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure()
-    def load_partitions(self, collection_name, partition_names, replica_number=1, timeout=None, **kwargs):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
-        request = Prepare.load_partitions("", collection_name, partition_names, replica_number)
+    def load_partitions(
+        self, collection_name, partition_names, replica_number=1, timeout=None, **kwargs
+    ):
+        check_pass_param(
+            collection_name=collection_name, partition_name_array=partition_names
+        )
+        request = Prepare.load_partitions(
+            "", collection_name, partition_names, replica_number
+        )
         future = self._stub.LoadPartitions.future(request, timeout=timeout)
 
         if kwargs.get("_async", False):
+
             def _check():
                 if kwargs.get("sync", True):
                     self.wait_for_loading_partitions(collection_name, partition_names)
@@ -718,30 +836,38 @@ class GrpcHandler:
             self.wait_for_loading_partitions(collection_name, partition_names)
 
     @retry_on_rpc_failure()
-    def wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
+    def wait_for_loading_partitions(
+        self, collection_name, partition_names, timeout=None
+    ):
         start = time.time()
 
         def can_loop(t) -> bool:
             return True if timeout is None else t <= (start + timeout)
 
         while can_loop(time.time()):
-            progress = self.get_loading_progress(collection_name, partition_names, timeout=timeout)
+            progress = self.get_loading_progress(
+                collection_name, partition_names, timeout=timeout
+            )
             if progress >= 100:
                 return
             time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
-        raise MilvusException(message=f"wait for loading partition timeout, collection: {collection_name}, partitions: {partition_names}")
+        raise MilvusException(
+            message=f"wait for loading partition timeout, collection: {collection_name}, partitions: {partition_names}"
+        )
 
     @retry_on_rpc_failure()
     def get_loading_progress(self, collection_name, partition_names=None, timeout=None):
         request = Prepare.get_loading_progress(collection_name, partition_names)
-        response = self._stub.GetLoadingProgress.future(request, timeout=timeout).result()
+        response = self._stub.GetLoadingProgress.future(
+            request, timeout=timeout
+        ).result()
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
         return response.progress
 
     @retry_on_rpc_failure()
     def load_partitions_progress(self, collection_name, partition_names, timeout=None):
-        """ Return loading progress of partitions """
+        """Return loading progress of partitions"""
         progress = self.get_loading_progress(collection_name, partition_names, timeout)
         return {
             "loading_progress": f"{progress:.0f}%",
@@ -749,7 +875,9 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def release_partitions(self, collection_name, partition_names, timeout=None):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
+        check_pass_param(
+            collection_name=collection_name, partition_name_array=partition_names
+        )
         request = Prepare.release_partitions("", collection_name, partition_names)
         rf = self._stub.ReleasePartitions.future(request, timeout=timeout)
         response = rf.result()
@@ -797,7 +925,9 @@ class GrpcHandler:
             end = time.time()
             if timeout is not None:
                 if end - start > timeout:
-                    raise MilvusException(message=f"wait for flush timeout, segment ids: {segment_ids}")
+                    raise MilvusException(
+                        message=f"wait for flush timeout, segment ids: {segment_ids}"
+                    )
 
             if not flush_ret:
                 time.sleep(0.5)
@@ -834,7 +964,9 @@ class GrpcHandler:
         _check()
 
     @retry_on_rpc_failure()
-    def drop_index(self, collection_name, field_name, index_name, timeout=None, **kwargs):
+    def drop_index(
+        self, collection_name, field_name, index_name, timeout=None, **kwargs
+    ):
         check_pass_param(collection_name=collection_name, field_name=field_name)
         request = Prepare.drop_index_request(collection_name, field_name, index_name)
         future = self._stub.DropIndex.future(request, timeout=timeout)
@@ -857,25 +989,48 @@ class GrpcHandler:
 
     # TODO seems not in use
     @retry_on_rpc_failure()
-    def get(self, collection_name, ids, output_fields=None, partition_names=None, timeout=None):
+    def get(
+        self,
+        collection_name,
+        ids,
+        output_fields=None,
+        partition_names=None,
+        timeout=None,
+    ):
         # TODO: some check
-        request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
+        request = Prepare.retrieve_request(
+            collection_name, ids, output_fields, partition_names
+        )
         future = self._stub.Retrieve.future(request, timeout=timeout)
         return future.result()
 
     @retry_on_rpc_failure()
-    def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
+    def query(
+        self,
+        collection_name,
+        expr,
+        output_fields=None,
+        partition_names=None,
+        timeout=None,
+        **kwargs,
+    ):
         if output_fields is not None and not isinstance(output_fields, (list,)):
-            raise ParamError(message="Invalid query format. 'output_fields' must be a list")
+            raise ParamError(
+                message="Invalid query format. 'output_fields' must be a list"
+            )
         collection_schema = kwargs.get("schema", None)
         if not collection_schema:
             collection_schema = self.describe_collection(collection_name, timeout)
         consistency_level = collection_schema["consistency_level"]
         # overwrite the consistency level defined when user created the collection
-        consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))
+        consistency_level = get_consistency_level(
+            kwargs.get("consistency_level", consistency_level)
+        )
 
         ts_utils.construct_guarantee_ts(consistency_level, collection_name, kwargs)
-        request = Prepare.query_request(collection_name, expr, output_fields, partition_names, **kwargs)
+        request = Prepare.query_request(
+            collection_name, expr, output_fields, partition_names, **kwargs
+        )
 
         future = self._stub.Query.future(request, timeout=timeout)
         response = future.result()
@@ -901,17 +1056,29 @@ class GrpcHandler:
             result = {}
             for field_data in response.fields_data:
                 if field_data.type == DataType.BOOL:
-                    result[field_data.field_name] = field_data.scalars.bool_data.data[index]
+                    result[field_data.field_name] = field_data.scalars.bool_data.data[
+                        index
+                    ]
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                    result[field_data.field_name] = field_data.scalars.int_data.data[index]
+                    result[field_data.field_name] = field_data.scalars.int_data.data[
+                        index
+                    ]
                 elif field_data.type == DataType.INT64:
-                    result[field_data.field_name] = field_data.scalars.long_data.data[index]
+                    result[field_data.field_name] = field_data.scalars.long_data.data[
+                        index
+                    ]
                 elif field_data.type == DataType.FLOAT:
-                    result[field_data.field_name] = np.single(field_data.scalars.float_data.data[index])
+                    result[field_data.field_name] = np.single(
+                        field_data.scalars.float_data.data[index]
+                    )
                 elif field_data.type == DataType.DOUBLE:
-                    result[field_data.field_name] = field_data.scalars.double_data.data[index]
+                    result[field_data.field_name] = field_data.scalars.double_data.data[
+                        index
+                    ]
                 elif field_data.type == DataType.VARCHAR:
-                    result[field_data.field_name] = field_data.scalars.string_data.data[index]
+                    result[field_data.field_name] = field_data.scalars.string_data.data[
+                        index
+                    ]
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
@@ -919,20 +1086,34 @@ class GrpcHandler:
                     dim = field_data.vectors.dim
                     start_pos = index * dim
                     end_pos = index * dim + dim
-                    result[field_data.field_name] = [np.single(x) for x in
-                                                     field_data.vectors.float_vector.data[start_pos:end_pos]]
+                    result[field_data.field_name] = [
+                        np.single(x)
+                        for x in field_data.vectors.float_vector.data[start_pos:end_pos]
+                    ]
                 elif field_data.type == DataType.BINARY_VECTOR:
                     dim = field_data.vectors.dim
                     start_pos = index * (int(dim / 8))
                     end_pos = (index + 1) * (int(dim / 8))
-                    result[field_data.field_name] = field_data.vectors.binary_vector[start_pos:end_pos]
+                    result[field_data.field_name] = field_data.vectors.binary_vector[
+                        start_pos:end_pos
+                    ]
             results.append(result)
 
         return results
 
     @retry_on_rpc_failure()
-    def load_balance(self, collection_name: str, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
-        req = Prepare.load_balance_request(collection_name, src_node_id, dst_node_ids, sealed_segment_ids)
+    def load_balance(
+        self,
+        collection_name: str,
+        src_node_id,
+        dst_node_ids,
+        sealed_segment_ids,
+        timeout=None,
+        **kwargs,
+    ):
+        req = Prepare.load_balance_request(
+            collection_name, src_node_id, dst_node_ids, sealed_segment_ids
+        )
         future = self._stub.LoadBalance.future(req, timeout=timeout)
         status = future.result()
         if status.error_code != 0:
@@ -955,7 +1136,9 @@ class GrpcHandler:
         return response.compactionID
 
     @retry_on_rpc_failure()
-    def get_compaction_state(self, compaction_id, timeout=None, **kwargs) -> CompactionState:
+    def get_compaction_state(
+        self, compaction_id, timeout=None, **kwargs
+    ) -> CompactionState:
         req = Prepare.get_compaction_state(compaction_id)
 
         future = self._stub.GetCompactionState.future(req, timeout=timeout)
@@ -968,7 +1151,7 @@ class GrpcHandler:
             State.new(response.state),
             response.executingPlanNo,
             response.timeoutPlanNo,
-            response.completedPlanNo
+            response.completedPlanNo,
         )
 
     @retry_on_rpc_failure()
@@ -976,7 +1159,9 @@ class GrpcHandler:
         start = time.time()
         while True:
             time.sleep(0.5)
-            compaction_state = self.get_compaction_state(compaction_id, timeout, **kwargs)
+            compaction_state = self.get_compaction_state(
+                compaction_id, timeout, **kwargs
+            )
             if compaction_state.state == State.Completed:
                 return True
             if compaction_state == State.UndefiedState:
@@ -984,10 +1169,14 @@ class GrpcHandler:
             end = time.time()
             if timeout is not None:
                 if end - start > timeout:
-                    raise MilvusException(message=f"get compaction state timeout, compaction id: {compaction_id}")
+                    raise MilvusException(
+                        message=f"get compaction state timeout, compaction id: {compaction_id}"
+                    )
 
     @retry_on_rpc_failure()
-    def get_compaction_plans(self, compaction_id, timeout=None, **kwargs) -> CompactionPlans:
+    def get_compaction_plans(
+        self, compaction_id, timeout=None, **kwargs
+    ) -> CompactionPlans:
         req = Prepare.get_compaction_state_with_plans(compaction_id)
 
         future = self._stub.GetCompactionStateWithPlans.future(req, timeout=timeout)
@@ -1003,7 +1192,9 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def get_replicas(self, collection_name, timeout=None, **kwargs) -> Replica:
-        collection_id = self.describe_collection(collection_name, timeout, **kwargs)["collection_id"]
+        collection_id = self.describe_collection(collection_name, timeout, **kwargs)[
+            "collection_id"
+        ]
 
         req = Prepare.get_replicas(collection_id)
         future = self._stub.GetReplicas.future(req, timeout=timeout)
@@ -1013,20 +1204,27 @@ class GrpcHandler:
 
         groups = []
         for replica in response.replicas:
-            shards = [Shard(s.dm_channel_name, s.node_ids, s.leaderID) for s in replica.shard_replicas]
+            shards = [
+                Shard(s.dm_channel_name, s.node_ids, s.leaderID)
+                for s in replica.shard_replicas
+            ]
             groups.append(Group(replica.replicaID, shards, replica.node_ids))
 
         return Replica(groups)
 
     @retry_on_rpc_failure()
-    def do_bulk_insert(self, collection_name, partition_name, files: list, timeout=None, **kwargs) -> int:
+    def do_bulk_insert(
+        self, collection_name, partition_name, files: list, timeout=None, **kwargs
+    ) -> int:
         req = Prepare.do_bulk_insert(collection_name, partition_name, files, **kwargs)
         future = self._stub.Import.future(req, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
         if len(response.tasks) == 0:
-            raise MilvusException(common_pb2.UNEXPECTED_ERROR, "no task id returned from server")
+            raise MilvusException(
+                common_pb2.UNEXPECTED_ERROR, "no task id returned from server"
+            )
         return response.tasks[0]
 
     @retry_on_rpc_failure()
@@ -1036,19 +1234,30 @@ class GrpcHandler:
         resp = future.result()
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
-        state = BulkInsertState(task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.create_ts)
+        state = BulkInsertState(
+            task_id,
+            resp.state,
+            resp.row_count,
+            resp.id_list,
+            resp.infos,
+            resp.create_ts,
+        )
         return state
 
     @retry_on_rpc_failure()
-    def list_bulk_insert_tasks(self, limit, collection_name, timeout=None, **kwargs) -> list:
+    def list_bulk_insert_tasks(
+        self, limit, collection_name, timeout=None, **kwargs
+    ) -> list:
         req = Prepare.list_bulk_insert_tasks(limit, collection_name)
         future = self._stub.ListImportTasks.future(req, timeout=timeout)
         resp = future.result()
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
 
-        tasks = [BulkInsertState(t.id, t.state, t.row_count, t.id_list, t.infos, t.create_ts)
-                 for t in resp.tasks]
+        tasks = [
+            BulkInsertState(t.id, t.state, t.row_count, t.id_list, t.infos, t.create_ts)
+            for t in resp.tasks
+        ]
         return tasks
 
     @retry_on_rpc_failure()
@@ -1097,15 +1306,18 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def add_user_to_role(self, username, role_name, timeout=None, **kwargs):
-        req = Prepare.operate_user_role_request(username, role_name, milvus_types.OperateUserRoleType.AddUserToRole)
+        req = Prepare.operate_user_role_request(
+            username, role_name, milvus_types.OperateUserRoleType.AddUserToRole
+        )
         resp = self._stub.OperateUserRole(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure()
     def remove_user_from_role(self, username, role_name, timeout=None, **kwargs):
-        req = Prepare.operate_user_role_request(username, role_name,
-                                                milvus_types.OperateUserRoleType.RemoveUserFromRole)
+        req = Prepare.operate_user_role_request(
+            username, role_name, milvus_types.OperateUserRoleType.RemoveUserFromRole
+        )
         resp = self._stub.OperateUserRole(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
@@ -1143,17 +1355,31 @@ class GrpcHandler:
         return UserInfo(resp.results)
 
     @retry_on_rpc_failure()
-    def grant_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
-        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege,
-                                                milvus_types.OperatePrivilegeType.Grant)
+    def grant_privilege(
+        self, role_name, object, object_name, privilege, timeout=None, **kwargs
+    ):
+        req = Prepare.operate_privilege_request(
+            role_name,
+            object,
+            object_name,
+            privilege,
+            milvus_types.OperatePrivilegeType.Grant,
+        )
         resp = self._stub.OperatePrivilege(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure()
-    def revoke_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
-        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege,
-                                                milvus_types.OperatePrivilegeType.Revoke)
+    def revoke_privilege(
+        self, role_name, object, object_name, privilege, timeout=None, **kwargs
+    ):
+        req = Prepare.operate_privilege_request(
+            role_name,
+            object,
+            object_name,
+            privilege,
+            milvus_types.OperatePrivilegeType.Revoke,
+        )
         resp = self._stub.OperatePrivilege(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
@@ -1168,7 +1394,9 @@ class GrpcHandler:
         return GrantInfo(resp.entities)
 
     @retry_on_rpc_failure()
-    def select_grant_for_role_and_object(self, role_name, object, object_name, timeout=None, **kwargs):
+    def select_grant_for_role_and_object(
+        self, role_name, object, object_name, timeout=None, **kwargs
+    ):
         req = Prepare.select_grant_request(role_name, object, object_name)
         resp = self._stub.SelectGrant(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:

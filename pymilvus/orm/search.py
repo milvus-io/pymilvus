@@ -11,6 +11,7 @@
 # the License.
 
 import abc
+
 from ..client.abstract import Entity
 
 
@@ -61,7 +62,7 @@ class _IterableWrapper:
 class DocstringMeta(type):
     def __new__(cls, name, bases, attrs):
         doc_meta = attrs.pop("docstring", None)
-        new_cls = super(DocstringMeta, cls).__new__(cls, name, bases, attrs)
+        new_cls = super().__new__(cls, name, bases, attrs)
         if doc_meta:
             for member_name, member in attrs.items():
                 if member_name in doc_meta:

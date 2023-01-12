@@ -13,43 +13,56 @@
 import copy
 import json
 from typing import List
+
 import pandas
 
+from ..client.configs import DefaultConfigs
+from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
+from ..client.types import (
+    CompactionPlans,
+    CompactionState,
+    Replica,
+    cmp_consistency_level,
+    get_consistency_level,
+)
+from ..exceptions import (
+    AutoIDException,
+    DataTypeNotMatchException,
+    ExceptionsMessage,
+    IndexNotExistException,
+    PartitionAlreadyExistException,
+    PartitionNotExistException,
+    SchemaNotReadyException,
+)
 from .connections import connections
+from .default_config import DefaultConfig
+from .future import MutationFuture, SearchFuture
+from .index import Index
+from .mutation import MutationResult
+from .partition import Partition
+from .prepare import Prepare
 from .schema import (
     CollectionSchema,
     FieldSchema,
-    parse_fields_from_data,
     check_insert_data_schema,
     check_schema,
+    parse_fields_from_data,
 )
-from .prepare import Prepare
-from .partition import Partition
-from .index import Index
 from .search import SearchResult
-from .mutation import MutationResult
 from .types import DataType
-from ..exceptions import (
-    SchemaNotReadyException,
-    DataTypeNotMatchException,
-    PartitionAlreadyExistException,
-    PartitionNotExistException,
-    IndexNotExistException,
-    AutoIDException,
-    ExceptionsMessage,
-)
-from .future import SearchFuture, MutationFuture
 from .utility import _get_connection
-from .default_config import DefaultConfig
-from ..client.types import CompactionState, CompactionPlans, Replica, get_consistency_level, cmp_consistency_level
-from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
-from ..client.configs import DefaultConfigs
-
 
 
 class Collection:
-    def __init__(self, name: str, schema: CollectionSchema=None, using: str="default", shards_num: int=2, **kwargs):
-        """ Constructs a collection by name, schema and other parameters.
+    def __init__(
+        self,
+        name: str,
+        schema: CollectionSchema = None,
+        using: str = "default",
+        shards_num: int = 2,
+        **kwargs
+    ):
+        """Constructs a collection by name, schema and other parameters.
 
         Args:
             name (``str``): the name of collection
@@ -96,10 +109,14 @@ class Collection:
         has = conn.has_collection(self._name, **kwargs)
         if has:
             resp = conn.describe_collection(self._name, **kwargs)
-            s_consistency_level = resp.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
+            s_consistency_level = resp.get(
+                "consistency_level", DEFAULT_CONSISTENCY_LEVEL
+            )
             arg_consistency_level = kwargs.get("consistency_level", s_consistency_level)
             if not cmp_consistency_level(s_consistency_level, arg_consistency_level):
-                raise SchemaNotReadyException(message=ExceptionsMessage.ConsistencyLevelInconsistent)
+                raise SchemaNotReadyException(
+                    message=ExceptionsMessage.ConsistencyLevelInconsistent
+                )
             server_schema = CollectionSchema.construct_from_dict(resp)
             self._consistency_level = s_consistency_level
             if schema is None:
@@ -108,16 +125,24 @@ class Collection:
                 if not isinstance(schema, CollectionSchema):
                     raise SchemaNotReadyException(message=ExceptionsMessage.SchemaType)
                 if server_schema != schema:
-                    raise SchemaNotReadyException(message=ExceptionsMessage.SchemaInconsistent)
+                    raise SchemaNotReadyException(
+                        message=ExceptionsMessage.SchemaInconsistent
+                    )
                 self._schema = schema
 
         else:
             if schema is None:
-                raise SchemaNotReadyException(message=ExceptionsMessage.CollectionNotExistNoSchema % name)
+                raise SchemaNotReadyException(
+                    message=ExceptionsMessage.CollectionNotExistNoSchema % name
+                )
             if isinstance(schema, CollectionSchema):
                 check_schema(schema)
-                consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
-                conn.create_collection(self._name, schema, shards_num=self._shards_num, **kwargs)
+                consistency_level = get_consistency_level(
+                    kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
+                )
+                conn.create_collection(
+                    self._name, schema, shards_num=self._shards_num, **kwargs
+                )
                 self._schema = schema
                 self._consistency_level = consistency_level
             else:
@@ -128,10 +153,10 @@ class Collection:
 
     def __repr__(self):
         _dict = {
-            'name': self.name,
-            'partitions': self.partitions,
-            'description': self.description,
-            'schema': self._schema,
+            "name": self.name,
+            "partitions": self.partitions,
+            "description": self.description,
+            "schema": self._schema,
         }
         r = ["<Collection>:\n-------------\n"]
         s = "<{}>: {}\n"
@@ -176,17 +201,25 @@ class Collection:
         else:
             fields_schema = parse_fields_from_data(dataframe)
             if auto_id:
-                fields_schema.insert(pk_index,
-                                     FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True,
-                                                 auto_id=True,
-                                                 **kwargs))
+                fields_schema.insert(
+                    pk_index,
+                    FieldSchema(
+                        name=primary_field,
+                        dtype=DataType.INT64,
+                        is_primary=True,
+                        auto_id=True,
+                        **kwargs
+                    ),
+                )
 
             for field in fields_schema:
                 if auto_id is False and field.name == primary_field:
                     field.is_primary = True
                     field.auto_id = False
                 if field.dtype == DataType.VARCHAR:
-                    field.params[DefaultConfigs.MaxVarCharLengthKey] = int(DefaultConfigs.MaxVarCharLength)
+                    field.params[DefaultConfigs.MaxVarCharLengthKey] = int(
+                        DefaultConfigs.MaxVarCharLength
+                    )
             schema = CollectionSchema(fields=fields_schema)
 
         check_schema(schema)
@@ -196,12 +229,12 @@ class Collection:
 
     @property
     def schema(self) -> CollectionSchema:
-        """CollectionSchema: schema of the collection. """
+        """CollectionSchema: schema of the collection."""
         return self._schema
 
     @property
     def aliases(self, **kwargs) -> list:
-        """List[str]: all the aliases of the collection. """
+        """List[str]: all the aliases of the collection."""
         conn = self._get_connection()
         resp = conn.describe_collection(self._name, **kwargs)
         aliases = resp["aliases"]
@@ -209,12 +242,12 @@ class Collection:
 
     @property
     def description(self) -> str:
-        """str: a text description of the collection. """
+        """str: a text description of the collection."""
         return self._schema.description
 
     @property
     def name(self) -> str:
-        """str: the name of the collection. """
+        """str: the name of the collection."""
         return self._name
 
     @property
@@ -255,7 +288,7 @@ class Collection:
         return self._schema.primary_field
 
     def flush(self, timeout=None, **kwargs):
-        """ Seal all segments in the collection. Inserts after flushing will be written into
+        """Seal all segments in the collection. Inserts after flushing will be written into
             new segments. Only sealed segments can be indexed.
 
         Args:
@@ -280,7 +313,7 @@ class Collection:
         conn.flush([self.name], timeout=timeout, **kwargs)
 
     def drop(self, timeout=None, **kwargs):
-        """ Drops the collection. The same as `utility.drop_collection()`
+        """Drops the collection. The same as `utility.drop_collection()`
 
         Args:
             timeout (float, optional): an optional duration of time in seconds to allow for the RPCs.
@@ -304,7 +337,7 @@ class Collection:
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
     def set_properties(self, properties, timeout=None, **kwargs):
-        """ Set properties for the collection
+        """Set properties for the collection
 
         Args:
             properties (``dict``): collection properties.
@@ -327,7 +360,7 @@ class Collection:
         conn.alter_collection(self.name, properties=properties, timeout=timeout)
 
     def load(self, partition_names=None, replica_number=1, timeout=None, **kwargs):
-        """ Load the data into memory.
+        """Load the data into memory.
 
         Args:
             partition_names (``List[str]``): The specified partitions to load.
@@ -356,12 +389,20 @@ class Collection:
         """
         conn = self._get_connection()
         if partition_names is not None:
-            conn.load_partitions(self._name, partition_names, replica_number=replica_number, timeout=timeout, **kwargs)
+            conn.load_partitions(
+                self._name,
+                partition_names,
+                replica_number=replica_number,
+                timeout=timeout,
+                **kwargs
+            )
         else:
-            conn.load_collection(self._name, replica_number=replica_number, timeout=timeout, **kwargs)
+            conn.load_collection(
+                self._name, replica_number=replica_number, timeout=timeout, **kwargs
+            )
 
     def release(self, timeout=None, **kwargs):
-        """ Releases the collection data from memory.
+        """Releases the collection data from memory.
 
         Args:
             timeout (``float``, optional): an optional duration of time in seconds to allow for the RPCs.
@@ -383,8 +424,14 @@ class Collection:
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=timeout, **kwargs)
 
-    def insert(self, data: [List, pandas.DataFrame], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
-        """ Insert data into the collection.
+    def insert(
+        self,
+        data: [List, pandas.DataFrame],
+        partition_name: str = None,
+        timeout=None,
+        **kwargs
+    ) -> MutationResult:
+        """Insert data into the collection.
 
         Args:
             data (``list/tuple/pandas.DataFrame``): The specified data to insert
@@ -422,15 +469,21 @@ class Collection:
         entities = Prepare.prepare_insert_data(data, self._schema)
 
         conn = self._get_connection()
-        res = conn.batch_insert(self._name, entities, partition_name,
-                                timeout=timeout, schema=self._schema_dict, **kwargs)
+        res = conn.batch_insert(
+            self._name,
+            entities,
+            partition_name,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs
+        )
 
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
 
     def delete(self, expr, partition_name=None, timeout=None, **kwargs):
-        """ Delete entities with an expression condition.
+        """Delete entities with an expression condition.
 
         Args:
             expr (``str``): The specified data to insert.
@@ -472,9 +525,20 @@ class Collection:
             return MutationFuture(res)
         return MutationResult(res)
 
-    def search(self, data, anns_field, param, limit, expr=None, partition_names=None,
-               output_fields=None, timeout=None, round_decimal=-1, **kwargs):
-        """ Conducts a vector similarity search with an optional boolean expression as filter.
+    def search(
+        self,
+        data,
+        anns_field,
+        param,
+        limit,
+        expr=None,
+        partition_names=None,
+        output_fields=None,
+        timeout=None,
+        round_decimal=-1,
+        **kwargs
+    ):
+        """Conducts a vector similarity search with an optional boolean expression as filter.
 
         Args:
             data (``List[List[float]]``): The vectors of search data.
@@ -603,18 +667,33 @@ class Collection:
             - Top1 hit id: 8, distance: 0.10143111646175385, score: 0.10143111646175385
         """
         if expr is not None and not isinstance(expr, str):
-            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
+            raise DataTypeNotMatchException(
+                message=ExceptionsMessage.ExprType % type(expr)
+            )
 
         conn = self._get_connection()
-        res = conn.search(self._name, data, anns_field, param, limit, expr,
-                          partition_names, output_fields, round_decimal, timeout=timeout,
-                          schema=self._schema_dict, **kwargs)
+        res = conn.search(
+            self._name,
+            data,
+            anns_field,
+            param,
+            limit,
+            expr,
+            partition_names,
+            output_fields,
+            round_decimal,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs
+        )
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
 
-    def query(self, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
-        """ Query with expressions
+    def query(
+        self, expr, output_fields=None, partition_names=None, timeout=None, **kwargs
+    ):
+        """Query with expressions
 
         Args:
             expr (``str``): The query expression.
@@ -687,16 +766,25 @@ class Collection:
             - Query results: [{'film_id': 1, 'film_date': 2001}]
         """
         if not isinstance(expr, str):
-            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
+            raise DataTypeNotMatchException(
+                message=ExceptionsMessage.ExprType % type(expr)
+            )
 
         conn = self._get_connection()
-        res = conn.query(self._name, expr, output_fields, partition_names,
-                         timeout=timeout, schema=self._schema_dict, **kwargs)
+        res = conn.query(
+            self._name,
+            expr,
+            output_fields,
+            partition_names,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs
+        )
         return res
 
     @property
     def partitions(self, **kwargs) -> List[Partition]:
-        """ List[Partition]: List of Partition object.
+        """List[Partition]: List of Partition object.
 
         Raises:
             MilvusException: If anything goes wrong.
@@ -720,7 +808,7 @@ class Collection:
         return partitions
 
     def partition(self, partition_name, **kwargs) -> Partition:
-        """ Get the existing partition object according to name. Return None if not existed.
+        """Get the existing partition object according to name. Return None if not existed.
 
         Args:
             partition_name (``str``): The name of the partition to get.
@@ -747,7 +835,7 @@ class Collection:
         return Partition(self, partition_name, construct_only=True, **kwargs)
 
     def create_partition(self, partition_name, description="", **kwargs) -> Partition:
-        """ Create a new partition corresponding to name if not existed.
+        """Create a new partition corresponding to name if not existed.
 
         Args:
             partition_name (``str``): The name of the partition to create.
@@ -773,11 +861,13 @@ class Collection:
             {"name": "comedy", "collection_name": "test_collection_create_partition", "description": ""}
         """
         if self.has_partition(partition_name, **kwargs) is True:
-            raise PartitionAlreadyExistException(message=ExceptionsMessage.PartitionAlreadyExist)
+            raise PartitionAlreadyExistException(
+                message=ExceptionsMessage.PartitionAlreadyExist
+            )
         return Partition(self, partition_name, description=description, **kwargs)
 
     def has_partition(self, partition_name, timeout=None, **kwargs) -> bool:
-        """ Checks if a specified partition exists.
+        """Checks if a specified partition exists.
 
         Args:
             partition_name (``str``): The name of the partition to check.
@@ -809,7 +899,7 @@ class Collection:
         return conn.has_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
     def drop_partition(self, partition_name, timeout=None, **kwargs):
-        """ Drop the partition in this collection.
+        """Drop the partition in this collection.
 
         Args:
             partition_name (``str``): The name of the partition to drop.
@@ -837,9 +927,13 @@ class Collection:
             False
         """
         if self.has_partition(partition_name, **kwargs) is False:
-            raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
+            raise PartitionNotExistException(
+                message=ExceptionsMessage.PartitionNotExist
+            )
         conn = self._get_connection()
-        return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
+        return conn.drop_partition(
+            self._name, partition_name, timeout=timeout, **kwargs
+        )
 
     @property
     def indexes(self, **kwargs) -> List[Index]:
@@ -865,7 +959,13 @@ class Collection:
                 if info_dict.get("params", None):
                     info_dict["params"] = json.loads(info_dict["params"])
 
-                index_info = Index(self, index.field_name, info_dict, index_name=index.index_name, construct_only=True)
+                index_info = Index(
+                    self,
+                    index.field_name,
+                    info_dict,
+                    index_name=index.index_name,
+                    construct_only=True,
+                )
                 indexes.append(index_info)
         return indexes
 
@@ -906,7 +1006,9 @@ class Collection:
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
             index_name = tmp_index.pop("index_name", index_name)
-            return Index(self, field_name, tmp_index, construct_only=True, index_name=index_name)
+            return Index(
+                self, field_name, tmp_index, construct_only=True, index_name=index_name
+            )
         raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
 
     def create_index(self, field_name, index_params={}, timeout=None, **kwargs):
@@ -945,10 +1047,12 @@ class Collection:
             Status(code=0, message='')
         """
         conn = self._get_connection()
-        return conn.create_index(self._name, field_name, index_params, timeout=timeout, **kwargs)
+        return conn.create_index(
+            self._name, field_name, index_params, timeout=timeout, **kwargs
+        )
 
     def has_index(self, timeout=None, **kwargs) -> bool:
-        """ Check whether a specified index exists.
+        """Check whether a specified index exists.
 
         Args:
             timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
@@ -977,12 +1081,15 @@ class Collection:
         conn = self._get_connection()
         copy_kwargs = copy.deepcopy(kwargs)
         index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
-        if conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs) is None:
+        if (
+            conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs)
+            is None
+        ):
             return False
         return True
 
     def drop_index(self, timeout=None, **kwargs):
-        """ Drop index and its corresponding index files.
+        """Drop index and its corresponding index files.
         Args:
             timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
                 is set to None, client waits until server response or error occur.
@@ -1013,13 +1120,21 @@ class Collection:
         copy_kwargs = copy.deepcopy(kwargs)
         index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs)
+        tmp_index = conn.describe_index(
+            self._name, index_name, timeout=timeout, **copy_kwargs
+        )
         if tmp_index is not None:
-            index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True, index_name=index_name)
+            index = Index(
+                self,
+                tmp_index["field_name"],
+                tmp_index,
+                construct_only=True,
+                index_name=index_name,
+            )
             index.drop(timeout=timeout, **kwargs)
 
     def compact(self, timeout=None, **kwargs):
-        """ Compact merge the small segments in a collection
+        """Compact merge the small segments in a collection
 
         Args:
             timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
@@ -1032,7 +1147,7 @@ class Collection:
         self.compaction_id = conn.compact(self._name, timeout=timeout, **kwargs)
 
     def get_compaction_state(self, timeout=None, **kwargs) -> CompactionState:
-        """ Get the current compaction state
+        """Get the current compaction state
 
         Args:
             timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
@@ -1045,7 +1160,7 @@ class Collection:
         return conn.get_compaction_state(self.compaction_id, timeout=timeout, **kwargs)
 
     def wait_for_compaction_completed(self, timeout=None, **kwargs) -> CompactionState:
-        """ Block until the current collection's compaction completed
+        """Block until the current collection's compaction completed
 
         Args:
             timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
@@ -1055,7 +1170,9 @@ class Collection:
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        return conn.wait_for_compaction_completed(self.compaction_id, timeout=timeout, **kwargs)
+        return conn.wait_for_compaction_completed(
+            self.compaction_id, timeout=timeout, **kwargs
+        )
 
     def get_compaction_plans(self, timeout=None, **kwargs) -> CompactionPlans:
         """Get the current compaction plans

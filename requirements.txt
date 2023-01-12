@@ -10,6 +10,7 @@ mmh3>=2.0,<=3.0.0
 packaging==20.9
 pep517==0.10.0
 pyparsing==2.4.7
+pre-commit==2.21.0
 six==1.16.0
 toml==0.10.2
 ujson>=2.0.0,<=5.4.0

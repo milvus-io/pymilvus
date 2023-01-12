@@ -12,8 +12,8 @@
 
 import copy
 
-from ..exceptions import CollectionNotExistException, ExceptionsMessage
 from ..client.configs import DefaultConfigs
+from ..exceptions import CollectionNotExistException, ExceptionsMessage
 
 
 class Index:
@@ -59,6 +59,7 @@ class Index:
         >>> index.drop()
         """
         from .collection import Collection
+
         if not isinstance(collection, Collection):
             raise CollectionNotExistException(message=ExceptionsMessage.CollectionType)
         self._collection = collection
@@ -71,7 +72,9 @@ class Index:
             return
 
         conn = self._get_connection()
-        conn.create_index(self._collection.name, self._field_name, self._index_params, **kwargs)
+        conn.create_index(
+            self._collection.name, self._field_name, self._index_params, **kwargs
+        )
         indexes = conn.list_indexes(self._collection.name)
         for index in indexes:
             if index.field_name == self._field_name:
@@ -137,7 +140,7 @@ class Index:
             "collection": self._collection._name,
             "field": self._field_name,
             "index_name": self._index_name,
-            "index_param": self.params
+            "index_param": self.params,
         }
         return _dict
 
@@ -157,4 +160,10 @@ class Index:
         copy_kwargs = copy.deepcopy(kwargs)
         index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
         conn = self._get_connection()
-        conn.drop_index(self._collection.name, self.field_name, index_name, timeout=timeout, **copy_kwargs)
+        conn.drop_index(
+            self._collection.name,
+            self.field_name,
+            index_name,
+            timeout=timeout,
+            **copy_kwargs
+        )

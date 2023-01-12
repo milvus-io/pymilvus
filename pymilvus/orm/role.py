@@ -1,12 +1,13 @@
 from .connections import connections
 
+
 class Role:
-    """ Role, can be granted privileges which are allowed to execute some objects' apis. """
+    """Role, can be granted privileges which are allowed to execute some objects' apis."""
 
     def __init__(self, name: str, using="default", **kwargs):
-        """ Constructs a role by name
-            :param name: role name.
-            :type  name: str
+        """Constructs a role by name
+        :param name: role name.
+        :type  name: str
         """
         self._name = name
         self._using = using
@@ -20,7 +21,7 @@ class Role:
         return self._name
 
     def create(self):
-        """ Create a role
+        """Create a role
             It will success if the role isn't existed, otherwise fail.
 
         :example:
@@ -35,7 +36,7 @@ class Role:
         return self._get_connection().create_role(self._name)
 
     def drop(self):
-        """ Drop a role
+        """Drop a role
             It will success if the role is existed, otherwise fail.
 
         :example:
@@ -50,7 +51,7 @@ class Role:
         return self._get_connection().drop_role(self._name)
 
     def add_user(self, username: str):
-        """ Add user to role
+        """Add user to role
             The user will get permissions that the role are allowed to perform operations.
             :param username: user name.
             :type  username: str
@@ -67,7 +68,7 @@ class Role:
         return self._get_connection().add_user_to_role(username, self._name)
 
     def remove_user(self, username: str):
-        """ Remove user from role
+        """Remove user from role
             The user will remove permissions that the role are allowed to perform operations.
             :param username: user name.
             :type  username: str
@@ -84,7 +85,7 @@ class Role:
         return self._get_connection().remove_user_from_role(username, self._name)
 
     def get_users(self):
-        """ Get all users who are added to the role.
+        """Get all users who are added to the role.
             :return a RoleInfo object which contains a RoleItem group
                 According to the RoleItem, you can get a list of usernames.
 
@@ -105,7 +106,7 @@ class Role:
         return roles.groups[0].users
 
     def is_exist(self):
-        """ Check whether the role is existed.
+        """Check whether the role is existed.
             :return a bool value
                 It will be True if the role is existed, otherwise False.
 
@@ -121,7 +122,7 @@ class Role:
         return len(roles.groups) != 0
 
     def grant(self, object: str, object_name: str, privilege: str):
-        """ Grant a privilege for the role
+        """Grant a privilege for the role
             :param object: object type.
             :type  object: str
             :param object_name: identifies a specific object name.
@@ -136,10 +137,12 @@ class Role:
             >>> role = Role(role_name)
             >>> role.grant("Collection", collection_name, "Insert")
         """
-        return self._get_connection().grant_privilege(self._name, object, object_name, privilege)
+        return self._get_connection().grant_privilege(
+            self._name, object, object_name, privilege
+        )
 
     def revoke(self, object: str, object_name: str, privilege: str):
-        """ Revoke a privilege for the role
+        """Revoke a privilege for the role
             :param object: object type.
             :type  object: str
             :param object_name: identifies a specific object name.
@@ -154,10 +157,12 @@ class Role:
             >>> role = Role(role_name)
             >>> role.revoke("Collection", collection_name, "Insert")
         """
-        return self._get_connection().revoke_privilege(self._name, object, object_name, privilege)
+        return self._get_connection().revoke_privilege(
+            self._name, object, object_name, privilege
+        )
 
     def list_grant(self, object: str, object_name: str):
-        """ List a grant info for the role and the specific object
+        """List a grant info for the role and the specific object
             :param object: object type.
             :type  object: str
             :param object_name: identifies a specific object name.
@@ -175,10 +180,12 @@ class Role:
             >>> role = Role(role_name)
             >>> role.list_grant("Collection", collection_name)
         """
-        return self._get_connection().select_grant_for_role_and_object(self._name, object, object_name)
+        return self._get_connection().select_grant_for_role_and_object(
+            self._name, object, object_name
+        )
 
     def list_grants(self):
-        """ List a grant info for the role
+        """List a grant info for the role
             :return a GrantInfo object
             :rtype GrantInfo
 
