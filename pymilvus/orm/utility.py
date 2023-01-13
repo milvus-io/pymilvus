@@ -204,6 +204,43 @@ def loading_progress(collection_name, partition_names=None, using="default", tim
     }
 
 
+def load_state(collection_name, partition_names=None, using="default", timeout=None):
+    """ Show load state of collection or partitions.
+    :param collection_name: The name of collection is loading
+    :type  collection_name: str
+
+    :param partition_names: The names of partitions is loading
+    :type  partition_names: str list
+
+    :return LoadState:
+        The current state of collection or partitions.
+
+    :example:
+        >>> from pymilvus import Collection, connections, FieldSchema, CollectionSchema, DataType, utility
+        >>> from pymilvus.client.types import LoadState
+        >>> import pandas as pd
+        >>> import random
+        >>> connections.connect()
+        >>> assert utility.load_state("test_load_state") == LoadState.NotExist
+        >>> fields = [
+        ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+        ...     FieldSchema("films", DataType.FLOAT_VECTOR, dim=8),
+        ... ]
+        >>> schema = CollectionSchema(fields)
+        >>> collection = Collection("test_load_state", schema)
+        >>> assert utility.load_state("test_load_state") == LoadState.NotLoad
+        >>> data = pd.DataFrame({
+        ...     "film_id" : pd.Series(data=list(range(10, 20)), index=list(range(10))),
+        ...     "films": [[random.random() for _ in range(8)] for _ in range (10)],
+        ... })
+        >>> collection.insert(data)
+        >>> collection.create_index("films", {"index_type": "IVF_FLAT", "params": {"nlist": 8}, "metric_type": "L2"})
+        >>> collection.load(_async=True)
+        >>> assert utility.load_state("test_load_state") == LoadState.Loaded
+    """
+    return _get_connection(using).get_load_state(collection_name, partition_names, timeout=timeout)
+
+
 def wait_for_loading_complete(collection_name, partition_names=None, timeout=None, using="default"):
     """
     Block until loading is done or Raise Exception after timeout.

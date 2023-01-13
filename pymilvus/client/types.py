@@ -179,6 +179,25 @@ class State(IntEnum):
         return self._name_
 
 
+class LoadState(IntEnum):
+    """
+    NotExist:     collection or partition isn't existed
+    NotLoad:      collection or partition isn't loaded
+    Loading:      collection or partition is loading
+    Loaded:       collection or partition is loaded
+    """
+
+    NotExist = 0
+    NotLoad = 1
+    Loading = 2
+    Loaded = 3
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}: {self._name_}>"
+
+    def __str__(self):
+        return self._name_
+
 class CompactionState:
     """
     in_executing:   number of plans in executing

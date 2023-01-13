@@ -23,6 +23,7 @@ from .prepare import Prepare
 from .types import (
     Status,
     IndexState,
+    LoadState,
     DataType,
     CompactionState,
     State,
@@ -738,6 +739,14 @@ class GrpcHandler:
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
         return response.progress
+
+    @retry_on_rpc_failure()
+    def get_load_state(self, collection_name, partition_names=None, timeout=None):
+        request = Prepare.get_load_state(collection_name, partition_names)
+        response = self._stub.GetLoadState.future(request, timeout=timeout).result()
+        if response.status.error_code != 0:
+            raise MilvusException(response.status.error_code, response.status.reason)
+        return LoadState(response.state)
 
     @retry_on_rpc_failure()
     def load_partitions_progress(self, collection_name, partition_names, timeout=None):
