@@ -100,6 +100,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.GetLoadingProgressRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetLoadingProgressResponse.FromString,
                 )
+        self.GetLoadState = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetLoadState',
+                request_serializer=milvus__pb2.GetLoadStateRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetLoadStateResponse.FromString,
+                )
         self.CreateAlias = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateAlias',
                 request_serializer=milvus__pb2.CreateAliasRequest.SerializeToString,
@@ -412,6 +417,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def GetLoadingProgress(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetLoadState(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -763,6 +774,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.GetLoadingProgress,
                     request_deserializer=milvus__pb2.GetLoadingProgressRequest.FromString,
                     response_serializer=milvus__pb2.GetLoadingProgressResponse.SerializeToString,
+            ),
+            'GetLoadState': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetLoadState,
+                    request_deserializer=milvus__pb2.GetLoadStateRequest.FromString,
+                    response_serializer=milvus__pb2.GetLoadStateResponse.SerializeToString,
             ),
             'CreateAlias': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateAlias,
@@ -1270,6 +1286,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetLoadingProgress',
             milvus__pb2.GetLoadingProgressRequest.SerializeToString,
             milvus__pb2.GetLoadingProgressResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetLoadState(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetLoadState',
+            milvus__pb2.GetLoadStateRequest.SerializeToString,
+            milvus__pb2.GetLoadStateResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
