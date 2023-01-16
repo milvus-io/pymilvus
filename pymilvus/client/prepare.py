@@ -217,6 +217,14 @@ class Prepare:
         return req
 
     @classmethod
+    def get_load_state(cls, collection_name, partition_names=None):
+        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
+        req = milvus_types.GetLoadStateRequest(collection_name=collection_name)
+        if partition_names:
+            req.partition_names.extend(partition_names)
+        return req
+
+    @classmethod
     def empty(cls):
         raise DeprecationWarning("no empty request later")
         # return common_types.Empty()
