@@ -1,4 +1,4 @@
-from pymilvus import utility, connections
+from pymilvus import utility, connections, DEFAULT_RESOURCE_GROUP
 from example import *
 
 _HOST = '127.0.0.1'
@@ -15,9 +15,9 @@ _DIM = 128
 
 # Create a Milvus connection
 
-def create_connection():
+def create_connection(user, passwd):
     print(f"\nCreate connection...")
-    connections.connect(alias=_CONNECTION_NAME,host=_HOST, port=_PORT)
+    connections.connect(alias=_CONNECTION_NAME,host=_HOST, port=_PORT, user=user, password=passwd)
     print(f"\nList connections:")
     print(connections.list_connections())
 
@@ -52,39 +52,37 @@ def transfer_replica(source, target, collection_name, num_replica):
         f"transfer {num_replica} replicas in {collection_name} from {source} to {target}")
     utility.transfer_replica(
         source, target, collection_name, num_replica, using=_CONNECTION_NAME)
-
-
-def run():
-    create_connection()
+    
+def run(): 
+    create_connection("root", "123456")
     coll = create_collection(_COLLECTION_NAME, _ID_FIELD_NAME, _VECTOR_FIELD_NAME)
     vectors = insert(coll, 10000, _DIM)
     coll.flush()
     create_index(coll, _VECTOR_FIELD_NAME)
-    load_collection(coll)
     
     create_resource_group("rg")
+    list_resource_groups()
     describe_resource_group("rg")
-    transfer_node("__default_resource_group", "rg", 1)
-    describe_resource_group("__default_resource_group")
+    transfer_node(DEFAULT_RESOURCE_GROUP, "rg", 1)
+    describe_resource_group(DEFAULT_RESOURCE_GROUP)
     describe_resource_group("rg")
+    release_collection(coll)
+    coll.load(_resource_groups=["rg"])
+    print("load finish") 
 
-    transfer_node("rg", "__default_resource_group", 1)
-    describe_resource_group("__default_resource_group")
-    describe_resource_group("rg")
-   
-    
-    describe_resource_group("__default_resource_group")
-    describe_resource_group("rg")
-    # transfer_replica("__default_resource_group", "rg", _COLLECTION_NAME, 1)
-    describe_resource_group("__default_resource_group")
+    transfer_node("rg", DEFAULT_RESOURCE_GROUP, 1)
+    describe_resource_group(DEFAULT_RESOURCE_GROUP)
     describe_resource_group("rg")
     
+    describe_resource_group(DEFAULT_RESOURCE_GROUP)
+    describe_resource_group("rg")
+    transfer_replica("rg", DEFAULT_RESOURCE_GROUP, _COLLECTION_NAME, 1)
+    describe_resource_group(DEFAULT_RESOURCE_GROUP)
+    describe_resource_group("rg")
    
     drop_resource_group("rg")
-    
     release_collection(coll)
     drop_collection(_COLLECTION_NAME)
-    
 
 if __name__ == "__main__":
     run()
