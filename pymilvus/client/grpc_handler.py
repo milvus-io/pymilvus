@@ -650,7 +650,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, replica_number=replica_number)
         request = Prepare.load_collection("", collection_name, replica_number)
         rf = self._stub.LoadCollection.future(request, timeout=timeout)
         response = rf.result()
