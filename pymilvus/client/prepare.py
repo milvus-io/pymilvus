@@ -551,19 +551,20 @@ class Prepare:
         return milvus_types.GetIndexStateRequest(collection_name=collection_name, index_name=index_name)
 
     @classmethod
-    def load_collection(cls, db_name, collection_name, replica_number):
+    def load_collection(cls, db_name, collection_name, replica_number, refresh):
         return milvus_types.LoadCollectionRequest(db_name=db_name, collection_name=collection_name,
-                                                  replica_number=replica_number)
+                                                  replica_number=replica_number, refresh=refresh)
 
     @classmethod
     def release_collection(cls, db_name, collection_name):
         return milvus_types.ReleaseCollectionRequest(db_name=db_name, collection_name=collection_name)
 
     @classmethod
-    def load_partitions(cls, db_name, collection_name, partition_names, replica_number):
+    def load_partitions(cls, db_name, collection_name, partition_names, replica_number, refresh):
         return milvus_types.LoadPartitionsRequest(db_name=db_name, collection_name=collection_name,
                                                   partition_names=partition_names,
-                                                  replica_number=replica_number)
+                                                  replica_number=replica_number,
+                                                  refresh=refresh)
 
     @classmethod
     def release_partitions(cls, db_name, collection_name, partition_names):

@@ -651,7 +651,8 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
-        request = Prepare.load_collection("", collection_name, replica_number)
+        _refresh = kwargs.get("_refresh", False)
+        request = Prepare.load_collection("", collection_name, replica_number, _refresh)
         rf = self._stub.LoadCollection.future(request, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
@@ -694,7 +695,8 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def load_partitions(self, collection_name, partition_names, replica_number=1, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
-        request = Prepare.load_partitions("", collection_name, partition_names, replica_number)
+        _refresh = kwargs.get("_refresh", False)
+        request = Prepare.load_partitions("", collection_name, partition_names, replica_number, _refresh)
         future = self._stub.LoadPartitions.future(request, timeout=timeout)
 
         if kwargs.get("_async", False):
