@@ -339,6 +339,9 @@ class Collection:
                 * *_async*(``bool``)
                     Indicate if invoke asynchronously.
 
+                * *_refresh*(``bool``)
+                    Whether to enable refresh mode(renew the segment list of this collection before loading).
+
         Raises:
             MilvusException: If anything goes wrong.
 
