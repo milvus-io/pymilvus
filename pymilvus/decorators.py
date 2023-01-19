@@ -118,7 +118,7 @@ def error_handler(func_name=""):
             except Exception as e:
                 record_dict["Exception"] = str(datetime.datetime.now())
                 LOGGER.error(f"Unexpected error: [{inner_name}], {e}, <Time: {record_dict}>")
-                raise MilvusException(message=f"Unexpected error, message=<{e.message}>") from e
+                raise MilvusException(message=f"Unexpected error, message=<{str(e)}>") from e
         return handler
     return wrapper
 

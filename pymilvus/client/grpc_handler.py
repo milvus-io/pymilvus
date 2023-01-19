@@ -694,7 +694,10 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def load_partitions(self, collection_name, partition_names, replica_number=1, timeout=None, **kwargs):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
+        check_pass_param(
+            collection_name=collection_name,
+            partition_name_array=partition_names,
+            replica_number=replica_number)
         _refresh = kwargs.get("_refresh", False)
         request = Prepare.load_partitions("", collection_name, partition_names, replica_number, _refresh)
         future = self._stub.LoadPartitions.future(request, timeout=timeout)
