@@ -551,20 +551,22 @@ class Prepare:
         return milvus_types.GetIndexStateRequest(collection_name=collection_name, index_name=index_name)
 
     @classmethod
-    def load_collection(cls, db_name, collection_name, replica_number, refresh):
+    def load_collection(cls, db_name, collection_name, replica_number, refresh, resource_groups):
         return milvus_types.LoadCollectionRequest(db_name=db_name, collection_name=collection_name,
-                                                  replica_number=replica_number, refresh=refresh)
+                                                  replica_number=replica_number, refresh=refresh,
+                                                  resource_groups=resource_groups)
 
     @classmethod
     def release_collection(cls, db_name, collection_name):
         return milvus_types.ReleaseCollectionRequest(db_name=db_name, collection_name=collection_name)
 
     @classmethod
-    def load_partitions(cls, db_name, collection_name, partition_names, replica_number, refresh):
+    def load_partitions(cls, db_name, collection_name, partition_names, replica_number, refresh, resource_groups):
         return milvus_types.LoadPartitionsRequest(db_name=db_name, collection_name=collection_name,
                                                   partition_names=partition_names,
                                                   replica_number=replica_number,
-                                                  refresh=refresh)
+                                                  refresh=refresh,
+                                                  resource_groups=resource_groups)
 
     @classmethod
     def release_partitions(cls, db_name, collection_name, partition_names):
@@ -813,3 +815,32 @@ class Prepare:
     @classmethod
     def get_server_version(cls):
         return milvus_types.GetVersionRequest()
+
+    @classmethod
+    def create_resource_group(cls, name):
+        return milvus_types.CreateResourceGroupRequest(resource_group=name)
+
+    @classmethod
+    def drop_resource_group(cls, name):
+        return milvus_types.DropResourceGroupRequest(resource_group=name)
+
+    @classmethod
+    def list_resource_groups(cls):
+        return milvus_types.ListResourceGroupsRequest()
+
+    @classmethod
+    def describe_resource_group(cls, name):
+        return milvus_types.DescribeResourceGroupRequest(resource_group=name)
+
+    @classmethod
+    def transfer_node(cls, source, target, num_node):
+        return milvus_types.TransferNodeRequest(source_resource_group=source,
+                                                target_resource_group=target,
+                                                num_node=num_node)
+
+    @classmethod
+    def transfer_replica(cls, source, target, collection_name, num_replica):
+        return milvus_types.TransferReplicaRequest(source_resource_group=source,
+                                                   target_resource_group=target,
+                                                   collection_name=collection_name,
+                                                   num_replica=num_replica)

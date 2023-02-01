@@ -341,6 +341,8 @@ class Collection:
 
                 * *_refresh*(``bool``)
                     Whether to enable refresh mode(renew the segment list of this collection before loading).
+                * *_resource_groups(``List[str]``)
+                    Specify resource groups which can be used during loading.
 
         Raises:
             MilvusException: If anything goes wrong.

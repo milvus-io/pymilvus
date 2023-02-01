@@ -2,7 +2,7 @@ from urllib import parse
 
 from .grpc_handler import GrpcHandler
 from ..exceptions import MilvusException, ParamError
-from .types import CompactionState, CompactionPlans, Replica, BulkInsertState
+from .types import CompactionState, CompactionPlans, Replica, BulkInsertState, ResourceGroupInfo
 from ..settings import DefaultConfig as config
 from ..decorators import deprecated
 
@@ -1290,3 +1290,67 @@ class Milvus:
     def get_version(self, timeout=None, **kwargs):
         with self._connection() as handler:
             handler.get_version(timeout=timeout, **kwargs)
+
+    def create_resource_group(self, name, timeout=None, **kwargs):
+        """create resource group with specific name
+
+        :param name: resource group name
+        :type name: str
+        """
+        with self._connection() as handler:
+            handler.create_resource_group(name, timeout=timeout, **kwargs)
+
+    def drop_resource_group(self, name, timeout=None, **kwargs):
+        """drop resource group with specific name
+
+        :param name: resource group name
+        :type name: str
+        """
+        with self._connection() as handler:
+            handler.drop_resource_group(name, timeout=timeout, **kwargs)
+
+    def list_resource_groups(self, timeout=None, **kwargs):
+        """list all resource group names
+        """
+        with self._connection() as handler:
+            handler.list_resource_groups(timeout=timeout, **kwargs)
+
+    def describe_resource_group(self, name, timeout=None, **kwargs) -> ResourceGroupInfo:
+        """describe resource group with specific name
+
+        :param name: resource group info
+        :type name: str
+        :return: resource group info
+        :rtype: ResourceGroupInfo
+        """
+        with self._connection() as handler:
+            handler.describe_resource_group(name, timeout=timeout, **kwargs)
+
+    def transfer_node(self, source, target, num_node, timeout=None, **kwargs):
+        """transfer num_node from source resource group to target resource_group
+
+        :param source: source resource group name
+        :type source: str
+        :param target: target resource group name
+        :type target: str
+        :param num_node: transfer node num
+        :type num_node: int
+        """
+        with self._connection() as handler:
+            handler.transfer_node(source, target, num_node, timeout=timeout, **kwargs)
+
+    def transfer_replica(self, source, target, collection_name, num_replica, timeout=None, **kwargs):
+        """transfer num_replica from source resource group to target resource group
+
+        :param source: source resource group name
+        :type source: str
+        :param target: target resource group name
+        :type target: str
+        :param collection_name: collection name which replica belong to
+        :type collection_name: str
+        :param num_replica: transfer replica num
+        :type num_replica: int
+        """
+        with self._connection() as handler:
+            handler.transfer_replica(
+                source, target, collection_name, num_replica, timeout=timeout, **kwargs)
