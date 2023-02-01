@@ -33,6 +33,7 @@ from .types import (
     Replica, Shard, Group,
     GrantInfo, UserInfo, RoleInfo,
     BulkInsertState,
+    ResourceGroupInfo,
 )
 
 from .utils import (
@@ -652,7 +653,8 @@ class GrpcHandler:
     def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, replica_number=replica_number)
         _refresh = kwargs.get("_refresh", False)
-        request = Prepare.load_collection("", collection_name, replica_number, _refresh)
+        _resource_groups = kwargs.get("_resource_groups")
+        request = Prepare.load_collection("", collection_name, replica_number, _refresh, _resource_groups)
         rf = self._stub.LoadCollection.future(request, timeout=timeout)
         response = rf.result()
         if response.error_code != 0:
@@ -699,7 +701,9 @@ class GrpcHandler:
             partition_name_array=partition_names,
             replica_number=replica_number)
         _refresh = kwargs.get("_refresh", False)
-        request = Prepare.load_partitions("", collection_name, partition_names, replica_number, _refresh)
+        _resource_groups = kwargs.get("_resource_groups")
+        request = Prepare.load_partitions("", collection_name, partition_names, replica_number, _refresh,
+                                          _resource_groups)
         future = self._stub.LoadPartitions.future(request, timeout=timeout)
 
         if kwargs.get("_async", False):
@@ -1198,3 +1202,47 @@ class GrpcHandler:
             raise MilvusException(resp.status.error_code, resp.status.reason)
 
         return resp.version
+
+    @retry_on_rpc_failure()
+    def create_resource_group(self, name, timeout=None, **kwargs):
+        req = Prepare.create_resource_group(name)
+        resp = self._stub.CreateResourceGroup(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def drop_resource_group(self, name, timeout=None, **kwargs):
+        req = Prepare.drop_resource_group(name)
+        resp = self._stub.DropResourceGroup(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def list_resource_groups(self, timeout=None, **kwargs):
+        req = Prepare.list_resource_groups()
+        resp = self._stub.ListResourceGroups(req, wait_for_ready=True, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+        return list(resp.resource_groups)
+
+    @retry_on_rpc_failure()
+    def describe_resource_group(self, name, timeout=None, **kwargs) -> ResourceGroupInfo:
+        req = Prepare.describe_resource_group(name)
+        resp = self._stub.DescribeResourceGroup(req, wait_for_ready=True, timeout=timeout)
+        if resp.status.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+        return ResourceGroupInfo(resp.resource_group)
+
+    @retry_on_rpc_failure()
+    def transfer_node(self, source, target, num_node, timeout=None, **kwargs):
+        req = Prepare.transfer_node(source, target, num_node)
+        resp = self._stub.TransferNode(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def transfer_replica(self, source, target, collection_name, num_replica, timeout=None, **kwargs):
+        req = Prepare.transfer_replica(source, target, collection_name, num_replica)
+        resp = self._stub.TransferReplica(req, wait_for_ready=True, timeout=timeout)
+        if resp.error_code != 0:
+            raise MilvusException(resp.error_code, resp.reason)

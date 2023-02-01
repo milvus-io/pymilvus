@@ -675,3 +675,53 @@ class RoleInfo:
     @property
     def groups(self):
         return self._groups
+
+
+class ResourceGroupInfo:
+    def __init__(self, resource_group):
+        self._name = resource_group.name
+        self._capacity = resource_group.capacity
+        self._num_available_node = resource_group.num_available_node
+        self._num_loaded_replica = resource_group.num_loaded_replica
+        self._num_outgoing_node = resource_group.num_outgoing_node
+        self._num_incoming_node = resource_group.num_incoming_node
+
+    def __repr__(self) -> str:
+        s = f"""ResourceGroupInfo:
+        <name:{self.name}>, 
+        <capacity:{self.capacity}>, 
+        <num_available_nodes:{self.num_available_node}>, 
+        <num_loaded_replicas:{self.num_loaded_replica}>, 
+        <num_outgoing_nodes:{self.num_outgoing_node}>, 
+        <num_incoming_nodes:{self.num_incoming_node}>"""
+        return s
+
+
+    @property
+    def name(self):
+        return self._name
+
+
+    @property
+    def capacity(self):
+        return self._capacity
+
+
+    @property
+    def num_available_node(self):
+        return self._num_available_node
+
+
+    @property
+    def num_loaded_replica(self):
+        return self._num_loaded_replica
+
+
+    @property
+    def num_outgoing_node(self):
+        return self._num_outgoing_node
+
+
+    @property
+    def num_incoming_node(self):
+        return self._num_incoming_node
