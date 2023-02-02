@@ -924,7 +924,6 @@ def create_resource_group(name, using="default", timeout=None):
 
     :example:
         >>> from pymilvus import connections, utility
-        >>> from pymilvus import ResourceGroup
         >>> connections.connect()
         >>> utility.create_resource_group(name)
         >>> rgs = utility.list_resource_groups()
@@ -938,7 +937,6 @@ def drop_resource_group(name, using="default", timeout=None):
 
     :example:
         >>> from pymilvus import connections, utility
-        >>> from pymilvus import ResourceGroup
         >>> connections.connect()
         >>> utility.drop_resource_group(name)
         >>> rgs = utility.list_resource_groups()
@@ -952,7 +950,6 @@ def describe_resource_group(name, using="default", timeout=None):
 
     :example:
         >>> from pymilvus import connections, utility
-        >>> from pymilvus import ResourceGroup
         >>> connections.connect()
         >>> rgInfo = utility.list_resource_groups(name)
         >>> print(f"resource group info: {rgInfo}")
