@@ -14,11 +14,12 @@ import os
 import copy
 import re
 import threading
+import typing
 from urllib import parse
 from typing import Tuple
 
 from ..client.check import is_legal_host, is_legal_port, is_legal_address
-from ..client.grpc_handler import GrpcHandler
+from ..client.grpc_handler import GrpcHandler, AbstractGrpcHandler
 
 from .default_config import DefaultConfig, ENV_CONNECTION_CONF
 from ..exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
@@ -55,7 +56,11 @@ class SingleInstanceMetaClass(type):
         return super().__new__(cls, *args, **kwargs)
 
 
-class Connections(metaclass=SingleInstanceMetaClass):
+NoneT = typing.TypeVar('NoneT', None, typing.Awaitable[None])
+GrpcHandlerT  = typing.TypeVar('GrpcHandlerT', bound=AbstractGrpcHandler)
+
+
+class AbstractConnections(typing.Generic[GrpcHandlerT, NoneT], metaclass=SingleInstanceMetaClass):
     """ Class for managing all connections of milvus.  Used as a singleton in this module.  """
 
     def __init__(self):
@@ -66,7 +71,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         """
         self._alias = {}
-        self._connected_alias = {}
+        self._connected_alias: typing.Dict[str, GrpcHandlerT] = {}
 
         self.add_connection(default=self._read_default_config_from_os_env())
 
@@ -190,6 +195,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         return f"{host}:{port}"
 
+    def _disconnect(self, alias: str) -> NoneT:
+        raise NotImplementedError
+
     def disconnect(self, alias: str):
         """ Disconnects connection from the registry.
 
@@ -199,8 +207,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
-        if alias in self._connected_alias:
-            self._connected_alias.pop(alias).close()
+        return self._disconnect(alias)
 
     def remove_connection(self, alias: str):
         """ Removes connection from the registry.
@@ -211,8 +218,16 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
-        self.disconnect(alias)
+        # TODO: does order matter?
+        # original sync implementation was
+        #     self.disconnect(alias)
+        #     self._alias.pop(alias, None)
+
         self._alias.pop(alias, None)
+        return self.disconnect(alias)
+
+    def _connect(self, alias, **kwargs) -> NoneT:
+        raise NotImplementedError
 
     def connect(self, alias=DefaultConfig.DEFAULT_USING, user="", password="", **kwargs):
         """
@@ -265,19 +280,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
-        def connect_milvus(**kwargs):
-            gh = GrpcHandler(**kwargs)
-
-            t = kwargs.get("timeout")
-            timeout = t if isinstance(t, int) else DefaultConfig.DEFAULT_CONNECT_TIMEOUT
-
-            gh._wait_for_channel_ready(timeout=timeout)
-            kwargs.pop('password')
-            kwargs.pop('secure', None)
-
-            self._connected_alias[alias] = gh
-            self._alias[alias] = copy.deepcopy(kwargs)
-
         def with_config(config: Tuple) -> bool:
             for c in config:
                 if c != "":
@@ -300,15 +302,14 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 if self._alias[alias].get("address") != in_addr:
                     raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
 
-            connect_milvus(**kwargs, user=user, password=password)
-
         else:
             if alias not in self._alias:
                 raise ConnectionConfigException(message=ExceptionsMessage.ConnLackConf % alias)
 
-            connect_alias = dict(self._alias[alias].items())
-            connect_alias["user"] = user
-            connect_milvus(**connect_alias, password=password, **kwargs)
+            kwargs = dict(**self._alias[alias], **kwargs)
+
+        kwargs["user"] = user
+        return self._connect(alias, **kwargs, password=password)
 
     def list_connections(self) -> list:
         """ List names of all connections.
@@ -379,6 +380,25 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
 
         return conn
+
+
+class Connections(AbstractConnections[GrpcHandler, None]):
+    def _disconnect(self, alias: str):
+        if alias in self._connected_alias:
+            self._connected_alias.pop(alias).close()
+
+    def _connect(self, alias, **kwargs):
+        gh = GrpcHandler(**kwargs)
+
+        t = kwargs.get("timeout")
+        timeout = t if isinstance(t, int) else DefaultConfig.DEFAULT_CONNECT_TIMEOUT
+
+        gh._wait_for_channel_ready(timeout=timeout)
+        kwargs.pop('password')
+        kwargs.pop('secure', None)
+
+        self._connected_alias[alias] = gh
+        self._alias[alias] = copy.deepcopy(kwargs)
 
 
 # Singleton Mode in Python
