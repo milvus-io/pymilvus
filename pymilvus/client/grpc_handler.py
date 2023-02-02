@@ -2,6 +2,7 @@ import time
 import json
 import copy
 import base64
+import typing
 from urllib import parse
 
 import grpc
@@ -66,7 +67,14 @@ from ..exceptions import (
 from ..decorators import retry_on_rpc_failure
 
 
-class GrpcHandler:
+GrpcChannelT  = typing.TypeVar('GrpcChannelT', grpc.Channel, grpc.aio.Channel)
+
+
+class AbstractGrpcHandler(typing.Generic[GrpcChannelT]):
+    _insecure_channel: typing.Callable[..., GrpcChannelT]
+    _secure_channel: typing.Callable[..., GrpcChannelT]
+    _channel: typing.Optional[GrpcChannelT]
+
     def __init__(self, uri=config.GRPC_URI, host="", port="", channel=None, **kwargs):
         self._stub = None
         self._channel = channel
@@ -108,25 +116,17 @@ class GrpcHandler:
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def _wait_for_channel_ready(self, timeout=10):
-        if self._channel is not None:
-            try:
-                grpc.channel_ready_future(self._channel).result(timeout=timeout)
-                return
-            except grpc.FutureTimeoutError as e:
-                raise MilvusException(Status.CONNECT_FAILED,
-                                      f'Fail connecting to server on {self._address}. Timeout') from e
-
-        raise MilvusException(Status.CONNECT_FAILED, 'No channel in handler, please setup grpc channel first')
-
     def close(self):
-        self._channel.close()
+        return self._channel.close()
+
+    def _header_adder_interceptor(self, header, value):
+        raise NotImplementedError("this is abstract method")
 
     def _setup_authorization_interceptor(self, user, password):
         if user and password:
             authorization = base64.b64encode(f"{user}:{password}".encode('utf-8'))
             key = "authorization"
-            self._authorization_interceptor = interceptor.header_adder_interceptor(key, authorization)
+            self._authorization_interceptor = self._header_adder_interceptor(key, authorization)
 
     def _setup_grpc_channel(self):
         """ Create a ddl grpc channel """
@@ -137,7 +137,7 @@ class GrpcHandler:
                     ('grpc.keepalive_time_ms', 55000),
                     ]
             if not self._secure:
-                self._channel = grpc.insecure_channel(
+                self._channel = self._insecure_channel(
                     self._address,
                     options=opts,
                 )
@@ -160,7 +160,7 @@ class GrpcHandler:
                 else:
                     creds = grpc.ssl_channel_credentials(root_certificates=None, private_key=None,
                                                          certificate_chain=None)
-                self._channel = grpc.secure_channel(
+                self._channel = self._secure_channel(
                     self._address,
                     creds,
                     options=opts
@@ -170,11 +170,11 @@ class GrpcHandler:
         if self._authorization_interceptor:
             self._final_channel = grpc.intercept_channel(self._final_channel, self._authorization_interceptor)
         if self._log_level:
-            log_level_interceptor = interceptor.header_adder_interceptor("log_level", self._log_level)
+            log_level_interceptor = self._header_adder_interceptor("log_level", self._log_level)
             self._final_channel = grpc.intercept_channel(self._final_channel, log_level_interceptor)
             self._log_level = None
         if self._request_id:
-            request_id_interceptor = interceptor.header_adder_interceptor("client_request_id", self._request_id)
+            request_id_interceptor = self._header_adder_interceptor("client_request_id", self._request_id)
             self._final_channel = grpc.intercept_channel(self._final_channel, request_id_interceptor)
             self._request_id = None
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
@@ -191,6 +191,31 @@ class GrpcHandler:
     def server_address(self):
         """ Server network address """
         return self._address
+
+
+class GrpcHandler(AbstractGrpcHandler[grpc.Channel]):
+    _insecure_channel = grpc.insecure_channel
+    _secure_channel = grpc.secure_channel
+
+    def _wait_for_channel_ready(self, timeout=10):
+        if self._channel is None:
+            raise MilvusException(
+                Status.CONNECT_FAILED,
+                'No channel in handler, please setup grpc channel first',
+            )
+
+        try:
+            grpc.channel_ready_future(self._channel).result(timeout=timeout)
+        except grpc.FutureTimeoutError as exc:
+            raise MilvusException(
+                Status.CONNECT_FAILED,
+                f'Fail connecting to server on {self._address}. Timeout'
+            ) from exc
+
+    def _header_adder_interceptor(self, header, value):
+        return interceptor.header_adder_interceptor(header, value)
+
+    #### TODO: implement methods below in asyncio.client.grpc_handler
 
     def reset_password(self, user, old_password, new_password, timeout=None):
         """
