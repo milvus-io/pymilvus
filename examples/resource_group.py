@@ -25,19 +25,16 @@ def create_connection():
 
 def create_resource_group(name):
     print(f"create resource group: {name}")
-    rg = ResourceGroup(name, using=_CONNECTION_NAME)
-    rg.create()
+    utility.create_resource_group(name, using=_CONNECTION_NAME)
 
 
 def drop_resource_group(name):
     print(f"drop resource group: {name}")
-    rg = ResourceGroup(name, using=_CONNECTION_NAME)
-    rg.drop()
+    utility.drop_resource_group(name, using=_CONNECTION_NAME)
 
 
 def describe_resource_group(name):
-    rg = ResourceGroup(name, using=_CONNECTION_NAME)
-    info = rg.describe()
+    info = utility.describe_resource_group(name, using=_CONNECTION_NAME)
     print(f"describe resource group: {info}")
 
 
