@@ -315,6 +315,36 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.CheckHealthRequest.SerializeToString,
                 response_deserializer=milvus__pb2.CheckHealthResponse.FromString,
                 )
+        self.CreateResourceGroup = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CreateResourceGroup',
+                request_serializer=milvus__pb2.CreateResourceGroupRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.DropResourceGroup = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DropResourceGroup',
+                request_serializer=milvus__pb2.DropResourceGroupRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.TransferNode = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/TransferNode',
+                request_serializer=milvus__pb2.TransferNodeRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.TransferReplica = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/TransferReplica',
+                request_serializer=milvus__pb2.TransferReplicaRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.ListResourceGroups = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListResourceGroups',
+                request_serializer=milvus__pb2.ListResourceGroupsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListResourceGroupsResponse.FromString,
+                )
+        self.DescribeResourceGroup = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DescribeResourceGroup',
+                request_serializer=milvus__pb2.DescribeResourceGroupRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DescribeResourceGroupResponse.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -687,6 +717,42 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateResourceGroup(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropResourceGroup(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def TransferNode(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def TransferReplica(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListResourceGroups(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DescribeResourceGroup(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -989,6 +1055,36 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.CheckHealth,
                     request_deserializer=milvus__pb2.CheckHealthRequest.FromString,
                     response_serializer=milvus__pb2.CheckHealthResponse.SerializeToString,
+            ),
+            'CreateResourceGroup': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateResourceGroup,
+                    request_deserializer=milvus__pb2.CreateResourceGroupRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DropResourceGroup': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropResourceGroup,
+                    request_deserializer=milvus__pb2.DropResourceGroupRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'TransferNode': grpc.unary_unary_rpc_method_handler(
+                    servicer.TransferNode,
+                    request_deserializer=milvus__pb2.TransferNodeRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'TransferReplica': grpc.unary_unary_rpc_method_handler(
+                    servicer.TransferReplica,
+                    request_deserializer=milvus__pb2.TransferReplicaRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'ListResourceGroups': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListResourceGroups,
+                    request_deserializer=milvus__pb2.ListResourceGroupsRequest.FromString,
+                    response_serializer=milvus__pb2.ListResourceGroupsResponse.SerializeToString,
+            ),
+            'DescribeResourceGroup': grpc.unary_unary_rpc_method_handler(
+                    servicer.DescribeResourceGroup,
+                    request_deserializer=milvus__pb2.DescribeResourceGroupRequest.FromString,
+                    response_serializer=milvus__pb2.DescribeResourceGroupResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -2017,6 +2113,108 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CheckHealth',
             milvus__pb2.CheckHealthRequest.SerializeToString,
             milvus__pb2.CheckHealthResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateResourceGroup(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CreateResourceGroup',
+            milvus__pb2.CreateResourceGroupRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DropResourceGroup(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DropResourceGroup',
+            milvus__pb2.DropResourceGroupRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def TransferNode(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/TransferNode',
+            milvus__pb2.TransferNodeRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def TransferReplica(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/TransferReplica',
+            milvus__pb2.TransferReplicaRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListResourceGroups(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListResourceGroups',
+            milvus__pb2.ListResourceGroupsRequest.SerializeToString,
+            milvus__pb2.ListResourceGroupsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DescribeResourceGroup(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DescribeResourceGroup',
+            milvus__pb2.DescribeResourceGroupRequest.SerializeToString,
+            milvus__pb2.DescribeResourceGroupResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

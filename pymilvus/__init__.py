@@ -12,7 +12,17 @@
 
 from .client.stub import Milvus
 from .client.prepare import Prepare
-from .client.types import Status, DataType, RangeType, IndexType, Replica, Group, Shard, BulkInsertState
+from .client.types import (
+    Status,
+    DataType,
+    RangeType,
+    IndexType,
+    Replica,
+    Group,
+    Shard,
+    BulkInsertState,
+    ResourceGroupInfo
+)
 from .exceptions import (
     ParamError,
     MilvusException,
@@ -43,6 +53,7 @@ from .orm.utility import (
     hybridts_to_unixtime, hybridts_to_datetime,
     do_bulk_insert, get_bulk_insert_state, list_bulk_insert_tasks,
     reset_password, create_user, update_password, delete_user, list_usernames,
+    list_resource_groups, transfer_node, transfer_replica
 )
 
 from .orm import utility
@@ -52,6 +63,7 @@ from .orm.search import SearchResult, Hits, Hit
 from .orm.schema import FieldSchema, CollectionSchema
 from .orm.future import SearchFuture, MutationFuture
 from .orm.role import Role
+from .orm.resource_group import ResourceGroup
 
 __all__ = [
     'Collection', 'Index', 'Partition',
@@ -66,6 +78,7 @@ __all__ = [
     'SearchFuture', 'MutationFuture',
     'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavailableException', 'BulkInsertState',
     'Role',
+    'ResourceGroup', 'list_resource_groups', 'transfer_node', 'transfer_replica',
 
     'Milvus', 'Prepare', 'Status', 'DataType',
     'MilvusException',
