@@ -918,6 +918,46 @@ def get_server_version(using="default", timeout=None) -> str:
     """
     return _get_connection(using).get_server_version(timeout=timeout)
 
+def create_resource_group(name, using="default", timeout=None):
+    """ Create a resource group
+        It will success whether or not the resource group exists.
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> from pymilvus import ResourceGroup
+        >>> connections.connect()
+        >>> utility.create_resource_group(name)
+        >>> rgs = utility.list_resource_groups()
+        >>> print(f"resource groups in Milvus: {rgs}")
+    """
+    return _get_connection(using).create_resource_group(name, timeout)
+
+def drop_resource_group(name, using="default", timeout=None):
+    """ Drop a resource group
+        It will success if the resource group is existed and empty, otherwise fail.
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> from pymilvus import ResourceGroup
+        >>> connections.connect()
+        >>> utility.drop_resource_group(name)
+        >>> rgs = utility.list_resource_groups()
+        >>> print(f"resource groups in Milvus: {rgs}")
+    """
+    return _get_connection(using).drop_resource_group(name, timeout)
+
+def describe_resource_group(name, using="default", timeout=None):
+    """ Drop a resource group
+        It will success if the resource group is existed and empty, otherwise fail.
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> from pymilvus import ResourceGroup
+        >>> connections.connect()
+        >>> rgInfo = utility.list_resource_groups(name)
+        >>> print(f"resource group info: {rgInfo}")
+    """
+    return _get_connection(using).describe_resource_group(name, timeout)
 
 def list_resource_groups(using="default", timeout=None):
     """list all resource group names
@@ -930,7 +970,7 @@ def list_resource_groups(using="default", timeout=None):
         >>> rgs = utility.list_resource_groups()
         >>> print(f"resource group names: {rgs}")
     """
-    return _get_connection(using).list_resource_groups()
+    return _get_connection(using).list_resource_groups(timeout)
 
 
 def transfer_node(source, target, num_node, using="default", timeout=None):
@@ -948,7 +988,7 @@ def transfer_node(source, target, num_node, using="default", timeout=None):
         >>> connections.connect()
         >>> rgs = utility.transfer_node(source, target, num_node)
     """
-    return _get_connection(using).transfer_node(source, target, num_node)
+    return _get_connection(using).transfer_node(source, target, num_node, timeout)
 
 
 def transfer_replica(source, target, collection_name, num_replica, using="default", timeout=None):
@@ -968,4 +1008,4 @@ def transfer_replica(source, target, collection_name, num_replica, using="defaul
         >>> connections.connect()
         >>> rgs = utility.transfer_replica(source, target, collection_name, num_replica)
     """
-    return _get_connection(using).transfer_replica(source, target, collection_name, num_replica)
+    return _get_connection(using).transfer_replica(source, target, collection_name, num_replica, timeout)

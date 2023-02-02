@@ -53,6 +53,7 @@ from .orm.utility import (
     hybridts_to_unixtime, hybridts_to_datetime,
     do_bulk_insert, get_bulk_insert_state, list_bulk_insert_tasks,
     reset_password, create_user, update_password, delete_user, list_usernames,
+    create_resource_group, drop_resource_group, describe_resource_group,
     list_resource_groups, transfer_node, transfer_replica
 )
 
@@ -63,7 +64,6 @@ from .orm.search import SearchResult, Hits, Hit
 from .orm.schema import FieldSchema, CollectionSchema
 from .orm.future import SearchFuture, MutationFuture
 from .orm.role import Role
-from .orm.resource_group import ResourceGroup
 
 __all__ = [
     'Collection', 'Index', 'Partition',
@@ -78,7 +78,8 @@ __all__ = [
     'SearchFuture', 'MutationFuture',
     'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavailableException', 'BulkInsertState',
     'Role',
-    'ResourceGroup', 'list_resource_groups', 'transfer_node', 'transfer_replica',
+    'create_resource_group', 'drop_resource_group', 'describe_resource_group',
+    'list_resource_groups', 'transfer_node', 'transfer_replica',
 
     'Milvus', 'Prepare', 'Status', 'DataType',
     'MilvusException',
