@@ -106,7 +106,7 @@ class GrpcHandler:
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def _wait_for_channel_ready(self, timeout=3):
+    def _wait_for_channel_ready(self, timeout=10):
         if self._channel is not None:
             try:
                 grpc.channel_ready_future(self._channel).result(timeout=timeout)
