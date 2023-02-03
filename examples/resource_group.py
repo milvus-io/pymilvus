@@ -1,4 +1,4 @@
-from pymilvus import utility, connections, ResourceGroup
+from pymilvus import utility, connections
 from example import *
 
 _HOST = '127.0.0.1'
@@ -14,7 +14,6 @@ _VECTOR_FIELD_NAME = 'float_vector_field'
 _DIM = 128
 
 # Create a Milvus connection
-
 
 def create_connection():
     print(f"\nCreate connection...")
@@ -57,29 +56,32 @@ def transfer_replica(source, target, collection_name, num_replica):
 
 def run():
     create_connection()
+    coll = create_collection(_COLLECTION_NAME, _ID_FIELD_NAME, _VECTOR_FIELD_NAME)
+    vectors = insert(coll, 10000, _DIM)
+    coll.flush()
+    create_index(coll, _VECTOR_FIELD_NAME)
+    load_collection(coll)
+    
     create_resource_group("rg")
     describe_resource_group("rg")
     transfer_node("__default_resource_group", "rg", 1)
     describe_resource_group("__default_resource_group")
     describe_resource_group("rg")
 
-    coll = create_collection(_COLLECTION_NAME, _ID_FIELD_NAME, _VECTOR_FIELD_NAME)
-    vectors = insert(coll, 10000, _DIM)
-    coll.flush()
-    create_index(coll, _VECTOR_FIELD_NAME)
-
-    # load data to memory
-    load_collection(coll)
-    describe_resource_group("__default_resource_group")
-    describe_resource_group("rg")
-    transfer_replica("__default_resource_group", "rg", _COLLECTION_NAME, 1)
-    describe_resource_group("__default_resource_group")
-    describe_resource_group("rg")
-    
     transfer_node("rg", "__default_resource_group", 1)
     describe_resource_group("__default_resource_group")
     describe_resource_group("rg")
+   
+    
+    describe_resource_group("__default_resource_group")
+    describe_resource_group("rg")
+    # transfer_replica("__default_resource_group", "rg", _COLLECTION_NAME, 1)
+    describe_resource_group("__default_resource_group")
+    describe_resource_group("rg")
+    
+   
     drop_resource_group("rg")
+    
     release_collection(coll)
     drop_collection(_COLLECTION_NAME)
     
