@@ -690,10 +690,10 @@ class ResourceGroupInfo:
         s = f"""ResourceGroupInfo:
         <name:{self.name}>, 
         <capacity:{self.capacity}>, 
-        <num_available_nodes:{self.num_available_node}>, 
-        <num_loaded_replicas:{self.num_loaded_replica}>, 
-        <num_outgoing_nodes:{self.num_outgoing_node}>, 
-        <num_incoming_nodes:{self.num_incoming_node}>"""
+        <num_available_node:{self.num_available_node}>, 
+        <num_loaded_replica:{self.num_loaded_replica}>, 
+        <num_outgoing_node:{self.num_outgoing_node}>, 
+        <num_incoming_node:{self.num_incoming_node}>"""
         return s
 
 
