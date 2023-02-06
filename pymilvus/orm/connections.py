@@ -370,7 +370,7 @@ class AbstractConnections(typing.Generic[GrpcHandlerT, NoneT], metaclass=SingleI
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
         return alias in self._connected_alias
 
-    def _fetch_handler(self, alias=DefaultConfig.DEFAULT_USING) -> GrpcHandler:
+    def _fetch_handler(self, alias=DefaultConfig.DEFAULT_USING) -> GrpcHandlerT:
         """ Retrieves a GrpcHandler by alias. """
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
