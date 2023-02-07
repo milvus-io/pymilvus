@@ -22,6 +22,7 @@ from ..client.grpc_handler import GrpcHandler
 
 from .default_config import DefaultConfig, ENV_CONNECTION_CONF
 from ..exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
+from ..decorators import deprecated
 
 
 def synchronized(func):
@@ -58,6 +59,7 @@ class SingleInstanceMetaClass(type):
 class Connections(metaclass=SingleInstanceMetaClass):
     """ Class for managing all connections of milvus.  Used as a singleton in this module.  """
 
+    @deprecated
     def __init__(self):
         """ Constructs a default milvus alias config
 
