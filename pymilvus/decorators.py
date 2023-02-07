@@ -7,6 +7,7 @@ import grpc
 
 from .exceptions import MilvusException, MilvusUnavailableException
 from .grpc_gen import common_pb2
+from .settings import DefaultConfig
 
 LOGGER = logging.getLogger(__name__)
 WARNING_COLOR = "\033[93m{}\033[0m"
@@ -15,8 +16,12 @@ WARNING_COLOR = "\033[93m{}\033[0m"
 def deprecated(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
-        dup_msg = "[WARNING] PyMilvus: class Milvus will be deprecated soon, please use Collection/utility instead"
-        LOGGER.warning(WARNING_COLOR.format(dup_msg))
+        if DefaultConfig.DISPLAY_DEPRECATED_INFO:
+            msg = f"class {func.__module__}.{args[0].__class__.__name__}" if func.__name__ == "__init__" else \
+                  f"function {func.__module__}.{func.__name__}"
+
+            dup_msg = f"[WARNING] PyMilvus: {msg} will be deprecated at PyMilvus==3.0.0, please use the latest APIs."
+            LOGGER.warning(WARNING_COLOR.format(dup_msg))
         return func(*args, **kwargs)
     return inner
 

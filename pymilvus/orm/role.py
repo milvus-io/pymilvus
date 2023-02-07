@@ -10,10 +10,12 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 from .connections import connections
+from ..decorators import deprecated
 
 class Role:
     """ Role, can be granted privileges which are allowed to execute some objects' apis. """
 
+    @deprecated
     def __init__(self, name: str, using="default", **kwargs):
         """ Constructs a role by name
             :param name: role name.

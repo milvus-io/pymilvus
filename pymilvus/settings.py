@@ -10,7 +10,7 @@ class DefaultConfig:
     HTTP_ADDRESS = "127.0.0.1:19121"
     HTTP_URI = f"http://{HTTP_ADDRESS}"
 
-    CALC_DIST_METRIC = "L2"
+    DISPLAY_DEPRECATED_INFO: bool = False
 
 
 # logging

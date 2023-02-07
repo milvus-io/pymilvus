@@ -15,7 +15,6 @@ from typing import List
 import pandas
 from pandas.api.types import is_list_like
 
-from .constants import COMMON_TYPE_PARAMS
 from .types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
 from ..exceptions import (
     CannotInferSchemaException,
@@ -29,6 +28,7 @@ from ..exceptions import (
     SchemaNotReadyException,
 )
 
+COMMON_TYPE_PARAMS = ("dim", "max_length")
 
 class CollectionSchema:
     def __init__(self, fields, description="", **kwargs):
