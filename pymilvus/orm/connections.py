@@ -195,7 +195,7 @@ class AbstractConnections(typing.Generic[GrpcHandlerT, NoneT], metaclass=SingleI
 
         return f"{host}:{port}"
 
-    def _disconnect(self, alias: str) -> NoneT:
+    def _disconnect(self, alias: str, *, remove_connection: bool) -> NoneT:
         raise NotImplementedError
 
     def disconnect(self, alias: str):
@@ -207,7 +207,7 @@ class AbstractConnections(typing.Generic[GrpcHandlerT, NoneT], metaclass=SingleI
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
-        return self._disconnect(alias)
+        return self._disconnect(alias, remove_connection=False)
 
     def remove_connection(self, alias: str):
         """ Removes connection from the registry.
@@ -218,13 +218,7 @@ class AbstractConnections(typing.Generic[GrpcHandlerT, NoneT], metaclass=SingleI
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
-        # TODO: does order matter?
-        # original sync implementation was
-        #     self.disconnect(alias)
-        #     self._alias.pop(alias, None)
-
-        self._alias.pop(alias, None)
-        return self.disconnect(alias)
+        return self._disconnect(alias, remove_connection=True)
 
     def _connect(self, alias, **kwargs) -> NoneT:
         raise NotImplementedError
@@ -383,9 +377,11 @@ class AbstractConnections(typing.Generic[GrpcHandlerT, NoneT], metaclass=SingleI
 
 
 class Connections(AbstractConnections[GrpcHandler, None]):
-    def _disconnect(self, alias: str):
+    def _disconnect(self, alias: str, *, remove_connection: bool):
         if alias in self._connected_alias:
             self._connected_alias.pop(alias).close()
+        if remove_connection:
+            self._alias.pop(alias, None)
 
     def _connect(self, alias, **kwargs):
         gh = GrpcHandler(**kwargs)

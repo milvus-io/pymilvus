@@ -7,9 +7,11 @@ from ..client.grpc_handler import GrpcHandler as AsyncGrpcHandler
 
 # pylint: disable=W0236
 class Connections(AbstractConnections[AsyncGrpcHandler, typing.Awaitable[None]]):
-    async def _disconnect(self, alias: str):
+    async def _disconnect(self, alias: str, *, remove_connection: bool):
         if alias in self._connected_alias:
             await self._connected_alias.pop(alias).close()
+        if remove_connection:
+            self._alias.pop(alias, None)
 
     async def _connect(self, alias, **kwargs):
         gh = AsyncGrpcHandler(**kwargs)
