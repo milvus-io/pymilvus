@@ -194,8 +194,8 @@ class AbstractGrpcHandler(typing.Generic[GrpcChannelT]):
 
 
 class GrpcHandler(AbstractGrpcHandler[grpc.Channel]):
-    _insecure_channel = grpc.insecure_channel
-    _secure_channel = grpc.secure_channel
+    _insecure_channel = staticmethod(grpc.insecure_channel)
+    _secure_channel = staticmethod(grpc.secure_channel)
 
     def _wait_for_channel_ready(self, timeout=10):
         if self._channel is None:

@@ -8,8 +8,8 @@ from ...client.grpc_handler import (
 
 
 class GrpcHandler(AbstractGrpcHandler[grpc.aio.Channel]):
-    _insecure_channel = grpc.aio.insecure_channel
-    _secure_channel = grpc.aio.secure_channel
+    _insecure_channel = staticmethod(grpc.aio.insecure_channel)
+    _secure_channel = staticmethod(grpc.aio.secure_channel)
 
     async def _channel_ready(self):
         if self._channel is None:
