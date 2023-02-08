@@ -14,9 +14,11 @@ import copy
 
 from ..exceptions import CollectionNotExistException, ExceptionsMessage
 from ..client.configs import DefaultConfigs
+from ..decorators import deprecated
 
 
 class Index:
+    @deprecated
     def __init__(self, collection, field_name, index_params, **kwargs):
         """
         Creates index on a specified field according to the index parameters.
