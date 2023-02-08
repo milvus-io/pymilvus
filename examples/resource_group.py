@@ -53,12 +53,14 @@ def transfer_replica(source, target, collection_name, num_replica):
     utility.transfer_replica(
         source, target, collection_name, num_replica, using=_CONNECTION_NAME)
     
+
 def run(): 
     create_connection("root", "123456")
     coll = create_collection(_COLLECTION_NAME, _ID_FIELD_NAME, _VECTOR_FIELD_NAME)
     vectors = insert(coll, 10000, _DIM)
     coll.flush()
     create_index(coll, _VECTOR_FIELD_NAME)
+    load_collection(coll)
     
     create_resource_group("rg")
     list_resource_groups()
@@ -71,6 +73,12 @@ def run():
     print("load finish") 
 
     transfer_node("rg", DEFAULT_RESOURCE_GROUP, 1)
+    describe_resource_group(DEFAULT_RESOURCE_GROUP)
+    describe_resource_group("rg")
+    
+    describe_resource_group(DEFAULT_RESOURCE_GROUP)
+    describe_resource_group("rg")
+    transfer_replica("rg", DEFAULT_RESOURCE_GROUP, _COLLECTION_NAME, 1)
     describe_resource_group(DEFAULT_RESOURCE_GROUP)
     describe_resource_group("rg")
     
