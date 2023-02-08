@@ -19,3 +19,5 @@ class DefaultConfig:
 
 
 ENV_CONNECTION_CONF = "MILVUS_DEFAULT_CONNECTION"
+
+DEFAULT_RESOURCE_GROUP = "__default_resource_group"
