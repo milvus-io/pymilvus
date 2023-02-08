@@ -8,6 +8,7 @@ from . import blob
 from . import entity_helper
 from .check import check_pass_param, is_legal_collection_properties
 from .types import DataType, PlaceholderType, get_consistency_level
+from .utils import traverse_info
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
 from ..orm.schema import CollectionSchema
@@ -177,6 +178,10 @@ class Prepare:
         return req
 
     @classmethod
+    def rename_collections_request(cls, old_name=None, new_name=None):
+        return milvus_types.RenameCollectionRequest(oldName=old_name, newName=new_name)
+
+    @classmethod
     def create_partition_request(cls, collection_name, partition_name):
         return milvus_types.CreatePartitionRequest(collection_name=collection_name, partition_name=partition_name)
 
@@ -243,11 +248,14 @@ class Prepare:
                                           tag=partition_name)
 
     @classmethod
-    def batch_insert_param(cls, collection_name, entities, partition_name, fields_info=None, **kwargs):
-        # insert_request.hash_keys won't be filled in client. It will be filled in proxy.
+    def batch_insert_or_upsert_param(cls, collection_name, entities, partition_name, fields_info=None, isInsert=True, **kwargs):
+        # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client. It will be filled in proxy.
 
-        tag = partition_name or "_default" # should here?
-        insert_request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
+        tag = partition_name or "_default"  # should here?
+        request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
+
+        if not isInsert:
+            request = milvus_types.UpsertRequest(collection_name=collection_name, partition_name=tag)
 
         for entity in entities:
             if not entity.get("name", None) or not entity.get("values", None) or not entity.get("type", None):
@@ -255,46 +263,7 @@ class Prepare:
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
-        location, primary_key_loc, auto_id_loc = {}, None, None
-        for i, field in enumerate(fields_info):
-            if field.get("is_primary", False):
-                primary_key_loc = i
-
-            if field.get("auto_id", False):
-                auto_id_loc = i
-                continue
-
-            match_flag = False
-            field_name = field["name"]
-            field_type = field["type"]
-
-            for j, entity in enumerate(entities):
-                entity_name, entity_type = entity["name"], entity["type"]
-
-                if field_name == entity_name:
-                    if field_type != entity_type:
-                        raise ParamError(message=f"Collection field type is {field_type}"
-                                         f", but entities field type is {entity_type}")
-
-                    entity_dim, field_dim = 0, 0
-                    if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
-                        field_dim = field["params"]["dim"]
-                        entity_dim = len(entity["values"][0])
-
-                    if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
-                        raise ParamError(message=f"Collection field dim is {field_dim}"
-                                         f", but entities field dim is {entity_dim}")
-
-                    if entity_type in [DataType.BINARY_VECTOR, ] and entity_dim * 8 != field_dim:
-                        raise ParamError(message=f"Collection field dim is {field_dim}"
-                                         f", but entities field dim is {entity_dim * 8}")
-
-                    location[field["name"]] = j
-                    match_flag = True
-                    break
-
-            if not match_flag:
-                raise ParamError(message=f"Field {field['name']} don't match in entities")
+        location, primary_key_loc, auto_id_loc = traverse_info(fields_info, entities)
 
         # though impossible from sdk
         if primary_key_loc is None:
@@ -314,13 +283,13 @@ class Prepare:
                     raise ParamError(message="row num misaligned current[{current}]!= previous[{row_num}]")
                 row_num = current
                 field_data = entity_helper.entity_to_field_data(entity, fields_info[location[entity.get("name")]])
-                insert_request.fields_data.append(field_data)
+                request.fields_data.append(field_data)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
 
-        insert_request.num_rows = row_num
+        request.num_rows = row_num
 
-        return insert_request
+        return request
 
     @classmethod
     def delete_request(cls, collection_name, partition_name, expr):
@@ -460,6 +429,7 @@ class Prepare:
             raise ParamError(message=f"Field {anns_field} doesn't exist in schema")
         dimension = int(fields_schema[fields_name_locs[anns_field]]["params"].get("dim", 0))
 
+        ignore_growing = param.get("ignore_growing",False)
         params = param.get("params", {})
         if not isinstance(params, dict):
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
@@ -470,6 +440,7 @@ class Prepare:
             "params": params,
             "round_decimal": round_decimal,
             "offset": param.get("offset", 0),
+            "ignore_growing": ignore_growing,
         }
 
         def dump(v):
@@ -635,6 +606,8 @@ class Prepare:
         if offset is not None:
             req.query_params.append(common_types.KeyValuePair(key="offset", value=str(offset)))
 
+        ignore_growing = kwargs.get("ignore_growing", False)
+        req.query_params.append(common_types.KeyValuePair(key="ignore_growing", value=str(ignore_growing)))
         return req
 
     @classmethod
@@ -818,10 +791,12 @@ class Prepare:
 
     @classmethod
     def create_resource_group(cls, name):
+        check_pass_param(resource_group_name=name)
         return milvus_types.CreateResourceGroupRequest(resource_group=name)
 
     @classmethod
     def drop_resource_group(cls, name):
+        check_pass_param(resource_group_name=name)
         return milvus_types.DropResourceGroupRequest(resource_group=name)
 
     @classmethod
@@ -830,16 +805,21 @@ class Prepare:
 
     @classmethod
     def describe_resource_group(cls, name):
+        check_pass_param(resource_group_name=name)
         return milvus_types.DescribeResourceGroupRequest(resource_group=name)
 
     @classmethod
     def transfer_node(cls, source, target, num_node):
+        check_pass_param(resource_group_name=source)
+        check_pass_param(resource_group_name=target)
         return milvus_types.TransferNodeRequest(source_resource_group=source,
                                                 target_resource_group=target,
                                                 num_node=num_node)
 
     @classmethod
     def transfer_replica(cls, source, target, collection_name, num_replica):
+        check_pass_param(resource_group_name=source)
+        check_pass_param(resource_group_name=target)
         return milvus_types.TransferReplicaRequest(source_resource_group=source,
                                                    target_resource_group=target,
                                                    collection_name=collection_name,

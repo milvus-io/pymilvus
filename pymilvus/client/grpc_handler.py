@@ -271,6 +271,17 @@ class GrpcHandler:
         raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure()
+    def rename_collections(self, old_name=None, new_name=None, timeout=None):
+        check_pass_param(collection_name=new_name)
+        check_pass_param(collection_name=old_name)
+        request = Prepare().rename_collections_request(old_name, new_name)
+        rf = self._stub.RenameCollection.future(request, timeout=timeout)
+        response = rf.result()
+
+        if response.error_code != 0:
+            raise MilvusException(response.error_code, response.reason)
+
+    @retry_on_rpc_failure()
     def create_partition(self, collection_name, partition_name, timeout=None):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.create_partition_request(collection_name, partition_name)
@@ -291,7 +302,7 @@ class GrpcHandler:
             raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure()
-    def has_partition(self, collection_name, partition_name, timeout=None):
+    def has_partition(self, collection_name, partition_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.has_partition_request(collection_name, partition_name)
         rf = self._stub.HasPartition.future(request, timeout=timeout)
@@ -342,22 +353,28 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    def _prepare_batch_insert_request(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
-        insert_param = kwargs.get('insert_param', None)
+    def _prepare_batch_insert_or_upsert_request(self, collection_name, entities, partition_name=None, timeout=None, isInsert=True, **kwargs):
+        param = kwargs.get('insert_param', None)
 
-        if insert_param and not isinstance(insert_param, milvus_types.RowBatch):
-            raise ParamError(message="The value of key 'insert_param' is invalid")
+        if not isInsert:
+            param = kwargs.get('upsert_param', None)
+
+        if param and not isinstance(param, milvus_types.RowBatch):
+            if isInsert:
+                raise ParamError(message="The value of key 'insert_param' is invalid")
+            raise ParamError(message="The value of key 'upsert_param' is invalid")
         if not isinstance(entities, list):
             raise ParamError(message="None entities, please provide valid entities.")
 
         collection_schema = kwargs.get("schema", None)
         if not collection_schema:
-            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+            collection_schema = self.describe_collection(
+                collection_name, timeout=timeout, **kwargs)
 
         fields_info = collection_schema["fields"]
 
-        request = insert_param if insert_param \
-            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
+        request = param if param \
+            else Prepare.batch_insert_or_upsert_param(collection_name, entities, partition_name, fields_info, isInsert)
 
         return request
 
@@ -367,7 +384,8 @@ class GrpcHandler:
             raise ParamError(message="Invalid binary vector data exists")
 
         try:
-            request = self._prepare_batch_insert_request(collection_name, entities, partition_name, timeout, **kwargs)
+            request = self._prepare_batch_insert_or_upsert_request(
+                collection_name, entities, partition_name, timeout, **kwargs)
             rf = self._stub.Insert.future(request, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
@@ -407,6 +425,34 @@ class GrpcHandler:
                 return m
 
             raise MilvusException(response.status.error_code, response.status.reason)
+        except Exception as err:
+            if kwargs.get("_async", False):
+                return MutationFuture(None, None, err)
+            raise err
+
+    @retry_on_rpc_failure()
+    def upsert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
+        if not check_invalid_binary_vector(entities):
+            raise ParamError(message="Invalid binary vector data exists")
+
+        try:
+            request = self._prepare_batch_insert_or_upsert_request(
+                collection_name, entities, partition_name, timeout, False, **kwargs)
+            rf = self._stub.Upsert.future(request, timeout=timeout)
+            if kwargs.get("_async", False) is True:
+                cb = kwargs.get("_callback", None)
+                f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
+                f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
+                return f
+
+            response = rf.result()
+            if response.status.error_code == 0:
+                m = MutationResult(response)
+                ts_utils.update_collection_ts(collection_name, m.timestamp)
+                return m
+
+            raise MilvusException(
+                response.status.error_code, response.status.reason)
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
@@ -1032,7 +1078,8 @@ class GrpcHandler:
         groups = []
         for replica in response.replicas:
             shards = [Shard(s.dm_channel_name, s.node_ids, s.leaderID) for s in replica.shard_replicas]
-            groups.append(Group(replica.replicaID, shards, replica.node_ids))
+            groups.append(Group(replica.replicaID, shards, replica.node_ids, replica.resource_group_name,
+                                replica.num_outbound_node))
 
         return Replica(groups)
 
@@ -1222,7 +1269,7 @@ class GrpcHandler:
         req = Prepare.list_resource_groups()
         resp = self._stub.ListResourceGroups(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:
-            raise MilvusException(resp.error_code, resp.reason)
+            raise MilvusException(resp.status.error_code, resp.status.reason)
         return list(resp.resource_groups)
 
     @retry_on_rpc_failure()
@@ -1230,7 +1277,7 @@ class GrpcHandler:
         req = Prepare.describe_resource_group(name)
         resp = self._stub.DescribeResourceGroup(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:
-            raise MilvusException(resp.error_code, resp.reason)
+            raise MilvusException(resp.status.error_code, resp.status.reason)
         return ResourceGroupInfo(resp.resource_group)
 
     @retry_on_rpc_failure()

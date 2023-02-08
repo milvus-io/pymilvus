@@ -219,17 +219,16 @@ def is_legal_replica_number(replica_number: int) -> bool:
 
 # https://milvus.io/cn/docs/v1.0.0/metric.md#floating
 def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
-    if index_type not in ("FLAT",
+    if index_type not in ("GPU_FLAT"
+                          "GPU_IVF_FLAT"
+                          "GPU_IVF_SQ8"
+                          "GPU_IVF_PQ"
+                          "FLAT",
                           "IVF_FLAT",
                           "IVF_SQ8",
-                          # "IVF_SQ8_HYBRID",
                           "IVF_PQ",
                           "HNSW",
-                          # "NSG",
                           "ANNOY",
-                          "RHNSW_FLAT",
-                          "RHNSW_PQ",
-                          "RHNSW_SQ",
                           "AUTOINDEX",
                           "DISKANN"):
         return False
@@ -344,6 +343,7 @@ class ParamChecker(metaclass=Singleton):
             "operate_privilege_type": is_legal_operate_privilege_type,
             "properties": is_legal_collection_properties,
             "replica_number": is_legal_replica_number,
+            "resource_group_name": is_legal_table_name,
         }
 
     def check(self, key, value):
