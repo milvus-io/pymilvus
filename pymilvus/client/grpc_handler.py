@@ -291,7 +291,7 @@ class GrpcHandler:
             raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure()
-    def has_partition(self, collection_name, partition_name, timeout=None):
+    def has_partition(self, collection_name, partition_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.has_partition_request(collection_name, partition_name)
         rf = self._stub.HasPartition.future(request, timeout=timeout)

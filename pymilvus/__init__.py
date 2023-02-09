@@ -58,7 +58,7 @@ from .orm.utility import (
 )
 
 from .orm import utility
-from .orm.default_config import DefaultConfig, ENV_CONNECTION_CONF
+from .orm.default_config import DefaultConfig, ENV_CONNECTION_CONF, DEFAULT_RESOURCE_GROUP
 
 from .orm.search import SearchResult, Hits, Hit
 from .orm.schema import FieldSchema, CollectionSchema
