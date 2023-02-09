@@ -4,3 +4,4 @@
 
 **Enhancement**
 - Deprecate all orm functions and classes (#1288)
+- Add framework of pymilvus.v2 (#1230)
