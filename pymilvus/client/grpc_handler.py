@@ -291,7 +291,7 @@ class GrpcHandler:
             raise MilvusException(response.error_code, response.reason)
 
     @retry_on_rpc_failure()
-    def has_partition(self, collection_name, partition_name, timeout=None):
+    def has_partition(self, collection_name, partition_name, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.has_partition_request(collection_name, partition_name)
         rf = self._stub.HasPartition.future(request, timeout=timeout)
@@ -651,7 +651,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, replica_number=replica_number)
         _refresh = kwargs.get("_refresh", False)
         _resource_groups = kwargs.get("_resource_groups")
         request = Prepare.load_collection("", collection_name, replica_number, _refresh, _resource_groups)
@@ -696,7 +696,10 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def load_partitions(self, collection_name, partition_names, replica_number=1, timeout=None, **kwargs):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
+        check_pass_param(
+            collection_name=collection_name,
+            partition_name_array=partition_names,
+            replica_number=replica_number)
         _refresh = kwargs.get("_refresh", False)
         _resource_groups = kwargs.get("_resource_groups")
         request = Prepare.load_partitions("", collection_name, partition_names, replica_number, _refresh,
@@ -1219,7 +1222,7 @@ class GrpcHandler:
         req = Prepare.list_resource_groups()
         resp = self._stub.ListResourceGroups(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:
-            raise MilvusException(resp.error_code, resp.reason)
+            raise MilvusException(resp.status.error_code, resp.status.reason)
         return list(resp.resource_groups)
 
     @retry_on_rpc_failure()
@@ -1227,7 +1230,7 @@ class GrpcHandler:
         req = Prepare.describe_resource_group(name)
         resp = self._stub.DescribeResourceGroup(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:
-            raise MilvusException(resp.error_code, resp.reason)
+            raise MilvusException(resp.status.error_code, resp.status.reason)
         return ResourceGroupInfo(resp.resource_group)
 
     @retry_on_rpc_failure()

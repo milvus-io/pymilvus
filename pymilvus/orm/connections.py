@@ -269,7 +269,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             gh = GrpcHandler(**kwargs)
 
             t = kwargs.get("timeout")
-            timeout = t if isinstance(t, int) else DefaultConfig.DEFAULT_CONNECT_TIMEOUT
+            timeout = t if isinstance(t, (int, float)) else DefaultConfig.DEFAULT_CONNECT_TIMEOUT
 
             gh._wait_for_channel_ready(timeout=timeout)
             kwargs.pop('password')
