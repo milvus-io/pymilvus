@@ -818,10 +818,12 @@ class Prepare:
 
     @classmethod
     def create_resource_group(cls, name):
+        check_pass_param(resource_group_name=name)
         return milvus_types.CreateResourceGroupRequest(resource_group=name)
 
     @classmethod
     def drop_resource_group(cls, name):
+        check_pass_param(resource_group_name=name)
         return milvus_types.DropResourceGroupRequest(resource_group=name)
 
     @classmethod
@@ -830,16 +832,21 @@ class Prepare:
 
     @classmethod
     def describe_resource_group(cls, name):
+        check_pass_param(resource_group_name=name)
         return milvus_types.DescribeResourceGroupRequest(resource_group=name)
 
     @classmethod
     def transfer_node(cls, source, target, num_node):
+        check_pass_param(resource_group_name=source)
+        check_pass_param(resource_group_name=target)
         return milvus_types.TransferNodeRequest(source_resource_group=source,
                                                 target_resource_group=target,
                                                 num_node=num_node)
 
     @classmethod
     def transfer_replica(cls, source, target, collection_name, num_replica):
+        check_pass_param(resource_group_name=source)
+        check_pass_param(resource_group_name=target)
         return milvus_types.TransferReplicaRequest(source_resource_group=source,
                                                    target_resource_group=target,
                                                    collection_name=collection_name,

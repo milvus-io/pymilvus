@@ -344,6 +344,7 @@ class ParamChecker(metaclass=Singleton):
             "operate_privilege_type": is_legal_operate_privilege_type,
             "properties": is_legal_collection_properties,
             "replica_number": is_legal_replica_number,
+            "resource_group_name": is_legal_table_name,
         }
 
     def check(self, key, value):
