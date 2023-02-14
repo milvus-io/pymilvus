@@ -177,6 +177,10 @@ class Prepare:
         return req
 
     @classmethod
+    def rename_collections_request(cls, old_name=None, new_name=None):
+        return milvus_types.RenameCollectionRequest(oldName=old_name, newName=new_name)
+
+    @classmethod
     def create_partition_request(cls, collection_name, partition_name):
         return milvus_types.CreatePartitionRequest(collection_name=collection_name, partition_name=partition_name)
 
