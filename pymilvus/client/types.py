@@ -311,10 +311,12 @@ class Shard:
 
 
 class Group:
-    def __init__(self, group_id: int, shards: list, group_nodes: list):
+    def __init__(self, group_id: int, shards: list, group_nodes: list, resource_group: str, num_outbound_node: dict):
         self._id = group_id
         self._shards = shards
         self._group_nodes = tuple(group_nodes)
+        self._resource_group = resource_group
+        self._num_outbound_node = num_outbound_node
 
     def __repr__(self) -> str:
         s = f"Group: <group_id:{self.id}>, <group_nodes:{self.group_nodes}>, <shards:{self.shards}>"
@@ -332,6 +334,13 @@ class Group:
     def shards(self):
         return self._shards
 
+    @property
+    def resource_group(self):
+        return self._resource_group
+
+    @property
+    def num_outbound_node(self):
+        return self._num_outbound_node
 
 class Replica:
     """

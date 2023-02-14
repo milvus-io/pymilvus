@@ -1032,7 +1032,8 @@ class GrpcHandler:
         groups = []
         for replica in response.replicas:
             shards = [Shard(s.dm_channel_name, s.node_ids, s.leaderID) for s in replica.shard_replicas]
-            groups.append(Group(replica.replicaID, shards, replica.node_ids))
+            groups.append(Group(replica.replicaID, shards, replica.node_ids, replica.resource_group_name,
+                                replica.num_outbound_node))
 
         return Replica(groups)
 
