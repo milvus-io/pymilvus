@@ -8,6 +8,7 @@ from . import blob
 from . import entity_helper
 from .check import check_pass_param, is_legal_collection_properties
 from .types import DataType, PlaceholderType, get_consistency_level
+from .utils import traverse_info
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
 from ..orm.schema import CollectionSchema
@@ -247,58 +248,23 @@ class Prepare:
                                           tag=partition_name)
 
     @classmethod
-    def batch_insert_param(cls, collection_name, entities, partition_name, fields_info=None, **kwargs):
-        # insert_request.hash_keys won't be filled in client. It will be filled in proxy.
+    def batch_insert_or_upsert_param(cls, collection_name, entities, partition_name, fields_info=None, isInsert=True, **kwargs):
+        # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client. It will be filled in proxy.
 
-        tag = partition_name or "_default" # should here?
-        insert_request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
+        tag = partition_name or "_default"  # should here?
+        request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
+
+        if not isInsert:
+            request = milvus_types.UpsertRequest(collection_name=collection_name, partition_name=tag)
 
         for entity in entities:
             if not entity.get("name", None) or not entity.get("values", None) or not entity.get("type", None):
                 raise ParamError(message="Missing param in entities, a field must have type, name and values")
-        if not fields_info:
-            raise ParamError(message="Missing collection meta to validate entities")
+            if not fields_info:
+                raise ParamError(message="Missing collection meta to validate entities")
 
         location, primary_key_loc, auto_id_loc = {}, None, None
-        for i, field in enumerate(fields_info):
-            if field.get("is_primary", False):
-                primary_key_loc = i
-
-            if field.get("auto_id", False):
-                auto_id_loc = i
-                continue
-
-            match_flag = False
-            field_name = field["name"]
-            field_type = field["type"]
-
-            for j, entity in enumerate(entities):
-                entity_name, entity_type = entity["name"], entity["type"]
-
-                if field_name == entity_name:
-                    if field_type != entity_type:
-                        raise ParamError(message=f"Collection field type is {field_type}"
-                                         f", but entities field type is {entity_type}")
-
-                    entity_dim, field_dim = 0, 0
-                    if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
-                        field_dim = field["params"]["dim"]
-                        entity_dim = len(entity["values"][0])
-
-                    if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
-                        raise ParamError(message=f"Collection field dim is {field_dim}"
-                                         f", but entities field dim is {entity_dim}")
-
-                    if entity_type in [DataType.BINARY_VECTOR, ] and entity_dim * 8 != field_dim:
-                        raise ParamError(message=f"Collection field dim is {field_dim}"
-                                         f", but entities field dim is {entity_dim * 8}")
-
-                    location[field["name"]] = j
-                    match_flag = True
-                    break
-
-            if not match_flag:
-                raise ParamError(message=f"Field {field['name']} don't match in entities")
+        traverse_info(fields_info, entities, location, primary_key_loc, auto_id_loc)
 
         # though impossible from sdk
         if primary_key_loc is None:
@@ -318,13 +284,13 @@ class Prepare:
                     raise ParamError(message="row num misaligned current[{current}]!= previous[{row_num}]")
                 row_num = current
                 field_data = entity_helper.entity_to_field_data(entity, fields_info[location[entity.get("name")]])
-                insert_request.fields_data.append(field_data)
+                request.fields_data.append(field_data)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
 
-        insert_request.num_rows = row_num
+        request.num_rows = row_num
 
-        return insert_request
+        return request
 
     @classmethod
     def delete_request(cls, collection_name, partition_name, expr):

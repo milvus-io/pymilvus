@@ -120,6 +120,10 @@ class InvalidConsistencyLevel(MilvusException):
     """ Raise when consistency level is invalid """
 
 
+class UpsertAutoIDTrueException(MilvusException):
+    """ Raise when upsert autoID is true """
+
+
 class ExceptionsMessage:
     NoHostPort = "connection configuration must contain 'host' and 'port'."
     HostType = "Type of 'host' must be str."
@@ -165,3 +169,4 @@ class ExceptionsMessage:
     ExprType = "The type of expr must be string ,but %r is given."
     EnvConfigErr = "Environment variable %s has a wrong format, please check it: %s"
     AmbiguousIndexName = "There are multiple indexes, please specify the index_name."
+    UpsertAutoIDTrue = "Upsert don't support autoid == true"

@@ -353,22 +353,31 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    def _prepare_batch_insert_request(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
-        insert_param = kwargs.get('insert_param', None)
+    def _prepare_batch_insert_or_upsert_request(self, collection_name, entities, partition_name=None, timeout=None, isInsert=True, **kwargs):
+        param = kwargs.get('insert_param', None)
 
-        if insert_param and not isinstance(insert_param, milvus_types.RowBatch):
-            raise ParamError(message="The value of key 'insert_param' is invalid")
+        if not isInsert:
+            param = kwargs.get('upsert_param', None)
+
+        if param and not isinstance(param, milvus_types.RowBatch):
+            if isInsert:
+                raise ParamError(
+                    message="The value of key 'insert_param' is invalid")
+            raise ParamError(
+                message="The value of key 'upsert_param' is invalid")
         if not isinstance(entities, list):
-            raise ParamError(message="None entities, please provide valid entities.")
+            raise ParamError(
+                message="None entities, please provide valid entities.")
 
         collection_schema = kwargs.get("schema", None)
         if not collection_schema:
-            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+            collection_schema = self.describe_collection(
+                collection_name, timeout=timeout, **kwargs)
 
         fields_info = collection_schema["fields"]
 
-        request = insert_param if insert_param \
-            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
+        request = param if param \
+            else Prepare.batch_insert_or_upsert_param(collection_name, entities, partition_name, fields_info, isInsert)
 
         return request
 
@@ -378,7 +387,8 @@ class GrpcHandler:
             raise ParamError(message="Invalid binary vector data exists")
 
         try:
-            request = self._prepare_batch_insert_request(collection_name, entities, partition_name, timeout, **kwargs)
+            request = self._prepare_batch_insert_or_upsert_request(
+                collection_name, entities, partition_name, timeout, **kwargs)
             rf = self._stub.Insert.future(request, timeout=timeout)
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback", None)
@@ -418,6 +428,34 @@ class GrpcHandler:
                 return m
 
             raise MilvusException(response.status.error_code, response.status.reason)
+        except Exception as err:
+            if kwargs.get("_async", False):
+                return MutationFuture(None, None, err)
+            raise err
+
+    @retry_on_rpc_failure()
+    def upsert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
+        if not check_invalid_binary_vector(entities):
+            raise ParamError(message="Invalid binary vector data exists")
+
+        try:
+            request = self._prepare_batch_insert_or_upsert_request(
+                collection_name, entities, partition_name, timeout, False, **kwargs)
+            rf = self._stub.Upsert.future(request, timeout=timeout)
+            if kwargs.get("_async", False) is True:
+                cb = kwargs.get("_callback", None)
+                f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
+                f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
+                return f
+
+            response = rf.result()
+            if response.status.error_code == 0:
+                m = MutationResult(response)
+                ts_utils.update_collection_ts(collection_name, m.timestamp)
+                return m
+
+            raise MilvusException(
+                response.status.error_code, response.status.reason)
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)

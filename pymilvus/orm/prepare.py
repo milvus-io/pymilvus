@@ -14,12 +14,17 @@ import copy
 import numpy
 import pandas
 
-from ..exceptions import DataNotMatchException, DataTypeNotSupportException, ExceptionsMessage
+from ..exceptions import (
+    DataNotMatchException,
+    DataTypeNotSupportException,
+    ExceptionsMessage,
+    UpsertAutoIDTrueException,
+)
 
 
 class Prepare:
     @classmethod
-    def prepare_insert_data(cls, data, schema):
+    def prepare_insert_or_upsert_data(cls, data, schema, isInsert = True):
         if not isinstance(data, (list, tuple, pandas.DataFrame)):
             raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
 
@@ -29,6 +34,8 @@ class Prepare:
 
         if isinstance(data, pandas.DataFrame):
             if schema.auto_id:
+                if isInsert is False:
+                    raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
                 if schema.primary_field.name in data:
                     if len(fields) != len(data.columns):
                         raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
