@@ -10,11 +10,9 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-import grpc
+# APIs that aio provided
+from .apis import AsyncMilvusClient
 
-from ..abstract_grpc_handler import AbstractGrpcHandler
 
-
-class GrpcHandler(AbstractGrpcHandler[grpc.Channel]):
-    pass
-
+# TODO
+__all__ = [ ]

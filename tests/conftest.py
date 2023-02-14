@@ -7,6 +7,11 @@ from grpc.framework.foundation import logging_pool
 
 from pymilvus.grpc_gen import milvus_pb2
 
+# test import
+from pymilvus import *
+import pymilvus.v2
+import pymilvus.aio
+
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
 

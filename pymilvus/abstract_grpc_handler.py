@@ -11,10 +11,14 @@
 # the License.
 
 import grpc
+import typing
 
-from ..abstract_grpc_handler import AbstractGrpcHandler
+GrpcChannelT  = typing.TypeVar('GrpcChannelT', grpc.Channel, grpc.aio.Channel)
 
+class AbstractGrpcHandler(typing.Generic[GrpcChannelT]):
+    """Establish a channel"""
 
-class GrpcHandler(AbstractGrpcHandler[grpc.Channel]):
-    pass
-
+    def __init__(self):
+        self._channel == set_channel()
+        # _secured_channel
+        # _insecured_channel

@@ -10,13 +10,15 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+import typing
+from typing_extensions import Self
+
 # TODO
 class CollectionSchema:
     def __init__(self):
-        """
-        s = create_schema().add_schema(...)
-        """
-    def add_schema(self):
+        """ s = CollectionSchema().add_field(...) """
+
+    def add_field(self) -> Self:
         pass
 
 # TODO
