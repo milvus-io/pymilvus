@@ -24,11 +24,9 @@ from .search import SearchResult
 from .mutation import MutationResult
 from .future import SearchFuture, MutationFuture
 from ..client.types import Replica
-from ..decorators import deprecated
 
 
 class Partition:
-    @deprecated
     def __init__(self, collection, name, description="", **kwargs):
         # TODO: Need a place to store the description
         from .collection import Collection
