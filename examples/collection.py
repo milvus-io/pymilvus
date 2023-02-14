@@ -22,7 +22,6 @@ default_nb = 3000
 default_float_vec_field_name = "float_vector"
 default_binary_vec_field_name = "binary_vector"
 
-
 all_index_types = [
     "FLAT",
     "IVF_FLAT",
@@ -54,7 +53,6 @@ default_index_params = [
     {"nlist": 128},
     {"nlist": 128}
 ]
-
 
 default_index = {"index_type": "IVF_FLAT", "params": {"nlist": 128}, "metric_type": "L2"}
 default_binary_index = {"index_type": "BIN_FLAT", "params": {"nlist": 1024}, "metric_type": "JACCARD"}
@@ -300,6 +298,26 @@ def test_alias():
     alias_cases()
 
 
+def test_rename_collection():
+    connections.connect(alias="default")
+    schema = CollectionSchema(fields=[
+        FieldSchema("int64", DataType.INT64, description="int64", is_primary=True),
+        FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=128),
+    ])
+
+    old_collection = "old_collection"
+    new_collection = "new_collection"
+    Collection(old_collection, schema=schema)
+
+    print("\nlist collections:")
+    print(utility.list_collections())
+    assert utility.has_collection(old_collection)
+
+    utility.rename_collection(old_collection, new_collection)
+    assert utility.has_collection(new_collection)
+    assert not utility.has_collection(old_collection)
+
+
 if __name__ == "__main__":
     print("test collection and get an existing collection")
     name = test_create_collection()
@@ -317,4 +335,6 @@ if __name__ == "__main__":
     test_specify_primary_key()
     print("test alias")
     test_alias()
+    print("test rename collection")
+    test_rename_collection()
     print("test end")
