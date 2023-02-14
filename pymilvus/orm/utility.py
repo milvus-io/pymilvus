@@ -17,10 +17,8 @@ from ..client.utils import mkts_from_unixtime as _mkts_from_unixtime
 from ..client.utils import mkts_from_datetime as _mkts_from_datetime
 from ..client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
 from ..client.types import BulkInsertState
-from ..decorators import deprecated
 
 
-@deprecated
 def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
     """
     Generate a hybrid timestamp based on an existing hybrid timestamp, timedelta and incremental time internval.
@@ -57,7 +55,6 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
     return _mkts_from_hybridts(hybridts, milliseconds=milliseconds, delta=delta)
 
 
-@deprecated
 def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
     """
     Generate a hybrid timestamp based on Unix Epoch time, timedelta and incremental time internval.
@@ -86,7 +83,6 @@ def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
     return _mkts_from_unixtime(epoch, milliseconds=milliseconds, delta=delta)
 
 
-@deprecated
 def mkts_from_datetime(d_time, milliseconds=0., delta=None):
     """
     Generate a hybrid timestamp based on datetime, timedelta and incremental time internval.
@@ -113,7 +109,6 @@ def mkts_from_datetime(d_time, milliseconds=0., delta=None):
     return _mkts_from_datetime(d_time, milliseconds=milliseconds, delta=delta)
 
 
-@deprecated
 def hybridts_to_datetime(hybridts, tz=None):
     """
     Convert a hybrid timestamp to the datetime according to timezone.
@@ -144,7 +139,6 @@ def hybridts_to_datetime(hybridts, tz=None):
     return datetime.datetime.fromtimestamp(epoch, tz=tz)
 
 
-@deprecated
 def hybridts_to_unixtime(hybridts):
     """
     Convert a hybrid timestamp to UNIX Epoch time ignoring the logic part.
@@ -171,7 +165,6 @@ def _get_connection(alias):
     return connections._fetch_handler(alias)
 
 
-@deprecated
 def loading_progress(collection_name, partition_names=None, using="default", timeout=None):
     """ Show loading progress of sealed segments in percentage.
 
@@ -211,7 +204,6 @@ def loading_progress(collection_name, partition_names=None, using="default", tim
     }
 
 
-@deprecated
 def load_state(collection_name, partition_names=None, using="default", timeout=None):
     """ Show load state of collection or partitions.
     :param collection_name: The name of collection is loading
@@ -249,7 +241,6 @@ def load_state(collection_name, partition_names=None, using="default", timeout=N
     return _get_connection(using).get_load_state(collection_name, partition_names, timeout=timeout)
 
 
-@deprecated
 def wait_for_loading_complete(collection_name, partition_names=None, timeout=None, using="default"):
     """
     Block until loading is done or Raise Exception after timeout.
@@ -287,7 +278,6 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
     return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
 
 
-@deprecated
 def index_building_progress(collection_name, index_name="", using="default", timeout=None):
     """
     Show # indexed entities vs. # total entities.
@@ -334,7 +324,6 @@ def index_building_progress(collection_name, index_name="", using="default", tim
         collection_name=collection_name, index_name=index_name, timeout=timeout)
 
 
-@deprecated
 def wait_for_index_building_complete(collection_name, index_name="", timeout=None, using="default"):
     """
     Block until building is done or Raise Exception after timeout.
@@ -381,7 +370,6 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
     return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout=timeout)[0]
 
 
-@deprecated
 def has_collection(collection_name, using="default", timeout=None):
     """
     Checks whether a specified collection exists.
@@ -405,7 +393,6 @@ def has_collection(collection_name, using="default", timeout=None):
     return _get_connection(using).has_collection(collection_name, timeout=timeout)
 
 
-@deprecated
 def has_partition(collection_name, partition_name, using="default", timeout=None):
     """
     Checks if a specified partition exists in a collection.
@@ -432,7 +419,6 @@ def has_partition(collection_name, partition_name, using="default", timeout=None
     return _get_connection(using).has_partition(collection_name, partition_name, timeout=timeout)
 
 
-@deprecated
 def drop_collection(collection_name, timeout=None, using="default"):
     """
     Drop a collection by name
@@ -460,7 +446,6 @@ def drop_collection(collection_name, timeout=None, using="default"):
     return _get_connection(using).drop_collection(collection_name, timeout=timeout)
 
 
-@deprecated
 def list_collections(timeout=None, using="default") -> list:
     """
     Returns a list of all collection names.
@@ -485,7 +470,6 @@ def list_collections(timeout=None, using="default") -> list:
     return _get_connection(using).list_collections(timeout=timeout)
 
 
-@deprecated
 def load_balance(collection_name: str, src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeout=None, using="default"):
     """ Do load balancing operation from source query node to destination query node.
 
@@ -525,7 +509,6 @@ def load_balance(collection_name: str, src_node_id, dst_node_ids=None, sealed_se
             load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout)
 
 
-@deprecated
 def get_query_segment_info(collection_name, timeout=None, using="default"):
     """
     Notifies Proxy to return segments information from query nodes.
@@ -558,7 +541,6 @@ def get_query_segment_info(collection_name, timeout=None, using="default"):
     return _get_connection(using).get_query_segment_info(collection_name, timeout=timeout)
 
 
-@deprecated
 def create_alias(collection_name: str, alias: str, timeout=None, using="default"):
     """ Specify alias for a collection.
     Alias cannot be duplicated, you can't assign the same alias to different collections.
@@ -592,7 +574,6 @@ def create_alias(collection_name: str, alias: str, timeout=None, using="default"
     return _get_connection(using).create_alias(collection_name, alias, timeout=timeout)
 
 
-@deprecated
 def drop_alias(alias: str, timeout=None, using="default"):
     """ Delete the alias.
     No need to provide collection name because an alias can only be assigned to one collection
@@ -628,7 +609,6 @@ def drop_alias(alias: str, timeout=None, using="default"):
     return _get_connection(using).drop_alias(alias, timeout=timeout)
 
 
-@deprecated
 def alter_alias(collection_name: str, alias: str, timeout=None, using="default"):
     """ Change the alias of a collection to another collection.
     Raise error if the alias doesn't exist.
@@ -669,7 +649,6 @@ def alter_alias(collection_name: str, alias: str, timeout=None, using="default")
     return _get_connection(using).alter_alias(collection_name, alias, timeout=timeout)
 
 
-@deprecated
 def list_aliases(collection_name: str, timeout=None, using="default"):
     """ Returns alias list of the collection.
 
@@ -695,7 +674,6 @@ def list_aliases(collection_name: str, timeout=None, using="default"):
     return aliases
 
 
-@deprecated
 def do_bulk_insert(collection_name: str, files: list, partition_name=None, timeout=None, using="default", **kwargs) -> int:
     """ do_bulk_insert inserts entities through files, currently supports row-based json file.
     User need to create the json file with a specified json format which is described in the official user guide.
@@ -745,7 +723,6 @@ def do_bulk_insert(collection_name: str, files: list, partition_name=None, timeo
     return _get_connection(using).do_bulk_insert(collection_name, partition_name, files, timeout=timeout, **kwargs)
 
 
-@deprecated
 def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> BulkInsertState:
     """get_bulk_insert_state returns state of a certain task_id
 
@@ -765,7 +742,6 @@ def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> B
     return _get_connection(using).get_bulk_insert_state(task_id, timeout=timeout, **kwargs)
 
 
-@deprecated
 def list_bulk_insert_tasks(limit=0, collection_name=None, timeout=None, using="default", **kwargs) -> list:
     """list_bulk_insert_tasks lists all bulk load tasks
 
@@ -787,7 +763,6 @@ def list_bulk_insert_tasks(limit=0, collection_name=None, timeout=None, using="d
     return _get_connection(using).list_bulk_insert_tasks(limit, collection_name, timeout=timeout, **kwargs)
 
 
-@deprecated
 def reset_password(user: str, old_password: str, new_password: str, using="default", timeout=None):
     """
         Reset the user & password of the connection.
@@ -811,7 +786,6 @@ def reset_password(user: str, old_password: str, new_password: str, using="defau
     return _get_connection(using).reset_password(user, old_password, new_password, timeout=timeout)
 
 
-@deprecated
 def create_user(user: str, password: str, using="default", timeout=None):
     """ Create User using the given user and password.
     :param user: the user name.
@@ -830,7 +804,6 @@ def create_user(user: str, password: str, using="default", timeout=None):
     return _get_connection(using).create_user(user, password, timeout=timeout)
 
 
-@deprecated
 def update_password(user: str, old_password, new_password: str, using="default", timeout=None):
     """
         Update user password using the given user and password.
@@ -856,7 +829,6 @@ def update_password(user: str, old_password, new_password: str, using="default",
     return _get_connection(using).update_password(user, old_password, new_password, timeout=timeout)
 
 
-@deprecated
 def delete_user(user: str, using="default", timeout=None):
     """ Delete User corresponding to the username.
     :param user: the user name.
@@ -872,7 +844,6 @@ def delete_user(user: str, using="default", timeout=None):
     return _get_connection(using).delete_user(user, timeout=timeout)
 
 
-@deprecated
 def list_usernames(using="default", timeout=None):
     """ List all usernames.
     :return list of str:
@@ -887,7 +858,6 @@ def list_usernames(using="default", timeout=None):
     return _get_connection(using).list_usernames(timeout=timeout)
 
 
-@deprecated
 def list_roles(include_user_info: bool, using="default", timeout=None):
     """ List All Role Info
     :param include_user_info: whether to obtain the user information associated with roles
@@ -903,7 +873,6 @@ def list_roles(include_user_info: bool, using="default", timeout=None):
     return _get_connection(using).select_all_role(include_user_info, timeout=timeout)
 
 
-@deprecated
 def list_user(username: str, include_role_info: bool, using="default", timeout=None):
     """ List One User Info
     :param username: user name.
@@ -921,7 +890,6 @@ def list_user(username: str, include_role_info: bool, using="default", timeout=N
     return _get_connection(using).select_one_user(username, include_role_info, timeout=timeout)
 
 
-@deprecated
 def list_users(include_role_info: bool, using="default", timeout=None):
     """ List All User Info
     :param include_role_info: whether to obtain the role information associated with users
@@ -936,7 +904,6 @@ def list_users(include_role_info: bool, using="default", timeout=None):
     """
     return _get_connection(using).select_all_user(include_role_info, timeout=timeout)
 
-@deprecated
 def get_server_version(using="default", timeout=None) -> str:
     """ get the running server's version
 
@@ -951,7 +918,6 @@ def get_server_version(using="default", timeout=None) -> str:
     """
     return _get_connection(using).get_server_version(timeout=timeout)
 
-@deprecated
 def create_resource_group(name, using="default", timeout=None):
     """ Create a resource group
         It will success whether or not the resource group exists.
@@ -965,7 +931,6 @@ def create_resource_group(name, using="default", timeout=None):
     """
     return _get_connection(using).create_resource_group(name, timeout)
 
-@deprecated
 def drop_resource_group(name, using="default", timeout=None):
     """ Drop a resource group
         It will success if the resource group is existed and empty, otherwise fail.
@@ -979,7 +944,6 @@ def drop_resource_group(name, using="default", timeout=None):
     """
     return _get_connection(using).drop_resource_group(name, timeout)
 
-@deprecated
 def describe_resource_group(name, using="default", timeout=None):
     """ Drop a resource group
         It will success if the resource group is existed and empty, otherwise fail.
@@ -992,7 +956,6 @@ def describe_resource_group(name, using="default", timeout=None):
     """
     return _get_connection(using).describe_resource_group(name, timeout)
 
-@deprecated
 def list_resource_groups(using="default", timeout=None):
     """list all resource group names
 
@@ -1007,7 +970,6 @@ def list_resource_groups(using="default", timeout=None):
     return _get_connection(using).list_resource_groups(timeout)
 
 
-@deprecated
 def transfer_node(source, target, num_node, using="default", timeout=None):
     """transfer num_node from source resource group to target resource_group
 
@@ -1026,7 +988,6 @@ def transfer_node(source, target, num_node, using="default", timeout=None):
     return _get_connection(using).transfer_node(source, target, num_node, timeout)
 
 
-@deprecated
 def transfer_replica(source, target, collection_name, num_replica, using="default", timeout=None):
     """transfer num_replica from source resource group to target resource group
 

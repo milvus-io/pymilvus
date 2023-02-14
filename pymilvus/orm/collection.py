@@ -44,12 +44,10 @@ from .default_config import DefaultConfig
 from ..client.types import CompactionState, CompactionPlans, Replica, get_consistency_level, cmp_consistency_level
 from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
 from ..client.configs import DefaultConfigs
-from ..decorators import deprecated
 
 
 
 class Collection:
-    @deprecated
     def __init__(self, name: str, schema: CollectionSchema=None, using: str="default", shards_num: int=2, **kwargs):
         """ Constructs a collection by name, schema and other parameters.
 
