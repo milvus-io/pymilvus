@@ -12,190 +12,273 @@
 
 from typing import Dict, List, Any, Union
 
+import grpc
+
 from .grpc_handler import GrpcHandler
-from ..types import CollectionSchema, ResourceGroupInfo
+from ..exceptions import MilvusException
+
+from ..types import (
+    CollectionSchema,
+    ResourceGroupInfo,
+    AliasInfo,
+    CollectionInfo,
+    IndexInfo,
+    PartitionInfo,
+)
+from ..settings import DefaultConfig
+from ..grpc_gen import milvus_pb2 as milvus_types
+from ..grpc_gen import common_pb2, milvus_pb2_grpc
+from ..utils import generate_address
 
 
-class MilvusClient(GrpcHandler):
-    # TODO
-    def create_alias(alias: str, collection_name: str, timeout: float=None) -> None:
+class MilvusClient:
+    handler: GrpcHandler
+
+    # TODO secured channel
+    def __init__(self, host: str, port: Union[str, int], **kwargs):
+        # ut only channel
+        _channel = kwargs.get("_channel")
+        if isinstance(_channel, grpc.Channel):
+            self.handler = milvus_pb2_grpc.MilvusServiceStub(_channel)
+            return
+
+        timeout = kwargs.get("timeout")
+        if isinstance(timeout, (int, float)) and timeout > 0:
+            connection_timeout = timeout
+        else:
+            connection_timeout = DefaultConfig.CONNECTION_TIMEOUT
+
+        address = generate_address(host, port)
+
+        # set up GrpcHandler
+        self.handler = GrpcHandler(address, timeout=connection_timeout, **kwargs)
+
+    def get_server_version(self, **kwargs) -> str:
+        req = milvus_types.GetVersionRequest()
+        resp = self.handler.GetVersion(req, **kwargs)
+        if resp.status.error_code != common_pb2.Success:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return resp.version
+
+    @NotImplementedError
+    def create_alias(self, alias: str, collection_name: str, **kwargs) -> None:
+        """ Create an alias for a collection
+
+        Args:
+            alias (``str``): Specifies an alias desired for the collection.
+            collection_name (``str``): Specifies the name of a target collection.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.create_alias("Gandalf", "hello_milvus")
+        """
         pass
 
-
-    # TODO
-    def drop_alias(alias: str, timeout: float=None) -> None:
+    @NotImplementedError
+    def alter_alias(self, alias: str, collection_name: str, **kwargs) -> None:
         pass
 
-
-    # TODO
-    def alter_alias(alias: str, collection_name: str, timeout: float=None) -> None:
+    @NotImplementedError
+    def describe_alias(self, alias: str, **kwargs) -> AliasInfo:
         pass
 
-
-    # TODO
-    def list_aliases(collection_name: str, timeout: float=None) -> List[str]:
+    @NotImplementedError
+    def drop_alias(self, alias: str, **kwargs) -> None:
         pass
 
-    # Collection
-    # TODO
-    def create_collection(collection_name: str, schema: CollectionSchema, num_shards: int=2, timeout: float=None, **kwargs) -> None:
+    @NotImplementedError
+    def has_alias(self, alias: str, **kwargs) -> bool:
         pass
 
-    # TODO
-    def drop_collection(collection_name: str, timeout: float=None, **kwargs) -> None:
+    @NotImplementedError
+    def list_aliases(self, collection_name: str, **kwargs) -> List[str]:
         pass
 
-    # TODO
-    def has_collection(collection_name: str, timeout: float=None, **kwargs) -> bool:
+    @NotImplementedError
+    def create_collection(self, name: str, schema: CollectionSchema, **kwargs) -> None:
         pass
 
-    # TODO
-    def describe_collection(collection_name: str, timeout: float=None, **kwargs) -> Dict[str, Any]:
+    @NotImplementedError
+    def create_schema(self) -> CollectionSchema:
         pass
 
-    # TODO
-    def alter_collection(collection_name: str, properties: Dict[str, Any], timeout: float=None, **kwargs) -> None:
+    @NotImplementedError
+    def describe_collection(self, name: str, **kwargs) -> CollectionInfo:
         pass
 
-    # TODO
-    def get_collection_statistics(collection_name: str, timeout: float=None, **kwargs) -> Dict[str, Any]:
+    @NotImplementedError
+    def drop_collection(self, name: str, **kwargs) -> None:
         pass
 
-    # TODO
-    def list_collections(timeout: float=None) -> List[str]:
+    @NotImplementedError
+    def has_collection(self, name: str, **kwargs) -> bool:
         pass
 
-    # Partition
-    # TODO
-    def create_partition(collection_name: str, partition_name: str, timeout: float=None) -> None:
+    def list_collections(self, **kwargs) -> List[str]:
+        """ List all collection names in the Database.
+
+        Args:
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Returns:
+           List[str]: list of collection names.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.list_collections()
+            ['lord_of_the_rings', 'hello_milvus']
+        """
+        req = milvus_types.ShowCollectionsRequest()
+        resp = self.handler.ShowCollections(req, **kwargs)
+        if resp.status.error_code != common_pb2.Success:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return resp.collection_names
+
+    @NotImplementedError
+    def alter_collection(self, collection_name: str, properties: Dict[str, Any], **kwargs) -> None:
+        # TODO
         pass
 
-    # TODO
-    def drop_partition(collection_name: str, partition_name: str, timeout: float=None) -> None:
+    @NotImplementedError
+    def release_collection(self, name, **kwargs) -> None:
         pass
 
-    # TODO
-    def has_partition(collection_name: str, partition_name: str, timeout: float=None) -> bool:
+    @NotImplementedError
+    def create_partition(self, collection_name: str, partition_name: str, **kwargs) -> None:
         pass
 
-    # TODO
-    def describe_partition(collection_name: str, partition_name: str, timeout: float=None) -> Dict[str, Any]:
+    @NotImplementedError
+    def describe_partition(self, collection_name: str, partition_name: str, **kwargs) -> PartitionInfo:
+        # TODO
         pass
 
-    # TODO
-    def get_partition_statistics(collection_name: str, partition_name: str, timeout: float=None) -> Dict[str, Any]:
+    @NotImplementedError
+    def drop_partition(self, collection_name: str, partition_name: str, **kwargs) -> None:
         pass
 
-    # TODO
-    def list_partitions(collection_name: str, timeout: float=None) -> List[str]:
+    @NotImplementedError
+    def has_partition(self, collection_name: str, partition_name: str, **kwargs) -> bool:
         pass
 
-    # Index
-    # TODO
-    def drop_index(collection_name: str, field_name: str, index_name: str, timeout: float=None) ->None:
+    @NotImplementedError
+    def list_partitions(self, collection_name: str, **kwargs) -> List[str]:
         pass
 
-    # TODO
-    def has_index(collection_name: str, field_name: str, index_name: str, timeout: float=None) -> bool:
+    @NotImplementedError
+    def describe_index(self, collection_name: str, index_name: str, **kwargs) -> IndexInfo:
         pass
 
-    # TODO
-    def list_indexes(collection_name: str, timeout: float=None, **kwargs) -> List[str]:
+    @NotImplementedError
+    def drop_index(self, collection_name: str, index_name: str, **kwargs) ->None:
         pass
 
-    # TODO
-    def describe_index(collection_name: str, index_name: str, timeout: float=None, **kwargs) -> Dict[str, Any]:
+    @NotImplementedError
+    def has_index(self, collection_name: str, index_name: str, **kwargs) -> bool:
+        pass
+
+    @NotImplementedError
+    def list_indexes(self, collection_name: str, field_name: str, **kwargs) -> List[str]:
         pass
 
     # ResouceGroup
     # TODO
-    def create_resource_group(group_name: str, timeout: float=None, **kwargs) -> None:
+    def create_resource_group(self, group_name: str, timeout: float=None, **kwargs) -> None:
         pass
 
     # TODO
-    def drop_resource_group(group_name: str, timeout: float=None, **kwargs) -> None:
+    def drop_resource_group(self, group_name: str, timeout: float=None, **kwargs) -> None:
         pass
 
     # TODO
-    def describe_resource_group(group_name: str, timeout: float=None, **kwargs) -> ResourceGroupInfo:
+    def describe_resource_group(self, group_name: str, timeout: float=None, **kwargs) -> ResourceGroupInfo:
         pass
 
     # TODO
-    def list_resource_groups(timeout: float=None, **kwargs) -> List[str]:
+    def list_resource_groups(self, timeout: float=None, **kwargs) -> List[str]:
         pass
 
     # TODO
-    def transfer_node(source_group: str, target_group: str, num_node: int, timeout: float=None, **kwargs) -> None:
+    def transfer_node(self, source_group: str, target_group: str, num_node: int, timeout: float=None, **kwargs) -> None:
         pass
 
     # TODO
-    def transfer_replica(source_group: str, target_group: str, collection_name: str, num_replica: int, timeout: float=None, **kwargs) -> None:
+    def transfer_replica(self, source_group: str, target_group: str, collection_name: str, num_replica: int, timeout: float=None, **kwargs) -> None:
         pass
 
     # RBAC TODO
 
 
     # Others
+
     # TODO
-    def get_server_version(timeout: float=None, **kwargs) -> str:
+    def insert(self, collection_name: str, column_based_entities: List[list], partition_name: str="_default", timeout: float=None, **kwargs):
         pass
 
     # TODO
-    def insert(collection_name: str, column_based_entities: List[list], partition_name: str="_default", timeout: float=None, **kwargs):
+    def insert_by_rows(self, collection_name: str, row_based_entities: List[list], partition_name: str="_default", timeout: float=None, **kwargs):
         pass
 
     # TODO
-    def insert_by_rows(collection_name: str, row_based_entities: List[list], partition_name: str="_default", timeout: float=None, **kwargs):
+    def bulk_insert(self, collection_name: str, partition_name: str, files: List[str], timeout: float=None, **kwargs) -> int:
         pass
 
     # TODO
-    def bulk_insert(collection_name: str, partition_name: str, files: List[str], timeout: float=None, **kwargs) -> int:
+    def upsert(self, timeout: float=None):
         pass
 
     # TODO
-    def upsert(timeout: float=None):
+    def delete(self, collection_name: str, pks: List[Union[int, str]], partition_name: str="_default", timeout: float=None, **kwargs):
         pass
 
     # TODO
-    def delete(collection_name: str, pks: List[Union[int, str]], partition_name: str="_default", timeout: float=None, **kwargs):
-        pass
-
-    # TODO
-    def delete_by_expression(collection_name: str, expression: str, partition_name: str="_default", timeout: float=None, **kwargs):
-        pass
-
-    # TODO
-    def release_collection(collection_name: str, timeout: float=None, **kwargs):
-        pass
-
-    # TODO
-    def release_partitions(collection_name: str, partition_names: List[str], timeout: float=None, **kwargs):
-        pass
-
-    # TODO
-    def flush(collection_name: str, timeout: float=None, **kwargs):
-        pass
-
-    # TODO
-    def create_index(collection_name: str, field_name: str, index_name: str, timeout: float=None):
+    def delete_by_expression(self, collection_name: str, expression: str, partition_name: str="_default", timeout: float=None, **kwargs):
         pass
 
 
     # TODO
-    def search(collection_name: str, data: List[Any], anns_field: str, param: Dict[str, Any], limit: int,
+    def release_partitions(self, collection_name: str, partition_names: List[str], timeout: float=None, **kwargs):
+        pass
+
+    # TODO
+    def flush(self, collection_name: str, timeout: float=None, **kwargs):
+        pass
+
+    # TODO
+    def create_index(self, collection_name: str, field_name: str, index_name: str, timeout: float=None):
+        pass
+
+
+    # TODO
+    def search(self, collection_name: str, data: List[Any], anns_field: str, param: Dict[str, Any], limit: int,
         expression: str=None, partition_names: List[str]=None, output_fields: List[str]=None,
         round_decimal: int=-1, timeout: float=None, schema: Any=None, **kwargs):
         pass
 
     # TODO
-    def query(collection_name: str, expr: str, output_fields: List[str]=None, partition_names: List[str]=None, timeout: float=None, **kwargs):
+    def query(self, collection_name: str, expr: str, output_fields: List[str]=None, partition_names: List[str]=None, timeout: float=None, **kwargs):
         pass
 
     # TODO
-    def load_collection(collection_name: str, num_replica: int=1, timeout: float=None, **kwargs):
+    def load_collection(self, collection_name: str, num_replica: int=1, timeout: float=None, **kwargs):
         pass
 
     # TODO
-    def load_partitions(collection_name: str, partition_names: List[str], timeout: float=None, **kwargs):
+    def load_partitions(self, collection_name: str, partition_names: List[str], timeout: float=None, **kwargs):
         pass
-
