@@ -10,11 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-import grpc
+from .grpc_handler import AsyncGrpcHandler
 
-from ..abstract_grpc_handler import AbstractGrpcHandler
-
-
-class GrpcHandler(AbstractGrpcHandler[grpc.Channel]):
+class AsyncMilvusClient(AsyncGrpcHandler):
     pass
-

@@ -25,6 +25,7 @@ setuptools.setup(
         "mmh3>=2.0,<=3.0.0",
         "pandas==1.1.5; python_version<'3.7'",
         "pandas>=1.2.4; python_version>'3.6'",
+        "typing_extensions",
     ],
     classifiers=[
         "Programming Language :: Python :: 3.6",

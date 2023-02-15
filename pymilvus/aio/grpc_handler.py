@@ -14,7 +14,6 @@ import grpc
 
 from ..abstract_grpc_handler import AbstractGrpcHandler
 
-
-class GrpcHandler(AbstractGrpcHandler[grpc.Channel]):
+class AsyncGrpcHandler(AbstractGrpcHandler[grpc.aio.Channel]):
     pass
 
