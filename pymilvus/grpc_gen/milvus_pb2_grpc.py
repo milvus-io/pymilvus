@@ -345,6 +345,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.DescribeResourceGroupRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeResourceGroupResponse.FromString,
                 )
+        self.RenameCollection = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/RenameCollection',
+                request_serializer=milvus__pb2.RenameCollectionRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -753,6 +758,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def RenameCollection(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -1085,6 +1096,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.DescribeResourceGroup,
                     request_deserializer=milvus__pb2.DescribeResourceGroupRequest.FromString,
                     response_serializer=milvus__pb2.DescribeResourceGroupResponse.SerializeToString,
+            ),
+            'RenameCollection': grpc.unary_unary_rpc_method_handler(
+                    servicer.RenameCollection,
+                    request_deserializer=milvus__pb2.RenameCollectionRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -2215,6 +2231,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DescribeResourceGroup',
             milvus__pb2.DescribeResourceGroupRequest.SerializeToString,
             milvus__pb2.DescribeResourceGroupResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def RenameCollection(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/RenameCollection',
+            milvus__pb2.RenameCollectionRequest.SerializeToString,
+            common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

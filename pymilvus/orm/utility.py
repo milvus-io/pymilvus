@@ -446,6 +446,36 @@ def drop_collection(collection_name, timeout=None, using="default"):
     return _get_connection(using).drop_collection(collection_name, timeout=timeout)
 
 
+def rename_collection(old_collection_name, new_collection_name, timeout=None, using="default"):
+    """
+    Rename a collection to new collection name
+
+    :param old_collection_name: A string representing old name of the renamed collection
+    :type  old_collection_name: str
+
+    :param new_collection_name: A string representing new name of the renamed collection
+    :type  new_collection_name: str
+
+    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                    is set to None, client waits until server response or error occur.
+    :type  timeout: float
+
+    :example:
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> schema = CollectionSchema(fields=[
+        ...     FieldSchema("int64", DataType.INT64, description="int64", is_primary=True),
+        ...     FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=128),
+        ... ])
+        >>> collection = Collection(name="old_collection", schema=schema)
+        >>> utility.rename_collection("old_collection", "new_collection")
+        >>> True
+        >>> utility.drop_collection("new_collection")
+        >>> utility.has_collection("new_collection")
+        >>> False
+    """
+    return _get_connection(using).rename_collections(old_collection_name, new_collection_name, timeout=timeout)
+
 def list_collections(timeout=None, using="default") -> list:
     """
     Returns a list of all collection names.

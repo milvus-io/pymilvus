@@ -271,6 +271,17 @@ class GrpcHandler:
         raise MilvusException(status.error_code, status.reason)
 
     @retry_on_rpc_failure()
+    def rename_collections(self, old_name=None, new_name=None, timeout=None):
+        check_pass_param(collection_name=new_name)
+        check_pass_param(collection_name=old_name)
+        request = Prepare().rename_collections_request(old_name, new_name)
+        rf = self._stub.RenameCollection.future(request, timeout=timeout)
+        response = rf.result()
+
+        if response.error_code != 0:
+            raise MilvusException(response.error_code, response.reason)
+
+    @retry_on_rpc_failure()
     def create_partition(self, collection_name, partition_name, timeout=None):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.create_partition_request(collection_name, partition_name)
