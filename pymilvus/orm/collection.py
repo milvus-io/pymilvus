@@ -12,7 +12,7 @@
 
 import copy
 import json
-from typing import List
+from typing import List, Union
 import pandas
 
 from .connections import connections
@@ -20,7 +20,7 @@ from .schema import (
     CollectionSchema,
     FieldSchema,
     parse_fields_from_data,
-    check_insert_data_schema,
+    check_insert_or_upsert_data_schema,
     check_schema,
 )
 from .prepare import Prepare
@@ -388,7 +388,7 @@ class Collection:
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=timeout, **kwargs)
 
-    def insert(self, data: [List, pandas.DataFrame], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
+    def insert(self, data: Union[List, pandas.DataFrame], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
         """ Insert data into the collection.
 
         Args:
@@ -423,8 +423,8 @@ class Collection:
         """
         if data is None:
             return MutationResult(data)
-        check_insert_data_schema(self._schema, data)
-        entities = Prepare.prepare_insert_data(data, self._schema)
+        check_insert_or_upsert_data_schema(self._schema, data)
+        entities = Prepare.prepare_insert_or_upsert_data(data, self._schema)
 
         conn = self._get_connection()
         res = conn.batch_insert(self._name, entities, partition_name,
@@ -473,6 +473,52 @@ class Collection:
 
         conn = self._get_connection()
         res = conn.delete(self._name, expr, partition_name, timeout=timeout, **kwargs)
+        if kwargs.get("_async", False):
+            return MutationFuture(res)
+        return MutationResult(res)
+
+    def upsert(self, data: Union[List, pandas.DataFrame], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
+        """ Upsert data into the collection.
+
+        Args:
+            data (``list/tuple/pandas.DataFrame``): The specified data to upsert
+            partition_name (``str``): The partition name which the data will be upserted at,
+                if partition name is not passed, then the data will be upserted in "_default" partition
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC. Defaults to None.
+                If timeout is set to None, the client keeps waiting until the server responds or an error occurs.
+        Returns:
+            MutationResult: contains 2 properties `upsert_count`, and, `primary_keys`
+                `upsert_count`: how may entites have been upserted at Milvus,
+                `primary_keys`: list of primary keys of the upserted entities
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> import random
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_collection_upsert", schema)
+            >>> data = [
+            ...     [random.randint(1, 100) for _ in range(10)],
+            ...     [[random.random() for _ in range(2)] for _ in range(10)],
+            ... ]
+            >>> res = collection.upsert(data)
+            >>> res.upsert_count
+            10
+        """
+        if data is None:
+            return MutationResult(data)
+        check_insert_or_upsert_data_schema(self._schema, data, False)
+        entities = Prepare.prepare_insert_or_upsert_data(data, self._schema, False)
+
+        conn = self._get_connection()
+        res = conn.upsert(self._name, entities, partition_name,
+                                timeout=timeout, schema=self._schema_dict, **kwargs)
+
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)

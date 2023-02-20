@@ -11,7 +11,7 @@
 # the License.
 
 import copy
-from typing import List
+from typing import List, Union
 import pandas
 from pandas.api.types import is_list_like
 
@@ -27,6 +27,7 @@ from ..exceptions import (
     ExceptionsMessage,
     DataNotMatchException,
     SchemaNotReadyException,
+    UpsertAutoIDTrueException
 )
 
 
@@ -289,26 +290,29 @@ class FieldSchema:
         return self._dtype
 
 
-def check_insert_data_schema(schema: CollectionSchema, data: [List[List], pandas.DataFrame]) -> None:
-    """ check if the insert data is consist with the collection schema
+def check_insert_or_upsert_data_schema(schema: CollectionSchema, data: Union[List[List], pandas.DataFrame], isInsert=True) -> None:
+    """ check if the insert or upsert data is consist with the collection schema
 
     Args:
         schema (CollectionSchema): the schema of the collection
-        data (List[List], pandas.DataFrame): the data to be inserted
+        data (List[List], pandas.DataFrame): the data to be inserted or upserted
 
     Raise:
         SchemaNotReadyException: if the schema is None
+        UpsertAutoIDTrueException: if autoid option is true
         DataNotMatchException: if the data is in consist with the schema
     """
     if schema is None:
         raise SchemaNotReadyException(message="Schema shouldn't be None")
     if schema.auto_id:
-        if isinstance(data, pandas.DataFrame):
-            if schema.primary_field.name in data:
-                if not data[schema.primary_field.name].isnull().all():
-                    raise DataNotMatchException(message=f"Please don't provide data for auto_id primary field: {schema.primary_field.name}")
-                data = data.drop(schema.primary_field.name, axis=1)
-
+        if isInsert:
+            if isinstance(data, pandas.DataFrame):
+                if schema.primary_field.name in data:
+                    if not data[schema.primary_field.name].isnull().all():
+                        raise DataNotMatchException(message=f"Please don't provide data for auto_id primary field: {schema.primary_field.name}")
+                    data = data.drop(schema.primary_field.name, axis=1)
+        else:
+            raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
     infer_fields = parse_fields_from_data(data)
     tmp_fields = copy.deepcopy(schema.fields)
 
@@ -329,7 +333,7 @@ def check_insert_data_schema(schema: CollectionSchema, data: [List[List], pandas
             raise DataNotMatchException(message=f"The name of field don't match, expected: {y.name}, got {x.name}")
 
 
-def parse_fields_from_data(data: [List[List], pandas.DataFrame]) -> List[FieldSchema]:
+def parse_fields_from_data(data: Union[List[List], pandas.DataFrame]) -> List[FieldSchema]:
     if not isinstance(data, (pandas.DataFrame, list)):
         raise DataTypeNotSupportException(message="The type of data should be list or pandas.DataFrame")
 

@@ -296,7 +296,7 @@ class Partition:
         if conn.has_partition(self._collection.name, self._name, **kwargs) is False:
             raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
         # TODO: check insert data schema here?
-        entities = Prepare.prepare_insert_data(data, self._collection.schema)
+        entities = Prepare.prepare_insert_or_upsert_data(data, self._collection.schema)
         res = conn.batch_insert(self._collection.name, entities=entities, partition_name=self._name,
             timeout=timeout, orm=True, schema=self._schema_dict, **kwargs)
         if kwargs.get("_async", False):
@@ -344,6 +344,59 @@ class Partition:
 
         conn = self._get_connection()
         res = conn.delete(self._collection.name, expr, self.name, timeout=timeout, **kwargs)
+        if kwargs.get("_async", False):
+            return MutationFuture(res)
+        return MutationResult(res)
+
+    def upsert(self, data, timeout=None, **kwargs):
+        """
+        Upsert data into partition.
+
+        :param data: The specified data to upsert, the dimension of data needs to align with column
+                     number
+        :type  data: list-like(list, tuple) object or pandas.DataFrame
+
+        :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                        is set to None, client waits until server response or error occur
+        :type  timeout: float
+
+        :param kwargs:
+            * *timeout* (``float``) --
+              An optional duration of time in seconds to allow for the RPC. When timeout
+              is set to None, client waits until server response or error occur.
+
+        :return: A MutationResult object contains a property named `upsert_count` represents how many
+        entities have been upserted at milvus and a property named `primary_keys` is a list of primary
+        keys of the upserted entities.
+        :rtype: MutationResult
+
+        :raises PartitionNotExistException:
+            When partitoin does not exist
+
+        :example:
+            >>> from pymilvus import connections, Collection, Partition, FieldSchema, CollectionSchema, DataType
+            >>> connections.connect()
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_partition_upsert", schema)
+            >>> partition = Partition(collection, "comedy", "comedy films")
+            >>> data = [
+            ...     [i for i in range(10)],
+            ...     [[float(i) for i in range(2)] for _ in range(10)],
+            ... ]
+            >>> partition.upsert(data)
+            >>> partition.num_entities
+            10
+        """
+        conn = self._get_connection()
+        if conn.has_partition(self._collection.name, self._name, **kwargs) is False:
+            raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
+        # TODO: check upsert data schema here?
+        entities = Prepare.prepare_insert_or_upsert_data(data, self._collection.schema,False)
+        res = conn.upsert(self._collection.name, entities=entities, partition_name=self._name,
+            timeout=timeout, orm=True, schema=self._schema_dict, **kwargs)
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)

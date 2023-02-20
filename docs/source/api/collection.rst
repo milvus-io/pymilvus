@@ -61,6 +61,8 @@ Methods
 +---------------------------------------------------------------+--------------------------------------------------------------------------+
 | `search() <#pymilvus.Collection.search>`_                     | Vector similarity search with an optional boolean expression as filters. |
 +---------------------------------------------------------------+--------------------------------------------------------------------------+
+| `upsert() <#pymilvus.Collection.upsert>`_                     | Upsert data of collection.                                                                  |
++---------------------------------------------------------------+--------------------------------------------------------------------------+
 | `query() <#pymilvus.Collection.query>`_                       | Query with a set of criteria.                                            |
 +---------------------------------------------------------------+--------------------------------------------------------------------------+
 | `partition() <#pymilvus.Collection.partition>`_               | Return the partition corresponding to name.                              |
