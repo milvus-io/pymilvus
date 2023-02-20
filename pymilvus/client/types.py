@@ -319,7 +319,7 @@ class Group:
         self._num_outbound_node = num_outbound_node
 
     def __repr__(self) -> str:
-        s = f"Group: <group_id:{self.id}>, <group_nodes:{self.group_nodes}>, <shards:{self.shards}>"
+        s = f"Group: <group_id:{self.id}>, <group_nodes:{self.group_nodes}>, <shards:{self.shards}>, <resource_group: {self.resource_group}>, <num_outbound_node: {self.num_outbound_node}>"
         return s
 
     @property
