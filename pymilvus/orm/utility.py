@@ -1000,39 +1000,39 @@ def list_resource_groups(using="default", timeout=None):
     return _get_connection(using).list_resource_groups(timeout)
 
 
-def transfer_node(source, target, num_node, using="default", timeout=None):
+def transfer_node(source_group, target_group, num_nodes, using="default", timeout=None):
     """transfer num_node from source resource group to target resource_group
 
-    :param source: source resource group name
-    :type source: str
-    :param target: target resource group name
-    :type target: str
-    :param num_node: transfer node num
-    :type num_node: int
+    :param source_group: source resource group name
+    :type source_group: str
+    :param target_group: target resource group name
+    :type target_group: str
+    :param num_nodes: transfer node num
+    :type num_nodes: int
 
     :example:
         >>> from pymilvus import connections, utility
         >>> connections.connect()
-        >>> rgs = utility.transfer_node(source, target, num_node)
+        >>> rgs = utility.transfer_node(source_group, target_group, num_nodes)
     """
-    return _get_connection(using).transfer_node(source, target, num_node, timeout)
+    return _get_connection(using).transfer_node(source_group, target_group, num_nodes, timeout)
 
 
-def transfer_replica(source, target, collection_name, num_replica, using="default", timeout=None):
+def transfer_replica(source_group, target_group, collection_name, num_replicas, using="default", timeout=None):
     """transfer num_replica from source resource group to target resource group
 
-    :param source: source resource group name
-    :type source: str
-    :param target: target resource group name
-    :type target: str
+    :param source_group: source resource group name
+    :type source_group: str
+    :param target_group: target resource group name
+    :type target_group: str
     :param collection_name: collection name which replica belong to
     :type collection_name: str
-    :param num_replica: transfer replica num
-    :type num_replica: int
+    :param num_replicas: transfer replica num
+    :type num_replicas: int
 
     :example:
         >>> from pymilvus import connections, utility
         >>> connections.connect()
         >>> rgs = utility.transfer_replica(source, target, collection_name, num_replica)
     """
-    return _get_connection(using).transfer_replica(source, target, collection_name, num_replica, timeout)
+    return _get_connection(using).transfer_replica(source_group, target_group, collection_name, num_replicas, timeout)
