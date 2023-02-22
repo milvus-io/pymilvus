@@ -260,11 +260,10 @@ class Prepare:
         for entity in entities:
             if not entity.get("name", None) or not entity.get("values", None) or not entity.get("type", None):
                 raise ParamError(message="Missing param in entities, a field must have type, name and values")
-            if not fields_info:
-                raise ParamError(message="Missing collection meta to validate entities")
+        if not fields_info:
+            raise ParamError(message="Missing collection meta to validate entities")
 
-        location, primary_key_loc, auto_id_loc = {}, None, None
-        traverse_info(fields_info, entities, location, primary_key_loc, auto_id_loc)
+        location, primary_key_loc, auto_id_loc = traverse_info(fields_info, entities)
 
         # though impossible from sdk
         if primary_key_loc is None:

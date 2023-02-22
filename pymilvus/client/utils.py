@@ -151,7 +151,8 @@ def len_of(field_data) -> int:
     raise MilvusException(message="Unknown data type")
 
 
-def traverse_info(fields_info, entities, location, primary_key_loc, auto_id_loc):
+def traverse_info(fields_info, entities):
+    location, primary_key_loc, auto_id_loc = {}, None, None
     for i, field in enumerate(fields_info):
         if field.get("is_primary", False):
             primary_key_loc = i
@@ -192,3 +193,5 @@ def traverse_info(fields_info, entities, location, primary_key_loc, auto_id_loc)
         if not match_flag:
             raise ParamError(
                 message=f"Field {field['name']} don't match in entities")
+
+    return location, primary_key_loc, auto_id_loc
