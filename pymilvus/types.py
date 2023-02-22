@@ -10,10 +10,9 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-import typing
 from typing_extensions import Self
 
-# TODO
+@NotImplementedError
 class CollectionSchema:
     def __init__(self):
         """ s = CollectionSchema().add_field(...) """
@@ -21,6 +20,22 @@ class CollectionSchema:
     def add_field(self) -> Self:
         pass
 
-# TODO
+@NotImplementedError
 class ResourceGroupInfo:
+    pass
+
+@NotImplementedError
+class AliasInfo:
+    pass
+
+@NotImplementedError
+class CollectionInfo:
+    pass
+
+@NotImplementedError
+class IndexInfo:
+    pass
+
+@NotImplementedError
+class PartitionInfo:
     pass

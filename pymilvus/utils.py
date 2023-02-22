@@ -10,15 +10,6 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-import grpc
-import typing
-
-GrpcChannelT  = typing.TypeVar('GrpcChannelT', grpc.Channel, grpc.aio.Channel)
-
-class AbstractGrpcHandler(typing.Generic[GrpcChannelT]):
-    """Establish a channel"""
-
-    def __init__(self):
-        self._channel == set_channel()
-        # _secured_channel
-        # _insecured_channel
+# TODO
+def generate_address(host, port) -> str:
+    return f"{host}:{port}"

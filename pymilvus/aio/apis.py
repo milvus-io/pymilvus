@@ -10,7 +10,179 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-from .grpc_handler import AsyncGrpcHandler
+from typing import Dict, List, Any, Union
 
-class AsyncMilvusClient(AsyncGrpcHandler):
-    pass
+from .grpc_handler import AsyncGrpcHandler
+from ..settings import DefaultConfig
+from ..utils import generate_address
+from ..grpc_gen import milvus_pb2 as milvus_types
+from ..grpc_gen import common_pb2
+from ..exceptions import MilvusException
+from ..types import (
+    CollectionSchema,
+    AliasInfo,
+    CollectionInfo,
+    IndexInfo,
+    PartitionInfo,
+)
+
+class AsyncMilvusClient:
+    handler: AsyncGrpcHandler
+
+    # TODO secured channel
+    def __init__(self, host: str, port: Union[str, int], **kwargs):
+
+        timeout = kwargs.get("timeout")
+        if isinstance(timeout, (int, float)) and timeout > 0:
+            connection_timeout = timeout
+        else:
+            connection_timeout = DefaultConfig.CONNECTION_TIMEOUT
+
+        address = generate_address(host, port)
+
+        # set up GrpcHandler
+        self.handler = AsyncGrpcHandler(address, timeout=connection_timeout, **kwargs)
+
+    async def get_server_version(self, **kwargs) -> str:
+        req = milvus_types.GetVersionRequest()
+        resp = await self.handler.GetVersion(req, **kwargs)
+        if resp.status.error_code != common_pb2.Success:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return resp.version
+
+    @NotImplementedError
+    async def create_alias(self, alias: str, collection_name: str, **kwargs) -> None:
+        """ Create an alias for a collection
+
+        Args:
+            alias (``str``): Specifies an alias desired for the collection.
+            collection_name (``str``): Specifies the name of a target collection.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.create_alias("Gandalf", "hello_milvus")
+        """
+        pass
+
+    @NotImplementedError
+    async def alter_alias(self, alias: str, collection_name: str, **kwargs) -> None:
+        pass
+
+    @NotImplementedError
+    async def describe_alias(self, alias: str, **kwargs) -> AliasInfo:
+        pass
+
+    @NotImplementedError
+    async def drop_alias(self, alias: str, **kwargs) -> None:
+        pass
+
+    @NotImplementedError
+    async def has_alias(self, alias: str, **kwargs) -> bool:
+        pass
+
+    @NotImplementedError
+    async def list_aliases(self, collection_name: str, **kwargs) -> List[str]:
+        pass
+
+    @NotImplementedError
+    async def create_collection(self, name: str, schema: CollectionSchema, **kwargs) -> None:
+        pass
+
+    @NotImplementedError
+    async def create_schema(self) -> CollectionSchema:
+        pass
+
+    @NotImplementedError
+    async def describe_collection(self, name: str, **kwargs) -> CollectionInfo:
+        pass
+
+    @NotImplementedError
+    async def drop_collection(self, name: str, **kwargs) -> None:
+        pass
+
+    @NotImplementedError
+    async def has_collection(self, name: str, **kwargs) -> bool:
+        pass
+
+    async def list_collections(self, **kwargs) -> List[str]:
+        """ List all collection names in the Database.
+
+        Args:
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Returns:
+           List[str]: list of collection names.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.list_collections()
+            ['lord_of_the_rings', 'hello_milvus']
+        """
+        req = milvus_types.ShowCollectionsRequest()
+        resp = await self.handler.ShowCollections(req, **kwargs)
+        if resp.status.error_code != common_pb2.Success:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return resp.collection_names
+
+    @NotImplementedError
+    async def alter_collection(self, name: str, properties: Dict[str, Any], **kwargs) -> None:
+        # TODO
+        pass
+
+    @NotImplementedError
+    async def release_collection(self, name, **kwargs) -> None:
+        pass
+
+    @NotImplementedError
+    async def create_partition(self, collection_name: str, partition_name: str, **kwargs) -> None:
+        pass
+
+    @NotImplementedError
+    async def describe_partition(self, collection_name: str, partition_name: str, **kwargs) -> PartitionInfo:
+        # TODO
+        pass
+
+    @NotImplementedError
+    async def drop_partition(self, collection_name: str, partition_name: str, **kwargs) -> None:
+        pass
+
+    @NotImplementedError
+    async def has_partition(self, collection_name: str, partition_name: str, **kwargs) -> bool:
+        pass
+
+    @NotImplementedError
+    async def list_partitions(self, collection_name: str, **kwargs) -> List[str]:
+        pass
+
+    @NotImplementedError
+    async def describe_index(self, collection_name: str, index_name: str, **kwargs) -> IndexInfo:
+        pass
+
+    @NotImplementedError
+    async def drop_index(self, collection_name: str, index_name: str, **kwargs) ->None:
+        pass
+
+    @NotImplementedError
+    async def has_index(self, collection_name: str, index_name: str, **kwargs) -> bool:
+        pass
+
+    @NotImplementedError
+    async def list_indexes(self, collection_name: str, field_name: str, **kwargs) -> List[str]:
+        pass

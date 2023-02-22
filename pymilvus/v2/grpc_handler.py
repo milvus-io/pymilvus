@@ -10,11 +10,44 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+from typing import List
 import grpc
 
-from ..abstract_grpc_handler import AbstractGrpcHandler
+from ..abstract_grpc_handler import SecureMixin
+from ..settings import DefaultConfig
+from ..grpc_gen import milvus_pb2_grpc, common_pb2
+
+from ..exceptions import MilvusException
 
 
-class GrpcHandler(AbstractGrpcHandler[grpc.Channel]):
-    pass
 
+class GrpcHandler(milvus_pb2_grpc.MilvusServiceStub, SecureMixin):
+    channel: grpc.Channel
+
+    def __init__(self, address: str, timeout: float, **kwargs):
+        self.opts = DefaultConfig.CONNECTION_OPTS
+
+        secure_opts = kwargs.get("secure")
+        _extra_opts = self.get_extra_opts(secure_opts)
+        _creds = self.get_credentials(secure_opts)
+        _interceptors = self.get_interceptors(secure_opts)
+
+        if isinstance(_extra_opts, List) and len(_extra_opts)> 0:
+            self.opts.extend(_extra_opts)
+
+        if _creds is not None:
+            self.channel = grpc.secure_channel(address, _creds, options=self.opts)
+        else:
+            self.channel = grpc.insecure_channel(address, options=self.opts)
+
+        if len(_interceptors) > 0:
+            self.channel = grpc.intercept_channel(self.channel, _interceptors)
+
+        # set up MilvusServiceStub
+        super().__init__(self.channel)
+
+        try:
+            grpc.channel_ready_future(self.channel).result(timeout=timeout)
+        except grpc.FutureTimeoutError as e:
+            raise MilvusException(common_pb2.ConnectFailed,
+                                  f'Fail to connect to Milvus at address {address}, timeout in {timeout}s.') from e
