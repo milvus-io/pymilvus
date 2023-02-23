@@ -361,13 +361,10 @@ class GrpcHandler:
 
         if param and not isinstance(param, milvus_types.RowBatch):
             if isInsert:
-                raise ParamError(
-                    message="The value of key 'insert_param' is invalid")
-            raise ParamError(
-                message="The value of key 'upsert_param' is invalid")
+                raise ParamError(message="The value of key 'insert_param' is invalid")
+            raise ParamError(message="The value of key 'upsert_param' is invalid")
         if not isinstance(entities, list):
-            raise ParamError(
-                message="None entities, please provide valid entities.")
+            raise ParamError(message="None entities, please provide valid entities.")
 
         collection_schema = kwargs.get("schema", None)
         if not collection_schema:
