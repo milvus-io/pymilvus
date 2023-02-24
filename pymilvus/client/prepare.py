@@ -464,6 +464,7 @@ class Prepare:
             raise ParamError(message=f"Field {anns_field} doesn't exist in schema")
         dimension = int(fields_schema[fields_name_locs[anns_field]]["params"].get("dim", 0))
 
+        ignore_growing = param.get("ignore_growing",False)
         params = param.get("params", {})
         if not isinstance(params, dict):
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
@@ -474,6 +475,7 @@ class Prepare:
             "params": params,
             "round_decimal": round_decimal,
             "offset": param.get("offset", 0),
+            "ignore_growing": ignore_growing,
         }
 
         def dump(v):
@@ -639,6 +641,8 @@ class Prepare:
         if offset is not None:
             req.query_params.append(common_types.KeyValuePair(key="offset", value=str(offset)))
 
+        ignore_growing = kwargs.get("ignore_growing", False)
+        req.query_params.append(common_types.KeyValuePair(key="ignore_growing", value=str(ignore_growing)))
         return req
 
     @classmethod
