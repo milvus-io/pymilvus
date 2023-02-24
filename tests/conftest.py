@@ -27,30 +27,19 @@ def channel(request):
     return channel
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def client_thread(request):
     client_execution_thread_pool = logging_pool.pool(2)
 
     def teardown():
         client_execution_thread_pool.shutdown(wait=True)
+
+    request.addfinalizer(teardown)
     return client_execution_thread_pool
 
-@pytest.fixture(scope="module")
-def client(request):
-    channel = grpc_testing.channel([descriptor], grpc_testing.strict_real_time())
-
-    client = MilvusClient("fake", "fake", _channel=channel)
-    return client
-
 @pytest.fixture(scope="function")
-def rpc_future_GetVersion(client_thread):
+def client_channel(request):
     channel = grpc_testing.channel([descriptor], grpc_testing.strict_real_time())
+
     client = MilvusClient("fake", "fake", _channel=channel)
-
-    get_server_version_future = client_thread.submit(client.get_server_version)
-    (invocation_metadata, request, rpc) = (
-        channel.take_unary_unary(descriptor.methods_by_name['GetVersion']))
-
-    rpc.send_initial_metadata(())
-    return rpc, get_server_version_future
-
+    return client, channel

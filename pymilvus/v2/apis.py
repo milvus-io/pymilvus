@@ -28,7 +28,7 @@ from ..types import (
 from ..settings import DefaultConfig
 from ..grpc_gen import milvus_pb2 as milvus_types
 from ..grpc_gen import common_pb2, milvus_pb2_grpc
-from ..utils import generate_address
+from ..utils import generate_address, TypeChecker
 
 
 class MilvusClient:
@@ -61,7 +61,6 @@ class MilvusClient:
 
         return resp.version
 
-    @NotImplementedError
     def create_alias(self, alias: str, collection_name: str, **kwargs) -> None:
         """ Create an alias for a collection
 
@@ -81,7 +80,11 @@ class MilvusClient:
             >>> client = MilvusClient("localhost", "19530")
             >>> client.create_alias("Gandalf", "hello_milvus")
         """
-        pass
+        TypeChecker.check(alias=alias, collection_name=collection_name)
+        req = milvus_types.CreateAliasRequest(alias=alias, collection_name=collection_name)
+        status = self.handler.CreateAlias(req)
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
 
     @NotImplementedError
     def alter_alias(self, alias: str, collection_name: str, **kwargs) -> None:
