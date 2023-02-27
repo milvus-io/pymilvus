@@ -13,7 +13,7 @@
 from typing import List
 import grpc
 
-from ..abstract_grpc_handler import SecureMixin
+from ..mix_in import SecureMixin
 from ..settings import DefaultConfig
 from ..grpc_gen import milvus_pb2_grpc, common_pb2
 
