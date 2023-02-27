@@ -14,7 +14,7 @@ from typing import Dict, List, Any, Union
 
 from .grpc_handler import AsyncGrpcHandler
 from ..settings import DefaultConfig
-from ..utils import generate_address
+from ..utils import generate_address, TypeChecker
 from ..grpc_gen import milvus_pb2 as milvus_types
 from ..grpc_gen import common_pb2
 from ..exceptions import MilvusException
@@ -51,7 +51,6 @@ class AsyncMilvusClient:
 
         return resp.version
 
-    @NotImplementedError
     async def create_alias(self, alias: str, collection_name: str, **kwargs) -> None:
         """ Create an alias for a collection
 
@@ -67,23 +66,68 @@ class AsyncMilvusClient:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import MilvusClient
-            >>> client = MilvusClient("localhost", "19530")
-            >>> client.create_alias("Gandalf", "hello_milvus")
+            >>> from pymilvus.aio import AsyncMilvusClient
+            >>> client = AsyncMilvusClient("localhost", "19530")
+            >>> await client.create_alias("Gandalf", "hello_milvus")
         """
-        pass
+        TypeChecker.check(alias=alias, collection_name=collection_name)
+        req = milvus_types.CreateAliasRequest(alias=alias, collection_name=collection_name)
+        status = await self.handler.CreateAlias(req)
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
 
-    @NotImplementedError
     async def alter_alias(self, alias: str, collection_name: str, **kwargs) -> None:
-        pass
+        """ Alter this alias to a new collection
+
+        Args:
+            alias (``str``): Specifies an alias desired for the collection.
+            collection_name (``str``): Specifies the name of a target collection.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus.aio import AsyncMilvusClient
+            >>> client = AsyncMilvusClient("localhost", "19530")
+            >>> await client.alter_alias("Gandalf", "hello_milvus")
+        """
+        TypeChecker.check(alias=alias, collection_name=collection_name)
+        req = milvus_types.AlterAliasRequest(alias=alias, collection_name=collection_name)
+        status = await self.handler.AlterAlias(req)
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
 
     @NotImplementedError
     async def describe_alias(self, alias: str, **kwargs) -> AliasInfo:
         pass
 
-    @NotImplementedError
     async def drop_alias(self, alias: str, **kwargs) -> None:
-        pass
+        """ Drop the alias
+
+        Args:
+            alias (``str``): Specifies an alias desired for the collection.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus.aio import AsyncMilvusClient
+            >>> client = AsyncMilvusClient("localhost", "19530")
+            >>> await client.drop_alias("Gandalf")
+        """
+        TypeChecker.check(alias=alias)
+        req = milvus_types.DropAliasRequest(alias=alias)
+        status = await self.handler.DropAlias(req)
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
 
     @NotImplementedError
     async def has_alias(self, alias: str, **kwargs) -> bool:

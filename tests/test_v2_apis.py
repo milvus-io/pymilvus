@@ -14,14 +14,17 @@ def prep_channel(channel, method_name):
     return rpc
 
 
-@pytest.mark.usefixtures("client_thread")
+@pytest.fixture(params=[
+    common_pb2.Success,
+    common_pb2.UnexpectedError,
+    common_pb2.CollectionNotExists,
+])
+def error_code(request):
+    yield request.param
+
+
 class TestGetServerVersion:
 
-    @pytest.mark.parametrize("error_code", [
-        common_pb2.Success,
-        common_pb2.UnexpectedError,
-        common_pb2.ConnectFailed,
-    ])
     def test_normal(self, client_channel, client_thread, error_code):
         client, channel = client_channel
         future = client_thread.submit(client.get_server_version)
@@ -45,12 +48,9 @@ class TestGetServerVersion:
             got_result = future.result()
             assert got_result == version
 
-class TestCreateAlias:
-    @pytest.mark.parametrize("error_code", [
-        common_pb2.Success,
-        common_pb2.UnexpectedError,
-    ])
-    def test_normal(self, client_channel, client_thread, error_code):
+
+class TestAlias:
+    def test_create_alias(self, client_channel, client_thread, error_code):
         client, channel = client_channel
         future = client_thread.submit(client.create_alias, "alias", "coll")
 
@@ -67,3 +67,93 @@ class TestCreateAlias:
             assert error_code == excinfo.value.code
         else:
             future.result()
+
+    def test_alter_alias(self, client_channel, client_thread, error_code):
+        client, channel = client_channel
+        future = client_thread.submit(client.alter_alias, "alias", "coll")
+
+        rpc = prep_channel(channel, 'AlterAlias')
+
+        reason = f"mock error: {error_code}" if error_code != common_pb2.Success else ""
+
+        expected_result = common_pb2.Status(error_code=error_code, reason=reason)
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
+
+        if error_code != common_pb2.Success:
+            with pytest.raises(MilvusException) as excinfo:
+                future.result()
+            assert error_code == excinfo.value.code
+        else:
+            future.result()
+
+    def test_drop_alias(self, client_channel, client_thread, error_code):
+        client, channel = client_channel
+        future = client_thread.submit(client.drop_alias, "alias")
+
+        rpc = prep_channel(channel, 'DropAlias')
+
+        reason = f"mock error: {error_code}" if error_code != common_pb2.Success else ""
+
+        expected_result = common_pb2.Status(error_code=error_code, reason=reason)
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
+
+        if error_code != common_pb2.Success:
+            with pytest.raises(MilvusException) as excinfo:
+                future.result()
+            assert error_code == excinfo.value.code
+        else:
+            future.result()
+
+
+class TestCollection:
+    def test_drop_collection(self, client_channel, client_thread, error_code):
+        client, channel = client_channel
+        future = client_thread.submit(client.drop_collection, "cname")
+
+        rpc = prep_channel(channel, 'DropCollection')
+
+        reason = f"mock error: {error_code}" if error_code != common_pb2.Success else ""
+
+        expected_result = common_pb2.Status(error_code=error_code, reason=reason)
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
+
+        if error_code != common_pb2.Success:
+            with pytest.raises(MilvusException) as excinfo:
+                future.result()
+            assert error_code == excinfo.value.code
+        else:
+            future.result()
+
+    def test_has_collection_error(self, client_channel, client_thread):
+        client, channel = client_channel
+        future = client_thread.submit(client.has_collection, "cname")
+
+        rpc = prep_channel(channel, 'DescribeCollection')
+
+        reason = f"mock describe collection error"
+
+        expected_result = milvus_pb2.DescribeCollectionResponse(
+            status= common_pb2.Status(error_code=common_pb2.UnexpectedError, reason=reason),
+        )
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
+
+        with pytest.raises(MilvusException) as excinfo:
+            future.result()
+        assert excinfo.value.code == common_pb2.UnexpectedError
+
+    def test_has_collection_normal(self, client_channel, client_thread, error_code):
+        client, channel = client_channel
+        future = client_thread.submit(client.has_collection, "cname")
+
+        rpc = prep_channel(channel, 'DescribeCollection')
+
+        reason = "" if error_code == common_pb2.Success else "can\'t find collection"
+
+        expected_result = milvus_pb2.DescribeCollectionResponse(
+            status= common_pb2.Status(error_code=error_code, reason=reason),
+        )
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
+
+        got_result = future.result()
+        assert got_result == (error_code == common_pb2.Success)
+

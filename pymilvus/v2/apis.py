@@ -55,7 +55,7 @@ class MilvusClient:
 
     def get_server_version(self, **kwargs) -> str:
         req = milvus_types.GetVersionRequest()
-        resp = self.handler.GetVersion(req, **kwargs)
+        resp = self.handler.GetVersion(req)
         if resp.status.error_code != common_pb2.Success:
             raise MilvusException(resp.status.error_code, resp.status.reason)
 
@@ -86,20 +86,79 @@ class MilvusClient:
         if status.error_code != common_pb2.Success:
             raise MilvusException(status.error_code, status.reason)
 
-    @NotImplementedError
     def alter_alias(self, alias: str, collection_name: str, **kwargs) -> None:
-        pass
+        """ Alter this alias to a new collection
+
+        Args:
+            alias (``str``): Specifies an alias desired for the collection.
+            collection_name (``str``): Specifies the name of a target collection.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.alter_alias("Gandalf", "hello_milvus")
+        """
+        TypeChecker.check(alias=alias, collection_name=collection_name)
+        req = milvus_types.AlterAliasRequest(alias=alias, collection_name=collection_name)
+        status = self.handler.AlterAlias(req)
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
 
     @NotImplementedError
     def describe_alias(self, alias: str, **kwargs) -> AliasInfo:
         pass
 
-    @NotImplementedError
     def drop_alias(self, alias: str, **kwargs) -> None:
-        pass
+        """ Drop the alias
+
+        Args:
+            alias (``str``): Specifies an alias desired for the collection.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.drop_alias("Gandalf")
+        """
+        TypeChecker.check(alias=alias)
+        req = milvus_types.DropAliasRequest(alias=alias)
+        status = self.handler.DropAlias(req)
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
 
     @NotImplementedError
     def has_alias(self, alias: str, **kwargs) -> bool:
+        """ Check if this alias exists
+
+        Args:
+            alias (``str``): Specifies an alias desired for the collection.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.has_alias("Gandalf")
+            False
+        """
         pass
 
     @NotImplementedError
@@ -118,13 +177,65 @@ class MilvusClient:
     def describe_collection(self, name: str, **kwargs) -> CollectionInfo:
         pass
 
-    @NotImplementedError
     def drop_collection(self, name: str, **kwargs) -> None:
-        pass
+        """ Drop the collection
 
-    @NotImplementedError
+        Args:
+            name (``str``): Specifies the name of the collection.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.drop_collection("hello_milvus")
+        """
+        TypeChecker.check(name=name)
+        req = milvus_types.DropCollectionRequest(collection_name=name)
+        status = self.handler.DropCollection(req)
+
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
+
     def has_collection(self, name: str, **kwargs) -> bool:
-        pass
+        """ Check if this collection exists
+
+        Args:
+            name (``str``): Specifies the name of the collection.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.has_collection("hello_milvus")
+            False
+        """
+        TypeChecker.check(name=name)
+        req = milvus_types.DescribeCollectionRequest(collection_name=name)
+        resp = self.handler.DescribeCollection(req)
+
+        def is_status_abnormal(status: common_pb2.Status) -> bool:
+            if status.error_code in (common_pb2.Success, common_pb2.CollectionNotExists) \
+                or (status.error_code == common_pb2.UnexpectedError and "can\'t find collection" in status.reason):
+                return False
+            return True
+
+        if is_status_abnormal(resp.status):
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return resp.status.error_code == common_pb2.Success
+
 
     def list_collections(self, **kwargs) -> List[str]:
         """ List all collection names in the Database.
@@ -148,7 +259,7 @@ class MilvusClient:
             ['lord_of_the_rings', 'hello_milvus']
         """
         req = milvus_types.ShowCollectionsRequest()
-        resp = self.handler.ShowCollections(req, **kwargs)
+        resp = self.handler.ShowCollections(req)
         if resp.status.error_code != common_pb2.Success:
             raise MilvusException(resp.status.error_code, resp.status.reason)
 
@@ -159,46 +270,216 @@ class MilvusClient:
         # TODO
         pass
 
-    @NotImplementedError
     def release_collection(self, name, **kwargs) -> None:
-        pass
+        """ Release the loaded collection
 
-    @NotImplementedError
+        Args:
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Returns:
+           List[str]: list of collection names.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.release_collection("hello_milvus")
+        """
+        req = milvus_types.ReleaseCollectionRequest(collection_name=name)
+        status = self.handler.ReleaseCollection(req)
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
+
     def create_partition(self, collection_name: str, partition_name: str, **kwargs) -> None:
-        pass
+        """ create a partition for the collection
+
+        Args:
+            collection_name (``str``): Name of the collection
+            partition_name (``str``): Name of the partition
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.create_partition("hello_milvus", "movies")
+        """
+        TypeChecker.check(collection_name=collection_name, partition_name=partition_name)
+        req = milvus_types.CreatePartitionRequest(collection_name=collection_name, partition_name=partition_name)
+        status = self.handler.CreatePartition(req)
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
+
 
     @NotImplementedError
     def describe_partition(self, collection_name: str, partition_name: str, **kwargs) -> PartitionInfo:
         # TODO
         pass
 
-    @NotImplementedError
     def drop_partition(self, collection_name: str, partition_name: str, **kwargs) -> None:
-        pass
+        """ Drop a partition in the collection
 
-    @NotImplementedError
+        Args:
+            collection_name (``str``): Specifies the name of the collection.
+            partition_name (``str``): Specifies the name of the partition.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.drop_partition("hello_milvus", "movies")
+        """
+        TypeChecker.check(collection_name=collection_name, partition_name=partition_name)
+        req = milvus_types.DropPartitionRequest(collection_name=collection_name, partition_name=partition_name)
+        status = self.handler.DropPartition(req)
+
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
+
     def has_partition(self, collection_name: str, partition_name: str, **kwargs) -> bool:
-        pass
+        """ Check if a partition exist in the collection
+
+        Args:
+            collection_name (``str``): Specifies the name of the collection.
+            partition_name (``str``): Specifies the name of the partition.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Returns:
+            bool: whether the partition exists.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.has_partition("hello_milvus", "movies")
+            False
+        """
+        TypeChecker.check(collection_name=collection_name, partition_name=partition_name)
+        req = milvus_types.HasPartitionRequest(collection_name=collection_name, partition_name=partition_name)
+        resp = self.handler.HasPartition(req)
+
+        if resp.status.error_code != common_pb2.Success:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        return resp.value
 
     @NotImplementedError
     def list_partitions(self, collection_name: str, **kwargs) -> List[str]:
         pass
 
+    def release_partitions(self, collection_name: str, partition_names: List[str],  **kwargs):
+        """ Release multiple partitions off the memory in the collection
+
+        Args:
+            collection_name (``str``): Specifies the name of the collection.
+            partition_names (``List[str]``): Specifies the list of names of the partitions.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.release_partitions("hello_milvus", "movies")
+        """
+        TypeChecker.check(collection_name=collection_name, partition_names=partition_names)
+        req = milvus_types.ReleasePartitionsRequest(collection_name=collection_name, partition_names=partition_names)
+        status = self.handler.ReleasePartitions(req)
+
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
+
     @NotImplementedError
     def describe_index(self, collection_name: str, index_name: str, **kwargs) -> IndexInfo:
         pass
 
-    @NotImplementedError
     def drop_index(self, collection_name: str, index_name: str, **kwargs) ->None:
-        pass
+        """ Drop a index in the collection
+
+        Args:
+            collection_name (``str``): Specifies the name of the collection.
+            index_name (``str``): Specifies the name of the index.
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.drop_index("hello_milvus", "index_ivf")
+        """
+        TypeChecker.check(collection_name=collection_name, index_name=index_name)
+        req = milvus_types.DropIndexRequest(collection_name=collection_name, index_name=index_name)
+        status = self.handler.DropIndex(req)
+
+        if status.error_code != common_pb2.Success:
+            raise MilvusException(status.error_code, status.reason)
 
     @NotImplementedError
     def has_index(self, collection_name: str, index_name: str, **kwargs) -> bool:
         pass
 
-    @NotImplementedError
     def list_indexes(self, collection_name: str, field_name: str, **kwargs) -> List[str]:
-        pass
+        """ List all indexes' name of the collection field
+
+        Args:
+            collection_name (``str``): Name of the collection
+            field_name (``str``): Name of the field
+            **kwargs (``dict``, optional):
+
+                * *timeout*(``float``): Specifies the timeout duration of this operation in seconds.
+                    The value defaults to ``None``, indicating that no such limit applies.
+
+        Returns:
+           List[str]: list of index names.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient("localhost", "19530")
+            >>> client.list_indexes("hello_milvus", "vector_field")
+            ["index_ivf"]
+        """
+        TypeChecker.check(collection_name=collection_name, field_name=field_name)
+        req = milvus_types.DescribeIndexRequest(collection_name=collection_name, field_name=field_name)
+        resp = self.handler.DescribeIndex(req)
+        if resp.status.error_code != common_pb2.Success:
+            raise MilvusException(resp.status.error_code, resp.status.reason)
+
+        index_names = [d.index_name for d in resp.index_descriptions]
+
+        return index_names
 
     # ResouceGroup
     # TODO
@@ -254,10 +535,6 @@ class MilvusClient:
     def delete_by_expression(self, collection_name: str, expression: str, partition_name: str="_default", timeout: float=None, **kwargs):
         pass
 
-
-    # TODO
-    def release_partitions(self, collection_name: str, partition_names: List[str], timeout: float=None, **kwargs):
-        pass
 
     # TODO
     def flush(self, collection_name: str, timeout: float=None, **kwargs):
