@@ -446,6 +446,36 @@ def drop_collection(collection_name, timeout=None, using="default"):
     return _get_connection(using).drop_collection(collection_name, timeout=timeout)
 
 
+def rename_collection(old_collection_name, new_collection_name, timeout=None, using="default"):
+    """
+    Rename a collection to new collection name
+
+    :param old_collection_name: A string representing old name of the renamed collection
+    :type  old_collection_name: str
+
+    :param new_collection_name: A string representing new name of the renamed collection
+    :type  new_collection_name: str
+
+    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                    is set to None, client waits until server response or error occur.
+    :type  timeout: float
+
+    :example:
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> connections.connect(alias="default")
+        >>> schema = CollectionSchema(fields=[
+        ...     FieldSchema("int64", DataType.INT64, description="int64", is_primary=True),
+        ...     FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=128),
+        ... ])
+        >>> collection = Collection(name="old_collection", schema=schema)
+        >>> utility.rename_collection("old_collection", "new_collection")
+        >>> True
+        >>> utility.drop_collection("new_collection")
+        >>> utility.has_collection("new_collection")
+        >>> False
+    """
+    return _get_connection(using).rename_collections(old_collection_name, new_collection_name, timeout=timeout)
+
 def list_collections(timeout=None, using="default") -> list:
     """
     Returns a list of all collection names.
@@ -970,39 +1000,39 @@ def list_resource_groups(using="default", timeout=None):
     return _get_connection(using).list_resource_groups(timeout)
 
 
-def transfer_node(source, target, num_node, using="default", timeout=None):
+def transfer_node(source_group, target_group, num_nodes, using="default", timeout=None):
     """transfer num_node from source resource group to target resource_group
 
-    :param source: source resource group name
-    :type source: str
-    :param target: target resource group name
-    :type target: str
-    :param num_node: transfer node num
-    :type num_node: int
+    :param source_group: source resource group name
+    :type source_group: str
+    :param target_group: target resource group name
+    :type target_group: str
+    :param num_nodes: transfer node num
+    :type num_nodes: int
 
     :example:
         >>> from pymilvus import connections, utility
         >>> connections.connect()
-        >>> rgs = utility.transfer_node(source, target, num_node)
+        >>> rgs = utility.transfer_node(source_group, target_group, num_nodes)
     """
-    return _get_connection(using).transfer_node(source, target, num_node, timeout)
+    return _get_connection(using).transfer_node(source_group, target_group, num_nodes, timeout)
 
 
-def transfer_replica(source, target, collection_name, num_replica, using="default", timeout=None):
+def transfer_replica(source_group, target_group, collection_name, num_replicas, using="default", timeout=None):
     """transfer num_replica from source resource group to target resource group
 
-    :param source: source resource group name
-    :type source: str
-    :param target: target resource group name
-    :type target: str
+    :param source_group: source resource group name
+    :type source_group: str
+    :param target_group: target resource group name
+    :type target_group: str
     :param collection_name: collection name which replica belong to
     :type collection_name: str
-    :param num_replica: transfer replica num
-    :type num_replica: int
+    :param num_replicas: transfer replica num
+    :type num_replicas: int
 
     :example:
         >>> from pymilvus import connections, utility
         >>> connections.connect()
         >>> rgs = utility.transfer_replica(source, target, collection_name, num_replica)
     """
-    return _get_connection(using).transfer_replica(source, target, collection_name, num_replica, timeout)
+    return _get_connection(using).transfer_replica(source_group, target_group, collection_name, num_replicas, timeout)

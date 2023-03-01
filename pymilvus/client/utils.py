@@ -2,20 +2,19 @@ import datetime
 
 from .types import DataType
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
-from ..exceptions import MilvusException
+from ..exceptions import ParamError, MilvusException
 
 valid_index_types = [
+    "GPU_FLAT",
+    "GPU_IVF_FLAT",
+    "GPU_IVF_SQ8",
+    "GPU_IVF_PQ",
     "FLAT",
     "IVF_FLAT",
     "IVF_SQ8",
-    # "IVF_SQ8_HYBRID",
     "IVF_PQ",
     "HNSW",
-    # "NSG",
     "ANNOY",
-    "RHNSW_FLAT",
-    "RHNSW_PQ",
-    "RHNSW_SQ",
     "BIN_FLAT",
     "BIN_IVF_FLAT",
     "DISKANN",
@@ -149,3 +148,49 @@ def len_of(field_data) -> int:
         return int(total_len / (dim / 8))
 
     raise MilvusException(message="Unknown data type")
+
+
+def traverse_info(fields_info, entities):
+    location, primary_key_loc, auto_id_loc = {}, None, None
+    for i, field in enumerate(fields_info):
+        if field.get("is_primary", False):
+            primary_key_loc = i
+
+        if field.get("auto_id", False):
+            auto_id_loc = i
+            continue
+
+        match_flag = False
+        field_name = field["name"]
+        field_type = field["type"]
+
+        for j, entity in enumerate(entities):
+            entity_name, entity_type = entity["name"], entity["type"]
+
+            if field_name == entity_name:
+                if field_type != entity_type:
+                    raise ParamError(message=f"Collection field type is {field_type}"
+                                     f", but entities field type is {entity_type}")
+
+                entity_dim, field_dim = 0, 0
+                if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+                    field_dim = field["params"]["dim"]
+                    entity_dim = len(entity["values"][0])
+
+                if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
+                    raise ParamError(message=f"Collection field dim is {field_dim}"
+                                     f", but entities field dim is {entity_dim}")
+
+                if entity_type in [DataType.BINARY_VECTOR, ] and entity_dim * 8 != field_dim:
+                    raise ParamError(message=f"Collection field dim is {field_dim}"
+                                     f", but entities field dim is {entity_dim * 8}")
+
+                location[field["name"]] = j
+                match_flag = True
+                break
+
+        if not match_flag:
+            raise ParamError(
+                message=f"Field {field['name']} don't match in entities")
+
+    return location, primary_key_loc, auto_id_loc

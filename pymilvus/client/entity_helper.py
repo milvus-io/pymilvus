@@ -23,8 +23,9 @@ def check_str_arr(str_arr, max_len):
     for s in str_arr:
         if not isinstance(s, str):
             raise ParamError(message=f"expect string input, got: {type(s)}")
-        if len(s) >= max_len:
-            raise ParamError(message=f"invalid input, length of string exceeds max length. length: {len(s)}, max length: {max_len}")
+        if len(s) > max_len:
+            raise ParamError(message=f"invalid input, length of string exceeds max length. length: {len(s)}, "
+                                     f"max length: {max_len}")
 
 
 def entity_to_str_arr(entity, field_info, check=True):
