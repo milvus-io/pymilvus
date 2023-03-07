@@ -27,7 +27,7 @@ def channel(request):
     return channel
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="function")
 def client_thread(request):
     client_execution_thread_pool = logging_pool.pool(2)
 
