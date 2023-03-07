@@ -223,6 +223,8 @@ def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
                           "GPU_IVF_FLAT",
                           "GPU_IVF_SQ8",
                           "GPU_IVF_PQ",
+                          "RAFT_IVF_FLAT",
+                          "RAFT_IVF_PQ",
                           "FLAT",
                           "IVF_FLAT",
                           "IVF_SQ8",
