@@ -272,7 +272,7 @@ class Prepare:
             field_name = field["name"]
             field_type = field["type"]
 
-            for j, entity in enumerate(entities):
+            for entity in entities:
                 entity_name, entity_type = entity["name"], entity["type"]
 
                 if field_name == entity_name:
@@ -293,7 +293,7 @@ class Prepare:
                         raise ParamError(message=f"Collection field dim is {field_dim}"
                                          f", but entities field dim is {entity_dim * 8}")
 
-                    location[field["name"]] = j
+                    location[field["name"]] = i
                     match_flag = True
                     break
 
