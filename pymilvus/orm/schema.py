@@ -225,7 +225,7 @@ class FieldSchema:
         kwargs['is_primary'] = raw.get("is_primary", False)
         if raw.get("auto_id", None) is not None:
             kwargs['auto_id'] = raw.get("auto_id", None)
-        return FieldSchema(raw['name'], raw['type'], raw['description'], **kwargs)
+        return FieldSchema(raw['name'], raw['type'], raw.get("description", ""), **kwargs)
 
     def to_dict(self):
         _dict = {
