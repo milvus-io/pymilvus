@@ -812,6 +812,7 @@ class Prepare:
     def transfer_node(cls, source, target, num_node):
         check_pass_param(resource_group_name=source)
         check_pass_param(resource_group_name=target)
+        check_pass_param(node_number=num_node)
         return milvus_types.TransferNodeRequest(source_resource_group=source,
                                                 target_resource_group=target,
                                                 num_node=num_node)
@@ -820,6 +821,7 @@ class Prepare:
     def transfer_replica(cls, source, target, collection_name, num_replica):
         check_pass_param(resource_group_name=source)
         check_pass_param(resource_group_name=target)
+        check_pass_param(replica_number=num_replica)
         return milvus_types.TransferReplicaRequest(source_resource_group=source,
                                                    target_resource_group=target,
                                                    collection_name=collection_name,

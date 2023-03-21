@@ -214,8 +214,11 @@ def is_legal_partition_name_array(tag_array: Any) -> bool:
 
     return True
 
-def is_legal_replica_number(replica_number: int) -> bool:
-    return isinstance(replica_number, int)
+def is_legal_replica_number(replica_number: Any) -> bool:
+    return type(replica_number) == int
+
+def is_legal_node_number(node_number: Any) -> bool:
+    return type(node_number) == int
 
 # https://milvus.io/cn/docs/v1.0.0/metric.md#floating
 def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
@@ -345,6 +348,7 @@ class ParamChecker(metaclass=Singleton):
             "operate_privilege_type": is_legal_operate_privilege_type,
             "properties": is_legal_collection_properties,
             "replica_number": is_legal_replica_number,
+            "node_number": is_legal_node_number,
             "resource_group_name": is_legal_table_name,
         }
 

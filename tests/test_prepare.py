@@ -1,8 +1,10 @@
+from typing import Any
 import pytest
 
 from pymilvus.client.prepare import Prepare
 from pymilvus import DataType, MilvusException, CollectionSchema, FieldSchema
 from pymilvus.client.configs import DefaultConfigs
+from pymilvus.exceptions import ParamError
 
 
 class TestPrepare:
@@ -113,3 +115,30 @@ class TestCreateCollectionRequest:
         assert c_schema.fields[1].is_primary_key is True
         assert c_schema.fields[1].autoID is True
         assert len(c_schema.fields[1].type_params) == 0
+
+class TestResourceGroupRequest:
+    
+    @pytest.mark.xfail(raises=ParamError)
+    @pytest.mark.parametrize("node_number", [
+        True,
+        False,
+        "1",
+        [],
+        {},
+        5.0
+    ])
+    def test_transfer_node_with_invalid_param(self, node_number):
+        Prepare.transfer_node("rg1", "rg2", node_number)
+        
+    @pytest.mark.xfail(raises=ParamError)
+    @pytest.mark.parametrize("replica_number", [
+        True,
+        False,
+        "1",
+        [],
+        {},
+        5.0
+    ])
+    def test_transfer_replica_with_invalid_param(self, replica_number):
+        Prepare.transfer_replica("rg1", "rg2", "fake_collection_name", replica_number)     
+        
