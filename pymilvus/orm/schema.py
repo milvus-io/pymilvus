@@ -167,10 +167,10 @@ class CollectionSchema:
 
 
 class FieldSchema:
-    def __init__(self, name, dtype, description="", **kwargs):
+    def __init__(self, name: str, dtype: DataType, description="", **kwargs):
         self.name = name
         try:
-            DataType(dtype)
+            dtype = DataType(dtype)
         except ValueError:
             raise DataTypeNotSupportException(message=ExceptionsMessage.FieldDtype) from None
         if dtype == DataType.UNKNOWN:
@@ -286,7 +286,7 @@ class FieldSchema:
         return self._type_params
 
     @property
-    def dtype(self):
+    def dtype(self) -> DataType:
         return self._dtype
 
 
