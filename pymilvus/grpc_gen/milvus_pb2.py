@@ -15,10 +15,11 @@ _sym_db = _symbol_database.Default()
 
 from . import common_pb2 as common__pb2
 from . import schema_pb2 as schema__pb2
+from . import feder_pb2 as feder__pb2
 from google.protobuf import descriptor_pb2 as google_dot_protobuf_dot_descriptor__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cmilvus.proto\x12\x13milvus.proto.milvus\x1a\x0c\x63ommon.proto\x1a\x0cschema.proto\x1a google/protobuf/descriptor.proto\"y\n\x12\x43reateAliasRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\r\n\x05\x61lias\x18\x04 \x01(\t\"^\n\x10\x44ropAliasRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\r\n\x05\x61lias\x18\x03 \x01(\t\"x\n\x11\x41lterAliasRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\r\n\x05\x61lias\x18\x04 \x01(\t\"\xa0\x02\n\x17\x43reateCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x0e\n\x06schema\x18\x04 \x01(\x0c\x12\x12\n\nshards_num\x18\x05 \x01(\x05\x12@\n\x11\x63onsistency_level\x18\x06 \x01(\x0e\x32%.milvus.proto.common.ConsistencyLevel\x12\x35\n\nproperties\x18\x07 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair:\x12\xca>\x0f\x08\x01\x10\x01\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x81\x01\n\x15\x44ropCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x02\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xcf\x01\n\x16\x41lterCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x14\n\x0c\x63ollectionID\x18\x04 \x01(\x03\x12\x35\n\nproperties\x18\x05 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair:\x12\xca>\x0f\x08\x01\x10\x01\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x80\x01\n\x14HasCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\ntime_stamp\x18\x04 \x01(\x04\"J\n\x0c\x42oolResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\r\n\x05value\x18\x02 \x01(\x08\"L\n\x0eStringResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\r\n\x05value\x18\x02 \x01(\t\"\xaf\x01\n\x19\x44\x65scribeCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x14\n\x0c\x63ollectionID\x18\x04 \x01(\x03\x12\x12\n\ntime_stamp\x18\x05 \x01(\x04:\x12\xca>\x0f\x08\x01\x10\x03\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x81\x04\n\x1a\x44\x65scribeCollectionResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x35\n\x06schema\x18\x02 \x01(\x0b\x32%.milvus.proto.schema.CollectionSchema\x12\x14\n\x0c\x63ollectionID\x18\x03 \x01(\x03\x12\x1d\n\x15virtual_channel_names\x18\x04 \x03(\t\x12\x1e\n\x16physical_channel_names\x18\x05 \x03(\t\x12\x19\n\x11\x63reated_timestamp\x18\x06 \x01(\x04\x12\x1d\n\x15\x63reated_utc_timestamp\x18\x07 \x01(\x04\x12\x12\n\nshards_num\x18\x08 \x01(\x05\x12\x0f\n\x07\x61liases\x18\t \x03(\t\x12\x39\n\x0fstart_positions\x18\n \x03(\x0b\x32 .milvus.proto.common.KeyDataPair\x12@\n\x11\x63onsistency_level\x18\x0b \x01(\x0e\x32%.milvus.proto.common.ConsistencyLevel\x12\x17\n\x0f\x63ollection_name\x18\x0c \x01(\t\x12\x35\n\nproperties\x18\r \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xb8\x01\n\x15LoadCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0ereplica_number\x18\x04 \x01(\x05\x12\x17\n\x0fresource_groups\x18\x05 \x03(\t\x12\x0f\n\x07refresh\x18\x06 \x01(\x08:\x07\xca>\x04\x10\x05\x18\x03\"y\n\x18ReleaseCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t:\x07\xca>\x04\x10\x06\x18\x03\"\xab\x01\n\x14GetStatisticsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\x12\x1b\n\x13guarantee_timestamp\x18\x05 \x01(\x04:\x07\xca>\x04\x10\n\x18\x03\"v\n\x15GetStatisticsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x05stats\x18\x02 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\x7f\n\x1eGetCollectionStatisticsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t:\x07\xca>\x04\x10\n\x18\x03\"\x80\x01\n\x1fGetCollectionStatisticsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x05stats\x18\x02 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xc4\x01\n\x16ShowCollectionsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x12\n\ntime_stamp\x18\x03 \x01(\x04\x12+\n\x04type\x18\x04 \x01(\x0e\x32\x1d.milvus.proto.milvus.ShowType\x12\x18\n\x10\x63ollection_names\x18\x05 \x03(\t:\x12\xca>\x0f\x08\x01\x10\x04\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xf3\x01\n\x17ShowCollectionsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x18\n\x10\x63ollection_names\x18\x02 \x03(\t\x12\x16\n\x0e\x63ollection_ids\x18\x03 \x03(\x03\x12\x1a\n\x12\x63reated_timestamps\x18\x04 \x03(\x04\x12\x1e\n\x16\x63reated_utc_timestamps\x18\x05 \x03(\x04\x12\x1c\n\x14inMemory_percentages\x18\x06 \x03(\x03\x12\x1f\n\x17query_service_available\x18\x07 \x03(\x08\"\x86\x01\n\x16\x43reatePartitionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\"\x84\x01\n\x14\x44ropPartitionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\"\x83\x01\n\x13HasPartitionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\"\xc8\x01\n\x15LoadPartitionsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\x12\x16\n\x0ereplica_number\x18\x05 \x01(\x05\x12\x17\n\x0fresource_groups\x18\x06 \x03(\t\x12\x0f\n\x07refresh\x18\x07 \x01(\x08\"\x89\x01\n\x18ReleasePartitionsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\"\x8d\x01\n\x1dGetPartitionStatisticsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\"\x7f\n\x1eGetPartitionStatisticsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x05stats\x18\x02 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xc9\x01\n\x15ShowPartitionsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x14\n\x0c\x63ollectionID\x18\x04 \x01(\x03\x12\x17\n\x0fpartition_names\x18\x05 \x03(\t\x12+\n\x04type\x18\x06 \x01(\x0e\x32\x1d.milvus.proto.milvus.ShowType\"\xce\x01\n\x16ShowPartitionsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x17\n\x0fpartition_names\x18\x02 \x03(\t\x12\x14\n\x0cpartitionIDs\x18\x03 \x03(\x03\x12\x1a\n\x12\x63reated_timestamps\x18\x04 \x03(\x04\x12\x1e\n\x16\x63reated_utc_timestamps\x18\x05 \x03(\x04\x12\x1c\n\x14inMemory_percentages\x18\x06 \x03(\x03\"m\n\x16\x44\x65scribeSegmentRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x11\n\tsegmentID\x18\x03 \x01(\x03\"\x8f\x01\n\x17\x44\x65scribeSegmentResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07indexID\x18\x02 \x01(\x03\x12\x0f\n\x07\x62uildID\x18\x03 \x01(\x03\x12\x14\n\x0c\x65nable_index\x18\x04 \x01(\x08\x12\x0f\n\x07\x66ieldID\x18\x05 \x01(\x03\"l\n\x13ShowSegmentsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x13\n\x0bpartitionID\x18\x03 \x01(\x03\"W\n\x14ShowSegmentsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x12\n\nsegmentIDs\x18\x02 \x03(\x03\"\xd4\x01\n\x12\x43reateIndexRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x37\n\x0c\x65xtra_params\x18\x05 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\x12\x12\n\nindex_name\x18\x06 \x01(\t:\x07\xca>\x04\x10\x0b\x18\x03\"\x9d\x01\n\x14\x44\x65scribeIndexRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x12\n\nindex_name\x18\x05 \x01(\t:\x07\xca>\x04\x10\x0c\x18\x03\"\xf9\x01\n\x10IndexDescription\x12\x12\n\nindex_name\x18\x01 \x01(\t\x12\x0f\n\x07indexID\x18\x02 \x01(\x03\x12\x31\n\x06params\x18\x03 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x14\n\x0cindexed_rows\x18\x05 \x01(\x03\x12\x12\n\ntotal_rows\x18\x06 \x01(\x03\x12.\n\x05state\x18\x07 \x01(\x0e\x32\x1f.milvus.proto.common.IndexState\x12\x1f\n\x17index_state_fail_reason\x18\x08 \x01(\t\"\x87\x01\n\x15\x44\x65scribeIndexResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x41\n\x12index_descriptions\x18\x02 \x03(\x0b\x32%.milvus.proto.milvus.IndexDescription\"\xa5\x01\n\x1cGetIndexBuildProgressRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x12\n\nindex_name\x18\x05 \x01(\t:\x07\xca>\x04\x10\x0c\x18\x03\"v\n\x1dGetIndexBuildProgressResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x14\n\x0cindexed_rows\x18\x02 \x01(\x03\x12\x12\n\ntotal_rows\x18\x03 \x01(\x03\"\x9d\x01\n\x14GetIndexStateRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x12\n\nindex_name\x18\x05 \x01(\t:\x07\xca>\x04\x10\x0c\x18\x03\"\x89\x01\n\x15GetIndexStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12.\n\x05state\x18\x02 \x01(\x0e\x32\x1f.milvus.proto.common.IndexState\x12\x13\n\x0b\x66\x61il_reason\x18\x03 \x01(\t\"\x99\x01\n\x10\x44ropIndexRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x12\n\nindex_name\x18\x05 \x01(\t:\x07\xca>\x04\x10\r\x18\x03\"\xe0\x01\n\rInsertRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\x12\x33\n\x0b\x66ields_data\x18\x05 \x03(\x0b\x32\x1e.milvus.proto.schema.FieldData\x12\x11\n\thash_keys\x18\x06 \x03(\r\x12\x10\n\x08num_rows\x18\x07 \x01(\r:\x07\xca>\x04\x10\x08\x18\x03\"\xe0\x01\n\rUpsertRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\x12\x33\n\x0b\x66ields_data\x18\x05 \x03(\x0b\x32\x1e.milvus.proto.schema.FieldData\x12\x11\n\thash_keys\x18\x06 \x03(\r\x12\x10\n\x08num_rows\x18\x07 \x01(\r:\x07\xca>\x04\x10\x19\x18\x03\"\xf0\x01\n\x0eMutationResult\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12%\n\x03IDs\x18\x02 \x01(\x0b\x32\x18.milvus.proto.schema.IDs\x12\x12\n\nsucc_index\x18\x03 \x03(\r\x12\x11\n\terr_index\x18\x04 \x03(\r\x12\x14\n\x0c\x61\x63knowledged\x18\x05 \x01(\x08\x12\x12\n\ninsert_cnt\x18\x06 \x01(\x03\x12\x12\n\ndelete_cnt\x18\x07 \x01(\x03\x12\x12\n\nupsert_cnt\x18\x08 \x01(\x03\x12\x11\n\ttimestamp\x18\t \x01(\x04\"\xa7\x01\n\rDeleteRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\x12\x0c\n\x04\x65xpr\x18\x05 \x01(\t\x12\x11\n\thash_keys\x18\x06 \x03(\r:\x07\xca>\x04\x10\t\x18\x03\"\xf3\x02\n\rSearchRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\x12\x0b\n\x03\x64sl\x18\x05 \x01(\t\x12\x19\n\x11placeholder_group\x18\x06 \x01(\x0c\x12.\n\x08\x64sl_type\x18\x07 \x01(\x0e\x32\x1c.milvus.proto.common.DslType\x12\x15\n\routput_fields\x18\x08 \x03(\t\x12\x38\n\rsearch_params\x18\t \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\x12\x18\n\x10travel_timestamp\x18\n \x01(\x04\x12\x1b\n\x13guarantee_timestamp\x18\x0b \x01(\x04\x12\n\n\x02nq\x18\x0c \x01(\x03:\x07\xca>\x04\x10\x0e\x18\x03\"5\n\x04Hits\x12\x0b\n\x03IDs\x18\x01 \x03(\x03\x12\x10\n\x08row_data\x18\x02 \x03(\x0c\x12\x0e\n\x06scores\x18\x03 \x03(\x02\"\x8d\x01\n\rSearchResults\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x36\n\x07results\x18\x02 \x01(\x0b\x32%.milvus.proto.schema.SearchResultData\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\"n\n\x0c\x46lushRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x18\n\x10\x63ollection_names\x18\x03 \x03(\t:\x07\xca>\x04\x10\x0f \x03\"\x9b\x04\n\rFlushResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12G\n\x0b\x63oll_segIDs\x18\x03 \x03(\x0b\x32\x32.milvus.proto.milvus.FlushResponse.CollSegIDsEntry\x12R\n\x11\x66lush_coll_segIDs\x18\x04 \x03(\x0b\x32\x37.milvus.proto.milvus.FlushResponse.FlushCollSegIDsEntry\x12N\n\x0f\x63oll_seal_times\x18\x05 \x03(\x0b\x32\x35.milvus.proto.milvus.FlushResponse.CollSealTimesEntry\x1aQ\n\x0f\x43ollSegIDsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12-\n\x05value\x18\x02 \x01(\x0b\x32\x1e.milvus.proto.schema.LongArray:\x02\x38\x01\x1aV\n\x14\x46lushCollSegIDsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12-\n\x05value\x18\x02 \x01(\x0b\x32\x1e.milvus.proto.schema.LongArray:\x02\x38\x01\x1a\x34\n\x12\x43ollSealTimesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\"\x9b\x02\n\x0cQueryRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x0c\n\x04\x65xpr\x18\x04 \x01(\t\x12\x15\n\routput_fields\x18\x05 \x03(\t\x12\x17\n\x0fpartition_names\x18\x06 \x03(\t\x12\x18\n\x10travel_timestamp\x18\x07 \x01(\x04\x12\x1b\n\x13guarantee_timestamp\x18\x08 \x01(\x04\x12\x37\n\x0cquery_params\x18\t \x03(\x0b\x32!.milvus.proto.common.KeyValuePair:\x07\xca>\x04\x10\x10\x18\x03\"\x89\x01\n\x0cQueryResults\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x33\n\x0b\x66ields_data\x18\x02 \x03(\x0b\x32\x1e.milvus.proto.schema.FieldData\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\"}\n\tVectorIDs\x12\x17\n\x0f\x63ollection_name\x18\x01 \x01(\t\x12\x12\n\nfield_name\x18\x02 \x01(\t\x12*\n\x08id_array\x18\x03 \x01(\x0b\x32\x18.milvus.proto.schema.IDs\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\"\x83\x01\n\x0cVectorsArray\x12\x32\n\x08id_array\x18\x01 \x01(\x0b\x32\x1e.milvus.proto.milvus.VectorIDsH\x00\x12\x36\n\ndata_array\x18\x02 \x01(\x0b\x32 .milvus.proto.schema.VectorFieldH\x00\x42\x07\n\x05\x61rray\"\xdd\x01\n\x13\x43\x61lcDistanceRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x32\n\x07op_left\x18\x02 \x01(\x0b\x32!.milvus.proto.milvus.VectorsArray\x12\x33\n\x08op_right\x18\x03 \x01(\x0b\x32!.milvus.proto.milvus.VectorsArray\x12\x31\n\x06params\x18\x04 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xb5\x01\n\x13\x43\x61lcDistanceResults\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x31\n\x08int_dist\x18\x02 \x01(\x0b\x32\x1d.milvus.proto.schema.IntArrayH\x00\x12\x35\n\nfloat_dist\x18\x03 \x01(\x0b\x32\x1f.milvus.proto.schema.FloatArrayH\x00\x42\x07\n\x05\x61rray\"\x99\x01\n\x15PersistentSegmentInfo\x12\x11\n\tsegmentID\x18\x01 \x01(\x03\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x13\n\x0bpartitionID\x18\x03 \x01(\x03\x12\x10\n\x08num_rows\x18\x04 \x01(\x03\x12\x30\n\x05state\x18\x05 \x01(\x0e\x32!.milvus.proto.common.SegmentState\"u\n\x1fGetPersistentSegmentInfoRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0e\n\x06\x64\x62Name\x18\x02 \x01(\t\x12\x16\n\x0e\x63ollectionName\x18\x03 \x01(\t\"\x8a\x01\n GetPersistentSegmentInfoResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x39\n\x05infos\x18\x02 \x03(\x0b\x32*.milvus.proto.milvus.PersistentSegmentInfo\"\xec\x01\n\x10QuerySegmentInfo\x12\x11\n\tsegmentID\x18\x01 \x01(\x03\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x13\n\x0bpartitionID\x18\x03 \x01(\x03\x12\x10\n\x08mem_size\x18\x04 \x01(\x03\x12\x10\n\x08num_rows\x18\x05 \x01(\x03\x12\x12\n\nindex_name\x18\x06 \x01(\t\x12\x0f\n\x07indexID\x18\x07 \x01(\x03\x12\x0e\n\x06nodeID\x18\x08 \x01(\x03\x12\x30\n\x05state\x18\t \x01(\x0e\x32!.milvus.proto.common.SegmentState\x12\x0f\n\x07nodeIds\x18\n \x03(\x03\"p\n\x1aGetQuerySegmentInfoRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0e\n\x06\x64\x62Name\x18\x02 \x01(\t\x12\x16\n\x0e\x63ollectionName\x18\x03 \x01(\t\"\x80\x01\n\x1bGetQuerySegmentInfoResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x34\n\x05infos\x18\x02 \x03(\x0b\x32%.milvus.proto.milvus.QuerySegmentInfo\"$\n\x0c\x44ummyRequest\x12\x14\n\x0crequest_type\x18\x01 \x01(\t\"!\n\rDummyResponse\x12\x10\n\x08response\x18\x01 \x01(\t\"\x15\n\x13RegisterLinkRequest\"r\n\x14RegisterLinkResponse\x12-\n\x07\x61\x64\x64ress\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.Address\x12+\n\x06status\x18\x02 \x01(\x0b\x32\x1b.milvus.proto.common.Status\"P\n\x11GetMetricsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07request\x18\x02 \x01(\t\"k\n\x12GetMetricsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x10\n\x08response\x18\x02 \x01(\t\x12\x16\n\x0e\x63omponent_name\x18\x03 \x01(\t\"\x98\x01\n\rComponentInfo\x12\x0e\n\x06nodeID\x18\x01 \x01(\x03\x12\x0c\n\x04role\x18\x02 \x01(\t\x12\x32\n\nstate_code\x18\x03 \x01(\x0e\x32\x1e.milvus.proto.common.StateCode\x12\x35\n\nextra_info\x18\x04 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xb2\x01\n\x0f\x43omponentStates\x12\x31\n\x05state\x18\x01 \x01(\x0b\x32\".milvus.proto.milvus.ComponentInfo\x12?\n\x13subcomponent_states\x18\x02 \x03(\x0b\x32\".milvus.proto.milvus.ComponentInfo\x12+\n\x06status\x18\x03 \x01(\x0b\x32\x1b.milvus.proto.common.Status\"\x1b\n\x19GetComponentStatesRequest\"\xa5\x01\n\x12LoadBalanceRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x12\n\nsrc_nodeID\x18\x02 \x01(\x03\x12\x13\n\x0b\x64st_nodeIDs\x18\x03 \x03(\x03\x12\x19\n\x11sealed_segmentIDs\x18\x04 \x03(\x03\x12\x16\n\x0e\x63ollectionName\x18\x05 \x01(\t:\x07\xca>\x04\x10\x11\x18\x05\"L\n\x17ManualCompactionRequest\x12\x14\n\x0c\x63ollectionID\x18\x01 \x01(\x03\x12\x12\n\ntimetravel\x18\x02 \x01(\x04:\x07\xca>\x04\x10\x07\x18\x01\"z\n\x18ManualCompactionResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x14\n\x0c\x63ompactionID\x18\x02 \x01(\x03\x12\x1b\n\x13\x63ompactionPlanCount\x18\x03 \x01(\x05\"1\n\x19GetCompactionStateRequest\x12\x14\n\x0c\x63ompactionID\x18\x01 \x01(\x03\"\xdd\x01\n\x1aGetCompactionStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x33\n\x05state\x18\x02 \x01(\x0e\x32$.milvus.proto.common.CompactionState\x12\x17\n\x0f\x65xecutingPlanNo\x18\x03 \x01(\x03\x12\x15\n\rtimeoutPlanNo\x18\x04 \x01(\x03\x12\x17\n\x0f\x63ompletedPlanNo\x18\x05 \x01(\x03\x12\x14\n\x0c\x66\x61iledPlanNo\x18\x06 \x01(\x03\"1\n\x19GetCompactionPlansRequest\x12\x14\n\x0c\x63ompactionID\x18\x01 \x01(\x03\"\xbc\x01\n\x1aGetCompactionPlansResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x33\n\x05state\x18\x02 \x01(\x0e\x32$.milvus.proto.common.CompactionState\x12<\n\nmergeInfos\x18\x03 \x03(\x0b\x32(.milvus.proto.milvus.CompactionMergeInfo\"6\n\x13\x43ompactionMergeInfo\x12\x0f\n\x07sources\x18\x01 \x03(\x03\x12\x0e\n\x06target\x18\x02 \x01(\x03\"*\n\x14GetFlushStateRequest\x12\x12\n\nsegmentIDs\x18\x01 \x03(\x03\"U\n\x15GetFlushStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07\x66lushed\x18\x02 \x01(\x08\"\xb6\x01\n\rImportRequest\x12\x17\n\x0f\x63ollection_name\x18\x01 \x01(\t\x12\x16\n\x0epartition_name\x18\x02 \x01(\t\x12\x15\n\rchannel_names\x18\x03 \x03(\t\x12\x11\n\trow_based\x18\x04 \x01(\x08\x12\r\n\x05\x66iles\x18\x05 \x03(\t\x12\x32\n\x07options\x18\x06 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair:\x07\xca>\x04\x10\x12\x18\x01\"L\n\x0eImportResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\r\n\x05tasks\x18\x02 \x03(\x03\"%\n\x15GetImportStateRequest\x12\x0c\n\x04task\x18\x01 \x01(\x03\"\x97\x02\n\x16GetImportStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12/\n\x05state\x18\x02 \x01(\x0e\x32 .milvus.proto.common.ImportState\x12\x11\n\trow_count\x18\x03 \x01(\x03\x12\x0f\n\x07id_list\x18\x04 \x03(\x03\x12\x30\n\x05infos\x18\x05 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\x12\n\n\x02id\x18\x06 \x01(\x03\x12\x15\n\rcollection_id\x18\x07 \x01(\x03\x12\x13\n\x0bsegment_ids\x18\x08 \x03(\x03\x12\x11\n\tcreate_ts\x18\t \x01(\x03\"@\n\x16ListImportTasksRequest\x12\x17\n\x0f\x63ollection_name\x18\x01 \x01(\t\x12\r\n\x05limit\x18\x02 \x01(\x03\"\x82\x01\n\x17ListImportTasksResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12:\n\x05tasks\x18\x02 \x03(\x0b\x32+.milvus.proto.milvus.GetImportStateResponse\"\x89\x01\n\x12GetReplicasRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x18\n\x10with_shard_nodes\x18\x03 \x01(\x08\x12\x17\n\x0f\x63ollection_name\x18\x04 \x01(\t\"v\n\x13GetReplicasResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x32\n\x08replicas\x18\x02 \x03(\x0b\x32 .milvus.proto.milvus.ReplicaInfo\"\xc1\x02\n\x0bReplicaInfo\x12\x11\n\treplicaID\x18\x01 \x01(\x03\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x15\n\rpartition_ids\x18\x03 \x03(\x03\x12\x39\n\x0eshard_replicas\x18\x04 \x03(\x0b\x32!.milvus.proto.milvus.ShardReplica\x12\x10\n\x08node_ids\x18\x05 \x03(\x03\x12\x1b\n\x13resource_group_name\x18\x06 \x01(\t\x12P\n\x11num_outbound_node\x18\x07 \x03(\x0b\x32\x35.milvus.proto.milvus.ReplicaInfo.NumOutboundNodeEntry\x1a\x36\n\x14NumOutboundNodeEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\"`\n\x0cShardReplica\x12\x10\n\x08leaderID\x18\x01 \x01(\x03\x12\x13\n\x0bleader_addr\x18\x02 \x01(\t\x12\x17\n\x0f\x64m_channel_name\x18\x03 \x01(\t\x12\x10\n\x08node_ids\x18\x04 \x03(\x03\"\xbe\x01\n\x17\x43reateCredentialRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x10\n\x08password\x18\x03 \x01(\t\x12\x1e\n\x16\x63reated_utc_timestamps\x18\x04 \x01(\x04\x12\x1f\n\x17modified_utc_timestamps\x18\x05 \x01(\x04:\x12\xca>\x0f\x08\x01\x10\x13\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xcd\x01\n\x17UpdateCredentialRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x13\n\x0boldPassword\x18\x03 \x01(\t\x12\x13\n\x0bnewPassword\x18\x04 \x01(\t\x12\x1e\n\x16\x63reated_utc_timestamps\x18\x05 \x01(\x04\x12\x1f\n\x17modified_utc_timestamps\x18\x06 \x01(\x04:\t\xca>\x06\x08\x02\x10\x14\x18\x02\"k\n\x17\x44\x65leteCredentialRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x10\n\x08username\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x15\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"W\n\x15ListCredUsersResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x11\n\tusernames\x18\x02 \x03(\t\"V\n\x14ListCredUsersRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase:\x12\xca>\x0f\x08\x01\x10\x16\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x1a\n\nRoleEntity\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x1a\n\nUserEntity\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x84\x01\n\x11\x43reateRoleRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12/\n\x06\x65ntity\x18\x02 \x01(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity:\x12\xca>\x0f\x08\x01\x10\x13\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"d\n\x0f\x44ropRoleRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x11\n\trole_name\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x15\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xb5\x01\n\x16OperateUserRoleRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x11\n\trole_name\x18\x03 \x01(\t\x12\x36\n\x04type\x18\x04 \x01(\x0e\x32(.milvus.proto.milvus.OperateUserRoleType:\x12\xca>\x0f\x08\x01\x10\x17\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x9d\x01\n\x11SelectRoleRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12-\n\x04role\x18\x02 \x01(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity\x12\x19\n\x11include_user_info\x18\x03 \x01(\x08:\x12\xca>\x0f\x08\x01\x10\x16\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"k\n\nRoleResult\x12-\n\x04role\x18\x01 \x01(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity\x12.\n\x05users\x18\x02 \x03(\x0b\x32\x1f.milvus.proto.milvus.UserEntity\"s\n\x12SelectRoleResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x07results\x18\x02 \x03(\x0b\x32\x1f.milvus.proto.milvus.RoleResult\"\x94\x01\n\x11SelectUserRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12-\n\x04user\x18\x02 \x01(\x0b\x32\x1f.milvus.proto.milvus.UserEntity\x12\x19\n\x11include_role_info\x18\x03 \x01(\x08:\t\xca>\x06\x08\x02\x10\x18\x18\x02\"k\n\nUserResult\x12-\n\x04user\x18\x01 \x01(\x0b\x32\x1f.milvus.proto.milvus.UserEntity\x12.\n\x05roles\x18\x02 \x03(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity\"s\n\x12SelectUserResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x07results\x18\x02 \x03(\x0b\x32\x1f.milvus.proto.milvus.UserResult\"\x1c\n\x0cObjectEntity\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x1f\n\x0fPrivilegeEntity\x12\x0c\n\x04name\x18\x01 \x01(\t\"w\n\rGrantorEntity\x12-\n\x04user\x18\x01 \x01(\x0b\x32\x1f.milvus.proto.milvus.UserEntity\x12\x37\n\tprivilege\x18\x02 \x01(\x0b\x32$.milvus.proto.milvus.PrivilegeEntity\"L\n\x14GrantPrivilegeEntity\x12\x34\n\x08\x65ntities\x18\x01 \x03(\x0b\x32\".milvus.proto.milvus.GrantorEntity\"\xb9\x01\n\x0bGrantEntity\x12-\n\x04role\x18\x01 \x01(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity\x12\x31\n\x06object\x18\x02 \x01(\x0b\x32!.milvus.proto.milvus.ObjectEntity\x12\x13\n\x0bobject_name\x18\x03 \x01(\t\x12\x33\n\x07grantor\x18\x04 \x01(\x0b\x32\".milvus.proto.milvus.GrantorEntity\"\x86\x01\n\x12SelectGrantRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x30\n\x06\x65ntity\x18\x02 \x01(\x0b\x32 .milvus.proto.milvus.GrantEntity:\x12\xca>\x0f\x08\x01\x10\x16\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"v\n\x13SelectGrantResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x32\n\x08\x65ntities\x18\x02 \x03(\x0b\x32 .milvus.proto.milvus.GrantEntity\"\xc4\x01\n\x17OperatePrivilegeRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x30\n\x06\x65ntity\x18\x02 \x01(\x0b\x32 .milvus.proto.milvus.GrantEntity\x12\x37\n\x04type\x18\x03 \x01(\x0e\x32).milvus.proto.milvus.OperatePrivilegeType:\x12\xca>\x0f\x08\x01\x10\x17\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"y\n\x19GetLoadingProgressRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x17\n\x0f\x63ollection_name\x18\x02 \x01(\t\x12\x17\n\x0fpartition_names\x18\x03 \x03(\t\"[\n\x1aGetLoadingProgressResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x10\n\x08progress\x18\x02 \x01(\x03\"s\n\x13GetLoadStateRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x17\n\x0f\x63ollection_name\x18\x02 \x01(\t\x12\x17\n\x0fpartition_names\x18\x03 \x03(\t\"r\n\x14GetLoadStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12-\n\x05state\x18\x02 \x01(\x0e\x32\x1e.milvus.proto.common.LoadState\"\x1c\n\tMilvusExt\x12\x0f\n\x07version\x18\x01 \x01(\t\"\x13\n\x11GetVersionRequest\"R\n\x12GetVersionResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07version\x18\x02 \x01(\t\"\x14\n\x12\x43heckHealthRequest\"\x9d\x01\n\x13\x43heckHealthResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x11\n\tisHealthy\x18\x02 \x01(\x08\x12\x0f\n\x07reasons\x18\x03 \x03(\t\x12\x35\n\x0cquota_states\x18\x04 \x03(\x0e\x32\x1f.milvus.proto.milvus.QuotaState\"t\n\x1a\x43reateResourceGroupRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x16\n\x0eresource_group\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x1a\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"r\n\x18\x44ropResourceGroupRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x16\n\x0eresource_group\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x1b\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xa5\x01\n\x13TransferNodeRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x1d\n\x15source_resource_group\x18\x02 \x01(\t\x12\x1d\n\x15target_resource_group\x18\x03 \x01(\t\x12\x10\n\x08num_node\x18\x04 \x01(\x05:\x12\xca>\x0f\x08\x01\x10\x1e\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xc4\x01\n\x16TransferReplicaRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x1d\n\x15source_resource_group\x18\x02 \x01(\t\x12\x1d\n\x15target_resource_group\x18\x03 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x04 \x01(\t\x12\x13\n\x0bnum_replica\x18\x05 \x01(\x03:\x12\xca>\x0f\x08\x01\x10\x1f\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"[\n\x19ListResourceGroupsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase:\x12\xca>\x0f\x08\x01\x10\x1d\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"b\n\x1aListResourceGroupsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x17\n\x0fresource_groups\x18\x02 \x03(\t\"v\n\x1c\x44\x65scribeResourceGroupRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x16\n\x0eresource_group\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x1c\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x88\x01\n\x1d\x44\x65scribeResourceGroupResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12:\n\x0eresource_group\x18\x02 \x01(\x0b\x32\".milvus.proto.milvus.ResourceGroup\"\xf2\x03\n\rResourceGroup\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x10\n\x08\x63\x61pacity\x18\x02 \x01(\x05\x12\x1a\n\x12num_available_node\x18\x03 \x01(\x05\x12T\n\x12num_loaded_replica\x18\x04 \x03(\x0b\x32\x38.milvus.proto.milvus.ResourceGroup.NumLoadedReplicaEntry\x12R\n\x11num_outgoing_node\x18\x05 \x03(\x0b\x32\x37.milvus.proto.milvus.ResourceGroup.NumOutgoingNodeEntry\x12R\n\x11num_incoming_node\x18\x06 \x03(\x0b\x32\x37.milvus.proto.milvus.ResourceGroup.NumIncomingNodeEntry\x1a\x37\n\x15NumLoadedReplicaEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\x1a\x36\n\x14NumOutgoingNodeEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\x1a\x36\n\x14NumIncomingNodeEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\"s\n\x17RenameCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\n\n\x02\x64\x62\x18\x02 \x01(\t\x12\x0f\n\x07oldName\x18\x03 \x01(\t\x12\x0f\n\x07newName\x18\x04 \x01(\t*!\n\x08ShowType\x12\x07\n\x03\x41ll\x10\x00\x12\x0c\n\x08InMemory\x10\x01*@\n\x13OperateUserRoleType\x12\x11\n\rAddUserToRole\x10\x00\x12\x16\n\x12RemoveUserFromRole\x10\x01*-\n\x14OperatePrivilegeType\x12\t\n\x05Grant\x10\x00\x12\n\n\x06Revoke\x10\x01*]\n\nQuotaState\x12\x0b\n\x07Unknown\x10\x00\x12\x0f\n\x0bReadLimited\x10\x02\x12\x10\n\x0cWriteLimited\x10\x03\x12\x0e\n\nDenyToRead\x10\x04\x12\x0f\n\x0b\x44\x65nyToWrite\x10\x05\x32\xda\x35\n\rMilvusService\x12_\n\x10\x43reateCollection\x12,.milvus.proto.milvus.CreateCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12[\n\x0e\x44ropCollection\x12*.milvus.proto.milvus.DropCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12_\n\rHasCollection\x12).milvus.proto.milvus.HasCollectionRequest\x1a!.milvus.proto.milvus.BoolResponse\"\x00\x12[\n\x0eLoadCollection\x12*.milvus.proto.milvus.LoadCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x61\n\x11ReleaseCollection\x12-.milvus.proto.milvus.ReleaseCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12w\n\x12\x44\x65scribeCollection\x12..milvus.proto.milvus.DescribeCollectionRequest\x1a/.milvus.proto.milvus.DescribeCollectionResponse\"\x00\x12\x86\x01\n\x17GetCollectionStatistics\x12\x33.milvus.proto.milvus.GetCollectionStatisticsRequest\x1a\x34.milvus.proto.milvus.GetCollectionStatisticsResponse\"\x00\x12n\n\x0fShowCollections\x12+.milvus.proto.milvus.ShowCollectionsRequest\x1a,.milvus.proto.milvus.ShowCollectionsResponse\"\x00\x12]\n\x0f\x41lterCollection\x12+.milvus.proto.milvus.AlterCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12]\n\x0f\x43reatePartition\x12+.milvus.proto.milvus.CreatePartitionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12Y\n\rDropPartition\x12).milvus.proto.milvus.DropPartitionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12]\n\x0cHasPartition\x12(.milvus.proto.milvus.HasPartitionRequest\x1a!.milvus.proto.milvus.BoolResponse\"\x00\x12[\n\x0eLoadPartitions\x12*.milvus.proto.milvus.LoadPartitionsRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x61\n\x11ReleasePartitions\x12-.milvus.proto.milvus.ReleasePartitionsRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x83\x01\n\x16GetPartitionStatistics\x12\x32.milvus.proto.milvus.GetPartitionStatisticsRequest\x1a\x33.milvus.proto.milvus.GetPartitionStatisticsResponse\"\x00\x12k\n\x0eShowPartitions\x12*.milvus.proto.milvus.ShowPartitionsRequest\x1a+.milvus.proto.milvus.ShowPartitionsResponse\"\x00\x12w\n\x12GetLoadingProgress\x12..milvus.proto.milvus.GetLoadingProgressRequest\x1a/.milvus.proto.milvus.GetLoadingProgressResponse\"\x00\x12\x65\n\x0cGetLoadState\x12(.milvus.proto.milvus.GetLoadStateRequest\x1a).milvus.proto.milvus.GetLoadStateResponse\"\x00\x12U\n\x0b\x43reateAlias\x12\'.milvus.proto.milvus.CreateAliasRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12Q\n\tDropAlias\x12%.milvus.proto.milvus.DropAliasRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12S\n\nAlterAlias\x12&.milvus.proto.milvus.AlterAliasRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12U\n\x0b\x43reateIndex\x12\'.milvus.proto.milvus.CreateIndexRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12h\n\rDescribeIndex\x12).milvus.proto.milvus.DescribeIndexRequest\x1a*.milvus.proto.milvus.DescribeIndexResponse\"\x00\x12h\n\rGetIndexState\x12).milvus.proto.milvus.GetIndexStateRequest\x1a*.milvus.proto.milvus.GetIndexStateResponse\"\x00\x12\x80\x01\n\x15GetIndexBuildProgress\x12\x31.milvus.proto.milvus.GetIndexBuildProgressRequest\x1a\x32.milvus.proto.milvus.GetIndexBuildProgressResponse\"\x00\x12Q\n\tDropIndex\x12%.milvus.proto.milvus.DropIndexRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12S\n\x06Insert\x12\".milvus.proto.milvus.InsertRequest\x1a#.milvus.proto.milvus.MutationResult\"\x00\x12S\n\x06\x44\x65lete\x12\".milvus.proto.milvus.DeleteRequest\x1a#.milvus.proto.milvus.MutationResult\"\x00\x12S\n\x06Upsert\x12\".milvus.proto.milvus.UpsertRequest\x1a#.milvus.proto.milvus.MutationResult\"\x00\x12R\n\x06Search\x12\".milvus.proto.milvus.SearchRequest\x1a\".milvus.proto.milvus.SearchResults\"\x00\x12P\n\x05\x46lush\x12!.milvus.proto.milvus.FlushRequest\x1a\".milvus.proto.milvus.FlushResponse\"\x00\x12O\n\x05Query\x12!.milvus.proto.milvus.QueryRequest\x1a!.milvus.proto.milvus.QueryResults\"\x00\x12\x64\n\x0c\x43\x61lcDistance\x12(.milvus.proto.milvus.CalcDistanceRequest\x1a(.milvus.proto.milvus.CalcDistanceResults\"\x00\x12h\n\rGetFlushState\x12).milvus.proto.milvus.GetFlushStateRequest\x1a*.milvus.proto.milvus.GetFlushStateResponse\"\x00\x12\x89\x01\n\x18GetPersistentSegmentInfo\x12\x34.milvus.proto.milvus.GetPersistentSegmentInfoRequest\x1a\x35.milvus.proto.milvus.GetPersistentSegmentInfoResponse\"\x00\x12z\n\x13GetQuerySegmentInfo\x12/.milvus.proto.milvus.GetQuerySegmentInfoRequest\x1a\x30.milvus.proto.milvus.GetQuerySegmentInfoResponse\"\x00\x12\x62\n\x0bGetReplicas\x12\'.milvus.proto.milvus.GetReplicasRequest\x1a(.milvus.proto.milvus.GetReplicasResponse\"\x00\x12P\n\x05\x44ummy\x12!.milvus.proto.milvus.DummyRequest\x1a\".milvus.proto.milvus.DummyResponse\"\x00\x12\x65\n\x0cRegisterLink\x12(.milvus.proto.milvus.RegisterLinkRequest\x1a).milvus.proto.milvus.RegisterLinkResponse\"\x00\x12_\n\nGetMetrics\x12&.milvus.proto.milvus.GetMetricsRequest\x1a\'.milvus.proto.milvus.GetMetricsResponse\"\x00\x12l\n\x12GetComponentStates\x12..milvus.proto.milvus.GetComponentStatesRequest\x1a$.milvus.proto.milvus.ComponentStates\"\x00\x12U\n\x0bLoadBalance\x12\'.milvus.proto.milvus.LoadBalanceRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12w\n\x12GetCompactionState\x12..milvus.proto.milvus.GetCompactionStateRequest\x1a/.milvus.proto.milvus.GetCompactionStateResponse\"\x00\x12q\n\x10ManualCompaction\x12,.milvus.proto.milvus.ManualCompactionRequest\x1a-.milvus.proto.milvus.ManualCompactionResponse\"\x00\x12\x80\x01\n\x1bGetCompactionStateWithPlans\x12..milvus.proto.milvus.GetCompactionPlansRequest\x1a/.milvus.proto.milvus.GetCompactionPlansResponse\"\x00\x12S\n\x06Import\x12\".milvus.proto.milvus.ImportRequest\x1a#.milvus.proto.milvus.ImportResponse\"\x00\x12k\n\x0eGetImportState\x12*.milvus.proto.milvus.GetImportStateRequest\x1a+.milvus.proto.milvus.GetImportStateResponse\"\x00\x12n\n\x0fListImportTasks\x12+.milvus.proto.milvus.ListImportTasksRequest\x1a,.milvus.proto.milvus.ListImportTasksResponse\"\x00\x12_\n\x10\x43reateCredential\x12,.milvus.proto.milvus.CreateCredentialRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12_\n\x10UpdateCredential\x12,.milvus.proto.milvus.UpdateCredentialRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12_\n\x10\x44\x65leteCredential\x12,.milvus.proto.milvus.DeleteCredentialRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12h\n\rListCredUsers\x12).milvus.proto.milvus.ListCredUsersRequest\x1a*.milvus.proto.milvus.ListCredUsersResponse\"\x00\x12S\n\nCreateRole\x12&.milvus.proto.milvus.CreateRoleRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12O\n\x08\x44ropRole\x12$.milvus.proto.milvus.DropRoleRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12]\n\x0fOperateUserRole\x12+.milvus.proto.milvus.OperateUserRoleRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12_\n\nSelectRole\x12&.milvus.proto.milvus.SelectRoleRequest\x1a\'.milvus.proto.milvus.SelectRoleResponse\"\x00\x12_\n\nSelectUser\x12&.milvus.proto.milvus.SelectUserRequest\x1a\'.milvus.proto.milvus.SelectUserResponse\"\x00\x12_\n\x10OperatePrivilege\x12,.milvus.proto.milvus.OperatePrivilegeRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x62\n\x0bSelectGrant\x12\'.milvus.proto.milvus.SelectGrantRequest\x1a(.milvus.proto.milvus.SelectGrantResponse\"\x00\x12_\n\nGetVersion\x12&.milvus.proto.milvus.GetVersionRequest\x1a\'.milvus.proto.milvus.GetVersionResponse\"\x00\x12\x62\n\x0b\x43heckHealth\x12\'.milvus.proto.milvus.CheckHealthRequest\x1a(.milvus.proto.milvus.CheckHealthResponse\"\x00\x12\x65\n\x13\x43reateResourceGroup\x12/.milvus.proto.milvus.CreateResourceGroupRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x61\n\x11\x44ropResourceGroup\x12-.milvus.proto.milvus.DropResourceGroupRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12W\n\x0cTransferNode\x12(.milvus.proto.milvus.TransferNodeRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12]\n\x0fTransferReplica\x12+.milvus.proto.milvus.TransferReplicaRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12w\n\x12ListResourceGroups\x12..milvus.proto.milvus.ListResourceGroupsRequest\x1a/.milvus.proto.milvus.ListResourceGroupsResponse\"\x00\x12\x80\x01\n\x15\x44\x65scribeResourceGroup\x12\x31.milvus.proto.milvus.DescribeResourceGroupRequest\x1a\x32.milvus.proto.milvus.DescribeResourceGroupResponse\"\x00\x12_\n\x10RenameCollection\x12,.milvus.proto.milvus.RenameCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x32u\n\x0cProxyService\x12\x65\n\x0cRegisterLink\x12(.milvus.proto.milvus.RegisterLinkRequest\x1a).milvus.proto.milvus.RegisterLinkResponse\"\x00:U\n\x0emilvus_ext_obj\x12\x1c.google.protobuf.FileOptions\x18\xe9\x07 \x01(\x0b\x32\x1e.milvus.proto.milvus.MilvusExtBf\n\x0eio.milvus.grpcB\x0bMilvusProtoP\x01Z1github.com/milvus-io/milvus-proto/go-api/milvuspb\xa0\x01\x01\xaa\x02\x0eIO.Milvus.Grpcb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cmilvus.proto\x12\x13milvus.proto.milvus\x1a\x0c\x63ommon.proto\x1a\x0cschema.proto\x1a\x0b\x66\x65\x64\x65r.proto\x1a google/protobuf/descriptor.proto\"y\n\x12\x43reateAliasRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\r\n\x05\x61lias\x18\x04 \x01(\t\"^\n\x10\x44ropAliasRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\r\n\x05\x61lias\x18\x03 \x01(\t\"x\n\x11\x41lterAliasRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\r\n\x05\x61lias\x18\x04 \x01(\t\"b\n\x14\x44\x65scribeAliasRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\r\n\x05\x61lias\x18\x03 \x01(\t\"x\n\x15\x44\x65scribeAliasResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\r\n\x05\x61lias\x18\x03 \x01(\t\x12\x12\n\ncollection\x18\x04 \x01(\t\"j\n\x12ListAliasesRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\"}\n\x13ListAliasesResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x0f\n\x07\x61liases\x18\x04 \x03(\t\"\xa0\x02\n\x17\x43reateCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x0e\n\x06schema\x18\x04 \x01(\x0c\x12\x12\n\nshards_num\x18\x05 \x01(\x05\x12@\n\x11\x63onsistency_level\x18\x06 \x01(\x0e\x32%.milvus.proto.common.ConsistencyLevel\x12\x35\n\nproperties\x18\x07 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair:\x12\xca>\x0f\x08\x01\x10\x01\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x81\x01\n\x15\x44ropCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x02\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xcf\x01\n\x16\x41lterCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x14\n\x0c\x63ollectionID\x18\x04 \x01(\x03\x12\x35\n\nproperties\x18\x05 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair:\x12\xca>\x0f\x08\x01\x10\x01\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x80\x01\n\x14HasCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\ntime_stamp\x18\x04 \x01(\x04\"J\n\x0c\x42oolResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\r\n\x05value\x18\x02 \x01(\x08\"L\n\x0eStringResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\r\n\x05value\x18\x02 \x01(\t\"\xaf\x01\n\x19\x44\x65scribeCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x14\n\x0c\x63ollectionID\x18\x04 \x01(\x03\x12\x12\n\ntime_stamp\x18\x05 \x01(\x04:\x12\xca>\x0f\x08\x01\x10\x03\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x81\x04\n\x1a\x44\x65scribeCollectionResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x35\n\x06schema\x18\x02 \x01(\x0b\x32%.milvus.proto.schema.CollectionSchema\x12\x14\n\x0c\x63ollectionID\x18\x03 \x01(\x03\x12\x1d\n\x15virtual_channel_names\x18\x04 \x03(\t\x12\x1e\n\x16physical_channel_names\x18\x05 \x03(\t\x12\x19\n\x11\x63reated_timestamp\x18\x06 \x01(\x04\x12\x1d\n\x15\x63reated_utc_timestamp\x18\x07 \x01(\x04\x12\x12\n\nshards_num\x18\x08 \x01(\x05\x12\x0f\n\x07\x61liases\x18\t \x03(\t\x12\x39\n\x0fstart_positions\x18\n \x03(\x0b\x32 .milvus.proto.common.KeyDataPair\x12@\n\x11\x63onsistency_level\x18\x0b \x01(\x0e\x32%.milvus.proto.common.ConsistencyLevel\x12\x17\n\x0f\x63ollection_name\x18\x0c \x01(\t\x12\x35\n\nproperties\x18\r \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xb8\x01\n\x15LoadCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0ereplica_number\x18\x04 \x01(\x05\x12\x17\n\x0fresource_groups\x18\x05 \x03(\t\x12\x0f\n\x07refresh\x18\x06 \x01(\x08:\x07\xca>\x04\x10\x05\x18\x03\"y\n\x18ReleaseCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t:\x07\xca>\x04\x10\x06\x18\x03\"\xab\x01\n\x14GetStatisticsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\x12\x1b\n\x13guarantee_timestamp\x18\x05 \x01(\x04:\x07\xca>\x04\x10\n\x18\x03\"v\n\x15GetStatisticsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x05stats\x18\x02 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\x7f\n\x1eGetCollectionStatisticsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t:\x07\xca>\x04\x10\n\x18\x03\"\x80\x01\n\x1fGetCollectionStatisticsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x05stats\x18\x02 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xc4\x01\n\x16ShowCollectionsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x12\n\ntime_stamp\x18\x03 \x01(\x04\x12+\n\x04type\x18\x04 \x01(\x0e\x32\x1d.milvus.proto.milvus.ShowType\x12\x18\n\x10\x63ollection_names\x18\x05 \x03(\t:\x12\xca>\x0f\x08\x01\x10\x04\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xf3\x01\n\x17ShowCollectionsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x18\n\x10\x63ollection_names\x18\x02 \x03(\t\x12\x16\n\x0e\x63ollection_ids\x18\x03 \x03(\x03\x12\x1a\n\x12\x63reated_timestamps\x18\x04 \x03(\x04\x12\x1e\n\x16\x63reated_utc_timestamps\x18\x05 \x03(\x04\x12\x1c\n\x14inMemory_percentages\x18\x06 \x03(\x03\x12\x1f\n\x17query_service_available\x18\x07 \x03(\x08\"\x86\x01\n\x16\x43reatePartitionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\"\x84\x01\n\x14\x44ropPartitionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\"\x83\x01\n\x13HasPartitionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\"\xc8\x01\n\x15LoadPartitionsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\x12\x16\n\x0ereplica_number\x18\x05 \x01(\x05\x12\x17\n\x0fresource_groups\x18\x06 \x03(\t\x12\x0f\n\x07refresh\x18\x07 \x01(\x08\"\x89\x01\n\x18ReleasePartitionsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\"\x8d\x01\n\x1dGetPartitionStatisticsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\"\x7f\n\x1eGetPartitionStatisticsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x05stats\x18\x02 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xc9\x01\n\x15ShowPartitionsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x14\n\x0c\x63ollectionID\x18\x04 \x01(\x03\x12\x17\n\x0fpartition_names\x18\x05 \x03(\t\x12+\n\x04type\x18\x06 \x01(\x0e\x32\x1d.milvus.proto.milvus.ShowType\"\xce\x01\n\x16ShowPartitionsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x17\n\x0fpartition_names\x18\x02 \x03(\t\x12\x14\n\x0cpartitionIDs\x18\x03 \x03(\x03\x12\x1a\n\x12\x63reated_timestamps\x18\x04 \x03(\x04\x12\x1e\n\x16\x63reated_utc_timestamps\x18\x05 \x03(\x04\x12\x1c\n\x14inMemory_percentages\x18\x06 \x03(\x03\"m\n\x16\x44\x65scribeSegmentRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x11\n\tsegmentID\x18\x03 \x01(\x03\"\x8f\x01\n\x17\x44\x65scribeSegmentResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07indexID\x18\x02 \x01(\x03\x12\x0f\n\x07\x62uildID\x18\x03 \x01(\x03\x12\x14\n\x0c\x65nable_index\x18\x04 \x01(\x08\x12\x0f\n\x07\x66ieldID\x18\x05 \x01(\x03\"l\n\x13ShowSegmentsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x13\n\x0bpartitionID\x18\x03 \x01(\x03\"W\n\x14ShowSegmentsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x12\n\nsegmentIDs\x18\x02 \x03(\x03\"\xd4\x01\n\x12\x43reateIndexRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x37\n\x0c\x65xtra_params\x18\x05 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\x12\x12\n\nindex_name\x18\x06 \x01(\t:\x07\xca>\x04\x10\x0b\x18\x03\"\x9d\x01\n\x14\x44\x65scribeIndexRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x12\n\nindex_name\x18\x05 \x01(\t:\x07\xca>\x04\x10\x0c\x18\x03\"\xf9\x01\n\x10IndexDescription\x12\x12\n\nindex_name\x18\x01 \x01(\t\x12\x0f\n\x07indexID\x18\x02 \x01(\x03\x12\x31\n\x06params\x18\x03 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x14\n\x0cindexed_rows\x18\x05 \x01(\x03\x12\x12\n\ntotal_rows\x18\x06 \x01(\x03\x12.\n\x05state\x18\x07 \x01(\x0e\x32\x1f.milvus.proto.common.IndexState\x12\x1f\n\x17index_state_fail_reason\x18\x08 \x01(\t\"\x87\x01\n\x15\x44\x65scribeIndexResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x41\n\x12index_descriptions\x18\x02 \x03(\x0b\x32%.milvus.proto.milvus.IndexDescription\"\xa5\x01\n\x1cGetIndexBuildProgressRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x12\n\nindex_name\x18\x05 \x01(\t:\x07\xca>\x04\x10\x0c\x18\x03\"v\n\x1dGetIndexBuildProgressResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x14\n\x0cindexed_rows\x18\x02 \x01(\x03\x12\x12\n\ntotal_rows\x18\x03 \x01(\x03\"\x9d\x01\n\x14GetIndexStateRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x12\n\nindex_name\x18\x05 \x01(\t:\x07\xca>\x04\x10\x0c\x18\x03\"\x89\x01\n\x15GetIndexStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12.\n\x05state\x18\x02 \x01(\x0e\x32\x1f.milvus.proto.common.IndexState\x12\x13\n\x0b\x66\x61il_reason\x18\x03 \x01(\t\"\x99\x01\n\x10\x44ropIndexRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x12\n\nfield_name\x18\x04 \x01(\t\x12\x12\n\nindex_name\x18\x05 \x01(\t:\x07\xca>\x04\x10\r\x18\x03\"\xe0\x01\n\rInsertRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\x12\x33\n\x0b\x66ields_data\x18\x05 \x03(\x0b\x32\x1e.milvus.proto.schema.FieldData\x12\x11\n\thash_keys\x18\x06 \x03(\r\x12\x10\n\x08num_rows\x18\x07 \x01(\r:\x07\xca>\x04\x10\x08\x18\x03\"\xe0\x01\n\rUpsertRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\x12\x33\n\x0b\x66ields_data\x18\x05 \x03(\x0b\x32\x1e.milvus.proto.schema.FieldData\x12\x11\n\thash_keys\x18\x06 \x03(\r\x12\x10\n\x08num_rows\x18\x07 \x01(\r:\x07\xca>\x04\x10\x19\x18\x03\"\xf0\x01\n\x0eMutationResult\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12%\n\x03IDs\x18\x02 \x01(\x0b\x32\x18.milvus.proto.schema.IDs\x12\x12\n\nsucc_index\x18\x03 \x03(\r\x12\x11\n\terr_index\x18\x04 \x03(\r\x12\x14\n\x0c\x61\x63knowledged\x18\x05 \x01(\x08\x12\x12\n\ninsert_cnt\x18\x06 \x01(\x03\x12\x12\n\ndelete_cnt\x18\x07 \x01(\x03\x12\x12\n\nupsert_cnt\x18\x08 \x01(\x03\x12\x11\n\ttimestamp\x18\t \x01(\x04\"\xa7\x01\n\rDeleteRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x16\n\x0epartition_name\x18\x04 \x01(\t\x12\x0c\n\x04\x65xpr\x18\x05 \x01(\t\x12\x11\n\thash_keys\x18\x06 \x03(\r:\x07\xca>\x04\x10\t\x18\x03\"\xf3\x02\n\rSearchRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\x12\x0b\n\x03\x64sl\x18\x05 \x01(\t\x12\x19\n\x11placeholder_group\x18\x06 \x01(\x0c\x12.\n\x08\x64sl_type\x18\x07 \x01(\x0e\x32\x1c.milvus.proto.common.DslType\x12\x15\n\routput_fields\x18\x08 \x03(\t\x12\x38\n\rsearch_params\x18\t \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\x12\x18\n\x10travel_timestamp\x18\n \x01(\x04\x12\x1b\n\x13guarantee_timestamp\x18\x0b \x01(\x04\x12\n\n\x02nq\x18\x0c \x01(\x03:\x07\xca>\x04\x10\x0e\x18\x03\"5\n\x04Hits\x12\x0b\n\x03IDs\x18\x01 \x03(\x03\x12\x10\n\x08row_data\x18\x02 \x03(\x0c\x12\x0e\n\x06scores\x18\x03 \x03(\x02\"\x8d\x01\n\rSearchResults\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x36\n\x07results\x18\x02 \x01(\x0b\x32%.milvus.proto.schema.SearchResultData\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\"n\n\x0c\x46lushRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x18\n\x10\x63ollection_names\x18\x03 \x03(\t:\x07\xca>\x04\x10\x0f \x03\"\x9b\x04\n\rFlushResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12G\n\x0b\x63oll_segIDs\x18\x03 \x03(\x0b\x32\x32.milvus.proto.milvus.FlushResponse.CollSegIDsEntry\x12R\n\x11\x66lush_coll_segIDs\x18\x04 \x03(\x0b\x32\x37.milvus.proto.milvus.FlushResponse.FlushCollSegIDsEntry\x12N\n\x0f\x63oll_seal_times\x18\x05 \x03(\x0b\x32\x35.milvus.proto.milvus.FlushResponse.CollSealTimesEntry\x1aQ\n\x0f\x43ollSegIDsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12-\n\x05value\x18\x02 \x01(\x0b\x32\x1e.milvus.proto.schema.LongArray:\x02\x38\x01\x1aV\n\x14\x46lushCollSegIDsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12-\n\x05value\x18\x02 \x01(\x0b\x32\x1e.milvus.proto.schema.LongArray:\x02\x38\x01\x1a\x34\n\x12\x43ollSealTimesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x03:\x02\x38\x01\"\x9b\x02\n\x0cQueryRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07\x64\x62_name\x18\x02 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\x12\x0c\n\x04\x65xpr\x18\x04 \x01(\t\x12\x15\n\routput_fields\x18\x05 \x03(\t\x12\x17\n\x0fpartition_names\x18\x06 \x03(\t\x12\x18\n\x10travel_timestamp\x18\x07 \x01(\x04\x12\x1b\n\x13guarantee_timestamp\x18\x08 \x01(\x04\x12\x37\n\x0cquery_params\x18\t \x03(\x0b\x32!.milvus.proto.common.KeyValuePair:\x07\xca>\x04\x10\x10\x18\x03\"\x89\x01\n\x0cQueryResults\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x33\n\x0b\x66ields_data\x18\x02 \x03(\x0b\x32\x1e.milvus.proto.schema.FieldData\x12\x17\n\x0f\x63ollection_name\x18\x03 \x01(\t\"}\n\tVectorIDs\x12\x17\n\x0f\x63ollection_name\x18\x01 \x01(\t\x12\x12\n\nfield_name\x18\x02 \x01(\t\x12*\n\x08id_array\x18\x03 \x01(\x0b\x32\x18.milvus.proto.schema.IDs\x12\x17\n\x0fpartition_names\x18\x04 \x03(\t\"\x83\x01\n\x0cVectorsArray\x12\x32\n\x08id_array\x18\x01 \x01(\x0b\x32\x1e.milvus.proto.milvus.VectorIDsH\x00\x12\x36\n\ndata_array\x18\x02 \x01(\x0b\x32 .milvus.proto.schema.VectorFieldH\x00\x42\x07\n\x05\x61rray\"\xdd\x01\n\x13\x43\x61lcDistanceRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x32\n\x07op_left\x18\x02 \x01(\x0b\x32!.milvus.proto.milvus.VectorsArray\x12\x33\n\x08op_right\x18\x03 \x01(\x0b\x32!.milvus.proto.milvus.VectorsArray\x12\x31\n\x06params\x18\x04 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xb5\x01\n\x13\x43\x61lcDistanceResults\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x31\n\x08int_dist\x18\x02 \x01(\x0b\x32\x1d.milvus.proto.schema.IntArrayH\x00\x12\x35\n\nfloat_dist\x18\x03 \x01(\x0b\x32\x1f.milvus.proto.schema.FloatArrayH\x00\x42\x07\n\x05\x61rray\"\x11\n\x0f\x46lushAllRequest\"U\n\x10\x46lushAllResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x14\n\x0c\x66lush_all_ts\x18\x02 \x01(\x04\"\x99\x01\n\x15PersistentSegmentInfo\x12\x11\n\tsegmentID\x18\x01 \x01(\x03\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x13\n\x0bpartitionID\x18\x03 \x01(\x03\x12\x10\n\x08num_rows\x18\x04 \x01(\x03\x12\x30\n\x05state\x18\x05 \x01(\x0e\x32!.milvus.proto.common.SegmentState\"u\n\x1fGetPersistentSegmentInfoRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0e\n\x06\x64\x62Name\x18\x02 \x01(\t\x12\x16\n\x0e\x63ollectionName\x18\x03 \x01(\t\"\x8a\x01\n GetPersistentSegmentInfoResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x39\n\x05infos\x18\x02 \x03(\x0b\x32*.milvus.proto.milvus.PersistentSegmentInfo\"\xec\x01\n\x10QuerySegmentInfo\x12\x11\n\tsegmentID\x18\x01 \x01(\x03\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x13\n\x0bpartitionID\x18\x03 \x01(\x03\x12\x10\n\x08mem_size\x18\x04 \x01(\x03\x12\x10\n\x08num_rows\x18\x05 \x01(\x03\x12\x12\n\nindex_name\x18\x06 \x01(\t\x12\x0f\n\x07indexID\x18\x07 \x01(\x03\x12\x0e\n\x06nodeID\x18\x08 \x01(\x03\x12\x30\n\x05state\x18\t \x01(\x0e\x32!.milvus.proto.common.SegmentState\x12\x0f\n\x07nodeIds\x18\n \x03(\x03\"p\n\x1aGetQuerySegmentInfoRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0e\n\x06\x64\x62Name\x18\x02 \x01(\t\x12\x16\n\x0e\x63ollectionName\x18\x03 \x01(\t\"\x80\x01\n\x1bGetQuerySegmentInfoResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x34\n\x05infos\x18\x02 \x03(\x0b\x32%.milvus.proto.milvus.QuerySegmentInfo\"$\n\x0c\x44ummyRequest\x12\x14\n\x0crequest_type\x18\x01 \x01(\t\"!\n\rDummyResponse\x12\x10\n\x08response\x18\x01 \x01(\t\"\x15\n\x13RegisterLinkRequest\"r\n\x14RegisterLinkResponse\x12-\n\x07\x61\x64\x64ress\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.Address\x12+\n\x06status\x18\x02 \x01(\x0b\x32\x1b.milvus.proto.common.Status\"P\n\x11GetMetricsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x0f\n\x07request\x18\x02 \x01(\t\"k\n\x12GetMetricsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x10\n\x08response\x18\x02 \x01(\t\x12\x16\n\x0e\x63omponent_name\x18\x03 \x01(\t\"\x98\x01\n\rComponentInfo\x12\x0e\n\x06nodeID\x18\x01 \x01(\x03\x12\x0c\n\x04role\x18\x02 \x01(\t\x12\x32\n\nstate_code\x18\x03 \x01(\x0e\x32\x1e.milvus.proto.common.StateCode\x12\x35\n\nextra_info\x18\x04 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\"\xb2\x01\n\x0f\x43omponentStates\x12\x31\n\x05state\x18\x01 \x01(\x0b\x32\".milvus.proto.milvus.ComponentInfo\x12?\n\x13subcomponent_states\x18\x02 \x03(\x0b\x32\".milvus.proto.milvus.ComponentInfo\x12+\n\x06status\x18\x03 \x01(\x0b\x32\x1b.milvus.proto.common.Status\"\x1b\n\x19GetComponentStatesRequest\"\xa5\x01\n\x12LoadBalanceRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x12\n\nsrc_nodeID\x18\x02 \x01(\x03\x12\x13\n\x0b\x64st_nodeIDs\x18\x03 \x03(\x03\x12\x19\n\x11sealed_segmentIDs\x18\x04 \x03(\x03\x12\x16\n\x0e\x63ollectionName\x18\x05 \x01(\t:\x07\xca>\x04\x10\x11\x18\x05\"L\n\x17ManualCompactionRequest\x12\x14\n\x0c\x63ollectionID\x18\x01 \x01(\x03\x12\x12\n\ntimetravel\x18\x02 \x01(\x04:\x07\xca>\x04\x10\x07\x18\x01\"z\n\x18ManualCompactionResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x14\n\x0c\x63ompactionID\x18\x02 \x01(\x03\x12\x1b\n\x13\x63ompactionPlanCount\x18\x03 \x01(\x05\"1\n\x19GetCompactionStateRequest\x12\x14\n\x0c\x63ompactionID\x18\x01 \x01(\x03\"\xdd\x01\n\x1aGetCompactionStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x33\n\x05state\x18\x02 \x01(\x0e\x32$.milvus.proto.common.CompactionState\x12\x17\n\x0f\x65xecutingPlanNo\x18\x03 \x01(\x03\x12\x15\n\rtimeoutPlanNo\x18\x04 \x01(\x03\x12\x17\n\x0f\x63ompletedPlanNo\x18\x05 \x01(\x03\x12\x14\n\x0c\x66\x61iledPlanNo\x18\x06 \x01(\x03\"1\n\x19GetCompactionPlansRequest\x12\x14\n\x0c\x63ompactionID\x18\x01 \x01(\x03\"\xbc\x01\n\x1aGetCompactionPlansResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x33\n\x05state\x18\x02 \x01(\x0e\x32$.milvus.proto.common.CompactionState\x12<\n\nmergeInfos\x18\x03 \x03(\x0b\x32(.milvus.proto.milvus.CompactionMergeInfo\"6\n\x13\x43ompactionMergeInfo\x12\x0f\n\x07sources\x18\x01 \x03(\x03\x12\x0e\n\x06target\x18\x02 \x01(\x03\"*\n\x14GetFlushStateRequest\x12\x12\n\nsegmentIDs\x18\x01 \x03(\x03\"U\n\x15GetFlushStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07\x66lushed\x18\x02 \x01(\x08\"[\n\x17GetFlushAllStateRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x14\n\x0c\x66lush_all_ts\x18\x02 \x01(\x04\"X\n\x18GetFlushAllStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07\x66lushed\x18\x02 \x01(\x08\"\xb6\x01\n\rImportRequest\x12\x17\n\x0f\x63ollection_name\x18\x01 \x01(\t\x12\x16\n\x0epartition_name\x18\x02 \x01(\t\x12\x15\n\rchannel_names\x18\x03 \x03(\t\x12\x11\n\trow_based\x18\x04 \x01(\x08\x12\r\n\x05\x66iles\x18\x05 \x03(\t\x12\x32\n\x07options\x18\x06 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair:\x07\xca>\x04\x10\x12\x18\x01\"L\n\x0eImportResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\r\n\x05tasks\x18\x02 \x03(\x03\"%\n\x15GetImportStateRequest\x12\x0c\n\x04task\x18\x01 \x01(\x03\"\x97\x02\n\x16GetImportStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12/\n\x05state\x18\x02 \x01(\x0e\x32 .milvus.proto.common.ImportState\x12\x11\n\trow_count\x18\x03 \x01(\x03\x12\x0f\n\x07id_list\x18\x04 \x03(\x03\x12\x30\n\x05infos\x18\x05 \x03(\x0b\x32!.milvus.proto.common.KeyValuePair\x12\n\n\x02id\x18\x06 \x01(\x03\x12\x15\n\rcollection_id\x18\x07 \x01(\x03\x12\x13\n\x0bsegment_ids\x18\x08 \x03(\x03\x12\x11\n\tcreate_ts\x18\t \x01(\x03\"@\n\x16ListImportTasksRequest\x12\x17\n\x0f\x63ollection_name\x18\x01 \x01(\t\x12\r\n\x05limit\x18\x02 \x01(\x03\"\x82\x01\n\x17ListImportTasksResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12:\n\x05tasks\x18\x02 \x03(\x0b\x32+.milvus.proto.milvus.GetImportStateResponse\"\x89\x01\n\x12GetReplicasRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x18\n\x10with_shard_nodes\x18\x03 \x01(\x08\x12\x17\n\x0f\x63ollection_name\x18\x04 \x01(\t\"v\n\x13GetReplicasResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x32\n\x08replicas\x18\x02 \x03(\x0b\x32 .milvus.proto.milvus.ReplicaInfo\"\xc1\x02\n\x0bReplicaInfo\x12\x11\n\treplicaID\x18\x01 \x01(\x03\x12\x14\n\x0c\x63ollectionID\x18\x02 \x01(\x03\x12\x15\n\rpartition_ids\x18\x03 \x03(\x03\x12\x39\n\x0eshard_replicas\x18\x04 \x03(\x0b\x32!.milvus.proto.milvus.ShardReplica\x12\x10\n\x08node_ids\x18\x05 \x03(\x03\x12\x1b\n\x13resource_group_name\x18\x06 \x01(\t\x12P\n\x11num_outbound_node\x18\x07 \x03(\x0b\x32\x35.milvus.proto.milvus.ReplicaInfo.NumOutboundNodeEntry\x1a\x36\n\x14NumOutboundNodeEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\"`\n\x0cShardReplica\x12\x10\n\x08leaderID\x18\x01 \x01(\x03\x12\x13\n\x0bleader_addr\x18\x02 \x01(\t\x12\x17\n\x0f\x64m_channel_name\x18\x03 \x01(\t\x12\x10\n\x08node_ids\x18\x04 \x03(\x03\"\xbe\x01\n\x17\x43reateCredentialRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x10\n\x08password\x18\x03 \x01(\t\x12\x1e\n\x16\x63reated_utc_timestamps\x18\x04 \x01(\x04\x12\x1f\n\x17modified_utc_timestamps\x18\x05 \x01(\x04:\x12\xca>\x0f\x08\x01\x10\x13\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xcd\x01\n\x17UpdateCredentialRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x13\n\x0boldPassword\x18\x03 \x01(\t\x12\x13\n\x0bnewPassword\x18\x04 \x01(\t\x12\x1e\n\x16\x63reated_utc_timestamps\x18\x05 \x01(\x04\x12\x1f\n\x17modified_utc_timestamps\x18\x06 \x01(\x04:\t\xca>\x06\x08\x02\x10\x14\x18\x02\"k\n\x17\x44\x65leteCredentialRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x10\n\x08username\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x15\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"W\n\x15ListCredUsersResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x11\n\tusernames\x18\x02 \x03(\t\"V\n\x14ListCredUsersRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase:\x12\xca>\x0f\x08\x01\x10\x16\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x1a\n\nRoleEntity\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x1a\n\nUserEntity\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x84\x01\n\x11\x43reateRoleRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12/\n\x06\x65ntity\x18\x02 \x01(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity:\x12\xca>\x0f\x08\x01\x10\x13\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"d\n\x0f\x44ropRoleRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x11\n\trole_name\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x15\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xb5\x01\n\x16OperateUserRoleRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x10\n\x08username\x18\x02 \x01(\t\x12\x11\n\trole_name\x18\x03 \x01(\t\x12\x36\n\x04type\x18\x04 \x01(\x0e\x32(.milvus.proto.milvus.OperateUserRoleType:\x12\xca>\x0f\x08\x01\x10\x17\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x9d\x01\n\x11SelectRoleRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12-\n\x04role\x18\x02 \x01(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity\x12\x19\n\x11include_user_info\x18\x03 \x01(\x08:\x12\xca>\x0f\x08\x01\x10\x16\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"k\n\nRoleResult\x12-\n\x04role\x18\x01 \x01(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity\x12.\n\x05users\x18\x02 \x03(\x0b\x32\x1f.milvus.proto.milvus.UserEntity\"s\n\x12SelectRoleResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x07results\x18\x02 \x03(\x0b\x32\x1f.milvus.proto.milvus.RoleResult\"\x94\x01\n\x11SelectUserRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12-\n\x04user\x18\x02 \x01(\x0b\x32\x1f.milvus.proto.milvus.UserEntity\x12\x19\n\x11include_role_info\x18\x03 \x01(\x08:\t\xca>\x06\x08\x02\x10\x18\x18\x02\"k\n\nUserResult\x12-\n\x04user\x18\x01 \x01(\x0b\x32\x1f.milvus.proto.milvus.UserEntity\x12.\n\x05roles\x18\x02 \x03(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity\"s\n\x12SelectUserResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x30\n\x07results\x18\x02 \x03(\x0b\x32\x1f.milvus.proto.milvus.UserResult\"\x1c\n\x0cObjectEntity\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x1f\n\x0fPrivilegeEntity\x12\x0c\n\x04name\x18\x01 \x01(\t\"w\n\rGrantorEntity\x12-\n\x04user\x18\x01 \x01(\x0b\x32\x1f.milvus.proto.milvus.UserEntity\x12\x37\n\tprivilege\x18\x02 \x01(\x0b\x32$.milvus.proto.milvus.PrivilegeEntity\"L\n\x14GrantPrivilegeEntity\x12\x34\n\x08\x65ntities\x18\x01 \x03(\x0b\x32\".milvus.proto.milvus.GrantorEntity\"\xb9\x01\n\x0bGrantEntity\x12-\n\x04role\x18\x01 \x01(\x0b\x32\x1f.milvus.proto.milvus.RoleEntity\x12\x31\n\x06object\x18\x02 \x01(\x0b\x32!.milvus.proto.milvus.ObjectEntity\x12\x13\n\x0bobject_name\x18\x03 \x01(\t\x12\x33\n\x07grantor\x18\x04 \x01(\x0b\x32\".milvus.proto.milvus.GrantorEntity\"\x86\x01\n\x12SelectGrantRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x30\n\x06\x65ntity\x18\x02 \x01(\x0b\x32 .milvus.proto.milvus.GrantEntity:\x12\xca>\x0f\x08\x01\x10\x16\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"v\n\x13SelectGrantResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x32\n\x08\x65ntities\x18\x02 \x03(\x0b\x32 .milvus.proto.milvus.GrantEntity\"\xc4\x01\n\x17OperatePrivilegeRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x30\n\x06\x65ntity\x18\x02 \x01(\x0b\x32 .milvus.proto.milvus.GrantEntity\x12\x37\n\x04type\x18\x03 \x01(\x0e\x32).milvus.proto.milvus.OperatePrivilegeType:\x12\xca>\x0f\x08\x01\x10\x17\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x82\x01\n\x19GetLoadingProgressRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x17\n\x0f\x63ollection_name\x18\x02 \x01(\t\x12\x17\n\x0fpartition_names\x18\x03 \x03(\t:\x07\xca>\x04\x10 \x18\x02\"[\n\x1aGetLoadingProgressResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x10\n\x08progress\x18\x02 \x01(\x03\"|\n\x13GetLoadStateRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x17\n\x0f\x63ollection_name\x18\x02 \x01(\t\x12\x17\n\x0fpartition_names\x18\x03 \x03(\t:\x07\xca>\x04\x10!\x18\x02\"r\n\x14GetLoadStateResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12-\n\x05state\x18\x02 \x01(\x0e\x32\x1e.milvus.proto.common.LoadState\"\x1c\n\tMilvusExt\x12\x0f\n\x07version\x18\x01 \x01(\t\"\x13\n\x11GetVersionRequest\"R\n\x12GetVersionResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x0f\n\x07version\x18\x02 \x01(\t\"\x14\n\x12\x43heckHealthRequest\"\x9d\x01\n\x13\x43heckHealthResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x11\n\tisHealthy\x18\x02 \x01(\x08\x12\x0f\n\x07reasons\x18\x03 \x03(\t\x12\x35\n\x0cquota_states\x18\x04 \x03(\x0e\x32\x1f.milvus.proto.milvus.QuotaState\"t\n\x1a\x43reateResourceGroupRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x16\n\x0eresource_group\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x1a\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"r\n\x18\x44ropResourceGroupRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x16\n\x0eresource_group\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x1b\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xa5\x01\n\x13TransferNodeRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x1d\n\x15source_resource_group\x18\x02 \x01(\t\x12\x1d\n\x15target_resource_group\x18\x03 \x01(\t\x12\x10\n\x08num_node\x18\x04 \x01(\x05:\x12\xca>\x0f\x08\x01\x10\x1e\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\xc4\x01\n\x16TransferReplicaRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x1d\n\x15source_resource_group\x18\x02 \x01(\t\x12\x1d\n\x15target_resource_group\x18\x03 \x01(\t\x12\x17\n\x0f\x63ollection_name\x18\x04 \x01(\t\x12\x13\n\x0bnum_replica\x18\x05 \x01(\x03:\x12\xca>\x0f\x08\x01\x10\x1f\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"[\n\x19ListResourceGroupsRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase:\x12\xca>\x0f\x08\x01\x10\x1d\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"b\n\x1aListResourceGroupsResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12\x17\n\x0fresource_groups\x18\x02 \x03(\t\"v\n\x1c\x44\x65scribeResourceGroupRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\x16\n\x0eresource_group\x18\x02 \x01(\t:\x12\xca>\x0f\x08\x01\x10\x1c\x18\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"\x88\x01\n\x1d\x44\x65scribeResourceGroupResponse\x12+\n\x06status\x18\x01 \x01(\x0b\x32\x1b.milvus.proto.common.Status\x12:\n\x0eresource_group\x18\x02 \x01(\x0b\x32\".milvus.proto.milvus.ResourceGroup\"\xf2\x03\n\rResourceGroup\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x10\n\x08\x63\x61pacity\x18\x02 \x01(\x05\x12\x1a\n\x12num_available_node\x18\x03 \x01(\x05\x12T\n\x12num_loaded_replica\x18\x04 \x03(\x0b\x32\x38.milvus.proto.milvus.ResourceGroup.NumLoadedReplicaEntry\x12R\n\x11num_outgoing_node\x18\x05 \x03(\x0b\x32\x37.milvus.proto.milvus.ResourceGroup.NumOutgoingNodeEntry\x12R\n\x11num_incoming_node\x18\x06 \x03(\x0b\x32\x37.milvus.proto.milvus.ResourceGroup.NumIncomingNodeEntry\x1a\x37\n\x15NumLoadedReplicaEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\x1a\x36\n\x14NumOutgoingNodeEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\x1a\x36\n\x14NumIncomingNodeEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x05:\x02\x38\x01\"s\n\x17RenameCollectionRequest\x12*\n\x04\x62\x61se\x18\x01 \x01(\x0b\x32\x1c.milvus.proto.common.MsgBase\x12\n\n\x02\x64\x62\x18\x02 \x01(\t\x12\x0f\n\x07oldName\x18\x03 \x01(\t\x12\x0f\n\x07newName\x18\x04 \x01(\t*!\n\x08ShowType\x12\x07\n\x03\x41ll\x10\x00\x12\x0c\n\x08InMemory\x10\x01*@\n\x13OperateUserRoleType\x12\x11\n\rAddUserToRole\x10\x00\x12\x16\n\x12RemoveUserFromRole\x10\x01*-\n\x14OperatePrivilegeType\x12\t\n\x05Grant\x10\x00\x12\n\n\x06Revoke\x10\x01*]\n\nQuotaState\x12\x0b\n\x07Unknown\x10\x00\x12\x0f\n\x0bReadLimited\x10\x02\x12\x10\n\x0cWriteLimited\x10\x03\x12\x0e\n\nDenyToRead\x10\x04\x12\x0f\n\x0b\x44\x65nyToWrite\x10\x05\x32\xf7:\n\rMilvusService\x12_\n\x10\x43reateCollection\x12,.milvus.proto.milvus.CreateCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12[\n\x0e\x44ropCollection\x12*.milvus.proto.milvus.DropCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12_\n\rHasCollection\x12).milvus.proto.milvus.HasCollectionRequest\x1a!.milvus.proto.milvus.BoolResponse\"\x00\x12[\n\x0eLoadCollection\x12*.milvus.proto.milvus.LoadCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x61\n\x11ReleaseCollection\x12-.milvus.proto.milvus.ReleaseCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12w\n\x12\x44\x65scribeCollection\x12..milvus.proto.milvus.DescribeCollectionRequest\x1a/.milvus.proto.milvus.DescribeCollectionResponse\"\x00\x12\x86\x01\n\x17GetCollectionStatistics\x12\x33.milvus.proto.milvus.GetCollectionStatisticsRequest\x1a\x34.milvus.proto.milvus.GetCollectionStatisticsResponse\"\x00\x12n\n\x0fShowCollections\x12+.milvus.proto.milvus.ShowCollectionsRequest\x1a,.milvus.proto.milvus.ShowCollectionsResponse\"\x00\x12]\n\x0f\x41lterCollection\x12+.milvus.proto.milvus.AlterCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12]\n\x0f\x43reatePartition\x12+.milvus.proto.milvus.CreatePartitionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12Y\n\rDropPartition\x12).milvus.proto.milvus.DropPartitionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12]\n\x0cHasPartition\x12(.milvus.proto.milvus.HasPartitionRequest\x1a!.milvus.proto.milvus.BoolResponse\"\x00\x12[\n\x0eLoadPartitions\x12*.milvus.proto.milvus.LoadPartitionsRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x61\n\x11ReleasePartitions\x12-.milvus.proto.milvus.ReleasePartitionsRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x83\x01\n\x16GetPartitionStatistics\x12\x32.milvus.proto.milvus.GetPartitionStatisticsRequest\x1a\x33.milvus.proto.milvus.GetPartitionStatisticsResponse\"\x00\x12k\n\x0eShowPartitions\x12*.milvus.proto.milvus.ShowPartitionsRequest\x1a+.milvus.proto.milvus.ShowPartitionsResponse\"\x00\x12w\n\x12GetLoadingProgress\x12..milvus.proto.milvus.GetLoadingProgressRequest\x1a/.milvus.proto.milvus.GetLoadingProgressResponse\"\x00\x12\x65\n\x0cGetLoadState\x12(.milvus.proto.milvus.GetLoadStateRequest\x1a).milvus.proto.milvus.GetLoadStateResponse\"\x00\x12U\n\x0b\x43reateAlias\x12\'.milvus.proto.milvus.CreateAliasRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12Q\n\tDropAlias\x12%.milvus.proto.milvus.DropAliasRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12S\n\nAlterAlias\x12&.milvus.proto.milvus.AlterAliasRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12h\n\rDescribeAlias\x12).milvus.proto.milvus.DescribeAliasRequest\x1a*.milvus.proto.milvus.DescribeAliasResponse\"\x00\x12\x62\n\x0bListAliases\x12\'.milvus.proto.milvus.ListAliasesRequest\x1a(.milvus.proto.milvus.ListAliasesResponse\"\x00\x12U\n\x0b\x43reateIndex\x12\'.milvus.proto.milvus.CreateIndexRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12h\n\rDescribeIndex\x12).milvus.proto.milvus.DescribeIndexRequest\x1a*.milvus.proto.milvus.DescribeIndexResponse\"\x00\x12h\n\rGetIndexState\x12).milvus.proto.milvus.GetIndexStateRequest\x1a*.milvus.proto.milvus.GetIndexStateResponse\"\x00\x12\x80\x01\n\x15GetIndexBuildProgress\x12\x31.milvus.proto.milvus.GetIndexBuildProgressRequest\x1a\x32.milvus.proto.milvus.GetIndexBuildProgressResponse\"\x00\x12Q\n\tDropIndex\x12%.milvus.proto.milvus.DropIndexRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12S\n\x06Insert\x12\".milvus.proto.milvus.InsertRequest\x1a#.milvus.proto.milvus.MutationResult\"\x00\x12S\n\x06\x44\x65lete\x12\".milvus.proto.milvus.DeleteRequest\x1a#.milvus.proto.milvus.MutationResult\"\x00\x12S\n\x06Upsert\x12\".milvus.proto.milvus.UpsertRequest\x1a#.milvus.proto.milvus.MutationResult\"\x00\x12R\n\x06Search\x12\".milvus.proto.milvus.SearchRequest\x1a\".milvus.proto.milvus.SearchResults\"\x00\x12P\n\x05\x46lush\x12!.milvus.proto.milvus.FlushRequest\x1a\".milvus.proto.milvus.FlushResponse\"\x00\x12O\n\x05Query\x12!.milvus.proto.milvus.QueryRequest\x1a!.milvus.proto.milvus.QueryResults\"\x00\x12\x64\n\x0c\x43\x61lcDistance\x12(.milvus.proto.milvus.CalcDistanceRequest\x1a(.milvus.proto.milvus.CalcDistanceResults\"\x00\x12Y\n\x08\x46lushAll\x12$.milvus.proto.milvus.FlushAllRequest\x1a%.milvus.proto.milvus.FlushAllResponse\"\x00\x12h\n\rGetFlushState\x12).milvus.proto.milvus.GetFlushStateRequest\x1a*.milvus.proto.milvus.GetFlushStateResponse\"\x00\x12q\n\x10GetFlushAllState\x12,.milvus.proto.milvus.GetFlushAllStateRequest\x1a-.milvus.proto.milvus.GetFlushAllStateResponse\"\x00\x12\x89\x01\n\x18GetPersistentSegmentInfo\x12\x34.milvus.proto.milvus.GetPersistentSegmentInfoRequest\x1a\x35.milvus.proto.milvus.GetPersistentSegmentInfoResponse\"\x00\x12z\n\x13GetQuerySegmentInfo\x12/.milvus.proto.milvus.GetQuerySegmentInfoRequest\x1a\x30.milvus.proto.milvus.GetQuerySegmentInfoResponse\"\x00\x12\x62\n\x0bGetReplicas\x12\'.milvus.proto.milvus.GetReplicasRequest\x1a(.milvus.proto.milvus.GetReplicasResponse\"\x00\x12P\n\x05\x44ummy\x12!.milvus.proto.milvus.DummyRequest\x1a\".milvus.proto.milvus.DummyResponse\"\x00\x12\x65\n\x0cRegisterLink\x12(.milvus.proto.milvus.RegisterLinkRequest\x1a).milvus.proto.milvus.RegisterLinkResponse\"\x00\x12_\n\nGetMetrics\x12&.milvus.proto.milvus.GetMetricsRequest\x1a\'.milvus.proto.milvus.GetMetricsResponse\"\x00\x12l\n\x12GetComponentStates\x12..milvus.proto.milvus.GetComponentStatesRequest\x1a$.milvus.proto.milvus.ComponentStates\"\x00\x12U\n\x0bLoadBalance\x12\'.milvus.proto.milvus.LoadBalanceRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12w\n\x12GetCompactionState\x12..milvus.proto.milvus.GetCompactionStateRequest\x1a/.milvus.proto.milvus.GetCompactionStateResponse\"\x00\x12q\n\x10ManualCompaction\x12,.milvus.proto.milvus.ManualCompactionRequest\x1a-.milvus.proto.milvus.ManualCompactionResponse\"\x00\x12\x80\x01\n\x1bGetCompactionStateWithPlans\x12..milvus.proto.milvus.GetCompactionPlansRequest\x1a/.milvus.proto.milvus.GetCompactionPlansResponse\"\x00\x12S\n\x06Import\x12\".milvus.proto.milvus.ImportRequest\x1a#.milvus.proto.milvus.ImportResponse\"\x00\x12k\n\x0eGetImportState\x12*.milvus.proto.milvus.GetImportStateRequest\x1a+.milvus.proto.milvus.GetImportStateResponse\"\x00\x12n\n\x0fListImportTasks\x12+.milvus.proto.milvus.ListImportTasksRequest\x1a,.milvus.proto.milvus.ListImportTasksResponse\"\x00\x12_\n\x10\x43reateCredential\x12,.milvus.proto.milvus.CreateCredentialRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12_\n\x10UpdateCredential\x12,.milvus.proto.milvus.UpdateCredentialRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12_\n\x10\x44\x65leteCredential\x12,.milvus.proto.milvus.DeleteCredentialRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12h\n\rListCredUsers\x12).milvus.proto.milvus.ListCredUsersRequest\x1a*.milvus.proto.milvus.ListCredUsersResponse\"\x00\x12S\n\nCreateRole\x12&.milvus.proto.milvus.CreateRoleRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12O\n\x08\x44ropRole\x12$.milvus.proto.milvus.DropRoleRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12]\n\x0fOperateUserRole\x12+.milvus.proto.milvus.OperateUserRoleRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12_\n\nSelectRole\x12&.milvus.proto.milvus.SelectRoleRequest\x1a\'.milvus.proto.milvus.SelectRoleResponse\"\x00\x12_\n\nSelectUser\x12&.milvus.proto.milvus.SelectUserRequest\x1a\'.milvus.proto.milvus.SelectUserResponse\"\x00\x12_\n\x10OperatePrivilege\x12,.milvus.proto.milvus.OperatePrivilegeRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x62\n\x0bSelectGrant\x12\'.milvus.proto.milvus.SelectGrantRequest\x1a(.milvus.proto.milvus.SelectGrantResponse\"\x00\x12_\n\nGetVersion\x12&.milvus.proto.milvus.GetVersionRequest\x1a\'.milvus.proto.milvus.GetVersionResponse\"\x00\x12\x62\n\x0b\x43heckHealth\x12\'.milvus.proto.milvus.CheckHealthRequest\x1a(.milvus.proto.milvus.CheckHealthResponse\"\x00\x12\x65\n\x13\x43reateResourceGroup\x12/.milvus.proto.milvus.CreateResourceGroupRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12\x61\n\x11\x44ropResourceGroup\x12-.milvus.proto.milvus.DropResourceGroupRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12W\n\x0cTransferNode\x12(.milvus.proto.milvus.TransferNodeRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12]\n\x0fTransferReplica\x12+.milvus.proto.milvus.TransferReplicaRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12w\n\x12ListResourceGroups\x12..milvus.proto.milvus.ListResourceGroupsRequest\x1a/.milvus.proto.milvus.ListResourceGroupsResponse\"\x00\x12\x80\x01\n\x15\x44\x65scribeResourceGroup\x12\x31.milvus.proto.milvus.DescribeResourceGroupRequest\x1a\x32.milvus.proto.milvus.DescribeResourceGroupResponse\"\x00\x12_\n\x10RenameCollection\x12,.milvus.proto.milvus.RenameCollectionRequest\x1a\x1b.milvus.proto.common.Status\"\x00\x12u\n\x12ListIndexedSegment\x12-.milvus.proto.feder.ListIndexedSegmentRequest\x1a..milvus.proto.feder.ListIndexedSegmentResponse\"\x00\x12\x87\x01\n\x18\x44\x65scribeSegmentIndexData\x12\x33.milvus.proto.feder.DescribeSegmentIndexDataRequest\x1a\x34.milvus.proto.feder.DescribeSegmentIndexDataResponse\"\x00\x32u\n\x0cProxyService\x12\x65\n\x0cRegisterLink\x12(.milvus.proto.milvus.RegisterLinkRequest\x1a).milvus.proto.milvus.RegisterLinkResponse\"\x00:U\n\x0emilvus_ext_obj\x12\x1c.google.protobuf.FileOptions\x18\xe9\x07 \x01(\x0b\x32\x1e.milvus.proto.milvus.MilvusExtBf\n\x0eio.milvus.grpcB\x0bMilvusProtoP\x01Z1github.com/milvus-io/milvus-proto/go-api/milvuspb\xa0\x01\x01\xaa\x02\x0eIO.Milvus.Grpcb\x06proto3')
 
 _SHOWTYPE = DESCRIPTOR.enum_types_by_name['ShowType']
 ShowType = enum_type_wrapper.EnumTypeWrapper(_SHOWTYPE)
@@ -46,6 +47,10 @@ milvus_ext_obj = DESCRIPTOR.extensions_by_name['milvus_ext_obj']
 _CREATEALIASREQUEST = DESCRIPTOR.message_types_by_name['CreateAliasRequest']
 _DROPALIASREQUEST = DESCRIPTOR.message_types_by_name['DropAliasRequest']
 _ALTERALIASREQUEST = DESCRIPTOR.message_types_by_name['AlterAliasRequest']
+_DESCRIBEALIASREQUEST = DESCRIPTOR.message_types_by_name['DescribeAliasRequest']
+_DESCRIBEALIASRESPONSE = DESCRIPTOR.message_types_by_name['DescribeAliasResponse']
+_LISTALIASESREQUEST = DESCRIPTOR.message_types_by_name['ListAliasesRequest']
+_LISTALIASESRESPONSE = DESCRIPTOR.message_types_by_name['ListAliasesResponse']
 _CREATECOLLECTIONREQUEST = DESCRIPTOR.message_types_by_name['CreateCollectionRequest']
 _DROPCOLLECTIONREQUEST = DESCRIPTOR.message_types_by_name['DropCollectionRequest']
 _ALTERCOLLECTIONREQUEST = DESCRIPTOR.message_types_by_name['AlterCollectionRequest']
@@ -102,6 +107,8 @@ _VECTORIDS = DESCRIPTOR.message_types_by_name['VectorIDs']
 _VECTORSARRAY = DESCRIPTOR.message_types_by_name['VectorsArray']
 _CALCDISTANCEREQUEST = DESCRIPTOR.message_types_by_name['CalcDistanceRequest']
 _CALCDISTANCERESULTS = DESCRIPTOR.message_types_by_name['CalcDistanceResults']
+_FLUSHALLREQUEST = DESCRIPTOR.message_types_by_name['FlushAllRequest']
+_FLUSHALLRESPONSE = DESCRIPTOR.message_types_by_name['FlushAllResponse']
 _PERSISTENTSEGMENTINFO = DESCRIPTOR.message_types_by_name['PersistentSegmentInfo']
 _GETPERSISTENTSEGMENTINFOREQUEST = DESCRIPTOR.message_types_by_name['GetPersistentSegmentInfoRequest']
 _GETPERSISTENTSEGMENTINFORESPONSE = DESCRIPTOR.message_types_by_name['GetPersistentSegmentInfoResponse']
@@ -127,6 +134,8 @@ _GETCOMPACTIONPLANSRESPONSE = DESCRIPTOR.message_types_by_name['GetCompactionPla
 _COMPACTIONMERGEINFO = DESCRIPTOR.message_types_by_name['CompactionMergeInfo']
 _GETFLUSHSTATEREQUEST = DESCRIPTOR.message_types_by_name['GetFlushStateRequest']
 _GETFLUSHSTATERESPONSE = DESCRIPTOR.message_types_by_name['GetFlushStateResponse']
+_GETFLUSHALLSTATEREQUEST = DESCRIPTOR.message_types_by_name['GetFlushAllStateRequest']
+_GETFLUSHALLSTATERESPONSE = DESCRIPTOR.message_types_by_name['GetFlushAllStateResponse']
 _IMPORTREQUEST = DESCRIPTOR.message_types_by_name['ImportRequest']
 _IMPORTRESPONSE = DESCRIPTOR.message_types_by_name['ImportResponse']
 _GETIMPORTSTATEREQUEST = DESCRIPTOR.message_types_by_name['GetImportStateRequest']
@@ -204,6 +213,34 @@ AlterAliasRequest = _reflection.GeneratedProtocolMessageType('AlterAliasRequest'
   # @@protoc_insertion_point(class_scope:milvus.proto.milvus.AlterAliasRequest)
   })
 _sym_db.RegisterMessage(AlterAliasRequest)
+
+DescribeAliasRequest = _reflection.GeneratedProtocolMessageType('DescribeAliasRequest', (_message.Message,), {
+  'DESCRIPTOR' : _DESCRIBEALIASREQUEST,
+  '__module__' : 'milvus_pb2'
+  # @@protoc_insertion_point(class_scope:milvus.proto.milvus.DescribeAliasRequest)
+  })
+_sym_db.RegisterMessage(DescribeAliasRequest)
+
+DescribeAliasResponse = _reflection.GeneratedProtocolMessageType('DescribeAliasResponse', (_message.Message,), {
+  'DESCRIPTOR' : _DESCRIBEALIASRESPONSE,
+  '__module__' : 'milvus_pb2'
+  # @@protoc_insertion_point(class_scope:milvus.proto.milvus.DescribeAliasResponse)
+  })
+_sym_db.RegisterMessage(DescribeAliasResponse)
+
+ListAliasesRequest = _reflection.GeneratedProtocolMessageType('ListAliasesRequest', (_message.Message,), {
+  'DESCRIPTOR' : _LISTALIASESREQUEST,
+  '__module__' : 'milvus_pb2'
+  # @@protoc_insertion_point(class_scope:milvus.proto.milvus.ListAliasesRequest)
+  })
+_sym_db.RegisterMessage(ListAliasesRequest)
+
+ListAliasesResponse = _reflection.GeneratedProtocolMessageType('ListAliasesResponse', (_message.Message,), {
+  'DESCRIPTOR' : _LISTALIASESRESPONSE,
+  '__module__' : 'milvus_pb2'
+  # @@protoc_insertion_point(class_scope:milvus.proto.milvus.ListAliasesResponse)
+  })
+_sym_db.RegisterMessage(ListAliasesResponse)
 
 CreateCollectionRequest = _reflection.GeneratedProtocolMessageType('CreateCollectionRequest', (_message.Message,), {
   'DESCRIPTOR' : _CREATECOLLECTIONREQUEST,
@@ -600,6 +637,20 @@ CalcDistanceResults = _reflection.GeneratedProtocolMessageType('CalcDistanceResu
   })
 _sym_db.RegisterMessage(CalcDistanceResults)
 
+FlushAllRequest = _reflection.GeneratedProtocolMessageType('FlushAllRequest', (_message.Message,), {
+  'DESCRIPTOR' : _FLUSHALLREQUEST,
+  '__module__' : 'milvus_pb2'
+  # @@protoc_insertion_point(class_scope:milvus.proto.milvus.FlushAllRequest)
+  })
+_sym_db.RegisterMessage(FlushAllRequest)
+
+FlushAllResponse = _reflection.GeneratedProtocolMessageType('FlushAllResponse', (_message.Message,), {
+  'DESCRIPTOR' : _FLUSHALLRESPONSE,
+  '__module__' : 'milvus_pb2'
+  # @@protoc_insertion_point(class_scope:milvus.proto.milvus.FlushAllResponse)
+  })
+_sym_db.RegisterMessage(FlushAllResponse)
+
 PersistentSegmentInfo = _reflection.GeneratedProtocolMessageType('PersistentSegmentInfo', (_message.Message,), {
   'DESCRIPTOR' : _PERSISTENTSEGMENTINFO,
   '__module__' : 'milvus_pb2'
@@ -774,6 +825,20 @@ GetFlushStateResponse = _reflection.GeneratedProtocolMessageType('GetFlushStateR
   # @@protoc_insertion_point(class_scope:milvus.proto.milvus.GetFlushStateResponse)
   })
 _sym_db.RegisterMessage(GetFlushStateResponse)
+
+GetFlushAllStateRequest = _reflection.GeneratedProtocolMessageType('GetFlushAllStateRequest', (_message.Message,), {
+  'DESCRIPTOR' : _GETFLUSHALLSTATEREQUEST,
+  '__module__' : 'milvus_pb2'
+  # @@protoc_insertion_point(class_scope:milvus.proto.milvus.GetFlushAllStateRequest)
+  })
+_sym_db.RegisterMessage(GetFlushAllStateRequest)
+
+GetFlushAllStateResponse = _reflection.GeneratedProtocolMessageType('GetFlushAllStateResponse', (_message.Message,), {
+  'DESCRIPTOR' : _GETFLUSHALLSTATERESPONSE,
+  '__module__' : 'milvus_pb2'
+  # @@protoc_insertion_point(class_scope:milvus.proto.milvus.GetFlushAllStateResponse)
+  })
+_sym_db.RegisterMessage(GetFlushAllStateResponse)
 
 ImportRequest = _reflection.GeneratedProtocolMessageType('ImportRequest', (_message.Message,), {
   'DESCRIPTOR' : _IMPORTREQUEST,
@@ -1261,6 +1326,10 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _SELECTGRANTREQUEST._serialized_options = b'\312>\017\010\001\020\026\030\377\377\377\377\377\377\377\377\377\001'
   _OPERATEPRIVILEGEREQUEST._options = None
   _OPERATEPRIVILEGEREQUEST._serialized_options = b'\312>\017\010\001\020\027\030\377\377\377\377\377\377\377\377\377\001'
+  _GETLOADINGPROGRESSREQUEST._options = None
+  _GETLOADINGPROGRESSREQUEST._serialized_options = b'\312>\004\020 \030\002'
+  _GETLOADSTATEREQUEST._options = None
+  _GETLOADSTATEREQUEST._serialized_options = b'\312>\004\020!\030\002'
   _CREATERESOURCEGROUPREQUEST._options = None
   _CREATERESOURCEGROUPREQUEST._serialized_options = b'\312>\017\010\001\020\032\030\377\377\377\377\377\377\377\377\377\001'
   _DROPRESOURCEGROUPREQUEST._options = None
@@ -1279,298 +1348,314 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _RESOURCEGROUP_NUMOUTGOINGNODEENTRY._serialized_options = b'8\001'
   _RESOURCEGROUP_NUMINCOMINGNODEENTRY._options = None
   _RESOURCEGROUP_NUMINCOMINGNODEENTRY._serialized_options = b'8\001'
-  _SHOWTYPE._serialized_start=19427
-  _SHOWTYPE._serialized_end=19460
-  _OPERATEUSERROLETYPE._serialized_start=19462
-  _OPERATEUSERROLETYPE._serialized_end=19526
-  _OPERATEPRIVILEGETYPE._serialized_start=19528
-  _OPERATEPRIVILEGETYPE._serialized_end=19573
-  _QUOTASTATE._serialized_start=19575
-  _QUOTASTATE._serialized_end=19668
-  _CREATEALIASREQUEST._serialized_start=99
-  _CREATEALIASREQUEST._serialized_end=220
-  _DROPALIASREQUEST._serialized_start=222
-  _DROPALIASREQUEST._serialized_end=316
-  _ALTERALIASREQUEST._serialized_start=318
-  _ALTERALIASREQUEST._serialized_end=438
-  _CREATECOLLECTIONREQUEST._serialized_start=441
-  _CREATECOLLECTIONREQUEST._serialized_end=729
-  _DROPCOLLECTIONREQUEST._serialized_start=732
-  _DROPCOLLECTIONREQUEST._serialized_end=861
-  _ALTERCOLLECTIONREQUEST._serialized_start=864
-  _ALTERCOLLECTIONREQUEST._serialized_end=1071
-  _HASCOLLECTIONREQUEST._serialized_start=1074
-  _HASCOLLECTIONREQUEST._serialized_end=1202
-  _BOOLRESPONSE._serialized_start=1204
-  _BOOLRESPONSE._serialized_end=1278
-  _STRINGRESPONSE._serialized_start=1280
-  _STRINGRESPONSE._serialized_end=1356
-  _DESCRIBECOLLECTIONREQUEST._serialized_start=1359
-  _DESCRIBECOLLECTIONREQUEST._serialized_end=1534
-  _DESCRIBECOLLECTIONRESPONSE._serialized_start=1537
-  _DESCRIBECOLLECTIONRESPONSE._serialized_end=2050
-  _LOADCOLLECTIONREQUEST._serialized_start=2053
-  _LOADCOLLECTIONREQUEST._serialized_end=2237
-  _RELEASECOLLECTIONREQUEST._serialized_start=2239
-  _RELEASECOLLECTIONREQUEST._serialized_end=2360
-  _GETSTATISTICSREQUEST._serialized_start=2363
-  _GETSTATISTICSREQUEST._serialized_end=2534
-  _GETSTATISTICSRESPONSE._serialized_start=2536
-  _GETSTATISTICSRESPONSE._serialized_end=2654
-  _GETCOLLECTIONSTATISTICSREQUEST._serialized_start=2656
-  _GETCOLLECTIONSTATISTICSREQUEST._serialized_end=2783
-  _GETCOLLECTIONSTATISTICSRESPONSE._serialized_start=2786
-  _GETCOLLECTIONSTATISTICSRESPONSE._serialized_end=2914
-  _SHOWCOLLECTIONSREQUEST._serialized_start=2917
-  _SHOWCOLLECTIONSREQUEST._serialized_end=3113
-  _SHOWCOLLECTIONSRESPONSE._serialized_start=3116
-  _SHOWCOLLECTIONSRESPONSE._serialized_end=3359
-  _CREATEPARTITIONREQUEST._serialized_start=3362
-  _CREATEPARTITIONREQUEST._serialized_end=3496
-  _DROPPARTITIONREQUEST._serialized_start=3499
-  _DROPPARTITIONREQUEST._serialized_end=3631
-  _HASPARTITIONREQUEST._serialized_start=3634
-  _HASPARTITIONREQUEST._serialized_end=3765
-  _LOADPARTITIONSREQUEST._serialized_start=3768
-  _LOADPARTITIONSREQUEST._serialized_end=3968
-  _RELEASEPARTITIONSREQUEST._serialized_start=3971
-  _RELEASEPARTITIONSREQUEST._serialized_end=4108
-  _GETPARTITIONSTATISTICSREQUEST._serialized_start=4111
-  _GETPARTITIONSTATISTICSREQUEST._serialized_end=4252
-  _GETPARTITIONSTATISTICSRESPONSE._serialized_start=4254
-  _GETPARTITIONSTATISTICSRESPONSE._serialized_end=4381
-  _SHOWPARTITIONSREQUEST._serialized_start=4384
-  _SHOWPARTITIONSREQUEST._serialized_end=4585
-  _SHOWPARTITIONSRESPONSE._serialized_start=4588
-  _SHOWPARTITIONSRESPONSE._serialized_end=4794
-  _DESCRIBESEGMENTREQUEST._serialized_start=4796
-  _DESCRIBESEGMENTREQUEST._serialized_end=4905
-  _DESCRIBESEGMENTRESPONSE._serialized_start=4908
-  _DESCRIBESEGMENTRESPONSE._serialized_end=5051
-  _SHOWSEGMENTSREQUEST._serialized_start=5053
-  _SHOWSEGMENTSREQUEST._serialized_end=5161
-  _SHOWSEGMENTSRESPONSE._serialized_start=5163
-  _SHOWSEGMENTSRESPONSE._serialized_end=5250
-  _CREATEINDEXREQUEST._serialized_start=5253
-  _CREATEINDEXREQUEST._serialized_end=5465
-  _DESCRIBEINDEXREQUEST._serialized_start=5468
-  _DESCRIBEINDEXREQUEST._serialized_end=5625
-  _INDEXDESCRIPTION._serialized_start=5628
-  _INDEXDESCRIPTION._serialized_end=5877
-  _DESCRIBEINDEXRESPONSE._serialized_start=5880
-  _DESCRIBEINDEXRESPONSE._serialized_end=6015
-  _GETINDEXBUILDPROGRESSREQUEST._serialized_start=6018
-  _GETINDEXBUILDPROGRESSREQUEST._serialized_end=6183
-  _GETINDEXBUILDPROGRESSRESPONSE._serialized_start=6185
-  _GETINDEXBUILDPROGRESSRESPONSE._serialized_end=6303
-  _GETINDEXSTATEREQUEST._serialized_start=6306
-  _GETINDEXSTATEREQUEST._serialized_end=6463
-  _GETINDEXSTATERESPONSE._serialized_start=6466
-  _GETINDEXSTATERESPONSE._serialized_end=6603
-  _DROPINDEXREQUEST._serialized_start=6606
-  _DROPINDEXREQUEST._serialized_end=6759
-  _INSERTREQUEST._serialized_start=6762
-  _INSERTREQUEST._serialized_end=6986
-  _UPSERTREQUEST._serialized_start=6989
-  _UPSERTREQUEST._serialized_end=7213
-  _MUTATIONRESULT._serialized_start=7216
-  _MUTATIONRESULT._serialized_end=7456
-  _DELETEREQUEST._serialized_start=7459
-  _DELETEREQUEST._serialized_end=7626
-  _SEARCHREQUEST._serialized_start=7629
-  _SEARCHREQUEST._serialized_end=8000
-  _HITS._serialized_start=8002
-  _HITS._serialized_end=8055
-  _SEARCHRESULTS._serialized_start=8058
-  _SEARCHRESULTS._serialized_end=8199
-  _FLUSHREQUEST._serialized_start=8201
-  _FLUSHREQUEST._serialized_end=8311
-  _FLUSHRESPONSE._serialized_start=8314
-  _FLUSHRESPONSE._serialized_end=8853
-  _FLUSHRESPONSE_COLLSEGIDSENTRY._serialized_start=8630
-  _FLUSHRESPONSE_COLLSEGIDSENTRY._serialized_end=8711
-  _FLUSHRESPONSE_FLUSHCOLLSEGIDSENTRY._serialized_start=8713
-  _FLUSHRESPONSE_FLUSHCOLLSEGIDSENTRY._serialized_end=8799
-  _FLUSHRESPONSE_COLLSEALTIMESENTRY._serialized_start=8801
-  _FLUSHRESPONSE_COLLSEALTIMESENTRY._serialized_end=8853
-  _QUERYREQUEST._serialized_start=8856
-  _QUERYREQUEST._serialized_end=9139
-  _QUERYRESULTS._serialized_start=9142
-  _QUERYRESULTS._serialized_end=9279
-  _VECTORIDS._serialized_start=9281
-  _VECTORIDS._serialized_end=9406
-  _VECTORSARRAY._serialized_start=9409
-  _VECTORSARRAY._serialized_end=9540
-  _CALCDISTANCEREQUEST._serialized_start=9543
-  _CALCDISTANCEREQUEST._serialized_end=9764
-  _CALCDISTANCERESULTS._serialized_start=9767
-  _CALCDISTANCERESULTS._serialized_end=9948
-  _PERSISTENTSEGMENTINFO._serialized_start=9951
-  _PERSISTENTSEGMENTINFO._serialized_end=10104
-  _GETPERSISTENTSEGMENTINFOREQUEST._serialized_start=10106
-  _GETPERSISTENTSEGMENTINFOREQUEST._serialized_end=10223
-  _GETPERSISTENTSEGMENTINFORESPONSE._serialized_start=10226
-  _GETPERSISTENTSEGMENTINFORESPONSE._serialized_end=10364
-  _QUERYSEGMENTINFO._serialized_start=10367
-  _QUERYSEGMENTINFO._serialized_end=10603
-  _GETQUERYSEGMENTINFOREQUEST._serialized_start=10605
-  _GETQUERYSEGMENTINFOREQUEST._serialized_end=10717
-  _GETQUERYSEGMENTINFORESPONSE._serialized_start=10720
-  _GETQUERYSEGMENTINFORESPONSE._serialized_end=10848
-  _DUMMYREQUEST._serialized_start=10850
-  _DUMMYREQUEST._serialized_end=10886
-  _DUMMYRESPONSE._serialized_start=10888
-  _DUMMYRESPONSE._serialized_end=10921
-  _REGISTERLINKREQUEST._serialized_start=10923
-  _REGISTERLINKREQUEST._serialized_end=10944
-  _REGISTERLINKRESPONSE._serialized_start=10946
-  _REGISTERLINKRESPONSE._serialized_end=11060
-  _GETMETRICSREQUEST._serialized_start=11062
-  _GETMETRICSREQUEST._serialized_end=11142
-  _GETMETRICSRESPONSE._serialized_start=11144
-  _GETMETRICSRESPONSE._serialized_end=11251
-  _COMPONENTINFO._serialized_start=11254
-  _COMPONENTINFO._serialized_end=11406
-  _COMPONENTSTATES._serialized_start=11409
-  _COMPONENTSTATES._serialized_end=11587
-  _GETCOMPONENTSTATESREQUEST._serialized_start=11589
-  _GETCOMPONENTSTATESREQUEST._serialized_end=11616
-  _LOADBALANCEREQUEST._serialized_start=11619
-  _LOADBALANCEREQUEST._serialized_end=11784
-  _MANUALCOMPACTIONREQUEST._serialized_start=11786
-  _MANUALCOMPACTIONREQUEST._serialized_end=11862
-  _MANUALCOMPACTIONRESPONSE._serialized_start=11864
-  _MANUALCOMPACTIONRESPONSE._serialized_end=11986
-  _GETCOMPACTIONSTATEREQUEST._serialized_start=11988
-  _GETCOMPACTIONSTATEREQUEST._serialized_end=12037
-  _GETCOMPACTIONSTATERESPONSE._serialized_start=12040
-  _GETCOMPACTIONSTATERESPONSE._serialized_end=12261
-  _GETCOMPACTIONPLANSREQUEST._serialized_start=12263
-  _GETCOMPACTIONPLANSREQUEST._serialized_end=12312
-  _GETCOMPACTIONPLANSRESPONSE._serialized_start=12315
-  _GETCOMPACTIONPLANSRESPONSE._serialized_end=12503
-  _COMPACTIONMERGEINFO._serialized_start=12505
-  _COMPACTIONMERGEINFO._serialized_end=12559
-  _GETFLUSHSTATEREQUEST._serialized_start=12561
-  _GETFLUSHSTATEREQUEST._serialized_end=12603
-  _GETFLUSHSTATERESPONSE._serialized_start=12605
-  _GETFLUSHSTATERESPONSE._serialized_end=12690
-  _IMPORTREQUEST._serialized_start=12693
-  _IMPORTREQUEST._serialized_end=12875
-  _IMPORTRESPONSE._serialized_start=12877
-  _IMPORTRESPONSE._serialized_end=12953
-  _GETIMPORTSTATEREQUEST._serialized_start=12955
-  _GETIMPORTSTATEREQUEST._serialized_end=12992
-  _GETIMPORTSTATERESPONSE._serialized_start=12995
-  _GETIMPORTSTATERESPONSE._serialized_end=13274
-  _LISTIMPORTTASKSREQUEST._serialized_start=13276
-  _LISTIMPORTTASKSREQUEST._serialized_end=13340
-  _LISTIMPORTTASKSRESPONSE._serialized_start=13343
-  _LISTIMPORTTASKSRESPONSE._serialized_end=13473
-  _GETREPLICASREQUEST._serialized_start=13476
-  _GETREPLICASREQUEST._serialized_end=13613
-  _GETREPLICASRESPONSE._serialized_start=13615
-  _GETREPLICASRESPONSE._serialized_end=13733
-  _REPLICAINFO._serialized_start=13736
-  _REPLICAINFO._serialized_end=14057
-  _REPLICAINFO_NUMOUTBOUNDNODEENTRY._serialized_start=14003
-  _REPLICAINFO_NUMOUTBOUNDNODEENTRY._serialized_end=14057
-  _SHARDREPLICA._serialized_start=14059
-  _SHARDREPLICA._serialized_end=14155
-  _CREATECREDENTIALREQUEST._serialized_start=14158
-  _CREATECREDENTIALREQUEST._serialized_end=14348
-  _UPDATECREDENTIALREQUEST._serialized_start=14351
-  _UPDATECREDENTIALREQUEST._serialized_end=14556
-  _DELETECREDENTIALREQUEST._serialized_start=14558
-  _DELETECREDENTIALREQUEST._serialized_end=14665
-  _LISTCREDUSERSRESPONSE._serialized_start=14667
-  _LISTCREDUSERSRESPONSE._serialized_end=14754
-  _LISTCREDUSERSREQUEST._serialized_start=14756
-  _LISTCREDUSERSREQUEST._serialized_end=14842
-  _ROLEENTITY._serialized_start=14844
-  _ROLEENTITY._serialized_end=14870
-  _USERENTITY._serialized_start=14872
-  _USERENTITY._serialized_end=14898
-  _CREATEROLEREQUEST._serialized_start=14901
-  _CREATEROLEREQUEST._serialized_end=15033
-  _DROPROLEREQUEST._serialized_start=15035
-  _DROPROLEREQUEST._serialized_end=15135
-  _OPERATEUSERROLEREQUEST._serialized_start=15138
-  _OPERATEUSERROLEREQUEST._serialized_end=15319
-  _SELECTROLEREQUEST._serialized_start=15322
-  _SELECTROLEREQUEST._serialized_end=15479
-  _ROLERESULT._serialized_start=15481
-  _ROLERESULT._serialized_end=15588
-  _SELECTROLERESPONSE._serialized_start=15590
-  _SELECTROLERESPONSE._serialized_end=15705
-  _SELECTUSERREQUEST._serialized_start=15708
-  _SELECTUSERREQUEST._serialized_end=15856
-  _USERRESULT._serialized_start=15858
-  _USERRESULT._serialized_end=15965
-  _SELECTUSERRESPONSE._serialized_start=15967
-  _SELECTUSERRESPONSE._serialized_end=16082
-  _OBJECTENTITY._serialized_start=16084
-  _OBJECTENTITY._serialized_end=16112
-  _PRIVILEGEENTITY._serialized_start=16114
-  _PRIVILEGEENTITY._serialized_end=16145
-  _GRANTORENTITY._serialized_start=16147
-  _GRANTORENTITY._serialized_end=16266
-  _GRANTPRIVILEGEENTITY._serialized_start=16268
-  _GRANTPRIVILEGEENTITY._serialized_end=16344
-  _GRANTENTITY._serialized_start=16347
-  _GRANTENTITY._serialized_end=16532
-  _SELECTGRANTREQUEST._serialized_start=16535
-  _SELECTGRANTREQUEST._serialized_end=16669
-  _SELECTGRANTRESPONSE._serialized_start=16671
-  _SELECTGRANTRESPONSE._serialized_end=16789
-  _OPERATEPRIVILEGEREQUEST._serialized_start=16792
-  _OPERATEPRIVILEGEREQUEST._serialized_end=16988
-  _GETLOADINGPROGRESSREQUEST._serialized_start=16990
-  _GETLOADINGPROGRESSREQUEST._serialized_end=17111
-  _GETLOADINGPROGRESSRESPONSE._serialized_start=17113
-  _GETLOADINGPROGRESSRESPONSE._serialized_end=17204
-  _GETLOADSTATEREQUEST._serialized_start=17206
-  _GETLOADSTATEREQUEST._serialized_end=17321
-  _GETLOADSTATERESPONSE._serialized_start=17323
-  _GETLOADSTATERESPONSE._serialized_end=17437
-  _MILVUSEXT._serialized_start=17439
-  _MILVUSEXT._serialized_end=17467
-  _GETVERSIONREQUEST._serialized_start=17469
-  _GETVERSIONREQUEST._serialized_end=17488
-  _GETVERSIONRESPONSE._serialized_start=17490
-  _GETVERSIONRESPONSE._serialized_end=17572
-  _CHECKHEALTHREQUEST._serialized_start=17574
-  _CHECKHEALTHREQUEST._serialized_end=17594
-  _CHECKHEALTHRESPONSE._serialized_start=17597
-  _CHECKHEALTHRESPONSE._serialized_end=17754
-  _CREATERESOURCEGROUPREQUEST._serialized_start=17756
-  _CREATERESOURCEGROUPREQUEST._serialized_end=17872
-  _DROPRESOURCEGROUPREQUEST._serialized_start=17874
-  _DROPRESOURCEGROUPREQUEST._serialized_end=17988
-  _TRANSFERNODEREQUEST._serialized_start=17991
-  _TRANSFERNODEREQUEST._serialized_end=18156
-  _TRANSFERREPLICAREQUEST._serialized_start=18159
-  _TRANSFERREPLICAREQUEST._serialized_end=18355
-  _LISTRESOURCEGROUPSREQUEST._serialized_start=18357
-  _LISTRESOURCEGROUPSREQUEST._serialized_end=18448
-  _LISTRESOURCEGROUPSRESPONSE._serialized_start=18450
-  _LISTRESOURCEGROUPSRESPONSE._serialized_end=18548
-  _DESCRIBERESOURCEGROUPREQUEST._serialized_start=18550
-  _DESCRIBERESOURCEGROUPREQUEST._serialized_end=18668
-  _DESCRIBERESOURCEGROUPRESPONSE._serialized_start=18671
-  _DESCRIBERESOURCEGROUPRESPONSE._serialized_end=18807
-  _RESOURCEGROUP._serialized_start=18810
-  _RESOURCEGROUP._serialized_end=19308
-  _RESOURCEGROUP_NUMLOADEDREPLICAENTRY._serialized_start=19141
-  _RESOURCEGROUP_NUMLOADEDREPLICAENTRY._serialized_end=19196
-  _RESOURCEGROUP_NUMOUTGOINGNODEENTRY._serialized_start=19198
-  _RESOURCEGROUP_NUMOUTGOINGNODEENTRY._serialized_end=19252
-  _RESOURCEGROUP_NUMINCOMINGNODEENTRY._serialized_start=19254
-  _RESOURCEGROUP_NUMINCOMINGNODEENTRY._serialized_end=19308
-  _RENAMECOLLECTIONREQUEST._serialized_start=19310
-  _RENAMECOLLECTIONREQUEST._serialized_end=19425
-  _MILVUSSERVICE._serialized_start=19671
-  _MILVUSSERVICE._serialized_end=26545
-  _PROXYSERVICE._serialized_start=26547
-  _PROXYSERVICE._serialized_end=26664
+  _SHOWTYPE._serialized_start=20205
+  _SHOWTYPE._serialized_end=20238
+  _OPERATEUSERROLETYPE._serialized_start=20240
+  _OPERATEUSERROLETYPE._serialized_end=20304
+  _OPERATEPRIVILEGETYPE._serialized_start=20306
+  _OPERATEPRIVILEGETYPE._serialized_end=20351
+  _QUOTASTATE._serialized_start=20353
+  _QUOTASTATE._serialized_end=20446
+  _CREATEALIASREQUEST._serialized_start=112
+  _CREATEALIASREQUEST._serialized_end=233
+  _DROPALIASREQUEST._serialized_start=235
+  _DROPALIASREQUEST._serialized_end=329
+  _ALTERALIASREQUEST._serialized_start=331
+  _ALTERALIASREQUEST._serialized_end=451
+  _DESCRIBEALIASREQUEST._serialized_start=453
+  _DESCRIBEALIASREQUEST._serialized_end=551
+  _DESCRIBEALIASRESPONSE._serialized_start=553
+  _DESCRIBEALIASRESPONSE._serialized_end=673
+  _LISTALIASESREQUEST._serialized_start=675
+  _LISTALIASESREQUEST._serialized_end=781
+  _LISTALIASESRESPONSE._serialized_start=783
+  _LISTALIASESRESPONSE._serialized_end=908
+  _CREATECOLLECTIONREQUEST._serialized_start=911
+  _CREATECOLLECTIONREQUEST._serialized_end=1199
+  _DROPCOLLECTIONREQUEST._serialized_start=1202
+  _DROPCOLLECTIONREQUEST._serialized_end=1331
+  _ALTERCOLLECTIONREQUEST._serialized_start=1334
+  _ALTERCOLLECTIONREQUEST._serialized_end=1541
+  _HASCOLLECTIONREQUEST._serialized_start=1544
+  _HASCOLLECTIONREQUEST._serialized_end=1672
+  _BOOLRESPONSE._serialized_start=1674
+  _BOOLRESPONSE._serialized_end=1748
+  _STRINGRESPONSE._serialized_start=1750
+  _STRINGRESPONSE._serialized_end=1826
+  _DESCRIBECOLLECTIONREQUEST._serialized_start=1829
+  _DESCRIBECOLLECTIONREQUEST._serialized_end=2004
+  _DESCRIBECOLLECTIONRESPONSE._serialized_start=2007
+  _DESCRIBECOLLECTIONRESPONSE._serialized_end=2520
+  _LOADCOLLECTIONREQUEST._serialized_start=2523
+  _LOADCOLLECTIONREQUEST._serialized_end=2707
+  _RELEASECOLLECTIONREQUEST._serialized_start=2709
+  _RELEASECOLLECTIONREQUEST._serialized_end=2830
+  _GETSTATISTICSREQUEST._serialized_start=2833
+  _GETSTATISTICSREQUEST._serialized_end=3004
+  _GETSTATISTICSRESPONSE._serialized_start=3006
+  _GETSTATISTICSRESPONSE._serialized_end=3124
+  _GETCOLLECTIONSTATISTICSREQUEST._serialized_start=3126
+  _GETCOLLECTIONSTATISTICSREQUEST._serialized_end=3253
+  _GETCOLLECTIONSTATISTICSRESPONSE._serialized_start=3256
+  _GETCOLLECTIONSTATISTICSRESPONSE._serialized_end=3384
+  _SHOWCOLLECTIONSREQUEST._serialized_start=3387
+  _SHOWCOLLECTIONSREQUEST._serialized_end=3583
+  _SHOWCOLLECTIONSRESPONSE._serialized_start=3586
+  _SHOWCOLLECTIONSRESPONSE._serialized_end=3829
+  _CREATEPARTITIONREQUEST._serialized_start=3832
+  _CREATEPARTITIONREQUEST._serialized_end=3966
+  _DROPPARTITIONREQUEST._serialized_start=3969
+  _DROPPARTITIONREQUEST._serialized_end=4101
+  _HASPARTITIONREQUEST._serialized_start=4104
+  _HASPARTITIONREQUEST._serialized_end=4235
+  _LOADPARTITIONSREQUEST._serialized_start=4238
+  _LOADPARTITIONSREQUEST._serialized_end=4438
+  _RELEASEPARTITIONSREQUEST._serialized_start=4441
+  _RELEASEPARTITIONSREQUEST._serialized_end=4578
+  _GETPARTITIONSTATISTICSREQUEST._serialized_start=4581
+  _GETPARTITIONSTATISTICSREQUEST._serialized_end=4722
+  _GETPARTITIONSTATISTICSRESPONSE._serialized_start=4724
+  _GETPARTITIONSTATISTICSRESPONSE._serialized_end=4851
+  _SHOWPARTITIONSREQUEST._serialized_start=4854
+  _SHOWPARTITIONSREQUEST._serialized_end=5055
+  _SHOWPARTITIONSRESPONSE._serialized_start=5058
+  _SHOWPARTITIONSRESPONSE._serialized_end=5264
+  _DESCRIBESEGMENTREQUEST._serialized_start=5266
+  _DESCRIBESEGMENTREQUEST._serialized_end=5375
+  _DESCRIBESEGMENTRESPONSE._serialized_start=5378
+  _DESCRIBESEGMENTRESPONSE._serialized_end=5521
+  _SHOWSEGMENTSREQUEST._serialized_start=5523
+  _SHOWSEGMENTSREQUEST._serialized_end=5631
+  _SHOWSEGMENTSRESPONSE._serialized_start=5633
+  _SHOWSEGMENTSRESPONSE._serialized_end=5720
+  _CREATEINDEXREQUEST._serialized_start=5723
+  _CREATEINDEXREQUEST._serialized_end=5935
+  _DESCRIBEINDEXREQUEST._serialized_start=5938
+  _DESCRIBEINDEXREQUEST._serialized_end=6095
+  _INDEXDESCRIPTION._serialized_start=6098
+  _INDEXDESCRIPTION._serialized_end=6347
+  _DESCRIBEINDEXRESPONSE._serialized_start=6350
+  _DESCRIBEINDEXRESPONSE._serialized_end=6485
+  _GETINDEXBUILDPROGRESSREQUEST._serialized_start=6488
+  _GETINDEXBUILDPROGRESSREQUEST._serialized_end=6653
+  _GETINDEXBUILDPROGRESSRESPONSE._serialized_start=6655
+  _GETINDEXBUILDPROGRESSRESPONSE._serialized_end=6773
+  _GETINDEXSTATEREQUEST._serialized_start=6776
+  _GETINDEXSTATEREQUEST._serialized_end=6933
+  _GETINDEXSTATERESPONSE._serialized_start=6936
+  _GETINDEXSTATERESPONSE._serialized_end=7073
+  _DROPINDEXREQUEST._serialized_start=7076
+  _DROPINDEXREQUEST._serialized_end=7229
+  _INSERTREQUEST._serialized_start=7232
+  _INSERTREQUEST._serialized_end=7456
+  _UPSERTREQUEST._serialized_start=7459
+  _UPSERTREQUEST._serialized_end=7683
+  _MUTATIONRESULT._serialized_start=7686
+  _MUTATIONRESULT._serialized_end=7926
+  _DELETEREQUEST._serialized_start=7929
+  _DELETEREQUEST._serialized_end=8096
+  _SEARCHREQUEST._serialized_start=8099
+  _SEARCHREQUEST._serialized_end=8470
+  _HITS._serialized_start=8472
+  _HITS._serialized_end=8525
+  _SEARCHRESULTS._serialized_start=8528
+  _SEARCHRESULTS._serialized_end=8669
+  _FLUSHREQUEST._serialized_start=8671
+  _FLUSHREQUEST._serialized_end=8781
+  _FLUSHRESPONSE._serialized_start=8784
+  _FLUSHRESPONSE._serialized_end=9323
+  _FLUSHRESPONSE_COLLSEGIDSENTRY._serialized_start=9100
+  _FLUSHRESPONSE_COLLSEGIDSENTRY._serialized_end=9181
+  _FLUSHRESPONSE_FLUSHCOLLSEGIDSENTRY._serialized_start=9183
+  _FLUSHRESPONSE_FLUSHCOLLSEGIDSENTRY._serialized_end=9269
+  _FLUSHRESPONSE_COLLSEALTIMESENTRY._serialized_start=9271
+  _FLUSHRESPONSE_COLLSEALTIMESENTRY._serialized_end=9323
+  _QUERYREQUEST._serialized_start=9326
+  _QUERYREQUEST._serialized_end=9609
+  _QUERYRESULTS._serialized_start=9612
+  _QUERYRESULTS._serialized_end=9749
+  _VECTORIDS._serialized_start=9751
+  _VECTORIDS._serialized_end=9876
+  _VECTORSARRAY._serialized_start=9879
+  _VECTORSARRAY._serialized_end=10010
+  _CALCDISTANCEREQUEST._serialized_start=10013
+  _CALCDISTANCEREQUEST._serialized_end=10234
+  _CALCDISTANCERESULTS._serialized_start=10237
+  _CALCDISTANCERESULTS._serialized_end=10418
+  _FLUSHALLREQUEST._serialized_start=10420
+  _FLUSHALLREQUEST._serialized_end=10437
+  _FLUSHALLRESPONSE._serialized_start=10439
+  _FLUSHALLRESPONSE._serialized_end=10524
+  _PERSISTENTSEGMENTINFO._serialized_start=10527
+  _PERSISTENTSEGMENTINFO._serialized_end=10680
+  _GETPERSISTENTSEGMENTINFOREQUEST._serialized_start=10682
+  _GETPERSISTENTSEGMENTINFOREQUEST._serialized_end=10799
+  _GETPERSISTENTSEGMENTINFORESPONSE._serialized_start=10802
+  _GETPERSISTENTSEGMENTINFORESPONSE._serialized_end=10940
+  _QUERYSEGMENTINFO._serialized_start=10943
+  _QUERYSEGMENTINFO._serialized_end=11179
+  _GETQUERYSEGMENTINFOREQUEST._serialized_start=11181
+  _GETQUERYSEGMENTINFOREQUEST._serialized_end=11293
+  _GETQUERYSEGMENTINFORESPONSE._serialized_start=11296
+  _GETQUERYSEGMENTINFORESPONSE._serialized_end=11424
+  _DUMMYREQUEST._serialized_start=11426
+  _DUMMYREQUEST._serialized_end=11462
+  _DUMMYRESPONSE._serialized_start=11464
+  _DUMMYRESPONSE._serialized_end=11497
+  _REGISTERLINKREQUEST._serialized_start=11499
+  _REGISTERLINKREQUEST._serialized_end=11520
+  _REGISTERLINKRESPONSE._serialized_start=11522
+  _REGISTERLINKRESPONSE._serialized_end=11636
+  _GETMETRICSREQUEST._serialized_start=11638
+  _GETMETRICSREQUEST._serialized_end=11718
+  _GETMETRICSRESPONSE._serialized_start=11720
+  _GETMETRICSRESPONSE._serialized_end=11827
+  _COMPONENTINFO._serialized_start=11830
+  _COMPONENTINFO._serialized_end=11982
+  _COMPONENTSTATES._serialized_start=11985
+  _COMPONENTSTATES._serialized_end=12163
+  _GETCOMPONENTSTATESREQUEST._serialized_start=12165
+  _GETCOMPONENTSTATESREQUEST._serialized_end=12192
+  _LOADBALANCEREQUEST._serialized_start=12195
+  _LOADBALANCEREQUEST._serialized_end=12360
+  _MANUALCOMPACTIONREQUEST._serialized_start=12362
+  _MANUALCOMPACTIONREQUEST._serialized_end=12438
+  _MANUALCOMPACTIONRESPONSE._serialized_start=12440
+  _MANUALCOMPACTIONRESPONSE._serialized_end=12562
+  _GETCOMPACTIONSTATEREQUEST._serialized_start=12564
+  _GETCOMPACTIONSTATEREQUEST._serialized_end=12613
+  _GETCOMPACTIONSTATERESPONSE._serialized_start=12616
+  _GETCOMPACTIONSTATERESPONSE._serialized_end=12837
+  _GETCOMPACTIONPLANSREQUEST._serialized_start=12839
+  _GETCOMPACTIONPLANSREQUEST._serialized_end=12888
+  _GETCOMPACTIONPLANSRESPONSE._serialized_start=12891
+  _GETCOMPACTIONPLANSRESPONSE._serialized_end=13079
+  _COMPACTIONMERGEINFO._serialized_start=13081
+  _COMPACTIONMERGEINFO._serialized_end=13135
+  _GETFLUSHSTATEREQUEST._serialized_start=13137
+  _GETFLUSHSTATEREQUEST._serialized_end=13179
+  _GETFLUSHSTATERESPONSE._serialized_start=13181
+  _GETFLUSHSTATERESPONSE._serialized_end=13266
+  _GETFLUSHALLSTATEREQUEST._serialized_start=13268
+  _GETFLUSHALLSTATEREQUEST._serialized_end=13359
+  _GETFLUSHALLSTATERESPONSE._serialized_start=13361
+  _GETFLUSHALLSTATERESPONSE._serialized_end=13449
+  _IMPORTREQUEST._serialized_start=13452
+  _IMPORTREQUEST._serialized_end=13634
+  _IMPORTRESPONSE._serialized_start=13636
+  _IMPORTRESPONSE._serialized_end=13712
+  _GETIMPORTSTATEREQUEST._serialized_start=13714
+  _GETIMPORTSTATEREQUEST._serialized_end=13751
+  _GETIMPORTSTATERESPONSE._serialized_start=13754
+  _GETIMPORTSTATERESPONSE._serialized_end=14033
+  _LISTIMPORTTASKSREQUEST._serialized_start=14035
+  _LISTIMPORTTASKSREQUEST._serialized_end=14099
+  _LISTIMPORTTASKSRESPONSE._serialized_start=14102
+  _LISTIMPORTTASKSRESPONSE._serialized_end=14232
+  _GETREPLICASREQUEST._serialized_start=14235
+  _GETREPLICASREQUEST._serialized_end=14372
+  _GETREPLICASRESPONSE._serialized_start=14374
+  _GETREPLICASRESPONSE._serialized_end=14492
+  _REPLICAINFO._serialized_start=14495
+  _REPLICAINFO._serialized_end=14816
+  _REPLICAINFO_NUMOUTBOUNDNODEENTRY._serialized_start=14762
+  _REPLICAINFO_NUMOUTBOUNDNODEENTRY._serialized_end=14816
+  _SHARDREPLICA._serialized_start=14818
+  _SHARDREPLICA._serialized_end=14914
+  _CREATECREDENTIALREQUEST._serialized_start=14917
+  _CREATECREDENTIALREQUEST._serialized_end=15107
+  _UPDATECREDENTIALREQUEST._serialized_start=15110
+  _UPDATECREDENTIALREQUEST._serialized_end=15315
+  _DELETECREDENTIALREQUEST._serialized_start=15317
+  _DELETECREDENTIALREQUEST._serialized_end=15424
+  _LISTCREDUSERSRESPONSE._serialized_start=15426
+  _LISTCREDUSERSRESPONSE._serialized_end=15513
+  _LISTCREDUSERSREQUEST._serialized_start=15515
+  _LISTCREDUSERSREQUEST._serialized_end=15601
+  _ROLEENTITY._serialized_start=15603
+  _ROLEENTITY._serialized_end=15629
+  _USERENTITY._serialized_start=15631
+  _USERENTITY._serialized_end=15657
+  _CREATEROLEREQUEST._serialized_start=15660
+  _CREATEROLEREQUEST._serialized_end=15792
+  _DROPROLEREQUEST._serialized_start=15794
+  _DROPROLEREQUEST._serialized_end=15894
+  _OPERATEUSERROLEREQUEST._serialized_start=15897
+  _OPERATEUSERROLEREQUEST._serialized_end=16078
+  _SELECTROLEREQUEST._serialized_start=16081
+  _SELECTROLEREQUEST._serialized_end=16238
+  _ROLERESULT._serialized_start=16240
+  _ROLERESULT._serialized_end=16347
+  _SELECTROLERESPONSE._serialized_start=16349
+  _SELECTROLERESPONSE._serialized_end=16464
+  _SELECTUSERREQUEST._serialized_start=16467
+  _SELECTUSERREQUEST._serialized_end=16615
+  _USERRESULT._serialized_start=16617
+  _USERRESULT._serialized_end=16724
+  _SELECTUSERRESPONSE._serialized_start=16726
+  _SELECTUSERRESPONSE._serialized_end=16841
+  _OBJECTENTITY._serialized_start=16843
+  _OBJECTENTITY._serialized_end=16871
+  _PRIVILEGEENTITY._serialized_start=16873
+  _PRIVILEGEENTITY._serialized_end=16904
+  _GRANTORENTITY._serialized_start=16906
+  _GRANTORENTITY._serialized_end=17025
+  _GRANTPRIVILEGEENTITY._serialized_start=17027
+  _GRANTPRIVILEGEENTITY._serialized_end=17103
+  _GRANTENTITY._serialized_start=17106
+  _GRANTENTITY._serialized_end=17291
+  _SELECTGRANTREQUEST._serialized_start=17294
+  _SELECTGRANTREQUEST._serialized_end=17428
+  _SELECTGRANTRESPONSE._serialized_start=17430
+  _SELECTGRANTRESPONSE._serialized_end=17548
+  _OPERATEPRIVILEGEREQUEST._serialized_start=17551
+  _OPERATEPRIVILEGEREQUEST._serialized_end=17747
+  _GETLOADINGPROGRESSREQUEST._serialized_start=17750
+  _GETLOADINGPROGRESSREQUEST._serialized_end=17880
+  _GETLOADINGPROGRESSRESPONSE._serialized_start=17882
+  _GETLOADINGPROGRESSRESPONSE._serialized_end=17973
+  _GETLOADSTATEREQUEST._serialized_start=17975
+  _GETLOADSTATEREQUEST._serialized_end=18099
+  _GETLOADSTATERESPONSE._serialized_start=18101
+  _GETLOADSTATERESPONSE._serialized_end=18215
+  _MILVUSEXT._serialized_start=18217
+  _MILVUSEXT._serialized_end=18245
+  _GETVERSIONREQUEST._serialized_start=18247
+  _GETVERSIONREQUEST._serialized_end=18266
+  _GETVERSIONRESPONSE._serialized_start=18268
+  _GETVERSIONRESPONSE._serialized_end=18350
+  _CHECKHEALTHREQUEST._serialized_start=18352
+  _CHECKHEALTHREQUEST._serialized_end=18372
+  _CHECKHEALTHRESPONSE._serialized_start=18375
+  _CHECKHEALTHRESPONSE._serialized_end=18532
+  _CREATERESOURCEGROUPREQUEST._serialized_start=18534
+  _CREATERESOURCEGROUPREQUEST._serialized_end=18650
+  _DROPRESOURCEGROUPREQUEST._serialized_start=18652
+  _DROPRESOURCEGROUPREQUEST._serialized_end=18766
+  _TRANSFERNODEREQUEST._serialized_start=18769
+  _TRANSFERNODEREQUEST._serialized_end=18934
+  _TRANSFERREPLICAREQUEST._serialized_start=18937
+  _TRANSFERREPLICAREQUEST._serialized_end=19133
+  _LISTRESOURCEGROUPSREQUEST._serialized_start=19135
+  _LISTRESOURCEGROUPSREQUEST._serialized_end=19226
+  _LISTRESOURCEGROUPSRESPONSE._serialized_start=19228
+  _LISTRESOURCEGROUPSRESPONSE._serialized_end=19326
+  _DESCRIBERESOURCEGROUPREQUEST._serialized_start=19328
+  _DESCRIBERESOURCEGROUPREQUEST._serialized_end=19446
+  _DESCRIBERESOURCEGROUPRESPONSE._serialized_start=19449
+  _DESCRIBERESOURCEGROUPRESPONSE._serialized_end=19585
+  _RESOURCEGROUP._serialized_start=19588
+  _RESOURCEGROUP._serialized_end=20086
+  _RESOURCEGROUP_NUMLOADEDREPLICAENTRY._serialized_start=19919
+  _RESOURCEGROUP_NUMLOADEDREPLICAENTRY._serialized_end=19974
+  _RESOURCEGROUP_NUMOUTGOINGNODEENTRY._serialized_start=19976
+  _RESOURCEGROUP_NUMOUTGOINGNODEENTRY._serialized_end=20030
+  _RESOURCEGROUP_NUMINCOMINGNODEENTRY._serialized_start=20032
+  _RESOURCEGROUP_NUMINCOMINGNODEENTRY._serialized_end=20086
+  _RENAMECOLLECTIONREQUEST._serialized_start=20088
+  _RENAMECOLLECTIONREQUEST._serialized_end=20203
+  _MILVUSSERVICE._serialized_start=20449
+  _MILVUSSERVICE._serialized_end=27992
+  _PROXYSERVICE._serialized_start=27994
+  _PROXYSERVICE._serialized_end=28111
 # @@protoc_insertion_point(module_scope)

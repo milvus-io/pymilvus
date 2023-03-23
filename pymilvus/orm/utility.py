@@ -1036,3 +1036,31 @@ def transfer_replica(source_group, target_group, collection_name, num_replicas, 
         >>> rgs = utility.transfer_replica(source, target, collection_name, num_replica)
     """
     return _get_connection(using).transfer_replica(source_group, target_group, collection_name, num_replicas, timeout)
+
+def flush_all(using="default", timeout=None, **kwargs):
+    """ Flush all collections. All insertions, deletions, and upserts before `flush_all` will be synced.
+
+    Args:
+        timeout (float): an optional duration of time in seconds to allow for the RPCs.
+            If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+            **kwargs (``dict``, optional):
+
+        * *_async*(``bool``)
+            Indicate if invoke asynchronously. Default `False`.
+
+    Examples:
+        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
+        >>> connections.connect()
+        >>> fields = [
+        ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+        ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
+        ... ]
+        >>> schema = CollectionSchema(fields=fields)
+        >>> collection = Collection(name="test_collection_flush", schema=schema)
+        >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
+        >>> utility.flush_all(_async=False) # synchronized flush_all
+        >>> # or use `future` to flush_all asynchronously
+        >>> future = utility.flush_all(_async=True)
+        >>> future.done() # flush_all finished
+    """
+    return _get_connection(using).flush_all(timeout=timeout, **kwargs)

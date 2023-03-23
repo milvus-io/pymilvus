@@ -110,3 +110,40 @@ class TestGrpcHandler:
 
         got_result = get_version_future.result()
         assert got_result == version
+
+    @pytest.mark.parametrize("_async", [True])
+    def test_flush_all(self, channel, client_thread, _async):
+        handler = GrpcHandler(channel=channel)
+
+        flush_all_future = client_thread.submit(
+            handler.flush_all, _async=_async, timeout=10)
+
+        (invocation_metadata, request, rpc) = (
+            channel.take_unary_unary(descriptor.methods_by_name['FlushAll']))
+        rpc.send_initial_metadata(())
+
+        expected_result = milvus_pb2.FlushAllResponse(
+            status=common_pb2.Status(error_code=common_pb2.Success),
+            flush_all_ts=100,
+        )
+
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
+        assert flush_all_future is not None
+
+    def test_get_flush_all_state(self, channel, client_thread):
+        handler = GrpcHandler(channel=channel)
+
+        flushed = client_thread.submit(
+            handler.get_flush_all_state, flush_all_ts=100)
+
+        (invocation_metadata, request, rpc) = (
+            channel.take_unary_unary(descriptor.methods_by_name['GetFlushAllState']))
+        rpc.send_initial_metadata(())
+
+        expected_result = milvus_pb2.GetFlushStateResponse(
+            status=common_pb2.Status(error_code=common_pb2.Success),
+            flushed=True,
+        )
+
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, '')
+        assert flushed.result() is True
