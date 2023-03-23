@@ -1258,3 +1258,48 @@ class GrpcHandler:
         resp = self._stub.TransferReplica(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
+
+    @retry_on_rpc_failure()
+    def get_flush_all_state(self, flush_all_ts, timeout=None, **kwargs):
+        req = Prepare.get_flush_all_state_request(flush_all_ts)
+        response = self._stub.GetFlushAllState(req, timeout=timeout)
+        status = response.status
+        if status.error_code == 0:
+            return response.flushed
+        raise MilvusException(status.error_code, status.reason)
+
+    def _wait_for_flush_all(self, flush_all_ts, timeout=None, **kwargs):
+        flush_ret = False
+        start = time.time()
+        while not flush_ret:
+            flush_ret = self.get_flush_all_state(flush_all_ts, timeout, **kwargs)
+            end = time.time()
+            if timeout is not None:
+                if end - start > timeout:
+                    raise MilvusException(message=f"wait for flush all timeout, flush_all_ts: {flush_all_ts}")
+
+            if not flush_ret:
+                time.sleep(5)
+
+    @retry_on_rpc_failure()
+    def flush_all(self, timeout=None, **kwargs):
+        request = Prepare.flush_all_request()
+        future = self._stub.FlushAll.future(request, timeout=timeout)
+        response = future.result()
+        if response.status.error_code != 0:
+            raise MilvusException(response.status.error_code, response.status.reason)
+
+        def _check():
+            self._wait_for_flush_all(response.flush_all_ts)
+
+        if kwargs.get("_async", False):
+            flush_future = FlushFuture(future)
+            flush_future.add_callback(_check)
+
+            user_cb = kwargs.get("_callback", None)
+            if user_cb:
+                flush_future.add_callback(user_cb)
+
+            return flush_future
+
+        _check()
