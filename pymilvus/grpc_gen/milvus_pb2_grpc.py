@@ -3,6 +3,7 @@
 import grpc
 
 from . import common_pb2 as common__pb2
+from . import feder_pb2 as feder__pb2
 from . import milvus_pb2 as milvus__pb2
 
 
@@ -120,6 +121,16 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.AlterAliasRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.DescribeAlias = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DescribeAlias',
+                request_serializer=milvus__pb2.DescribeAliasRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DescribeAliasResponse.FromString,
+                )
+        self.ListAliases = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListAliases',
+                request_serializer=milvus__pb2.ListAliasesRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListAliasesResponse.FromString,
+                )
         self.CreateIndex = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateIndex',
                 request_serializer=milvus__pb2.CreateIndexRequest.SerializeToString,
@@ -180,10 +191,20 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.CalcDistanceRequest.SerializeToString,
                 response_deserializer=milvus__pb2.CalcDistanceResults.FromString,
                 )
+        self.FlushAll = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/FlushAll',
+                request_serializer=milvus__pb2.FlushAllRequest.SerializeToString,
+                response_deserializer=milvus__pb2.FlushAllResponse.FromString,
+                )
         self.GetFlushState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetFlushState',
                 request_serializer=milvus__pb2.GetFlushStateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetFlushStateResponse.FromString,
+                )
+        self.GetFlushAllState = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetFlushAllState',
+                request_serializer=milvus__pb2.GetFlushAllStateRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetFlushAllStateResponse.FromString,
                 )
         self.GetPersistentSegmentInfo = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetPersistentSegmentInfo',
@@ -355,6 +376,16 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.RenameCollectionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.ListIndexedSegment = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListIndexedSegment',
+                request_serializer=feder__pb2.ListIndexedSegmentRequest.SerializeToString,
+                response_deserializer=feder__pb2.ListIndexedSegmentResponse.FromString,
+                )
+        self.DescribeSegmentIndexData = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DescribeSegmentIndexData',
+                request_serializer=feder__pb2.DescribeSegmentIndexDataRequest.SerializeToString,
+                response_deserializer=feder__pb2.DescribeSegmentIndexDataResponse.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -486,6 +517,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DescribeAlias(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListAliases(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def CreateIndex(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -560,7 +603,19 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def FlushAll(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetFlushState(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetFlushAllState(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -775,6 +830,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListIndexedSegment(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DescribeSegmentIndexData(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -883,6 +950,16 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.AlterAliasRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
+            'DescribeAlias': grpc.unary_unary_rpc_method_handler(
+                    servicer.DescribeAlias,
+                    request_deserializer=milvus__pb2.DescribeAliasRequest.FromString,
+                    response_serializer=milvus__pb2.DescribeAliasResponse.SerializeToString,
+            ),
+            'ListAliases': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListAliases,
+                    request_deserializer=milvus__pb2.ListAliasesRequest.FromString,
+                    response_serializer=milvus__pb2.ListAliasesResponse.SerializeToString,
+            ),
             'CreateIndex': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateIndex,
                     request_deserializer=milvus__pb2.CreateIndexRequest.FromString,
@@ -943,10 +1020,20 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.CalcDistanceRequest.FromString,
                     response_serializer=milvus__pb2.CalcDistanceResults.SerializeToString,
             ),
+            'FlushAll': grpc.unary_unary_rpc_method_handler(
+                    servicer.FlushAll,
+                    request_deserializer=milvus__pb2.FlushAllRequest.FromString,
+                    response_serializer=milvus__pb2.FlushAllResponse.SerializeToString,
+            ),
             'GetFlushState': grpc.unary_unary_rpc_method_handler(
                     servicer.GetFlushState,
                     request_deserializer=milvus__pb2.GetFlushStateRequest.FromString,
                     response_serializer=milvus__pb2.GetFlushStateResponse.SerializeToString,
+            ),
+            'GetFlushAllState': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetFlushAllState,
+                    request_deserializer=milvus__pb2.GetFlushAllStateRequest.FromString,
+                    response_serializer=milvus__pb2.GetFlushAllStateResponse.SerializeToString,
             ),
             'GetPersistentSegmentInfo': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPersistentSegmentInfo,
@@ -1117,6 +1204,16 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.RenameCollection,
                     request_deserializer=milvus__pb2.RenameCollectionRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'ListIndexedSegment': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListIndexedSegment,
+                    request_deserializer=feder__pb2.ListIndexedSegmentRequest.FromString,
+                    response_serializer=feder__pb2.ListIndexedSegmentResponse.SerializeToString,
+            ),
+            'DescribeSegmentIndexData': grpc.unary_unary_rpc_method_handler(
+                    servicer.DescribeSegmentIndexData,
+                    request_deserializer=feder__pb2.DescribeSegmentIndexDataRequest.FromString,
+                    response_serializer=feder__pb2.DescribeSegmentIndexDataResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -1486,6 +1583,40 @@ class MilvusService(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
+    def DescribeAlias(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DescribeAlias',
+            milvus__pb2.DescribeAliasRequest.SerializeToString,
+            milvus__pb2.DescribeAliasResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListAliases(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListAliases',
+            milvus__pb2.ListAliasesRequest.SerializeToString,
+            milvus__pb2.ListAliasesResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
     def CreateIndex(request,
             target,
             options=(),
@@ -1690,6 +1821,23 @@ class MilvusService(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
+    def FlushAll(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/FlushAll',
+            milvus__pb2.FlushAllRequest.SerializeToString,
+            milvus__pb2.FlushAllResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
     def GetFlushState(request,
             target,
             options=(),
@@ -1703,6 +1851,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetFlushState',
             milvus__pb2.GetFlushStateRequest.SerializeToString,
             milvus__pb2.GetFlushStateResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetFlushAllState(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetFlushAllState',
+            milvus__pb2.GetFlushAllStateRequest.SerializeToString,
+            milvus__pb2.GetFlushAllStateResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -2281,6 +2446,40 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/RenameCollection',
             milvus__pb2.RenameCollectionRequest.SerializeToString,
             common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListIndexedSegment(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListIndexedSegment',
+            feder__pb2.ListIndexedSegmentRequest.SerializeToString,
+            feder__pb2.ListIndexedSegmentResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DescribeSegmentIndexData(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DescribeSegmentIndexData',
+            feder__pb2.DescribeSegmentIndexDataRequest.SerializeToString,
+            feder__pb2.DescribeSegmentIndexDataResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
