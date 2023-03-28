@@ -859,3 +859,11 @@ class Prepare:
                                                    target_resource_group=target,
                                                    collection_name=collection_name,
                                                    num_replica=num_replica)
+
+    @classmethod
+    def flush_all_request(cls):
+        return milvus_types.FlushAllRequest()
+
+    @classmethod
+    def get_flush_all_state_request(cls, flush_all_ts):
+        return milvus_types.GetFlushAllStateRequest(flush_all_ts=flush_all_ts)
