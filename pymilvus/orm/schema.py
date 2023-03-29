@@ -166,10 +166,10 @@ class CollectionSchema:
 
 
 class FieldSchema:
-    def __init__(self, name, dtype, description="", **kwargs):
+    def __init__(self, name: str, dtype: DataType, description="", **kwargs):
         self.name = name
         try:
-            DataType(dtype)
+            dtype = DataType(dtype)
         except ValueError:
             raise DataTypeNotSupportException(message=ExceptionsMessage.FieldDtype) from None
         if dtype == DataType.UNKNOWN:
@@ -224,7 +224,7 @@ class FieldSchema:
         kwargs['is_primary'] = raw.get("is_primary", False)
         if raw.get("auto_id", None) is not None:
             kwargs['auto_id'] = raw.get("auto_id", None)
-        return FieldSchema(raw['name'], raw['type'], raw['description'], **kwargs)
+        return FieldSchema(raw['name'], raw['type'], raw.get("description", ""), **kwargs)
 
     def to_dict(self):
         _dict = {
@@ -285,7 +285,7 @@ class FieldSchema:
         return self._type_params
 
     @property
-    def dtype(self):
+    def dtype(self) -> DataType:
         return self._dtype
 
 
