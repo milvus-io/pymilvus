@@ -1325,7 +1325,7 @@ class GrpcHandler:
             raise MilvusException(response.status.error_code, response.status.reason)
 
         def _check():
-            self._wait_for_flush_all(response.flush_all_ts)
+            self._wait_for_flush_all(response.flush_all_ts, timeout, **kwargs)
 
         if kwargs.get("_async", False):
             flush_future = FlushFuture(future)
