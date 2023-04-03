@@ -5,7 +5,9 @@ from .singleton_utils import Singleton
 from .utils import hybridts_to_unixtime
 from .constants import EVENTUALLY_TS, BOUNDED_TS
 
-from ..grpc_gen.common_pb2 import ConsistencyLevel
+from ..grpc_gen import common_pb2
+
+ConsistencyLevel = common_pb2.ConsistencyLevel
 
 
 class GTsDict(metaclass=Singleton):
