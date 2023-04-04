@@ -5,18 +5,13 @@ from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from ..exceptions import ParamError, MilvusException
 
 valid_index_types = [
-    "GPU_FLAT",
     "GPU_IVF_FLAT",
-    "GPU_IVF_SQ8",
     "GPU_IVF_PQ",
-    "RAFT_IVF_FLAT",
-    "RAFT_IVF_PQ",
     "FLAT",
     "IVF_FLAT",
     "IVF_SQ8",
     "IVF_PQ",
     "HNSW",
-    "ANNOY",
     "BIN_FLAT",
     "BIN_IVF_FLAT",
     "DISKANN",
