@@ -1,6 +1,5 @@
 import time
 from enum import IntEnum
-from ..grpc_gen.common_pb2 import ConsistencyLevel
 from ..grpc_gen import common_pb2
 from ..exceptions import (
     AutoIDException,
@@ -9,6 +8,8 @@ from ..exceptions import (
 )
 from ..grpc_gen import milvus_pb2 as milvus_types
 
+
+ConsistencyLevel = common_pb2.ConsistencyLevel
 
 class Status:
     """
@@ -697,12 +698,12 @@ class ResourceGroupInfo:
 
     def __repr__(self) -> str:
         s = f"""ResourceGroupInfo:
-        <name:{self.name}>, 
-        <capacity:{self.capacity}>, 
-        <num_available_node:{self.num_available_node}>, 
-        <num_loaded_replica:{self.num_loaded_replica}>, 
-        <num_outgoing_node:{self.num_outgoing_node}>, 
-        <num_incoming_node:{self.num_incoming_node}>"""
+<name:{self.name}>,
+<capacity:{self.capacity}>,
+<num_available_node:{self.num_available_node}>,
+<num_loaded_replica:{self.num_loaded_replica}>,
+<num_outgoing_node:{self.num_outgoing_node}>,
+<num_incoming_node:{self.num_incoming_node}>"""
         return s
 
 

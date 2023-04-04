@@ -12,9 +12,10 @@
 from pymilvus import DataType, DEFAULT_RESOURCE_GROUP
 from pymilvus.exceptions import InvalidConsistencyLevel
 from pymilvus.client.types import (
-    get_consistency_level, ConsistencyLevel,
-    Shard, Group, Replica
+    get_consistency_level, Shard, Group, Replica, ConsistencyLevel
 )
+
+from pymilvus.grpc_gen import common_pb2
 
 import pytest
 import pandas as pd
