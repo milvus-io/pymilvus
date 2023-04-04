@@ -219,18 +219,13 @@ def is_legal_replica_number(replica_number: int) -> bool:
 
 # https://milvus.io/cn/docs/v1.0.0/metric.md#floating
 def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
-    if index_type not in ("GPU_FLAT",
-                          "GPU_IVF_FLAT",
-                          "GPU_IVF_SQ8",
+    if index_type not in ("GPU_IVF_FLAT",
                           "GPU_IVF_PQ",
-                          "RAFT_IVF_FLAT",
-                          "RAFT_IVF_PQ",
                           "FLAT",
                           "IVF_FLAT",
                           "IVF_SQ8",
                           "IVF_PQ",
                           "HNSW",
-                          "ANNOY",
                           "AUTOINDEX",
                           "DISKANN"):
         return False
