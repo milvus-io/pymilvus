@@ -8,19 +8,19 @@ on:
 jobs:
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 to TestPyPI
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: Check out from Git
-      uses: actions/checkout@master
+      uses: actions/checkout@v3
     - name: Get history and tags for SCM versioning
       run: |
           git fetch --prune --unshallow
           git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v1
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: 3.11
     - name: Install pypa/build
       run: >-
         python -m
@@ -36,7 +36,7 @@ jobs:
         --outdir dist/
         .
     - name: Publish distribution 📦 to Test PyPI
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.TOKEN_TEST_PYPI }}
         repository_url: https://test.pypi.org/legacy/
