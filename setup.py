@@ -20,7 +20,6 @@ setuptools.setup(
     include_package_data=True,
     install_requires=[
         "grpcio>=1.49.1,<=1.53.0",
-        "grpcio-tools>=1.49.1,<=1.53.0",
         "mmh3>=2.0",
         "ujson>=2.0.0",
         "pandas>=1.2.4",
