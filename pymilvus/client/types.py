@@ -290,9 +290,9 @@ def get_consistency_level(consistency_level):
 
 
 class Shard:
-    def __init__(self, channel_name: str, shard_nodes, shard_leader: int):
+    def __init__(self, channel_name: str, shard_nodes: list, shard_leader: int):
         self._channel_name = channel_name
-        self._shard_nodes = shard_nodes
+        self._shard_nodes = set(shard_nodes)
         self._shard_leader = shard_leader
 
     def __repr__(self):
