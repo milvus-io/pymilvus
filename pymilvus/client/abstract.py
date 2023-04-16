@@ -221,7 +221,9 @@ class Hit:
         self._distance = entity_score
 
     def __str__(self):
-        return f"(distance: {self._distance}, score: {self._score}, id: {self._id})"
+        return str(self.entity)
+
+    __repr__ = __str__
 
     @property
     def entity(self):
