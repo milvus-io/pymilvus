@@ -125,7 +125,7 @@ class TestReplica:
     def test_shard(self):
         s = Shard("channel-1", (1, 2, 3), 1)
         assert s.channel_name == "channel-1"
-        assert s.shard_nodes == (1, 2, 3)
+        assert s.shard_nodes == {1, 2, 3}
         assert s.shard_leader == 1
         print(s)
 
@@ -139,3 +139,10 @@ class TestReplica:
         replica = Replica([g, g])
         assert replica.groups == [g, g]
         print(replica)
+
+    def test_shard_dup_nodeIDs(self):
+        s = Shard("channel-1", (1, 1, 1), 1)
+        assert s.channel_name == "channel-1"
+        assert s.shard_nodes == {1,}
+        assert s.shard_leader == 1
+        print(s)
