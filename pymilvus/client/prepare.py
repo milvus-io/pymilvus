@@ -429,7 +429,7 @@ class Prepare:
             raise ParamError(message=f"Field {anns_field} doesn't exist in schema")
         dimension = int(fields_schema[fields_name_locs[anns_field]]["params"].get("dim", 0))
 
-        ignore_growing = param.get("ignore_growing",False)
+        ignore_growing = param.get("ignore_growing",False) or kwargs.get("ignore_growing",False)
         params = param.get("params", {})
         if not isinstance(params, dict):
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
