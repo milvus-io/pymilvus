@@ -2,7 +2,7 @@ import pytest
 
 from pymilvus.client.prepare import Prepare
 from pymilvus import DataType, MilvusException, CollectionSchema, FieldSchema
-from pymilvus.client.configs import DefaultConfigs
+from pymilvus import DefaultConfig
 
 
 class TestPrepare:
@@ -84,7 +84,7 @@ class TestCreateCollectionRequest:
             {"name": "test_varchar", "type": DataType.VARCHAR, "is_primary": True, "params": {"dim": "invalid"}},
         ]},
         {"fields": [
-            {"name": "test_floatvector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, DefaultConfigs.MaxVarCharLengthKey: DefaultConfigs.MaxVarCharLength + 1}},
+            {"name": "test_floatvector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, DefaultConfig.MaxVarCharLengthKey: DefaultConfig.MaxVarCharLength + 1}},
         ]}
     ])
     def test_valid_type_params_get_collection_schema(self, valid_fields):

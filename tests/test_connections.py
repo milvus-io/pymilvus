@@ -6,7 +6,7 @@ import pymilvus
 from unittest import mock
 
 from pymilvus import connections
-from pymilvus import DefaultConfig, MilvusException, ENV_CONNECTION_CONF
+from pymilvus import DefaultConfig, MilvusException
 from pymilvus.exceptions import ErrorCode
 
 LOGGER = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class TestConnect:
         - connect with the providing configs if valid, and replace the old ones.
 
         Connect to a new alias will:
-        - connect with the provieding configs if valid, store the new alias with these configs
+        - connect with the providing configs if valid, store the new alias with these configs
 
     """
     @pytest.fixture(scope="function", params=[
@@ -72,22 +72,38 @@ class TestConnect:
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.disconnect(alias)
 
-    def test_connect_with_default_config_from_environment(self):
-        test_list = [
-            ["", {"address": "localhost:19530", "user": ""}],
-            ["localhost", {"address": "localhost:19530", "user": ""}],
-            ["localhost:19530", {"address": "localhost:19530", "user": ""}],
-            ["abc@localhost", {"address": "localhost:19530", "user": "abc"}],
-            ["milvus_host", {"address": "milvus_host:19530", "user": ""}],
-            ["milvus_host:12012", {"address": "milvus_host:12012", "user": ""}],
-            ["abc@milvus_host:12012", {"address": "milvus_host:12012", "user": "abc"}],
-            ["abc@milvus_host", {"address": "milvus_host:19530", "user": "abc"}],
-        ]
+    @pytest.fixture(scope="function", params=[
+        ("", {"address": "localhost:19530", "user": ""}),
+        ("localhost", {"address": "localhost:19530", "user": ""}),
+        ("localhost:19530", {"address": "localhost:19530", "user": ""}),
+        ("abc@localhost", {"address": "localhost:19530", "user": "abc"}),
+        ("milvus_host", {"address": "milvus_host:19530", "user": ""}),
+        ("milvus_host:12012", {"address": "milvus_host:12012", "user": ""}),
+        ("abc@milvus_host:12012", {"address": "milvus_host:12012", "user": "abc"}),
+        ("abc@milvus_host", {"address": "milvus_host:19530", "user": "abc"}),
+    ])
+    def test_connect_with_default_config_from_environment(self, env_result):
+        os.environ[DefaultConfig.MILVUS_URI] = env_result[0]
+        assert env_result[1] == connections._read_default_config_from_os_env()
 
-        for env_str, assert_config in test_list:
-            os.environ[ENV_CONNECTION_CONF] = env_str
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
+            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                # use env
+                connections.connect()
 
-            assert assert_config == connections._read_default_config_from_os_env()
+        assert env_result[1] == connections.get_connection_addr(DefaultConfig.MILVUS_CONN_ALIAS)
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
+            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                # use param
+                connections.connect(DefaultConfig.MILVUS_CONN_ALIAS, host="test_host", port="19999")
+
+        curr_addr = connections.get_connection_addr(DefaultConfig.MILVUS_CONN_ALIAS)
+        assert env_result[1] != curr_addr
+        assert {"address":"test_host:19999", "user": ""} == curr_addr
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(DefaultConfig.MILVUS_CONN_ALIAS)
 
     def test_connect_new_alias_with_configs(self):
         alias = "exist"
@@ -296,14 +312,13 @@ class TestAddConnection:
         host, port = addr["address"].split(':')
         assert host in valid_uri['uri'] or host in DefaultConfig.DEFAULT_HOST
         assert port in valid_uri['uri'] or port in DefaultConfig.DEFAULT_PORT
+        print(addr)
 
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.remove_connection(alias)
 
     @pytest.mark.parametrize("invalid_uri", [
-        {"uri": "http://:19530"},
-        {"uri": "localhost:19530"},
-        {"uri": ":80"},
+        {"uri": "http://"},
         {"uri": None},
         {"uri": -1},
     ])

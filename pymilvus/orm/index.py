@@ -13,7 +13,7 @@
 import copy
 
 from ..exceptions import CollectionNotExistException, ExceptionsMessage
-from ..client.configs import DefaultConfigs
+from ..settings import Config
 
 
 class Index:
@@ -64,7 +64,7 @@ class Index:
         self._collection = collection
         self._field_name = field_name
         self._index_params = index_params
-        index_name = kwargs.get("index_name", DefaultConfigs.IndexName)
+        index_name = kwargs.get("index_name", Config.IndexName)
         self._index_name = index_name
         self._kwargs = kwargs
         if self._kwargs.pop("construct_only", False):
@@ -155,6 +155,6 @@ class Index:
 
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
+        index_name = copy_kwargs.pop("index_name", Config.IndexName)
         conn = self._get_connection()
         conn.drop_index(self._collection.name, self.field_name, index_name, timeout=timeout, **copy_kwargs)

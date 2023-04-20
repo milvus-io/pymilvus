@@ -31,7 +31,16 @@ from .exceptions import (
 )
 from .client import __version__
 
-from .settings import DEBUG_LOG_LEVEL, INFO_LOG_LEVEL, WARN_LOG_LEVEL, ERROR_LOG_LEVEL
+from .settings import (
+    DEBUG_LOG_LEVEL,
+    INFO_LOG_LEVEL,
+    WARN_LOG_LEVEL,
+    ERROR_LOG_LEVEL,
+)
+# Compatiable
+from .settings import Config as DefaultConfig
+
+from .client.constants import DEFAULT_RESOURCE_GROUP
 
 from .orm.collection import Collection
 from .orm.connections import connections, Connections
@@ -58,7 +67,6 @@ from .orm.utility import (
 )
 
 from .orm import utility
-from .orm.default_config import DefaultConfig, ENV_CONNECTION_CONF, DEFAULT_RESOURCE_GROUP
 
 from .orm.search import SearchResult, Hits, Hit
 from .orm.schema import FieldSchema, CollectionSchema
