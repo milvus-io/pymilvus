@@ -21,7 +21,7 @@ setuptools.setup(
     install_requires=[
         "grpcio>=1.49.1,<=1.53.0",
         "protobuf>=3.20.0",
-        "mmh3>=2.0",
+        "environs<=9.5.0",
         "ujson>=2.0.0",
         "pandas>=1.2.4",
     ],

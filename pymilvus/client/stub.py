@@ -3,7 +3,7 @@ from urllib import parse
 from .grpc_handler import GrpcHandler
 from ..exceptions import MilvusException, ParamError
 from .types import CompactionState, CompactionPlans, Replica, BulkInsertState, ResourceGroupInfo
-from ..settings import DefaultConfig as config
+from ..settings import Config
 from ..decorators import deprecated
 
 from .check import is_legal_host, is_legal_port
@@ -11,14 +11,14 @@ from .check import is_legal_host, is_legal_port
 
 class Milvus:
     @deprecated
-    def __init__(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI, channel=None, **kwargs):
+    def __init__(self, host=None, port=Config.GRPC_PORT, uri=Config.GRPC_URI, channel=None, **kwargs):
         self.address = self.__get_address(host, port, uri)
         self._handler = GrpcHandler(address=self.address, channel=channel, **kwargs)
 
         if kwargs.get("pre_ping", False) is True:
             self._handler._wait_for_channel_ready()
 
-    def __get_address(self, host=None, port=config.GRPC_PORT, uri=config.GRPC_URI):
+    def __get_address(self, host=None, port=Config.GRPC_PORT, uri=Config.GRPC_URI):
         if host is None and uri is None:
             raise ParamError(message='Host and uri cannot both be None')
 

@@ -40,10 +40,9 @@ from ..exceptions import (
 )
 from .future import SearchFuture, MutationFuture
 from .utility import _get_connection
-from .default_config import DefaultConfig
+from ..settings import Config
 from ..client.types import CompactionState, CompactionPlans, Replica, get_consistency_level, cmp_consistency_level
 from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
-from ..client.configs import DefaultConfigs
 
 
 
@@ -167,7 +166,7 @@ class Collection:
             else:
                 raise SchemaNotReadyException(message=ExceptionsMessage.AutoIDWithData)
 
-        using = kwargs.get("using", DefaultConfig.DEFAULT_USING)
+        using = kwargs.get("using", Config.MILVUS_CONN_ALIAS)
         conn = _get_connection(using)
         if conn.has_collection(name, **kwargs):
             resp = conn.describe_collection(name, **kwargs)
@@ -186,7 +185,7 @@ class Collection:
                     field.is_primary = True
                     field.auto_id = False
                 if field.dtype == DataType.VARCHAR:
-                    field.params[DefaultConfigs.MaxVarCharLengthKey] = int(DefaultConfigs.MaxVarCharLength)
+                    field.params[Config.MaxVarCharLengthKey] = int(Config.MaxVarCharLength)
             schema = CollectionSchema(fields=fields_schema)
 
         check_schema(schema)
@@ -905,7 +904,7 @@ class Collection:
             <pymilvus.index.Index object at 0x7f44355a1460>
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
+        index_name = copy_kwargs.pop("index_name", Config.IndexName)
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, index_name, **copy_kwargs)
         if tmp_index is not None:
@@ -981,7 +980,7 @@ class Collection:
         """
         conn = self._get_connection()
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
+        index_name = copy_kwargs.pop("index_name", Config.IndexName)
         if conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs) is None:
             return False
         return True
@@ -1016,7 +1015,7 @@ class Collection:
             False
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.pop("index_name", DefaultConfigs.IndexName)
+        index_name = copy_kwargs.pop("index_name", Config.IndexName)
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs)
         if tmp_index is not None:

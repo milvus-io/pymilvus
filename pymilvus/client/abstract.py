@@ -1,7 +1,7 @@
 import abc
 
 import numpy as np
-from .configs import DefaultConfigs
+from ..settings import Config
 from .types import DataType
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 from ..grpc_gen import schema_pb2
@@ -88,7 +88,7 @@ class FieldSchema:
             else:
                 self.params[type_param.key] = type_param.value
                 # maybe we'd better not to check these fields in ORM.
-                if type_param.key in ["dim", DefaultConfigs.MaxVarCharLengthKey]:
+                if type_param.key in ["dim", Config.MaxVarCharLengthKey]:
                     self.params[type_param.key] = int(type_param.value)
 
         index_dict = {}
