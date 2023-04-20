@@ -229,7 +229,7 @@ def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
                           "AUTOINDEX",
                           "DISKANN"):
         return False
-    if metric_type not in ("L2", "IP"):
+    if metric_type not in ("L2", "IP", "COSINE"):
         return False
     return True
 
