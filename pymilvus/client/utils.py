@@ -1,5 +1,7 @@
 import datetime
 
+from urllib.parse import urlparse
+
 from .types import DataType
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from ..exceptions import MilvusException
@@ -149,3 +151,21 @@ def len_of(field_data) -> int:
         return int(total_len / (dim / 8))
 
     raise MilvusException(message="Unknown data type")
+
+
+def get_protocol_and_domain(host):
+    o = urlparse(host)
+    return o.scheme, o.hostname
+
+
+def get_server_type(host):
+    protocol, hostname = get_protocol_and_domain(host)
+    if protocol != "https":
+        return "milvus"
+    splits = hostname.split('.')
+    len_of_splits = len(splits)
+    if len_of_splits >= 2 and \
+            splits[len_of_splits - 2].lower() == "zillizcloud" and \
+            splits[len_of_splits - 1].lower() == "com":
+        return "zilliz"
+    return "milvus"

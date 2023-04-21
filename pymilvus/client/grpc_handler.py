@@ -38,7 +38,8 @@ from .types import (
 
 from .utils import (
     check_invalid_binary_vector,
-    len_of
+    len_of,
+    get_server_type,
 )
 
 from ..settings import DefaultConfig as config
@@ -191,6 +192,9 @@ class GrpcHandler:
     def server_address(self):
         """ Server network address """
         return self._address
+
+    def get_server_type(self):
+        return get_server_type(self.server_address)
 
     def reset_password(self, user, old_password, new_password, timeout=None):
         """
