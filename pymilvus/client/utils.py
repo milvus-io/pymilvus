@@ -1,5 +1,7 @@
 import datetime
 
+from urllib.parse import urlparse
+
 from .types import DataType
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from ..exceptions import ParamError, MilvusException
@@ -167,7 +169,7 @@ def traverse_info(fields_info, entities):
             if field_name == entity_name:
                 if field_type != entity_type:
                     raise ParamError(message=f"Collection field type is {field_type}"
-                                     f", but entities field type is {entity_type}")
+                                             f", but entities field type is {entity_type}")
 
                 entity_dim, field_dim = 0, 0
                 if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
@@ -176,11 +178,11 @@ def traverse_info(fields_info, entities):
 
                 if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
                     raise ParamError(message=f"Collection field dim is {field_dim}"
-                                     f", but entities field dim is {entity_dim}")
+                                             f", but entities field dim is {entity_dim}")
 
                 if entity_type in [DataType.BINARY_VECTOR, ] and entity_dim * 8 != field_dim:
                     raise ParamError(message=f"Collection field dim is {field_dim}"
-                                     f", but entities field dim is {entity_dim * 8}")
+                                             f", but entities field dim is {entity_dim * 8}")
 
                 location[field["name"]] = i
                 match_flag = True
@@ -191,3 +193,21 @@ def traverse_info(fields_info, entities):
                 message=f"Field {field['name']} don't match in entities")
 
     return location, primary_key_loc, auto_id_loc
+
+
+def get_protocol_and_domain(host):
+    o = urlparse(host)
+    return o.scheme, o.hostname
+
+
+def get_server_type(host):
+    protocol, hostname = get_protocol_and_domain(host)
+    if protocol != "https":
+        return "milvus"
+    splits = hostname.split('.')
+    len_of_splits = len(splits)
+    if len_of_splits >= 2 and \
+            splits[len_of_splits - 2].lower() == "zillizcloud" and \
+            splits[len_of_splits - 1].lower() == "com":
+        return "zilliz"
+    return "milvus"
