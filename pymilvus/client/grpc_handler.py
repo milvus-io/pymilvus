@@ -42,8 +42,7 @@ from .utils import (
     get_server_type,
 )
 
-from ..settings import DefaultConfig as config
-from .configs import DefaultConfigs
+from ..settings import Config
 from . import ts_utils
 from . import interceptor
 
@@ -68,7 +67,7 @@ from ..decorators import retry_on_rpc_failure
 
 
 class GrpcHandler:
-    def __init__(self, uri=config.GRPC_URI, host="", port="", channel=None, **kwargs):
+    def __init__(self, uri=Config.GRPC_URI, host="", port="", channel=None, **kwargs):
         self._stub = None
         self._channel = channel
 
@@ -525,7 +524,7 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def create_index(self, collection_name, field_name, params, timeout=None, **kwargs):
         # for historical reason, index_name contained in kwargs.
-        index_name = kwargs.pop("index_name", DefaultConfigs.IndexName)
+        index_name = kwargs.pop("index_name", Config.IndexName)
         copy_kwargs = copy.deepcopy(kwargs)
 
         collection_desc = self.describe_collection(collection_name, timeout=timeout, **copy_kwargs)
@@ -697,7 +696,7 @@ class GrpcHandler:
             progress = self.get_loading_progress(collection_name, timeout=timeout)
             if progress >= 100:
                 return
-            time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
+            time.sleep(Config.WaitTimeDurationWhenLoad)
         raise MilvusException(message=f"wait for loading collection timeout, collection: {collection_name}")
 
     @retry_on_rpc_failure()
@@ -753,7 +752,7 @@ class GrpcHandler:
             progress = self.get_loading_progress(collection_name, partition_names, timeout=timeout)
             if progress >= 100:
                 return
-            time.sleep(DefaultConfigs.WaitTimeDurationWhenLoad)
+            time.sleep(Config.WaitTimeDurationWhenLoad)
         raise MilvusException(message=f"wait for loading partition timeout, collection: {collection_name}, partitions: {partition_names}")
 
     @retry_on_rpc_failure()

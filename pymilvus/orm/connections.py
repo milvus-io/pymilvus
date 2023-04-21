@@ -10,9 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-import os
 import copy
-import re
 import threading
 from urllib import parse
 from typing import Tuple
@@ -20,7 +18,7 @@ from typing import Tuple
 from ..client.check import is_legal_host, is_legal_port, is_legal_address
 from ..client.grpc_handler import GrpcHandler
 
-from .default_config import DefaultConfig, ENV_CONNECTION_CONF
+from ..settings import Config
 from ..exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
 
 
@@ -61,49 +59,72 @@ class Connections(metaclass=SingleInstanceMetaClass):
     def __init__(self):
         """ Constructs a default milvus alias config
 
-            default config will be read from env: MILVUS_DEFAULT_CONNECTION，
-            or "localhost:19530"
+            default config will be read from env: MILVUS_URI and MILVUS_CONN_ALIAS
+            with default value: default="localhost:19530"
+
+         Read default connection config from environment variable: MILVUS_URI.
+            Format is:
+                [scheme://][<user>@<password>]host[:<port>]
+
+                scheme is one of: http, https, or <empty>
+
+        Examples:
+            localhost
+            localhost:19530
+            test_user@localhost:19530
+            http://test_userlocalhost:19530
+            https://test_user:password@localhost:19530
 
         """
         self._alias = {}
         self._connected_alias = {}
+        self._env_uri = None
 
-        self.add_connection(default=self._read_default_config_from_os_env())
+        if Config.MILVUS_URI != "":
+            address, parsed_uri = self.__parse_address_from_uri(Config.MILVUS_URI)
+            self._env_uri = (address, parsed_uri)
 
-    def _read_default_config_from_os_env(self):
-        """ Read default connection config from environment variable: MILVUS_DEFAULT_CONNECTION.
-        Format is:
-            [<user>@]host[:<port>]
+            default_conn_config = {
+                "user": parsed_uri.username if parsed_uri.username is not None else "",
+                "address": address,
+            }
+        else:
+            default_conn_config = {
+                "user": "",
+                "address": f"{Config.DEFAULT_HOST}:{Config.DEFAULT_PORT}",
+            }
 
-            protocol is one of: http, https, tcp, or <empty>
-        Examples::
-            localhost
-            localhost:19530
-            test_user@localhost:19530
-        """
+        self.add_connection(**{Config.MILVUS_CONN_ALIAS: default_conn_config})
 
-        # no need to adjust http://xxx, https://xxx, tcp://xxxx,
-        # because protocol is ignored
-        # @see __generate_address
+    def __verify_host_port(self, host, port):
+        if not is_legal_host(host):
+            raise ConnectionConfigException(message=ExceptionsMessage.HostType)
+        if not is_legal_port(port):
+            raise ConnectionConfigException(message=ExceptionsMessage.PortType)
+        if not 0 <= int(port) < 65535:
+            raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
 
-        conf = os.getenv(ENV_CONNECTION_CONF, "").strip()
-        if not conf:
-            conf = DefaultConfig.DEFAULT_HOST
 
-        rex = re.compile(r"^(?:([^\s/\\:]+)@)?([^\s/\\:]+)(?::(\d{1,5}))?$")
-        matched = rex.search(conf)
+    def __parse_address_from_uri(self, uri: str) -> (str, parse.ParseResult):
+        illegal_uri_msg = "Illegal uri: [{}], expected form 'https://user:pwd@example.com:12345'"
+        try:
+            parsed_uri = parse.urlparse(uri)
+        except (Exception) as e:
+            raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
 
-        if not matched:
-            raise ConnectionConfigException(message=ExceptionsMessage.EnvConfigErr % (ENV_CONNECTION_CONF, conf))
+        if len(parsed_uri.netloc) == 0:
+            raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}") from None
 
-        user, host, port = matched.groups()
-        user = user or ""
-        port = port or DefaultConfig.DEFAULT_PORT
+        host = parsed_uri.hostname if parsed_uri.hostname is not None else Config.DEFAULT_HOST
+        port = parsed_uri.port if parsed_uri.port is not None else Config.DEFAULT_PORT
+        addr = f"{host}:{port}"
 
-        return {
-            "user": user,
-            "address": f"{host}:{port}"
-        }
+        self.__verify_host_port(host, port)
+
+        if not is_legal_address(addr):
+            raise ConnectionConfigException(message=illegal_uri_msg.format(uri))
+
+        return addr, parsed_uri
 
     def add_connection(self, **kwargs):
         """ Configures a milvus connection.
@@ -136,7 +157,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             )
         """
         for alias, config in kwargs.items():
-            addr = self.__get_full_address(
+            addr, _ = self.__get_full_address(
                 config.get("address", ""),
                 config.get("uri", ""),
                 config.get("host", ""),
@@ -153,42 +174,21 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             self._alias[alias] = alias_config
 
-    def __get_full_address(self, address: str = "", uri: str = "", host: str = "", port: str = "") -> str:
+    def __get_full_address(self, address: str = "", uri: str = "", host: str = "", port: str = "") -> (str, parse.ParseResult):
         if address != "":
             if not is_legal_address(address):
                 raise ConnectionConfigException(message=f"Illegal address: {address}, should be in form 'localhost:19530'")
-        else:
-            address = self.__generate_address(uri, host, port)
+            return address, None
 
-        return address
-
-    def __generate_address(self, uri: str, host: str, port: str) -> str:
-        illegal_uri_msg = "Illegal uri: [{}], should be in form 'http://example.com' or 'tcp://6.6.6.6:12345'"
         if uri != "":
-            try:
-                parsed_uri = parse.urlparse(uri)
-            except (Exception) as e:
-                raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
+            address, parsed = self.__parse_address_from_uri(uri)
+            return address, parsed
 
-            if len(parsed_uri.netloc) == 0:
-                raise ConnectionConfigException(message=illegal_uri_msg.format(uri))
+        host = host if host != "" else Config.DEFAULT_HOST
+        port = port if port != "" else Config.DEFAULT_PORT
+        self.__verify_host_port(host, port)
 
-            addr = parsed_uri.netloc if ":" in parsed_uri.netloc else f"{parsed_uri.netloc}:{DefaultConfig.DEFAULT_PORT}"
-            if not is_legal_address(addr):
-                raise ConnectionConfigException(message=illegal_uri_msg.format(uri))
-            return addr
-
-        host = host if host != "" else DefaultConfig.DEFAULT_HOST
-        port = port if port != "" else DefaultConfig.DEFAULT_PORT
-
-        if not is_legal_host(host):
-            raise ConnectionConfigException(message=ExceptionsMessage.HostType)
-        if not is_legal_port(port):
-            raise ConnectionConfigException(message=ExceptionsMessage.PortType)
-        if not 0 <= int(port) < 65535:
-            raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
-
-        return f"{host}:{port}"
+        return f"{host}:{port}", None
 
     def disconnect(self, alias: str):
         """ Disconnects connection from the registry.
@@ -214,7 +214,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         self.disconnect(alias)
         self._alias.pop(alias, None)
 
-    def connect(self, alias=DefaultConfig.DEFAULT_USING, user="", password="", **kwargs):
+    def connect(self, alias=Config.MILVUS_CONN_ALIAS, user="", password="", **kwargs):
         """
         Constructs a milvus connection and register it under given alias.
 
@@ -234,14 +234,14 @@ class Connections(metaclass=SingleInstanceMetaClass):
             * *port* (``str/int``) -- Optional. The port of Milvus instance.
                 Default at 19530, PyMilvus will fill in the default port if only host is provided.
 
+            * *secure* (``bool``) --
+                Optional. Default is false. If set to true, tls will be enabled.
             * *user* (``str``) --
                 Optional. Use which user to connect to Milvus instance. If user and password
                 are provided, we will add related header in every RPC call.
             * *password* (``str``) --
                 Optional and required when user is provided. The password corresponding to
                 the user.
-            * *secure* (``bool``) --
-                Optional. Default is false. If set to true, tls will be enabled.
             * *client_key_path* (``str``) --
                 Optional. If use tls two-way authentication, need to write the client.key path.
             * *client_pem_path* (``str``) --
@@ -262,14 +262,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
         """
-        if not isinstance(alias, str):
-            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
-
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs)
 
             t = kwargs.get("timeout")
-            timeout = t if isinstance(t, (int, float)) else DefaultConfig.DEFAULT_CONNECT_TIMEOUT
+            timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
 
             gh._wait_for_channel_ready(timeout=timeout)
             kwargs.pop('password')
@@ -285,6 +282,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             return False
 
+        if not isinstance(alias, str):
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
+
         config = (
             kwargs.pop("address", ""),
             kwargs.pop("uri", ""),
@@ -292,23 +292,50 @@ class Connections(metaclass=SingleInstanceMetaClass):
             kwargs.pop("port", "")
         )
 
+        # 1st Priority: connection from params
         if with_config(config):
-            in_addr = self.__get_full_address(*config)
+            in_addr, parsed_uri = self.__get_full_address(*config)
             kwargs["address"] = in_addr
 
             if self.has_connection(alias):
                 if self._alias[alias].get("address") != in_addr:
                     raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
 
+            # uri might take extra info
+            if parsed_uri is not None:
+                user = parsed_uri.username if parsed_uri.username is not None else user
+                password = parsed_uri.password if parsed_uri.password is not None else password
+                # Set secure=True if uri provided user and password
+                if len(user) > 0 and len(password) > 0:
+                    kwargs["secure"] = True
+
             connect_milvus(**kwargs, user=user, password=password)
+            return
 
-        else:
-            if alias not in self._alias:
-                raise ConnectionConfigException(message=ExceptionsMessage.ConnLackConf % alias)
+        # 2nd Priority, connection configs from env
+        if self._env_uri is not None:
+            addr, parsed_uri = self._env_uri
+            kwargs["address"] = addr
 
+            user = parsed_uri.username if parsed_uri.username is not None else ""
+            password = parsed_uri.password if parsed_uri.password is not None else ""
+            # Set secure=True if uri provided user and password
+            if len(user) > 0 and len(password) > 0:
+                kwargs["secure"] = True
+
+            connect_milvus(**kwargs, user=user, password=password)
+            return
+
+        # 3rd Priority, connect to cached configs with provided user and password
+        if alias in self._alias:
             connect_alias = dict(self._alias[alias].items())
             connect_alias["user"] = user
             connect_milvus(**connect_alias, password=password, **kwargs)
+            return
+
+        # No params, env, and cached configs for the alias
+        raise ConnectionConfigException(message=ExceptionsMessage.ConnLackConf % alias)
+
 
     def list_connections(self) -> list:
         """ List names of all connections.
@@ -369,7 +396,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
         return alias in self._connected_alias
 
-    def _fetch_handler(self, alias=DefaultConfig.DEFAULT_USING) -> GrpcHandler:
+    def _fetch_handler(self, alias=Config.MILVUS_CONN_ALIAS) -> GrpcHandler:
         """ Retrieves a GrpcHandler by alias. """
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))

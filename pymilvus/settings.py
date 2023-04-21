@@ -1,16 +1,33 @@
 import logging.config
+import environs
+env = environs.Env()
 
+try:
+    env.read_env(".env")
+except Exception:
+    pass
 
-class DefaultConfig:
+class Config:
+    # legacy env MILVUS_DEFAULT_CONNECTION, not recommended
+    LEGACY_URI = env.str("MILVUS_DEFAULT_CONNECTION", "")
+    MILVUS_URI = env.str("MILVUS_URI", LEGACY_URI)
+
+    MILVUS_CONN_ALIAS = env.str("MILVUS_CONN_ALIAS", "default")
+    MILVUS_CONN_TIMEOUT = env.float("MILVUS_CONN_TIMEOUT", 10)
+
+    # TODO tidy the following configs
     GRPC_PORT = "19530"
     GRPC_ADDRESS = "127.0.0.1:19530"
     GRPC_URI = f"tcp://{GRPC_ADDRESS}"
 
-    HTTP_PORT = "19121"
-    HTTP_ADDRESS = "127.0.0.1:19121"
-    HTTP_URI = f"http://{HTTP_ADDRESS}"
+    DEFAULT_HOST = "localhost"
+    DEFAULT_PORT = "19530"
 
-    CALC_DIST_METRIC = "L2"
+    WaitTimeDurationWhenLoad = 0.5  # in seconds
+    MaxVarCharLengthKey = "max_length"
+    MaxVarCharLength = 65535
+    EncodeProtocol = 'utf-8'
+    IndexName = ""
 
 
 # logging
