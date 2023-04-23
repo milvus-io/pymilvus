@@ -476,6 +476,7 @@ def rename_collection(old_collection_name, new_collection_name, timeout=None, us
     """
     return _get_connection(using).rename_collections(old_collection_name, new_collection_name, timeout=timeout)
 
+
 def list_collections(timeout=None, using="default") -> list:
     """
     Returns a list of all collection names.
@@ -1072,9 +1073,45 @@ def get_server_type(using="default"):
         otherwise "milvus" will be returned.
 
     :param using: Alias to the connection. Default connection is used if this is not specified.
-    :type: str
+    :type  using: str
 
     :return: The server type.
     :rtype: str
     """
     return _get_connection(using).get_server_type()
+
+
+def list_indexes(collection_name, using="default", timeout=None, **kwargs):
+    """ List all indexes of collection. If `field_name` is not specified, return all the indexes of this collection,
+        otherwise this interface will return all indexes on this field of the collection.
+
+    :param collection_name: The name of collection.
+    :type  collection_name: str
+
+    :param using: Alias to the connection. Default connection is used if this is not specified.
+    :type  using: str
+
+    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
+                    is set to None, client waits until server response or error occur
+    :type  timeout: float/int
+
+    :param kwargs:
+            * *field_name* (``str``)
+                The name of field. If no field name is specified, all indexes of this collection will be returned.
+    :type  kwargs: dict
+
+    :return: The name list of all indexes.
+    :rtype: str list
+    """
+    indexes = _get_connection(using).list_indexes(collection_name, timeout, **kwargs)
+    field_name = kwargs.get("field_name", None)
+    index_name_list = []
+    for index in indexes:
+        if index is not None:
+            if field_name is None:
+                # list all indexes anyway.
+                index_name_list.append(index.index_name)
+            if field_name is not None and index.field_name == field_name:
+                # list all indexes of this field.
+                index_name_list.append(index.index_name)
+    return index_name_list
