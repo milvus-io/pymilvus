@@ -47,16 +47,16 @@ from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
 
 
 class Collection:
-    def __init__(self, name: str, schema: CollectionSchema=None, using: str="default", shards_num: int=2, **kwargs):
+    def __init__(self, name: str, schema: CollectionSchema=None, using: str="default",  **kwargs):
         """ Constructs a collection by name, schema and other parameters.
 
         Args:
             name (``str``): the name of collection
             schema (``CollectionSchema``, optional): the schema of collection, defaults to None.
             using (``str``, optional): Milvus connection alias name, defaults to 'default'.
-            shards_num (``int``, optional): how many shards will the insert data be divided, defaults to 2.
             **kwargs (``dict``):
 
+                * *shards_num (``int``, optional): how many shards will the insert data be divided.
                 * *consistency_level* (``int/ str``)
                     Which consistency level to use when searching in the collection.
                     Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
@@ -88,7 +88,6 @@ class Collection:
         """
         self._name = name
         self._using = using
-        self._shards_num = shards_num
         self._kwargs = kwargs
         conn = self._get_connection()
 
@@ -116,7 +115,8 @@ class Collection:
             if isinstance(schema, CollectionSchema):
                 check_schema(schema)
                 consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
-                conn.create_collection(self._name, schema, shards_num=self._shards_num, **kwargs)
+
+                conn.create_collection(self._name, schema, **kwargs)
                 self._schema = schema
                 self._consistency_level = consistency_level
             else:
