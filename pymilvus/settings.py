@@ -15,6 +15,10 @@ class Config:
     MILVUS_CONN_ALIAS = env.str("MILVUS_CONN_ALIAS", "default")
     MILVUS_CONN_TIMEOUT = env.float("MILVUS_CONN_TIMEOUT", 10)
 
+    # legacy configs:
+    DEFAULT_USING = MILVUS_CONN_ALIAS
+    DEFAULT_CONNECT_TIMEOUT = MILVUS_CONN_TIMEOUT
+
     # TODO tidy the following configs
     GRPC_PORT = "19530"
     GRPC_ADDRESS = "127.0.0.1:19530"
