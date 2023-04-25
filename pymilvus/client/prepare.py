@@ -21,7 +21,7 @@ from ..grpc_gen import milvus_pb2 as milvus_types
 class Prepare:
     @classmethod
     def create_collection_request(cls, collection_name: str, fields: Union[Dict[str, Iterable], CollectionSchema],
-                                  shards_num=2, **kwargs) -> milvus_types.CreateCollectionRequest:
+                                  **kwargs) -> milvus_types.CreateCollectionRequest:
         """
         :type fields: Union(Dict[str, Iterable], CollectionSchema)
         :param fields: (Required)
@@ -36,15 +36,14 @@ class Prepare:
         :return: milvus_types.CreateCollectionRequest
         """
         if isinstance(fields, CollectionSchema):
-            schema = cls.get_schema_from_collection_schema(collection_name, fields, shards_num, **kwargs)
+            schema = cls.get_schema_from_collection_schema(collection_name, fields, **kwargs)
         else:
-            schema = cls.get_schema(collection_name, fields, shards_num, **kwargs)
+            schema = cls.get_schema(collection_name, fields, **kwargs)
 
         consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
 
         req = milvus_types.CreateCollectionRequest(collection_name=collection_name,
                                                     schema=bytes(schema.SerializeToString()),
-                                                    shards_num=shards_num,
                                                     consistency_level=consistency_level)
 
         properties = kwargs.get("properties")
@@ -52,10 +51,14 @@ class Prepare:
             properties = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()]
             req.properties.extend(properties)
 
+        shards_num = kwargs.get("shards_num")
+        if shards_num is not None and isinstance(shards_num, int):
+            req.shards_num=shards_num
+
         return req
 
     @classmethod
-    def get_schema_from_collection_schema(cls, collection_name: str, fields: CollectionSchema, shards_num=2, **kwargs) -> milvus_types.CreateCollectionRequest:
+    def get_schema_from_collection_schema(cls, collection_name: str, fields: CollectionSchema, **kwargs) -> milvus_types.CreateCollectionRequest:
         coll_description = fields.description
         if not isinstance(coll_description, (str, bytes)):
             raise ParamError(message=f"description [{coll_description}] has type {type(coll_description).__name__},  but expected one of: bytes, str")
@@ -77,7 +80,7 @@ class Prepare:
         return schema
 
     @classmethod
-    def get_schema(cls, collection_name: str, fields: Dict[str, Iterable], shards_num=2, **kwargs) -> schema_types.CollectionSchema:
+    def get_schema(cls, collection_name: str, fields: Dict[str, Iterable], **kwargs) -> schema_types.CollectionSchema:
         if not isinstance(fields, dict):
             raise ParamError(message="Param fields must be a dict")
 

@@ -204,8 +204,8 @@ class GrpcHandler:
         self._setup_grpc_channel()
 
     @retry_on_rpc_failure()
-    def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
-        request = Prepare.create_collection_request(collection_name, fields, shards_num=shards_num, **kwargs)
+    def create_collection(self, collection_name, fields, timeout=None, **kwargs):
+        request = Prepare.create_collection_request(collection_name, fields, **kwargs)
 
         rf = self._stub.CreateCollection.future(request, timeout=timeout)
         if kwargs.get("_async", False):

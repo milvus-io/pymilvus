@@ -59,7 +59,7 @@ class Milvus:
         self.handler.close()
         self._handler = None
 
-    def create_collection(self, collection_name, fields, shards_num=2, timeout=None, **kwargs):
+    def create_collection(self, collection_name, fields, shards_num=None, timeout=None, **kwargs):
         """ Creates a collection.
 
         :param collection_name: The name of the collection. A collection name can only include
@@ -78,15 +78,13 @@ class Milvus:
                 ],
             "auto_id": True}`
 
-        :param shards_num: How wide to scale collection. Corresponds to how many active datanodes
-                        can be used on insert.
-        :type shards_num: int
-
         :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
                         is set to None, client waits until server response or error occur.
         :type  timeout: float
 
         :param kwargs:
+            * *shards_num* (``int``) --
+            How wide to scale collection. Corresponds to how many active datanodes can be used on insert.
             * *consistency_level* (``str/int``) --
             Which consistency level to use when searching in the collection. For details, see
             https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md.
