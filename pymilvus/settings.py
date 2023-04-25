@@ -16,7 +16,7 @@ class Config:
     MILVUS_CONN_TIMEOUT = env.float("MILVUS_CONN_TIMEOUT", 10)
 
     # legacy configs:
-    DEFAUL_USING = MILVUS_CONN_ALIAS
+    DEFAULT_USING = MILVUS_CONN_ALIAS
     DEFAULT_CONNECT_TIMEOUT = MILVUS_CONN_TIMEOUT
 
     # TODO tidy the following configs
