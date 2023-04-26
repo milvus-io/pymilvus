@@ -797,7 +797,7 @@ class Prepare:
                                               include_role_info=include_role_info)
 
     @classmethod
-    def operate_privilege_request(cls, role_name, object, object_name, privilege, operate_privilege_type):
+    def operate_privilege_request(cls, role_name, object, object_name, privilege, db_name, operate_privilege_type):
         check_pass_param(role_name=role_name)
         check_pass_param(object=object)
         check_pass_param(object_name=object_name)
@@ -807,12 +807,13 @@ class Prepare:
             entity=milvus_types.GrantEntity(role=milvus_types.RoleEntity(name=role_name),
                                             object=milvus_types.ObjectEntity(name=object),
                                             object_name=object_name,
+                                            db_name=db_name,
                                             grantor=milvus_types.GrantorEntity(
                                                 privilege=milvus_types.PrivilegeEntity(name=privilege))),
             type=operate_privilege_type)
 
     @classmethod
-    def select_grant_request(cls, role_name, object, object_name):
+    def select_grant_request(cls, role_name, object, object_name, db_name):
         check_pass_param(role_name=role_name)
         if object:
             check_pass_param(object=object)
@@ -821,7 +822,9 @@ class Prepare:
         return milvus_types.SelectGrantRequest(
             entity=milvus_types.GrantEntity(role=milvus_types.RoleEntity(name=role_name),
                                             object=milvus_types.ObjectEntity(name=object) if object else None,
-                                            object_name=object_name if object_name else None))
+                                            object_name=object_name if object_name else None,
+                                            db_name=db_name,
+                                            ))
 
     @classmethod
     def get_server_version(cls):

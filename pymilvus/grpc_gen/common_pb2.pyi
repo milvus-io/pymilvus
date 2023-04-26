@@ -143,6 +143,7 @@ PermissionDenied: ErrorCode
 PrivilegeAll: ObjectPrivilege
 PrivilegeCompaction: ObjectPrivilege
 PrivilegeCreateCollection: ObjectPrivilege
+PrivilegeCreateDatabase: ObjectPrivilege
 PrivilegeCreateIndex: ObjectPrivilege
 PrivilegeCreateOwnership: ObjectPrivilege
 PrivilegeCreateResourceGroup: ObjectPrivilege
@@ -150,6 +151,7 @@ PrivilegeDelete: ObjectPrivilege
 PrivilegeDescribeCollection: ObjectPrivilege
 PrivilegeDescribeResourceGroup: ObjectPrivilege
 PrivilegeDropCollection: ObjectPrivilege
+PrivilegeDropDatabase: ObjectPrivilege
 PrivilegeDropIndex: ObjectPrivilege
 PrivilegeDropOwnership: ObjectPrivilege
 PrivilegeDropResourceGroup: ObjectPrivilege
@@ -160,12 +162,14 @@ PrivilegeGetStatistics: ObjectPrivilege
 PrivilegeImport: ObjectPrivilege
 PrivilegeIndexDetail: ObjectPrivilege
 PrivilegeInsert: ObjectPrivilege
+PrivilegeListDatabases: ObjectPrivilege
 PrivilegeListResourceGroups: ObjectPrivilege
 PrivilegeLoad: ObjectPrivilege
 PrivilegeLoadBalance: ObjectPrivilege
 PrivilegeManageOwnership: ObjectPrivilege
 PrivilegeQuery: ObjectPrivilege
 PrivilegeRelease: ObjectPrivilege
+PrivilegeRenameCollection: ObjectPrivilege
 PrivilegeSearch: ObjectPrivilege
 PrivilegeSelectOwnership: ObjectPrivilege
 PrivilegeSelectUser: ObjectPrivilege
