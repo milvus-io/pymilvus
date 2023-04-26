@@ -323,7 +323,7 @@ class Prepare:
                 pl.values.append(blob.vectorBinaryToBytes(vectors[i]))
             else:
                 if len(vectors[i]) != dimension:
-                    raise ParamError(message=f"The dimension of query entities[{vectors[i]*8}] is different from schema [{dimension}]")
+                    raise ParamError(message=f"The dimension of query entities[{vectors[i]}] is different from schema [{dimension}]")
                 pl.values.append(blob.vectorFloatToBytes(vectors[i]))
         return pl
 
