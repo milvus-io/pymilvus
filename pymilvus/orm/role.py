@@ -131,7 +131,7 @@ class Role:
         roles = self._get_connection().select_one_role(self._name, False)
         return len(roles.groups) != 0
 
-    def grant(self, object: str, object_name: str, privilege: str):
+    def grant(self, object: str, object_name: str, privilege: str, db_name: str = "default"):
         """ Grant a privilege for the role
             :param object: object type.
             :type  object: str
@@ -139,6 +139,8 @@ class Role:
             :type  object_name: str
             :param privilege: privilege name.
             :type  privilege: str
+            :param db_name: db name.
+            :type  db_name: str
 
         :example:
             >>> from pymilvus import connections
@@ -147,9 +149,9 @@ class Role:
             >>> role = Role(role_name)
             >>> role.grant("Collection", collection_name, "Insert")
         """
-        return self._get_connection().grant_privilege(self._name, object, object_name, privilege)
+        return self._get_connection().grant_privilege(self._name, object, object_name, privilege, db_name)
 
-    def revoke(self, object: str, object_name: str, privilege: str):
+    def revoke(self, object: str, object_name: str, privilege: str, db_name: str = "default"):
         """ Revoke a privilege for the role
             :param object: object type.
             :type  object: str
@@ -157,6 +159,8 @@ class Role:
             :type  object_name: str
             :param privilege: privilege name.
             :type  privilege: str
+            :param db_name: db name.
+            :type  db_name: str
 
         :example:
             >>> from pymilvus import connections
@@ -165,14 +169,16 @@ class Role:
             >>> role = Role(role_name)
             >>> role.revoke("Collection", collection_name, "Insert")
         """
-        return self._get_connection().revoke_privilege(self._name, object, object_name, privilege)
+        return self._get_connection().revoke_privilege(self._name, object, object_name, privilege, db_name)
 
-    def list_grant(self, object: str, object_name: str):
+    def list_grant(self, object: str, object_name: str, db_name: str = "default"):
         """ List a grant info for the role and the specific object
             :param object: object type.
             :type  object: str
             :param object_name: identifies a specific object name.
             :type  object_name: str
+            :param db_name: db name.
+            :type  db_name: str
             :return a GrantInfo object
             :rtype GrantInfo
 
@@ -186,10 +192,12 @@ class Role:
             >>> role = Role(role_name)
             >>> role.list_grant("Collection", collection_name)
         """
-        return self._get_connection().select_grant_for_role_and_object(self._name, object, object_name)
+        return self._get_connection().select_grant_for_role_and_object(self._name, object, object_name, db_name)
 
-    def list_grants(self):
+    def list_grants(self, db_name: str = "default"):
         """ List a grant info for the role
+            :param db_name: db name.
+            :type  db_name: str
             :return a GrantInfo object
             :rtype GrantInfo
 
@@ -203,4 +211,4 @@ class Role:
             >>> role = Role(role_name)
             >>> role.list_grants()
         """
-        return self._get_connection().select_grant_for_one_role(self._name)
+        return self._get_connection().select_grant_for_one_role(self._name, db_name)

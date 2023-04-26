@@ -101,6 +101,8 @@ class GrpcHandler:
 
         self._authorization_interceptor = None
         self._setup_authorization_interceptor(kwargs.get("user", None), kwargs.get("password", None))
+        self._db_interceptor = None
+        self._setup_db_interceptor(kwargs.get("db_name", None))
 
     def __enter__(self):
         return self
@@ -127,6 +129,10 @@ class GrpcHandler:
             authorization = base64.b64encode(f"{user}:{password}".encode('utf-8'))
             key = "authorization"
             self._authorization_interceptor = interceptor.header_adder_interceptor(key, authorization)
+
+    def _setup_db_interceptor(self, db_name):
+        if db_name:
+            self._db_interceptor = interceptor.header_adder_interceptor("dbname", db_name)
 
     def _setup_grpc_channel(self):
         """ Create a ddl grpc channel """
@@ -169,6 +175,8 @@ class GrpcHandler:
         self._final_channel = self._channel
         if self._authorization_interceptor:
             self._final_channel = grpc.intercept_channel(self._final_channel, self._authorization_interceptor)
+        if self._db_interceptor:
+            self._final_channel = grpc.intercept_channel(self._final_channel, self._db_interceptor)
         if self._log_level:
             log_level_interceptor = interceptor.header_adder_interceptor("log_level", self._log_level)
             self._final_channel = grpc.intercept_channel(self._final_channel, log_level_interceptor)
@@ -1176,24 +1184,24 @@ class GrpcHandler:
         return UserInfo(resp.results)
 
     @retry_on_rpc_failure()
-    def grant_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
-        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege,
+    def grant_privilege(self, role_name, object, object_name, privilege, db_name, timeout=None, **kwargs):
+        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege, db_name,
                                                 milvus_types.OperatePrivilegeType.Grant)
         resp = self._stub.OperatePrivilege(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure()
-    def revoke_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
-        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege,
+    def revoke_privilege(self, role_name, object, object_name, privilege, db_name, timeout=None, **kwargs):
+        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege, db_name,
                                                 milvus_types.OperatePrivilegeType.Revoke)
         resp = self._stub.OperatePrivilege(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure()
-    def select_grant_for_one_role(self, role_name, timeout=None, **kwargs):
-        req = Prepare.select_grant_request(role_name, None, None)
+    def select_grant_for_one_role(self, role_name, db_name, timeout=None, **kwargs):
+        req = Prepare.select_grant_request(role_name, None, None, db_name)
         resp = self._stub.SelectGrant(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
@@ -1201,8 +1209,8 @@ class GrpcHandler:
         return GrantInfo(resp.entities)
 
     @retry_on_rpc_failure()
-    def select_grant_for_role_and_object(self, role_name, object, object_name, timeout=None, **kwargs):
-        req = Prepare.select_grant_request(role_name, object, object_name)
+    def select_grant_for_role_and_object(self, role_name, object, object_name, db_name, timeout=None, **kwargs):
+        req = Prepare.select_grant_request(role_name, object, object_name, db_name)
         resp = self._stub.SelectGrant(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
