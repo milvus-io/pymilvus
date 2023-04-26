@@ -193,7 +193,7 @@ class GrpcHandler:
         return self._address
 
     def get_server_type(self):
-        return get_server_type(self.server_address)
+        return get_server_type(self.server_address.split(':')[0])
 
     def reset_password(self, user, old_password, new_password, timeout=None):
         """

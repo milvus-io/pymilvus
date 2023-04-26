@@ -1,7 +1,5 @@
 import datetime
 
-from urllib.parse import urlparse
-
 from .types import DataType
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from ..exceptions import ParamError, MilvusException
@@ -195,16 +193,10 @@ def traverse_info(fields_info, entities):
     return location, primary_key_loc, auto_id_loc
 
 
-def get_protocol_and_domain(host):
-    o = urlparse(host)
-    return o.scheme, o.hostname
-
-
 def get_server_type(host):
-    protocol, hostname = get_protocol_and_domain(host)
-    if protocol != "https":
+    if host is None or not isinstance(host, str):
         return "milvus"
-    splits = hostname.split('.')
+    splits = host.split('.')
     len_of_splits = len(splits)
     if len_of_splits >= 2 and \
             splits[len_of_splits - 2].lower() == "zillizcloud" and \
