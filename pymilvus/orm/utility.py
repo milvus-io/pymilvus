@@ -1115,3 +1115,16 @@ def list_indexes(collection_name, using="default", timeout=None, **kwargs):
                 # list all indexes of this field.
                 index_name_list.append(index.index_name)
     return index_name_list
+
+
+def use_db(db, using="default"):
+    """ Switch database. After this was called, every other requests will bring the database field.
+
+    :param db: Database name.
+    :type  db: str.
+
+    :param using: Alias to the connection. Default connection is used if this is not specified.
+    :type  using: str
+
+    """
+    _get_connection(using).use_db(db)

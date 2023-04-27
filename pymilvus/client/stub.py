@@ -50,6 +50,9 @@ class Milvus:
     def get_server_type(self):
         return self._handler.get_server_type()
 
+    def use_db(self, db):
+        self._handler.use_db(db)
+
     def reset_password(self, user, old_password, new_password):
         self._handler.reset_password(user, old_password, new_password)
 

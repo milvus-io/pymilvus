@@ -76,6 +76,7 @@ class GrpcHandler:
         self._log_level = None
         self._request_id = None
         self._set_authorization(**kwargs)
+        self._set_db(**kwargs)
         self._setup_grpc_channel()
 
     def __get_address(self, uri: str, host: str, port: str) -> str:
@@ -102,6 +103,10 @@ class GrpcHandler:
         self._authorization_interceptor = None
         self._setup_authorization_interceptor(kwargs.get("user", None), kwargs.get("password", None))
 
+    def _set_db(self, **kwargs):
+        self._db_interceptor = None
+        self._setup_db_interceptor(kwargs.get("db", None))
+
     def __enter__(self):
         return self
 
@@ -127,6 +132,10 @@ class GrpcHandler:
             authorization = base64.b64encode(f"{user}:{password}".encode('utf-8'))
             key = "authorization"
             self._authorization_interceptor = interceptor.header_adder_interceptor(key, authorization)
+
+    def _setup_db_interceptor(self, db):
+        if db:
+            self._db_interceptor = interceptor.header_adder_interceptor("database", db)
 
     def _setup_grpc_channel(self):
         """ Create a ddl grpc channel """
@@ -167,6 +176,8 @@ class GrpcHandler:
                 )
         # avoid to add duplicate headers.
         self._final_channel = self._channel
+        if self._db_interceptor:
+            self._final_channel = grpc.intercept_channel(self._final_channel, self._db_interceptor)
         if self._authorization_interceptor:
             self._final_channel = grpc.intercept_channel(self._final_channel, self._authorization_interceptor)
         if self._log_level:
@@ -194,6 +205,16 @@ class GrpcHandler:
 
     def get_server_type(self):
         return get_server_type(self.server_address.split(':')[0])
+
+    def use_db(self, db):
+        """ Switch database. After this was called, every other requests will bring the database field.
+
+        :param db: database name.
+        :type  db: str.
+
+        """
+        self._set_db(db=db)
+        self._setup_grpc_channel()
 
     def reset_password(self, user, old_password, new_password, timeout=None):
         """
