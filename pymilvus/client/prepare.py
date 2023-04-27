@@ -52,7 +52,9 @@ class Prepare:
             req.properties.extend(properties)
 
         shards_num = kwargs.get("shards_num")
-        if shards_num is not None and isinstance(shards_num, int):
+        if shards_num is not None:
+            if not isinstance(shards_num, int):
+                raise ParamError(message="invalid shards_num type, got {type(shards_num)}, expected int")
             req.shards_num=shards_num
 
         return req
