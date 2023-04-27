@@ -128,7 +128,6 @@ class Collection:
     def __repr__(self):
         _dict = {
             'name': self.name,
-            'partitions': self.partitions,
             'description': self.description,
             'schema': self._schema,
         }
