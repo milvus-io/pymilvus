@@ -213,6 +213,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def create_collection(self, collection_name, fields, timeout=None, **kwargs):
+        check_pass_param(collection_name=collection_name)
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
 
         rf = self._stub.CreateCollection.future(request, timeout=timeout)
