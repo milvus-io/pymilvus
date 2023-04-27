@@ -104,13 +104,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if not 0 <= int(port) < 65535:
             raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
 
-
     def __parse_address_from_uri(self, uri: str) -> (str, parse.ParseResult):
         illegal_uri_msg = "Illegal uri: [{}], expected form 'https://user:pwd@example.com:12345'"
         try:
             parsed_uri = parse.urlparse(uri)
         except (Exception) as e:
-            raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
+            raise ConnectionConfigException(
+                message=f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
 
         if len(parsed_uri.netloc) == 0:
             raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}") from None
@@ -174,10 +174,12 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             self._alias[alias] = alias_config
 
-    def __get_full_address(self, address: str = "", uri: str = "", host: str = "", port: str = "") -> (str, parse.ParseResult):
+    def __get_full_address(self, address: str = "", uri: str = "", host: str = "", port: str = "") -> (
+    str, parse.ParseResult):
         if address != "":
             if not is_legal_address(address):
-                raise ConnectionConfigException(message=f"Illegal address: {address}, should be in form 'localhost:19530'")
+                raise ConnectionConfigException(
+                    message=f"Illegal address: {address}, should be in form 'localhost:19530'")
             return address, None
 
         if uri != "":
@@ -214,7 +216,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         self.disconnect(alias)
         self._alias.pop(alias, None)
 
-    def connect(self, alias=Config.MILVUS_CONN_ALIAS, user="", password="", **kwargs):
+    def connect(self, alias=Config.MILVUS_CONN_ALIAS, user="", password="", db_name="", **kwargs):
         """
         Constructs a milvus connection and register it under given alias.
 
@@ -242,6 +244,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
             * *password* (``str``) --
                 Optional and required when user is provided. The password corresponding to
                 the user.
+            * *db_name* (``str``) --
+                Optional. default database name of this connection
             * *client_key_path* (``str``) --
                 Optional. If use tls two-way authentication, need to write the client.key path.
             * *client_pem_path* (``str``) --
@@ -262,6 +266,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
         """
+
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs)
 
@@ -271,6 +276,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             gh._wait_for_channel_ready(timeout=timeout)
             kwargs.pop('password')
             kwargs.pop('secure', None)
+            kwargs.pop("db_name", "")
 
             self._connected_alias[alias] = gh
             self._alias[alias] = copy.deepcopy(kwargs)
@@ -309,7 +315,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 if len(user) > 0 and len(password) > 0:
                     kwargs["secure"] = True
 
-            connect_milvus(**kwargs, user=user, password=password)
+            connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
             return
 
         # 2nd Priority, connection configs from env
@@ -323,19 +329,18 @@ class Connections(metaclass=SingleInstanceMetaClass):
             if len(user) > 0 and len(password) > 0:
                 kwargs["secure"] = True
 
-            connect_milvus(**kwargs, user=user, password=password)
+            connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
             return
 
         # 3rd Priority, connect to cached configs with provided user and password
         if alias in self._alias:
             connect_alias = dict(self._alias[alias].items())
             connect_alias["user"] = user
-            connect_milvus(**connect_alias, password=password, **kwargs)
+            connect_milvus(**connect_alias, password=password, db_name=db_name, **kwargs)
             return
 
         # No params, env, and cached configs for the alias
         raise ConnectionConfigException(message=ExceptionsMessage.ConnLackConf % alias)
-
 
     def list_connections(self) -> list:
         """ List names of all connections.

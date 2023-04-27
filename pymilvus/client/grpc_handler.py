@@ -124,6 +124,10 @@ class GrpcHandler:
     def close(self):
         self._channel.close()
 
+    def reset_db_name(self, db_name):
+        self._setup_db_interceptor(db_name)
+        self._setup_grpc_channel()
+
     def _setup_authorization_interceptor(self, user, password):
         if user and password:
             authorization = base64.b64encode(f"{user}:{password}".encode('utf-8'))
@@ -770,6 +774,28 @@ class GrpcHandler:
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
         return response.progress
+
+    @retry_on_rpc_failure()
+    def create_database(self, db_name, timeout=None):
+        request = Prepare.create_database_req(db_name)
+        status = self._stub.CreateDatabase(request, timeout=timeout)
+        if status.error_code != 0:
+            raise MilvusException(status.error_code, status.reason)
+
+    @retry_on_rpc_failure()
+    def drop_database(self, db_name, timeout=None):
+        request = Prepare.drop_database_req(db_name)
+        status = self._stub.DropDatabase(request, timeout=timeout)
+        if status.error_code != 0:
+            raise MilvusException(status.error_code, status.reason)
+
+    @retry_on_rpc_failure()
+    def list_database(self, timeout=None):
+        request = Prepare.list_database_req()
+        response = self._stub.ListDatabases(request, timeout=timeout)
+        if response.status.error_code != 0:
+            raise MilvusException(response.status.error_code, response.status.reason)
+        return list(response.db_names)
 
     @retry_on_rpc_failure()
     def get_load_state(self, collection_name, partition_names=None, timeout=None):

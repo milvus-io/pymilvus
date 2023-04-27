@@ -66,7 +66,7 @@ from .orm.utility import (
     list_resource_groups, transfer_node, transfer_replica
 )
 
-from .orm import utility
+from .orm import utility, db
 
 from .orm.search import SearchResult, Hits, Hit
 from .orm.schema import FieldSchema, CollectionSchema
@@ -84,7 +84,7 @@ __all__ = [
     'SearchResult', 'Hits', 'Hit', 'Replica', 'Group', 'Shard',
     'FieldSchema', 'CollectionSchema',
     'SearchFuture', 'MutationFuture',
-    'utility', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavailableException', 'BulkInsertState',
+    'utility', 'db', 'DefaultConfig', 'ExceptionsMessage', 'MilvusUnavailableException', 'BulkInsertState',
     'Role',
     'create_resource_group', 'drop_resource_group', 'describe_resource_group',
     'list_resource_groups', 'transfer_node', 'transfer_replica',

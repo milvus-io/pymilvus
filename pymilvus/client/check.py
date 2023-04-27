@@ -314,6 +314,7 @@ def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
 class ParamChecker(metaclass=Singleton):
     def __init__(self) -> None:
         self.check_dict = {
+            "db_name": is_legal_table_name,
             "collection_name": is_legal_table_name,
             "field_name": is_legal_field_name,
             "dimension": is_legal_dimension,
