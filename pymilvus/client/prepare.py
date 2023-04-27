@@ -253,7 +253,7 @@ class Prepare:
     def batch_insert_param(cls, collection_name, entities, partition_name, fields_info=None, **kwargs):
         # insert_request.hash_keys won't be filled in client. It will be filled in proxy.
 
-        tag = partition_name or "_default" # should here?
+        tag = partition_name if isinstance(partition_name, str) else "_default"  # should here?
         insert_request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
 
         for entity in entities:
