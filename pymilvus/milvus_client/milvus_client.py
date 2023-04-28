@@ -4,8 +4,6 @@ import threading
 from typing import Dict, List, Union
 from uuid import uuid4
 
-from tqdm import tqdm
-
 from pymilvus.exceptions import MilvusException
 from pymilvus.milvus_client.defaults import DEFAULT_SEARCH_PARAMS
 from pymilvus.orm import utility
@@ -20,17 +18,17 @@ logger.setLevel(logging.DEBUG)
 class MilvusClient:
     """The Milvus Client"""
 
-    # pylint: disable=logging-too-many-args, too-many-instance-attributes
+    # pylint: disable=logging-too-many-args, too-many-instance-attributes, import-outside-toplevel
 
     def __init__(
         self,
         collection_name: str = "ClientCollection",
         pk_field: str = None,
         vector_field: str = None,
-        uri: str = None,
+        uri: str = "http://localhost:19530",
         shard_num: int = None,
         partitions: List[str] = None,
-        consistency_level: str = "Bounded",
+        consistency_level: str = "Session",
         replica_number: int = 1,
         index_params: dict = None,
         timeout: int = None,
@@ -70,6 +68,14 @@ class MilvusClient:
             overwrite (bool, optional): Whether to overwrite existing collection if exists.
                 Defaults to False
         """
+        # Optionial TQDM import
+        try:
+            import tqdm
+            self.tqdm = tqdm.tqdm
+        except ImportError:
+            logger.debug("tqdm not found")
+            self.tqdm = (lambda x, disable: x)
+
         self.uri = uri
         self.collection_name = collection_name
         self.shard_num = shard_num
@@ -166,8 +172,7 @@ class MilvusClient:
                 if key in self.fields:
                     insert_dict.setdefault(key, []).append(value)
 
-        # Insert the data in batches
-        for i in tqdm(range(0, len(data), batch_size), disable=not progress_bar):
+        for i in self.tqdm(range(0, len(data), batch_size), disable=not progress_bar):
             # Convert dict to list of lists batch for insertion
             try:
                 insert_batch = [
@@ -379,7 +384,7 @@ class MilvusClient:
         self,
         pks: Union[list, str, int],
         timeout: int = None,
-    ) -> None:
+    ) -> List[List[float]]:
         """Grab the inserted vectors using the primary key from the Collection.
 
         Due to current implementations, grabbing a large amount of vectors is slow.
