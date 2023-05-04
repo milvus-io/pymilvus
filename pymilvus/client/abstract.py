@@ -129,6 +129,7 @@ class CollectionSchema:
         self.collection_id = 0
         self.consistency_level = DEFAULT_CONSISTENCY_LEVEL  # by default
         self.properties = {}
+        self.num_shards = 0
 
         #
         if self._raw:
@@ -139,6 +140,7 @@ class CollectionSchema:
         self.description = raw.schema.description
         self.aliases = raw.aliases
         self.collection_id = raw.collectionID
+        self.num_shards = raw.shards_num
 
         # keep compatible with older Milvus
         try:
@@ -166,6 +168,7 @@ class CollectionSchema:
         _dict = {
             "collection_name": self.collection_name,
             "auto_id": self.auto_id,
+            "num_shards": self.num_shards,
             "description": self.description,
             "fields": [f.dict() for f in self.fields],
             "aliases": self.aliases,
