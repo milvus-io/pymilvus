@@ -89,6 +89,7 @@ class Collection:
         self._name = name
         self._using = using
         self._kwargs = kwargs
+        self._num_shards = None
         conn = self._get_connection()
 
         has = conn.has_collection(self._name, **kwargs)
@@ -219,6 +220,13 @@ class Collection:
     def is_empty(self) -> bool:
         """bool: whether the collection is empty or not."""
         return self.num_entities == 0
+
+    @property
+    def num_shards(self, **kwargs) -> int:
+        """int: number of shards used by the collection."""
+        if self._num_shards is None:
+            self._num_shards = self.describe().get("num_shards")
+        return self._num_shards
 
     @property
     def num_entities(self, **kwargs) -> int:
