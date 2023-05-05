@@ -26,18 +26,20 @@ class Prepare:
     def create_collection_request(cls, collection_name: str, fields: Union[Dict[str, Iterable], CollectionSchema],
                                   **kwargs) -> milvus_types.CreateCollectionRequest:
         """
-        :type fields: Union(Dict[str, Iterable], CollectionSchema)
-        :param fields: (Required)
+        Args:
+            fields (Union(Dict[str, Iterable], CollectionSchema)).
 
-            `{"fields": [
-                    {"name": "A", "type": DataType.INT32}
-                    {"name": "B", "type": DataType.INT64, "auto_id": True, "is_primary": True},
-                    {"name": "C", "type": DataType.FLOAT},
-                    {"name": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}]
-            }`
+                {"fields": [
+                        {"name": "A", "type": DataType.INT32}
+                        {"name": "B", "type": DataType.INT64, "auto_id": True, "is_primary": True},
+                        {"name": "C", "type": DataType.FLOAT},
+                        {"name": "Vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128}}]
+                }
 
-        :return: milvus_types.CreateCollectionRequest
+        Returns:
+            milvus_types.CreateCollectionRequest
         """
+
         if isinstance(fields, CollectionSchema):
             schema = cls.get_schema_from_collection_schema(collection_name, fields, **kwargs)
         else:
@@ -54,11 +56,15 @@ class Prepare:
             properties = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()]
             req.properties.extend(properties)
 
-        shards_num = kwargs.get("shards_num")
-        if shards_num is not None:
-            if not isinstance(shards_num, int) or isinstance(shards_num, bool):
-                raise ParamError(message=f"invalid shards_num type, got {type(shards_num)}, expected int")
-            req.shards_num = shards_num
+        same_key = set(kwargs.keys()).intersection({"num_shards", "shards_num"})
+        if len(same_key) > 0:
+            if len(same_key) > 1:
+                raise ParamError(message="got both num_shards and shards_num in kwargs, expected only one of them")
+
+            num_shards = kwargs[list(same_key)[0]]
+            if not isinstance(num_shards, int):
+                raise ParamError(message=f"invalid num_shards type, got {type(num_shards)}, expected int")
+            req.shards_num=num_shards
 
         num_partitions = kwargs.get("num_partitions", None)
         if num_partitions is not None:

@@ -26,7 +26,7 @@ class MilvusClient:
         pk_field: str = None,
         vector_field: str = None,
         uri: str = "http://localhost:19530",
-        shard_num: int = None,
+        num_shards: int = None,
         partitions: List[str] = None,
         consistency_level: str = "Session",
         replica_number: int = 1,
@@ -52,7 +52,7 @@ class MilvusClient:
             uri (str, optional): The connection address to use to connect to the
                 instance. Defaults to "http://localhost:19530". Another example:
                 "https://username:password@in01-12a.aws-us-west-2.vectordb.zillizcloud.com:19538
-            shard_num (int, optional): The amount of shards to use for the collection. Unless
+            num_shards (int, optional): The amount of shards to use for the collection. Unless
                 dealing with huge scale, recommended to keep at default. Defaults to None and allows
                 server to set.
             partitions (List[str], optional): Which paritions to create for the collection.
@@ -81,7 +81,7 @@ class MilvusClient:
 
         self.uri = uri
         self.collection_name = collection_name
-        self.shard_num = shard_num
+        self.num_shards = num_shards
         self.partitions = partitions
         self.consistency_level = consistency_level
         self.replica_number = replica_number
@@ -725,7 +725,7 @@ class MilvusClient:
                 name=self.collection_name,
                 schema=schema,
                 consistency_level=self.consistency_level,
-                shards_num=self.shard_num,
+                num_shards=self.num_shards,
                 num_partitions=self.num_partitions,
                 using=self.alias,
             )
