@@ -27,6 +27,7 @@ CreateAlias: MsgType
 CreateCollection: MsgType
 CreateCredential: MsgType
 CreateCredentialFailure: ErrorCode
+CreateDatabase: MsgType
 CreateIndex: MsgType
 CreatePartition: MsgType
 CreateResourceGroup: MsgType
@@ -49,6 +50,7 @@ DescribeSegments: MsgType
 DiskQuotaExhausted: ErrorCode
 DropAlias: MsgType
 DropCollection: MsgType
+DropDatabase: MsgType
 DropIndex: MsgType
 DropPartition: MsgType
 DropResourceGroup: MsgType
@@ -111,6 +113,7 @@ Insert: MsgType
 InsufficientMemoryToLoad: ErrorCode
 ListCredUsernames: MsgType
 ListCredUsersFailure: ErrorCode
+ListDatabases: MsgType
 ListPolicy: MsgType
 ListPolicyFailure: ErrorCode
 ListResourceGroups: MsgType

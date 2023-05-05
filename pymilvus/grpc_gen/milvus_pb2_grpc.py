@@ -367,7 +367,7 @@ class MilvusServiceStub(object):
                 )
         self.DropDatabase = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropDatabase',
-                request_serializer=milvus__pb2.CreateDatabaseRequest.SerializeToString,
+                request_serializer=milvus__pb2.DropDatabaseRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
         self.ListDatabases = channel.unary_unary(
@@ -1174,7 +1174,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             ),
             'DropDatabase': grpc.unary_unary_rpc_method_handler(
                     servicer.DropDatabase,
-                    request_deserializer=milvus__pb2.CreateDatabaseRequest.FromString,
+                    request_deserializer=milvus__pb2.DropDatabaseRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
             'ListDatabases': grpc.unary_unary_rpc_method_handler(
@@ -2394,7 +2394,7 @@ class MilvusService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DropDatabase',
-            milvus__pb2.CreateDatabaseRequest.SerializeToString,
+            milvus__pb2.DropDatabaseRequest.SerializeToString,
             common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

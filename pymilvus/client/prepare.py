@@ -875,3 +875,22 @@ class Prepare:
     @classmethod
     def get_flush_all_state_request(cls, flush_all_ts):
         return milvus_types.GetFlushAllStateRequest(flush_all_ts=flush_all_ts)
+
+
+    @classmethod
+    def create_database_req(cls, db_name):
+        check_pass_param(db_name=db_name)
+        req = milvus_types.CreateDatabaseRequest(db_name=db_name)
+        return req
+
+    @classmethod
+    def drop_database_req(cls, db_name):
+        check_pass_param(db_name=db_name)
+        req = milvus_types.DropDatabaseRequest(db_name=db_name)
+        return req
+
+    @classmethod
+    def list_database_req(cls):
+        req = milvus_types.ListDatabasesRequest()
+        return req
+    
