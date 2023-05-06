@@ -12,7 +12,6 @@
 
 COMMON_TYPE_PARAMS = ("dim", "max_length")
 
-
 CALC_DIST_IDS = "ids"
 CALC_DIST_FLOAT_VEC = "float_vectors"
 CALC_DIST_BIN_VEC = "bin_vectors"
@@ -23,3 +22,14 @@ CALC_DIST_HAMMING = "HAMMING"
 CALC_DIST_TANIMOTO = "TANIMOTO"
 CALC_DIST_SQRT = "sqrt"
 CALC_DIST_DIM = "dim"
+
+OFFSET = "offset"
+LIMIT = "limit"
+ID = "id"
+METRIC_TYPE = "metric_type"
+PARAMS = "params"
+DISTANCE = "distance"
+RADIUS = "radius"
+RANGE_FILTER = "range_filter"
+FIELDS = "fields"
+ITERATION_EXTENSION_REDUCE_RATE = "iteration_extension_reduce_rate"
