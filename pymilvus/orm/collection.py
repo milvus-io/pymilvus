@@ -43,11 +43,11 @@ from .utility import _get_connection
 from ..settings import Config
 from ..client.types import CompactionState, CompactionPlans, Replica, get_consistency_level, cmp_consistency_level
 from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
-
+from .iterator import QueryIterator, SearchIterator
 
 
 class Collection:
-    def __init__(self, name: str, schema: CollectionSchema=None, using: str="default",  **kwargs):
+    def __init__(self, name: str, schema: CollectionSchema = None, using: str = "default", **kwargs):
         """ Constructs a collection by name, schema and other parameters.
 
         Args:
@@ -394,7 +394,8 @@ class Collection:
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=timeout, **kwargs)
 
-    def insert(self, data: Union[List, pandas.DataFrame], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
+    def insert(self, data: Union[List, pandas.DataFrame], partition_name: str = None, timeout=None,
+               **kwargs) -> MutationResult:
         """ Insert data into the collection.
 
         Args:
@@ -483,7 +484,8 @@ class Collection:
             return MutationFuture(res)
         return MutationResult(res)
 
-    def upsert(self, data: Union[List, pandas.DataFrame], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
+    def upsert(self, data: Union[List, pandas.DataFrame], partition_name: str = None, timeout=None,
+               **kwargs) -> MutationResult:
         """ Upsert data into the collection.
 
         Args:
@@ -523,7 +525,7 @@ class Collection:
 
         conn = self._get_connection()
         res = conn.upsert(self._name, entities, partition_name,
-                                timeout=timeout, schema=self._schema_dict, **kwargs)
+                          timeout=timeout, schema=self._schema_dict, **kwargs)
 
         if kwargs.get("_async", False):
             return MutationFuture(res)
@@ -670,6 +672,15 @@ class Collection:
             return SearchFuture(res)
         return SearchResult(res)
 
+    def search_iterator(self, data, anns_field, param, limit, expr=None, partition_names=None,
+                        output_fields=None, timeout=None, round_decimal=-1, **kwargs):
+        if expr is not None and not isinstance(expr, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
+        conn = self._get_connection()
+        iterator = SearchIterator(conn, self._name, data, anns_field, param, limit, expr, partition_names,
+                                  output_fields, timeout, round_decimal, schema=self._schema_dict, **kwargs)
+        return iterator
+
     def query(self, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
         """ Query with expressions
 
@@ -750,6 +761,14 @@ class Collection:
         res = conn.query(self._name, expr, output_fields, partition_names,
                          timeout=timeout, schema=self._schema_dict, **kwargs)
         return res
+
+    def query_iterator(self, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
+        if not isinstance(expr, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
+        conn = self._get_connection()
+        iterator = QueryIterator(conn, self._name, expr, output_fields, partition_names,
+                                 timeout=timeout, schema=self._schema_dict, **kwargs)
+        return iterator
 
     @property
     def partitions(self, **kwargs) -> List[Partition]:
