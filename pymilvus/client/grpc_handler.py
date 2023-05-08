@@ -17,7 +17,6 @@ from .check import (
     is_legal_host,
     is_legal_port,
     check_pass_param,
-    check_index_params,
 )
 from .prepare import Prepare
 from .types import (
@@ -549,8 +548,6 @@ class GrpcHandler:
             valid_field = True
             if fields["type"] != DataType.FLOAT_VECTOR and fields["type"] != DataType.BINARY_VECTOR:
                 break
-            # check index params on vector field.
-            check_index_params(params)
 
         if not valid_field:
             raise MilvusException(message=f"cannot create index on non-existed field: {field_name}")
