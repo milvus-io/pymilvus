@@ -76,6 +76,7 @@ class GrpcHandler:
         self._log_level = None
         self._request_id = None
         self._set_authorization(**kwargs)
+        self._setup_db_interceptor(kwargs.get("db_name", None))
         self._setup_grpc_channel()
 
     def __get_address(self, uri: str, host: str, port: str) -> str:
@@ -101,8 +102,6 @@ class GrpcHandler:
 
         self._authorization_interceptor = None
         self._setup_authorization_interceptor(kwargs.get("user", None), kwargs.get("password", None))
-        self._db_interceptor = None
-        self._setup_db_interceptor(kwargs.get("db_name", None))
 
     def __enter__(self):
         return self
@@ -137,6 +136,8 @@ class GrpcHandler:
     def _setup_db_interceptor(self, db_name):
         if db_name:
             self._db_interceptor = interceptor.header_adder_interceptor("dbname", db_name)
+        else:
+            self._db_interceptor = None
 
     def _setup_grpc_channel(self):
         """ Create a ddl grpc channel """

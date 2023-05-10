@@ -275,6 +275,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             gh._wait_for_channel_ready(timeout=timeout)
             kwargs.pop('password')
+            kwargs.pop('db_name', None)
             kwargs.pop('secure', None)
             kwargs.pop("db_name", "")
 
@@ -314,6 +315,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 # Set secure=True if uri provided user and password
                 if len(user) > 0 and len(password) > 0:
                     kwargs["secure"] = True
+
+                group = parsed_uri.path.split("/")
+                db_name = "default"
+                if len(group) > 1:
+                    db_name = group[1]
 
             connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
             return
