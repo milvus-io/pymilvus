@@ -722,6 +722,7 @@ class MilvusClient:
                 schema=schema,
                 consistency_level=self.consistency_level,
                 shards_num=self.shard_num,
+                num_partitions=self.num_partitions,
                 using=self.alias,
             )
             logger.debug("Successfully created collection: %s", self.collection_name)

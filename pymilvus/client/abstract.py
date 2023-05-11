@@ -68,6 +68,7 @@ class FieldSchema:
         self.type = DataType.UNKNOWN
         self.indexes = []
         self.params = {}
+        self.is_partition_key = False
 
         ##
         self.__pack(self._raw)
@@ -79,6 +80,7 @@ class FieldSchema:
         self.description = raw.description
         self.auto_id = raw.autoID
         self.type = raw.data_type
+        self.is_partition_key = raw.is_partition_key
         # self.type = DataType(int(raw.type))
 
         for type_param in raw.type_params:
@@ -110,6 +112,7 @@ class FieldSchema:
             "params": self.params or {},
             "is_primary": self.is_primary,
             "auto_id": self.auto_id,
+            "is_partition_key": self.is_partition_key,
         }
         return _dict
 
@@ -130,6 +133,7 @@ class CollectionSchema:
         self.consistency_level = DEFAULT_CONSISTENCY_LEVEL  # by default
         self.properties = {}
         self.num_shards = 0
+        self.num_partitions = 0
 
         #
         if self._raw:
@@ -141,6 +145,7 @@ class CollectionSchema:
         self.aliases = raw.aliases
         self.collection_id = raw.collectionID
         self.num_shards = raw.shards_num
+        self.num_partitions = raw.num_partitions
 
         # keep compatible with older Milvus
         try:
@@ -175,6 +180,7 @@ class CollectionSchema:
             "collection_id": self.collection_id,
             "consistency_level": self.consistency_level,
             "properties": self.properties,
+            "num_partitions": self.num_partitions,
         }
         return _dict
 
