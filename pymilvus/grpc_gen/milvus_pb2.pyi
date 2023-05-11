@@ -691,12 +691,14 @@ class GetLoadingProgressRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class GetLoadingProgressResponse(_message.Message):
-    __slots__ = ["progress", "status"]
+    __slots__ = ["progress", "refresh_progress", "status"]
     PROGRESS_FIELD_NUMBER: _ClassVar[int]
+    REFRESH_PROGRESS_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     progress: int
+    refresh_progress: int
     status: _common_pb2.Status
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., progress: _Optional[int] = ...) -> None: ...
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., progress: _Optional[int] = ..., refresh_progress: _Optional[int] = ...) -> None: ...
 
 class GetMetricsRequest(_message.Message):
     __slots__ = ["base", "request"]
