@@ -5,6 +5,7 @@ from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
+Array: DataType
 BinaryVector: DataType
 Bool: DataType
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -19,9 +20,18 @@ Int16: DataType
 Int32: DataType
 Int64: DataType
 Int8: DataType
+JSON: DataType
 None: DataType
 String: DataType
 VarChar: DataType
+
+class ArrayArray(_message.Message):
+    __slots__ = ["data", "element_type"]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedCompositeFieldContainer[ScalarField]
+    element_type: DataType
+    def __init__(self, data: _Optional[_Iterable[_Union[ScalarField, _Mapping]]] = ..., element_type: _Optional[_Union[DataType, str]] = ...) -> None: ...
 
 class BoolArray(_message.Message):
     __slots__ = ["data"]
@@ -68,10 +78,11 @@ class FieldData(_message.Message):
     def __init__(self, type: _Optional[_Union[DataType, str]] = ..., field_name: _Optional[str] = ..., scalars: _Optional[_Union[ScalarField, _Mapping]] = ..., vectors: _Optional[_Union[VectorField, _Mapping]] = ..., field_id: _Optional[int] = ...) -> None: ...
 
 class FieldSchema(_message.Message):
-    __slots__ = ["autoID", "data_type", "description", "fieldID", "index_params", "is_primary_key", "name", "state", "type_params"]
+    __slots__ = ["autoID", "data_type", "description", "element_type", "fieldID", "index_params", "is_primary_key", "name", "state", "type_params"]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
     DATA_TYPE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     FIELDID_FIELD_NUMBER: _ClassVar[int]
     INDEX_PARAMS_FIELD_NUMBER: _ClassVar[int]
     IS_PRIMARY_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -81,13 +92,14 @@ class FieldSchema(_message.Message):
     autoID: bool
     data_type: DataType
     description: str
+    element_type: DataType
     fieldID: int
     index_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     is_primary_key: bool
     name: str
     state: FieldState
     type_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
-    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ...) -> None: ...
+    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ..., element_type: _Optional[_Union[DataType, str]] = ...) -> None: ...
 
 class FloatArray(_message.Message):
     __slots__ = ["data"]
@@ -109,6 +121,12 @@ class IntArray(_message.Message):
     data: _containers.RepeatedScalarFieldContainer[int]
     def __init__(self, data: _Optional[_Iterable[int]] = ...) -> None: ...
 
+class JSONArray(_message.Message):
+    __slots__ = ["data"]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedScalarFieldContainer[bytes]
+    def __init__(self, data: _Optional[_Iterable[bytes]] = ...) -> None: ...
+
 class LongArray(_message.Message):
     __slots__ = ["data"]
     DATA_FIELD_NUMBER: _ClassVar[int]
@@ -116,22 +134,26 @@ class LongArray(_message.Message):
     def __init__(self, data: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class ScalarField(_message.Message):
-    __slots__ = ["bool_data", "bytes_data", "double_data", "float_data", "int_data", "long_data", "string_data"]
+    __slots__ = ["array_data", "bool_data", "bytes_data", "double_data", "float_data", "int_data", "json_data", "long_data", "string_data"]
+    ARRAY_DATA_FIELD_NUMBER: _ClassVar[int]
     BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
     BYTES_DATA_FIELD_NUMBER: _ClassVar[int]
     DOUBLE_DATA_FIELD_NUMBER: _ClassVar[int]
     FLOAT_DATA_FIELD_NUMBER: _ClassVar[int]
     INT_DATA_FIELD_NUMBER: _ClassVar[int]
+    JSON_DATA_FIELD_NUMBER: _ClassVar[int]
     LONG_DATA_FIELD_NUMBER: _ClassVar[int]
     STRING_DATA_FIELD_NUMBER: _ClassVar[int]
+    array_data: ArrayArray
     bool_data: BoolArray
     bytes_data: BytesArray
     double_data: DoubleArray
     float_data: FloatArray
     int_data: IntArray
+    json_data: JSONArray
     long_data: LongArray
     string_data: StringArray
-    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ...) -> None: ...
+    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
     __slots__ = ["fields_data", "ids", "num_queries", "scores", "top_k", "topks"]
