@@ -21,6 +21,7 @@ from ..exceptions import (
     CannotInferSchemaException,
     DataTypeNotSupportException,
     PrimaryKeyException,
+    PartitionKeyException,
     FieldsTypeException,
     FieldTypeException,
     AutoIDException,
@@ -36,24 +37,41 @@ class CollectionSchema:
             raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
         self._fields = [copy.deepcopy(field) for field in fields]
         primary_field = kwargs.get("primary_field", None)
+        partition_key_field = kwargs.get("partition_key_field", None)
         for field in self._fields:
             if not isinstance(field, FieldSchema):
                 raise FieldTypeException(message=ExceptionsMessage.FieldType)
             if primary_field == field.name:
                 field.is_primary = True
+            if partition_key_field == field.name:
+                field.is_partition_key = True
         self._primary_field = None
+        self._partition_key_field = None
         for field in self._fields:
             if field.is_primary:
                 if primary_field is not None and primary_field != field.name:
                     raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyOnlyOne)
                 self._primary_field = field
                 primary_field = field.name
+            if field.is_partition_key:
+                if partition_key_field is not None and partition_key_field != field.name:
+                    raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyOnlyOne)
+                self._partition_key_field = field
+                partition_key_field = field.name
 
         if self._primary_field is None:
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyNotExist)
 
         if self._primary_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyType)
+
+        # not allow partition_key field is primary key field
+        if self._partition_key_field is not None:
+            if self._partition_key_field.name == self._primary_field.name:
+                PartitionKeyException(message=ExceptionsMessage.PartitionKeyNotPrimary)
+
+            if self._partition_key_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
+                raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyType)
 
         self._auto_id = kwargs.get("auto_id", None)
         if "auto_id" in kwargs:
@@ -103,6 +121,10 @@ class CollectionSchema:
     # TODO:
     def primary_field(self):
         return self._primary_field
+
+    @property
+    def partition_key_field(self):
+        return self._partition_key_field
 
     @property
     def fields(self):
@@ -188,6 +210,10 @@ class FieldSchema:
             if not self.is_primary and self.auto_id:
                 raise PrimaryKeyException(message=ExceptionsMessage.AutoIDOnlyOnPK)
 
+        if not isinstance(kwargs.get("is_partition_key", False), bool):
+            raise PartitionKeyException(message=ExceptionsMessage.IsPartitionKeyType)
+        self.is_partition_key = kwargs.get("is_partition_key", False)
+
         self._parse_type_params()
 
     def __repr__(self):
@@ -224,6 +250,7 @@ class FieldSchema:
         kwargs['is_primary'] = raw.get("is_primary", False)
         if raw.get("auto_id", None) is not None:
             kwargs['auto_id'] = raw.get("auto_id", None)
+        kwargs['is_partition_key'] = raw.get("is_partition_key", False)
         return FieldSchema(raw['name'], raw['type'], raw.get("description", ""), **kwargs)
 
     def to_dict(self):
@@ -237,6 +264,8 @@ class FieldSchema:
         if self.is_primary:
             _dict["is_primary"] = True
             _dict["auto_id"] = self.auto_id
+        if self.is_partition_key:
+            _dict["is_partition_key"] = True
         return _dict
 
     def __getattr__(self, item):
