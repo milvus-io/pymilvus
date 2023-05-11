@@ -103,6 +103,9 @@ def infer_dtype_bydata(data):
         d_type = infer_dtype_by_scaladata(data)
         return d_type
 
+    if isinstance(data, dict):
+        return DataType.JSON
+
     if is_list_like(data) or is_array_like(data):
         failed = False
         try:
