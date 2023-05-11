@@ -1,3 +1,4 @@
+import ujson
 from ..grpc_gen import schema_pb2 as schema_types
 from .types import DataType
 from ..exceptions import ParamError
@@ -40,6 +41,12 @@ def entity_to_str_arr(entity, field_info, check=True):
         check_str_arr(arr, max_len)
     return arr
 
+def entity_to_json_arr(entity):
+    arr = []
+    for obj in entity.get("values"):
+        arr.append(ujson.dumps(obj).encode(Config.EncodeProtocol))
+
+    return arr
 
 # TODO: refactor here.
 def entity_to_field_data(entity, field_info):
@@ -72,6 +79,8 @@ def entity_to_field_data(entity, field_info):
         field_data.vectors.binary_vector = b''.join(entity.get("values"))
     elif entity_type in (DataType.VARCHAR,):
         field_data.scalars.string_data.data.extend(entity_to_str_arr(entity, field_info, True))
+    elif entity_type in (DataType.JSON,):
+        field_data.scalars.json_data.data.extend(entity_to_json_arr(entity))
     else:
         raise ParamError(message=f"UnSupported data type: {entity_type}")
 
