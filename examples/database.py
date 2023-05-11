@@ -33,6 +33,14 @@ def connect_to_milvus(db_name="default"):
                         )
 
 
+def connect_to_milvus_with_uri(db_name="default"):
+    print(f"connect to milvus\n")
+    connections.connect(
+        alias="uri-connection",
+        uri="http://{}:{}/{}".format(_HOST, _PORT, db_name),
+    )
+
+
 def create_collection(collection_name, db_name):
     default_fields = [
         FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
