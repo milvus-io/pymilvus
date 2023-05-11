@@ -104,6 +104,10 @@ class PrimaryKeyException(MilvusException):
     """ Raise when primarykey are invalid """
 
 
+class PartitionKeyException(MilvusException):
+    """ Raise when partitionkey are invalid """
+
+
 class FieldsTypeException(MilvusException):
     """ Raise when fields is invalid """
 
@@ -135,6 +139,7 @@ class ExceptionsMessage:
     SchemaInconsistent = "The collection already exist, but the schema is not the same as the schema passed in."
     AutoIDWithData = "Auto_id is True, primary field should not have data."
     AutoIDType = "Param auto_id must be bool type."
+    NumPartitionsType = "Param num_partitions must be int type."
     AutoIDInconsistent = "The auto_id of the collection is inconsistent with the auto_id of the primary key field."
     AutoIDIllegalRanges = "The auto-generated id ranges should be pairs."
     ConsistencyLevelInconsistent = "The parameter consistency_level is inconsistent with that of existed collection."
@@ -147,8 +152,12 @@ class ExceptionsMessage:
     NoPrimaryKey = "Schema must have a primary key field."
     PrimaryKeyNotExist = "Primary field must in dataframe."
     PrimaryKeyOnlyOne = "Primary key field can only be one."
+    PartitionKeyOnlyOne = "Partition key field can only be one."
     PrimaryKeyType = "Primary key type must be DataType.INT64 or DataType.VARCHAR."
+    PartitionKeyType = "Partition key field type must be DataType.INT64 or DataType.VARCHAR."
+    PartitionKeyNotPrimary = "Primary key filed should not be primary field"
     IsPrimaryType = "Param is_primary must be bool type."
+    IsPartitionKeyType = "Param is_partition_key must be bool type."
     DataTypeInconsistent = "The data in the same column must be of the same type."
     DataTypeNotSupport = "Data type is not support."
     DataLengthsInconsistent = "Arrays must all be same length."

@@ -46,16 +46,18 @@ class BytesArray(_message.Message):
     def __init__(self, data: _Optional[_Iterable[bytes]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
-    __slots__ = ["autoID", "description", "fields", "name"]
+    __slots__ = ["autoID", "description", "enable_dynamic_field", "fields", "name"]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    ENABLE_DYNAMIC_FIELD_FIELD_NUMBER: _ClassVar[int]
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     autoID: bool
     description: str
+    enable_dynamic_field: bool
     fields: _containers.RepeatedCompositeFieldContainer[FieldSchema]
     name: str
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ...) -> None: ...
 
 class DoubleArray(_message.Message):
     __slots__ = ["data"]
@@ -78,28 +80,34 @@ class FieldData(_message.Message):
     def __init__(self, type: _Optional[_Union[DataType, str]] = ..., field_name: _Optional[str] = ..., scalars: _Optional[_Union[ScalarField, _Mapping]] = ..., vectors: _Optional[_Union[VectorField, _Mapping]] = ..., field_id: _Optional[int] = ...) -> None: ...
 
 class FieldSchema(_message.Message):
-    __slots__ = ["autoID", "data_type", "description", "element_type", "fieldID", "index_params", "is_primary_key", "name", "state", "type_params"]
+    __slots__ = ["autoID", "data_type", "default_value", "description", "element_type", "fieldID", "index_params", "is_dynamic", "is_partition_key", "is_primary_key", "name", "state", "type_params"]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
     DATA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_VALUE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     FIELDID_FIELD_NUMBER: _ClassVar[int]
     INDEX_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    IS_DYNAMIC_FIELD_NUMBER: _ClassVar[int]
+    IS_PARTITION_KEY_FIELD_NUMBER: _ClassVar[int]
     IS_PRIMARY_KEY_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     TYPE_PARAMS_FIELD_NUMBER: _ClassVar[int]
     autoID: bool
     data_type: DataType
+    default_value: ValueField
     description: str
     element_type: DataType
     fieldID: int
     index_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    is_dynamic: bool
+    is_partition_key: bool
     is_primary_key: bool
     name: str
     state: FieldState
     type_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
-    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ..., element_type: _Optional[_Union[DataType, str]] = ...) -> None: ...
+    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ..., element_type: _Optional[_Union[DataType, str]] = ..., default_value: _Optional[_Union[ValueField, _Mapping]] = ..., is_dynamic: bool = ..., is_partition_key: bool = ...) -> None: ...
 
 class FloatArray(_message.Message):
     __slots__ = ["data"]
@@ -176,6 +184,24 @@ class StringArray(_message.Message):
     DATA_FIELD_NUMBER: _ClassVar[int]
     data: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, data: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ValueField(_message.Message):
+    __slots__ = ["bool_data", "bytes_data", "double_data", "float_data", "int_data", "long_data", "string_data"]
+    BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
+    BYTES_DATA_FIELD_NUMBER: _ClassVar[int]
+    DOUBLE_DATA_FIELD_NUMBER: _ClassVar[int]
+    FLOAT_DATA_FIELD_NUMBER: _ClassVar[int]
+    INT_DATA_FIELD_NUMBER: _ClassVar[int]
+    LONG_DATA_FIELD_NUMBER: _ClassVar[int]
+    STRING_DATA_FIELD_NUMBER: _ClassVar[int]
+    bool_data: bool
+    bytes_data: bytes
+    double_data: float
+    float_data: float
+    int_data: int
+    long_data: int
+    string_data: str
+    def __init__(self, bool_data: bool = ..., int_data: _Optional[int] = ..., long_data: _Optional[int] = ..., float_data: _Optional[float] = ..., double_data: _Optional[float] = ..., string_data: _Optional[str] = ..., bytes_data: _Optional[bytes] = ...) -> None: ...
 
 class VectorField(_message.Message):
     __slots__ = ["binary_vector", "dim", "float_vector"]
