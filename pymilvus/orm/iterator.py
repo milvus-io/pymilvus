@@ -4,6 +4,7 @@ from ..exceptions import (
     MilvusException,
 )
 
+
 class QueryIterator:
 
     def __init__(self, connection, collection_name, expr, output_fields=None, partition_names=None, schema=None,
@@ -18,8 +19,10 @@ class QueryIterator:
         self._kwargs = kwargs
         self.__setup__pk_is_str()
         self.__seek()
+        self._cache_id_in_use = NO_CACHE_ID
 
     def __seek(self):
+        self._cache_id_in_use = NO_CACHE_ID
         if self._kwargs.get(OFFSET, 0) == 0:
             self._next_id = None
             return
@@ -40,14 +43,28 @@ class QueryIterator:
             return
         start = self._kwargs[LIMIT]
         cache_result = result[start:]
-        cache_id = iteratorCache.cache(cache_result)
+        cache_id = iteratorCache.cache(cache_result, NO_CACHE_ID)
+        self._cache_id_in_use = cache_id
+
+    def __is_res_sufficient(self, res):
+        return res is not None and len(res) >= self._kwargs[LIMIT]
 
     def next(self):
-        current_expr = self.__setup_next_expr()
-        res = self._conn.query(self._collection_name, current_expr, self._output_fields, self._partition_names,
-                               timeout=self._timeout, **self._kwargs)
-        self.__update_cursor(res)
-        return res
+        cached_res = iteratorCache.fetch_cache(self._cache_id_in_use)
+        ret = None
+        if self.__is_res_sufficient(cached_res):
+            ret = cached_res[0:self._kwargs[LIMIT]]
+            res_to_cache = cached_res[self._kwargs[LIMIT]:]
+            iteratorCache.cache(res_to_cache, self._cache_id_in_use)
+        else:
+            iteratorCache.release_cache(self._cache_id_in_use)
+            current_expr = self.__setup_next_expr()
+            res = self._conn.query(self._collection_name, current_expr, self._output_fields, self._partition_names,
+                                   timeout=self._timeout, **self._kwargs)
+            self.__maybe_cache(res)
+            ret = res[0:min(self._kwargs[LIMIT], len(res))]
+        self.__update_cursor(ret)
+        return ret
 
     def __setup__pk_is_str(self):
         fields = self._schema[FIELDS]
@@ -184,17 +201,27 @@ class SearchIterator:
 class IteratorCache:
 
     def __init__(self):
-        pass
+        self._cache_id = 0
+        self._cache_map = {}
 
     def cache(self, result, cache_id):
-        return len(result)
+        if cache_id == NO_CACHE_ID:
+            self._cache_id += 1
+            cache_id = self._cache_id
+        self._cache_map[cache_id] = result
+        print(f"put cache{cache_id}")
+        return cache_id
 
-    def get_cache(self, cache_id):
-        pass
+    def fetch_cache(self, cache_id):
+        print(f"fetch cache{cache_id}")
+        return self._cache_map.get(cache_id, None)
 
     def release_cache(self, cache_id):
-        pass
+        if self._cache_map.get(cache_id, None) is not None:
+            self._cache_map.pop(cache_id)
+            print(f"pop cache{cache_id}")
 
+
+NO_CACHE_ID = -1
 # Singleton Mode in Python
 iteratorCache = IteratorCache()
-NO_CACHE_ID = -1

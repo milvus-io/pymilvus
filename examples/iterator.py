@@ -1,5 +1,5 @@
 import numpy as np
-
+import random
 from pymilvus import (
     connections,
     utility,
@@ -17,11 +17,13 @@ DEPOSIT = "deposit"
 PICTURE = "picture"
 CONSISTENCY_LEVEL = "Eventually"
 LIMIT = 5
-NUM_ENTITIES = 3000
+NUM_ENTITIES = 1000
 DIM = 8
+CLEAR_EXIST = False
+
 
 def re_create_collection():
-    if utility.has_collection(COLLECTION_NAME):
+    if utility.has_collection(COLLECTION_NAME) and CLEAR_EXIST:
         utility.drop_collection(COLLECTION_NAME)
         print(f"dropped existed collection{COLLECTION_NAME}")
 
@@ -41,15 +43,17 @@ def re_create_collection():
 
 def insert_data(collection):
     rng = np.random.default_rng(seed=19530)
-    entities = [
-        [str(ni) for ni in range(NUM_ENTITIES)],
-        [int(ni % 100) for ni in range(NUM_ENTITIES)],
-        [float(ni) for ni in range(NUM_ENTITIES)],
-        rng.random((NUM_ENTITIES, DIM)),
-    ]
-    collection.insert(entities)
-    print(f"Finish insert, number of entities in Milvus: {collection.num_entities}")
-
+    batch_count = 5
+    for i in range(batch_count):
+        entities = [
+            [str(random.randint(NUM_ENTITIES * i, NUM_ENTITIES * (i + 1))) for ni in range(NUM_ENTITIES)],
+            [int(ni % 100) for ni in range(NUM_ENTITIES)],
+            [float(ni) for ni in range(NUM_ENTITIES)],
+            rng.random((NUM_ENTITIES, DIM)),
+        ]
+        collection.insert(entities)
+        collection.flush()
+        print(f"Finish insert batch{i}, number of entities in Milvus: {collection.num_entities}")
 
 def prepare_index(collection):
     index = {
@@ -64,9 +68,7 @@ def prepare_index(collection):
     print("Finish Loading index IVF_FLAT")
 
 
-def prepare_data():
-    connections.connect("default", host=HOST, port=PORT)
-    collection = re_create_collection()
+def prepare_data(collection):
     insert_data(collection)
     prepare_index(collection)
     return collection
@@ -75,22 +77,17 @@ def prepare_data():
 def query_iterate_collection(collection):
     expr = f"10 <= {AGE} <= 14"
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
-                                               offset=0, limit=5, consistency_level=CONSISTENCY_LEVEL)
-    id_set = set()
-    target_id_count = 2700
+                                               offset=0, limit=5, consistency_level=CONSISTENCY_LEVEL,
+                                               iteration_extension_reduce=True)
     page_idx = 0
     while True:
         res = query_iterator.next()
         if len(res) == 0:
-            if len(id_set) != target_id_count:
-                print("Wrong, miss some entities")
-                exit(1)
             print("query iteration finished, close")
             query_iterator.close()
             break
         for i in range(len(res)):
             print(res[i])
-            id_set.add(res[i]['id'])
         page_idx += 1
         print(f"page{page_idx}-------------------------")
 
@@ -119,9 +116,11 @@ def search_iterator_collection(collection):
 
 
 def main():
-    collection = prepare_data()
-    #query_iterate_collection(collection)
-    search_iterator_collection(collection)
+    connections.connect("default", host=HOST, port=PORT)
+    collection = re_create_collection()
+    #collection = prepare_data(collection)
+    query_iterate_collection(collection)
+    #search_iterator_collection(collection)
 
 
 if __name__ == '__main__':
