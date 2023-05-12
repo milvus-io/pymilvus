@@ -325,7 +325,11 @@ def check_insert_or_upsert_data_schema(schema: CollectionSchema, data: Union[Lis
         i_name = [f.name for f in infer_fields]
         t_name = [f.name for f in tmp_fields]
         raise DataNotMatchException(message=f"The fields don't match with schema fields, expected: {t_name}, got {i_name}")
-
+    
+    # We need to sort the field object to insert data without maintaing order of fields.
+    infer_fields.sort(key=lambda x: x.name)
+    tmp_fields.sort(key=lambda x: x.name)
+    
     for x, y in zip(infer_fields, tmp_fields):
         if x.dtype != y.dtype:
             raise DataNotMatchException(message=f"The data type of field {y.name} doesn't match, expected: {y.dtype.name}, got {x.dtype.name}")
