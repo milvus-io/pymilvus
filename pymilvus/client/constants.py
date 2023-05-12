@@ -8,3 +8,4 @@ EVENTUALLY_TS = 1
 BOUNDED_TS = 2
 DEFAULT_CONSISTENCY_LEVEL = ConsistencyLevel.Bounded
 DEFAULT_RESOURCE_GROUP = "__default_resource_group"
+ITERATION_EXTENSION_REDUCE = "iteration_extension_reduce"

@@ -1,9 +1,8 @@
-from .constants import OFFSET, LIMIT, ID, FIELDS, DISTANCE, RANGE_FILTER, RADIUS, PARAMS
+from .constants import OFFSET, LIMIT, ID, FIELDS, RANGE_FILTER, RADIUS, PARAMS, ITERATION_EXTENSION_REDUCE
 from .types import DataType
 from ..exceptions import (
     MilvusException,
 )
-
 
 class QueryIterator:
 
@@ -27,13 +26,21 @@ class QueryIterator:
 
         first_cursor_kwargs = self._kwargs.copy()
         first_cursor_kwargs[OFFSET] = 0
-        # offset may be too large
+        # offset may be too large, needed to seek in multiple times
         first_cursor_kwargs[LIMIT] = self._kwargs[OFFSET]
+        first_cursor_kwargs[ITERATION_EXTENSION_REDUCE] = False
 
         res = self._conn.query(self._collection_name, self._expr, self._output_fields, self._partition_names,
                                timeout=self._timeout, **first_cursor_kwargs)
         self.__update_cursor(res)
         self._kwargs[OFFSET] = 0
+
+    def __maybe_cache(self, result):
+        if len(result) < 2 * self._kwargs[LIMIT]:
+            return
+        start = self._kwargs[LIMIT]
+        cache_result = result[start:]
+        cache_id = iteratorCache.cache(cache_result)
 
     def next(self):
         current_expr = self.__setup_next_expr()
@@ -172,3 +179,22 @@ class SearchIterator:
 
     def close(self):
         pass
+
+
+class IteratorCache:
+
+    def __init__(self):
+        pass
+
+    def cache(self, result, cache_id):
+        return len(result)
+
+    def get_cache(self, cache_id):
+        pass
+
+    def release_cache(self, cache_id):
+        pass
+
+# Singleton Mode in Python
+iteratorCache = IteratorCache()
+NO_CACHE_ID = -1

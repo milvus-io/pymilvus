@@ -9,7 +9,7 @@ from . import entity_helper
 from .check import check_pass_param, is_legal_collection_properties
 from .types import DataType, PlaceholderType, get_consistency_level
 from .utils import traverse_info
-from .constants import DEFAULT_CONSISTENCY_LEVEL
+from .constants import DEFAULT_CONSISTENCY_LEVEL, ITERATION_EXTENSION_REDUCE
 from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
 from ..orm.schema import CollectionSchema
 
@@ -613,6 +613,10 @@ class Prepare:
 
         ignore_growing = kwargs.get("ignore_growing", False)
         req.query_params.append(common_types.KeyValuePair(key="ignore_growing", value=str(ignore_growing)))
+
+        use_iteration_extension_reduce = kwargs.get(ITERATION_EXTENSION_REDUCE, False)
+        req.query_params.append(common_types.KeyValuePair(key=ITERATION_EXTENSION_REDUCE,
+                                                          value=str(use_iteration_extension_reduce)))
         return req
 
     @classmethod
