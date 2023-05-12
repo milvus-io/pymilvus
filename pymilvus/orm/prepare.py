@@ -30,33 +30,27 @@ class Prepare:
 
         fields = schema.fields
         entities = []  # Entities
-        raw_lengths = []  # Check if each row has the same numbers.
 
         if isinstance(data, pandas.DataFrame):
             if schema.auto_id:
                 if isInsert is False:
                     raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
                 if schema.primary_field.name in data:
-                    if len(fields) != len(data.columns):
-                        raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
                     if not data[schema.primary_field.name].isnull().all():
                         raise DataNotMatchException(message=ExceptionsMessage.AutoIDWithData)
-                else:
-                    if len(fields) != len(data.columns) + 1:
-                        raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
-            else:
-                if len(fields) != len(data.columns):
-                    raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
             for i, field in enumerate(fields):
                 if field.is_primary and field.auto_id:
                     continue
+                values = []
+                if field.name in list(data.columns):
+                    values = list(data[field.name])
                 entities.append({"name": field.name,
                                  "type": field.dtype,
-                                 "values": list(data[field.name])})
-                raw_lengths.append(len(data[field.name]))
+                                 "values": values})
         else:
-            if schema.auto_id and len(data) != len(fields) - 1:
-                raise DataNotMatchException(message=ExceptionsMessage.FieldsNumInconsistent)
+            if schema.auto_id:
+                if isInsert is False:
+                    raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
 
             tmp_fields = copy.deepcopy(fields)
             for i, field in enumerate(tmp_fields):
@@ -74,11 +68,5 @@ class Prepare:
                     "name": field.name,
                     "type": field.dtype,
                     "values": data[i]})
-                raw_lengths.append(len(data[i]))
-
-        # TODO Goose: check correctness AFTER copy is too expensive.
-        lengths = list(set(raw_lengths))
-        if len(lengths) > 1:
-            raise DataNotMatchException(message=ExceptionsMessage.DataLengthsInconsistent)
 
         return entities

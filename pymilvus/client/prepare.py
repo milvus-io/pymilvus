@@ -83,7 +83,8 @@ class Prepare:
                                                     description=f.description,
                                                     is_primary_key=f.is_primary,
                                                     autoID=f.auto_id,
-                                                    is_partition_key=f.is_partition_key)
+                                                    is_partition_key=f.is_partition_key,
+                                                    default_value=f.default_value)
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
                 field_schema.type_params.append(kv_pair)
@@ -141,6 +142,7 @@ class Prepare:
 
             field_schema = schema_types.FieldSchema(name=field_name,
                                                     data_type=data_type,
+                                                    default_value=field.get("default_value", None),
                                                     description=field.get('description', ''),
                                                     is_primary_key=is_primary,
                                                     autoID=auto_id,
@@ -274,8 +276,8 @@ class Prepare:
             request = milvus_types.UpsertRequest(collection_name=collection_name, partition_name=tag)
 
         for entity in entities:
-            if not entity.get("name", None) or not entity.get("values", None) or not entity.get("type", None):
-                raise ParamError(message="Missing param in entities, a field must have type, name and values")
+            if not entity.get("name", None) or not entity.get("type", None):
+                raise ParamError(message="Missing param in entities, a field must have type, name")
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
@@ -295,14 +297,18 @@ class Prepare:
         try:
             for entity in entities:
                 current = len(entity.get("values"))
-                if row_num not in (0, current):
-                    raise ParamError(message="row num misaligned current[{current}]!= previous[{row_num}]")
-                row_num = current
+                # if current length is zero, consider use default value
+                if current != 0:
+                    if row_num not in (0, current):
+                        raise ParamError(message="row num misaligned current[{current}]!= previous[{row_num}]")
+                    row_num = current
                 field_data = entity_helper.entity_to_field_data(entity, fields_info[location[entity.get("name")]])
                 request.fields_data.append(field_data)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
 
+        if row_num == 0 :
+            raise ParamError(message=ExceptionsMessage.NumberRowsInvalid)
         request.num_rows = row_num
 
         return request

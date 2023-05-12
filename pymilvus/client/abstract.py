@@ -69,6 +69,7 @@ class FieldSchema:
         self.indexes = []
         self.params = {}
         self.is_partition_key = False
+        self.default_value = None
 
         ##
         self.__pack(self._raw)
@@ -81,6 +82,7 @@ class FieldSchema:
         self.auto_id = raw.autoID
         self.type = raw.data_type
         self.is_partition_key = raw.is_partition_key
+        self.default_value = raw.default_value
         # self.type = DataType(int(raw.type))
 
         for type_param in raw.type_params:
@@ -113,6 +115,7 @@ class FieldSchema:
             "is_primary": self.is_primary,
             "auto_id": self.auto_id,
             "is_partition_key": self.is_partition_key,
+            "default_value": self.default_value
         }
         return _dict
 
