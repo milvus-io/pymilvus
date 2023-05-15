@@ -11,7 +11,7 @@
 # the License.
 
 import copy
-from typing import List, Union
+from typing import List, Union, Dict
 import pandas
 from pandas.api.types import is_list_like, is_scalar
 
@@ -80,6 +80,7 @@ class CollectionSchema:
                 field.is_partition_key = True
         self._primary_field = None
         self._partition_key_field = None
+        self._enable_dynamic_field = kwargs.get("enable_dynamic_field", False)
         for field in self._fields:
             if field.is_primary:
                 if primary_field_name is not None and primary_field_name != field.name:
@@ -118,11 +119,7 @@ class CollectionSchema:
         self._kwargs = copy.deepcopy(kwargs)
 
     def __repr__(self):
-        _dict = {
-            "auto_id": self.auto_id,
-            "description": self._description,
-            "fields": self._fields,
-        }
+        _dict = self.to_dict()
         r = ["{\n"]
         s = "  {}: {}\n"
         for k, v in _dict.items():
@@ -143,7 +140,8 @@ class CollectionSchema:
     def construct_from_dict(cls, raw):
         fields = [FieldSchema.construct_from_dict(
             field_raw) for field_raw in raw['fields']]
-        return CollectionSchema(fields, raw.get('description', ""))
+        enable_dynamic_field = raw.get("enable_dynamic_field", False)
+        return CollectionSchema(fields, raw.get('description', ""), enable_dynamic_field=enable_dynamic_field)
 
     @property
     # TODO:
@@ -206,12 +204,18 @@ class CollectionSchema:
         """
         return self._auto_id
 
+    @property
+    def enable_dynamic_field(self):
+        return self._enable_dynamic_field
+
     def to_dict(self):
         _dict = {
             "auto_id": self.auto_id,
             "description": self._description,
             "fields": [s.to_dict() for s in self._fields],
         }
+        if self._enable_dynamic_field:
+            _dict["enable_dynamic_field"] = self._enable_dynamic_field
         return _dict
 
 
@@ -233,6 +237,7 @@ class FieldSchema:
         if not isinstance(kwargs.get("is_primary", False), bool):
             raise PrimaryKeyException(message=ExceptionsMessage.IsPrimaryType)
         self.is_primary = kwargs.get("is_primary", False)
+        self.is_dynamic = kwargs.get("is_dynamic", False)
         self.auto_id = kwargs.get("auto_id", None)
         if "auto_id" in kwargs:
             if not isinstance(self.auto_id, bool):
@@ -293,6 +298,7 @@ class FieldSchema:
         else:
             if raw.get("default_value", None) is not None:
                 kwargs['default_value'] = None
+        kwargs['is_dynamic'] = raw.get("is_dynamic", False)
         return FieldSchema(raw['name'], raw['type'], raw.get("description", ""), **kwargs)
 
     def to_dict(self):
@@ -310,6 +316,8 @@ class FieldSchema:
             _dict["is_partition_key"] = True
         if self.default_value is not None:
             _dict["default_value"] = self.default_value
+        if self.is_dynamic:
+            _dict["is_dynamic"] = self.is_dynamic
         return _dict
 
     def __getattr__(self, item):
@@ -362,7 +370,27 @@ class FieldSchema:
         return self._dtype
 
 
-def check_insert_or_upsert_data_schema(schema: CollectionSchema, data: Union[List[List], pandas.DataFrame], isInsert=True) -> None:
+def check_insert_or_upsert_is_row_based(data: Union[List[List], List[Dict], Dict, pandas.DataFrame]) -> bool:
+    if not isinstance(data, (pandas.DataFrame, list, dict)):
+        raise DataTypeNotSupportException(message="The type of data should be list or pandas.DataFrame or dict")
+
+    if isinstance(data, pandas.DataFrame):
+        return False
+
+    if isinstance(data, dict):
+        return True
+
+    if isinstance(data, list):
+        if len(data) == 0:
+            return False
+        if isinstance(data[0], Dict):
+            return True
+
+    return False
+
+
+def check_insert_or_upsert_data_schema(schema: CollectionSchema, data: Union[List[List], pandas.DataFrame],
+                                       isInsert=True) -> None:
     """ check if the insert or upsert data is consist with the collection schema
 
     Args:

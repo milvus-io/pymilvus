@@ -1,11 +1,11 @@
 import abc
 
-import numpy as np
 from ..settings import Config
 from .types import DataType
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 from ..grpc_gen import schema_pb2
 from ..exceptions import MilvusException
+from . import entity_helper
 
 
 class LoopBase:
@@ -70,6 +70,7 @@ class FieldSchema:
         self.params = {}
         self.is_partition_key = False
         self.default_value = None
+        self.is_dynamic = False
 
         ##
         self.__pack(self._raw)
@@ -83,6 +84,11 @@ class FieldSchema:
         self.type = raw.data_type
         self.is_partition_key = raw.is_partition_key
         self.default_value = raw.default_value
+        try:
+            self.is_dynamic = raw.is_dynamic
+        except Exception:
+            self.is_dynamic = False
+
         # self.type = DataType(int(raw.type))
 
         for type_param in raw.type_params:
@@ -115,7 +121,8 @@ class FieldSchema:
             "is_primary": self.is_primary,
             "auto_id": self.auto_id,
             "is_partition_key": self.is_partition_key,
-            "default_value": self.default_value
+            "default_value": self.default_value,
+            "is_dynamic": self.is_dynamic,
         }
         return _dict
 
@@ -137,6 +144,7 @@ class CollectionSchema:
         self.properties = {}
         self.num_shards = 0
         self.num_partitions = 0
+        self.enable_dynamic_field = False
 
         #
         if self._raw:
@@ -155,6 +163,11 @@ class CollectionSchema:
             self.consistency_level = raw.consistency_level
         except Exception:
             self.consistency_level = DEFAULT_CONSISTENCY_LEVEL
+
+        try:
+            self.enable_dynamic_field = raw.schema.enable_dynamic_field
+        except Exception:
+            self.enable_dynamic_field = False
 
         # self.params = dict()
         # TODO: extra_params here
@@ -184,6 +197,7 @@ class CollectionSchema:
             "consistency_level": self.consistency_level,
             "properties": self.properties,
             "num_partitions": self.num_partitions,
+            "enable_dynamic_field": self.enable_dynamic_field,
         }
         return _dict
 
@@ -264,6 +278,11 @@ class Hits(LoopBase):
         else:
             self._distances = self._raw.scores
 
+        self._dynamic_field_name = None
+        self._dynamic_fields = set()
+        self._dynamic_field_name, self._dynamic_fields = entity_helper.extract_dynamic_field_from_result(self._raw)
+
+
     def __len__(self):
         if self._raw.ids.HasField("int_id"):
             return len(self._raw.ids.int_id.data)
@@ -278,48 +297,9 @@ class Hits(LoopBase):
             entity_id = self._raw.ids.str_id.data[item]
         else:
             raise MilvusException(message="Unsupported ids type")
-        entity_row_data = {}
-        if self._raw.fields_data:
-            for field_data in self._raw.fields_data:
-                if field_data.type == DataType.BOOL:
-                    if len(field_data.scalars.bool_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.bool_data.data[item]
-                elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                    if len(field_data.scalars.int_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.int_data.data[item]
-                elif field_data.type == DataType.INT64:
-                    if len(field_data.scalars.long_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.long_data.data[item]
-                elif field_data.type == DataType.FLOAT:
-                    if len(field_data.scalars.float_data.data) >= item:
-                        entity_row_data[field_data.field_name] = np.single(field_data.scalars.float_data.data[item])
-                elif field_data.type == DataType.DOUBLE:
-                    if len(field_data.scalars.double_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[item]
-                elif field_data.type == DataType.VARCHAR:
-                    if len(field_data.scalars.string_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[item]
-                elif field_data.type == DataType.STRING:
-                    raise MilvusException(message="Not support string yet")
-                    # result[field_data.field_name] = field_data.scalars.string_data.data[index]
-                elif field_data.type == DataType.JSON:
-                    if len(field_data.scalars.json_data.data) >= item:
-                        entity_row_data[field_data.field_name] = field_data.scalars.json_data.data[item]
-                elif field_data.type == DataType.FLOAT_VECTOR:
-                    dim = field_data.vectors.dim
-                    if len(field_data.vectors.float_vector.data) >= item * dim:
-                        start_pos = item * dim
-                        end_pos = item * dim + dim
-                        entity_row_data[field_data.field_name] = [np.single(x) for x in
-                                                                  field_data.vectors.float_vector.data[
-                                                                  start_pos:end_pos]]
-                elif field_data.type == DataType.BINARY_VECTOR:
-                    dim = field_data.vectors.dim
-                    if len(field_data.vectors.binary_vector.data) >= item * (dim / 8):
-                        start_pos = item * (dim / 8)
-                        end_pos = (item + 1) * (dim / 8)
-                        entity_row_data[field_data.field_name] = [
-                            field_data.vectors.binary_vector.data[start_pos:end_pos]]
+
+        entity_row_data = entity_helper.extract_row_data_from_fields_data(self._raw.fields_data, item,
+                                                                          self._dynamic_fields)
         entity_score = self._distances[item]
         return Hit(entity_id, entity_row_data, entity_score)
 
@@ -387,7 +367,7 @@ class MutationResult:
 
     def __str__(self):
         return f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, " \
-                f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
+               f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
 
     __repr__ = __str__
 
@@ -497,6 +477,7 @@ class ChunkedQueryResult(LoopBase):
             self._nq += nq
             self._topk = raw.results.top_k
             offset = 0
+
             for i in range(nq):
                 hit = schema_pb2.SearchResultData()
                 start_pos = offset
@@ -506,10 +487,12 @@ class ChunkedQueryResult(LoopBase):
                     hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos: end_pos])
                 elif raw.results.ids.HasField("str_id"):
                     hit.ids.str_id.data.extend(raw.results.ids.str_id.data[start_pos: end_pos])
+                hit.output_fields.extend(raw.results.output_fields)
                 for field_data in raw.results.fields_data:
                     field = schema_pb2.FieldData()
                     field.type = field_data.type
                     field.field_name = field_data.field_name
+                    field.is_dynamic = field_data.is_dynamic
                     if field_data.type == DataType.BOOL:
                         field.scalars.bool_data.data.extend(field_data.scalars.bool_data.data[start_pos: end_pos])
                     elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):

@@ -6,7 +6,6 @@ from urllib import parse
 import socket
 
 import grpc
-import numpy as np
 from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
@@ -64,6 +63,7 @@ from ..exceptions import (
 )
 
 from ..decorators import retry_on_rpc_failure
+from . import entity_helper
 
 
 class GrpcHandler:
@@ -160,7 +160,7 @@ class GrpcHandler:
             else:
                 if self._client_pem_path != "" and self._client_key_path != "" and self._ca_pem_path != "" \
                         and self._server_name != "":
-                    opts.append(('grpc.ssl_target_name_override', self._server_name, ),)
+                    opts.append(('grpc.ssl_target_name_override', self._server_name,), )
                     with open(self._client_pem_path, 'rb') as f:
                         certificate_chain = f.read()
                     with open(self._client_key_path, 'rb') as f:
@@ -382,7 +382,24 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    def _prepare_batch_insert_or_upsert_request(self, collection_name, entities, partition_name=None, timeout=None, isInsert=True, **kwargs):
+    def _prepare_row_insert_or_upsert_request(self, collection_name, rows, partition_name=None, timeout=None,
+                                              isInsert=True, **kwargs):
+        if not isinstance(rows, list):
+            raise ParamError(message="None rows, please provide valid row data.")
+
+        collection_schema = kwargs.get("schema", None)
+        if not collection_schema:
+            collection_schema = self.describe_collection(
+                collection_name, timeout=timeout, **kwargs)
+
+        fields_info = collection_schema["fields"]
+        enable_dynamic = collection_schema.get("enable_dynamic_field", False)
+        request = Prepare.row_insert_or_upsert_param(collection_name, rows, partition_name, fields_info, isInsert,
+                                                     enable_dynamic=enable_dynamic)
+        return request
+
+    def _prepare_batch_insert_or_upsert_request(self, collection_name, entities, partition_name=None, timeout=None,
+                                                isInsert=True, **kwargs):
         param = kwargs.get('insert_param', None)
 
         if not isInsert:
@@ -406,6 +423,24 @@ class GrpcHandler:
             else Prepare.batch_insert_or_upsert_param(collection_name, entities, partition_name, fields_info, isInsert)
 
         return request
+
+    @retry_on_rpc_failure()
+    def insert_rows(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
+        if isinstance(entities, dict):
+            entities = [entities]
+        try:
+            request = self._prepare_row_insert_or_upsert_request(
+                collection_name, entities, partition_name, timeout, **kwargs)
+            rf = self._stub.Insert.future(request, timeout=timeout)
+            response = rf.result()
+            if response.status.error_code == 0:
+                m = MutationResult(response)
+                ts_utils.update_collection_ts(collection_name, m.timestamp)
+                return m
+
+            raise MilvusException(response.status.error_code, response.status.reason)
+        except Exception as err:
+            raise err
 
     @retry_on_rpc_failure()
     def batch_insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
@@ -485,6 +520,25 @@ class GrpcHandler:
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
+            raise err
+
+    @retry_on_rpc_failure()
+    def upsert_rows(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
+        if isinstance(entities, dict):
+            entities = [entities]
+        try:
+            request = self._prepare_row_insert_or_upsert_request(
+                collection_name, entities, partition_name, timeout, False, **kwargs)
+            rf = self._stub.Upsert.future(request, timeout=timeout)
+            response = rf.result()
+            if response.status.error_code == 0:
+                m = MutationResult(response)
+                ts_utils.update_collection_ts(collection_name, m.timestamp)
+                return m
+
+            raise MilvusException(
+                response.status.error_code, response.status.reason)
+        except Exception as err:
             raise err
 
     def _execute_search_requests(self, requests, timeout=None, **kwargs):
@@ -720,7 +774,8 @@ class GrpcHandler:
                 return False, fail_reason
             end = time.time()
             if isinstance(timeout, int) and end - start > timeout:
-                raise MilvusException(message=f"collection {collection_name} create index {index_name} timeout in {timeout}s")
+                raise MilvusException(
+                    message=f"collection {collection_name} create index {index_name} timeout in {timeout}s")
 
     @retry_on_rpc_failure()
     def load_collection(self, collection_name, replica_number=1, timeout=None, **kwargs):
@@ -812,7 +867,8 @@ class GrpcHandler:
             if progress >= 100:
                 return
             time.sleep(Config.WaitTimeDurationWhenLoad)
-        raise MilvusException(message=f"wait for loading partition timeout, collection: {collection_name}, partitions: {partition_names}")
+        raise MilvusException(
+            message=f"wait for loading partition timeout, collection: {collection_name}, partitions: {partition_names}")
 
     @retry_on_rpc_failure()
     def get_loading_progress(self, collection_name, partition_names=None, timeout=None):
@@ -1008,44 +1064,13 @@ class GrpcHandler:
         if not all(len_of(field_data) == num_entities for field_data in it):
             raise MilvusException(message="The length of fields data is inconsistent")
 
-        # transpose
-        return self.convert_query_result(response, num_entities)
+        _, dynamic_fields = entity_helper.extract_dynamic_field_from_result(response)
 
-    def convert_query_result(self, response, num_entities):
         results = []
         for index in range(0, num_entities):
-            result = {}
-            for field_data in response.fields_data:
-                if field_data.type == DataType.BOOL:
-                    result[field_data.field_name] = field_data.scalars.bool_data.data[index]
-                elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                    result[field_data.field_name] = field_data.scalars.int_data.data[index]
-                elif field_data.type == DataType.INT64:
-                    result[field_data.field_name] = field_data.scalars.long_data.data[index]
-                elif field_data.type == DataType.FLOAT:
-                    result[field_data.field_name] = np.single(field_data.scalars.float_data.data[index])
-                elif field_data.type == DataType.DOUBLE:
-                    result[field_data.field_name] = field_data.scalars.double_data.data[index]
-                elif field_data.type == DataType.VARCHAR:
-                    result[field_data.field_name] = field_data.scalars.string_data.data[index]
-                elif field_data.type == DataType.STRING:
-                    raise MilvusException(message="Not support string yet")
-                    # result[field_data.field_name] = field_data.scalars.string_data.data[index]
-                elif field_data.type == DataType.JSON:
-                    result[field_data.field_name] = field_data.scalars.json_data.data[index]
-                elif field_data.type == DataType.FLOAT_VECTOR:
-                    dim = field_data.vectors.dim
-                    start_pos = index * dim
-                    end_pos = index * dim + dim
-                    result[field_data.field_name] = [np.single(x) for x in
-                                                     field_data.vectors.float_vector.data[start_pos:end_pos]]
-                elif field_data.type == DataType.BINARY_VECTOR:
-                    dim = field_data.vectors.dim
-                    start_pos = index * (int(dim / 8))
-                    end_pos = (index + 1) * (int(dim / 8))
-                    result[field_data.field_name] = field_data.vectors.binary_vector[start_pos:end_pos]
-            results.append(result)
-
+            entity_row_data = entity_helper.extract_row_data_from_fields_data(response.fields_data, index,
+                                                                              dynamic_fields)
+            results.append(entity_row_data)
         return results
 
     @retry_on_rpc_failure()

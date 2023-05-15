@@ -12,7 +12,7 @@
 
 import copy
 import json
-from typing import List, Union
+from typing import List, Union, Dict
 import pandas
 
 from .connections import connections
@@ -21,6 +21,7 @@ from .schema import (
     FieldSchema,
     construct_fields_from_dataframe,
     check_insert_or_upsert_data_schema,
+    check_insert_or_upsert_is_row_based,
     check_schema,
 )
 from .prepare import Prepare
@@ -396,7 +397,7 @@ class Collection:
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=timeout, **kwargs)
 
-    def insert(self, data: Union[List, pandas.DataFrame], partition_name: str = None, timeout=None,
+    def insert(self, data: Union[List, pandas.DataFrame, Dict], partition_name: str = None, timeout=None,
                **kwargs) -> MutationResult:
         """ Insert data into the collection.
 
@@ -430,15 +431,21 @@ class Collection:
             >>> res.insert_count
             10
         """
-        check_insert_or_upsert_data_schema(self._schema, data)
-        entities = Prepare.prepare_insert_or_upsert_data(data, self._schema)
+        if data is None:
+            return MutationResult(data)
 
+        row_based = check_insert_or_upsert_is_row_based(data)
         conn = self._get_connection()
-        res = conn.batch_insert(self._name, entities, partition_name,
-                                timeout=timeout, schema=self._schema_dict, **kwargs)
-
-        if kwargs.get("_async", False):
-            return MutationFuture(res)
+        if not row_based:
+            check_insert_or_upsert_data_schema(self._schema, data)
+            entities = Prepare.prepare_insert_or_upsert_data(data, self._schema)
+            res = conn.batch_insert(self._name, entities, partition_name,
+                                    timeout=timeout, schema=self._schema_dict, **kwargs)
+            if kwargs.get("_async", False):
+                return MutationFuture(res)
+        else:
+            res = conn.insert_rows(self._name, data, partition_name,
+                                   timeout=timeout, schema=self._schema_dict, **kwargs)
         return MutationResult(res)
 
     def delete(self, expr, partition_name=None, timeout=None, **kwargs):
@@ -484,8 +491,7 @@ class Collection:
             return MutationFuture(res)
         return MutationResult(res)
 
-    def upsert(self, data: Union[List, pandas.DataFrame], partition_name: str=None, timeout=None,
-               **kwargs) -> MutationResult:
+    def upsert(self, data: Union[List, pandas.DataFrame, Dict], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
         """ Upsert data into the collection.
 
         Args:
@@ -520,15 +526,22 @@ class Collection:
         """
         if data is None:
             return MutationResult(data)
-        check_insert_or_upsert_data_schema(self._schema, data, False)
-        entities = Prepare.prepare_insert_or_upsert_data(data, self._schema, False)
 
+        row_based = check_insert_or_upsert_is_row_based(data)
         conn = self._get_connection()
-        res = conn.upsert(self._name, entities, partition_name,
-                          timeout=timeout, schema=self._schema_dict, **kwargs)
+        if not row_based:
+            check_insert_or_upsert_data_schema(self._schema, data, False)
+            entities = Prepare.prepare_insert_or_upsert_data(data, self._schema, False)
 
-        if kwargs.get("_async", False):
-            return MutationFuture(res)
+            res = conn.upsert(self._name, entities, partition_name,
+                              timeout=timeout, schema=self._schema_dict, **kwargs)
+
+            if kwargs.get("_async", False):
+                return MutationFuture(res)
+        else:
+            res = conn.upsert_rows(self._name, data, partition_name,
+                                   timeout=timeout, schema=self._schema_dict, **kwargs)
+
         return MutationResult(res)
 
     def search(self, data, anns_field, param, limit, expr=None, partition_names=None,

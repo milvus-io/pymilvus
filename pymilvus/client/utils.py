@@ -150,6 +150,62 @@ def len_of(field_data) -> int:
     raise MilvusException(message="Unknown data type")
 
 
+def traverse_rows_info(fields_info, entities):
+    location, primary_key_loc, auto_id_loc = {}, None, None
+
+    for i, field in enumerate(fields_info):
+        is_auto_id = False
+        is_dynamic = False
+
+        if field.get("auto_id", False):
+            auto_id_loc = i
+            is_auto_id = True
+
+        if field.get("is_primary", False):
+            primary_key_loc = i
+
+        field_name = field["name"]
+        location[field_name] = i
+        field_type = field["type"]
+
+        if field.get("is_dynamic", False):
+            is_dynamic = True
+
+        for j, entity in enumerate(entities):
+            if is_auto_id:
+                if field_name in entity:
+                    raise ParamError(
+                        message=f"auto id enabled, {field_name} shouldn't in entities[{j}]")
+                continue
+
+            if is_dynamic:
+                if field_name in entity:
+                    raise ParamError(
+                        message=f"dynamic field enabled, {field_name} shouldn't in entities[{j}]")
+
+            value = entity.get(field_name, None)
+            if value is None:
+                raise ParamError(
+                    message=f"Field {field_name} don't match in entities[{j}]")
+
+            if field_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+                field_dim = field["params"]["dim"]
+                if field_type == DataType.FLOAT_VECTOR:
+                    entity_dim = len(value)
+                else:
+                    entity_dim = len(value) * 8
+
+                if entity_dim != field_dim:
+                    raise ParamError(message=f"Collection field dim is {field_dim}"
+                                             f", but entities field dim is {entity_dim}")
+
+    # though impossible from sdk
+    if primary_key_loc is None:
+        raise ParamError(message="primary key not found")
+
+    return location, primary_key_loc, auto_id_loc
+
+
 def traverse_info(fields_info, entities):
     location, primary_key_loc, auto_id_loc = {}, None, None
     for i, field in enumerate(fields_info):
