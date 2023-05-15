@@ -117,7 +117,7 @@ class SearchIterator:
         self._round_decimal = round_decimal
         self._kwargs = kwargs
         self._distance_cursor = [0.0]
-        self._last_id = [None]
+        self._filtered_ids = []
         self._schema = schema
         self.__check_radius()
         self.__seek()
@@ -162,7 +162,10 @@ class SearchIterator:
             return
         last_hit = res[0][-1]
         self._distance_cursor[0] = last_hit.distance
-        self._last_id[0] = last_hit.id
+        self._filtered_ids = []
+        for hit in res[0]:
+            if hit.distance == last_hit.distance:
+                self._filtered_ids.append(hit.id)
 
     def next(self):
         next_params = self.__next_params()
@@ -177,13 +180,17 @@ class SearchIterator:
     # at present, the range_filter parameter means 'larger/less and equal', so there would always
     # be one repeated result in every page, we need to refine and remove that result before returning
     def __filtered_duplicated_result_expr(self, expr):
-        if self._last_id[0] is None:
+        if len(self._filtered_ids) == 0:
             return expr
-        filter_expr = None
-        if self._pk_str:
-            filter_expr = f"id != \"{self._last_id[0]}\""
-        else:
-            filter_expr = f"id != {self._last_id[0]}"
+
+        filtered_ids_str = ""
+        for filtered_id in self._filtered_ids:
+            if self._pk_str:
+                filtered_ids_str += f"\"{filtered_id}\", "
+            else:
+                filtered_ids_str += f"{filtered_id}, "
+
+        filter_expr = f"id not in [{filtered_ids_str}]"
         if expr is not None:
             return expr + filter_expr
         else:
@@ -209,11 +216,9 @@ class IteratorCache:
             self._cache_id += 1
             cache_id = self._cache_id
         self._cache_map[cache_id] = result
-        print(f"put cache{cache_id}")
         return cache_id
 
     def fetch_cache(self, cache_id):
-        print(f"fetch cache{cache_id}")
         return self._cache_map.get(cache_id, None)
 
     def release_cache(self, cache_id):

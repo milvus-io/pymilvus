@@ -74,7 +74,7 @@ def prepare_data(collection):
     return collection
 
 
-def query_iterate_collection(collection):
+def query_iterate_collection_no_offset(collection):
     expr = f"10 <= {AGE} <= 14"
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
                                                offset=0, limit=5, consistency_level=CONSISTENCY_LEVEL,
@@ -91,6 +91,22 @@ def query_iterate_collection(collection):
         page_idx += 1
         print(f"page{page_idx}-------------------------")
 
+def query_iterate_collection_with_offset(collection):
+    expr = f"10 <= {AGE} <= 14"
+    query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
+                                               offset=10, limit=5, consistency_level=CONSISTENCY_LEVEL,
+                                               iteration_extension_reduce_rate=10)
+    page_idx = 0
+    while True:
+        res = query_iterator.next()
+        if len(res) == 0:
+            print("query iteration finished, close")
+            query_iterator.close()
+            break
+        for i in range(len(res)):
+            print(res[i])
+        page_idx += 1
+        print(f"page{page_idx}-------------------------")
 
 def search_iterator_collection(collection):
     SEARCH_NQ = 1
@@ -120,7 +136,8 @@ def main():
     connections.connect("default", host=HOST, port=PORT)
     collection = re_create_collection()
     #collection = prepare_data(collection)
-    query_iterate_collection(collection)
+    #query_iterate_collection_no_offset(collection)
+    query_iterate_collection_with_offset(collection)
     #search_iterator_collection(collection)
 
 

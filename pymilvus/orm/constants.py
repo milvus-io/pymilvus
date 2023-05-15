@@ -12,7 +12,6 @@
 
 COMMON_TYPE_PARAMS = ("dim", "max_length")
 
-
 CALC_DIST_IDS = "ids"
 CALC_DIST_FLOAT_VEC = "float_vectors"
 CALC_DIST_BIN_VEC = "bin_vectors"
