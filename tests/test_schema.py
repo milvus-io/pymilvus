@@ -34,11 +34,13 @@ class TestCollectionSchema:
             },
         ]
         _dict["fields"] = fields
+        _dict["enable_dynamic_field"] = True
 
         return _dict
 
     def test_constructor_from_dict(self, raw_dict):
         schema = CollectionSchema.construct_from_dict(raw_dict)
+        assert schema.enable_dynamic_field == raw_dict.get("enable_dynamic_field", False)
         assert schema.description, raw_dict['description']
         assert len(schema.fields) == len(raw_dict['fields'])
         f = schema.primary_field
@@ -144,6 +146,7 @@ class TestFieldSchema:
     #      for f in fields:
     #          if f.dtype == DataType.FLOAT_VECTOR:
     #              assert f.dim == len(dataframe1['float_vec'].values[0])
+
 
 class TestCheckInsertDataSchema:
     def test_check_insert_data_schema_issue1324(self):

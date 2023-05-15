@@ -4,9 +4,8 @@ import copy
 import base64
 from urllib import parse
 import socket
-
-import grpc
 import numpy as np
+import grpc
 from grpc._cython import cygrpc
 
 from ..grpc_gen import milvus_pb2_grpc
@@ -382,6 +381,22 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
+    def _prepare_row_insert_or_upsert_request(self, collection_name, rows, partition_name=None, timeout=None,
+                                              is_insert=True, **kwargs):
+        if not isinstance(rows, list):
+            raise ParamError(message="None rows, please provide valid row data.")
+
+        collection_schema = kwargs.get("schema", None)
+        if not collection_schema:
+            collection_schema = self.describe_collection(
+                collection_name, timeout=timeout, **kwargs)
+
+        fields_info = collection_schema["fields"]
+        enable_dynamic = collection_schema.get("enable_dynamic_field", False)
+        request = Prepare.row_insert_or_upsert_param(collection_name, rows, partition_name, fields_info, is_insert,
+                                                     enable_dynamic=enable_dynamic)
+        return request
+
     def _prepare_batch_insert_request(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
         insert_param = kwargs.get('insert_param', None)
 
@@ -400,6 +415,25 @@ class GrpcHandler:
             else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
 
         return request
+
+
+    @retry_on_rpc_failure()
+    def insert_rows(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):
+        if isinstance(entities, dict):
+            entities = [entities]
+        try:
+            request = self._prepare_row_insert_or_upsert_request(
+                collection_name, entities, partition_name, timeout, **kwargs)
+            rf = self._stub.Insert.future(request, timeout=timeout)
+            response = rf.result()
+            if response.status.error_code == 0:
+                m = MutationResult(response)
+                ts_utils.update_collection_ts(collection_name, m.timestamp)
+                return m
+
+            raise MilvusException(response.status.error_code, response.status.reason)
+        except Exception as err:
+            raise err
 
     @retry_on_rpc_failure()
     def batch_insert(self, collection_name, entities, partition_name=None, timeout=None, **kwargs):

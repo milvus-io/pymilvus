@@ -9,6 +9,7 @@ from . import blob
 from . import entity_helper
 from .check import check_pass_param, is_legal_collection_properties
 from .types import DataType, PlaceholderType, get_consistency_level
+from .utils import traverse_rows_info
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
 from ..orm.schema import CollectionSchema
@@ -47,8 +48,8 @@ class Prepare:
         consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
 
         req = milvus_types.CreateCollectionRequest(collection_name=collection_name,
-                                                    schema=bytes(schema.SerializeToString()),
-                                                    consistency_level=consistency_level)
+                                                   schema=bytes(schema.SerializeToString()),
+                                                   consistency_level=consistency_level)
 
         properties = kwargs.get("properties")
         if is_legal_collection_properties(properties):
@@ -63,7 +64,7 @@ class Prepare:
             num_shards = kwargs[list(same_key)[0]]
             if not isinstance(num_shards, int):
                 raise ParamError(message=f"invalid num_shards type, got {type(num_shards)}, expected int")
-            req.shards_num=num_shards
+            req.shards_num = num_shards
 
         num_partitions = kwargs.get("num_partitions", None)
         if num_partitions is not None:
@@ -77,14 +78,17 @@ class Prepare:
         return req
 
     @classmethod
-    def get_schema_from_collection_schema(cls, collection_name: str, fields: CollectionSchema, **kwargs) -> milvus_types.CreateCollectionRequest:
+    def get_schema_from_collection_schema(cls, collection_name: str, fields: CollectionSchema,
+                                          **kwargs) -> schema_types.CollectionSchema:
         coll_description = fields.description
         if not isinstance(coll_description, (str, bytes)):
-            raise ParamError(message=f"description [{coll_description}] has type {type(coll_description).__name__},  but expected one of: bytes, str")
+            raise ParamError(
+                message=f"description [{coll_description}] has type {type(coll_description).__name__},  but expected one of: bytes, str")
 
         schema = schema_types.CollectionSchema(name=collection_name,
                                                autoID=fields.auto_id,
-                                               description=coll_description)
+                                               description=coll_description,
+                                               enable_dynamic_field=fields.enable_dynamic_field)
         for f in fields.fields:
             field_schema = schema_types.FieldSchema(name=f.name,
                                                     data_type=f.dtype,
@@ -110,9 +114,14 @@ class Prepare:
         if len(all_fields) == 0:
             raise ParamError(message="Param fields value cannot be empty")
 
+        enable_dynamic_field = kwargs.get("enable_dynamic_field", False)
+        if "enable_dynamic_field" in fields:
+            enable_dynamic_field = fields["enable_dynamic_field"]
+
         schema = schema_types.CollectionSchema(name=collection_name,
                                                autoID=False,
-                                               description=fields.get('description', ''))
+                                               description=fields.get('description', ''),
+                                               enable_dynamic_field=enable_dynamic_field)
 
         primary_field = None
         auto_id_field = None
@@ -272,6 +281,66 @@ class Prepare:
                                           tag=partition_name)
 
     @classmethod
+    def row_insert_or_upsert_param(cls, collection_name, entities, partition_name, fields_info=None, is_insert=True,
+                                   enable_dynamic=False, **kwargs):
+        # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client. It will be filled in proxy.
+
+        tag = partition_name if isinstance(partition_name, str) else ""
+        request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
+
+        if not fields_info:
+            raise ParamError(message="Missing collection meta to validate entities")
+
+        traverse_rows_info(fields_info, entities)
+
+        meta_field = schema_types.FieldData()
+        fields_data = {}
+        field_info_map = {}
+        for field in fields_info:
+            field_name = field["name"]
+            field_type = field["type"]
+            field_info_map[field_name] = field
+            field_data = schema_types.FieldData()
+            field_data.field_name = field_name
+            field_data.type = field_type
+            fields_data[field_name] = field_data
+
+        if enable_dynamic:
+            meta_field.is_dynamic = True
+            meta_field.type = DataType.JSON
+            field_info_map[meta_field.field_name] = meta_field
+            fields_data[meta_field.field_name] = meta_field
+
+        try:
+            for entity in entities:
+                json_dict = {}
+                for key in entity:
+                    if key in fields_data:
+                        field_info = field_info_map[key]
+                        field_data = fields_data[key]
+                        entity_helper.pack_field_value_to_field_data(entity[key], field_data, field_info)
+                    elif enable_dynamic:
+                        json_dict[key] = entity[key]
+
+                if enable_dynamic:
+                    json_value = entity_helper.convert_to_json(json_dict)
+                    meta_field.scalars.json_data.data.append(json_value)
+
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
+
+        request.num_rows = len(entities)
+        for field in fields_info:
+            field_name = field["name"]
+            field_data = fields_data[field_name]
+            request.fields_data.append(field_data)
+
+        if enable_dynamic:
+            request.fields_data.append(meta_field)
+
+        return request
+
+    @classmethod
     def batch_insert_param(cls, collection_name, entities, partition_name, fields_info=None, **kwargs):
         # insert_request.hash_keys won't be filled in client. It will be filled in proxy.
 
@@ -376,16 +445,19 @@ class Prepare:
         for i in range(0, nq):
             if is_binary:
                 if len(vectors[i]) * 8 != dimension:
-                    raise ParamError(message=f"The dimension of query entities[{vectors[i]*8}] is different from schema [{dimension}]")
+                    raise ParamError(
+                        message=f"The dimension of query entities[{vectors[i] * 8}] is different from schema [{dimension}]")
                 pl.values.append(blob.vectorBinaryToBytes(vectors[i]))
             else:
                 if len(vectors[i]) != dimension:
-                    raise ParamError(message=f"The dimension of query entities[{vectors[i]}] is different from schema [{dimension}]")
+                    raise ParamError(
+                        message=f"The dimension of query entities[{vectors[i]}] is different from schema [{dimension}]")
                 pl.values.append(blob.vectorFloatToBytes(vectors[i]))
         return pl
 
     @classmethod
-    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1, **kwargs):
+    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1,
+                       **kwargs):
         schema = kwargs.get("schema", None)
         fields_schema = schema.get("fields", None)  # list
         fields_name_locs = {fields_schema[loc]["name"]: loc
@@ -489,7 +561,7 @@ class Prepare:
             raise ParamError(message=f"Field {anns_field} doesn't exist in schema")
         dimension = int(fields_schema[fields_name_locs[anns_field]]["params"].get("dim", 0))
 
-        ignore_growing = param.get("ignore_growing",False) or kwargs.get("ignore_growing",False)
+        ignore_growing = param.get("ignore_growing", False) or kwargs.get("ignore_growing", False)
         params = param.get("params", {})
         if not isinstance(params, dict):
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
@@ -555,8 +627,7 @@ class Prepare:
 
         def dump(tv):
             if isinstance(tv, dict):
-                import json
-                return json.dumps(tv)
+                return ujson.dumps(tv)
             return str(tv)
 
         if isinstance(params, dict):
@@ -896,7 +967,6 @@ class Prepare:
     def get_flush_all_state_request(cls, flush_all_ts):
         return milvus_types.GetFlushAllStateRequest(flush_all_ts=flush_all_ts)
 
-
     @classmethod
     def create_database_req(cls, db_name):
         check_pass_param(db_name=db_name)
@@ -933,4 +1003,3 @@ class Prepare:
         return milvus_types.ConnectRequest(
             client_info=this,
         )
-    
