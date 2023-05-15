@@ -57,6 +57,12 @@ class Prepare:
                 raise ParamError(message="invalid shards_num type, got {type(shards_num)}, expected int")
             req.shards_num=shards_num
 
+        num_partitions = kwargs.get("num_partitions", None)
+        if num_partitions is not None:
+            if not isinstance(num_partitions, int):
+                raise ParamError(message=ExceptionsMessage.NumPartitionsType)
+            req.num_partitions=num_partitions
+
         return req
 
     @classmethod
@@ -73,7 +79,8 @@ class Prepare:
                                                     data_type=f.dtype,
                                                     description=f.description,
                                                     is_primary_key=f.is_primary,
-                                                    autoID=f.auto_id)
+                                                    autoID=f.auto_id,
+                                                    is_partition_key=f.is_partition_key)
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
                 field_schema.type_params.append(kv_pair)
@@ -133,7 +140,8 @@ class Prepare:
                                                     data_type=data_type,
                                                     description=field.get('description', ''),
                                                     is_primary_key=is_primary,
-                                                    autoID=auto_id)
+                                                    autoID=auto_id,
+                                                    is_partition_key=field.get("is_partition_key", False))
 
             type_params = field.get('params', {})
             if not isinstance(type_params, dict):
@@ -256,7 +264,7 @@ class Prepare:
     def batch_insert_or_upsert_param(cls, collection_name, entities, partition_name, fields_info=None, isInsert=True, **kwargs):
         # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client. It will be filled in proxy.
 
-        tag = partition_name if isinstance(partition_name, str) else "_default"  # should here?
+        tag = partition_name if isinstance(partition_name, str) else ""
         request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
 
         if not isInsert:
