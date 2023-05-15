@@ -1,4 +1,4 @@
-from .constants import OFFSET, LIMIT, ID, FIELDS, RANGE_FILTER, RADIUS, PARAMS, ITERATION_EXTENSION_REDUCE
+from .constants import OFFSET, LIMIT, ID, FIELDS, RANGE_FILTER, RADIUS, PARAMS, ITERATION_EXTENSION_REDUCE_RATE
 from .types import DataType
 from ..exceptions import (
     MilvusException,
@@ -31,7 +31,7 @@ class QueryIterator:
         first_cursor_kwargs[OFFSET] = 0
         # offset may be too large, needed to seek in multiple times
         first_cursor_kwargs[LIMIT] = self._kwargs[OFFSET]
-        first_cursor_kwargs[ITERATION_EXTENSION_REDUCE] = False
+        first_cursor_kwargs[ITERATION_EXTENSION_REDUCE_RATE] = 0
 
         res = self._conn.query(self._collection_name, self._expr, self._output_fields, self._partition_names,
                                timeout=self._timeout, **first_cursor_kwargs)

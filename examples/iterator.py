@@ -78,7 +78,7 @@ def query_iterate_collection(collection):
     expr = f"10 <= {AGE} <= 14"
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
                                                offset=0, limit=5, consistency_level=CONSISTENCY_LEVEL,
-                                               iteration_extension_reduce=True)
+                                               iteration_extension_reduce_rate=10)
     page_idx = 0
     while True:
         res = query_iterator.next()
@@ -90,6 +90,7 @@ def query_iterate_collection(collection):
             print(res[i])
         page_idx += 1
         print(f"page{page_idx}-------------------------")
+
 
 def search_iterator_collection(collection):
     SEARCH_NQ = 1

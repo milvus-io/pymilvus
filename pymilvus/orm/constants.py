@@ -33,5 +33,5 @@ DISTANCE = "distance"
 RADIUS = "radius"
 RANGE_FILTER = "range_filter"
 FIELDS = "fields"
-ITERATION_EXTENSION_REDUCE = "iteration_extension_reduce"
+ITERATION_EXTENSION_REDUCE_RATE = "iteration_extension_reduce_rate"
 
