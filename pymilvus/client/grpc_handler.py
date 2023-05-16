@@ -961,6 +961,9 @@ class GrpcHandler:
             raise MilvusException(message="The length of fields data is inconsistent")
 
         # transpose
+        return self.convert_query_result(response, num_entities)
+
+    def convert_query_result(self, response, num_entities):
         results = []
         for index in range(0, num_entities):
             result = {}
@@ -980,6 +983,8 @@ class GrpcHandler:
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
+                elif field_data.type == DataType.JSON:
+                    result[field_data.field_name] = field_data.scalars.json_data.data
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field_data.vectors.dim
                     start_pos = index * dim
