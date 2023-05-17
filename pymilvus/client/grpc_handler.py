@@ -984,7 +984,7 @@ class GrpcHandler:
                     raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.JSON:
-                    result[field_data.field_name] = field_data.scalars.json_data.data
+                    result[field_data.field_name] = field_data.scalars.json_data.data[index]
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field_data.vectors.dim
                     start_pos = index * dim
