@@ -52,15 +52,18 @@ class Prepare:
 
         shards_num = kwargs.get("shards_num")
         if shards_num is not None:
-            if not isinstance(shards_num, int):
-                raise ParamError(message="invalid shards_num type, got {type(shards_num)}, expected int")
-            req.shards_num=shards_num
+            if not isinstance(shards_num, int) or isinstance(shards_num, bool):
+                raise ParamError(message=f"invalid shards_num type, got {type(shards_num)}, expected int")
+            req.shards_num = shards_num
 
         num_partitions = kwargs.get("num_partitions", None)
         if num_partitions is not None:
-            if not isinstance(num_partitions, int):
-                raise ParamError(message=ExceptionsMessage.NumPartitionsType)
-            req.num_partitions=num_partitions
+            if not isinstance(num_partitions, int) or isinstance(num_partitions, bool):
+                raise ParamError(message=f"invalid num_partitions type, got {type(num_partitions)}, expected int")
+            if num_partitions < 1:
+                raise ParamError(
+                    message=f"The specified num_partitions should be greater than or equal to 1, got {num_partitions}")
+            req.num_partitions = num_partitions
 
         return req
 
