@@ -32,48 +32,64 @@ from ..exceptions import (
 )
 
 
+def validate_primary_key(primary_field):
+    if primary_field is None:
+        raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyNotExist)
+
+    if primary_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
+        raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyType)
+
+
+def validate_partition_key(partition_key_field_name, partition_key_field, primary_field_name):
+    # not allow partition_key field is primary key field
+    if partition_key_field is not None:
+        if partition_key_field.name == primary_field_name:
+            PartitionKeyException(message=ExceptionsMessage.PartitionKeyNotPrimary)
+
+        if partition_key_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
+            raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyType)
+    else:
+        if partition_key_field_name is not None:
+            raise PartitionKeyException(
+                message=ExceptionsMessage.PartitionKeyFieldNotExist % partition_key_field_name)
+
+
 class CollectionSchema:
     def __init__(self, fields, description="", **kwargs):
         if not isinstance(fields, list):
             raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
         self._fields = [copy.deepcopy(field) for field in fields]
-        primary_field = kwargs.get("primary_field", None)
-        partition_key_field = kwargs.get("partition_key_field", None)
+        primary_field_name = kwargs.get("primary_field", None)
+        if primary_field_name is not None and not isinstance(primary_field_name, str):
+            raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
+        partition_key_field_name = kwargs.get("partition_key_field", None)
+        if partition_key_field_name is not None and not isinstance(partition_key_field_name, str):
+            raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyFieldType)
         for field in self._fields:
             if not isinstance(field, FieldSchema):
                 raise FieldTypeException(message=ExceptionsMessage.FieldType)
-            if primary_field == field.name:
+            if primary_field_name == field.name:
                 field.is_primary = True
-            if partition_key_field == field.name:
+            if partition_key_field_name == field.name:
                 field.is_partition_key = True
         self._primary_field = None
         self._partition_key_field = None
         for field in self._fields:
             if field.is_primary:
-                if primary_field is not None and primary_field != field.name:
-                    raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyOnlyOne % (primary_field, field.name))
+                if primary_field_name is not None and primary_field_name != field.name:
+                    raise PrimaryKeyException(
+                        message=ExceptionsMessage.PrimaryKeyOnlyOne % (primary_field_name, field.name))
                 self._primary_field = field
-                primary_field = field.name
+                primary_field_name = field.name
             if field.is_partition_key:
-                if partition_key_field is not None and partition_key_field != field.name:
+                if partition_key_field_name is not None and partition_key_field_name != field.name:
                     raise PartitionKeyException(
-                        message=ExceptionsMessage.PartitionKeyOnlyOne % (primary_field, field.name))
+                        message=ExceptionsMessage.PartitionKeyOnlyOne % (partition_key_field_name, field.name))
                 self._partition_key_field = field
-                partition_key_field = field.name
+                partition_key_field_name = field.name
 
-        if self._primary_field is None:
-            raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyNotExist)
-
-        if self._primary_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
-            raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyType)
-
-        # not allow partition_key field is primary key field
-        if self._partition_key_field is not None:
-            if self._partition_key_field.name == self._primary_field.name:
-                PartitionKeyException(message=ExceptionsMessage.PartitionKeyNotPrimary)
-
-            if self._partition_key_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
-                raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyType)
+        validate_primary_key(self._primary_field)
+        validate_partition_key(partition_key_field_name, self._partition_key_field, self._primary_field)
 
         self._auto_id = kwargs.get("auto_id", None)
         if "auto_id" in kwargs:
