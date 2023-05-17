@@ -51,12 +51,13 @@ class CollectionSchema:
         for field in self._fields:
             if field.is_primary:
                 if primary_field is not None and primary_field != field.name:
-                    raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyOnlyOne)
+                    raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyOnlyOne % (primary_field, field.name))
                 self._primary_field = field
                 primary_field = field.name
             if field.is_partition_key:
                 if partition_key_field is not None and partition_key_field != field.name:
-                    raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyOnlyOne)
+                    raise PartitionKeyException(
+                        message=ExceptionsMessage.PartitionKeyOnlyOne % (primary_field, field.name))
                 self._partition_key_field = field
                 partition_key_field = field.name
 
