@@ -292,6 +292,10 @@ class Connections(metaclass=SingleInstanceMetaClass):
             kwargs.pop("port", "")
         )
 
+        # Make sure passed in None doesnt break
+        user = user or ""
+        password = password or ""
+
         # 1st Priority: connection from params
         if with_config(config):
             in_addr, parsed_uri = self.__get_full_address(*config)
