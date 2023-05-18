@@ -137,6 +137,7 @@ class ExceptionsMessage:
     HostType = "Type of 'host' must be str."
     PortType = "Type of 'port' must be str or int."
     ConnDiffConf = "Alias of %r already creating connections, but the configure is not the same as passed in."
+    AliasUsed = "Alias %r already exists, please remove first."
     AliasType = "Alias should be string, but %r is given."
     ConnLackConf = "You need to pass in the configuration of the connection named %r ."
     ConnectFirst = "should create connect first."

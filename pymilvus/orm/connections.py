@@ -17,7 +17,6 @@ from typing import Tuple
 
 from ..client.check import is_legal_host, is_legal_port, is_legal_address
 from ..client.grpc_handler import GrpcHandler
-from ..client.utils import get_server_type, ZILLIZ
 
 from ..settings import Config
 from ..exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
@@ -80,53 +79,27 @@ class Connections(metaclass=SingleInstanceMetaClass):
         """
         self._alias = {}
         self._connected_alias = {}
-        self._env_uri = None
+        self._connection_references = {}
+        self._con_lock = threading.RLock()
+        # info = self.__parse_info(
+        #   uri=Config.MILVUS_URI,
+        #   host=Config.DEFAULT_HOST,
+        #   port=Config.DEFAULT_PORT,
+        #   user = Config.MILVUS_USER,
+        #   password = Config.MILVUS_PASSWORD,
+        #   token = Config.MILVUS_TOKEN,
+        #   secure=Config.DEFAULT_SECURE,
+        #   db_name=Config.MILVUS_DB_NAME
+        # )
 
-        if Config.MILVUS_URI != "":
-            address, parsed_uri = self.__parse_address_from_uri(Config.MILVUS_URI)
-            self._env_uri = (address, parsed_uri)
+        # default_conn_config = {
+        #     "user": info["user"],
+        #     "address": info["address"],
+        #     "db_name": info["db_name"],
+        #     "secure": info["secure"],
+        # }
 
-            default_conn_config = {
-                "user": parsed_uri.username if parsed_uri.username is not None else "",
-                "address": address,
-            }
-        else:
-            default_conn_config = {
-                "user": "",
-                "address": f"{Config.DEFAULT_HOST}:{Config.DEFAULT_PORT}",
-            }
-
-        self.add_connection(**{Config.MILVUS_CONN_ALIAS: default_conn_config})
-
-    def __verify_host_port(self, host, port):
-        if not is_legal_host(host):
-            raise ConnectionConfigException(message=ExceptionsMessage.HostType)
-        if not is_legal_port(port):
-            raise ConnectionConfigException(message=ExceptionsMessage.PortType)
-        if not 0 <= int(port) < 65535:
-            raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
-
-    def __parse_address_from_uri(self, uri: str) -> (str, parse.ParseResult):
-        illegal_uri_msg = "Illegal uri: [{}], expected form 'https://user:pwd@example.com:12345'"
-        try:
-            parsed_uri = parse.urlparse(uri)
-        except (Exception) as e:
-            raise ConnectionConfigException(
-                message=f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
-
-        if len(parsed_uri.netloc) == 0:
-            raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}") from None
-
-        host = parsed_uri.hostname if parsed_uri.hostname is not None else Config.DEFAULT_HOST
-        port = parsed_uri.port if parsed_uri.port is not None else Config.DEFAULT_PORT
-        addr = f"{host}:{port}"
-
-        self.__verify_host_port(host, port)
-
-        if not is_legal_address(addr):
-            raise ConnectionConfigException(message=illegal_uri_msg.format(uri))
-
-        return addr, parsed_uri
+        # self.add_connection(**{Config.MILVUS_CONN_ALIAS: default_conn_config})
 
     def add_connection(self, **kwargs):
         """ Configures a milvus connection.
@@ -159,40 +132,24 @@ class Connections(metaclass=SingleInstanceMetaClass):
             )
         """
         for alias, config in kwargs.items():
-            addr, _ = self.__get_full_address(
-                config.get("address", ""),
-                config.get("uri", ""),
-                config.get("host", ""),
-                config.get("port", ""))
+            parsed = self.__parse_info(**config)
 
             if alias in self._connected_alias:
-                if self._alias[alias].get("address") != addr:
+                if (
+                    self._alias[alias].get("address") != parsed["address"]
+                    or self._alias[alias].get("user") != parsed["user"]
+                    or self._alias[alias].get("db_name") != parsed["db_name"]
+                    or self._alias[alias].get("secure") != parsed["secure"]
+                ):
                     raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
-
             alias_config = {
-                "address": addr,
-                "user": config.get("user", ""),
+                "address": parsed["address"],
+                "user": parsed["user"],
+                "db_name":  parsed["db_name"],
+                "secure": parsed["secure"],
             }
 
             self._alias[alias] = alias_config
-
-    def __get_full_address(self, address: str = "", uri: str = "", host: str = "", port: str = "") -> (
-    str, parse.ParseResult):
-        if address != "":
-            if not is_legal_address(address):
-                raise ConnectionConfigException(
-                    message=f"Illegal address: {address}, should be in form 'localhost:19530'")
-            return address, None
-
-        if uri != "":
-            address, parsed = self.__parse_address_from_uri(uri)
-            return address, parsed
-
-        host = host if host != "" else Config.DEFAULT_HOST
-        port = port if port != "" else Config.DEFAULT_PORT
-        self.__verify_host_port(host, port)
-
-        return f"{host}:{port}", None
 
     def disconnect(self, alias: str):
         """ Disconnects connection from the registry.
@@ -203,8 +160,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
-        if alias in self._connected_alias:
-            self._connected_alias.pop(alias).close()
+        with self._con_lock:
+            if alias in self._connected_alias:
+                gh = self._connected_alias.pop(alias)
+                self._connection_references[id(gh)] -= 1
+                if self._connection_references[id(gh)] <= 0:
+                    gh.close()
+                    del self._connection_references[id(gh)]
 
     def remove_connection(self, alias: str):
         """ Removes connection from the registry.
@@ -224,34 +186,34 @@ class Connections(metaclass=SingleInstanceMetaClass):
         Constructs a milvus connection and register it under given alias.
 
         :param alias: The name of milvus connection
-        :type  alias: str
+        :type alias: str
+
+        param user: Optional. Use which user to connect to Milvus instance. If user and password
+            are provided, we will add related header in every RPC call.
+        :type user: str
+
+        :param password: Optional and required when user is provided. The password corresponding to
+            the user.
+        :type password: str
+
+        :param token: Optional. Serving as the key for identification and authentication purposes.
+            Whenever a token is furnished, we shall supplement the corresponding header to each RPC call.
+        :type token: str
+
+        :param db_name: Optional. default database name of this connection
+        :type db_name: str
 
         :param kwargs:
             * *address* (``str``) -- Optional. The actual address of Milvus instance.
                 Example address: "localhost:19530"
-
             * *uri* (``str``) -- Optional. The uri of Milvus instance.
                 Example uri: "http://localhost:19530", "tcp:localhost:19530", "https://ok.s3.south.com:19530".
-
             * *host* (``str``) -- Optional. The host of Milvus instance.
                 Default at "localhost", PyMilvus will fill in the default host if only port is provided.
-
             * *port* (``str/int``) -- Optional. The port of Milvus instance.
                 Default at 19530, PyMilvus will fill in the default port if only host is provided.
-
             * *secure* (``bool``) --
                 Optional. Default is false. If set to true, tls will be enabled.
-            * *user* (``str``) --
-                Optional. Use which user to connect to Milvus instance. If user and password
-                are provided, we will add related header in every RPC call.
-            * *password* (``str``) --
-                Optional and required when user is provided. The password corresponding to
-                the user.
-            * *token* (``str``) --
-                Optional. Serving as the key for identification and authentication purposes.
-                Whenever a token is furnished, we shall supplement the corresponding header to each RPC call.
-            * *db_name* (``str``) --
-                Optional. default database name of this connection
             * *client_key_path* (``str``) --
                 Optional. If use tls two-way authentication, need to write the client.key path.
             * *client_pem_path* (``str``) --
@@ -272,107 +234,121 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
         """
+        # pylint: disable=too-many-statements
 
         def connect_milvus(**kwargs):
-            gh = GrpcHandler(**kwargs)
+            with self._con_lock:
+                # Check if the alias is already connected
+                if alias in self._connected_alias:
+                    if (
+                        self._alias[alias]["address"] != kwargs["address"]
+                        or self._alias[alias]["db_name"] != kwargs["db_name"]
+                        or self._alias[alias]["user"] != kwargs["user"]
+                        or self._alias[alias]["secure"] != kwargs["secure"]
+                    ):
+                        raise ConnectionConfigException(message=ExceptionsMessage.AliasUsed % alias)
+                    return
 
-            t = kwargs.get("timeout")
-            timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
+                # Check if alias already made but not connected yet.
+                if (
+                    alias in self._alias
+                    and (
+                        self._alias[alias]["address"] != kwargs["address"]
+                        or self._alias[alias]["db_name"] != kwargs["db_name"]
+                        # or self._alias[alias]["user"] != kwargs["user"] # Can use different user
+                        # or self._alias[alias]["secure"] != kwargs["secure"] # Can use different secure
+                    )
+                ):
+                    raise ConnectionConfigException(message=ExceptionsMessage.AliasUsed % alias)
 
-            gh._wait_for_channel_ready(timeout=timeout)
-            kwargs.pop('password')
-            kwargs.pop("token", None)
-            kwargs.pop('db_name', None)
-            kwargs.pop('secure', None)
-            kwargs.pop("db_name", "")
+                gh = None
 
-            self._connected_alias[alias] = gh
-            self._alias[alias] = copy.deepcopy(kwargs)
+                # Check if reusable connection already exists
+                for key, connection_details in self._alias.items():
 
-        def with_config(config: Tuple) -> bool:
-            for c in config:
-                if c != "":
-                    return True
+                    if (
+                        key in self._connected_alias
+                        and connection_details["address"] == kwargs["address"]
+                        and connection_details["user"] == kwargs["user"]
+                        and connection_details["db_name"] == kwargs["db_name"]
+                        and connection_details["secure"] == kwargs["secure"]
+                    ):
+                        gh = self._connected_alias[key]
+                        break
+                if gh is None:
+                    gh = GrpcHandler(**kwargs)
+                    t = kwargs.get("timeout", None)
+                    timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
+                    gh._wait_for_channel_ready(timeout=timeout)
 
-            return False
+                kwargs.pop('password', None)
+                kwargs.pop('token', None)
+
+                self._connected_alias[alias] = gh
+
+                self._alias[alias] = copy.deepcopy(kwargs)
+
+                if id(gh) not in self._connection_references:
+                    self._connection_references[id(gh)] = 1
+                else:
+                    self._connection_references[id(gh)] += 1
 
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
-        # Set port if server type is zilliz cloud serverless
-        uri = kwargs.get("uri")
-        if uri is not None:
-            server_type = get_server_type(uri)
-            if server_type == ZILLIZ and ":" not in token:
-                kwargs["uri"] = uri+":"+str(VIRTUAL_PORT)
+        # Grab the relevant info for connection
+        address = kwargs.pop("address", "")
+        uri = kwargs.pop("uri", "")
+        host = kwargs.pop("host", "")
+        port =  kwargs.pop("port", "")
+        secure = kwargs.pop("secure", None)
 
-        config = (
-            kwargs.pop("address", ""),
-            kwargs.pop("uri", ""),
-            kwargs.pop("host", ""),
-            kwargs.pop("port", "")
-        )
+        # Clean the connection info
+        address = '' if address is None else str(address)
+        uri = '' if uri is None else str(uri)
+        host = '' if host is None else str(host)
+        port = '' if port is None else str(port)
+        user = '' if user is None else str(user)
+        password = '' if password is None else str(password)
+        token = '' if token is None else (str(token))
+        db_name = '' if db_name is None else str(db_name)
 
-        # Make sure passed in None doesnt break
-        user = user or ""
-        password = password or ""
-        token = token or ""
-        # Make sure passed in are Strings
-        user = str(user)
-        password = str(password)
-        token = str(token)
+        # Replace empties with defaults from enviroment
+        uri = uri if uri != '' else Config.MILVUS_URI
+        host = host if host != '' else Config.DEFAULT_HOST
+        port = port if port != '' else Config.DEFAULT_PORT
+        user = user if user != '' else Config.MILVUS_USER
+        password = password if password != '' else Config.MILVUS_PASSWORD
+        token = token if token != '' else Config.MILVUS_TOKEN
+        db_name = db_name if db_name != '' else Config.MILVUS_DB_NAME
 
-        # 1st Priority: connection from params
-        if with_config(config):
-            in_addr, parsed_uri = self.__get_full_address(*config)
-            kwargs["address"] = in_addr
-
-            if self.has_connection(alias):
-                if self._alias[alias].get("address") != in_addr:
-                    raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
-
-            # uri might take extra info
-            if parsed_uri is not None:
-                user = parsed_uri.username if parsed_uri.username is not None else user
-                password = parsed_uri.password if parsed_uri.password is not None else password
-
-                group = parsed_uri.path.split("/")
-                db_name = "default"
-                if len(group) > 1:
-                    db_name = group[1]
-
-                # Set secure=True if https scheme
-                if parsed_uri.scheme == "https":
-                    kwargs["secure"] = True
-
-
-            connect_milvus(**kwargs, user=user, password=password, token=token, db_name=db_name)
-            return
-
-        # 2nd Priority, connection configs from env
-        if self._env_uri is not None:
-            addr, parsed_uri = self._env_uri
-            kwargs["address"] = addr
-
-            user = parsed_uri.username if parsed_uri.username is not None else ""
-            password = parsed_uri.password if parsed_uri.password is not None else ""
-
-            # Set secure=True if https scheme
-            if parsed_uri.scheme == "https":
-                kwargs["secure"] = True
-
-            connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
-            return
-
-        # 3rd Priority, connect to cached configs with provided user and password
+        # Check if alias exists first
         if alias in self._alias:
-            connect_alias = dict(self._alias[alias].items())
-            connect_alias["user"] = user
-            connect_milvus(**connect_alias, password=password, db_name=db_name, **kwargs)
-            return
+            kwargs = dict(self._alias[alias].items())
+            # If user is passed in, use it, if not, use previous connections user.
+            prev_user = kwargs.pop("user")
+            kwargs["user"] = user if user != "" else prev_user
 
-        # No params, env, and cached configs for the alias
-        raise ConnectionConfigException(message=ExceptionsMessage.ConnLackConf % alias)
+            # If new secure parameter passed in, use that
+            prev_secure = kwargs.pop("secure")
+            kwargs["secure"] = secure if secure is not None else prev_secure
+
+             # If db_name is passed in, use it, if not, use previous db_name.
+            prev_db_name = kwargs.pop("db_name")
+            kwargs["db_name"] = db_name if db_name != "" else prev_db_name
+
+        # If at least one address info is given, parse it
+        elif set([address, uri, host, port]) != {''}:
+            secure = secure if secure is not None else Config.DEFAULT_SECURE
+            parsed = self.__parse_info(address, uri, host, port, db_name, user, password, token, secure)
+            kwargs.update(parsed)
+
+        # If no details are given and no alias exists
+        else:
+            raise ConnectionConfigException(message=ExceptionsMessage.ConnLackConf % alias)
+
+        connect_milvus(**kwargs)
+
 
     def list_connections(self) -> list:
         """ List names of all connections.
@@ -386,7 +362,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> connections.list_connections()
             // TODO [('default', None), ('test', <pymilvus.client.grpc_handler.GrpcHandler object at 0x7f05003f3e80>)]
         """
-        return [(k, self._connected_alias.get(k, None)) for k in self._alias]
+        with self._con_lock:
+            return [(k, self._connected_alias.get(k, None)) for k in self._alias]
 
     def get_connection_addr(self, alias: str):
         """
@@ -431,7 +408,97 @@ class Connections(metaclass=SingleInstanceMetaClass):
         """
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
-        return alias in self._connected_alias
+        with self._con_lock:
+            return alias in self._connected_alias
+
+    def __parse_info(
+            self,
+            address: str = "",
+            uri: str = "",
+            host: str = "",
+            port: str = "",
+            db_name: str = "",
+            user: str = "",
+            password: str = "",
+            token: str = "",
+            secure: bool = False,
+            **kwargs) -> dict:
+
+        extracted_address = ""
+        extracted_user = ""
+        extracted_password = ""
+        extracted_db_name = ""
+        extracted_token = ""
+        extracted_secure = None
+        # If URI
+        if uri != "":
+            extracted_address, extracted_user, extracted_password, extracted_db_name, extracted_secure = (
+                self.__parse_address_from_uri(uri)
+            )
+        # If Address
+        elif address != "":
+            if not is_legal_address(address):
+                raise ConnectionConfigException(
+                    message=f"Illegal address: {address}, should be in form 'localhost:19530'")
+            extracted_address = address
+        # If Host port
+        else:
+            self.__verify_host_port(host, port)
+            extracted_address = f"{host}:{port}"
+        ret = {}
+        ret["address"] = extracted_address
+        ret["user"] = user if extracted_user == "" else str(extracted_user)
+        ret["password"] = password if extracted_password == "" else str(extracted_password)
+        ret["db_name"] = db_name if extracted_db_name == "" else str(extracted_db_name)
+        ret["token"] = token if extracted_token == "" else str(extracted_token)
+        ret["secure"] = secure if extracted_secure is None else extracted_secure
+
+        return ret
+
+    def __verify_host_port(self, host, port):
+        if not is_legal_host(host):
+            raise ConnectionConfigException(message=ExceptionsMessage.HostType)
+        if not is_legal_port(port):
+            raise ConnectionConfigException(message=ExceptionsMessage.PortType)
+        if not 0 <= int(port) < 65535:
+            raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
+
+    def __parse_address_from_uri(self, uri: str) -> Tuple[str, str, str, str]:
+        illegal_uri_msg = "Illegal uri: [{}], expected form 'https://user:pwd@example.com:12345'"
+        try:
+            parsed_uri = parse.urlparse(uri)
+        except (Exception) as e:
+            raise ConnectionConfigException(
+                message=f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
+
+        if len(parsed_uri.netloc) == 0:
+            raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}") from None
+
+        group = parsed_uri.path.split("/")
+        if len(group) > 1:
+            db_name = group[1]
+        else:
+            db_name = ""
+
+        host = parsed_uri.hostname if parsed_uri.hostname is not None else ""
+        port = parsed_uri.port if parsed_uri.port is not None else ""
+        user = parsed_uri.username if parsed_uri.username is not None else ""
+        password = parsed_uri.password if parsed_uri.password is not None else ""
+        secure = parsed_uri.scheme.lower() == "https:"
+
+        if host == "":
+            raise ConnectionConfigException(message=f"Illegal uri: URI is missing host address: {uri}")
+        if port == "":
+            raise ConnectionConfigException(message=f"Illegal uri: URI is missing port: {uri}")
+
+        self.__verify_host_port(host, port)
+        addr = f"{host}:{port}"
+
+        if not is_legal_address(addr):
+            raise ConnectionConfigException(message=illegal_uri_msg.format(uri))
+
+        return addr, user, password, db_name, secure
+
 
     def _fetch_handler(self, alias=Config.MILVUS_CONN_ALIAS) -> GrpcHandler:
         """ Retrieves a GrpcHandler by alias. """

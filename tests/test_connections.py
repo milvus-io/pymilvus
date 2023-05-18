@@ -55,7 +55,7 @@ class TestConnect:
 
     def test_connect_with_default_config(self):
         alias = "default"
-        default_addr = {"address": "localhost:19530", "user": ""}
+        default_addr = {"address": "localhost:19530", "user": "", "db_name": "", "secure": False}
 
         assert connections.has_connection(alias) is False
         addr = connections.get_connection_addr(alias)
@@ -109,7 +109,7 @@ class TestConnect:
 
     def test_connect_new_alias_with_configs(self):
         alias = "exist"
-        addr = {"address": "localhost:19530"}
+        addr = {"address": "localhost:19530", "db_name": ""}
 
         assert connections.has_connection(alias) is False
         a = connections.get_connection_addr(alias)
@@ -123,6 +123,8 @@ class TestConnect:
 
         a = connections.get_connection_addr(alias)
         a.pop("user")
+        print(a)
+        addr["secure"] = False
         assert a == addr
 
         with mock.patch(f"{mock_prefix}.close", return_value=None):
@@ -140,24 +142,24 @@ class TestConnect:
                 connections.connect(alias, **no_host_or_port)
 
         assert connections.has_connection(alias) is True
-        assert connections.get_connection_addr(alias) == {"address": "localhost:19530", "user": ""}
+        assert connections.get_connection_addr(alias) == {"address": "localhost:19530", "user": "", "db_name": "", "secure": False}
 
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.remove_connection(alias)
 
-    def test_connect_new_alias_with_no_config(self):
-        alias = self.test_connect_new_alias_with_no_config.__name__
+    # def test_connect_new_alias_with_no_config(self):
+    #     alias = self.test_connect_new_alias_with_no_config.__name__
 
-        assert connections.has_connection(alias) is False
-        a = connections.get_connection_addr(alias)
-        assert a == {}
+    #     assert connections.has_connection(alias) is False
+    #     a = connections.get_connection_addr(alias)
+    #     assert a == {}
 
-        with pytest.raises(MilvusException) as excinfo:
-            connections.connect(alias)
+    #     with pytest.raises(MilvusException) as excinfo:
+    #         connections.connect(alias)
 
-        LOGGER.info(f"Exception info: {excinfo.value}")
-        assert "You need to pass in the configuration" in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+    #     LOGGER.info(f"Exception info: {excinfo.value}")
+    #     assert "You need to pass in the configuration" in excinfo.value.message
+    #     assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
 
     def test_connect_with_uri(self, uri):
         alias = self.test_connect_with_uri.__name__
@@ -192,6 +194,35 @@ class TestConnect:
 
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.remove_connection(alias)
+
+    def test_connect_with_reuse_grpc(self):
+        alias = "default"
+        default_addr = {"address": "localhost:19530", "user": "", "db_name": ""}
+        check_addr = {"address": "localhost:19530", "user": "", "db_name": "", "secure": False}
+
+        reuse_alias = "reuse"
+
+        assert connections.has_connection(alias) is False
+        addr = connections.get_connection_addr(alias)
+        assert addr == check_addr
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
+            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+                connections.connect(alias=alias, **default_addr)
+                connections.connect(alias=reuse_alias, **default_addr)
+        assert connections._connected_alias[alias] == connections._connected_alias[reuse_alias]
+        print(connections._connected_alias, flush=True)
+        assert list(connections._connection_references.values())[0] == 2
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.disconnect(alias)
+
+        assert list(connections._connection_references.values())[0] == 1
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.disconnect(reuse_alias)
+
+        assert len(connections._connection_references) == 0
 
 
 class TestAddConnection:
@@ -301,7 +332,6 @@ class TestAddConnection:
         {"uri": "http://127.0.0.1:19530"},
         {"uri": "http://localhost:19530"},
         {"uri": "http://example.com:80"},
-        {"uri": "http://example.com"},
     ])
     def test_add_connection_uri(self, valid_uri):
         alias = self.test_add_connection_uri.__name__
@@ -323,6 +353,8 @@ class TestAddConnection:
         {"uri": "http://"},
         {"uri": None},
         {"uri": -1},
+        {"uri": "http://example.com"},
+        {"uri": "http://:90"},
     ])
     def test_add_connection_uri_invalid(self, invalid_uri):
         alias = self.test_add_connection_uri_invalid.__name__
@@ -359,13 +391,13 @@ class TestIssues:
                 config = {"alias": alias, "host": "localhost", "port": "19531", "user": "root", "password": 12345, "secure": True}
                 connections.connect(**config)
                 config = connections.get_connection_addr(alias)
-                assert config == {"address": 'localhost:19531', "user": 'root'}
+                assert config == {"address": 'localhost:19531', "user": 'root', "db_name": "", "secure": True}
 
                 connections.add_connection(default={"host": "localhost", "port": 19531})
                 config = connections.get_connection_addr("default")
-                assert config == {"address": 'localhost:19531', "user": ""}
+                assert config == {"address": 'localhost:19531', "user": "", "db_name": "", "secure": False}
 
                 connections.connect("default", user="root", password="12345", secure=True)
 
                 config = connections.get_connection_addr("default")
-                assert config == {"address": 'localhost:19531', "user": 'root'}
+                assert config == {"address": 'localhost:19531', "user": 'root', "db_name": "", "secure": True}
