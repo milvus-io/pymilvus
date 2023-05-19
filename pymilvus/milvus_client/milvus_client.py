@@ -31,6 +31,7 @@ class MilvusClient:
         consistency_level: str = "Session",
         replica_number: int = 1,
         index_params: dict = None,
+        distance_metric: str = "L2",
         timeout: int = None,
         overwrite: bool = False,
     ):
@@ -60,6 +61,8 @@ class MilvusClient:
                 The options are "Strong", "Bounded", "Eventually", "Session". Defaults to "Bounded".
             replica_number (int, optional): The amount of in memomory replicas to use.
                 Defaults to 1.
+            distance_metric (str, optional): Which distance metric to use if not supplying
+                index params. Valid types are "IP" and "L2".
             index_params (dict, optional): What index parameteres to use for the Collection.
                 If none, will use a default one. If collection already exists, will overwrite
                 using this index.
@@ -82,6 +85,7 @@ class MilvusClient:
         self.partitions = partitions
         self.consistency_level = consistency_level
         self.replica_number = replica_number
+        self.distance_metric = distance_metric
         self.index_params = index_params
         self.timeout = timeout
         self.pk_field = pk_field
@@ -788,7 +792,7 @@ class MilvusClient:
             if self.index_params is None:
                 # TODO: Once segment normalization we can default to IP
                 metric_type = (
-                    "L2"
+                    self.distance_metric
                     if self.fields[self.vector_field] == DataType.FLOAT_VECTOR
                     else "JACCARD"
                 )
