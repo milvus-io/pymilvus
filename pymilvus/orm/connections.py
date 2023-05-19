@@ -295,6 +295,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
         # Make sure passed in None doesnt break
         user = user or ""
         password = password or ""
+        # Make sure passed in are Strings
+        user = str(user)
+        password = str(password)
 
         # 1st Priority: connection from params
         if with_config(config):
@@ -309,9 +312,10 @@ class Connections(metaclass=SingleInstanceMetaClass):
             if parsed_uri is not None:
                 user = parsed_uri.username if parsed_uri.username is not None else user
                 password = parsed_uri.password if parsed_uri.password is not None else password
-                # Set secure=True if uri provided user and password
-                if len(user) > 0 and len(password) > 0:
-                    kwargs["secure"] = True
+
+            # Set secure=True if username and password are provided
+            if len(user) > 0 and len(password) > 0:
+                kwargs["secure"] = True
 
             connect_milvus(**kwargs, user=user, password=password)
             return
