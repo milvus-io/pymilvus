@@ -22,6 +22,7 @@ Collection: ObjectType
 CollectionNameNotFound: ErrorCode
 CollectionNotExists: ErrorCode
 Completed: CompactionState
+Connect: MsgType
 ConnectFailed: ErrorCode
 CreateAlias: MsgType
 CreateCollection: MsgType
@@ -115,6 +116,7 @@ Initializing: StateCode
 Insert: MsgType
 InsufficientMemoryToLoad: ErrorCode
 ListAliases: MsgType
+ListClientInfos: MsgType
 ListCredUsernames: MsgType
 ListCredUsersFailure: ErrorCode
 ListPolicy: MsgType
@@ -256,6 +258,29 @@ class Blob(_message.Message):
     value: bytes
     def __init__(self, value: _Optional[bytes] = ...) -> None: ...
 
+class ClientInfo(_message.Message):
+    __slots__ = ["host", "local_time", "reserved", "sdk_type", "sdk_version", "user"]
+    class ReservedEntry(_message.Message):
+        __slots__ = ["key", "value"]
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    HOST_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_TIME_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_FIELD_NUMBER: _ClassVar[int]
+    SDK_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SDK_VERSION_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
+    host: str
+    local_time: str
+    reserved: _containers.ScalarMap[str, str]
+    sdk_type: str
+    sdk_version: str
+    user: str
+    def __init__(self, sdk_type: _Optional[str] = ..., sdk_version: _Optional[str] = ..., local_time: _Optional[str] = ..., user: _Optional[str] = ..., host: _Optional[str] = ..., reserved: _Optional[_Mapping[str, str]] = ...) -> None: ...
+
 class DMLMsgHeader(_message.Message):
     __slots__ = ["base", "shardName"]
     BASE_FIELD_NUMBER: _ClassVar[int]
@@ -335,6 +360,29 @@ class SegmentStats(_message.Message):
     SEGMENTID_FIELD_NUMBER: _ClassVar[int]
     SegmentID: int
     def __init__(self, SegmentID: _Optional[int] = ..., NumRows: _Optional[int] = ...) -> None: ...
+
+class ServerInfo(_message.Message):
+    __slots__ = ["build_tags", "build_time", "deploy_mode", "git_commit", "go_version", "reserved"]
+    class ReservedEntry(_message.Message):
+        __slots__ = ["key", "value"]
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    BUILD_TAGS_FIELD_NUMBER: _ClassVar[int]
+    BUILD_TIME_FIELD_NUMBER: _ClassVar[int]
+    DEPLOY_MODE_FIELD_NUMBER: _ClassVar[int]
+    GIT_COMMIT_FIELD_NUMBER: _ClassVar[int]
+    GO_VERSION_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_FIELD_NUMBER: _ClassVar[int]
+    build_tags: str
+    build_time: str
+    deploy_mode: str
+    git_commit: str
+    go_version: str
+    reserved: _containers.ScalarMap[str, str]
+    def __init__(self, build_tags: _Optional[str] = ..., build_time: _Optional[str] = ..., git_commit: _Optional[str] = ..., go_version: _Optional[str] = ..., deploy_mode: _Optional[str] = ..., reserved: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class Status(_message.Message):
     __slots__ = ["code", "error_code", "reason"]
