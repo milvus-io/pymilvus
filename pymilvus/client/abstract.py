@@ -299,6 +299,9 @@ class Hits(LoopBase):
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
+                elif field_data.type == DataType.JSON:
+                    if len(field_data.scalars.json_data.data) >= item:
+                        entity_row_data[field_data.field_name] = field_data.scalars.json_data.data[item]
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field_data.vectors.dim
                     if len(field_data.vectors.float_vector.data) >= item * dim:
@@ -451,6 +454,8 @@ class QueryResult(LoopBase):
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(message="Not support string yet")
                     # result[field_data.field_name] = field_data.scalars.string_data.data[index]
+                elif field_data.type == DataType.JSON:
+                    field.scalars.json_data.data.extend(field_data.scalars.json_data.data[start_pos: end_pos])
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field.vectors.dim
                     field.vectors.dim = dim
@@ -517,6 +522,8 @@ class ChunkedQueryResult(LoopBase):
                     elif field_data.type == DataType.STRING:
                         raise MilvusException(message="Not support string yet")
                         # result[field_data.field_name] = field_data.scalars.string_data.data[index]
+                    elif field_data.type == DataType.JSON:
+                        field.scalars.json_data.data.extend(field_data.scalars.json_data.data[start_pos: end_pos])
                     elif field_data.type == DataType.FLOAT_VECTOR:
                         dim = field_data.vectors.dim
                         field.vectors.dim = dim
