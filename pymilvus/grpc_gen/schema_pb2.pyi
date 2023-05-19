@@ -66,18 +66,20 @@ class DoubleArray(_message.Message):
     def __init__(self, data: _Optional[_Iterable[float]] = ...) -> None: ...
 
 class FieldData(_message.Message):
-    __slots__ = ["field_id", "field_name", "scalars", "type", "vectors"]
+    __slots__ = ["field_id", "field_name", "is_dynamic", "scalars", "type", "vectors"]
     FIELD_ID_FIELD_NUMBER: _ClassVar[int]
     FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    IS_DYNAMIC_FIELD_NUMBER: _ClassVar[int]
     SCALARS_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VECTORS_FIELD_NUMBER: _ClassVar[int]
     field_id: int
     field_name: str
+    is_dynamic: bool
     scalars: ScalarField
     type: DataType
     vectors: VectorField
-    def __init__(self, type: _Optional[_Union[DataType, str]] = ..., field_name: _Optional[str] = ..., scalars: _Optional[_Union[ScalarField, _Mapping]] = ..., vectors: _Optional[_Union[VectorField, _Mapping]] = ..., field_id: _Optional[int] = ...) -> None: ...
+    def __init__(self, type: _Optional[_Union[DataType, str]] = ..., field_name: _Optional[str] = ..., scalars: _Optional[_Union[ScalarField, _Mapping]] = ..., vectors: _Optional[_Union[VectorField, _Mapping]] = ..., field_id: _Optional[int] = ..., is_dynamic: bool = ...) -> None: ...
 
 class FieldSchema(_message.Message):
     __slots__ = ["autoID", "data_type", "default_value", "description", "element_type", "fieldID", "index_params", "is_dynamic", "is_partition_key", "is_primary_key", "name", "state", "type_params"]
