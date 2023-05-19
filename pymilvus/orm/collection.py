@@ -19,7 +19,7 @@ from .connections import connections
 from .schema import (
     CollectionSchema,
     FieldSchema,
-    parse_fields_from_data,
+    construct_fields_from_dataframe,
     check_insert_or_upsert_data_schema,
     check_schema,
 )
@@ -173,7 +173,7 @@ class Collection:
             server_schema = CollectionSchema.construct_from_dict(resp)
             schema = server_schema
         else:
-            fields_schema = parse_fields_from_data(dataframe)
+            fields_schema = construct_fields_from_dataframe(dataframe)
             if auto_id:
                 fields_schema.insert(pk_index,
                                      FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True,
@@ -428,8 +428,6 @@ class Collection:
             >>> res.insert_count
             10
         """
-        if data is None:
-            return MutationResult(data)
         check_insert_or_upsert_data_schema(self._schema, data)
         entities = Prepare.prepare_insert_or_upsert_data(data, self._schema)
 

@@ -42,7 +42,6 @@ class Partition:
             conn = self._get_connection()
             conn.create_partition(self._collection.name, self.name, **kwargs)
 
-
     def __repr__(self):
         return json.dumps({
             'name': self.name,
@@ -245,7 +244,6 @@ class Partition:
         conn = self._get_connection()
         if conn.has_partition(self._collection.name, self.name, **kwargs) is False:
             raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
-
         return self._collection.insert(data, self.name, timeout=timeout, **kwargs)
 
     def delete(self, expr, timeout=None, **kwargs):
