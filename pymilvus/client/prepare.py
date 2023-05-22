@@ -1,5 +1,6 @@
 import copy
 import base64
+import datetime
 from typing import Dict, Iterable, Union
 
 import ujson
@@ -11,6 +12,8 @@ from .types import DataType, PlaceholderType, get_consistency_level
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
 from ..orm.schema import CollectionSchema
+
+from ..client import __version__
 
 from ..grpc_gen import common_pb2 as common_types
 from ..grpc_gen import schema_pb2 as schema_types
@@ -904,4 +907,24 @@ class Prepare:
     def list_database_req(cls):
         req = milvus_types.ListDatabasesRequest()
         return req
+
+    @classmethod
+    def register_request(cls, user, host, **kwargs):
+        reserved = {}
+        for k, v in kwargs.items():
+            reserved[k] = v
+        now = datetime.datetime.now()
+        this = common_types.ClientInfo(
+            sdk_type="Python",
+            sdk_version=__version__,
+            local_time=now.__str__(),
+            reserved=reserved,
+        )
+        if user is not None:
+            this.user = user
+        if host is not None:
+            this.host = host
+        return milvus_types.ConnectRequest(
+            client_info=this,
+        )
     
