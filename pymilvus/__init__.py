@@ -73,6 +73,8 @@ from .orm.schema import FieldSchema, CollectionSchema
 from .orm.future import SearchFuture, MutationFuture
 from .orm.role import Role
 
+from .milvus_client.milvus_client import MilvusClient
+
 __all__ = [
     'Collection', 'Index', 'Partition',
     'connections',
@@ -91,5 +93,7 @@ __all__ = [
 
     'Milvus', 'Prepare', 'Status', 'DataType',
     'MilvusException',
-    '__version__'
+    '__version__',
+
+    'MilvusClient'
 ]
