@@ -56,7 +56,8 @@ class Collection:
             using (``str``, optional): Milvus connection alias name, defaults to 'default'.
             **kwargs (``dict``):
 
-                * *shards_num (``int``, optional): how many shards will the insert data be divided.
+                * *num_shards (``int``, optional): how many shards will the insert data be divided.
+                * *shards_num (``int``, optional, deprecated): how many shards will the insert data be divided.
                 * *consistency_level* (``int/ str``)
                     Which consistency level to use when searching in the collection.
                     Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
@@ -69,6 +70,7 @@ class Collection:
                 * *timeout* (``float``)
                     An optional duration of time in seconds to allow for the RPCs.
                     If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+
 
         Raises:
             SchemaNotReadyException: if the schema is wrong.

@@ -4,8 +4,6 @@ import threading
 from typing import Dict, List, Union
 from uuid import uuid4
 
-from tqdm import tqdm
-
 from pymilvus.exceptions import MilvusException
 from pymilvus.milvus_client.defaults import DEFAULT_SEARCH_PARAMS
 from pymilvus.orm import utility
@@ -20,19 +18,20 @@ logger.setLevel(logging.DEBUG)
 class MilvusClient:
     """The Milvus Client"""
 
-    # pylint: disable=logging-too-many-args, too-many-instance-attributes
+    # pylint: disable=logging-too-many-args, too-many-instance-attributes, import-outside-toplevel
 
     def __init__(
         self,
         collection_name: str = "ClientCollection",
         pk_field: str = None,
         vector_field: str = None,
-        uri: str = None,
-        shard_num: int = None,
+        uri: str = "http://localhost:19530",
+        num_shards: int = None,
         partitions: List[str] = None,
-        consistency_level: str = "Bounded",
+        consistency_level: str = "Session",
         replica_number: int = 1,
         index_params: dict = None,
+        distance_metric: str = "L2",
         timeout: int = None,
         overwrite: bool = False,
     ):
@@ -53,7 +52,7 @@ class MilvusClient:
             uri (str, optional): The connection address to use to connect to the
                 instance. Defaults to "http://localhost:19530". Another example:
                 "https://username:password@in01-12a.aws-us-west-2.vectordb.zillizcloud.com:19538
-            shard_num (int, optional): The amount of shards to use for the collection. Unless
+            num_shards (int, optional): The amount of shards to use for the collection. Unless
                 dealing with huge scale, recommended to keep at default. Defaults to None and allows
                 server to set.
             partitions (List[str], optional): Which paritions to create for the collection.
@@ -62,6 +61,8 @@ class MilvusClient:
                 The options are "Strong", "Bounded", "Eventually", "Session". Defaults to "Bounded".
             replica_number (int, optional): The amount of in memomory replicas to use.
                 Defaults to 1.
+            distance_metric (str, optional): Which distance metric to use if not supplying
+                index params. Valid types are "IP" and "L2".
             index_params (dict, optional): What index parameteres to use for the Collection.
                 If none, will use a default one. If collection already exists, will overwrite
                 using this index.
@@ -70,12 +71,21 @@ class MilvusClient:
             overwrite (bool, optional): Whether to overwrite existing collection if exists.
                 Defaults to False
         """
+        # Optionial TQDM import
+        try:
+            import tqdm
+            self.tqdm = tqdm.tqdm
+        except ImportError:
+            logger.debug("tqdm not found")
+            self.tqdm = (lambda x, disable: x)
+
         self.uri = uri
         self.collection_name = collection_name
-        self.shard_num = shard_num
+        self.num_shards = num_shards
         self.partitions = partitions
         self.consistency_level = consistency_level
         self.replica_number = replica_number
+        self.distance_metric = distance_metric
         self.index_params = index_params
         self.timeout = timeout
         self.pk_field = pk_field
@@ -166,8 +176,7 @@ class MilvusClient:
                 if key in self.fields:
                     insert_dict.setdefault(key, []).append(value)
 
-        # Insert the data in batches
-        for i in tqdm(range(0, len(data), batch_size), disable=not progress_bar):
+        for i in self.tqdm(range(0, len(data), batch_size), disable=not progress_bar):
             # Convert dict to list of lists batch for insertion
             try:
                 insert_batch = [
@@ -379,7 +388,7 @@ class MilvusClient:
         self,
         pks: Union[list, str, int],
         timeout: int = None,
-    ) -> None:
+    ) -> List[List[float]]:
         """Grab the inserted vectors using the primary key from the Collection.
 
         Due to current implementations, grabbing a large amount of vectors is slow.
@@ -716,7 +725,7 @@ class MilvusClient:
                 name=self.collection_name,
                 schema=schema,
                 consistency_level=self.consistency_level,
-                shards_num=self.shard_num,
+                num_shards=self.num_shards,
                 num_partitions=self.num_partitions,
                 using=self.alias,
             )
@@ -783,7 +792,7 @@ class MilvusClient:
             if self.index_params is None:
                 # TODO: Once segment normalization we can default to IP
                 metric_type = (
-                    "L2"
+                    self.distance_metric
                     if self.fields[self.vector_field] == DataType.FLOAT_VECTOR
                     else "JACCARD"
                 )

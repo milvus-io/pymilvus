@@ -275,7 +275,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             gh._wait_for_channel_ready(timeout=timeout)
             kwargs.pop('password')
-            kwargs.pop('db_name', None)
+            #  kwargs.pop('db_name', None)
             kwargs.pop('secure', None)
             kwargs.pop("db_name", "")
 
@@ -299,6 +299,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
             kwargs.pop("port", "")
         )
 
+        # Make sure passed in None doesnt break
+        user = user or ""
+        password = password or ""
+        # Make sure passed in are Strings
+        user = str(user)
+        password = str(password)
+
         # 1st Priority: connection from params
         if with_config(config):
             in_addr, parsed_uri = self.__get_full_address(*config)
@@ -312,14 +319,15 @@ class Connections(metaclass=SingleInstanceMetaClass):
             if parsed_uri is not None:
                 user = parsed_uri.username if parsed_uri.username is not None else user
                 password = parsed_uri.password if parsed_uri.password is not None else password
-                # Set secure=True if uri provided user and password
-                if len(user) > 0 and len(password) > 0:
-                    kwargs["secure"] = True
 
                 group = parsed_uri.path.split("/")
                 db_name = "default"
                 if len(group) > 1:
                     db_name = group[1]
+
+            # Set secure=True if username and password are provided
+            if len(user) > 0 and len(password) > 0:
+                kwargs["secure"] = True
 
             connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
             return

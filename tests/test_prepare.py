@@ -113,3 +113,28 @@ class TestCreateCollectionRequest:
         assert c_schema.fields[1].is_primary_key is True
         assert c_schema.fields[1].autoID is True
         assert len(c_schema.fields[1].type_params) == 0
+
+    @pytest.mark.parametrize("kv", [
+        {"shards_num": 1},
+        {"num_shards": 2},
+    ])
+    def test_create_collection_request_num_shards(self, kv):
+        schema = CollectionSchema([
+            FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True)
+        ])
+        req = Prepare.create_collection_request("c_name", schema, **kv)
+        assert req.shards_num == list(kv.values())[0]
+
+    @pytest.mark.parametrize("kv", [
+        {"shards_num": 1, "num_shards": 1},
+        {"num_shards": "2"},
+    ])
+    def test_create_collection_request_num_shards_error(self, kv):
+        schema = CollectionSchema([
+            FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True)
+        ])
+
+        with pytest.raises(MilvusException):
+            req = Prepare.create_collection_request("c_name", schema, **kv)
