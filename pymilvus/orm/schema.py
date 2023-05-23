@@ -288,7 +288,11 @@ class FieldSchema:
         if raw.get("auto_id", None) is not None:
             kwargs['auto_id'] = raw.get("auto_id", None)
         kwargs['is_partition_key'] = raw.get("is_partition_key", False)
-        kwargs['default_value'] = raw.get("default_value", None)
+        if isinstance(raw.get("default_value", None), schema_types.ValueField):
+            kwargs['default_value'] = raw.get("default_value", None)
+        else:
+            if raw.get("default_value", None) is not None:
+                kwargs['default_value'] = None
         return FieldSchema(raw['name'], raw['type'], raw.get("description", ""), **kwargs)
 
     def to_dict(self):
