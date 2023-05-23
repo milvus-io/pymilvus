@@ -3,6 +3,7 @@ import json
 import copy
 import base64
 from urllib import parse
+import socket
 
 import grpc
 import numpy as np
@@ -66,6 +67,9 @@ from ..decorators import retry_on_rpc_failure
 
 
 class GrpcHandler:
+
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self, uri=Config.GRPC_URI, host="", port="", channel=None, **kwargs):
         self._stub = None
         self._channel = channel
@@ -74,6 +78,7 @@ class GrpcHandler:
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
         self._log_level = None
         self._request_id = None
+        self._user = kwargs.get("user", None)
         self._set_authorization(**kwargs)
         self._setup_db_interceptor(kwargs.get("db_name", None))
         self._setup_grpc_channel()
@@ -109,6 +114,7 @@ class GrpcHandler:
         pass
 
     def _wait_for_channel_ready(self, timeout=10):
+        self._setup_identifier_interceptor(self._user)
         if self._channel is not None:
             try:
                 grpc.channel_ready_future(self._channel).result(timeout=timeout)
@@ -198,6 +204,13 @@ class GrpcHandler:
     def set_onetime_request_id(self, req_id):
         self._request_id = req_id
         self._setup_grpc_channel()
+
+    def _setup_identifier_interceptor(self, user):
+        host = socket.gethostname()
+        self._identifier = self.__internal_register(user, host)
+        self._identifier_interceptor = interceptor.header_adder_interceptor("identifier", str(self._identifier))
+        self._final_channel = grpc.intercept_channel(self._final_channel, self._identifier_interceptor)
+        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
 
     @property
     def server_address(self):
@@ -1344,3 +1357,11 @@ class GrpcHandler:
             return flush_future
 
         _check()
+
+    @retry_on_rpc_failure()
+    def __internal_register(self, user, host) -> int:
+        req = Prepare.register_request(user, host)
+        response = self._stub.Connect(request=req)
+        if response.status.error_code != common_pb2.Success:
+            raise MilvusException(response.status.error_code, response.status.reason)
+        return response.identifier

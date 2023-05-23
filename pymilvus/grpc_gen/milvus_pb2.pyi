@@ -124,6 +124,24 @@ class ComponentStates(_message.Message):
     subcomponent_states: _containers.RepeatedCompositeFieldContainer[ComponentInfo]
     def __init__(self, state: _Optional[_Union[ComponentInfo, _Mapping]] = ..., subcomponent_states: _Optional[_Iterable[_Union[ComponentInfo, _Mapping]]] = ..., status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ...) -> None: ...
 
+class ConnectRequest(_message.Message):
+    __slots__ = ["base", "client_info"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_INFO_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    client_info: _common_pb2.ClientInfo
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., client_info: _Optional[_Union[_common_pb2.ClientInfo, _Mapping]] = ...) -> None: ...
+
+class ConnectResponse(_message.Message):
+    __slots__ = ["identifier", "server_info", "status"]
+    IDENTIFIER_FIELD_NUMBER: _ClassVar[int]
+    SERVER_INFO_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    identifier: int
+    server_info: _common_pb2.ServerInfo
+    status: _common_pb2.Status
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., server_info: _Optional[_Union[_common_pb2.ServerInfo, _Mapping]] = ..., identifier: _Optional[int] = ...) -> None: ...
+
 class CreateAliasRequest(_message.Message):
     __slots__ = ["alias", "base", "collection_name", "db_name"]
     ALIAS_FIELD_NUMBER: _ClassVar[int]
@@ -940,13 +958,12 @@ class IndexDescription(_message.Message):
     def __init__(self, index_name: _Optional[str] = ..., indexID: _Optional[int] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., field_name: _Optional[str] = ..., indexed_rows: _Optional[int] = ..., total_rows: _Optional[int] = ..., state: _Optional[_Union[_common_pb2.IndexState, str]] = ..., index_state_fail_reason: _Optional[str] = ...) -> None: ...
 
 class InsertRequest(_message.Message):
-    __slots__ = ["base", "collection_name", "db_name", "fields_data", "hash_keys", "meta_data", "num_rows", "partition_name"]
+    __slots__ = ["base", "collection_name", "db_name", "fields_data", "hash_keys", "num_rows", "partition_name"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
     HASH_KEYS_FIELD_NUMBER: _ClassVar[int]
-    META_DATA_FIELD_NUMBER: _ClassVar[int]
     NUM_ROWS_FIELD_NUMBER: _ClassVar[int]
     PARTITION_NAME_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
@@ -954,10 +971,9 @@ class InsertRequest(_message.Message):
     db_name: str
     fields_data: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FieldData]
     hash_keys: _containers.RepeatedScalarFieldContainer[int]
-    meta_data: _schema_pb2.JSONArray
     num_rows: int
     partition_name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., meta_data: _Optional[_Union[_schema_pb2.JSONArray, _Mapping]] = ...) -> None: ...
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ...) -> None: ...
 
 class ListCredUsersRequest(_message.Message):
     __slots__ = ["base"]
