@@ -537,12 +537,14 @@ class GrantItem:
     def __init__(self, entity):
         self._object = entity.object.name
         self._object_name = entity.object_name
+        self._db_name = entity.db_name
         self._role_name = entity.role.name
         self._grantor_name = entity.grantor.user.name
         self._privilege = entity.grantor.privilege.name
 
     def __repr__(self) -> str:
         s = f"GrantItem: <object:{self.object}>, <object_name:{self.object_name}>, " \
+            f"<db_name:{self.db_name}>, " \
             f"<role_name:{self.role_name}>, <grantor_name:{self.grantor_name}>, " \
             f"<privilege:{self.privilege}>"
         return s
@@ -554,6 +556,10 @@ class GrantItem:
     @property
     def object_name(self):
         return self._object_name
+
+    @property
+    def db_name(self):
+        return self._db_name
 
     @property
     def role_name(self):

@@ -80,6 +80,7 @@ class GrpcHandler:
         self._request_id = None
         self._user = kwargs.get("user", None)
         self._set_authorization(**kwargs)
+        self._setup_db_interceptor(kwargs.get("db_name", None))
         self._setup_grpc_channel()
 
     def __get_address(self, uri: str, host: str, port: str) -> str:
@@ -127,11 +128,21 @@ class GrpcHandler:
     def close(self):
         self._channel.close()
 
+    def reset_db_name(self, db_name):
+        self._setup_db_interceptor(db_name)
+        self._setup_grpc_channel()
+
     def _setup_authorization_interceptor(self, user, password):
         if user and password:
             authorization = base64.b64encode(f"{user}:{password}".encode('utf-8'))
             key = "authorization"
             self._authorization_interceptor = interceptor.header_adder_interceptor(key, authorization)
+
+    def _setup_db_interceptor(self, db_name):
+        if db_name:
+            self._db_interceptor = interceptor.header_adder_interceptor("dbname", db_name)
+        else:
+            self._db_interceptor = None
 
     def _setup_grpc_channel(self):
         """ Create a ddl grpc channel """
@@ -174,6 +185,8 @@ class GrpcHandler:
         self._final_channel = self._channel
         if self._authorization_interceptor:
             self._final_channel = grpc.intercept_channel(self._final_channel, self._authorization_interceptor)
+        if self._db_interceptor:
+            self._final_channel = grpc.intercept_channel(self._final_channel, self._db_interceptor)
         if self._log_level:
             log_level_interceptor = interceptor.header_adder_interceptor("log_level", self._log_level)
             self._final_channel = grpc.intercept_channel(self._final_channel, log_level_interceptor)
@@ -810,6 +823,28 @@ class GrpcHandler:
         return response.progress
 
     @retry_on_rpc_failure()
+    def create_database(self, db_name, timeout=None):
+        request = Prepare.create_database_req(db_name)
+        status = self._stub.CreateDatabase(request, timeout=timeout)
+        if status.error_code != 0:
+            raise MilvusException(status.error_code, status.reason)
+
+    @retry_on_rpc_failure()
+    def drop_database(self, db_name, timeout=None):
+        request = Prepare.drop_database_req(db_name)
+        status = self._stub.DropDatabase(request, timeout=timeout)
+        if status.error_code != 0:
+            raise MilvusException(status.error_code, status.reason)
+
+    @retry_on_rpc_failure()
+    def list_database(self, timeout=None):
+        request = Prepare.list_database_req()
+        response = self._stub.ListDatabases(request, timeout=timeout)
+        if response.status.error_code != 0:
+            raise MilvusException(response.status.error_code, response.status.reason)
+        return list(response.db_names)
+
+    @retry_on_rpc_failure()
     def get_load_state(self, collection_name, partition_names=None, timeout=None):
         request = Prepare.get_load_state(collection_name, partition_names)
         response = self._stub.GetLoadState.future(request, timeout=timeout).result()
@@ -1227,24 +1262,24 @@ class GrpcHandler:
         return UserInfo(resp.results)
 
     @retry_on_rpc_failure()
-    def grant_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
-        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege,
+    def grant_privilege(self, role_name, object, object_name, privilege, db_name, timeout=None, **kwargs):
+        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege, db_name,
                                                 milvus_types.OperatePrivilegeType.Grant)
         resp = self._stub.OperatePrivilege(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure()
-    def revoke_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
-        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege,
+    def revoke_privilege(self, role_name, object, object_name, privilege, db_name, timeout=None, **kwargs):
+        req = Prepare.operate_privilege_request(role_name, object, object_name, privilege, db_name,
                                                 milvus_types.OperatePrivilegeType.Revoke)
         resp = self._stub.OperatePrivilege(req, wait_for_ready=True, timeout=timeout)
         if resp.error_code != 0:
             raise MilvusException(resp.error_code, resp.reason)
 
     @retry_on_rpc_failure()
-    def select_grant_for_one_role(self, role_name, timeout=None, **kwargs):
-        req = Prepare.select_grant_request(role_name, None, None)
+    def select_grant_for_one_role(self, role_name, db_name, timeout=None, **kwargs):
+        req = Prepare.select_grant_request(role_name, None, None, db_name)
         resp = self._stub.SelectGrant(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)
@@ -1252,8 +1287,8 @@ class GrpcHandler:
         return GrantInfo(resp.entities)
 
     @retry_on_rpc_failure()
-    def select_grant_for_role_and_object(self, role_name, object, object_name, timeout=None, **kwargs):
-        req = Prepare.select_grant_request(role_name, object, object_name)
+    def select_grant_for_role_and_object(self, role_name, object, object_name, db_name, timeout=None, **kwargs):
+        req = Prepare.select_grant_request(role_name, object, object_name, db_name)
         resp = self._stub.SelectGrant(req, wait_for_ready=True, timeout=timeout)
         if resp.status.error_code != 0:
             raise MilvusException(resp.status.error_code, resp.status.reason)

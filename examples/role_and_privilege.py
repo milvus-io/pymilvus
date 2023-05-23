@@ -6,6 +6,7 @@ from sklearn import preprocessing
 
 _CONNECTION = "demo"
 _FOO_CONNECTION = "foo_connection"
+_DB_NAME = "foo_db"
 _HOST = '127.0.0.1'
 _PORT = '19530'
 _ROOT = "root"
@@ -13,13 +14,14 @@ _ROOT_PASSWORD = "Milvus"
 _COLLECTION_NAME = "foocol2"
 
 
-def connect_to_milvus(connection=_CONNECTION, user=_ROOT, password=_ROOT_PASSWORD):
+def connect_to_milvus(connection=_CONNECTION, user=_ROOT, password=_ROOT_PASSWORD, db_name="default"):
     print(f"connect to milvus\n")
     connections.connect(alias=connection,
                         host=_HOST,
                         port=_PORT,
                         user=user,
                         password=password,
+                        db_name=db_name,
                         )
 
 
@@ -133,9 +135,9 @@ def rbac_user(username, password, role_name, connection=_CONNECTION):
         is_exception = True
     assert is_exception
     role = Role(role_name, using=_CONNECTION)
-    role.grant("User", "*", "SelectUser")
+    role.grant("User", "*", "SelectUser", db_name=_DB_NAME)
     print(select_all_user(connection))
-    role.revoke("User", "*", "SelectUser")
+    role.revoke("User", "*", "SelectUser", db_name=_DB_NAME)
 
 
 def role_example():
@@ -182,26 +184,31 @@ def privilege_example():
     print(f"add user")
     role.add_user(username)
     print(f"grant privilege")
-    role.grant("Global", "*", privilege_create)
-    role.grant("Collection", object_name, privilege_insert)
-    # role.grant("Collection", object_name, "*")
-    # role.grant("Collection", "*", privilege_insert)
+    role.grant("Global", "*", privilege_create, db_name=_DB_NAME)
+    role.grant("Collection", object_name, privilege_insert, db_name=_DB_NAME)
+    # role.grant("Collection", object_name, "*", db_name=_DB_NAME)
+    # role.grant("Collection", "*", privilege_insert, db_name=_DB_NAME)
+
+    print(f"list grants")
+    print(role.list_grants(db_name=_DB_NAME))
+    print(f"list grant")
+    print(role.list_grant("Collection", object_name, db_name=_DB_NAME))
 
     print(f"list grants")
     print(role.list_grants())
     print(f"list grant")
     print(role.list_grant("Collection", object_name))
 
-    connect_to_milvus(connection=_FOO_CONNECTION, user=username, password=password)
+    connect_to_milvus(connection=_FOO_CONNECTION, user=username, password=password, db_name=_DB_NAME)
     has_collection(_COLLECTION_NAME, connection=_FOO_CONNECTION)
     rbac_collection(connection=_FOO_CONNECTION)
     rbac_user(username, password, role_name, connection=_FOO_CONNECTION)
 
     print(f"revoke privilege")
     role.revoke("Global", "*", privilege_create)
-    role.revoke("Collection", object_name, privilege_insert)
-    # role.revoke("Collection", object_name, "*")
-    # role.revoke("Collection", "*", privilege_insert)
+    role.revoke("Collection", object_name, privilege_insert, db_name=_DB_NAME)
+    # role.revoke("Collection", object_name, "*", db_name=_DB_NAME)
+    # role.revoke("Collection", "*", privilege_insert, db_name=_DB_NAME)
     print(f"remove user")
     role.remove_user(username)
     role.drop()
