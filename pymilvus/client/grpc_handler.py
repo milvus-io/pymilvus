@@ -114,12 +114,13 @@ class GrpcHandler:
         pass
 
     def _wait_for_channel_ready(self, timeout=10):
-        self._setup_identifier_interceptor(self._user)
         if self._channel is not None:
             try:
                 grpc.channel_ready_future(self._channel).result(timeout=timeout)
+                self._channel.close()
+                self._setup_identifier_interceptor(self._user)
                 return
-            except grpc.FutureTimeoutError as e:
+            except (grpc.FutureTimeoutError,  MilvusException) as e:
                 raise MilvusException(Status.CONNECT_FAILED,
                                       f'Fail connecting to server on {self._address}. Timeout') from e
 
