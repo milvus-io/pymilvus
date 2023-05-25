@@ -1202,14 +1202,16 @@ class QueryRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., expr: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., partition_names: _Optional[_Iterable[str]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., query_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., not_return_all_meta: bool = ...) -> None: ...
 
 class QueryResults(_message.Message):
-    __slots__ = ["collection_name", "fields_data", "status"]
+    __slots__ = ["collection_name", "fields_data", "output_fields", "status"]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELDS_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     collection_name: str
     fields_data: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FieldData]
+    output_fields: _containers.RepeatedScalarFieldContainer[str]
     status: _common_pb2.Status
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ...) -> None: ...
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class QuerySegmentInfo(_message.Message):
     __slots__ = ["collectionID", "indexID", "index_name", "mem_size", "nodeID", "nodeIds", "num_rows", "partitionID", "segmentID", "state"]

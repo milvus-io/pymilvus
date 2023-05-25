@@ -83,7 +83,7 @@ class TestCreateCollection:
             "metric_type": "L2",
             "params": {"dim": "4"},
         }
-        fields = {"fields": [id_field, vector_field]}
+        fields = {"fields": [id_field, vector_field], "enable_dynamic_field": True}
         future = self._milvus.create_collection(collection_name=collection_name, fields=fields, _async=True)
 
         invocation_metadata, request, rpc = self._real_time_channel.take_unary_unary(
@@ -97,6 +97,7 @@ class TestCreateCollection:
 
         assert request.collection_name == collection_name
         assert Fields.equal(request_schema.fields, fields["fields"])
+        assert request_schema.enable_dynamic_field == fields["enable_dynamic_field"]
 
         return_value = future.result()
         assert return_value.error_code == common_pb2.Success

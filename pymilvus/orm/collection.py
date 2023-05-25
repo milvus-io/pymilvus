@@ -12,15 +12,16 @@
 
 import copy
 import json
-from typing import List
+from typing import List, Union, Dict
 import pandas
 
 from .connections import connections
 from .schema import (
     CollectionSchema,
     FieldSchema,
-    parse_fields_from_data,
+    construct_fields_from_dataframe,
     check_insert_data_schema,
+    check_insert_or_upsert_is_row_based,
     check_schema,
 )
 from .prepare import Prepare
@@ -175,7 +176,7 @@ class Collection:
             server_schema = CollectionSchema.construct_from_dict(resp)
             schema = server_schema
         else:
-            fields_schema = parse_fields_from_data(dataframe)
+            fields_schema = construct_fields_from_dataframe(dataframe)
             if auto_id:
                 fields_schema.insert(pk_index,
                                      FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True,
@@ -396,7 +397,8 @@ class Collection:
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=timeout, **kwargs)
 
-    def insert(self, data: [List, pandas.DataFrame], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
+    def insert(self, data: Union[List, pandas.DataFrame, Dict], partition_name: str = None, timeout=None,
+               **kwargs) -> MutationResult:
         """ Insert data into the collection.
 
         Args:
@@ -431,15 +433,19 @@ class Collection:
         """
         if data is None:
             return MutationResult(data)
-        check_insert_data_schema(self._schema, data)
-        entities = Prepare.prepare_insert_data(data, self._schema)
 
+        row_based = check_insert_or_upsert_is_row_based(data)
         conn = self._get_connection()
-        res = conn.batch_insert(self._name, entities, partition_name,
-                                timeout=timeout, schema=self._schema_dict, **kwargs)
-
-        if kwargs.get("_async", False):
-            return MutationFuture(res)
+        if not row_based:
+            check_insert_data_schema(self._schema, data)
+            entities = Prepare.prepare_insert_data(data, self._schema)
+            res = conn.batch_insert(self._name, entities, partition_name,
+                                    timeout=timeout, schema=self._schema_dict, **kwargs)
+            if kwargs.get("_async", False):
+                return MutationFuture(res)
+        else:
+            res = conn.insert_rows(self._name, data, partition_name,
+                                   timeout=timeout, schema=self._schema_dict, **kwargs)
         return MutationResult(res)
 
     def delete(self, expr, partition_name=None, timeout=None, **kwargs):
