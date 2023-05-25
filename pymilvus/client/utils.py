@@ -4,6 +4,9 @@ from .types import DataType
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from ..exceptions import ParamError, MilvusException
 
+MILVUS = "milvus"
+ZILLIZ = "zilliz"
+
 valid_index_types = [
     "GPU_IVF_FLAT",
     "GPU_IVF_PQ",
@@ -254,11 +257,12 @@ def traverse_info(fields_info, entities):
 
 def get_server_type(host):
     if host is None or not isinstance(host, str):
-        return "milvus"
+        return MILVUS
     splits = host.split('.')
     len_of_splits = len(splits)
     if len_of_splits >= 2 and \
-            splits[len_of_splits - 2].lower() == "zillizcloud" and \
+            (splits[len_of_splits - 2].lower() == "zilliz" or
+             splits[len_of_splits - 2].lower() == "zillizcloud") and \
             splits[len_of_splits - 1].lower() == "com":
-        return "zilliz"
-    return "milvus"
+        return ZILLIZ
+    return MILVUS
