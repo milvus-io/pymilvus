@@ -251,11 +251,12 @@ class FieldSchema:
                 message=ExceptionsMessage.IsPartitionKeyType)
         self.is_partition_key = kwargs.get("is_partition_key", False)
         self.default_value = kwargs.get("default_value", None)
-        if self.default_value is not None:
-            if not isinstance(self.default_value, schema_types.ValueField):
-                self.default_value = infer_default_value_bydata(
-                    kwargs.get("default_value", None))
-
+        if isinstance(self.default_value, schema_types.ValueField):
+            if self.default_value.WhichOneof("data") is None:
+                self.default_value = None
+        else:
+            self.default_value = infer_default_value_bydata(
+                kwargs.get("default_value", None))
         self._parse_type_params()
 
     def __repr__(self):
@@ -293,11 +294,7 @@ class FieldSchema:
         if raw.get("auto_id", None) is not None:
             kwargs['auto_id'] = raw.get("auto_id", None)
         kwargs['is_partition_key'] = raw.get("is_partition_key", False)
-        if isinstance(raw.get("default_value", None), schema_types.ValueField):
-            kwargs['default_value'] = raw.get("default_value", None)
-        else:
-            if raw.get("default_value", None) is not None:
-                kwargs['default_value'] = None
+        kwargs['default_value'] = raw.get("default_value", None)
         kwargs['is_dynamic'] = raw.get("is_dynamic", False)
         return FieldSchema(raw['name'], raw['type'], raw.get("description", ""), **kwargs)
 
@@ -372,7 +369,8 @@ class FieldSchema:
 
 def check_insert_or_upsert_is_row_based(data: Union[List[List], List[Dict], Dict, pandas.DataFrame]) -> bool:
     if not isinstance(data, (pandas.DataFrame, list, dict)):
-        raise DataTypeNotSupportException(message="The type of data should be list or pandas.DataFrame or dict")
+        raise DataTypeNotSupportException(
+            message="The type of data should be list or pandas.DataFrame or dict")
 
     if isinstance(data, pandas.DataFrame):
         return False
@@ -562,11 +560,12 @@ def check_schema(schema):
 
 
 def infer_default_value_bydata(data):
+    if data is None:
+        return None
     default_data = schema_types.ValueField()
     d_type = DataType.UNKNOWN
     if is_scalar(data):
         d_type = infer_dtype_by_scaladata(data)
-
     if d_type is DataType.BOOL:
         default_data.bool_data = data
     elif d_type is DataType.INT8:
