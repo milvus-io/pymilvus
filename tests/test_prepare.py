@@ -84,7 +84,8 @@ class TestCreateCollectionRequest:
             {"name": "test_varchar", "type": DataType.VARCHAR, "is_primary": True, "params": {"dim": "invalid"}},
         ]},
         {"fields": [
-            {"name": "test_floatvector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 128, DefaultConfig.MaxVarCharLengthKey: DefaultConfig.MaxVarCharLength + 1}},
+            {"name": "test_floatvector", "type": DataType.FLOAT_VECTOR,
+             "params": {"dim": 128, DefaultConfig.MaxVarCharLengthKey: DefaultConfig.MaxVarCharLength + 1}},
         ]}
     ])
     def test_valid_type_params_get_collection_schema(self, valid_fields):
@@ -95,11 +96,35 @@ class TestCreateCollectionRequest:
     def test_get_schema_from_collection_schema(self):
         schema = CollectionSchema([
             FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True)
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
         ])
 
         c_schema = Prepare.get_schema_from_collection_schema("random", schema)
 
+        assert c_schema.enable_dynamic_field == False
+        assert c_schema.name == "random"
+        assert len(c_schema.fields) == 2
+        assert c_schema.fields[0].name == "field_vector"
+        assert c_schema.fields[0].data_type == DataType.FLOAT_VECTOR
+        assert len(c_schema.fields[0].type_params) == 1
+        assert c_schema.fields[0].type_params[0].key == "dim"
+        assert c_schema.fields[0].type_params[0].value == "8"
+
+        assert c_schema.fields[1].name == "pk_field"
+        assert c_schema.fields[1].data_type == DataType.INT64
+        assert c_schema.fields[1].is_primary_key is True
+        assert c_schema.fields[1].autoID is True
+        assert len(c_schema.fields[1].type_params) == 0
+
+    def test_get_schema_from_collection_schema_with_enable_dynamic_field(self):
+        schema = CollectionSchema([
+            FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+        ], enable_dynamic_field=True)
+
+        c_schema = Prepare.get_schema_from_collection_schema("random", schema)
+
+        assert c_schema.enable_dynamic_field, "should enable dynamic field"
         assert c_schema.name == "random"
         assert len(c_schema.fields) == 2
         assert c_schema.fields[0].name == "field_vector"

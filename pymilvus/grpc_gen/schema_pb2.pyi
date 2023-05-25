@@ -166,20 +166,22 @@ class ScalarField(_message.Message):
     def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
-    __slots__ = ["fields_data", "ids", "num_queries", "scores", "top_k", "topks"]
+    __slots__ = ["fields_data", "ids", "num_queries", "output_fields", "scores", "top_k", "topks"]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
     IDS_FIELD_NUMBER: _ClassVar[int]
     NUM_QUERIES_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELDS_FIELD_NUMBER: _ClassVar[int]
     SCORES_FIELD_NUMBER: _ClassVar[int]
     TOPKS_FIELD_NUMBER: _ClassVar[int]
     TOP_K_FIELD_NUMBER: _ClassVar[int]
     fields_data: _containers.RepeatedCompositeFieldContainer[FieldData]
     ids: IDs
     num_queries: int
+    output_fields: _containers.RepeatedScalarFieldContainer[str]
     scores: _containers.RepeatedScalarFieldContainer[float]
     top_k: int
     topks: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ...) -> None: ...
+    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class StringArray(_message.Message):
     __slots__ = ["data"]
