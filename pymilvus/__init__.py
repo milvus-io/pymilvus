@@ -74,6 +74,7 @@ from .orm.future import SearchFuture, MutationFuture
 from .orm.role import Role
 
 from .milvus_client.milvus_client import MilvusClient
+from .simple_api.simple_api import SimpleAPI
 
 __all__ = [
     'Collection', 'Index', 'Partition',
@@ -95,5 +96,6 @@ __all__ = [
     'MilvusException',
     '__version__',
 
-    'MilvusClient'
+    'MilvusClient',
+    'SimpleAPI',
 ]
