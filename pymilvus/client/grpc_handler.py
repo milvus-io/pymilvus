@@ -104,7 +104,9 @@ class GrpcHandler:
         self._server_name = kwargs.get("server_name", "")
 
         self._authorization_interceptor = None
-        self._setup_authorization_interceptor(kwargs.get("user", None), kwargs.get("password", None))
+        self._setup_authorization_interceptor(kwargs.get("user", None),
+                                              kwargs.get("password", None),
+                                              kwargs.get("token", None))
 
     def __enter__(self):
         return self
@@ -131,15 +133,23 @@ class GrpcHandler:
         self._setup_db_interceptor(db_name)
         self._setup_grpc_channel()
 
-    def _setup_authorization_interceptor(self, user, password):
-        if user and password:
+    def _setup_authorization_interceptor(self, user, password, token):
+        keys = []
+        values = []
+        if token:
+            authorization = base64.b64encode(f"{token}".encode('utf-8'))
+            keys.append("authorization")
+            values.append(authorization)
+        elif user and password:
             authorization = base64.b64encode(f"{user}:{password}".encode('utf-8'))
-            key = "authorization"
-            self._authorization_interceptor = interceptor.header_adder_interceptor(key, authorization)
+            keys.append("authorization")
+            values.append(authorization)
+        if len(keys) > 0 and len(values) > 0:
+            self._authorization_interceptor = interceptor.header_adder_interceptor(keys, values)
 
     def _setup_db_interceptor(self, db_name):
         if db_name:
-            self._db_interceptor = interceptor.header_adder_interceptor("dbname", db_name)
+            self._db_interceptor = interceptor.header_adder_interceptor(["dbname"], [db_name])
         else:
             self._db_interceptor = None
 
@@ -187,11 +197,11 @@ class GrpcHandler:
         if self._db_interceptor:
             self._final_channel = grpc.intercept_channel(self._final_channel, self._db_interceptor)
         if self._log_level:
-            log_level_interceptor = interceptor.header_adder_interceptor("log_level", self._log_level)
+            log_level_interceptor = interceptor.header_adder_interceptor(["log_level"], [self._log_level])
             self._final_channel = grpc.intercept_channel(self._final_channel, log_level_interceptor)
             self._log_level = None
         if self._request_id:
-            request_id_interceptor = interceptor.header_adder_interceptor("client_request_id", self._request_id)
+            request_id_interceptor = interceptor.header_adder_interceptor(["client_request_id"], [self._request_id])
             self._final_channel = grpc.intercept_channel(self._final_channel, request_id_interceptor)
             self._request_id = None
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
@@ -207,7 +217,7 @@ class GrpcHandler:
     def _setup_identifier_interceptor(self, user):
         host = socket.gethostname()
         self._identifier = self.__internal_register(user, host)
-        self._identifier_interceptor = interceptor.header_adder_interceptor("identifier", str(self._identifier))
+        self._identifier_interceptor = interceptor.header_adder_interceptor(["identifier"], [str(self._identifier)])
         self._final_channel = grpc.intercept_channel(self._final_channel, self._identifier_interceptor)
         self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
 
@@ -224,7 +234,7 @@ class GrpcHandler:
         reset password and then setup the grpc channel.
         """
         self.update_password(user, old_password, new_password, timeout=timeout)
-        self._setup_authorization_interceptor(user, new_password)
+        self._setup_authorization_interceptor(user, new_password, None)
         self._setup_grpc_channel()
 
     @retry_on_rpc_failure()
