@@ -66,18 +66,14 @@ class _ClientCallDetails(
         grpc.ClientCallDetails):
     pass
 
-
-def header_adder_interceptor(header, value):
-
+def header_adder_interceptor(headers, values):
     def intercept_call(client_call_details, request_iterator, request_streaming,
                        response_streaming):
         metadata = []
         if client_call_details.metadata is not None:
             metadata = list(client_call_details.metadata)
-        metadata.append((
-            header,
-            value,
-        ))
+        for item in zip(headers, values):
+            metadata.append(item)
         client_call_details = _ClientCallDetails(
             client_call_details.method, client_call_details.timeout, metadata,
             client_call_details.credentials)

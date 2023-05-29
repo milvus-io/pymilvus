@@ -17,10 +17,12 @@ from typing import Tuple
 
 from ..client.check import is_legal_host, is_legal_port, is_legal_address
 from ..client.grpc_handler import GrpcHandler
+from ..client.utils import get_server_type, ZILLIZ
 
 from ..settings import Config
 from ..exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
 
+VIRTUAL_PORT = 443
 
 def synchronized(func):
     """
@@ -216,7 +218,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
         self.disconnect(alias)
         self._alias.pop(alias, None)
 
-    def connect(self, alias=Config.MILVUS_CONN_ALIAS, user="", password="", db_name="", **kwargs):
+    # pylint: disable=too-many-statements
+    def connect(self, alias=Config.MILVUS_CONN_ALIAS, user="", password="", token="", db_name="", **kwargs):
         """
         Constructs a milvus connection and register it under given alias.
 
@@ -244,6 +247,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
             * *password* (``str``) --
                 Optional and required when user is provided. The password corresponding to
                 the user.
+            * *token* (``str``) --
+                Optional. Serving as the key for identification and authentication purposes.
+                Whenever a token is furnished, we shall supplement the corresponding header to each RPC call.
             * *db_name* (``str``) --
                 Optional. default database name of this connection
             * *client_key_path* (``str``) --
@@ -275,6 +281,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             gh._wait_for_channel_ready(timeout=timeout)
             kwargs.pop('password')
+            kwargs.pop("token", None)
             #  kwargs.pop('db_name', None)
             kwargs.pop('secure', None)
             kwargs.pop("db_name", "")
@@ -292,6 +299,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
+        # Set port if server type is zilliz cloud serverless
+        uri = kwargs.get("uri")
+        if uri is not None:
+            server_type = get_server_type(uri)
+            if server_type == ZILLIZ and ":" not in token:
+                kwargs["uri"] = uri+":"+str(VIRTUAL_PORT)
+
         config = (
             kwargs.pop("address", ""),
             kwargs.pop("uri", ""),
@@ -302,9 +316,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
         # Make sure passed in None doesnt break
         user = user or ""
         password = password or ""
+        token = token or ""
         # Make sure passed in are Strings
         user = str(user)
         password = str(password)
+        token = str(token)
 
         # 1st Priority: connection from params
         if with_config(config):
@@ -330,7 +346,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                     kwargs["secure"] = True
 
 
-            connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
+            connect_milvus(**kwargs, user=user, password=password, token=token, db_name=db_name)
             return
 
         # 2nd Priority, connection configs from env
