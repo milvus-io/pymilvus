@@ -91,7 +91,7 @@ class TestGrpcHandler:
         with pytest.raises(MilvusException):
             get_version_future.result()
 
-    def test_get_server_version_error(self, channel, client_thread):
+    def test_get_server_version(self, channel, client_thread):
         version = "2.2.0"
         handler = GrpcHandler(channel=channel)
 

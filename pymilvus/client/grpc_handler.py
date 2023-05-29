@@ -145,7 +145,8 @@ class GrpcHandler:
             authorization = base64.b64encode(f"{user}:{password}".encode('utf-8'))
             keys.append("authorization")
             values.append(authorization)
-        self._authorization_interceptor = interceptor.header_adder_interceptor(keys, values)
+        if len(keys) > 0 and len(values) > 0:
+            self._authorization_interceptor = interceptor.header_adder_interceptor(keys, values)
 
     def _setup_db_interceptor(self, db_name):
         if db_name:
