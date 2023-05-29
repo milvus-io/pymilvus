@@ -28,7 +28,6 @@ from .types import (
     State,
     CompactionPlans,
     Plan,
-    get_consistency_level,
     Replica, Shard, Group,
     GrantInfo, UserInfo, RoleInfo,
     BulkInsertState,
@@ -552,8 +551,6 @@ class GrpcHandler:
             raise err
 
     def _execute_search_requests(self, requests, timeout=None, **kwargs):
-        auto_id = kwargs.get("auto_id", True)
-
         try:
             if kwargs.get("_async", False):
                 futures = []
@@ -561,7 +558,7 @@ class GrpcHandler:
                     ft = self._stub.Search.future(request, timeout=timeout)
                     futures.append(ft)
                 func = kwargs.get("_callback", None)
-                return ChunkedSearchFuture(futures, func, auto_id)
+                return ChunkedSearchFuture(futures, func)
 
             raws = []
             for request in requests:
@@ -572,17 +569,17 @@ class GrpcHandler:
 
                 raws.append(response)
             round_decimal = kwargs.get("round_decimal", -1)
-            return ChunkedQueryResult(raws, auto_id, round_decimal)
+            return ChunkedQueryResult(raws, round_decimal)
 
         except Exception as pre_err:
             if kwargs.get("_async", False):
-                return SearchFuture(None, None, True, pre_err)
+                return SearchFuture(None, None, pre_err)
             raise pre_err
 
     @retry_on_rpc_failure(retry_on_deadline=False)
     def search(self, collection_name, data, anns_field, param, limit,
                expression=None, partition_names=None, output_fields=None,
-               round_decimal=-1, timeout=None, schema=None, **kwargs):
+               round_decimal=-1, timeout=None, **kwargs):
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
@@ -591,24 +588,13 @@ class GrpcHandler:
             partition_name_array=partition_names,
             output_fields=output_fields,
             travel_timestamp=kwargs.get("travel_timestamp", 0),
-            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0)
+            guarantee_timestamp=kwargs.get("guarantee_timestamp", None)
         )
 
-        if schema is None:
-            schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
-
-        consistency_level = schema["consistency_level"]
-        # overwrite the consistency level defined when user created the collection
-        consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))
-
-        ts_utils.construct_guarantee_ts(consistency_level, collection_name, kwargs)
-
-        requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit, schema,
+        requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit,
                                                      expression, partition_names, output_fields, round_decimal,
                                                      **kwargs)
-
-        auto_id = schema["auto_id"]
-        return self._execute_search_requests(requests, timeout, round_decimal=round_decimal, auto_id=auto_id, **kwargs)
+        return self._execute_search_requests(requests, timeout, round_decimal=round_decimal, **kwargs)
 
     @retry_on_rpc_failure()
     def get_query_segment_info(self, collection_name, timeout=30, **kwargs):
@@ -1046,14 +1032,6 @@ class GrpcHandler:
     def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError(message="Invalid query format. 'output_fields' must be a list")
-        collection_schema = kwargs.get("schema", None)
-        if not collection_schema:
-            collection_schema = self.describe_collection(collection_name, timeout)
-        consistency_level = collection_schema["consistency_level"]
-        # overwrite the consistency level defined when user created the collection
-        consistency_level = get_consistency_level(kwargs.get("consistency_level", consistency_level))
-
-        ts_utils.construct_guarantee_ts(consistency_level, collection_name, kwargs)
         request = Prepare.query_request(collection_name, expr, output_fields, partition_names, **kwargs)
 
         future = self._stub.Query.future(request, timeout=timeout)

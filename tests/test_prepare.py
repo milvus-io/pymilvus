@@ -26,7 +26,7 @@ class TestPrepare:
             "offset": 10,
         }
 
-        ret = Prepare.search_requests_with_expr("name", data, "v", search_params, 100, schema)
+        ret = Prepare.search_requests_with_expr("name", data, "v", search_params, 100)
 
         offset_exists = False
         for p in ret[0].search_params:

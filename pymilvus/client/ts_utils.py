@@ -3,12 +3,12 @@ import datetime
 
 from .singleton_utils import Singleton
 from .utils import hybridts_to_unixtime
+from .types import get_consistency_level
 from .constants import EVENTUALLY_TS, BOUNDED_TS
 
 from ..grpc_gen import common_pb2
 
 ConsistencyLevel = common_pb2.ConsistencyLevel
-
 
 class GTsDict(metaclass=Singleton):
     def __init__(self):
@@ -72,7 +72,16 @@ def get_bounded_ts():
     return BOUNDED_TS
 
 
-def construct_guarantee_ts(consistency_level, collection_name, kwargs):
+def construct_guarantee_ts(collection_name, kwargs):
+    consistency_level = kwargs.get("consistency_level", None)
+    use_default = consistency_level is None
+    if use_default:
+        # in case of the default consistency is Customized or Session,
+        # we set guarantee_timestamp to the cached mutation ts or 1
+        kwargs["guarantee_timestamp"] = get_collection_ts(collection_name) or get_eventually_ts()
+        return True
+    consistency_level = get_consistency_level(consistency_level)
+    kwargs["consistency_level"] = consistency_level
     if consistency_level == ConsistencyLevel.Strong:
         # Milvus will assign a newest ts.
         kwargs["guarantee_timestamp"] = 0
@@ -83,9 +92,7 @@ def construct_guarantee_ts(consistency_level, collection_name, kwargs):
     elif consistency_level == ConsistencyLevel.Bounded:
         # Milvus will assign ts according to the server timestamp and a configured time interval
         kwargs["guarantee_timestamp"] = get_bounded_ts()
-    elif consistency_level == ConsistencyLevel.Eventually:
-        # Using a very small timestamp.
-        kwargs["guarantee_timestamp"] = get_eventually_ts()
     else:
         # Users customize the consistency level, no modification on `guarantee_timestamp`.
-        pass
+        kwargs.setdefault("guarantee_timestamp", get_eventually_ts())
+    return use_default
