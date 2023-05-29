@@ -96,6 +96,10 @@ class CollectionSchema:
         validate_partition_key(partition_key_field_name,
                                self._partition_key_field, self._primary_field)
 
+        auto_id = kwargs.get("auto_id", False)
+        if auto_id:
+            self._primary_field.auto_id = auto_id
+
         self._description = description
         self._kwargs = copy.deepcopy(kwargs)
 
