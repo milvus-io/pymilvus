@@ -163,3 +163,20 @@ class TestCreateCollectionRequest:
 
         with pytest.raises(MilvusException):
             req = Prepare.create_collection_request("c_name", schema, **kv)
+
+    def test_row_insert_or_upsert_param_with_auto_id(self):
+        import numpy as np
+        rng = np.random.default_rng(seed=19530)
+        dim = 8
+        schema = CollectionSchema([
+            FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("float", DataType.DOUBLE)
+        ])
+        rows = [
+            {"float": 1.0, "float_vector": rng.random((1, dim))[0], "a": 1},
+            {"float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
+        ]
+
+        Prepare.row_insert_or_upsert_param("", rows, "", fields_info=schema.to_dict()["fields"], isInsert=True, enable_dynamic=True)
+

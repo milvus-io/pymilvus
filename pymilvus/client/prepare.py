@@ -291,14 +291,14 @@ class Prepare:
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
-        traverse_rows_info(fields_info, entities)
+        _, _, auto_id_loc = traverse_rows_info(fields_info, entities)
 
         meta_field = schema_types.FieldData()
-        fields_data = {}
-        field_info_map = {}
+        fields_data, field_info_map = {}, {}
         for field in fields_info:
-            field_name = field["name"]
-            field_type = field["type"]
+            if field.get("auto_id", False):
+                continue
+            field_name, field_type = field["name"], field["type"]
             field_info_map[field_name] = field
             field_data = schema_types.FieldData()
             field_data.field_name = field_name
@@ -306,8 +306,7 @@ class Prepare:
             fields_data[field_name] = field_data
 
         if enable_dynamic:
-            meta_field.is_dynamic = True
-            meta_field.type = DataType.JSON
+            meta_field.is_dynamic, meta_field.type = True, DataType.JSON
             field_info_map[meta_field.field_name] = meta_field
             fields_data[meta_field.field_name] = meta_field
 
@@ -316,8 +315,7 @@ class Prepare:
                 json_dict = {}
                 for key in entity:
                     if key in fields_data:
-                        field_info = field_info_map[key]
-                        field_data = fields_data[key]
+                        field_info, field_data = field_info_map[key], fields_data[key]
                         entity_helper.pack_field_value_to_field_data(entity[key], field_data, field_info)
                     elif enable_dynamic:
                         json_dict[key] = entity[key]
@@ -331,13 +329,25 @@ class Prepare:
 
         request.num_rows = len(entities)
         for field in fields_info:
-            field_name = field["name"]
-            field_data = fields_data[field_name]
-            request.fields_data.append(field_data)
+            if not field.get("auto_id", False):
+                field_name = field["name"]
+                field_data = fields_data[field_name]
+                request.fields_data.append(field_data)
 
         if enable_dynamic:
             request.fields_data.append(meta_field)
 
+        if auto_id_loc is not None:
+            if enable_dynamic:
+                # len(fields_data) = len(fields_info) - 1(auto_ID) + 1 (dynamic_field)
+                if len(fields_data) != len(fields_info):
+                    raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
+            # len(fields_data) = len(fields_info) - 1(auto_ID)
+            elif len(fields_data) + 1 != len(fields_info):
+                raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
+        elif enable_dynamic:
+            if len(fields_data) != len(fields_info) + 1:
+                raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
         return request
 
     @classmethod
