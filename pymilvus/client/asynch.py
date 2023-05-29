@@ -156,13 +156,12 @@ class Future(AbstractFuture):
 
 
 class SearchFuture(Future):
-    def __init__(self, future, done_callback=None, auto_id=True, pre_exception=None):
+    def __init__(self, future, done_callback=None, pre_exception=None):
         super().__init__(future, done_callback, pre_exception)
-        self._auto_id = auto_id
 
     def on_response(self, response):
         if response.status.error_code == 0:
-            return QueryResult(response, self._auto_id)
+            return QueryResult(response)
 
         status = response.status
         raise MilvusException(status.error_code, status.reason)
@@ -171,9 +170,8 @@ class SearchFuture(Future):
 # TODO: if ChunkedFuture is more common later, consider using ChunkedFuture as Base Class,
 #       then Future(future, done_cb, pre_exception) equal to ChunkedFuture([future], done_cb, pre_exception)
 class ChunkedSearchFuture(Future):
-    def __init__(self, future_list, done_callback=None, auto_id=True, pre_exception=None):
+    def __init__(self, future_list, done_callback=None, pre_exception=None):
         super().__init__(None, done_callback, pre_exception)
-        self._auto_id = auto_id
         self._future_list = future_list
         self._response = []
 
@@ -244,7 +242,7 @@ class ChunkedSearchFuture(Future):
             if raw.status.error_code != 0:
                 raise MilvusException(raw.status.error_code, raw.status.reason)
 
-        return ChunkedQueryResult(response, self._auto_id)
+        return ChunkedQueryResult(response)
 
 
 class MutationFuture(Future):
