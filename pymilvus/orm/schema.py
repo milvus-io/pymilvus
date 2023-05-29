@@ -99,41 +99,17 @@ class CollectionSchema:
         validate_partition_key(partition_key_field_name,
                                self._partition_key_field, self._primary_field)
 
-        self._auto_id = kwargs.get("auto_id", None)
-        if "auto_id" in kwargs:
-            if not isinstance(self._auto_id, bool):
-                raise AutoIDException(message=ExceptionsMessage.AutoIDType)
-            if self._primary_field.auto_id is not None and self._primary_field.auto_id != self._auto_id:
-                raise AutoIDException(
-                    message=ExceptionsMessage.AutoIDInconsistent)
-            self._primary_field.auto_id = self._auto_id
-            if self._primary_field.auto_id and self._primary_field.dtype == DataType.VARCHAR:
-                raise AutoIDException(
-                    message=ExceptionsMessage.AutoIDFieldType)
-        else:
-            if self._primary_field.auto_id is None:
-                self._primary_field.auto_id = False
-            self._auto_id = self._primary_field.auto_id
-
         self._description = description
         self._kwargs = copy.deepcopy(kwargs)
 
     def __repr__(self):
-        _dict = self.to_dict()
-        r = ["{\n"]
-        s = "  {}: {}\n"
-        for k, v in _dict.items():
-            r.append(s.format(k, v))
-        r.append("}")
-        return "".join(r)
+        return str(self.to_dict())
 
     def __len__(self):
         return len(self.fields)
 
     def __eq__(self, other):
-        """
-        The order of the fields of schema must be consistent.
-        """
+        """ The order of the fields of schema must be consistent."""
         return self.to_dict() == other.to_dict()
 
     @classmethod
@@ -144,7 +120,6 @@ class CollectionSchema:
         return CollectionSchema(fields, raw.get('description', ""), enable_dynamic_field=enable_dynamic_field)
 
     @property
-    # TODO:
     def primary_field(self):
         return self._primary_field
 
@@ -202,7 +177,7 @@ class CollectionSchema:
             >>> schema.auto_id
             False
         """
-        return self._auto_id
+        return self.primary_field.auto_id
 
     @property
     def enable_dynamic_field(self):
@@ -238,7 +213,7 @@ class FieldSchema:
             raise PrimaryKeyException(message=ExceptionsMessage.IsPrimaryType)
         self.is_primary = kwargs.get("is_primary", False)
         self.is_dynamic = kwargs.get("is_dynamic", False)
-        self.auto_id = kwargs.get("auto_id", None)
+        self.auto_id = kwargs.get("auto_id", False)
         if "auto_id" in kwargs:
             if not isinstance(self.auto_id, bool):
                 raise AutoIDException(message=ExceptionsMessage.AutoIDType)
@@ -260,12 +235,7 @@ class FieldSchema:
         self._parse_type_params()
 
     def __repr__(self):
-        r = ["{\n"]
-        s = "    {}: {}\n"
-        for k, v in self.to_dict().items():
-            r.append(s.format(k, v))
-        r.append("  }")
-        return "".join(r)
+        return str(self.to_dict())
 
     def __deepcopy__(self, memodict=None):
         if memodict is None:
