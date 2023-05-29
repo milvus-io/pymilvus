@@ -58,7 +58,6 @@ class LoopCache:
 class FieldSchema:
     def __init__(self, raw):
         self._raw = raw
-
         #
         self.field_id = 0
         self.name = None
@@ -71,7 +70,6 @@ class FieldSchema:
         self.is_partition_key = False
         self.default_value = None
         self.is_dynamic = False
-
         ##
         self.__pack(self._raw)
 
