@@ -474,7 +474,7 @@ class Prepare:
         search_params = {
             "anns_field": anns_field,
             "topk": limit,
-            "metric_type": param.get("metric_type", "L2"),
+            "metric_type": param.get("metric_type", ""),
             "params": params,
             "round_decimal": round_decimal,
             "offset": param.get("offset", 0),
