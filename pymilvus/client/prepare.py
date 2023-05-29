@@ -423,19 +423,13 @@ class Prepare:
         return request
 
     @classmethod
-    def _prepare_placeholders(cls, vectors, nq, tag, pl_type, is_binary, dimension=0):
+    def _prepare_placeholders(cls, vectors, nq, tag, pl_type, is_binary):
         pl = common_types.PlaceholderValue(tag=tag)
         pl.type = pl_type
         for i in range(0, nq):
             if is_binary:
-                if len(vectors[i]) * 8 != dimension:
-                    raise ParamError(
-                        message=f"The dimension of query entities[{vectors[i] * 8}] is different from schema [{dimension}]")
                 pl.values.append(blob.vectorBinaryToBytes(vectors[i]))
             else:
-                if len(vectors[i]) != dimension:
-                    raise ParamError(
-                        message=f"The dimension of query entities[{vectors[i]}] is different from schema [{dimension}]")
                 pl.values.append(blob.vectorFloatToBytes(vectors[i]))
         return pl
 
@@ -526,10 +520,6 @@ class Prepare:
     @classmethod
     def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, schema, expr=None,
                                   partition_names=None, output_fields=None, round_decimal=-1, **kwargs):
-        # TODO Move this impl into server side
-        fields_schema = schema.get("fields", None)  # list
-        fields_name_locs = {fields_schema[loc]["name"]: loc for loc in range(len(fields_schema))}
-
         requests = []
         if len(data) <= 0:
             return requests
@@ -541,16 +531,11 @@ class Prepare:
             is_binary = False
             pl_type = PlaceholderType.FloatVector
 
-        if anns_field not in fields_name_locs:
-            raise ParamError(message=f"Field {anns_field} doesn't exist in schema")
-        dimension = int(fields_schema[fields_name_locs[anns_field]]["params"].get("dim", 0))
-
         ignore_growing = param.get("ignore_growing", False) or kwargs.get("ignore_growing", False)
         params = param.get("params", {})
         if not isinstance(params, dict):
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
         search_params = {
-            "anns_field": anns_field,
             "topk": limit,
             "metric_type": param.get("metric_type", "L2"),
             "params": params,
@@ -559,6 +544,9 @@ class Prepare:
             "ignore_growing": ignore_growing,
         }
 
+        if anns_field:
+            search_params["anns_field"] = anns_field
+
         def dump(v):
             if isinstance(v, dict):
                 return ujson.dumps(v)
@@ -566,7 +554,7 @@ class Prepare:
 
         nq = len(data)
         tag = "$0"
-        pl = cls._prepare_placeholders(data, nq, tag, pl_type, is_binary, dimension)
+        pl = cls._prepare_placeholders(data, nq, tag, pl_type, is_binary)
         plg = common_types.PlaceholderGroup()
         plg.placeholders.append(pl)
         plg_str = common_types.PlaceholderGroup.SerializeToString(plg)

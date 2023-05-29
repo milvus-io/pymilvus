@@ -168,10 +168,8 @@ def is_legal_partition_name(tag: Any) -> bool:
 def is_legal_limit(limit: Any) -> bool:
     return isinstance(limit, int) and limit > 0
 
-
 def is_legal_anns_field(field: Any) -> bool:
-    return field and isinstance(field, str)
-
+    return field is None or isinstance(field, str)
 
 def is_legal_search_data(data: Any) -> bool:
     import numpy as np
