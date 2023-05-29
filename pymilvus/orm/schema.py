@@ -390,7 +390,7 @@ def check_insert_or_upsert_is_row_based(data: Union[List[List], List[Dict], Dict
 
 
 def check_insert_or_upsert_data_schema(schema: CollectionSchema, data: Union[List[List], pandas.DataFrame],
-                                       isInsert=True) -> None:
+                                       is_insert=True) -> None:
     """ check if the insert or upsert data is consist with the collection schema
 
     Args:
@@ -405,7 +405,7 @@ def check_insert_or_upsert_data_schema(schema: CollectionSchema, data: Union[Lis
     if schema is None:
         raise SchemaNotReadyException(message="Schema shouldn't be None")
     if schema.auto_id:
-        if isInsert:
+        if is_insert:
             if isinstance(data, pandas.DataFrame):
                 if schema.primary_field.name in data:
                     if not data[schema.primary_field.name].isnull().all():

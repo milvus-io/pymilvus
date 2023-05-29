@@ -383,7 +383,7 @@ class GrpcHandler:
         raise MilvusException(status.error_code, status.reason)
 
     def _prepare_row_insert_or_upsert_request(self, collection_name, rows, partition_name=None, timeout=None,
-                                              isInsert=True, **kwargs):
+                                              is_insert=True, **kwargs):
         if not isinstance(rows, list):
             raise ParamError(message="None rows, please provide valid row data.")
 
@@ -394,19 +394,19 @@ class GrpcHandler:
 
         fields_info = collection_schema["fields"]
         enable_dynamic = collection_schema.get("enable_dynamic_field", False)
-        request = Prepare.row_insert_or_upsert_param(collection_name, rows, partition_name, fields_info, isInsert,
+        request = Prepare.row_insert_or_upsert_param(collection_name, rows, partition_name, fields_info, is_insert,
                                                      enable_dynamic=enable_dynamic)
         return request
 
     def _prepare_batch_insert_or_upsert_request(self, collection_name, entities, partition_name=None, timeout=None,
-                                                isInsert=True, **kwargs):
+                                                is_insert=True, **kwargs):
         param = kwargs.get('insert_param', None)
 
-        if not isInsert:
+        if not is_insert:
             param = kwargs.get('upsert_param', None)
 
         if param and not isinstance(param, milvus_types.RowBatch):
-            if isInsert:
+            if is_insert:
                 raise ParamError(message="The value of key 'insert_param' is invalid")
             raise ParamError(message="The value of key 'upsert_param' is invalid")
         if not isinstance(entities, list):
@@ -420,7 +420,7 @@ class GrpcHandler:
         fields_info = collection_schema["fields"]
 
         request = param if param \
-            else Prepare.batch_insert_or_upsert_param(collection_name, entities, partition_name, fields_info, isInsert)
+            else Prepare.batch_insert_or_upsert_param(collection_name, entities, partition_name, fields_info, is_insert)
 
         return request
 

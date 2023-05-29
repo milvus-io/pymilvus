@@ -24,7 +24,7 @@ from ..exceptions import (
 
 class Prepare:
     @classmethod
-    def prepare_insert_or_upsert_data(cls, data, schema, isInsert = True):
+    def prepare_insert_or_upsert_data(cls, data, schema, is_insert=True):
         if not isinstance(data, (list, tuple, pandas.DataFrame)):
             raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
 
@@ -33,7 +33,7 @@ class Prepare:
 
         if isinstance(data, pandas.DataFrame):
             if schema.auto_id:
-                if isInsert is False:
+                if is_insert is False:
                     raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
                 if schema.primary_field.name in data:
                     if not data[schema.primary_field.name].isnull().all():
@@ -49,7 +49,7 @@ class Prepare:
                                  "values": values})
         else:
             if schema.auto_id:
-                if isInsert is False:
+                if is_insert is False:
                     raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
 
             tmp_fields = copy.deepcopy(fields)
