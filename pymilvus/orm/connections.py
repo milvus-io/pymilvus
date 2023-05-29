@@ -325,9 +325,10 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 if len(group) > 1:
                     db_name = group[1]
 
-            # Set secure=True if username and password are provided
-            if len(user) > 0 and len(password) > 0:
-                kwargs["secure"] = True
+                # Set secure=True if https scheme
+                if parsed_uri.scheme == "https":
+                    kwargs["secure"] = True
+
 
             connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
             return
@@ -339,8 +340,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             user = parsed_uri.username if parsed_uri.username is not None else ""
             password = parsed_uri.password if parsed_uri.password is not None else ""
-            # Set secure=True if uri provided user and password
-            if len(user) > 0 and len(password) > 0:
+
+            # Set secure=True if https scheme
+            if parsed_uri.scheme == "https":
                 kwargs["secure"] = True
 
             connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
