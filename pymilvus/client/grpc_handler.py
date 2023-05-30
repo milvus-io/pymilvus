@@ -133,6 +133,7 @@ class GrpcHandler:
     def reset_db_name(self, db_name):
         self._setup_db_interceptor(db_name)
         self._setup_grpc_channel()
+        self._setup_identifier_interceptor(self._user)
 
     def _setup_authorization_interceptor(self, user, password, token):
         keys = []
