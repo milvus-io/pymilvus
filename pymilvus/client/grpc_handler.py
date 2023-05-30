@@ -61,7 +61,7 @@ from ..exceptions import (
     AmbiguousIndexName,
 )
 
-from ..decorators import retry_on_rpc_failure, ignore_unimplemented
+from ..decorators import retry_on_rpc_failure, upgrade_reminder
 from . import entity_helper
 
 
@@ -1408,7 +1408,7 @@ class GrpcHandler:
         _check()
 
     @retry_on_rpc_failure()
-    @ignore_unimplemented(0)
+    @upgrade_reminder
     def __internal_register(self, user, host) -> int:
         req = Prepare.register_request(user, host)
         response = self._stub.Connect(request=req)
