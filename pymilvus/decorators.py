@@ -154,3 +154,19 @@ def ignore_unimplemented(default_return_value):
                 raise e
         return handler
     return wrapper
+
+
+def upgrade_reminder(func):
+    @functools.wraps(func)
+    def handler(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.UNIMPLEMENTED:
+                msg = "this version of sdk is incompatible with server, please downgrade your sdk or upgrade your " \
+                      "server "
+                raise MilvusException(message=msg) from e
+            raise e
+        except Exception as e:
+            raise e
+    return handler
