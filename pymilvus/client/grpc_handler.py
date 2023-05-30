@@ -62,7 +62,7 @@ from ..exceptions import (
     AmbiguousIndexName,
 )
 
-from ..decorators import retry_on_rpc_failure
+from ..decorators import retry_on_rpc_failure, ignore_unimplemented
 
 
 class GrpcHandler:
@@ -1403,6 +1403,7 @@ class GrpcHandler:
         _check()
 
     @retry_on_rpc_failure()
+    @ignore_unimplemented(0)
     def __internal_register(self, user, host) -> int:
         req = Prepare.register_request(user, host)
         response = self._stub.Connect(request=req)
