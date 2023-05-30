@@ -137,3 +137,20 @@ def tracing_request():
             return ret
         return handler
     return wrapper
+
+
+def ignore_unimplemented(default_return_value):
+    def wrapper(func):
+        @functools.wraps(func)
+        def handler(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except grpc.RpcError as e:
+                if e.code() == grpc.StatusCode.UNIMPLEMENTED:
+                    LOGGER.warning(f"{func.__name__} unimplemented, ignore it")
+                    return default_return_value
+                raise e
+            except Exception as e:
+                raise e
+        return handler
+    return wrapper
