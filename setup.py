@@ -24,6 +24,7 @@ setuptools.setup(
         "environs<=9.5.0",
         "ujson>=2.0.0",
         "pandas>=1.2.4",
+        "numpy!=1.25.0rc1",
     ],
     classifiers=[
         "Programming Language :: Python :: 3.7",
