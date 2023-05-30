@@ -61,6 +61,8 @@ class Prepare:
 
             for i, field in enumerate(tmp_fields):
                 # TODO: check string.
+                if data[i] is None:
+                    data[i] = []
                 if isinstance(data[i], numpy.ndarray):
                     data[i] = data[i].tolist()
 

@@ -410,13 +410,17 @@ def parse_fields_from_data(schema: CollectionSchema, data: Union[List[List], pan
     for i, field in enumerate(tmp_fields):
         try:
             d = data[i]
+            # if pass in None, considering to be passed in order according to the schema
+            if d is None:
+                infer_fields.append(FieldSchema("", field.dtype))
+                continue
             if not is_list_like(d):
                 raise DataTypeNotSupportException(
                     message="data should be a list of list")
             try:
                 elem = d[0]
                 infer_fields.append(FieldSchema("", infer_dtype_bydata(elem)))
-            # if pass in [] or None, considering to be passed in order according to the schema
+            # if pass in [], considering to be passed in order according to the schema
             except IndexError:
                 infer_fields.append(FieldSchema("", field.dtype))
         # the last missing part of data is also completed in order according to the schema
