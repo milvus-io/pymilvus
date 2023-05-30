@@ -267,10 +267,9 @@ class Hit:
 
 
 class Hits(LoopBase):
-    def __init__(self, raw, auto_id, round_decimal=-1):
+    def __init__(self, raw, round_decimal=-1):
         super().__init__()
         self._raw = raw
-        self._auto_id = auto_id
         if round_decimal != -1:
             self._distances = [round(x, round_decimal) for x in self._raw.scores]
         else:
@@ -393,10 +392,9 @@ class MutationResult:
 
 
 class QueryResult(LoopBase):
-    def __init__(self, raw, auto_id=True):
+    def __init__(self, raw):
         super().__init__()
         self._raw = raw
-        self._auto_id = auto_id
         self._pack(raw.hits)
 
     def __len__(self):
@@ -452,14 +450,13 @@ class QueryResult(LoopBase):
             offset += raw.results.topks[i]
 
     def get__item(self, item):
-        return Hits(self._hits[item], self._auto_id)
+        return Hits(self._hits[item])
 
 
 class ChunkedQueryResult(LoopBase):
-    def __init__(self, raw_list, auto_id=True, round_decimal=-1):
+    def __init__(self, raw_list, round_decimal=-1):
         super().__init__()
         self._raw_list = raw_list
-        self._auto_id = auto_id
         self._nq = 0
         self.round_decimal = round_decimal
 
@@ -523,7 +520,7 @@ class ChunkedQueryResult(LoopBase):
                 offset += raw.results.topks[i]
 
     def get__item(self, item):
-        return Hits(self._hits[item], self._auto_id, self.round_decimal)
+        return Hits(self._hits[item], self.round_decimal)
 
 
 def _abstract():
