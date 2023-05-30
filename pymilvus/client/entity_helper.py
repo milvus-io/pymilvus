@@ -84,7 +84,7 @@ def pack_field_value_to_field_data(field_value, field_data, field_info):
         field_data.vectors.float_vector.data.extend(field_value)
     elif field_type in (DataType.BINARY_VECTOR,):
         field_data.vectors.dim = len(field_value) * 8
-        field_data.vectors.binary_vector.data.append(b''.join(field_value))
+        field_data.vectors.binary_vector += bytes(field_value)
     elif field_type in (DataType.VARCHAR,):
         field_data.scalars.string_data.data.append(
             convert_to_str_array(field_value, field_info, True))
@@ -204,10 +204,10 @@ def extract_row_data_from_fields_data(fields_data, index, dynamic_output_fields=
                                                           start_pos:end_pos]]
         elif field_data.type == DataType.BINARY_VECTOR:
             dim = field_data.vectors.dim
-            if len(field_data.vectors.binary_vector.data) >= index * (dim / 8):
-                start_pos = index * (dim / 8)
-                end_pos = (index + 1) * (dim / 8)
+            if len(field_data.vectors.binary_vector) >= index * (dim // 8):
+                start_pos = index * (dim // 8)
+                end_pos = (index + 1) * (dim // 8)
                 entity_row_data[field_data.field_name] = [
-                    field_data.vectors.binary_vector.data[start_pos:end_pos]]
+                    field_data.vectors.binary_vector[start_pos:end_pos]]
 
     return entity_row_data
