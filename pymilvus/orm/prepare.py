@@ -60,15 +60,22 @@ class Prepare:
                     tmp_fields.pop(i)
 
             for i, field in enumerate(tmp_fields):
-                # TODO: check string.
-                if data[i] is None:
-                    data[i] = []
-                if isinstance(data[i], numpy.ndarray):
-                    data[i] = data[i].tolist()
-
-                entities.append({
-                    "name": field.name,
-                    "type": field.dtype,
-                    "values": data[i]})
+                try:
+                    d = data[i]
+                    # if pass in None, considering to be passed in order according to the schema
+                    if d is None:
+                        d = []
+                    if isinstance(data[i], numpy.ndarray):
+                        d = data[i].tolist()
+                    entities.append({
+                        "name": field.name,
+                        "type": field.dtype,
+                        "values": d})
+                # the last missing part of data is also completed in order according to the schema
+                except IndexError:
+                    entities.append({
+                        "name": field.name,
+                        "type": field.dtype,
+                        "values": []})
 
         return entities
