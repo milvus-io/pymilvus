@@ -429,8 +429,9 @@ def parse_fields_from_data(schema: CollectionSchema, data: Union[List[List], pan
 
     index = len(tmp_fields)
     while index < len(data):
-        fields = [FieldSchema("", infer_dtype_bydata(data[index][0]))]
+        fields = FieldSchema("", infer_dtype_bydata(data[index][0]))
         infer_fields.append(fields)
+        index = index + 1
 
     return infer_fields, tmp_fields, False
 
@@ -456,8 +457,9 @@ def parse_fields_from_dataframe(schema: CollectionSchema, df: pandas.DataFrame):
                 field.name, data_types[col_names.index(field.name)], **type_params)
             infer_fields.append(field_schema)
 
+    infer_name = [f.name for f in infer_fields]
     for name, dtype in zip(col_names, data_types):
-        if field.name not in col_names:
+        if name not in infer_name:
             type_params = column_params_map.get(name, {})
             field_schema = FieldSchema(name, dtype, **type_params)
             infer_fields.append(field_schema)
