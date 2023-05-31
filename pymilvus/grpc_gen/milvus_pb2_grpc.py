@@ -130,6 +130,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.DescribeIndexRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeIndexResponse.FromString,
                 )
+        self.GetIndexStatistics = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetIndexStatistics',
+                request_serializer=milvus__pb2.GetIndexStatisticsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetIndexStatisticsResponse.FromString,
+                )
         self.GetIndexState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetIndexState',
                 request_serializer=milvus__pb2.GetIndexStateRequest.SerializeToString,
@@ -518,6 +523,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DescribeIndex(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetIndexStatistics(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -947,6 +958,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.DescribeIndex,
                     request_deserializer=milvus__pb2.DescribeIndexRequest.FromString,
                     response_serializer=milvus__pb2.DescribeIndexResponse.SerializeToString,
+            ),
+            'GetIndexStatistics': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetIndexStatistics,
+                    request_deserializer=milvus__pb2.GetIndexStatisticsRequest.FromString,
+                    response_serializer=milvus__pb2.GetIndexStatisticsResponse.SerializeToString,
             ),
             'GetIndexState': grpc.unary_unary_rpc_method_handler(
                     servicer.GetIndexState,
@@ -1596,6 +1612,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DescribeIndex',
             milvus__pb2.DescribeIndexRequest.SerializeToString,
             milvus__pb2.DescribeIndexResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetIndexStatistics(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetIndexStatistics',
+            milvus__pb2.GetIndexStatisticsRequest.SerializeToString,
+            milvus__pb2.GetIndexStatisticsResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

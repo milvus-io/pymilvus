@@ -76,6 +76,7 @@ GetCredentialFailure: ErrorCode
 GetDistribution: MsgType
 GetIndexBuildProgress: MsgType
 GetIndexState: MsgType
+GetIndexStatistics: MsgType
 GetPartitionStatistics: MsgType
 GetRecoveryInfo: MsgType
 GetReplicas: MsgType

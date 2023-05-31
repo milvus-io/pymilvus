@@ -1,4 +1,3 @@
-import copy
 import base64
 import datetime
 from typing import Dict, Iterable, Union
@@ -7,6 +6,7 @@ import ujson
 
 from . import blob
 from . import entity_helper
+from . import ts_utils
 from .check import check_pass_param, is_legal_collection_properties
 from .types import DataType, PlaceholderType, get_consistency_level
 from .utils import traverse_rows_info
@@ -449,113 +449,19 @@ class Prepare:
         return request
 
     @classmethod
-    def _prepare_placeholders(cls, vectors, nq, tag, pl_type, is_binary, dimension=0):
+    def _prepare_placeholders(cls, vectors, nq, tag, pl_type, is_binary):
         pl = common_types.PlaceholderValue(tag=tag)
         pl.type = pl_type
         for i in range(0, nq):
             if is_binary:
-                if len(vectors[i]) * 8 != dimension:
-                    raise ParamError(
-                        message=f"The dimension of query entities[{vectors[i] * 8}] is different from schema [{dimension}]")
                 pl.values.append(blob.vectorBinaryToBytes(vectors[i]))
             else:
-                if len(vectors[i]) != dimension:
-                    raise ParamError(
-                        message=f"The dimension of query entities[{vectors[i]}] is different from schema [{dimension}]")
                 pl.values.append(blob.vectorFloatToBytes(vectors[i]))
         return pl
 
     @classmethod
-    def search_request(cls, collection_name, query_entities, partition_names=None, fields=None, round_decimal=-1,
-                       **kwargs):
-        schema = kwargs.get("schema", None)
-        fields_schema = schema.get("fields", None)  # list
-        fields_name_locs = {fields_schema[loc]["name"]: loc
-                            for loc in range(len(fields_schema))}
-
-        if not isinstance(query_entities, (dict,)):
-            raise ParamError(message="Invalid query format. 'query_entities' must be a dict")
-
-        if fields is not None and not isinstance(fields, (list,)):
-            raise ParamError(message="Invalid query format. 'fields' must be a list")
-
-        request = milvus_types.SearchRequest(
-            collection_name=collection_name,
-            partition_names=partition_names,
-            output_fields=fields,
-            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
-        )
-
-        duplicated_entities = copy.deepcopy(query_entities)
-        vector_placeholders = {}
-        vector_names = {}
-
-        def extract_vectors_param(param, placeholders, names, round_decimal):
-            if not isinstance(param, (dict, list)):
-                return
-
-            if isinstance(param, dict):
-                if "vector" in param:
-                    # TODO: Here may not replace ph
-                    ph = "$" + str(len(placeholders))
-
-                    for pk, pv in param["vector"].items():
-                        if "query" not in pv:
-                            raise ParamError(message="param vector must contain 'query'")
-                        placeholders[ph] = pv["query"]
-                        names[ph] = pk
-                        param["vector"][pk]["query"] = ph
-                        param["vector"][pk]["round_decimal"] = round_decimal
-                    return
-
-                for _, v in param.items():
-                    extract_vectors_param(v, placeholders, names, round_decimal)
-
-            if isinstance(param, list):
-                for item in param:
-                    extract_vectors_param(item, placeholders, names, round_decimal)
-
-        extract_vectors_param(duplicated_entities, vector_placeholders, vector_names, round_decimal)
-        request.dsl = ujson.dumps(duplicated_entities)
-
-        plg = common_types.PlaceholderGroup()
-        for tag, vectors in vector_placeholders.items():
-            if len(vectors) <= 0:
-                continue
-            pl = common_types.PlaceholderValue(tag=tag)
-
-            fname = vector_names[tag]
-            if fname not in fields_name_locs:
-                raise ParamError(message=f"Field {fname} doesn't exist in schema")
-            dimension = int(fields_schema[fields_name_locs[fname]]["params"].get("dim", 0))
-
-            if isinstance(vectors[0], bytes):
-                pl.type = PlaceholderType.BinaryVector
-                for vector in vectors:
-                    if dimension != len(vector) * 8:
-                        raise ParamError(message="The dimension of query vector is different from schema")
-                    pl.values.append(blob.vectorBinaryToBytes(vector))
-            else:
-                pl.type = PlaceholderType.FloatVector
-                for vector in vectors:
-                    if dimension != len(vector):
-                        raise ParamError(message="The dimension of query vector is different from schema")
-                    pl.values.append(blob.vectorFloatToBytes(vector))
-            # vector_values_bytes = service_msg_types.VectorValues.SerializeToString(vector_values)
-
-            plg.placeholders.append(pl)
-        plg_str = common_types.PlaceholderGroup.SerializeToString(plg)
-        request.placeholder_group = plg_str
-
-        return request
-
-    @classmethod
-    def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, schema, expr=None,
+    def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, expr=None,
                                   partition_names=None, output_fields=None, round_decimal=-1, **kwargs):
-        # TODO Move this impl into server side
-        fields_schema = schema.get("fields", None)  # list
-        fields_name_locs = {fields_schema[loc]["name"]: loc for loc in range(len(fields_schema))}
-
         requests = []
         if len(data) <= 0:
             return requests
@@ -567,16 +473,14 @@ class Prepare:
             is_binary = False
             pl_type = PlaceholderType.FloatVector
 
-        if anns_field not in fields_name_locs:
-            raise ParamError(message=f"Field {anns_field} doesn't exist in schema")
-        dimension = int(fields_schema[fields_name_locs[anns_field]]["params"].get("dim", 0))
+
+        use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
 
         ignore_growing = param.get("ignore_growing", False) or kwargs.get("ignore_growing", False)
         params = param.get("params", {})
         if not isinstance(params, dict):
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
         search_params = {
-            "anns_field": anns_field,
             "topk": limit,
             "metric_type": param.get("metric_type", "L2"),
             "params": params,
@@ -585,6 +489,9 @@ class Prepare:
             "ignore_growing": ignore_growing,
         }
 
+        if anns_field:
+            search_params["anns_field"] = anns_field
+
         def dump(v):
             if isinstance(v, dict):
                 return ujson.dumps(v)
@@ -592,7 +499,7 @@ class Prepare:
 
         nq = len(data)
         tag = "$0"
-        pl = cls._prepare_placeholders(data, nq, tag, pl_type, is_binary, dimension)
+        pl = cls._prepare_placeholders(data, nq, tag, pl_type, is_binary)
         plg = common_types.PlaceholderGroup()
         plg.placeholders.append(pl)
         plg_str = common_types.PlaceholderGroup.SerializeToString(plg)
@@ -602,6 +509,8 @@ class Prepare:
             output_fields=output_fields,
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
             travel_timestamp=kwargs.get("travel_timestamp", 0),
+            use_default_consistency=use_default_consistency,
+            consistency_level=kwargs.get("consistency_level", 0),
             nq=nq,
         )
         request.placeholder_group = plg_str
@@ -730,6 +639,8 @@ class Prepare:
 
     @classmethod
     def query_request(cls, collection_name, expr, output_fields, partition_names, **kwargs):
+
+        use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
         req = milvus_types.QueryRequest(db_name="",
                                         collection_name=collection_name,
                                         expr=expr,
@@ -737,6 +648,8 @@ class Prepare:
                                         partition_names=partition_names,
                                         guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
                                         travel_timestamp=kwargs.get("travel_timestamp", 0),
+                                        use_default_consistency=use_default_consistency,
+                                        consistency_level=kwargs.get("consistency_level", 0)
                                         )
 
         limit = kwargs.get("limit", None)
