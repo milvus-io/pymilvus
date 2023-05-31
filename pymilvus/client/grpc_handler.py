@@ -679,7 +679,8 @@ class GrpcHandler:
         if status.error_code == 0:
             if len(response.index_descriptions) == 1:
                 index_desc = response.index_descriptions[0]
-                return {'total_rows': index_desc.total_rows, 'indexed_rows': index_desc.indexed_rows}
+                return {'total_rows': index_desc.total_rows, 'indexed_rows': index_desc.indexed_rows,
+                        "penging_index_rows": index_desc.pending_index_rows}
             raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
         raise MilvusException(status.error_code, status.reason)
 
