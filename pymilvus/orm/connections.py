@@ -219,7 +219,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         self._alias.pop(alias, None)
 
     # pylint: disable=too-many-statements
-    def connect(self, alias=Config.MILVUS_CONN_ALIAS, user="", password="", token="", db_name="", **kwargs):
+    def connect(self, alias=Config.MILVUS_CONN_ALIAS, user="", password="", db_name="", token="", **kwargs):
         """
         Constructs a milvus connection and register it under given alias.
 
