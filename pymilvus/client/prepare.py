@@ -95,7 +95,8 @@ class Prepare:
                                                     description=f.description,
                                                     is_primary_key=f.is_primary,
                                                     autoID=f.auto_id,
-                                                    is_partition_key=f.is_partition_key)
+                                                    is_partition_key=f.is_partition_key,
+                                                    is_dynamic=f.is_dynamic)
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
                 field_schema.type_params.append(kv_pair)
