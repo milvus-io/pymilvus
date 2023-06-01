@@ -483,7 +483,7 @@ class Prepare:
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
         search_params = {
             "topk": limit,
-            "metric_type": param.get("metric_type", "L2"),
+            "metric_type": param.get("metric_type", ""),
             "params": params,
             "round_decimal": round_decimal,
             "offset": param.get("offset", 0),
