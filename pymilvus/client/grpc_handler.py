@@ -148,10 +148,11 @@ class GrpcHandler:
             self._authorization_interceptor = interceptor.header_adder_interceptor(keys, values)
 
     def _setup_db_interceptor(self, db_name):
-        if db_name:
-            self._db_interceptor = interceptor.header_adder_interceptor(["dbname"], [db_name])
-        else:
+        if db_name is None:
             self._db_interceptor = None
+        else:
+            check_pass_param(db_name=db_name)
+            self._db_interceptor = interceptor.header_adder_interceptor(["dbname"], [db_name])
 
     def _setup_grpc_channel(self):
         """ Create a ddl grpc channel """

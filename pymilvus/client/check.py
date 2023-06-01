@@ -100,6 +100,11 @@ def is_legal_table_name(table_name: Any) -> bool:
     return table_name and isinstance(table_name, str)
 
 
+def is_legal_db_name(db_name: Any) -> bool:
+    # you can connect to the default database "".
+    return isinstance(db_name, str)
+
+
 def is_legal_field_name(field_name: Any) -> bool:
     return field_name and isinstance(field_name, str)
 
@@ -311,7 +316,7 @@ def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
 class ParamChecker(metaclass=Singleton):
     def __init__(self) -> None:
         self.check_dict = {
-            "db_name": is_legal_table_name,
+            "db_name": is_legal_db_name,
             "collection_name": is_legal_table_name,
             "field_name": is_legal_field_name,
             "dimension": is_legal_dimension,
