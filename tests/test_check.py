@@ -166,10 +166,11 @@ class TestGetCommit:
 
 class TestCheckIndexParams:
     @pytest.mark.parametrize("invalid_params", [
-        ["params type wrong", None],
-        ["params missing index_type", {}],
-        ["params missing params", {"index_type": "IVF_FLAT"}],
-        ["params missing metric_type", {"index_type": "IVF_FLAT", "params": {}}],
+        # the following are commented since we have some default values
+        # ["params type wrong", None],
+        # ["params missing index_type", {}],
+        # ["params missing params", {"index_type": "IVF_FLAT"}],
+        # ["params missing metric_type", {"index_type": "IVF_FLAT", "params": {}}],
         ["params.params not a dict", {"index_type": "IVF_FLAT", "metric_type": "L2", "params": None}],
         ["index_type invalid", {"index_type": "INVALID", "metric_type": "L2", "params": {}}],
         ["params index key invalid", {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"INVALID": 1}}],

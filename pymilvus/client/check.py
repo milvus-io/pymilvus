@@ -374,11 +374,9 @@ def check_index_params(params):
         raise ParamError(message="Params must be a dictionary type")
     # params preliminary validate
     if 'index_type' not in params:
-        raise ParamError(message="Params must contains key: 'index_type'")
+        params['index_type'] = "AUTOINDEX"
     if 'params' not in params:
-        raise ParamError(message="Params must contains key: 'params'")
-    if 'metric_type' not in params:
-        raise ParamError(message="Params must contains key: 'metric_type'")
+        params['params'] = {}
     if not isinstance(params['params'], dict):
         raise ParamError(message="Params['params'] must be a dictionary type")
     if params['index_type'] not in valid_index_types:
@@ -389,10 +387,11 @@ def check_index_params(params):
     for v in params['params'].values():
         if not isinstance(v, int):
             raise ParamError(message=f"Invalid params['params'].value: {v}, which must be an integer")
-    # filter invalid metric type
-    if params['index_type'] in valid_binary_index_types:
-        if not is_legal_binary_index_metric_type(params['index_type'], params['metric_type']):
-            raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
-    else:
-        if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
-            raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
+    # filter invalid metric type if metric type exists
+    if 'metric_type' in params:
+        if params['index_type'] in valid_binary_index_types:
+            if not is_legal_binary_index_metric_type(params['index_type'], params['metric_type']):
+                raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
+        else:
+            if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
+                raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
