@@ -4,11 +4,6 @@ from typing import Any, Union
 from ..exceptions import ParamError
 from ..grpc_gen import milvus_pb2 as milvus_types
 from .singleton_utils import Singleton
-from .utils import (
-    valid_index_types,
-    valid_binary_index_types,
-    valid_index_params_keys,
-)
 
 
 def is_legal_address(addr: Any) -> bool:
@@ -353,8 +348,10 @@ class ParamChecker(metaclass=Singleton):
         else:
             raise ParamError(message=f"unknown param `{key}`")
 
+
 def _get_param_checker():
     return ParamChecker()
+
 
 def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
     if kwargs is None:
@@ -362,33 +359,3 @@ def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too
     checker = _get_param_checker()
     for key, value in kwargs.items():
         checker.check(key, value)
-
-
-def check_index_params(params):
-    params = params or {}
-    if not isinstance(params, dict):
-        raise ParamError(message="Params must be a dictionary type")
-    # params preliminary validate
-    if 'index_type' not in params:
-        raise ParamError(message="Params must contains key: 'index_type'")
-    if 'params' not in params:
-        raise ParamError(message="Params must contains key: 'params'")
-    if 'metric_type' not in params:
-        raise ParamError(message="Params must contains key: 'metric_type'")
-    if not isinstance(params['params'], dict):
-        raise ParamError(message="Params['params'] must be a dictionary type")
-    if params['index_type'] not in valid_index_types:
-        raise ParamError(message=f"Invalid index_type: {params['index_type']}, which must be one of: {str(valid_index_types)}")
-    for k in params['params'].keys():
-        if k not in valid_index_params_keys:
-            raise ParamError(message=f"Invalid params['params'].key: {k}")
-    for v in params['params'].values():
-        if not isinstance(v, int):
-            raise ParamError(message=f"Invalid params['params'].value: {v}, which must be an integer")
-    # filter invalid metric type
-    if params['index_type'] in valid_binary_index_types:
-        if not is_legal_binary_index_metric_type(params['index_type'], params['metric_type']):
-            raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
-    else:
-        if not is_legal_index_metric_type(params['index_type'], params['metric_type']):
-            raise ParamError(message=f"Invalid metric_type: {params['metric_type']}, which does not match the index type: {params['index_type']}")
