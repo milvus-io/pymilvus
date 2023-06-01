@@ -286,6 +286,8 @@ class FieldSchema:
         if self.is_partition_key:
             _dict["is_partition_key"] = True
         if self.default_value is not None:
+            if self.default_value.WhichOneof("data") is None:
+                self.default_value = None
             _dict["default_value"] = self.default_value
         if self.is_dynamic:
             _dict["is_dynamic"] = self.is_dynamic

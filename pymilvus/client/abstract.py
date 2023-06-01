@@ -82,6 +82,9 @@ class FieldSchema:
         self.type = raw.data_type
         self.is_partition_key = raw.is_partition_key
         self.default_value = raw.default_value
+        if raw.default_value is not None:
+            if raw.default_value.WhichOneof("data") is None:
+                self.default_value = None
         try:
             self.is_dynamic = raw.is_dynamic
         except Exception:
@@ -110,6 +113,9 @@ class FieldSchema:
         self.indexes.extend([index_dict])
 
     def dict(self):
+        if self.default_value is not None:
+            if self.default_value.WhichOneof("data") is None:
+                self.default_value = None
         _dict = {
             "field_id": self.field_id,
             "name": self.name,
