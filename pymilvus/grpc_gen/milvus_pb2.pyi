@@ -957,13 +957,14 @@ class ImportResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., tasks: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class IndexDescription(_message.Message):
-    __slots__ = ["field_name", "indexID", "index_name", "index_state_fail_reason", "indexed_rows", "params", "state", "total_rows"]
+    __slots__ = ["field_name", "indexID", "index_name", "index_state_fail_reason", "indexed_rows", "params", "pending_index_rows", "state", "total_rows"]
     FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     INDEXED_ROWS_FIELD_NUMBER: _ClassVar[int]
     INDEXID_FIELD_NUMBER: _ClassVar[int]
     INDEX_NAME_FIELD_NUMBER: _ClassVar[int]
     INDEX_STATE_FAIL_REASON_FIELD_NUMBER: _ClassVar[int]
     PARAMS_FIELD_NUMBER: _ClassVar[int]
+    PENDING_INDEX_ROWS_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     TOTAL_ROWS_FIELD_NUMBER: _ClassVar[int]
     field_name: str
@@ -972,9 +973,10 @@ class IndexDescription(_message.Message):
     index_state_fail_reason: str
     indexed_rows: int
     params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    pending_index_rows: int
     state: _common_pb2.IndexState
     total_rows: int
-    def __init__(self, index_name: _Optional[str] = ..., indexID: _Optional[int] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., field_name: _Optional[str] = ..., indexed_rows: _Optional[int] = ..., total_rows: _Optional[int] = ..., state: _Optional[_Union[_common_pb2.IndexState, str]] = ..., index_state_fail_reason: _Optional[str] = ...) -> None: ...
+    def __init__(self, index_name: _Optional[str] = ..., indexID: _Optional[int] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., field_name: _Optional[str] = ..., indexed_rows: _Optional[int] = ..., total_rows: _Optional[int] = ..., state: _Optional[_Union[_common_pb2.IndexState, str]] = ..., index_state_fail_reason: _Optional[str] = ..., pending_index_rows: _Optional[int] = ...) -> None: ...
 
 class InsertRequest(_message.Message):
     __slots__ = ["base", "collection_name", "db_name", "fields_data", "hash_keys", "num_rows", "partition_name"]
