@@ -4,7 +4,6 @@ import copy
 import base64
 from urllib import parse
 import socket
-import numpy as np
 import grpc
 from grpc._cython import cygrpc
 
@@ -43,6 +42,7 @@ from .utils import (
 from ..settings import Config
 from . import ts_utils
 from . import interceptor
+from . import entity_helper
 
 from .asynch import (
     SearchFuture,
@@ -998,44 +998,13 @@ class GrpcHandler:
         if not all(len_of(field_data) == num_entities for field_data in it):
             raise MilvusException(message="The length of fields data is inconsistent")
 
-        # transpose
-        return self.convert_query_result(response, num_entities)
+        _, dynamic_fields = entity_helper.extract_dynamic_field_from_result(response)
 
-    def convert_query_result(self, response, num_entities):
         results = []
         for index in range(0, num_entities):
-            result = {}
-            for field_data in response.fields_data:
-                if field_data.type == DataType.BOOL:
-                    result[field_data.field_name] = field_data.scalars.bool_data.data[index]
-                elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                    result[field_data.field_name] = field_data.scalars.int_data.data[index]
-                elif field_data.type == DataType.INT64:
-                    result[field_data.field_name] = field_data.scalars.long_data.data[index]
-                elif field_data.type == DataType.FLOAT:
-                    result[field_data.field_name] = np.single(field_data.scalars.float_data.data[index])
-                elif field_data.type == DataType.DOUBLE:
-                    result[field_data.field_name] = field_data.scalars.double_data.data[index]
-                elif field_data.type == DataType.VARCHAR:
-                    result[field_data.field_name] = field_data.scalars.string_data.data[index]
-                elif field_data.type == DataType.STRING:
-                    raise MilvusException(message="Not support string yet")
-                    # result[field_data.field_name] = field_data.scalars.string_data.data[index]
-                elif field_data.type == DataType.JSON:
-                    result[field_data.field_name] = field_data.scalars.json_data.data[index]
-                elif field_data.type == DataType.FLOAT_VECTOR:
-                    dim = field_data.vectors.dim
-                    start_pos = index * dim
-                    end_pos = index * dim + dim
-                    result[field_data.field_name] = [np.single(x) for x in
-                                                     field_data.vectors.float_vector.data[start_pos:end_pos]]
-                elif field_data.type == DataType.BINARY_VECTOR:
-                    dim = field_data.vectors.dim
-                    start_pos = index * (int(dim / 8))
-                    end_pos = (index + 1) * (int(dim / 8))
-                    result[field_data.field_name] = field_data.vectors.binary_vector[start_pos:end_pos]
-            results.append(result)
-
+            entity_row_data = entity_helper.extract_row_data_from_fields_data(response.fields_data, index,
+                                                                              dynamic_fields)
+            results.append(entity_row_data)
         return results
 
     @retry_on_rpc_failure()
