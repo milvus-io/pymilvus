@@ -120,7 +120,10 @@ class Collection:
                 check_schema(schema)
                 consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
 
-                conn.create_collection(self._name, schema, **kwargs)
+                copy_kwargs = copy.deepcopy(kwargs)
+                copy_kwargs["consistency_level"] = consistency_level
+
+                conn.create_collection(self._name, schema, **copy_kwargs)
                 self._schema = schema
                 self._consistency_level = consistency_level
             else:
