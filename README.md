@@ -72,7 +72,7 @@ $ python setup.py install
 
 ## Documentation
 
-Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.2.3/About.md
+Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.2.x/About.md
 
 ## Developing package releases
 
