@@ -283,6 +283,7 @@ class Prepare:
         return milvus_types.PartitionName(collection_name=collection_name,
                                           tag=partition_name)
 
+    # pylint: disable=too-many-statements
     @classmethod
     def row_insert_or_upsert_param(cls, collection_name, entities, partition_name, fields_info=None, is_insert=True,
                                    enable_dynamic=False, **kwargs):
@@ -325,6 +326,8 @@ class Prepare:
                         entity_helper.pack_field_value_to_field_data(entity[key], field_data, field_info)
                     elif enable_dynamic:
                         json_dict[key] = entity[key]
+                    else:
+                        raise DataNotMatchException(message=ExceptionsMessage.InsertUnexpectedField)
 
                 if enable_dynamic:
                     json_value = entity_helper.convert_to_json(json_dict)

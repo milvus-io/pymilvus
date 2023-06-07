@@ -141,6 +141,9 @@ class Hit:
 
     __repr__ = __str__
 
+    def to_dict(self):
+        return self._hit.to_dict()
+
 
 class Hits:
     def __init__(self, hits):

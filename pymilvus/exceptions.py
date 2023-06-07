@@ -187,4 +187,5 @@ class ExceptionsMessage:
     ExprType = "The type of expr must be string ,but %r is given."
     EnvConfigErr = "Environment variable %s has a wrong format, please check it: %s"
     AmbiguousIndexName = "There are multiple indexes, please specify the index_name."
+    InsertUnexpectedField = "Attempt to insert an unexpected field to collection without enabling dynamic field"
     UpsertAutoIDTrue = "Upsert don't support autoid == true"
