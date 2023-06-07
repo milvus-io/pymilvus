@@ -57,34 +57,50 @@ def validate_partition_key(partition_key_field_name, partition_key_field, primar
 
 class CollectionSchema:
     def __init__(self, fields, description="", **kwargs):
-        if not isinstance(fields, list):
-            raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
-        self._fields = [copy.deepcopy(field) for field in fields]
-        primary_field_name = kwargs.get("primary_field", None)
+        self._kwargs = copy.deepcopy(kwargs)
+        self._fields = []
+        self._description = description
+        self._enable_dynamic_field = self._kwargs.get("enable_dynamic_field", False)
+        self._primary_field = None
+        self._partition_key_field = None
+
+        if fields:
+            if not isinstance(fields, list):
+                raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
+            self._fields = [copy.deepcopy(field) for field in fields]
+
+        self._check()
+
+    def _check_kwargs(self):
+        primary_field_name = self._kwargs.get("primary_field", None)
+        partition_key_field_name = self._kwargs.get("partition_key_field", None)
         if primary_field_name is not None and not isinstance(primary_field_name, str):
             raise PrimaryKeyException(
                 message=ExceptionsMessage.PrimaryFieldType)
-        partition_key_field_name = kwargs.get("partition_key_field", None)
         if partition_key_field_name is not None and not isinstance(partition_key_field_name, str):
             raise PartitionKeyException(
                 message=ExceptionsMessage.PartitionKeyFieldType)
+
         for field in self._fields:
             if not isinstance(field, FieldSchema):
                 raise FieldTypeException(message=ExceptionsMessage.FieldType)
+
+    def _check_fields(self):
+        primary_field_name = self._kwargs.get("primary_field", None)
+        partition_key_field_name = self._kwargs.get("partition_key_field", None)
+        for field in self._fields:
             if primary_field_name == field.name:
                 field.is_primary = True
             if partition_key_field_name == field.name:
                 field.is_partition_key = True
-        self._primary_field = None
-        self._partition_key_field = None
-        self._enable_dynamic_field = kwargs.get("enable_dynamic_field", False)
-        for field in self._fields:
+
             if field.is_primary:
                 if primary_field_name is not None and primary_field_name != field.name:
                     raise PrimaryKeyException(
                         message=ExceptionsMessage.PrimaryKeyOnlyOne % (primary_field_name, field.name))
                 self._primary_field = field
                 primary_field_name = field.name
+
             if field.is_partition_key:
                 if partition_key_field_name is not None and partition_key_field_name != field.name:
                     raise PartitionKeyException(
@@ -92,16 +108,19 @@ class CollectionSchema:
                 self._partition_key_field = field
                 partition_key_field_name = field.name
 
-        validate_primary_key(self._primary_field)
-        validate_partition_key(partition_key_field_name,
-                               self._partition_key_field, self._primary_field)
+        if self._primary_field:
+            validate_primary_key(self._primary_field)
+            if self._partition_key_field:
+                validate_partition_key(partition_key_field_name,
+                                       self._partition_key_field, self._primary_field)
 
-        auto_id = kwargs.get("auto_id", False)
-        if auto_id:
-            self._primary_field.auto_id = auto_id
+            auto_id = self._kwargs.get("auto_id", False)
+            if auto_id:
+                self._primary_field.auto_id = auto_id
 
-        self._description = description
-        self._kwargs = copy.deepcopy(kwargs)
+    def _check(self):
+        self._check_kwargs()
+        self._check_fields()
 
     def __repr__(self):
         return str(self.to_dict())
@@ -180,9 +199,18 @@ class CollectionSchema:
         """
         return self.primary_field.auto_id
 
+    @auto_id.setter
+    def auto_id(self, value):
+        if self.primary_field:
+            self.primary_field.auto_id = bool(value)
+
     @property
     def enable_dynamic_field(self):
         return self._enable_dynamic_field
+
+    @enable_dynamic_field.setter
+    def enable_dynamic_field(self, value):
+        self._enable_dynamic_field = bool(value)
 
     def to_dict(self):
         _dict = {
@@ -193,6 +221,15 @@ class CollectionSchema:
         if self._enable_dynamic_field:
             _dict["enable_dynamic_field"] = self._enable_dynamic_field
         return _dict
+
+    def verify(self):
+        # final check, detect obvious problems
+        self._check()
+
+    def add_field(self, field_name, datatype, **kwargs):
+        field = FieldSchema(field_name, datatype, **kwargs)
+        self._fields.append(field)
+        return self
 
 
 class FieldSchema:

@@ -183,9 +183,9 @@ def extract_row_data_from_fields_data(fields_data, index, dynamic_output_fields=
             # result[field_data.field_name] = field_data.scalars.string_data.data[index]
         elif field_data.type == DataType.JSON:
             if len(field_data.scalars.json_data.data) >= index:
+                json_value = field_data.scalars.json_data.data[index]
+                json_dict = ujson.loads(json_value)
                 if field_data.is_dynamic:
-                    json_value = field_data.scalars.json_data.data[index]
-                    json_dict = ujson.loads(json_value)
                     if dynamic_fields:
                         for key in json_dict:
                             if key in dynamic_fields:
@@ -193,7 +193,7 @@ def extract_row_data_from_fields_data(fields_data, index, dynamic_output_fields=
                     else:
                         entity_row_data.update(json_dict)
                     continue
-                entity_row_data[field_data.field_name] = field_data.scalars.json_data.data[index]
+                entity_row_data[field_data.field_name] = json_dict
         elif field_data.type == DataType.FLOAT_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.float_vector.data) >= index * dim:

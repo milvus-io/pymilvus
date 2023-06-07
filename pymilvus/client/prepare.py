@@ -320,6 +320,8 @@ class Prepare:
                         entity_helper.pack_field_value_to_field_data(entity[key], field_data, field_info)
                     elif enable_dynamic:
                         json_dict[key] = entity[key]
+                    else:
+                        raise DataNotMatchException(message=ExceptionsMessage.InsertUnexpectedField)
 
                 if enable_dynamic:
                     json_value = entity_helper.convert_to_json(json_dict)

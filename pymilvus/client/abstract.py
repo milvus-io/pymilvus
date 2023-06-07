@@ -235,6 +235,9 @@ class Entity:
     def type_of_field(self, field):
         raise NotImplementedError('TODO: support field in Hits')
 
+    def to_dict(self):
+        return {"id": self._id, "distance": self._distance, "entity": self._row_data}
+
 
 class Hit:
     def __init__(self, entity_id, entity_row_data, entity_score):
@@ -264,6 +267,9 @@ class Hit:
     def score(self):
         return self._score
 
+    def to_dict(self):
+        return self.entity.to_dict()
+
 
 class Hits(LoopBase):
     def __init__(self, raw, round_decimal=-1):
@@ -277,7 +283,6 @@ class Hits(LoopBase):
         self._dynamic_field_name = None
         self._dynamic_fields = set()
         self._dynamic_field_name, self._dynamic_fields = entity_helper.extract_dynamic_field_from_result(self._raw)
-
 
     def __len__(self):
         if self._raw.ids.HasField("int_id"):
@@ -363,7 +368,7 @@ class MutationResult:
 
     def __str__(self):
         return f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, " \
-                f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
+               f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
 
     __repr__ = __str__
 
