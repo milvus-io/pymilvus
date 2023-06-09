@@ -117,6 +117,7 @@ class Collection:
             if schema is None:
                 raise SchemaNotReadyException(message=ExceptionsMessage.CollectionNotExistNoSchema % name)
             if isinstance(schema, CollectionSchema):
+                schema.verify()
                 check_schema(schema)
                 consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
 

@@ -476,7 +476,6 @@ class Prepare:
             is_binary = False
             pl_type = PlaceholderType.FloatVector
 
-
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
 
         ignore_growing = param.get("ignore_growing", False) or kwargs.get("ignore_growing", False)
@@ -485,12 +484,14 @@ class Prepare:
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
         search_params = {
             "topk": limit,
-            "metric_type": param.get("metric_type", ""),
             "params": params,
             "round_decimal": round_decimal,
             "offset": param.get("offset", 0),
             "ignore_growing": ignore_growing,
         }
+
+        if param.get("metric_type", None) is not None:
+            search_params["metric_type"] = param["metric_type"]
 
         if anns_field:
             search_params["anns_field"] = anns_field
