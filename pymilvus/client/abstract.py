@@ -122,12 +122,17 @@ class FieldSchema:
             "description": self.description,
             "type": self.type,
             "params": self.params or {},
-            "is_primary": self.is_primary,
-            "auto_id": self.auto_id,
-            "is_partition_key": self.is_partition_key,
             "default_value": self.default_value,
-            "is_dynamic": self.is_dynamic,
         }
+
+        if self.is_partition_key:
+            _dict["is_partition_key"] = True
+        if self.is_dynamic:
+            _dict["is_dynamic"] = True
+        if self.auto_id:
+            _dict["auto_id"] = True
+        if self.is_primary:
+            _dict["is_primary"] = self.is_primary
         return _dict
 
 
@@ -187,6 +192,17 @@ class CollectionSchema:
 
         self.properties = raw.properties
 
+    @classmethod
+    def _rewrite_schema_dict(cls, schema_dict):
+        fields = schema_dict.get("fields", [])
+        if not fields:
+            return
+
+        for field_dict in fields:
+            if field_dict.get("auto_id", None) is not None:
+                schema_dict["auto_id"] = field_dict["auto_id"]
+                return
+
     def dict(self):
         if not self._raw:
             return {}
@@ -201,8 +217,10 @@ class CollectionSchema:
             "consistency_level": self.consistency_level,
             "properties": self.properties,
             "num_partitions": self.num_partitions,
-            "enable_dynamic_field": self.enable_dynamic_field,
         }
+        if self.enable_dynamic_field:
+            _dict["enable_dynamic_field"] = self.enable_dynamic_field
+        self._rewrite_schema_dict(_dict)
         return _dict
 
     def __str__(self):
