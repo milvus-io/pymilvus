@@ -193,7 +193,7 @@ class MilvusClient:
     def search(self,
                collection_name: str,
                data: Union[List[list], list],
-               filter: str = None,
+               filter: str = "",
                limit: int = 10,
                output_fields: List[str] = None,
                search_params: dict = None,
@@ -252,7 +252,7 @@ class MilvusClient:
     def query(
             self,
             collection_name: str,
-            filter: str = None,
+            filter: str,
             output_fields: List[str] = None,
             timeout: float = None,
             **kwargs
@@ -431,16 +431,6 @@ class MilvusClient:
         conn = self._get_connection()
         conn.flush([collection_name], timeout=timeout, **kwargs)
 
-    def _rewrite_schema_dict(self, schema_dict):
-        fields = schema_dict.get("fields", [])
-        if not fields:
-            return
-
-        for field_dict in fields:
-            if field_dict.get("auto_id", None) is not None:
-                schema_dict["auto_id"] = field_dict["auto_id"]
-                return
-
     def describe_collection(self, collection_name: str, **kwargs):
         conn = self._get_connection()
         try:
@@ -449,9 +439,7 @@ class MilvusClient:
         except Exception as ex:
             logger.error("Failed to describe collection: %s", collection_name)
             raise ex
-        self._rewrite_schema_dict(schema_dict)
-        schema = CollectionSchema.construct_from_dict(schema_dict)
-        return schema.to_dict()
+        return schema_dict
 
     def list_collections(self, **kwargs):
         conn = self._get_connection()
