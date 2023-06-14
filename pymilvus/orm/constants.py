@@ -33,3 +33,4 @@ RADIUS = "radius"
 RANGE_FILTER = "range_filter"
 FIELDS = "fields"
 ITERATION_EXTENSION_REDUCE_RATE = "iteration_extension_reduce_rate"
+DEFAULT_MAX_L2_DISTANCE = float(999999.0)
