@@ -68,7 +68,10 @@ class CollectionSchema:
             raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
         self._fields = [copy.deepcopy(field) for field in fields]
 
-        self._check()
+        self._check_kwargs()
+        if kwargs.get("check_fields", True):
+            self._check_fields()
+
 
     def _check_kwargs(self):
         primary_field_name = self._kwargs.get("primary_field", None)
