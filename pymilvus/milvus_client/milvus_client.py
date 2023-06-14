@@ -72,7 +72,7 @@ class MilvusClient:
         if "enable_dynamic_field" not in kwargs:
             kwargs["enable_dynamic_field"] = True
 
-        schema = CollectionSchema([], auto_id=auto_id, **kwargs)
+        schema = self.create_schema(auto_id=auto_id, **kwargs)
 
         if id_type == "int":
             pk_data_type = DataType.INT64
@@ -457,6 +457,7 @@ class MilvusClient:
 
     @classmethod
     def create_schema(cls, **kwargs):
+        kwargs["check_fields"] = False  # do not check fields for now
         return CollectionSchema([], **kwargs)
 
     @classmethod
