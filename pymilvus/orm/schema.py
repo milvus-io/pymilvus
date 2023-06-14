@@ -67,10 +67,9 @@ class CollectionSchema:
         self._primary_field = None
         self._partition_key_field = None
 
-        if fields:
-            if not isinstance(fields, list):
-                raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
-            self._fields = [copy.deepcopy(field) for field in fields]
+        if not isinstance(fields, list):
+            raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
+        self._fields = [copy.deepcopy(field) for field in fields]
 
         self._check()
 
@@ -87,6 +86,10 @@ class CollectionSchema:
         for field in self._fields:
             if not isinstance(field, FieldSchema):
                 raise FieldTypeException(message=ExceptionsMessage.FieldType)
+
+        if "auto_id" in self._kwargs:
+            if not isinstance(self._kwargs["auto_id"], bool):
+                raise AutoIDException(0, ExceptionsMessage.AutoIDType)
 
     def _check_fields(self):
         primary_field_name = self._kwargs.get("primary_field", None)
@@ -111,15 +114,16 @@ class CollectionSchema:
                 self._partition_key_field = field
                 partition_key_field_name = field.name
 
-        if self._primary_field:
-            validate_primary_key(self._primary_field)
-            if self._partition_key_field:
-                validate_partition_key(partition_key_field_name,
-                                       self._partition_key_field, self._primary_field)
+        validate_primary_key(self._primary_field)
+        validate_partition_key(partition_key_field_name,
+                                self._partition_key_field, self._primary_field.name)
 
-            auto_id = self._kwargs.get("auto_id", False)
-            if auto_id:
-                self._primary_field.auto_id = auto_id
+        auto_id = self._kwargs.get("auto_id", False)
+        if auto_id:
+            self._primary_field.auto_id = auto_id
+
+        if self._primary_field.auto_id and self._primary_field.dtype == DataType.VARCHAR:
+            raise AutoIDException(0, ExceptionsMessage.AutoIDFieldType)
 
     def _check(self):
         self._check_kwargs()
