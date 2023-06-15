@@ -788,7 +788,7 @@ class GrpcHandler:
             raise MilvusException(response.error_code, response.reason)
         _async = kwargs.get("_async", False)
         if not _async:
-            self.wait_for_loading_collection(collection_name, timeout)
+            self.wait_for_loading_collection(collection_name, timeout, isRefresh=_refresh)
 
     @retry_on_rpc_failure()
     def load_collection_progress(self, collection_name, timeout=None):
@@ -799,14 +799,14 @@ class GrpcHandler:
         }
 
     @retry_on_rpc_failure()
-    def wait_for_loading_collection(self, collection_name, timeout=None):
+    def wait_for_loading_collection(self, collection_name, timeout=None, isRefresh=False):
         start = time.time()
 
         def can_loop(t) -> bool:
             return True if timeout is None else t <= (start + timeout)
 
         while can_loop(time.time()):
-            progress = self.get_loading_progress(collection_name, timeout=timeout)
+            progress = self.get_loading_progress(collection_name, timeout=timeout, isRefresh=isRefresh)
             if progress >= 100:
                 return
             time.sleep(Config.WaitTimeDurationWhenLoad)
@@ -836,7 +836,7 @@ class GrpcHandler:
         if kwargs.get("_async", False):
             def _check():
                 if kwargs.get("sync", True):
-                    self.wait_for_loading_partitions(collection_name, partition_names)
+                    self.wait_for_loading_partitions(collection_name, partition_names, isRefresh=_refresh)
 
             load_partitions_future = LoadPartitionsFuture(future)
             load_partitions_future.add_callback(_check)
@@ -852,17 +852,17 @@ class GrpcHandler:
             raise MilvusException(response.error_code, response.reason)
         sync = kwargs.get("sync", True)
         if sync:
-            self.wait_for_loading_partitions(collection_name, partition_names)
+            self.wait_for_loading_partitions(collection_name, partition_names, isRefresh=_refresh)
 
     @retry_on_rpc_failure()
-    def wait_for_loading_partitions(self, collection_name, partition_names, timeout=None):
+    def wait_for_loading_partitions(self, collection_name, partition_names, timeout=None, isRefresh=False):
         start = time.time()
 
         def can_loop(t) -> bool:
             return True if timeout is None else t <= (start + timeout)
 
         while can_loop(time.time()):
-            progress = self.get_loading_progress(collection_name, partition_names, timeout=timeout)
+            progress = self.get_loading_progress(collection_name, partition_names, timeout=timeout, isRefresh=isRefresh)
             if progress >= 100:
                 return
             time.sleep(Config.WaitTimeDurationWhenLoad)
@@ -870,11 +870,14 @@ class GrpcHandler:
             message=f"wait for loading partition timeout, collection: {collection_name}, partitions: {partition_names}")
 
     @retry_on_rpc_failure()
-    def get_loading_progress(self, collection_name, partition_names=None, timeout=None):
+    def get_loading_progress(self, collection_name, partition_names=None, timeout=None, isRefresh=False):
         request = Prepare.get_loading_progress(collection_name, partition_names)
         response = self._stub.GetLoadingProgress.future(request, timeout=timeout).result()
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
+
+        if isRefresh:
+            return response.refresh_progress
         return response.progress
 
     @retry_on_rpc_failure()
