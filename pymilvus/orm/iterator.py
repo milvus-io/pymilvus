@@ -1,4 +1,5 @@
-from .constants import OFFSET, LIMIT, ID, FIELDS, RANGE_FILTER, RADIUS, PARAMS, ITERATION_EXTENSION_REDUCE_RATE
+from .constants import OFFSET, LIMIT, FIELDS, METRIC_TYPE, RANGE_FILTER, RADIUS, PARAMS, \
+    ITERATION_EXTENSION_REDUCE_RATE, DEFAULT_MAX_L2_DISTANCE
 from .types import DataType
 from ..exceptions import (
     MilvusException,
@@ -17,7 +18,7 @@ class QueryIterator:
         self._schema = schema
         self._timeout = timeout
         self._kwargs = kwargs
-        self.__setup__pk_is_str()
+        self.__setup__pk_prop()
         self.__seek()
         self._cache_id_in_use = NO_CACHE_ID
 
@@ -66,7 +67,7 @@ class QueryIterator:
         self.__update_cursor(ret)
         return ret
 
-    def __setup__pk_is_str(self):
+    def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
         for field in fields:
             if field['is_primary']:
@@ -74,23 +75,29 @@ class QueryIterator:
                     self._pk_str = True
                 else:
                     self._pk_str = False
+                self._pk_field_name = field['name']
                 break
+        if self._pk_field_name is None or self._pk_field_name == "":
+            raise MilvusException("schema must contain pk field, broke")
+
 
     def __setup_next_expr(self):
         current_expr = self._expr
         if self._next_id is None:
             return current_expr
-        if self._next_id is not None:
-            if self._pk_str:
-                current_expr = self._expr + f" and id > \"{self._next_id}\""
-            else:
-                current_expr = self._expr + f" and id > {self._next_id}"
-        return current_expr
+        filtered_pk_str = ""
+        if self._pk_str:
+            filtered_pk_str = f"{self._pk_field_name} > \"{self._next_id}\""
+        else:
+            filtered_pk_str = f"{self._pk_field_name} > {self._next_id}"
+        if current_expr is None or len(current_expr) == 0:
+            return filtered_pk_str
+        return current_expr + " and " + filtered_pk_str
 
     def __update_cursor(self, res):
         if len(res) == 0:
             return
-        self._next_id = res[-1][ID]
+        self._next_id = res[-1][self._pk_field_name]
 
     def close(self):
         # release cache in use
@@ -116,9 +123,9 @@ class SearchIterator:
         self._schema = schema
         self.__check_radius()
         self.__seek()
-        self.__setup__pk_is_str()
+        self.__setup__pk_prop()
 
-    def __setup__pk_is_str(self):
+    def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
         for field in fields:
             if field['is_primary']:
@@ -126,11 +133,26 @@ class SearchIterator:
                     self._pk_str = True
                 else:
                     self._pk_str = False
+                self._pk_field_name = field['name']
                 break
+        if self._pk_field_name is None or self._pk_field_name == "":
+            raise MilvusException("schema must contain pk field, broke")
 
     def __check_radius(self):
-        if self._param[PARAMS][RADIUS] is None:
-            raise MilvusException(message="must provide radius parameter when using search iterator")
+        if PARAMS not in self._param:
+            if self._param[METRIC_TYPE] == "L2":
+                self._param[PARAMS] = {"radius": DEFAULT_MAX_L2_DISTANCE}
+            elif self._param[METRIC_TYPE] == "IP":
+                self._param[PARAMS] = {"radius": 0}
+            else:
+                raise MilvusException(message="only support L2 or IP metrics for search iteration")
+        elif RADIUS not in self._param[PARAMS]:
+            if self._param[METRIC_TYPE] == "L2":
+                self._param[PARAMS][RADIUS] = DEFAULT_MAX_L2_DISTANCE
+            elif self._param[METRIC_TYPE] == "IP":
+                self._param[PARAMS][RADIUS] = 0
+            else:
+                raise MilvusException(message="only support L2 or IP metrics for search iteration")
 
     def __seek(self):
         if self._kwargs.get(OFFSET, 0) != 0:
@@ -140,6 +162,8 @@ class SearchIterator:
         if len(res[0]) == 0:
             return
         last_hit = res[0][-1]
+        if last_hit is None:
+            return
         self._distance_cursor[0] = last_hit.distance
         self._filtered_ids = []
         for hit in res[0]:
@@ -173,14 +197,17 @@ class SearchIterator:
         filtered_ids_str = ""
         for filtered_id in self._filtered_ids:
             if self._pk_str:
-                filtered_ids_str += f"\"{filtered_id}\", "
+                filtered_ids_str += f"\"{filtered_id}\","
             else:
-                filtered_ids_str += f"{filtered_id}, "
+                filtered_ids_str += f"{filtered_id},"
+        filtered_ids_str = filtered_ids_str[0:-1]
 
-        filter_expr = f"id not in [{filtered_ids_str}]"
-        if expr is not None:
-            return expr + filter_expr
-        return filter_expr
+        if len(filtered_ids_str) > 0:
+            if expr is not None and len(expr) > 0:
+                filter_expr = f" and {self._pk_field_name} not in [{filtered_ids_str}]"
+                return expr + filter_expr
+            return f"{self._pk_field_name} not in [{filtered_ids_str}]"
+        return expr
 
     def __next_params(self):
         next_params = self._param.copy()
