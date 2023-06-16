@@ -15,6 +15,12 @@ class Config:
     MILVUS_CONN_ALIAS = env.str("MILVUS_CONN_ALIAS", "default")
     MILVUS_CONN_TIMEOUT = env.float("MILVUS_CONN_TIMEOUT", 10)
 
+    MILVUS_USER = env.str("MILVUS_USER", "")
+    MILVUS_PASSWORD = env.str("MILVUS_PASSWORD", "")
+    MILVUS_TOKEN = env.str("MILVUS_TOKEN", "")
+
+    MILVUS_DB_NAME = env.str("MILVUS_DB_NAME", "")
+
     # legacy configs:
     DEFAULT_USING = MILVUS_CONN_ALIAS
     DEFAULT_CONNECT_TIMEOUT = MILVUS_CONN_TIMEOUT
@@ -26,6 +32,7 @@ class Config:
 
     DEFAULT_HOST = "localhost"
     DEFAULT_PORT = "19530"
+    DEFAULT_SECURE = False
 
     WaitTimeDurationWhenLoad = 0.5  # in seconds
     MaxVarCharLengthKey = "max_length"
