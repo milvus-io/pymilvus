@@ -49,13 +49,13 @@ def entity_to_str_arr(entity, field_info, check=True):
 
 
 def convert_to_json(obj):
-    return ujson.dumps(obj).encode(Config.EncodeProtocol)
+    return ujson.dumps(obj, ensure_ascii=False).encode(Config.EncodeProtocol)
 
 
 def convert_to_json_arr(objs):
     arr = []
     for obj in objs:
-        arr.append(ujson.dumps(obj).encode(Config.EncodeProtocol))
+        arr.append(ujson.dumps(obj, ensure_ascii=False).encode(Config.EncodeProtocol))
     return arr
 
 
