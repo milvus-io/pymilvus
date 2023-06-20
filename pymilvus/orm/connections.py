@@ -107,7 +107,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
 
     def __parse_address_from_uri(self, uri: str) -> (str, parse.ParseResult):
-        illegal_uri_msg = "Illegal uri: [{}], expected form 'https://user:pwd@example.com:12345'"
+        illegal_uri_msg = "Illegal uri: [{}], expected form 'http[s]://[user:password@]example.com:12345'"
         try:
             parsed_uri = parse.urlparse(uri)
         except (Exception) as e:
