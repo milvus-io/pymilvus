@@ -80,7 +80,6 @@ class QueryIterator:
         if self._pk_field_name is None or self._pk_field_name == "":
             raise MilvusException("schema must contain pk field, broke")
 
-
     def __setup_next_expr(self):
         current_expr = self._expr
         if self._next_id is None:
@@ -139,20 +138,27 @@ class SearchIterator:
             raise MilvusException("schema must contain pk field, broke")
 
     def __check_radius(self):
+        if self._param[METRIC_TYPE] != "L2" and self._param[METRIC_TYPE] != "IP":
+            raise MilvusException(message="only support L2 or IP metrics for search iteration")
+
         if PARAMS not in self._param:
             if self._param[METRIC_TYPE] == "L2":
                 self._param[PARAMS] = {"radius": DEFAULT_MAX_L2_DISTANCE}
-            elif self._param[METRIC_TYPE] == "IP":
+                self._distance_cursor = [0.0]
+            else:
                 self._param[PARAMS] = {"radius": 0}
-            else:
-                raise MilvusException(message="only support L2 or IP metrics for search iteration")
-        elif RADIUS not in self._param[PARAMS]:
-            if self._param[METRIC_TYPE] == "L2":
-                self._param[PARAMS][RADIUS] = DEFAULT_MAX_L2_DISTANCE
-            elif self._param[METRIC_TYPE] == "IP":
-                self._param[PARAMS][RADIUS] = 0
-            else:
-                raise MilvusException(message="only support L2 or IP metrics for search iteration")
+                self._distance_cursor = [DEFAULT_MAX_L2_DISTANCE]
+            return
+
+        default_radius = DEFAULT_MAX_L2_DISTANCE
+        default_range_filter = 0.0
+        if self._param[METRIC_TYPE] == "IP":
+            default_radius = 0.0
+            default_range_filter = DEFAULT_MAX_L2_DISTANCE
+
+        self._param[PARAMS][RADIUS] = self._param[PARAMS].get(RADIUS, default_radius)
+        self._distance_cursor = [self._param[PARAMS].get(RANGE_FILTER, default_range_filter)]
+        self._param[PARAMS][RANGE_FILTER] = self._param[PARAMS].get(RANGE_FILTER, default_range_filter)
 
     def __seek(self):
         if self._kwargs.get(OFFSET, 0) != 0:
