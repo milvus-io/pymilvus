@@ -16,9 +16,9 @@ from typing import Union, List
 import pandas
 
 from ..exceptions import (
-    CollectionNotExistException,
     PartitionNotExistException,
     ExceptionsMessage,
+    MilvusException
 )
 
 from .search import SearchResult
@@ -29,9 +29,13 @@ from ..client.types import Replica
 class Partition:
     def __init__(self, collection, name, description="", **kwargs):
         from .collection import Collection
-        if not isinstance(collection, Collection):
-            raise CollectionNotExistException(message=ExceptionsMessage.CollectionType)
-        self._collection = collection
+        if isinstance(collection, Collection):
+            self._collection = collection
+        elif isinstance(collection, str):
+            self._collection = Collection(collection)
+        else:
+            raise MilvusException(message="Collection must be of type pymilvus.Collection or String")
+
         self._name = name
         self._description = description
 
