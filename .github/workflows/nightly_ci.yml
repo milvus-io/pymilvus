@@ -54,7 +54,7 @@ jobs:
         python3 -m pip install setuptools --upgrade
         python3 -m pip install --no-cache-dir -r milvus/tests/python_client/requirements.txt
         python3 -m pip uninstall -y pymilvus
-        python3 setup.py install
+        python3 -m pip install -e .
 
     - name: Smoke Test
       working-directory: milvus/tests/python_client
