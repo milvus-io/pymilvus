@@ -6,34 +6,13 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class DescribeSegmentIndexDataRequest(_message.Message):
-    __slots__ = ["base", "collection_name", "index_name", "segmentsIDs"]
-    BASE_FIELD_NUMBER: _ClassVar[int]
-    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
-    INDEX_NAME_FIELD_NUMBER: _ClassVar[int]
-    SEGMENTSIDS_FIELD_NUMBER: _ClassVar[int]
-    base: _common_pb2.MsgBase
-    collection_name: str
-    index_name: str
-    segmentsIDs: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collection_name: _Optional[str] = ..., index_name: _Optional[str] = ..., segmentsIDs: _Optional[_Iterable[int]] = ...) -> None: ...
-
-class DescribeSegmentIndexDataResponse(_message.Message):
-    __slots__ = ["index_data", "index_params", "status"]
-    class IndexDataEntry(_message.Message):
-        __slots__ = ["key", "value"]
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: int
-        value: SegmentIndexData
-        def __init__(self, key: _Optional[int] = ..., value: _Optional[_Union[SegmentIndexData, _Mapping]] = ...) -> None: ...
+class SegmentIndexData(_message.Message):
+    __slots__ = ["segmentID", "index_data"]
+    SEGMENTID_FIELD_NUMBER: _ClassVar[int]
     INDEX_DATA_FIELD_NUMBER: _ClassVar[int]
-    INDEX_PARAMS_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    index_data: _containers.MessageMap[int, SegmentIndexData]
-    index_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
-    status: _common_pb2.Status
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., index_data: _Optional[_Mapping[int, SegmentIndexData]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+    segmentID: int
+    index_data: str
+    def __init__(self, segmentID: _Optional[int] = ..., index_data: _Optional[str] = ...) -> None: ...
 
 class FederSegmentSearchResult(_message.Message):
     __slots__ = ["segmentID", "visit_info"]
@@ -54,17 +33,38 @@ class ListIndexedSegmentRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collection_name: _Optional[str] = ..., index_name: _Optional[str] = ...) -> None: ...
 
 class ListIndexedSegmentResponse(_message.Message):
-    __slots__ = ["segmentIDs", "status"]
-    SEGMENTIDS_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["status", "segmentIDs"]
     STATUS_FIELD_NUMBER: _ClassVar[int]
-    segmentIDs: _containers.RepeatedScalarFieldContainer[int]
+    SEGMENTIDS_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
+    segmentIDs: _containers.RepeatedScalarFieldContainer[int]
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., segmentIDs: _Optional[_Iterable[int]] = ...) -> None: ...
 
-class SegmentIndexData(_message.Message):
-    __slots__ = ["index_data", "segmentID"]
+class DescribeSegmentIndexDataRequest(_message.Message):
+    __slots__ = ["base", "collection_name", "index_name", "segmentsIDs"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    INDEX_NAME_FIELD_NUMBER: _ClassVar[int]
+    SEGMENTSIDS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    collection_name: str
+    index_name: str
+    segmentsIDs: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collection_name: _Optional[str] = ..., index_name: _Optional[str] = ..., segmentsIDs: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class DescribeSegmentIndexDataResponse(_message.Message):
+    __slots__ = ["status", "index_data", "index_params"]
+    class IndexDataEntry(_message.Message):
+        __slots__ = ["key", "value"]
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: int
+        value: SegmentIndexData
+        def __init__(self, key: _Optional[int] = ..., value: _Optional[_Union[SegmentIndexData, _Mapping]] = ...) -> None: ...
+    STATUS_FIELD_NUMBER: _ClassVar[int]
     INDEX_DATA_FIELD_NUMBER: _ClassVar[int]
-    SEGMENTID_FIELD_NUMBER: _ClassVar[int]
-    index_data: str
-    segmentID: int
-    def __init__(self, segmentID: _Optional[int] = ..., index_data: _Optional[str] = ...) -> None: ...
+    INDEX_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    index_data: _containers.MessageMap[int, SegmentIndexData]
+    index_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., index_data: _Optional[_Mapping[int, SegmentIndexData]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
