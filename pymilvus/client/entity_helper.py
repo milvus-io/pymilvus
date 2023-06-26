@@ -199,7 +199,7 @@ def extract_row_data_from_fields_data(fields_data, index, dynamic_output_fields=
             if len(field_data.vectors.float_vector.data) >= index * dim:
                 start_pos = index * dim
                 end_pos = index * dim + dim
-                entity_row_data[field_data.field_name] = [np.single(x) for x in
+                entity_row_data[field_data.field_name] = [np.longdouble(x) for x in
                                                           field_data.vectors.float_vector.data[
                                                           start_pos:end_pos]]
         elif field_data.type == DataType.BINARY_VECTOR:
