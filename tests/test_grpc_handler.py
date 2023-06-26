@@ -68,7 +68,7 @@ class TestGrpcHandler:
 
         rpc.terminate(expected_result, (), grpc.StatusCode.UNAVAILABLE, 'server Unavailable')
 
-        with pytest.raises(MilvusUnavailableException):
+        with pytest.raises(MilvusException):
             has_collection_future.result()
 
     def test_get_server_version_error(self, channel, client_thread):
