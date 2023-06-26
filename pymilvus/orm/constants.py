@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2021 Zilliz. All rights reserved.
+ # Copyright (C) 2019-2021 Zilliz. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -20,6 +20,8 @@ CALC_DIST_L2 = "L2"
 CALC_DIST_IP = "IP"
 CALC_DIST_HAMMING = "HAMMING"
 CALC_DIST_TANIMOTO = "TANIMOTO"
+CALC_DIST_JACCARD = "JACCARD"
+CALC_DIST_COSINE = "COSINE"
 CALC_DIST_SQRT = "sqrt"
 CALC_DIST_DIM = "dim"
 
@@ -33,4 +35,10 @@ RADIUS = "radius"
 RANGE_FILTER = "range_filter"
 FIELDS = "fields"
 ITERATION_EXTENSION_REDUCE_RATE = "iteration_extension_reduce_rate"
-DEFAULT_MAX_L2_DISTANCE = float(999999.0)
+DEFAULT_MAX_L2_DISTANCE = float(99999999.0)
+DEFAULT_MIN_IP_DISTANCE = float(-99999999.0)
+DEFAULT_MAX_HAMMING_DISTANCE = float(99999999.0)
+DEFAULT_MAX_TANIMOTO_DISTANCE = float(99999999.0)
+DEFAULT_MAX_JACCARD_DISTANCE = float(2.0)
+DEFAULT_MIN_COSINE_DISTANCE = float(-2.0)
+MAX_FILTERED_IDS_COUNT_ITERATION = 100000

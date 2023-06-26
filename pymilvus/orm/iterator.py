@@ -1,5 +1,9 @@
-from .constants import OFFSET, LIMIT, FIELDS, METRIC_TYPE, RANGE_FILTER, RADIUS, PARAMS, \
-    ITERATION_EXTENSION_REDUCE_RATE, DEFAULT_MAX_L2_DISTANCE
+from .constants import CALC_DIST_JACCARD, CALC_DIST_COSINE, OFFSET, LIMIT, METRIC_TYPE,\
+    FIELDS, PARAMS, RADIUS, RANGE_FILTER, DEFAULT_MAX_L2_DISTANCE, DEFAULT_MIN_IP_DISTANCE, \
+    DEFAULT_MAX_HAMMING_DISTANCE, DEFAULT_MAX_TANIMOTO_DISTANCE, DEFAULT_MAX_JACCARD_DISTANCE, \
+    DEFAULT_MIN_COSINE_DISTANCE, MAX_FILTERED_IDS_COUNT_ITERATION, ITERATION_EXTENSION_REDUCE_RATE, \
+    CALC_DIST_L2, CALC_DIST_IP, CALC_DIST_HAMMING, CALC_DIST_TANIMOTO
+
 from .types import DataType
 from ..exceptions import (
     MilvusException,
@@ -78,7 +82,7 @@ class QueryIterator:
                 self._pk_field_name = field['name']
                 break
         if self._pk_field_name is None or self._pk_field_name == "":
-            raise MilvusException("schema must contain pk field, broke")
+            raise MilvusException(message="schema must contain pk field, broke")
 
     def __setup_next_expr(self):
         current_expr = self._expr
@@ -103,12 +107,28 @@ class QueryIterator:
         iteratorCache.release_cache(self._cache_id_in_use)
 
 
+def default_radius(metrics):
+    if metrics is CALC_DIST_L2:
+        return DEFAULT_MAX_L2_DISTANCE
+    if metrics is CALC_DIST_IP:
+        return DEFAULT_MIN_IP_DISTANCE
+    if metrics is CALC_DIST_HAMMING:
+        return DEFAULT_MAX_HAMMING_DISTANCE
+    if metrics is CALC_DIST_TANIMOTO:
+        return DEFAULT_MAX_TANIMOTO_DISTANCE
+    if metrics is CALC_DIST_JACCARD:
+        return DEFAULT_MAX_JACCARD_DISTANCE
+    if metrics is CALC_DIST_COSINE:
+        return DEFAULT_MIN_COSINE_DISTANCE
+    raise MilvusException(message="unknown metrics type for search iteration")
+
+
 class SearchIterator:
 
     def __init__(self, connection, collection_name, data, ann_field, param, limit, expr=None, partition_names=None,
                  output_fields=None, timeout=None, round_decimal=-1, schema=None, **kwargs):
         if len(data) > 1:
-            raise MilvusException("Not support multiple vector iterator at present")
+            raise MilvusException(message="Not support multiple vector iterator at present")
         self._conn = connection
         self._iterator_params = {'collection_name': collection_name, "data": data,
                                  "ann_field": ann_field, "limit": limit,
@@ -117,9 +137,11 @@ class SearchIterator:
         self._expr = expr
         self._param = param
         self._kwargs = kwargs
-        self._distance_cursor = [0.0]
+        self._distance_cursor = [None]
         self._filtered_ids = []
+        self._filtered_distance = None
         self._schema = schema
+        self.__check_metrics()
         self.__check_radius()
         self.__seek()
         self.__setup__pk_prop()
@@ -135,34 +157,21 @@ class SearchIterator:
                 self._pk_field_name = field['name']
                 break
         if self._pk_field_name is None or self._pk_field_name == "":
-            raise MilvusException("schema must contain pk field, broke")
+            raise MilvusException(message="schema must contain pk field, broke")
+
+    def __check_metrics(self):
+        if self._param[METRIC_TYPE] is None or self._param[METRIC_TYPE] == "":
+            raise MilvusException(message="must specify metrics type for search iterator")
 
     def __check_radius(self):
-        if self._param[METRIC_TYPE] != "L2" and self._param[METRIC_TYPE] != "IP":
-            raise MilvusException(message="only support L2 or IP metrics for search iteration")
-
         if PARAMS not in self._param:
-            if self._param[METRIC_TYPE] == "L2":
-                self._param[PARAMS] = {"radius": DEFAULT_MAX_L2_DISTANCE}
-                self._distance_cursor = [0.0]
-            else:
-                self._param[PARAMS] = {"radius": 0}
-                self._distance_cursor = [DEFAULT_MAX_L2_DISTANCE]
-            return
-
-        default_radius = DEFAULT_MAX_L2_DISTANCE
-        default_range_filter = 0.0
-        if self._param[METRIC_TYPE] == "IP":
-            default_radius = 0.0
-            default_range_filter = DEFAULT_MAX_L2_DISTANCE
-
-        self._param[PARAMS][RADIUS] = self._param[PARAMS].get(RADIUS, default_radius)
-        self._distance_cursor = [self._param[PARAMS].get(RANGE_FILTER, default_range_filter)]
-        self._param[PARAMS][RANGE_FILTER] = self._param[PARAMS].get(RANGE_FILTER, default_range_filter)
+            self._param[PARAMS] = {"radius": default_radius(self._param[METRIC_TYPE])}
+        elif RADIUS not in self._param[PARAMS]:
+            self._param[PARAMS][RADIUS] = default_radius(self._param[METRIC_TYPE])
 
     def __seek(self):
         if self._kwargs.get(OFFSET, 0) != 0:
-            raise MilvusException("Not support offset when searching iteration")
+            raise MilvusException(message="Not support offset when searching iteration")
 
     def __update_cursor(self, res):
         if len(res[0]) == 0:
@@ -171,10 +180,17 @@ class SearchIterator:
         if last_hit is None:
             return
         self._distance_cursor[0] = last_hit.distance
-        self._filtered_ids = []
+        if self._distance_cursor[0] != self._filtered_distance:
+            self._filtered_ids = []  # distance has changed, clear filter_ids array
+            self._filtered_distance = self._distance_cursor[0]  # renew the distance for filtering
         for hit in res[0]:
             if hit.distance == last_hit.distance:
                 self._filtered_ids.append(hit.id)
+        if len(self._filtered_ids) > MAX_FILTERED_IDS_COUNT_ITERATION:
+            raise MilvusException(message=f"filtered ids length has accumulated to more than "
+                                          f"{str(MAX_FILTERED_IDS_COUNT_ITERATION)}, "
+                                          f"there is a danger of overly memory consumption")
+
 
     def next(self):
         next_params = self.__next_params()
@@ -217,7 +233,8 @@ class SearchIterator:
 
     def __next_params(self):
         next_params = self._param.copy()
-        next_params[PARAMS][RANGE_FILTER] = self._distance_cursor[0]
+        if self._distance_cursor[0] is not None:
+            next_params[PARAMS][RANGE_FILTER] = self._distance_cursor[0]
         return next_params
 
     def close(self):
