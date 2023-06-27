@@ -24,3 +24,9 @@ gen_proto:
 
 check_proto_product: gen_proto
 	./check_proto_product.sh
+	
+version:
+	python -m setuptools_scm
+
+install:
+	pip install -e .

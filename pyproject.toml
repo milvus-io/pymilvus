@@ -1,7 +1,40 @@
 [build-system]
 requires = [
-  "setuptools >= 42",
+  "setuptools >= 67",
   "wheel",
   "gitpython",
+  "setuptools_scm[toml]>=6.2",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name="pymilvus"
+authors = [
+  {name='Milvus Team', email="milvus-team@zilliz.com"},
+]
+requires-python = '>=3.7'
+
+description = "Python Sdk for Milvus"
+readme = "README.md"
+dependencies=[
+    "grpcio>=1.49.1,<=1.56.0",
+    "protobuf>=3.20.0",
+    "environs<=9.5.0",
+    "ujson>=2.0.0",
+    "pandas>=1.2.4",
+    "numpy<1.25.0;python_version<='3.8'",
+]
+
+classifiers=[
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apeche 2.0 License",
+]
+
+dynamic = ["version"]
+
+[project.urls]
+"repository" = 'https://github.com/milvus-io/pymilvus'
+
+[tool.setuptools_scm]
+'local_scheme'= 'no-local-version'
+'version_scheme'= 'release-branch-semver'
