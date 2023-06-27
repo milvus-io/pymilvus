@@ -1,61 +1,67 @@
 import abc
 import threading
+from typing import Any, Callable, List, Optional
 
-from .abstract import QueryResult, ChunkedQueryResult, MutationResult
-from ..exceptions import MilvusException
+from pymilvus.exceptions import MilvusException
+
+from .abstract import ChunkedQueryResult, MutationResult, QueryResult
 from .types import Status
 
 
 # TODO: remove this to a common util
-def _parameter_is_empty(func):
+def _parameter_is_empty(func: Callable):
     import inspect
+
     sig = inspect.signature(func)
-    # params = sig.parameters
     # todo: add more check to parameter, such as `default parameter`,
     #  `positional-only`, `positional-or-keyword`, `keyword-only`, `var-positional`, `var-keyword`
     # if len(params) == 0:
-    #     return True
     # for param in params.values():
     #     if (param.kind == inspect.Parameter.POSITIONAL_ONLY or
-    #         param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD) and \
     #             param.default == inspect._empty:
-    #         return False
     return len(sig.parameters) == 0
 
 
 class AbstractFuture:
     @abc.abstractmethod
     def result(self, **kwargs):
-        '''Return deserialized result.
+        """Return deserialized result.
 
         It's a synchronous interface. It will wait executing until
         server respond or timeout occur(if specified).
 
         This API is thread-safe.
-        '''
-        raise NotImplementedError()
+        """
+        raise NotImplementedError
 
     @abc.abstractmethod
     def cancel(self):
-        '''Cancle gRPC future.
+        """Cancle gRPC future.
 
         This API is thread-safe.
-        '''
-        raise NotImplementedError()
+        """
+        raise NotImplementedError
 
     @abc.abstractmethod
     def done(self):
-        '''Wait for request done.
+        """Wait for request done.
 
         This API is thread-safe.
-        '''
-        raise NotImplementedError()
+        """
+        raise NotImplementedError
 
 
 class Future(AbstractFuture):
-    def __init__(self, future, done_callback=None, pre_exception=None, **kwargs):
+    def __init__(
+        self,
+        future: Any,
+        done_callback: Optional[Callable] = None,
+        pre_exception: Optional[Callable] = None,
+        **kwargs,
+    ) -> None:
         self._future = future
-        self._done_cb = done_callback  # keep compatible (such as Future(future, done_callback)), deprecated later
+        # keep compatible (such as Future(future, done_callback)), deprecated later
+        self._done_cb = done_callback
         self._done_cb_list = []
         self.add_callback(done_callback)
         self._condition = threading.Condition()
@@ -67,19 +73,18 @@ class Future(AbstractFuture):
         self._callback_called = False  # callback function should be called only once
         self._kwargs = kwargs
 
-    def add_callback(self, func):
+    def add_callback(self, func: Callable):
         self._done_cb_list.append(func)
 
-    def __del__(self):
+    def __del__(self) -> None:
         self._future = None
 
     @abc.abstractmethod
-    def on_response(self, response):
-        ''' Parse response from gRPC server and return results.
-        '''
-        raise NotImplementedError()
+    def on_response(self, response: Callable):
+        """Parse response from gRPC server and return results."""
+        raise NotImplementedError
 
-    def _callback(self, **kwargs):
+    def _callback(self):
         if not self._callback_called:
             for cb in self._done_cb_list:
                 if cb:
@@ -134,7 +139,6 @@ class Future(AbstractFuture):
         return self._done
 
     def done(self):
-        # self.exception()
         with self._condition:
             if self._future and self._results is None:
                 try:
@@ -156,7 +160,7 @@ class Future(AbstractFuture):
 
 
 class SearchFuture(Future):
-    def on_response(self, response):
+    def on_response(self, response: Any):
         if response.status.error_code == 0:
             return QueryResult(response)
 
@@ -165,9 +169,15 @@ class SearchFuture(Future):
 
 
 # TODO: if ChunkedFuture is more common later, consider using ChunkedFuture as Base Class,
-#       then Future(future, done_cb, pre_exception) equal to ChunkedFuture([future], done_cb, pre_exception)
+#       then Future(future, done_cb, pre_exception) equal
+#       to ChunkedFuture([future], done_cb, pre_exception)
 class ChunkedSearchFuture(Future):
-    def __init__(self, future_list, done_callback=None, pre_exception=None):
+    def __init__(
+        self,
+        future_list: List,
+        done_callback: Optional[Callable] = None,
+        pre_exception: Optional[Callable] = None,
+    ) -> None:
         super().__init__(None, done_callback, pre_exception)
         self._future_list = future_list
         self._response = []
@@ -193,7 +203,8 @@ class ChunkedSearchFuture(Future):
         self.exception()
         if kwargs.get("raw", False) is True:
             # just return response object received from gRPC
-            raise AttributeError("Not supported to return response object received from gRPC")
+            msg = "Not supported to return response object received from gRPC"
+            raise AttributeError(msg)
 
         if self._results:
             return self._results
@@ -210,7 +221,6 @@ class ChunkedSearchFuture(Future):
         return self._done
 
     def done(self):
-        # self.exception()
         with self._condition:
             if self._results is None:
                 try:
@@ -234,7 +244,7 @@ class ChunkedSearchFuture(Future):
             if future:
                 future.exception()
 
-    def on_response(self, response):
+    def on_response(self, response: Any):
         for raw in response:
             if raw.status.error_code != 0:
                 raise MilvusException(raw.status.error_code, raw.status.reason)
@@ -243,7 +253,7 @@ class ChunkedSearchFuture(Future):
 
 
 class MutationFuture(Future):
-    def on_response(self, response):
+    def on_response(self, response: Any):
         status = response.status
         if status.error_code == 0:
             return MutationResult(response)
@@ -253,7 +263,7 @@ class MutationFuture(Future):
 
 
 class CreateIndexFuture(Future):
-    def on_response(self, response):
+    def on_response(self, response: Any):
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
@@ -261,7 +271,12 @@ class CreateIndexFuture(Future):
 
 
 class CreateFlatIndexFuture(AbstractFuture):
-    def __init__(self, res, done_callback=None, pre_exception=None):
+    def __init__(
+        self,
+        res: Any,
+        done_callback: Optional[Callable] = None,
+        pre_exception: Optional[Callable] = None,
+    ) -> None:
         self._results = res
         self._done_cb = done_callback
         self._done_cb_list = []
@@ -269,16 +284,16 @@ class CreateFlatIndexFuture(AbstractFuture):
         self._condition = threading.Condition()
         self._exception = pre_exception
 
-    def add_callback(self, func):
+    def add_callback(self, func: Callable):
         self._done_cb_list.append(func)
 
-    def __del__(self):
+    def __del__(self) -> None:
         self._results = None
 
-    def on_response(self, response):
+    def on_response(self, response: Any):
         pass
 
-    def result(self, **kwargs):
+    def result(self):
         self.exception()
         with self._condition:
             for cb in self._done_cb_list:
@@ -311,18 +326,18 @@ class CreateFlatIndexFuture(AbstractFuture):
 
 
 class FlushFuture(Future):
-    def on_response(self, response):
+    def on_response(self, response: Any):
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
 
 
 class LoadCollectionFuture(Future):
-    def on_response(self, response):
+    def on_response(self, response: Any):
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)
 
 
 class LoadPartitionsFuture(Future):
-    def on_response(self, response):
+    def on_response(self, response: Any):
         if response.error_code != 0:
             raise MilvusException(response.error_code, response.reason)

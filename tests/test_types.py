@@ -9,7 +9,8 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
-from pymilvus import DataType, DEFAULT_RESOURCE_GROUP
+from pymilvus import DataType
+from pymilvus.client.constants import DEFAULT_RESOURCE_GROUP
 from pymilvus.exceptions import InvalidConsistencyLevel
 from pymilvus.client.types import (
     get_consistency_level, Shard, Group, Replica, ConsistencyLevel

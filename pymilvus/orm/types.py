@@ -10,10 +10,18 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-from pandas.api.types import infer_dtype, is_list_like, is_scalar, is_float, is_array_like
-import numpy as np
+from typing import Any
 
-from ..client.types import DataType
+import numpy as np
+from pandas.api.types import (
+    infer_dtype,
+    is_array_like,
+    is_float,
+    is_list_like,
+    is_scalar,
+)
+
+from pymilvus.client.types import DataType
 
 dtype_str_map = {
     "string": DataType.VARCHAR,
@@ -51,20 +59,20 @@ numpy_dtype_str_map = {
 }
 
 
-def is_integer_datatype(data_type):
+def is_integer_datatype(data_type: DataType):
     return data_type in (DataType.INT8, DataType.INT16, DataType.INT32, DataType.INT64)
 
 
-def is_float_datatype(data_type):
+def is_float_datatype(data_type: DataType):
     return data_type in (DataType.FLOAT,)
 
 
-def is_numeric_datatype(data_type):
+def is_numeric_datatype(data_type: DataType):
     return is_float_datatype(data_type) or is_integer_datatype(data_type)
 
 
 # pylint: disable=too-many-return-statements
-def infer_dtype_by_scaladata(data):
+def infer_dtype_by_scaladata(data: Any):
     if isinstance(data, float):
         return DataType.DOUBLE
     if isinstance(data, bool):
@@ -97,11 +105,10 @@ def infer_dtype_by_scaladata(data):
     return DataType.UNKNOWN
 
 
-def infer_dtype_bydata(data):
+def infer_dtype_bydata(data: Any):
     d_type = DataType.UNKNOWN
     if is_scalar(data):
-        d_type = infer_dtype_by_scaladata(data)
-        return d_type
+        return infer_dtype_by_scaladata(data)
 
     if isinstance(data, dict):
         return DataType.JSON
@@ -114,12 +121,7 @@ def infer_dtype_bydata(data):
             failed = True
         if not failed:
             d_type = dtype_str_map.get(type_str, DataType.UNKNOWN)
-            if is_numeric_datatype(d_type):
-                d_type = DataType.FLOAT_VECTOR
-            else:
-                d_type = DataType.UNKNOWN
-
-            return d_type
+            return DataType.FLOAT_VECTOR if is_numeric_datatype(d_type) else DataType.UNKNOWN
 
     if d_type == DataType.UNKNOWN:
         try:
@@ -139,7 +141,7 @@ def infer_dtype_bydata(data):
     return d_type
 
 
-def map_numpy_dtype_to_datatype(d_type):
+def map_numpy_dtype_to_datatype(d_type: DataType):
     d_type_str = str(d_type)
     return numpy_dtype_str_map.get(d_type_str, DataType.UNKNOWN)
 

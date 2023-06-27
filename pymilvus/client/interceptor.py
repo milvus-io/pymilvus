@@ -14,69 +14,88 @@
 """Base class for interceptors that operate on all RPC types."""
 
 import collections
+from typing import Any, Callable, List
 
 import grpc
 
 
-class _GenericClientInterceptor(grpc.UnaryUnaryClientInterceptor,
-                                grpc.UnaryStreamClientInterceptor,
-                                grpc.StreamUnaryClientInterceptor,
-                                grpc.StreamStreamClientInterceptor):
-
-    def __init__(self, interceptor_function):
+class _GenericClientInterceptor(
+    grpc.UnaryUnaryClientInterceptor,
+    grpc.UnaryStreamClientInterceptor,
+    grpc.StreamUnaryClientInterceptor,
+    grpc.StreamStreamClientInterceptor,
+):
+    def __init__(self, interceptor_function: Callable) -> None:
         super().__init__()
         self._fn = interceptor_function
 
-    def intercept_unary_unary(self, continuation, client_call_details, request):
+    def intercept_unary_unary(self, continuation: Callable, client_call_details: Any, request: Any):
         new_details, new_request_iterator, postprocess = self._fn(
-            client_call_details, iter((request,)), False, False)
+            client_call_details, iter((request,))
+        )
         response = continuation(new_details, next(new_request_iterator))
         return postprocess(response) if postprocess else response
 
-    def intercept_unary_stream(self, continuation, client_call_details,
-                               request):
+    def intercept_unary_stream(
+        self,
+        continuation: Callable,
+        client_call_details: Any,
+        request: Any,
+    ):
         new_details, new_request_iterator, postprocess = self._fn(
-            client_call_details, iter((request,)), False, True)
+            client_call_details, iter((request,))
+        )
         response_it = continuation(new_details, next(new_request_iterator))
         return postprocess(response_it) if postprocess else response_it
 
-    def intercept_stream_unary(self, continuation, client_call_details,
-                               request_iterator):
+    def intercept_stream_unary(
+        self,
+        continuation: Callable,
+        client_call_details: Any,
+        request_iterator: Any,
+    ):
         new_details, new_request_iterator, postprocess = self._fn(
-            client_call_details, request_iterator, True, False)
+            client_call_details, request_iterator
+        )
         response = continuation(new_details, new_request_iterator)
         return postprocess(response) if postprocess else response
 
-    def intercept_stream_stream(self, continuation, client_call_details,
-                                request_iterator):
+    def intercept_stream_stream(
+        self,
+        continuation: Callable,
+        client_call_details: Any,
+        request_iterator: Any,
+    ):
         new_details, new_request_iterator, postprocess = self._fn(
-            client_call_details, request_iterator, True, True)
+            client_call_details, request_iterator
+        )
         response_it = continuation(new_details, new_request_iterator)
         return postprocess(response_it) if postprocess else response_it
 
 
-def create(intercept_call):
-    return _GenericClientInterceptor(intercept_call)
-
-
 class _ClientCallDetails(
-        collections.namedtuple(
-            '_ClientCallDetails',
-            ('method', 'timeout', 'metadata', 'credentials')),
-        grpc.ClientCallDetails):
+    collections.namedtuple("_ClientCallDetails", ("method", "timeout", "metadata", "credentials")),
+    grpc.ClientCallDetails,
+):
     pass
 
-def header_adder_interceptor(headers, values):
-    def intercept_call(client_call_details, request_iterator, request_streaming,
-                       response_streaming):
+
+def header_adder_interceptor(headers: List, values: List):
+    def intercept_call(
+        client_call_details: Any,
+        request_iterator: Any,
+    ):
         metadata = []
         if client_call_details.metadata is not None:
             metadata = list(client_call_details.metadata)
         for item in zip(headers, values):
             metadata.append(item)
         client_call_details = _ClientCallDetails(
-            client_call_details.method, client_call_details.timeout, metadata,
-            client_call_details.credentials)
+            client_call_details.method,
+            client_call_details.timeout,
+            metadata,
+            client_call_details.credentials,
+        )
         return client_call_details, request_iterator, None
 
-    return create(intercept_call)
+    return _GenericClientInterceptor(intercept_call)

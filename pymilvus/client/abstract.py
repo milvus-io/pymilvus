@@ -1,11 +1,13 @@
 import abc
+from typing import Any, Dict, List
 
-from ..settings import Config
-from .types import DataType
-from .constants import DEFAULT_CONSISTENCY_LEVEL
-from ..grpc_gen import schema_pb2
-from ..exceptions import MilvusException
+from pymilvus.exceptions import MilvusException
+from pymilvus.grpc_gen import schema_pb2
+from pymilvus.settings import Config
+
 from . import entity_helper
+from .constants import DEFAULT_CONSISTENCY_LEVEL
+from .types import DataType
 
 
 class LoopBase:
@@ -15,17 +17,17 @@ class LoopBase:
     def __iter__(self):
         return self
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Any):
         if isinstance(item, slice):
             _start = item.start or 0
             _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
             _step = item.step or 1
 
-            elements = [self.get__item(i) for i in range(_start, _end, _step)]
-            return elements
+            return [self.get__item(i) for i in range(_start, _end, _step)]
 
         if item >= self.__len__():
-            raise IndexError("Index out of range")
+            msg = "Index out of range"
+            raise IndexError(msg)
 
         return self.get__item(item)
 
@@ -36,27 +38,27 @@ class LoopBase:
 
         # iterate stop, raise Exception
         self.__index = 0
-        raise StopIteration()
+        raise StopIteration
 
     def __str__(self):
         return str(list(map(str, self.__getitem__(slice(0, 10)))))
 
     @abc.abstractmethod
-    def get__item(self, item):
-        raise NotImplementedError()
+    def get__item(self, item: Any):
+        raise NotImplementedError
 
 
 class LoopCache:
     def __init__(self):
         self._array = []
 
-    def fill(self, index, obj):
+    def fill(self, index: int, obj: Any):
         if len(self._array) + 1 < index:
             pass
 
 
 class FieldSchema:
-    def __init__(self, raw):
+    def __init__(self, raw: Any):
         self._raw = raw
         #
         self.field_id = 0
@@ -73,7 +75,7 @@ class FieldSchema:
         ##
         self.__pack(self._raw)
 
-    def __pack(self, raw):
+    def __pack(self, raw: Any):
         self.field_id = raw.fieldID
         self.name = raw.name
         self.is_primary = raw.is_primary_key
@@ -82,19 +84,17 @@ class FieldSchema:
         self.type = raw.data_type
         self.is_partition_key = raw.is_partition_key
         self.default_value = raw.default_value
-        if raw.default_value is not None:
-            if raw.default_value.WhichOneof("data") is None:
-                self.default_value = None
+        if raw.default_value is not None and raw.default_value.WhichOneof("data") is None:
+            self.default_value = None
         try:
             self.is_dynamic = raw.is_dynamic
         except Exception:
             self.is_dynamic = False
 
-        # self.type = DataType(int(raw.type))
-
         for type_param in raw.type_params:
             if type_param.key == "params":
                 import json
+
                 self.params[type_param.key] = json.loads(type_param.value)
             else:
                 self.params[type_param.key] = type_param.value
@@ -106,6 +106,7 @@ class FieldSchema:
         for index_param in raw.index_params:
             if index_param.key == "params":
                 import json
+
                 index_dict[index_param.key] = json.loads(index_param.value)
             else:
                 index_dict[index_param.key] = index_param.value
@@ -113,9 +114,8 @@ class FieldSchema:
         self.indexes.extend([index_dict])
 
     def dict(self):
-        if self.default_value is not None:
-            if self.default_value.WhichOneof("data") is None:
-                self.default_value = None
+        if self.default_value is not None and self.default_value.WhichOneof("data") is None:
+            self.default_value = None
         _dict = {
             "field_id": self.field_id,
             "name": self.name,
@@ -137,7 +137,7 @@ class FieldSchema:
 
 
 class CollectionSchema:
-    def __init__(self, raw):
+    def __init__(self, raw: Any):
         self._raw = raw
 
         #
@@ -159,7 +159,7 @@ class CollectionSchema:
         if self._raw:
             self.__pack(self._raw)
 
-    def __pack(self, raw):
+    def __pack(self, raw: Any):
         self.collection_name = raw.schema.name
         self.description = raw.schema.description
         self.aliases = raw.aliases
@@ -178,22 +178,17 @@ class CollectionSchema:
         except Exception:
             self.enable_dynamic_field = False
 
-        # self.params = dict()
         # TODO: extra_params here
         # for kv in raw.extra_params:
-        #     par = ujson.loads(kv.value)
-        #     self.params.update(par)
-        #     # self.params[kv.key] = kv.value
 
         self.fields = [FieldSchema(f) for f in raw.schema.fields]
 
         # for s in raw.statistics:
-        #     self.statistics[s.key] = s.value
 
         self.properties = raw.properties
 
     @classmethod
-    def _rewrite_schema_dict(cls, schema_dict):
+    def _rewrite_schema_dict(cls, schema_dict: Dict):
         fields = schema_dict.get("fields", [])
         if not fields:
             return
@@ -228,16 +223,16 @@ class CollectionSchema:
 
 
 class Entity:
-    def __init__(self, entity_id, entity_row_data, entity_score):
+    def __init__(self, entity_id: int, entity_row_data: Any, entity_score: float):
         self._id = entity_id
         self._row_data = entity_row_data
         self._score = entity_score
         self._distance = entity_score
 
     def __str__(self):
-        return f'id: {self._id}, distance: {self._distance}, entity: {self._row_data}'
+        return f"id: {self._id}, distance: {self._distance}, entity: {self._row_data}"
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: Any):
         return self.value_of_field(item)
 
     @property
@@ -246,26 +241,26 @@ class Entity:
 
     @property
     def fields(self):
-        fields = [k for k, v in self._row_data.items()]
-        return fields
+        return [k for k, v in self._row_data.items()]
 
-    def get(self, field):
+    def get(self, field: Any):
         return self.value_of_field(field)
 
-    def value_of_field(self, field):
+    def value_of_field(self, field: Any):
         if field not in self._row_data:
             raise MilvusException(message=f"Field {field} is not in return entity")
         return self._row_data[field]
 
-    def type_of_field(self, field):
-        raise NotImplementedError('TODO: support field in Hits')
+    def type_of_field(self, field: Any):
+        msg = "TODO: support field in Hits"
+        raise NotImplementedError(msg)
 
     def to_dict(self):
         return {"id": self._id, "distance": self._distance, "entity": self._row_data}
 
 
 class Hit:
-    def __init__(self, entity_id, entity_row_data, entity_score):
+    def __init__(self, entity_id: int, entity_row_data: Any, entity_score: float):
         self._id = entity_id
         self._row_data = entity_row_data
         self._score = entity_score
@@ -297,7 +292,7 @@ class Hit:
 
 
 class Hits(LoopBase):
-    def __init__(self, raw, round_decimal=-1):
+    def __init__(self, raw: Any, round_decimal: int = -1):
         super().__init__()
         self._raw = raw
         if round_decimal != -1:
@@ -307,7 +302,10 @@ class Hits(LoopBase):
 
         self._dynamic_field_name = None
         self._dynamic_fields = set()
-        self._dynamic_field_name, self._dynamic_fields = entity_helper.extract_dynamic_field_from_result(self._raw)
+        (
+            self._dynamic_field_name,
+            self._dynamic_fields,
+        ) = entity_helper.extract_dynamic_field_from_result(self._raw)
 
     def __len__(self):
         if self._raw.ids.HasField("int_id"):
@@ -316,7 +314,7 @@ class Hits(LoopBase):
             return len(self._raw.ids.str_id.data)
         return 0
 
-    def get__item(self, item):
+    def get__item(self, item: Any):
         if self._raw.ids.HasField("int_id"):
             entity_id = self._raw.ids.int_id.data[item]
         elif self._raw.ids.HasField("str_id"):
@@ -324,8 +322,9 @@ class Hits(LoopBase):
         else:
             raise MilvusException(message="Unsupported ids type")
 
-        entity_row_data = entity_helper.extract_row_data_from_fields_data(self._raw.fields_data, item,
-                                                                          self._dynamic_fields)
+        entity_row_data = entity_helper.extract_row_data_from_fields_data(
+            self._raw.fields_data, item, self._dynamic_fields
+        )
         entity_score = self._distances[item]
         return Hit(entity_id, entity_row_data, entity_score)
 
@@ -343,7 +342,7 @@ class Hits(LoopBase):
 
 
 class MutationResult:
-    def __init__(self, raw):
+    def __init__(self, raw: Any):
         self._raw = raw
         self._primary_keys = []
         self._insert_cnt = 0
@@ -392,8 +391,10 @@ class MutationResult:
         return self._err_index
 
     def __str__(self):
-        return f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, " \
-               f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
+        return (
+            f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, "
+            f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
+        )
 
     __repr__ = __str__
 
@@ -404,8 +405,7 @@ class MutationResult:
     # def error_reason(self):
     #     pass
 
-    def _pack(self, raw):
-        # self._primary_keys = getattr(raw.IDs, raw.IDs.WhichOneof('id_field')).value.data
+    def _pack(self, raw: Any):
         which = raw.IDs.WhichOneof("id_field")
         if which == "int_id":
             self._primary_keys = raw.IDs.int_id.data
@@ -421,7 +421,7 @@ class MutationResult:
 
 
 class QueryResult(LoopBase):
-    def __init__(self, raw):
+    def __init__(self, raw: Any):
         super().__init__()
         self._raw = raw
         self._pack(raw.hits)
@@ -429,7 +429,7 @@ class QueryResult(LoopBase):
     def __len__(self):
         return self._nq
 
-    def _pack(self, raw):
+    def _pack(self, raw: Any):
         self._nq = raw.results.num_queries
         self._topk = raw.results.top_k
         self._hits = []
@@ -438,52 +438,69 @@ class QueryResult(LoopBase):
             hit = schema_pb2.SearchResultData()
             start_pos = offset
             end_pos = offset + raw.results.topks[i]
-            hit.scores.append(raw.results.scores[start_pos: end_pos])
+            hit.scores.append(raw.results.scores[start_pos:end_pos])
             if raw.results.ids.HasField("int_id"):
-                hit.ids.append(raw.results.ids.int_id.data[start_pos: end_pos])
+                hit.ids.append(raw.results.ids.int_id.data[start_pos:end_pos])
             elif raw.results.ids.HasField("str_id"):
-                hit.ids.append(raw.results.ids.str_id.data[start_pos: end_pos])
+                hit.ids.append(raw.results.ids.str_id.data[start_pos:end_pos])
             for field_data in raw.result.fields_data:
                 field = schema_pb2.FieldData()
                 field.type = field_data.type
                 field.field_name = field_data.field_name
                 if field_data.type == DataType.BOOL:
-                    field.scalars.bool_data.data.extend(field_data.scalars.bool_data.data[start_pos: end_pos])
+                    field.scalars.bool_data.data.extend(
+                        field_data.scalars.bool_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                    field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos: end_pos])
+                    field.scalars.int_data.data.extend(
+                        field_data.scalars.int_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.INT64:
-                    field.scalars.long_data.data.extend(field_data.scalars.long_data.data[start_pos: end_pos])
+                    field.scalars.long_data.data.extend(
+                        field_data.scalars.long_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.FLOAT:
-                    field.scalars.float_data.data.extend(field_data.scalars.float_data.data[start_pos: end_pos])
+                    field.scalars.float_data.data.extend(
+                        field_data.scalars.float_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.DOUBLE:
-                    field.scalars.double_data.data.extend(field_data.scalars.double_data.data[start_pos: end_pos])
+                    field.scalars.double_data.data.extend(
+                        field_data.scalars.double_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.VARCHAR:
-                    field.scalars.string_data.data.extend(field_data.scalars.string_data.data[start_pos: end_pos])
+                    field.scalars.string_data.data.extend(
+                        field_data.scalars.string_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.STRING:
                     raise MilvusException(message="Not support string yet")
-                    # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                 elif field_data.type == DataType.JSON:
-                    field.scalars.json_data.data.extend(field_data.scalars.json_data.data[start_pos: end_pos])
+                    field.scalars.json_data.data.extend(
+                        field_data.scalars.json_data.data[start_pos:end_pos]
+                    )
                 elif field_data.type == DataType.FLOAT_VECTOR:
                     dim = field.vectors.dim
                     field.vectors.dim = dim
                     field.vectors.float_vector.data.extend(
-                        field_data.vectors.float_data.data[start_pos * dim: end_pos * dim])
+                        field_data.vectors.float_data.data[start_pos * dim : end_pos * dim]
+                    )
                 elif field_data.type == DataType.BINARY_VECTOR:
                     dim = field_data.vectors.dim
                     field.vectors.dim = dim
-                    field.vectors.binary_vector.data.extend(field_data.vectors.binary_vector.data[
-                                                            start_pos * (dim / 8): end_pos * (dim / 8)])
+                    field.vectors.binary_vector.data.extend(
+                        field_data.vectors.binary_vector.data[
+                            start_pos * (dim / 8) : end_pos * (dim / 8)
+                        ]
+                    )
                 hit.fields_data.append(field)
             self._hits.append(hit)
             offset += raw.results.topks[i]
 
-    def get__item(self, item):
+    def get__item(self, item: Any):
         return Hits(self._hits[item])
 
 
 class ChunkedQueryResult(LoopBase):
-    def __init__(self, raw_list, round_decimal=-1):
+    def __init__(self, raw_list: List, round_decimal: int = -1):
         super().__init__()
         self._raw_list = raw_list
         self._nq = 0
@@ -494,7 +511,7 @@ class ChunkedQueryResult(LoopBase):
     def __len__(self):
         return self._nq
 
-    def _pack(self, raw_list):
+    def _pack(self, raw_list: List):
         self._hits = []
         for raw in raw_list:
             nq = raw.results.num_queries
@@ -506,11 +523,11 @@ class ChunkedQueryResult(LoopBase):
                 hit = schema_pb2.SearchResultData()
                 start_pos = offset
                 end_pos = offset + raw.results.topks[i]
-                hit.scores.extend(raw.results.scores[start_pos: end_pos])
+                hit.scores.extend(raw.results.scores[start_pos:end_pos])
                 if raw.results.ids.HasField("int_id"):
-                    hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos: end_pos])
+                    hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos:end_pos])
                 elif raw.results.ids.HasField("str_id"):
-                    hit.ids.str_id.data.extend(raw.results.ids.str_id.data[start_pos: end_pos])
+                    hit.ids.str_id.data.extend(raw.results.ids.str_id.data[start_pos:end_pos])
                 hit.output_fields.extend(raw.results.output_fields)
                 for field_data in raw.results.fields_data:
                     field = schema_pb2.FieldData()
@@ -518,389 +535,57 @@ class ChunkedQueryResult(LoopBase):
                     field.field_name = field_data.field_name
                     field.is_dynamic = field_data.is_dynamic
                     if field_data.type == DataType.BOOL:
-                        field.scalars.bool_data.data.extend(field_data.scalars.bool_data.data[start_pos: end_pos])
+                        field.scalars.bool_data.data.extend(
+                            field_data.scalars.bool_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                        field.scalars.int_data.data.extend(field_data.scalars.int_data.data[start_pos: end_pos])
+                        field.scalars.int_data.data.extend(
+                            field_data.scalars.int_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.INT64:
-                        field.scalars.long_data.data.extend(field_data.scalars.long_data.data[start_pos: end_pos])
+                        field.scalars.long_data.data.extend(
+                            field_data.scalars.long_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.FLOAT:
-                        field.scalars.float_data.data.extend(field_data.scalars.float_data.data[start_pos: end_pos])
+                        field.scalars.float_data.data.extend(
+                            field_data.scalars.float_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.DOUBLE:
-                        field.scalars.double_data.data.extend(field_data.scalars.double_data.data[start_pos: end_pos])
+                        field.scalars.double_data.data.extend(
+                            field_data.scalars.double_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.VARCHAR:
-                        field.scalars.string_data.data.extend(field_data.scalars.string_data.data[start_pos: end_pos])
+                        field.scalars.string_data.data.extend(
+                            field_data.scalars.string_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.STRING:
                         raise MilvusException(message="Not support string yet")
-                        # result[field_data.field_name] = field_data.scalars.string_data.data[index]
                     elif field_data.type == DataType.JSON:
-                        field.scalars.json_data.data.extend(field_data.scalars.json_data.data[start_pos: end_pos])
+                        field.scalars.json_data.data.extend(
+                            field_data.scalars.json_data.data[start_pos:end_pos]
+                        )
                     elif field_data.type == DataType.FLOAT_VECTOR:
                         dim = field_data.vectors.dim
                         field.vectors.dim = dim
-                        field.vectors.float_vector.data.extend(field_data.vectors.float_vector.data[
-                                                               start_pos * dim: end_pos * dim])
+                        field.vectors.float_vector.data.extend(
+                            field_data.vectors.float_vector.data[start_pos * dim : end_pos * dim]
+                        )
                     elif field_data.type == DataType.BINARY_VECTOR:
                         dim = field_data.vectors.dim
                         field.vectors.dim = dim
-                        field.vectors.binary_vector.data.extend(field_data.vectors.binary_vector.data[
-                                                                start_pos * (dim / 8): end_pos * (dim / 8)])
+                        field.vectors.binary_vector.data.extend(
+                            field_data.vectors.binary_vector.data[
+                                start_pos * (dim / 8) : end_pos * (dim / 8)
+                            ]
+                        )
                     hit.fields_data.append(field)
                 self._hits.append(hit)
                 offset += raw.results.topks[i]
 
-    def get__item(self, item):
+    def get__item(self, item: Any):
         return Hits(self._hits[item], self.round_decimal)
 
 
 def _abstract():
-    raise NotImplementedError('You need to override this function')
-
-
-class ConnectIntf:
-    """SDK client abstract class
-
-    Connection is a abstract class
-
-    """
-
-    def connect(self, host, port, uri, timeout):
-        """
-        Connect method should be called before any operations
-        Server will be connected after connect return OK
-        Should be implemented
-
-        :type  host: str
-        :param host: host
-
-        :type  port: str
-        :param port: port
-
-        :type  uri: str
-        :param uri: (Optional) uri
-
-        :type  timeout: int
-        :param timeout:
-
-        :return: Status,  indicate if connect is successful
-        """
-        _abstract()
-
-    def connected(self):
-        """
-        connected, connection status
-        Should be implemented
-
-        :return: Status,  indicate if connect is successful
-        """
-        _abstract()
-
-    def disconnect(self):
-        """
-        Disconnect, server will be disconnected after disconnect return SUCCESS
-        Should be implemented
-
-        :return: Status,  indicate if connect is successful
-        """
-        _abstract()
-
-    def create_table(self, param, timeout):
-        """
-        Create table
-        Should be implemented
-
-        :type  param: TableSchema
-        :param param: provide table information to be created
-
-        :type  timeout: int
-        :param timeout:
-
-        :return: Status, indicate if connect is successful
-        """
-        _abstract()
-
-    def has_table(self, table_name, timeout):
-        """
-
-        This method is used to test table existence.
-        Should be implemented
-
-        :type table_name: str
-        :param table_name: table name is going to be tested.
-
-        :type  timeout: int
-        :param timeout:
-
-        :return:
-            has_table: bool, if given table_name exists
-
-        """
-        _abstract()
-
-    def delete_table(self, table_name, timeout):
-        """
-        Delete table
-        Should be implemented
-
-        :type  table_name: str
-        :param table_name: table_name of the deleting table
-
-        :type  timeout: int
-        :param timeout:
-
-        :return: Status, indicate if connect is successful
-        """
-        _abstract()
-
-    def add_vectors(self, table_name, records, ids, timeout, **kwargs):
-        """
-        Add vectors to table
-        Should be implemented
-
-        :type  table_name: str
-        :param table_name: table name been inserted
-
-        :type  records: list[RowRecord]
-        :param records: list of vectors been inserted
-
-        :type  ids: list[int]
-        :param ids: list of ids
-
-        :type  timeout: int
-        :param timeout:
-
-        :returns:
-            Status : indicate if vectors inserted successfully
-            ids :list of id, after inserted every vector is given a id
-        """
-        _abstract()
-
-    def search_vectors(self, table_name, top_k, nprobe, query_records, query_ranges, **kwargs):
-        """
-        Query vectors in a table
-        Should be implemented
-
-        :type  table_name: str
-        :param table_name: table name been queried
-
-        :type  query_records: list[RowRecord]
-        :param query_records: all vectors going to be queried
-
-        :type  query_ranges: list[Range]
-        :param query_ranges: Optional ranges for conditional search.
-            If not specified, search whole table
-
-        :type  top_k: int
-        :param top_k: how many similar vectors will be searched
-
-        :returns:
-            Status:  indicate if query is successful
-            query_results: list[TopKQueryResult]
-        """
-        _abstract()
-
-    def search_vectors_in_files(self, table_name, file_ids, query_records,
-                                top_k, nprobe, query_ranges, **kwargs):
-        """
-        Query vectors in a table, query vector in specified files
-        Should be implemented
-
-        :type  table_name: str
-        :param table_name: table name been queried
-
-        :type  file_ids: list[str]
-        :param file_ids: Specified files id array
-
-        :type  query_records: list[RowRecord]
-        :param query_records: all vectors going to be queried
-
-        :type  query_ranges: list[Range]
-        :param query_ranges: Optional ranges for conditional search.
-            If not specified, search whole table
-
-        :type  top_k: int
-        :param top_k: how many similar vectors will be searched
-
-        :returns:
-            Status:  indicate if query is successful
-            query_results: list[TopKQueryResult]
-        """
-        _abstract()
-
-    def describe_table(self, table_name, timeout):
-        """
-        Show table information
-        Should be implemented
-
-        :type  table_name: str
-        :param table_name: which table to be shown
-
-        :type  timeout: int
-        :param timeout:
-
-        :returns:
-            Status: indicate if query is successful
-            table_schema: TableSchema, given when operation is successful
-        """
-        _abstract()
-
-    def get_table_row_count(self, table_name, timeout):
-        """
-        Get table row count
-        Should be implemented
-
-        :type  table_name, str
-        :param table_name, target table name.
-
-        :type  timeout: int
-        :param timeout: how many similar vectors will be searched
-
-        :returns:
-            Status: indicate if operation is successful
-            count: int, table row count
-        """
-        _abstract()
-
-    def show_tables(self, timeout):
-        """
-        Show all tables in database
-        should be implemented
-
-        :type  timeout: int
-        :param timeout: how many similar vectors will be searched
-
-        :return:
-            Status: indicate if this operation is successful
-            tables: list[str], list of table names
-        """
-        _abstract()
-
-    def create_index(self, table_name, index, timeout):
-        """
-        Create specified index in a table
-        should be implemented
-
-        :type  table_name: str
-        :param table_name: table name
-
-         :type index: dict
-        :param index: index information dict
-
-            example: index = {
-                "index_type": IndexType.FLAT,
-                "nlist": 18384
-            }
-
-        :type  timeout: int
-        :param timeout: how many similar vectors will be searched
-
-        :return:
-            Status: indicate if this operation is successful
-
-        :rtype: Status
-        """
-        _abstract()
-
-    def server_version(self, timeout):
-        """
-        Provide server version
-        should be implemented
-
-        :type  timeout: int
-        :param timeout: how many similar vectors will be searched
-
-        :return:
-            Status: indicate if operation is successful
-
-            str : Server version
-
-        :rtype: (Status, str)
-        """
-        _abstract()
-
-    def server_status(self, timeout):
-        """
-        Provide server status. When cmd !='version', provide 'OK'
-        should be implemented
-
-        :type  timeout: int
-        :param timeout: how many similar vectors will be searched
-
-        :return:
-            Status: indicate if operation is successful
-
-            str : Server version
-
-        :rtype: (Status, str)
-        """
-        _abstract()
-
-    def preload_table(self, table_name, timeout):
-        """
-        load table to memory cache in advance
-        should be implemented
-
-        :param table_name: target table name.
-        :type table_name: str
-
-        :type  timeout: int
-        :param timeout: how many similar vectors will be searched
-
-        :return:
-            Status: indicate if operation is successful
-
-        ：:rtype: Status
-        """
-
-        _abstract()
-
-    def describe_index(self, table_name, timeout):
-        """
-        Show index information
-        should be implemented
-
-        :param table_name: target table name.
-        :type table_name: str
-
-        :type  timeout: int
-        :param timeout: how many similar vectors will be searched
-
-        :return:
-            Status: indicate if operation is successful
-
-            TableSchema: table detail information
-
-        :rtype: (Status, TableSchema)
-        """
-
-        _abstract()
-
-    def drop_index(self, table_name, timeout):
-        """
-        Show index information
-        should be implemented
-
-        :param table_name: target table name.
-        :type table_name: str
-
-        :type  timeout: int
-        :param timeout: how many similar vectors will be searched
-
-        :return:
-            Status: indicate if operation is successful
-
-        ：:rtype: Status
-        """
-
-        _abstract()
-
-    def load_collection(self, collection_name, timeout):
-        _abstract()
-
-    def release_collection(self, collection_name, timeout):
-        _abstract()
-
-    def load_partitions(self, collection_name, timeout):
-        _abstract()
-
-    def release_partitions(self, collection_name, timeout):
-        _abstract()
+    msg = "You need to override this function"
+    raise NotImplementedError(msg)

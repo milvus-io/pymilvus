@@ -38,3 +38,124 @@ dynamic = ["version"]
 [tool.setuptools_scm]
 'local_scheme'= 'no-local-version'
 'version_scheme'= 'release-branch-semver'
+
+[tool.black]
+line-length = 100
+target-version = ['py37']
+include = '\.pyi?$'
+extend-ignore = ["E203", "E501"]
+# 'extend-exclude' excludes files or directories in addition to the defaults
+extend-exclude = '''
+# A regex preceded with ^/ will apply only to files and directories
+# in the root of the project.
+(
+  ^/foo.py    # exclude a file named foo.py in the root of the project
+  | .*/grpc_gen/
+)
+'''
+
+[tool.ruff]
+select = [
+    "E",
+    "F",
+    "C90",
+    "I",
+    "N",
+    "B", "C", "G",
+    "A",
+    "ANN001",
+    "S", "T", "W", "ARG", "BLE", "COM", "DJ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"
+]
+ignore = [
+    "N818",
+    "DTZ", # datatime related
+    "BLE", # blind-except (BLE001)
+    "SLF", # SLF001 Private member accessed: `_fetch_handler` [E]
+    "PD003",
+    "TRY003", # [ruff] TRY003 Avoid specifying long messages outside the exception class [E] TODO
+    "PLR2004", # Magic value used in comparison, consider replacing 65535 with a constant variable [E] TODO
+    "TRY301", #[ruff] TRY301 Abstract `raise` to an inner function [E]
+    "FBT001", #[ruff] FBT001 Boolean positional arg in function definition [E] TODO
+    "FBT002", # [ruff] FBT002 Boolean default value in function definition [E] TODO
+    "PLR0911", # Too many return statements (15 > 6) [E]
+    "G004", # [ruff] G004 Logging statement uses f-string [E]
+    "S603", # [ruff] S603 `subprocess` call: check for execution of untrusted input [E]
+    "N802", #[ruff] N802 Function name `OK` should be lowercase [E] TODO
+    "PD011", # [ruff] PD011 Use `.to_numpy()` instead of `.values` [E]
+    "COM812",
+    "FBT003", # [ruff] FBT003 Boolean positional value in function call [E] TODO
+    "ARG002",
+    "E501", # black takes care of it
+    "ARG005", # [ruff] ARG005 Unused lambda argument: `disable` [E]
+    "TRY400",
+]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = [
+    "A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W",
+    "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT",
+    "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH",
+    "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP",
+    "YTT",
+]
+unfixable = []
+
+show-fixes = true
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "grpc_gen",
+    "__pycache__",
+    "pymilvus/client/stub.py"
+]
+
+# Same as Black.
+line-length = 100
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Assume Python 3.7
+target-version = "py37"
+
+[tool.ruff.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 17
+
+[tool.ruff.pycodestyle]
+max-doc-length = 100
+
+[tool.ruff.pylint]
+max-args = 20
+max-branches = 15
+
+[tool.ruff.flake8-builtins]
+builtins-ignorelist = [
+    "format",
+    "next",
+    "object", # TODO
+    "id",
+    "dict", # TODO
+    "filter",
+]

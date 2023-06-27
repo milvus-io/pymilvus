@@ -12,44 +12,59 @@
 
 import copy
 import json
-from typing import List, Union, Dict
-import pandas
+from typing import Dict, List, Optional, Union
+
+import pandas as pd
+
+from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.types import (
+    CompactionPlans,
+    CompactionState,
+    Replica,
+    cmp_consistency_level,
+    get_consistency_level,
+)
+from pymilvus.exceptions import (
+    AutoIDException,
+    DataTypeNotMatchException,
+    ExceptionsMessage,
+    IndexNotExistException,
+    PartitionAlreadyExistException,
+    PartitionNotExistException,
+    SchemaNotReadyException,
+)
+from pymilvus.settings import Config
 
 from .connections import connections
+from .future import MutationFuture, SearchFuture
+from .index import Index
+from .iterator import QueryIterator, SearchIterator
+from .mutation import MutationResult
+from .partition import Partition
+from .prepare import Prepare
 from .schema import (
     CollectionSchema,
     FieldSchema,
-    construct_fields_from_dataframe,
-    check_insert_or_upsert_data_schema,
-    check_insert_or_upsert_is_row_based,
+    check_insert_schema,
+    check_is_row_based,
     check_schema,
+    check_upset_schema,
+    construct_fields_from_dataframe,
 )
-from .prepare import Prepare
-from .partition import Partition
-from .index import Index
 from .search import SearchResult
-from .mutation import MutationResult
 from .types import DataType
-from ..exceptions import (
-    SchemaNotReadyException,
-    DataTypeNotMatchException,
-    PartitionAlreadyExistException,
-    PartitionNotExistException,
-    IndexNotExistException,
-    AutoIDException,
-    ExceptionsMessage,
-)
-from .future import SearchFuture, MutationFuture
 from .utility import _get_connection
-from ..settings import Config
-from ..client.types import CompactionState, CompactionPlans, Replica, get_consistency_level, cmp_consistency_level
-from ..client.constants import DEFAULT_CONSISTENCY_LEVEL
-from .iterator import QueryIterator, SearchIterator
 
 
 class Collection:
-    def __init__(self, name: str, schema: CollectionSchema = None, using: str = "default", **kwargs):
-        """ Constructs a collection by name, schema and other parameters.
+    def __init__(
+        self,
+        name: str,
+        schema: Optional[CollectionSchema] = None,
+        using: str = "default",
+        **kwargs,
+    ) -> None:
+        """Constructs a collection by name, schema and other parameters.
 
         Args:
             name (``str``): the name of collection
@@ -58,34 +73,35 @@ class Collection:
             **kwargs (``dict``):
 
                 * *num_shards (``int``, optional): how many shards will the insert data be divided.
-                * *shards_num (``int``, optional, deprecated): how many shards will the insert data be divided.
+                * *shards_num (``int``, optional, deprecated):
+                    how many shards will the insert data be divided.
                 * *consistency_level* (``int/ str``)
                     Which consistency level to use when searching in the collection.
                     Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
 
-                    Note: this parameter can be overwritten by the same parameter specified in search.
+                    Note: can be overwritten by the same parameter specified in search.
 
                 * *properties* (``dict``, optional)
                     Collection properties.
 
                 * *timeout* (``float``)
                     An optional duration of time in seconds to allow for the RPCs.
-                    If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+                    If timeout is not set, the client keeps waiting until the server
+                    responds or an error occurs.
 
 
         Raises:
             SchemaNotReadyException: if the schema is wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> fields = [
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
             ... ]
             >>> schema = CollectionSchema(fields=fields)
-            >>> properties = {"collection.ttl.seconds": 1800}
-            >>> collection = Collection(name="test_collection_init", schema=schema, properties=properties)
+            >>> prop = {"collection.ttl.seconds": 1800}
+            >>> collection = Collection(name="test_collection_init", schema=schema, properties=prop)
             >>> collection.name
             'test_collection_init'
         """
@@ -101,7 +117,9 @@ class Collection:
             s_consistency_level = resp.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
             arg_consistency_level = kwargs.get("consistency_level", s_consistency_level)
             if not cmp_consistency_level(s_consistency_level, arg_consistency_level):
-                raise SchemaNotReadyException(message=ExceptionsMessage.ConsistencyLevelInconsistent)
+                raise SchemaNotReadyException(
+                    message=ExceptionsMessage.ConsistencyLevelInconsistent
+                )
             server_schema = CollectionSchema.construct_from_dict(resp)
             self._consistency_level = s_consistency_level
             if schema is None:
@@ -115,11 +133,15 @@ class Collection:
 
         else:
             if schema is None:
-                raise SchemaNotReadyException(message=ExceptionsMessage.CollectionNotExistNoSchema % name)
+                raise SchemaNotReadyException(
+                    message=ExceptionsMessage.CollectionNotExistNoSchema % name
+                )
             if isinstance(schema, CollectionSchema):
                 schema.verify()
                 check_schema(schema)
-                consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
+                consistency_level = get_consistency_level(
+                    kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
+                )
 
                 conn.create_collection(self._name, schema, **kwargs)
                 self._schema = schema
@@ -130,11 +152,11 @@ class Collection:
         self._schema_dict = self._schema.to_dict()
         self._schema_dict["consistency_level"] = self._consistency_level
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         _dict = {
-            'name': self.name,
-            'description': self.description,
-            'schema': self._schema,
+            "name": self.name,
+            "description": self.description,
+            "schema": self._schema,
         }
         r = ["<Collection>:\n-------------\n"]
         s = "<{}>: {}\n"
@@ -146,10 +168,8 @@ class Collection:
         return connections._fetch_handler(self._using)
 
     @classmethod
-    def construct_from_dataframe(cls, name, dataframe, **kwargs):
-        if dataframe is None:
-            raise SchemaNotReadyException(message=ExceptionsMessage.NoneDataFrame)
-        if not isinstance(dataframe, pandas.DataFrame):
+    def construct_from_dataframe(cls, name: str, dataframe: pd.DataFrame, **kwargs):
+        if not isinstance(dataframe, pd.DataFrame):
             raise SchemaNotReadyException(message=ExceptionsMessage.DataFrameType)
         primary_field = kwargs.pop("primary_field", None)
         if primary_field is None:
@@ -160,9 +180,8 @@ class Collection:
                 pk_index = i
         if pk_index == -1:
             raise SchemaNotReadyException(message=ExceptionsMessage.PrimaryKeyNotExist)
-        if "auto_id" in kwargs:
-            if not isinstance(kwargs.get("auto_id", None), bool):
-                raise AutoIDException(message=ExceptionsMessage.AutoIDType)
+        if "auto_id" in kwargs and not isinstance(kwargs.get("auto_id", None), bool):
+            raise AutoIDException(message=ExceptionsMessage.AutoIDType)
         auto_id = kwargs.pop("auto_id", False)
         if auto_id:
             if dataframe[primary_field].isnull().all():
@@ -179,10 +198,16 @@ class Collection:
         else:
             fields_schema = construct_fields_from_dataframe(dataframe)
             if auto_id:
-                fields_schema.insert(pk_index,
-                                     FieldSchema(name=primary_field, dtype=DataType.INT64, is_primary=True,
-                                                 auto_id=True,
-                                                 **kwargs))
+                fields_schema.insert(
+                    pk_index,
+                    FieldSchema(
+                        name=primary_field,
+                        dtype=DataType.INT64,
+                        is_primary=True,
+                        auto_id=True,
+                        **kwargs,
+                    ),
+                )
 
             for field in fields_schema:
                 if auto_id is False and field.name == primary_field:
@@ -199,25 +224,24 @@ class Collection:
 
     @property
     def schema(self) -> CollectionSchema:
-        """CollectionSchema: schema of the collection. """
+        """CollectionSchema: schema of the collection."""
         return self._schema
 
     @property
     def aliases(self, **kwargs) -> list:
-        """List[str]: all the aliases of the collection. """
+        """List[str]: all the aliases of the collection."""
         conn = self._get_connection()
         resp = conn.describe_collection(self._name, **kwargs)
-        aliases = resp["aliases"]
-        return aliases
+        return resp["aliases"]
 
     @property
     def description(self) -> str:
-        """str: a text description of the collection. """
+        """str: a text description of the collection."""
         return self._schema.description
 
     @property
     def name(self) -> str:
-        """str: the name of the collection. """
+        """str: the name of the collection."""
         return self._name
 
     @property
@@ -229,7 +253,7 @@ class Collection:
     def num_shards(self, **kwargs) -> int:
         """int: number of shards used by the collection."""
         if self._num_shards is None:
-            self._num_shards = self.describe().get("num_shards")
+            self._num_shards = self.describe(timeout=kwargs.get("timeout")).get("num_shards")
         return self._num_shards
 
     @property
@@ -237,8 +261,7 @@ class Collection:
         """int: The number of entities in the collection, not real time.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -264,17 +287,17 @@ class Collection:
         """FieldSchema: the primary field of the collection."""
         return self._schema.primary_field
 
-    def flush(self, timeout=None, **kwargs):
-        """ Seal all segments in the collection. Inserts after flushing will be written into
+    def flush(self, timeout: Optional[float] = None, **kwargs):
+        """Seal all segments in the collection. Inserts after flushing will be written into
             new segments. Only sealed segments can be indexed.
 
         Args:
             timeout (float): an optional duration of time in seconds to allow for the RPCs.
-                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+                If timeout is not set, the client keeps waiting until the server
+                responds or an error occurs.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> fields = [
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
@@ -289,16 +312,16 @@ class Collection:
         conn = self._get_connection()
         conn.flush([self.name], timeout=timeout, **kwargs)
 
-    def drop(self, timeout=None, **kwargs):
-        """ Drops the collection. The same as `utility.drop_collection()`
+    def drop(self, timeout: Optional[float] = None, **kwargs):
+        """Drops the collection. The same as `utility.drop_collection()`
 
         Args:
-            timeout (float, optional): an optional duration of time in seconds to allow for the RPCs.
-                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+            timeout (float, optional): an optional duration of time in seconds to allow
+                for the RPCs. If timeout is not set, the client keeps waiting until the
+                server responds or an error occurs.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -313,18 +336,18 @@ class Collection:
         conn = self._get_connection()
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
-    def set_properties(self, properties, timeout=None, **kwargs):
-        """ Set properties for the collection
+    def set_properties(self, properties: dict, timeout: Optional[float] = None, **kwargs):
+        """Set properties for the collection
 
         Args:
             properties (``dict``): collection properties.
                  only support collection TTL with key `collection.ttl.seconds`
-            timeout (``float``, optional): an optional duration of time in seconds to allow for the RPCs.
-                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+            timeout (float, optional): an optional duration of time in seconds to allow
+                for the RPCs. If timeout is not set, the client keeps waiting until the
+                server responds or an error occurs.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> fields = [
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
@@ -334,23 +357,35 @@ class Collection:
             >>> collection.set_properties({"collection.ttl.seconds": 60})
         """
         conn = self._get_connection()
-        conn.alter_collection(self.name, properties=properties, timeout=timeout)
+        conn.alter_collection(
+            self.name,
+            properties=properties,
+            timeout=timeout,
+            **kwargs,
+        )
 
-    def load(self, partition_names=None, replica_number=1, timeout=None, **kwargs):
-        """ Load the data into memory.
+    def load(
+        self,
+        partition_names: Optional[list] = None,
+        replica_number: int = 1,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Load the data into memory.
 
         Args:
             partition_names (``List[str]``): The specified partitions to load.
             replica_number (``int``, optional): The replica number to load, defaults to 1.
-            timeout (``float``, optional): an optional duration of time in seconds to allow for the RPCs.
-                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+            timeout (float, optional): an optional duration of time in seconds to allow
+                for the RPCs. If timeout is not set, the client keeps waiting until the
+                server responds or an error occurs.
             **kwargs (``dict``, optional):
 
                 * *_async*(``bool``)
                     Indicate if invoke asynchronously.
 
                 * *_refresh*(``bool``)
-                    Whether to enable refresh mode(renew the segment list of this collection before loading).
+                    Whether to renew the segment list of this collection before loading
                 * *_resource_groups(``List[str]``)
                     Specify resource groups which can be used during loading.
 
@@ -358,7 +393,7 @@ class Collection:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -366,48 +401,68 @@ class Collection:
             ... ])
             >>> collection = Collection("test_collection_load", schema)
             >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
-            >>> collection.create_index("films", {"index_type": "FLAT", "metric_type": "L2", "params": {}})
+            >>> index_param = {"index_type": "FLAT", "metric_type": "L2", "params": {}}
+            >>> collection.create_index("films", index_param)
             >>> collection.load()
         """
         conn = self._get_connection()
         if partition_names is not None:
-            conn.load_partitions(self._name, partition_names, replica_number=replica_number, timeout=timeout, **kwargs)
+            conn.load_partitions(
+                collection_name=self._name,
+                partition_names=partition_names,
+                replica_number=replica_number,
+                timeout=timeout,
+                **kwargs,
+            )
         else:
-            conn.load_collection(self._name, replica_number=replica_number, timeout=timeout, **kwargs)
+            conn.load_collection(
+                collection_name=self._name,
+                replica_number=replica_number,
+                timeout=timeout,
+                **kwargs,
+            )
 
-    def release(self, timeout=None, **kwargs):
-        """ Releases the collection data from memory.
+    def release(self, timeout: Optional[float] = None, **kwargs):
+        """Releases the collection data from memory.
 
         Args:
-            timeout (``float``, optional): an optional duration of time in seconds to allow for the RPCs.
-                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+            timeout (float, optional): an optional duration of time in seconds to allow
+                for the RPCs. If timeout is not set, the client keeps waiting until the
+                server responds or an error occurs.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
             ... ])
             >>> collection = Collection("test_collection_release", schema)
             >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
-            >>> collection.create_index("films", {"index_type": "FLAT", "metric_type": "L2", "params": {}})
+            >>> index_param = {"index_type": "FLAT", "metric_type": "L2", "params": {}}
+            >>> collection.create_index("films", index_param)
             >>> collection.load()
             >>> collection.release()
         """
         conn = self._get_connection()
         conn.release_collection(self._name, timeout=timeout, **kwargs)
 
-    def insert(self, data: Union[List, pandas.DataFrame, Dict], partition_name: str = None, timeout=None,
-               **kwargs) -> MutationResult:
-        """ Insert data into the collection.
+    def insert(
+        self,
+        data: Union[List, pd.DataFrame, Dict],
+        partition_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> MutationResult:
+        """Insert data into the collection.
 
         Args:
             data (``list/tuple/pandas.DataFrame``): The specified data to insert
             partition_name (``str``): The partition name which the data will be inserted to,
-                if partition name is not passed, then the data will be inserted to "_default" partition
-            timeout (``float``, optional): A duration of time in seconds to allow for the RPC. Defaults to None.
-                If timeout is set to None, the client keeps waiting until the server responds or an error occurs.
+                if partition name is not passed, then the data will be inserted
+                to default partition
+            timeout (float, optional): an optional duration of time in seconds to allow
+                for the RPCs. If timeout is not set, the client keeps waiting until the
+                server responds or an error occurs.
         Returns:
             MutationResult: contains 2 properties `insert_count`, and, `primary_keys`
                 `insert_count`: how may entites have been inserted into Milvus,
@@ -416,9 +471,8 @@ class Collection:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
-            >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -435,39 +489,58 @@ class Collection:
         if data is None:
             return MutationResult(data)
 
-        row_based = check_insert_or_upsert_is_row_based(data)
+        row_based = check_is_row_based(data)
         conn = self._get_connection()
         if not row_based:
-            check_insert_or_upsert_data_schema(self._schema, data)
-            entities = Prepare.prepare_insert_or_upsert_data(data, self._schema)
-            res = conn.batch_insert(self._name, entities, partition_name,
-                                    timeout=timeout, schema=self._schema_dict, **kwargs)
+            check_insert_schema(self._schema, data)
+            entities = Prepare.prepare_insert_data(data, self._schema)
+            res = conn.batch_insert(
+                self._name,
+                entities,
+                partition_name,
+                timeout=timeout,
+                schema=self._schema_dict,
+                **kwargs,
+            )
             if kwargs.get("_async", False):
                 return MutationFuture(res)
         else:
-            res = conn.insert_rows(self._name, data, partition_name,
-                                   timeout=timeout, schema=self._schema_dict, **kwargs)
+            res = conn.insert_rows(
+                collection_name=self._name,
+                entities=data,
+                partition_name=partition_name,
+                timeout=timeout,
+                schema=self._schema_dict,
+                **kwargs,
+            )
         return MutationResult(res)
 
-    def delete(self, expr, partition_name=None, timeout=None, **kwargs):
-        """ Delete entities with an expression condition.
+    def delete(
+        self,
+        expr: str,
+        partition_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Delete entities with an expression condition.
 
         Args:
             expr (``str``): The specified data to insert.
             partition_names (``List[str]``): Name of partitions to delete entities.
-            timeout (``float``, optional): A duration of time in seconds to allow for the RPC. Defaults to None.
-                If timeout is set to None, the client keeps waiting until the server responds or an error occurs.
+            timeout (float, optional): an optional duration of time in seconds to allow
+                for the RPCs. If timeout is not set, the client keeps waiting until the
+                server responds or an error occurs.
 
         Returns:
-            MutationResult: contains `delete_count` properties represents how many entities might be deleted.
+            MutationResult:
+                contains `delete_count` properties represents how many entities might be deleted.
 
         Raises:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
-            >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("film_date", DataType.INT64),
@@ -492,15 +565,23 @@ class Collection:
             return MutationFuture(res)
         return MutationResult(res)
 
-    def upsert(self, data: Union[List, pandas.DataFrame, Dict], partition_name: str=None, timeout=None, **kwargs) -> MutationResult:
-        """ Upsert data into the collection.
+    def upsert(
+        self,
+        data: Union[List, pd.DataFrame, Dict],
+        partition_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> MutationResult:
+        """Upsert data into the collection.
 
         Args:
             data (``list/tuple/pandas.DataFrame``): The specified data to upsert
             partition_name (``str``): The partition name which the data will be upserted at,
-                if partition name is not passed, then the data will be upserted in "_default" partition
-            timeout (``float``, optional): A duration of time in seconds to allow for the RPC. Defaults to None.
-                If timeout is set to None, the client keeps waiting until the server responds or an error occurs.
+                if partition name is not passed, then the data will be upserted
+                in default partition
+            timeout (float, optional): an optional duration of time in seconds to allow
+                for the RPCs. If timeout is not set, the client keeps waiting until the
+                server responds or an error occurs.
         Returns:
             MutationResult: contains 2 properties `upsert_count`, and, `primary_keys`
                 `upsert_count`: how may entites have been upserted at Milvus,
@@ -509,9 +590,8 @@ class Collection:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
-            >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -528,48 +608,65 @@ class Collection:
         if data is None:
             return MutationResult(data)
 
-        row_based = check_insert_or_upsert_is_row_based(data)
+        row_based = check_is_row_based(data)
         conn = self._get_connection()
         if not row_based:
-            check_insert_or_upsert_data_schema(self._schema, data, False)
-            entities = Prepare.prepare_insert_or_upsert_data(data, self._schema, False)
+            check_upset_schema(self._schema, data)
+            entities = Prepare.prepare_upsert_data(data, self._schema)
 
-            res = conn.upsert(self._name, entities, partition_name,
-                              timeout=timeout, schema=self._schema_dict, **kwargs)
+            res = conn.upsert(
+                self._name,
+                entities,
+                partition_name,
+                timeout=timeout,
+                schema=self._schema_dict,
+                **kwargs,
+            )
 
             if kwargs.get("_async", False):
                 return MutationFuture(res)
         else:
-            res = conn.upsert_rows(self._name, data, partition_name,
-                                   timeout=timeout, schema=self._schema_dict, **kwargs)
+            res = conn.upsert_rows(
+                self._name,
+                data,
+                partition_name,
+                timeout=timeout,
+                schema=self._schema_dict,
+                **kwargs,
+            )
 
         return MutationResult(res)
 
-    def search(self, data, anns_field, param, limit, expr=None, partition_names=None,
-               output_fields=None, timeout=None, round_decimal=-1, **kwargs):
-        """ Conducts a vector similarity search with an optional boolean expression as filter.
+    def search(
+        self,
+        data: List,
+        anns_field: str,
+        param: Dict,
+        limit: int,
+        expr: Optional[str] = None,
+        partition_names: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        round_decimal: int = -1,
+        **kwargs,
+    ):
+        """Conducts a vector similarity search with an optional boolean expression as filter.
 
         Args:
             data (``List[List[float]]``): The vectors of search data.
-                the length of data is number of query (nq), and the dim of every vector in data must be equal to
-                the vector field's of collection.
+                the length of data is number of query (nq),
+                and the dim of every vector in data must be equal to the vector field of collection.
             anns_field (``str``): The name of the vector field used to search of collection.
             param (``dict[str, Any]``):
-
                 The parameters of search. The followings are valid keys of param.
-
                 * *nprobe*, *ef*, *search_k*, etc
                     Corresponding search params for a certain index.
-
                 * *metric_type* (``str``)
                     similar metricy types, the value must be of type str.
-
                 * *offset* (``int``, optional)
                     offset for pagination.
-
                 * *limit* (``int``, optional)
                     limit for the search results and pagination.
-
                 example for param::
 
                     {
@@ -586,13 +683,15 @@ class Collection:
 
                     "id_field >= 0", "id_field in [1, 2, 3, 4]"
 
-            partition_names (``List[str]``, optional): The names of partitions to search on. Default to None.
+            partition_names (``List[str]``, optional): The names of partitions to search on.
             output_fields (``List[str]``, optional):
                 The name of fields to return in the search result.  Can only get scalar fields.
-            round_decimal (``int``, optional): The specified number of decimal places of returned distance.
+            round_decimal (``int``, optional):
+                The specified number of decimal places of returned distance.
                 Defaults to -1 means no round to returned distance.
-            timeout (``float``, optional): A duration of time in seconds to allow for the RPC. Defaults to None.
-                If timeout is set to None, the client keeps waiting until the server responds or an error occurs.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
             **kwargs (``dict``): Optional search params
 
                 *  *_async* (``bool``, optional)
@@ -608,9 +707,9 @@ class Collection:
 
                     Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
 
-                    Note: this parameter will overwrite the same parameter specified when user created the collection,
-                    if no consistency level was specified, search will use the consistency level when you create the
-                    collection.
+                    Note: this parameter overwrites the same one specified when creating collection,
+                    if no consistency level was specified, search will use the
+                    consistency level when you create the collection.
 
                 * *guarantee_timestamp* (``int``, optional)
                     Instructs Milvus to see all operations performed before this timestamp.
@@ -642,9 +741,8 @@ class Collection:
             MilvusException: If anything goes wrong
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
-            >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -656,7 +754,8 @@ class Collection:
             ...     [[random.random() for _ in range(2)] for _ in range(10)],
             ... ]
             >>> collection.insert(data)
-            >>> collection.create_index("films", {"index_type": "FLAT", "metric_type": "L2", "params": {}})
+            >>> index_param = {"index_type": "FLAT", "metric_type": "L2", "params": {}}
+            >>> collection.create_index("films", index_param)
             >>> collection.load()
             >>> # search
             >>> search_param = {
@@ -672,38 +771,79 @@ class Collection:
             >>> assert len(hits) == 2
             >>> print(f"- Total hits: {len(hits)}, hits ids: {hits.ids} ")
             - Total hits: 2, hits ids: [8, 5]
-            >>> print(f"- Top1 hit id: {hits[0].id}, distance: {hits[0].distance}, score: {hits[0].score} ")
-            - Top1 hit id: 8, distance: 0.10143111646175385, score: 0.10143111646175385
+            >>> print(f"- Top1 hit id: {hits[0].id}, score: {hits[0].score} ")
+            - Top1 hit id: 8, score: 0.10143111646175385
         """
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        res = conn.search(self._name, data, anns_field, param, limit, expr,
-                          partition_names, output_fields, round_decimal, timeout=timeout,
-                          schema=self._schema_dict, **kwargs)
+        res = conn.search(
+            self._name,
+            data,
+            anns_field,
+            param,
+            limit,
+            expr,
+            partition_names,
+            output_fields,
+            round_decimal,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs,
+        )
         if kwargs.get("_async", False):
             return SearchFuture(res)
         return SearchResult(res)
 
-    def search_iterator(self, data, anns_field, param, limit, expr=None, partition_names=None,
-                        output_fields=None, timeout=None, round_decimal=-1, **kwargs):
+    def search_iterator(
+        self,
+        data: List,
+        anns_field: str,
+        param: Dict,
+        limit: int,
+        expr: Optional[str] = None,
+        partition_names: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        round_decimal: int = -1,
+        **kwargs,
+    ):
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
-        conn = self._get_connection()
-        iterator = SearchIterator(conn, self._name, data, anns_field, param, limit, expr, partition_names,
-                                  output_fields, timeout, round_decimal, schema=self._schema_dict, **kwargs)
-        return iterator
+        return SearchIterator(
+            connections=self._get_connection(),
+            collection_name=self._name,
+            data=data,
+            ann_field=anns_field,
+            param=param,
+            limit=limit,
+            expr=expr,
+            partition_names=partition_names,
+            output_fields=output_fields,
+            timeout=timeout,
+            round_decimal=round_decimal,
+            schema=self._schema_dict,
+            **kwargs,
+        )
 
-    def query(self, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
-        """ Query with expressions
+    def query(
+        self,
+        expr: str,
+        output_fields: Optional[List[str]] = None,
+        partition_names: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Query with expressions
 
         Args:
             expr (``str``): The query expression.
             output_fields(``List[str]``): A list of field names to return. Defaults to None.
-            partition_names: (``List[str]``, optional): A list of partition names to query in. Defaults to None.
-            timeout (``float``, optional): A duration of time in seconds to allow for the RPC. Defaults to None.
-                If timeout is set to None, the client keeps waiting until the server responds or an error occurs.
+            partition_names: (``List[str]``, optional): A list of partition names to query in.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
             **kwargs (``dict``, optional):
 
                 * *consistency_level* (``str/int``, optional)
@@ -711,9 +851,10 @@ class Collection:
 
                     Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
 
-                    Note: this parameter will overwrite the same parameter specified when user created the collection,
-                    if no consistency level was specified, search will use the consistency level when you create the
-                    collection.
+                    Note: this parameter overwrites the same one specified when creating collection,
+                    if no consistency level was specified, search will use the
+                    consistency level when you create the collection.
+
 
                 * *guarantee_timestamp* (``int``, optional)
                     Instructs Milvus to see all operations performed before this timestamp.
@@ -743,9 +884,8 @@ class Collection:
             MilvusException: If anything goes wrong
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> import random
-            >>> connections.connect()
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("film_date", DataType.INT64),
@@ -759,7 +899,8 @@ class Collection:
             ...     [[random.random() for _ in range(2)] for _ in range(10)],
             ... ]
             >>> collection.insert(data)
-            >>> collection.create_index("films", {"index_type": "FLAT", "metric_type": "L2", "params": {}})
+            >>> index_param = {"index_type": "FLAT", "metric_type": "L2", "params": {}}
+            >>> collection.create_index("films", index_param)
             >>> collection.load()
             >>> # query
             >>> expr = "film_id <= 1"
@@ -772,28 +913,47 @@ class Collection:
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
         conn = self._get_connection()
-        res = conn.query(self._name, expr, output_fields, partition_names,
-                         timeout=timeout, schema=self._schema_dict, **kwargs)
-        return res
+        return conn.query(
+            self._name,
+            expr,
+            output_fields,
+            partition_names,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs,
+        )
 
-    def query_iterator(self, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
+    def query_iterator(
+        self,
+        expr: str,
+        output_fields: Optional[List[str]] = None,
+        partition_names: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
         if not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         conn = self._get_connection()
-        iterator = QueryIterator(conn, self._name, expr, output_fields, partition_names,
-                                 timeout=timeout, schema=self._schema_dict, **kwargs)
-        return iterator
+        return QueryIterator(
+            connection=conn,
+            collection_name=self._name,
+            expr=expr,
+            output_fields=output_fields,
+            partition_names=partition_names,
+            schema=self._schema_dict,
+            timeout=timeout,
+            **kwargs,
+        )
 
     @property
     def partitions(self, **kwargs) -> List[Partition]:
-        """ List[Partition]: List of Partition object.
+        """List[Partition]: List of Partition object.
 
         Raises:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -809,8 +969,8 @@ class Collection:
             partitions.append(Partition(self, partition, construct_only=True))
         return partitions
 
-    def partition(self, partition_name, **kwargs) -> Partition:
-        """ Get the existing partition object according to name. Return None if not existed.
+    def partition(self, partition_name: str, **kwargs) -> Partition:
+        """Get the existing partition object according to name. Return None if not existed.
 
         Args:
             partition_name (``str``): The name of the partition to get.
@@ -822,8 +982,7 @@ class Collection:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -832,12 +991,12 @@ class Collection:
             >>> collection.partition("_default")
             {"name": "_default", "description": "", "num_entities": 0}
         """
-        if self.has_partition(partition_name, **kwargs) is False:
+        if not self.has_partition(partition_name, **kwargs):
             return None
         return Partition(self, partition_name, construct_only=True, **kwargs)
 
-    def create_partition(self, partition_name, description="", **kwargs) -> Partition:
-        """ Create a new partition corresponding to name if not existed.
+    def create_partition(self, partition_name: str, description: str = "", **kwargs) -> Partition:
+        """Create a new partition corresponding to name if not existed.
 
         Args:
             partition_name (``str``): The name of the partition to create.
@@ -850,29 +1009,29 @@ class Collection:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
             ... ])
-            >>> collection = Collection("test_collection_create_partition", schema)
+            >>> collection = Collection("test_create_partition", schema)
             >>> collection.create_partition("comedy", description="comedy films")
-            {"name": "comedy", "collection_name": "test_collection_create_partition", "description": ""}
+            {"name": "comedy", "collection_name": "test_create_partition", "description": ""}
             >>> collection.partition("comedy")
-            {"name": "comedy", "collection_name": "test_collection_create_partition", "description": ""}
+            {"name": "comedy", "collection_name": "test_create_partition", "description": ""}
         """
         if self.has_partition(partition_name, **kwargs) is True:
             raise PartitionAlreadyExistException(message=ExceptionsMessage.PartitionAlreadyExist)
         return Partition(self, partition_name, description=description, **kwargs)
 
-    def has_partition(self, partition_name, timeout=None, **kwargs) -> bool:
-        """ Checks if a specified partition exists.
+    def has_partition(self, partition_name: str, timeout: Optional[float] = None, **kwargs) -> bool:
+        """Checks if a specified partition exists.
 
         Args:
             partition_name (``str``): The name of the partition to check.
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow for
+                the RPC. When timeout is set to None, client waits until server
+                response or error occur.
 
         Returns:
             bool: True if exists, otherwise false.
@@ -881,8 +1040,7 @@ class Collection:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -898,21 +1056,21 @@ class Collection:
         conn = self._get_connection()
         return conn.has_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
-    def drop_partition(self, partition_name, timeout=None, **kwargs):
-        """ Drop the partition in this collection.
+    def drop_partition(self, partition_name: str, timeout: Optional[float] = None, **kwargs):
+        """Drop the partition in this collection.
 
         Args:
             partition_name (``str``): The name of the partition to drop.
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow for
+                the RPC. When timeout is set to None, client waits until server response
+                or error occur.
 
         Raises:
             PartitionNotExistException: If the partition doesn't exists.
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -936,8 +1094,7 @@ class Collection:
         """List[Index]: list of indexes of this collection.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -955,7 +1112,13 @@ class Collection:
                 if info_dict.get("params", None):
                     info_dict["params"] = json.loads(info_dict["params"])
 
-                index_info = Index(self, index.field_name, info_dict, index_name=index.index_name, construct_only=True)
+                index_info = Index(
+                    collection=self,
+                    field_name=index.field_name,
+                    index_params=info_dict,
+                    index_name=index.index_name,
+                    construct_only=True,
+                )
                 indexes.append(index_info)
         return indexes
 
@@ -974,8 +1137,7 @@ class Collection:
             IndexNotExistException: If the index doesn't exists.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -999,12 +1161,18 @@ class Collection:
             return Index(self, field_name, tmp_index, construct_only=True, index_name=index_name)
         raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
 
-    def create_index(self, field_name, index_params={}, timeout=None, **kwargs):
+    def create_index(
+        self,
+        field_name: str,
+        index_params: Optional[Dict] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
         """Creates index for a specified field, with a index name.
 
         Args:
             field_name (``str``): The name of the field to create index
-            index_params (``dict``): The parameters to index
+            index_params (``dict``, optional): The parameters to index
                 * *index_type* (``str``)
                     "index_type" as the key, example values: "FLAT", "IVF_FLAT", etc.
 
@@ -1014,8 +1182,9 @@ class Collection:
                 * *params* (``dict``)
                     "params" as the key, corresponding index params.
 
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server
+                response or error occur.
             index_name (``str``): The name of index which will be created, must be unique.
                 If no index name is specified, the default index name will be used.
 
@@ -1023,26 +1192,29 @@ class Collection:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
             ... ])
             >>> collection = Collection("test_collection_create_index", schema)
-            >>> index_params = {"index_type": "IVF_FLAT", "params": {"nlist": 128}, "metric_type": "L2"}
+            >>> index_params = {
+            ...     "index_type": "IVF_FLAT",
+            ...     "params": {"nlist": 128},
+            ...     "metric_type": "L2"}
             >>> collection.create_index("films", index_params, index_name="idx")
             Status(code=0, message='')
         """
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params, timeout=timeout, **kwargs)
 
-    def has_index(self, timeout=None, **kwargs) -> bool:
-        """ Check whether a specified index exists.
+    def has_index(self, timeout: Optional[float] = None, **kwargs) -> bool:
+        """Check whether a specified index exists.
 
         Args:
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
 
             **kwargs (``dict``):
                 * *index_name* (``str``)
@@ -1052,8 +1224,7 @@ class Collection:
             bool: Whether the specified index exists.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -1071,11 +1242,12 @@ class Collection:
             return False
         return True
 
-    def drop_index(self, timeout=None, **kwargs):
-        """ Drop index and its corresponding index files.
+    def drop_index(self, timeout: Optional[float] = None, **kwargs):
+        """Drop index and its corresponding index files.
         Args:
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
 
             **kwargs (``dict``):
                 * *index_name* (``str``)
@@ -1085,8 +1257,7 @@ class Collection:
             MilvusException: If anything goes wrong.
 
         Examples:
-            >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
-            >>> connections.connect()
+            >>> from pymilvus Collection, FieldSchema, CollectionSchema, DataType
             >>> schema = CollectionSchema([
             ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
             ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -1105,15 +1276,22 @@ class Collection:
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs)
         if tmp_index is not None:
-            index = Index(self, tmp_index['field_name'], tmp_index, construct_only=True, index_name=index_name)
+            index = Index(
+                collection=self,
+                field_name=tmp_index["field_name"],
+                index_params=tmp_index,
+                construct_only=True,
+                index_name=index_name,
+            )
             index.drop(timeout=timeout, **kwargs)
 
-    def compact(self, timeout=None, **kwargs):
-        """ Compact merge the small segments in a collection
+    def compact(self, timeout: Optional[float] = None, **kwargs):
+        """Compact merge the small segments in a collection
 
         Args:
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
 
         Raises:
             MilvusException: If anything goes wrong.
@@ -1121,12 +1299,13 @@ class Collection:
         conn = self._get_connection()
         self.compaction_id = conn.compact(self._name, timeout=timeout, **kwargs)
 
-    def get_compaction_state(self, timeout=None, **kwargs) -> CompactionState:
-        """ Get the current compaction state
+    def get_compaction_state(self, timeout: Optional[float] = None, **kwargs) -> CompactionState:
+        """Get the current compaction state
 
         Args:
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
 
         Raises:
             MilvusException: If anything goes wrong.
@@ -1134,12 +1313,17 @@ class Collection:
         conn = self._get_connection()
         return conn.get_compaction_state(self.compaction_id, timeout=timeout, **kwargs)
 
-    def wait_for_compaction_completed(self, timeout=None, **kwargs) -> CompactionState:
-        """ Block until the current collection's compaction completed
+    def wait_for_compaction_completed(
+        self,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CompactionState:
+        """Block until the current collection's compaction completed
 
         Args:
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
 
         Raises:
             MilvusException: If anything goes wrong.
@@ -1147,30 +1331,32 @@ class Collection:
         conn = self._get_connection()
         return conn.wait_for_compaction_completed(self.compaction_id, timeout=timeout, **kwargs)
 
-    def get_compaction_plans(self, timeout=None, **kwargs) -> CompactionPlans:
+    def get_compaction_plans(self, timeout: Optional[float] = None, **kwargs) -> CompactionPlans:
         """Get the current compaction plans
 
         Args:
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
         Returns:
             CompactionPlans: All the plans' states of this compaction.
         """
         conn = self._get_connection()
         return conn.get_compaction_plans(self.compaction_id, timeout=timeout, **kwargs)
 
-    def get_replicas(self, timeout=None, **kwargs) -> Replica:
+    def get_replicas(self, timeout: Optional[float] = None, **kwargs) -> Replica:
         """Get the current loaded replica information
 
         Args:
-            timeout (``float``, optional): An optional duration of time in seconds to allow for the RPC. When timeout
-                is set to None, client waits until server response or error occur.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
         Returns:
             Replica: All the replica information.
         """
         conn = self._get_connection()
         return conn.get_replicas(self.name, timeout=timeout, **kwargs)
 
-    def describe(self, timeout=None):
+    def describe(self, timeout: Optional[float] = None):
         conn = self._get_connection()
         return conn.describe_collection(self.name, timeout=timeout)

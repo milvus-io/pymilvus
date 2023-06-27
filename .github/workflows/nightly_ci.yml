@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6]
+        python-version: [3.7]
     env:
       IMAGE_REPO: "milvusdb"
       TAG_PREFIX: "master-"

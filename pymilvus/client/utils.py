@@ -1,8 +1,11 @@
 import datetime
+from datetime import timedelta
+from typing import Any, List, Optional, Union
 
-from .types import DataType
+from pymilvus.exceptions import MilvusException, ParamError
+
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
-from ..exceptions import ParamError, MilvusException
+from .types import DataType
 
 MILVUS = "milvus"
 ZILLIZ = "zilliz"
@@ -18,7 +21,7 @@ valid_index_types = [
     "BIN_FLAT",
     "BIN_IVF_FLAT",
     "DISKANN",
-    "AUTOINDEX"
+    "AUTOINDEX",
 ]
 
 valid_index_params_keys = [
@@ -28,12 +31,12 @@ valid_index_params_keys = [
     "M",
     "efConstruction",
     "PQM",
-    "n_trees"
+    "n_trees",
 ]
 
 valid_binary_index_types = [
     "BIN_FLAT",
-    "BIN_IVF_FLAT"
+    "BIN_IVF_FLAT",
 ]
 
 valid_binary_metric_types = [
@@ -41,21 +44,25 @@ valid_binary_metric_types = [
     "HAMMING",
     "TANIMOTO",
     "SUBSTRUCTURE",
-    "SUPERSTRUCTURE"
+    "SUPERSTRUCTURE",
 ]
 
 
-def hybridts_to_unixtime(ts):
+def hybridts_to_unixtime(ts: int):
     physical = ts >> LOGICAL_BITS
     return physical / 1000.0
 
 
-def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
+def mkts_from_hybridts(
+    hybridts: int,
+    milliseconds: Union[int, float] = 0.0,
+    delta: Optional[timedelta] = None,
+) -> int:
     if not isinstance(milliseconds, (int, float)):
         raise MilvusException(message="parameter milliseconds should be type of int or float")
 
     if isinstance(delta, datetime.timedelta):
-        milliseconds += (delta.microseconds / 1000.0)
+        milliseconds += delta.microseconds / 1000.0
     elif delta is not None:
         raise MilvusException(message="parameter delta should be type of datetime.timedelta")
 
@@ -65,11 +72,14 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
     logical = hybridts & LOGICAL_BITS_MASK
     physical = hybridts >> LOGICAL_BITS
 
-    new_ts = int((int((physical + milliseconds)) << LOGICAL_BITS) + logical)
-    return new_ts
+    return int((int(physical + milliseconds) << LOGICAL_BITS) + logical)
 
 
-def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
+def mkts_from_unixtime(
+    epoch: Union[int, float],
+    milliseconds: Union[int, float] = 0.0,
+    delta: Optional[timedelta] = None,
+) -> int:
     if not isinstance(epoch, (int, float)):
         raise MilvusException(message="parameter epoch should be type of int or float")
 
@@ -77,33 +87,37 @@ def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
         raise MilvusException(message="parameter milliseconds should be type of int or float")
 
     if isinstance(delta, datetime.timedelta):
-        milliseconds += (delta.microseconds / 1000.0)
+        milliseconds += delta.microseconds / 1000.0
     elif delta is not None:
         raise MilvusException(message="parameter delta should be type of datetime.timedelta")
 
-    epoch += (milliseconds / 1000.0)
+    epoch += milliseconds / 1000.0
     int_msecs = int(epoch * 1000 // 1)
     return int(int_msecs << LOGICAL_BITS)
 
 
-def mkts_from_datetime(d_time, milliseconds=0., delta=None):
+def mkts_from_datetime(
+    d_time: datetime.datetime,
+    milliseconds: Union[int, float] = 0.0,
+    delta: Optional[timedelta] = None,
+) -> int:
     if not isinstance(d_time, datetime.datetime):
         raise MilvusException(message="parameter d_time should be type of datetime.datetime")
 
     return mkts_from_unixtime(d_time.timestamp(), milliseconds=milliseconds, delta=delta)
 
 
-def check_invalid_binary_vector(entities) -> bool:
+def check_invalid_binary_vector(entities: List) -> bool:
     for entity in entities:
-        if entity['type'] == DataType.BINARY_VECTOR:
-            if not isinstance(entity['values'], list) and len(entity['values']) == 0:
+        if entity["type"] == DataType.BINARY_VECTOR:
+            if not isinstance(entity["values"], list) and len(entity["values"]) == 0:
                 return False
 
-            dim = len(entity['values'][0]) * 8
+            dim = len(entity["values"][0]) * 8
             if dim == 0:
                 return False
 
-            for values in entity['values']:
+            for values in entity["values"]:
                 if len(values) * 8 != dim:
                     return False
                 if not isinstance(values, bytes):
@@ -111,7 +125,7 @@ def check_invalid_binary_vector(entities) -> bool:
     return True
 
 
-def len_of(field_data) -> int:
+def len_of(field_data: Any) -> int:
     if field_data.HasField("scalars"):
         if field_data.scalars.HasField("bool_data"):
             return len(field_data.scalars.bool_data.data)
@@ -144,7 +158,9 @@ def len_of(field_data) -> int:
         if field_data.vectors.HasField("float_vector"):
             total_len = len(field_data.vectors.float_vector.data)
             if total_len % dim != 0:
-                raise MilvusException(message=f"Invalid vector length: total_len={total_len}, dim={dim}")
+                raise MilvusException(
+                    message=f"Invalid vector length: total_len={total_len}, dim={dim}"
+                )
             return int(total_len / dim)
 
         total_len = len(field_data.vectors.binary_vector)
@@ -153,7 +169,7 @@ def len_of(field_data) -> int:
     raise MilvusException(message="Unknown data type")
 
 
-def traverse_rows_info(fields_info, entities):
+def traverse_rows_info(fields_info: Any, entities: List):
     location, primary_key_loc, auto_id_loc = {}, None, None
 
     for i, field in enumerate(fields_info):
@@ -178,29 +194,28 @@ def traverse_rows_info(fields_info, entities):
             if is_auto_id:
                 if field_name in entity:
                     raise ParamError(
-                        message=f"auto id enabled, {field_name} shouldn't in entities[{j}]")
+                        message=f"auto id enabled, {field_name} shouldn't in entities[{j}]"
+                    )
                 continue
 
-            if is_dynamic:
-                if field_name in entity:
-                    raise ParamError(
-                        message=f"dynamic field enabled, {field_name} shouldn't in entities[{j}]")
+            if is_dynamic and field_name in entity:
+                raise ParamError(
+                    message=f"dynamic field enabled, {field_name} shouldn't in entities[{j}]"
+                )
 
             value = entity.get(field_name, None)
             if value is None:
-                raise ParamError(
-                    message=f"Field {field_name} don't match in entities[{j}]")
+                raise ParamError(message=f"Field {field_name} don't match in entities[{j}]")
 
             if field_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
                 field_dim = field["params"]["dim"]
-                if field_type == DataType.FLOAT_VECTOR:
-                    entity_dim = len(value)
-                else:
-                    entity_dim = len(value) * 8
+                entity_dim = len(value) if field_type == DataType.FLOAT_VECTOR else len(value) * 8
 
                 if entity_dim != field_dim:
-                    raise ParamError(message=f"Collection field dim is {field_dim}"
-                                             f", but entities field dim is {entity_dim}")
+                    raise ParamError(
+                        message=f"Collection field dim is {field_dim}"
+                        f", but entities field dim is {entity_dim}"
+                    )
 
     # though impossible from sdk
     if primary_key_loc is None:
@@ -209,7 +224,7 @@ def traverse_rows_info(fields_info, entities):
     return location, primary_key_loc, auto_id_loc
 
 
-def traverse_info(fields_info, entities):
+def traverse_info(fields_info: Any, entities: List):
     location, primary_key_loc, auto_id_loc = {}, None, None
     for i, field in enumerate(fields_info):
         if field.get("is_primary", False):
@@ -228,41 +243,50 @@ def traverse_info(fields_info, entities):
 
             if field_name == entity_name:
                 if field_type != entity_type:
-                    raise ParamError(message=f"Collection field type is {field_type}"
-                                             f", but entities field type is {entity_type}")
+                    raise ParamError(
+                        message=f"Collection field type is {field_type}"
+                        f", but entities field type is {entity_type}"
+                    )
 
                 entity_dim, field_dim = 0, 0
                 if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
                     field_dim = field["params"]["dim"]
                     entity_dim = len(entity["values"][0])
 
-                if entity_type in [DataType.FLOAT_VECTOR, ] and entity_dim != field_dim:
-                    raise ParamError(message=f"Collection field dim is {field_dim}"
-                                             f", but entities field dim is {entity_dim}")
+                if entity_type in [DataType.FLOAT_VECTOR] and entity_dim != field_dim:
+                    raise ParamError(
+                        message=f"Collection field dim is {field_dim}"
+                        f", but entities field dim is {entity_dim}"
+                    )
 
-                if entity_type in [DataType.BINARY_VECTOR, ] and entity_dim * 8 != field_dim:
-                    raise ParamError(message=f"Collection field dim is {field_dim}"
-                                             f", but entities field dim is {entity_dim * 8}")
+                if entity_type in [DataType.BINARY_VECTOR] and entity_dim * 8 != field_dim:
+                    raise ParamError(
+                        message=f"Collection field dim is {field_dim}"
+                        f", but entities field dim is {entity_dim * 8}"
+                    )
 
                 location[field["name"]] = i
                 match_flag = True
                 break
 
         if not match_flag:
-            raise ParamError(
-                message=f"Field {field['name']} don't match in entities")
+            raise ParamError(message=f"Field {field['name']} don't match in entities")
 
     return location, primary_key_loc, auto_id_loc
 
 
-def get_server_type(host):
+def get_server_type(host: str):
     if host is None or not isinstance(host, str):
         return MILVUS
-    splits = host.split('.')
+    splits = host.split(".")
     len_of_splits = len(splits)
-    if len_of_splits >= 2 and \
-            (splits[len_of_splits - 2].lower() == "zilliz" or
-             splits[len_of_splits - 2].lower() == "zillizcloud") and \
-            splits[len_of_splits - 1].lower() == "com":
+    if (
+        len_of_splits >= 2
+        and (
+            splits[len_of_splits - 2].lower() == "zilliz"
+            or splits[len_of_splits - 2].lower() == "zillizcloud"
+        )
+        and splits[len_of_splits - 1].lower() == "com"
+    ):
         return ZILLIZ
     return MILVUS

@@ -1,15 +1,20 @@
 """MilvusClient for dealing with simple workflows."""
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
-from pymilvus.exceptions import MilvusException, DataTypeNotMatchException, AutoIDException, PrimaryKeyException
+from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.types import ExceptionsMessage
+from pymilvus.exceptions import (
+    AutoIDException,
+    DataTypeNotMatchException,
+    MilvusException,
+    PrimaryKeyException,
+)
 from pymilvus.orm import utility
 from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
 from pymilvus.orm.types import DataType
-from pymilvus.client.types import ExceptionsMessage
-from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -20,13 +25,16 @@ class MilvusClient:
 
     # pylint: disable=logging-too-many-args, too-many-instance-attributes, import-outside-toplevel
 
-    def __init__(self,
-                 uri: str = "http://localhost:19530",
-                 user: str = "",
-                 password: str = "",
-                 db_name: str = "",
-                 token: str = "",
-                 timeout: float = None, **kwargs):
+    def __init__(
+        self,
+        uri: str = "http://localhost:19530",
+        user: str = "",
+        password: str = "",
+        db_name: str = "",
+        token: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> None:
         """A client for the common Milvus use case.
 
         This client attempts to hide away the complexity of using Pymilvus. In a lot ofcases what
@@ -42,10 +50,11 @@ class MilvusClient:
         # Optionial TQDM import
         try:
             import tqdm
+
             self.tqdm = tqdm.tqdm
         except ImportError:
             logger.debug("tqdm not found")
-            self.tqdm = (lambda x, disable: x)
+            self.tqdm = lambda x, disable: x
 
         self.uri = uri
         self.timeout = timeout
@@ -55,20 +64,21 @@ class MilvusClient:
 
         self._using = self._create_connection(uri, user, password, db_name, token, **kwargs)
         self.is_self_hosted = bool(
-            utility.get_server_type(using=self._using) == "milvus"
+            utility.get_server_type(using=self._using) == "milvus",
         )
 
-    def create_collection(self,
-                          collection_name: str,
-                          dimension: int,
-                          primary_field_name: str = "id",  # default is "id"
-                          id_type: str = "int",  # or "string",
-                          vector_field_name: str = "vector",  # default is  "vector"
-                          metric_type: str = "IP",
-                          auto_id=False,
-                          timeout: float = None,
-                          **kwargs):
-
+    def create_collection(
+        self,
+        collection_name: str,
+        dimension: int,
+        primary_field_name: str = "id",  # default is "id"
+        id_type: str = "int",  # or "string",
+        vector_field_name: str = "vector",  # default is  "vector"
+        metric_type: str = "IP",
+        auto_id: bool = False,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
         if "enable_dynamic_field" not in kwargs:
             kwargs["enable_dynamic_field"] = True
 
@@ -81,9 +91,8 @@ class MilvusClient:
         else:
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
 
-        if pk_data_type == DataType.VARCHAR:
-            if auto_id:
-                raise AutoIDException(message=ExceptionsMessage.AutoIDFieldType)
+        if pk_data_type == DataType.VARCHAR and auto_id:
+            raise AutoIDException(message=ExceptionsMessage.AutoIDFieldType)
 
         pk_args = {}
         if "max_length" in kwargs and pk_data_type == DataType.VARCHAR:
@@ -102,7 +111,7 @@ class MilvusClient:
             logger.debug("Successfully created collection: %s", collection_name)
         except Exception as ex:
             logger.error("Failed to create collection: %s", collection_name)
-            raise ex
+            raise ex from ex
         index_params = {
             "metric_type": metric_type,
             "params": {},
@@ -110,7 +119,13 @@ class MilvusClient:
         self._create_index(collection_name, vector_field_name, index_params, timeout=timeout)
         self._load(collection_name, timeout=timeout)
 
-    def _create_index(self, collection_name, vec_field_name, index_params, timeout=None) -> None:
+    def _create_index(
+        self,
+        collection_name: str,
+        vec_field_name: str,
+        index_params: Dict,
+        timeout: Optional[float] = None,
+    ) -> None:
         """Create a index on the collection"""
         conn = self._get_connection()
         try:
@@ -126,18 +141,19 @@ class MilvusClient:
             )
         except Exception as ex:
             logger.error(
-                "Failed to create an index on collection: %s", collection_name
+                "Failed to create an index on collection: %s",
+                collection_name,
             )
-            raise ex
+            raise ex from ex
 
     def insert(
-            self,
-            collection_name: str,
-            data: Union[Dict, List[Dict]],
-            batch_size: int = 0,
-            progress_bar: bool = False,
-            timeout=None,
-            **kwargs,
+        self,
+        collection_name: str,
+        data: Union[Dict, List[Dict]],
+        batch_size: int = 0,
+        progress_bar: bool = False,
+        timeout: Optional[float] = None,
+        **kwargs,
     ) -> List[Union[str, int]]:
         """Insert data into the collection.
 
@@ -170,7 +186,8 @@ class MilvusClient:
 
         if batch_size < 0:
             logger.error("Invalid batch size provided for insert.")
-            raise ValueError("Invalid batch size provided for insert.")
+            msg = "Invalid batch size provided for insert."
+            raise ValueError(msg)
 
         if batch_size == 0:
             batch_size = len(data)
@@ -179,7 +196,7 @@ class MilvusClient:
         pks = []
         for i in self.tqdm(range(0, len(data), batch_size), disable=not progress_bar):
             # Convert dict to list of lists batch for insertion
-            insert_batch = data[i:i + batch_size]
+            insert_batch = data[i : i + batch_size]
             # Insert into the collection.
             try:
                 res = conn.insert_rows(collection_name, insert_batch, timeout=timeout)
@@ -190,20 +207,21 @@ class MilvusClient:
                     str(i),
                     str(len(data)),
                 )
-                raise ex
+                raise ex from ex
 
         return pks
 
-    def search(self,
-               collection_name: str,
-               data: Union[List[list], list],
-               filter: str = "",
-               limit: int = 10,
-               output_fields: List[str] = None,
-               search_params: dict = None,
-               timeout: float = None,
-               **kwargs,
-               ) -> List[dict]:
+    def search(
+        self,
+        collection_name: str,
+        data: Union[List[list], list],
+        filter: str = "",
+        limit: int = 10,
+        output_fields: Optional[List[str]] = None,
+        search_params: Optional[dict] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[dict]:
         """Search for a query vector/vectors.
 
         In order for the search to process, a collection needs to have been either provided
@@ -242,7 +260,7 @@ class MilvusClient:
             )
         except Exception as ex:
             logger.error("Failed to search collection: %s", collection_name)
-            raise ex
+            raise ex from ex
 
         ret = []
         for hits in res:
@@ -254,12 +272,12 @@ class MilvusClient:
         return ret
 
     def query(
-            self,
-            collection_name: str,
-            filter: str,
-            output_fields: List[str] = None,
-            timeout: float = None,
-            **kwargs
+        self,
+        collection_name: str,
+        filter: str,
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
     ) -> List[dict]:
         """Query for entries in the Collection.
 
@@ -282,12 +300,10 @@ class MilvusClient:
 
         conn = self._get_connection()
         try:
-            schema_dict = conn.describe_collection(
-                collection_name,
-                timeout=timeout, **kwargs)
+            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
         except Exception as ex:
             logger.error("Failed to describe collection: %s", collection_name)
-            raise ex
+            raise ex from ex
 
         if not output_fields:
             output_fields = ["*"]
@@ -297,23 +313,21 @@ class MilvusClient:
 
         try:
             res = conn.query(
-                collection_name,
-                expr=filter,
-                output_fields=output_fields,
-                timeout=timeout, **kwargs)
+                collection_name, expr=filter, output_fields=output_fields, timeout=timeout, **kwargs
+            )
         except Exception as ex:
             logger.error("Failed to query collection: %s", collection_name)
-            raise ex
+            raise ex from ex
 
         return res
 
     def get(
-            self,
-            collection_name: str,
-            ids: Union[list, str, int],
-            output_fields: List[str] = None,
-            timeout: float = None,
-            **kwargs,
+        self,
+        collection_name: str,
+        ids: Union[list, str, int],
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
     ) -> List[List[float]]:
         """Grab the inserted vectors using the primary key from the Collection.
 
@@ -339,12 +353,10 @@ class MilvusClient:
 
         conn = self._get_connection()
         try:
-            schema_dict = conn.describe_collection(
-                collection_name,
-                timeout=timeout, **kwargs)
+            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
         except Exception as ex:
             logger.error("Failed to describe collection: %s", collection_name)
-            raise ex
+            raise ex from ex
 
         if not output_fields:
             output_fields = ["*"]
@@ -355,22 +367,20 @@ class MilvusClient:
         expr = self._pack_pks_expr(schema_dict, ids)
         try:
             res = conn.query(
-                collection_name,
-                expr=expr,
-                output_fields=output_fields,
-                timeout=timeout, **kwargs)
+                collection_name, expr=expr, output_fields=output_fields, timeout=timeout, **kwargs
+            )
         except Exception as ex:
             logger.error("Failed to get collection: %s", collection_name)
-            raise ex
+            raise ex from ex
 
         return res
 
     def delete(
-            self,
-            collection_name: str,
-            pks: Union[list, str, int],
-            timeout: float = None,
-            **kwargs
+        self,
+        collection_name: str,
+        pks: Union[list, str, int],
+        timeout: Optional[float] = None,
+        **kwargs,
     ) -> List[Union[str, int]]:
         """Delete entries in the collection by their pk.
 
@@ -392,27 +402,22 @@ class MilvusClient:
 
         conn = self._get_connection()
         try:
-            schema_dict = conn.describe_collection(
-                collection_name,
-                timeout=timeout, **kwargs)
+            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
         except Exception as ex:
             logger.error("Failed to describe collection: %s", collection_name)
-            raise ex
+            raise ex from ex
 
         expr = self._pack_pks_expr(schema_dict, pks)
         ret_pks = []
         try:
-            res = conn.delete(
-                collection_name,
-                expr,
-                timeout=timeout, **kwargs)
+            res = conn.delete(collection_name, expr, timeout=timeout, **kwargs)
             ret_pks.extend(res.primary_keys)
         except Exception as ex:
             logger.error("Failed to delete primary keys in collection: %s", collection_name)
-            raise ex
+            raise ex from ex
         return ret_pks
 
-    def num_entities(self, collection_name: str, timeout=None) -> int:
+    def num_entities(self, collection_name: str, timeout: Optional[float] = None) -> int:
         """return the number of rows in the collection.
 
         Returns:
@@ -424,13 +429,14 @@ class MilvusClient:
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
 
-    def flush(self, collection_name, timeout=None, **kwargs):
-        """ Seal all segments in the collection. Inserts after flushing will be written into
+    def flush(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        """Seal all segments in the collection. Inserts after flushing will be written into
             new segments. Only sealed segments can be indexed.
 
         Args:
             timeout (float): an optional duration of time in seconds to allow for the RPCs.
-                If timeout is not set, the client keeps waiting until the server responds or an error occurs.
+                If timeout is not set, the client keeps waiting until the server responds
+                or an error occurs.
         """
         conn = self._get_connection()
         conn.flush([collection_name], timeout=timeout, **kwargs)
@@ -438,11 +444,10 @@ class MilvusClient:
     def describe_collection(self, collection_name: str, **kwargs):
         conn = self._get_connection()
         try:
-            schema_dict = conn.describe_collection(
-                collection_name, **kwargs)
+            schema_dict = conn.describe_collection(collection_name, **kwargs)
         except Exception as ex:
             logger.error("Failed to describe collection: %s", collection_name)
-            raise ex
+            raise ex from ex
         return schema_dict
 
     def list_collections(self, **kwargs):
@@ -451,7 +456,7 @@ class MilvusClient:
             collection_names = conn.list_collections(**kwargs)
         except Exception as ex:
             logger.error("Failed to list collections")
-            raise ex
+            raise ex from ex
         return collection_names
 
     def drop_collection(self, collection_name: str):
@@ -465,8 +470,15 @@ class MilvusClient:
         return CollectionSchema([], **kwargs)
 
     @classmethod
-    def prepare_index_params(cls, field_name, index_type=None, metric_type=None, index_name="", params=None,
-                                    **kwargs):
+    def prepare_index_params(
+        cls,
+        field_name: str,
+        index_type: Optional[str] = None,
+        metric_type: Optional[str] = None,
+        index_name: str = "",
+        params: Optional[Dict] = None,
+        **kwargs,
+    ):
         index_params = {"field_name": field_name}
         if index_type is not None:
             index_params["index_type"] = index_type
@@ -481,7 +493,14 @@ class MilvusClient:
 
         return index_params
 
-    def create_collection_with_schema(self, collection_name, schema, index_param, timeout=None, **kwargs):
+    def create_collection_with_schema(
+        self,
+        collection_name: str,
+        schema: CollectionSchema,
+        index_param: Dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
         schema.verify()
         if kwargs.get("auto_id", True):
             schema.auto_id = True
@@ -503,7 +522,7 @@ class MilvusClient:
             logger.debug("Successfully created collection: %s", collection_name)
         except Exception as ex:
             logger.error("Failed to create collection: %s", collection_name)
-            raise ex
+            raise ex from ex
 
         self._create_index(collection_name, vector_field_name, index_param, timeout=timeout)
         self._load(collection_name, timeout=timeout)
@@ -514,19 +533,28 @@ class MilvusClient:
     def _get_connection(self):
         return connections._fetch_handler(self._using)
 
-    def _create_connection(self, uri, user="", password="", db_name="", token="", **kwargs) -> str:
+    def _create_connection(
+        self,
+        uri: str,
+        user: str = "",
+        password: str = "",
+        db_name: str = "",
+        token: str = "",
+        **kwargs,
+    ) -> str:
         """Create the connection to the Milvus server."""
         # TODO: Implement reuse with new uri style
         using = uuid4().hex
         try:
             connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
-            logger.debug("Created new connection using: %s", using)
-            return using
         except Exception as ex:
             logger.error("Failed to create new connection using: %s", using)
-            raise ex
+            raise ex from ex
+        else:
+            logger.debug("Created new connection using: %s", using)
+            return using
 
-    def _extract_primary_field(self, schema_dict) -> dict:
+    def _extract_primary_field(self, schema_dict: Dict) -> dict:
         fields = schema_dict.get("fields", [])
         if not fields:
             return {}
@@ -537,7 +565,7 @@ class MilvusClient:
 
         return {}
 
-    def _get_vector_field_name(self, schema_dict):
+    def _get_vector_field_name(self, schema_dict: Dict):
         fields = schema_dict.get("fields", [])
         if not fields:
             return {}
@@ -547,13 +575,13 @@ class MilvusClient:
                 return field_dict.get("name", "")
         return ""
 
-    def _pack_pks_expr(self, schema_dict, pks) -> str:
+    def _pack_pks_expr(self, schema_dict: Dict, pks: List) -> str:
         primary_field = self._extract_primary_field(schema_dict)
         pk_field_name = primary_field["name"]
-        dataType = primary_field["type"]
+        data_type = primary_field["type"]
 
         # Varchar pks need double quotes around the values
-        if dataType == DataType.VARCHAR:
+        if data_type == DataType.VARCHAR:
             ids = ["'" + str(entry) + "'" for entry in pks]
             expr = f"""{pk_field_name} in [{','.join(ids)}]"""
         else:
@@ -561,7 +589,7 @@ class MilvusClient:
             expr = f"{pk_field_name} in [{','.join(ids)}]"
         return expr
 
-    def _load(self, collection_name, timeout=None):
+    def _load(self, collection_name: str, timeout: Optional[float] = None):
         """Loads the collection."""
         conn = self._get_connection()
         try:
@@ -571,4 +599,4 @@ class MilvusClient:
                 "Failed to load collection: %s",
                 collection_name,
             )
-            raise ex
+            raise ex from ex

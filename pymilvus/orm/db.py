@@ -1,12 +1,14 @@
-from pymilvus import connections
+from typing import Optional
+
+from . import connections
 
 
-def _get_connection(alias):
+def _get_connection(alias: str):
     return connections._fetch_handler(alias)
 
 
-def using_database(db_name, using="default"):
-    """ Using a database as a default database name within this connection
+def using_database(db_name: str, using: str = "default"):
+    """Using a database as a default database name within this connection
 
     :param db_name: Database name
     :type  db_name: str
@@ -15,8 +17,8 @@ def using_database(db_name, using="default"):
     _get_connection(using).reset_db_name(db_name)
 
 
-def create_database(db_name, using="default", timeout=None):
-    """ Create a database using provided database name
+def create_database(db_name: str, using: str = "default", timeout: Optional[float] = None):
+    """Create a database using provided database name
 
     :param db_name: Database name
     :type  db_name: str
@@ -25,8 +27,8 @@ def create_database(db_name, using="default", timeout=None):
     _get_connection(using).create_database(db_name, timeout=timeout)
 
 
-def drop_database(db_name, using="default", timeout=None):
-    """ Drop a database using provided database name
+def drop_database(db_name: str, using: str = "default", timeout: Optional[float] = None):
+    """Drop a database using provided database name
 
     :param db_name: Database name
     :type  db_name: str
@@ -35,8 +37,8 @@ def drop_database(db_name, using="default", timeout=None):
     _get_connection(using).drop_database(db_name, timeout=timeout)
 
 
-def list_database(using="default", timeout=None) -> list:
-    """ List databases
+def list_database(using: str = "default", timeout: Optional[float] = None) -> list:
+    """List databases
 
     :return list[str]:
         List of database names, return when operation is successful

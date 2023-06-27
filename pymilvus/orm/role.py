@@ -9,15 +9,19 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
+
 from .connections import connections
 
-class Role:
-    """ Role, can be granted privileges which are allowed to execute some objects' apis. """
+INCLUDE_USER_INFO, NOT_INCLUDE_USER_INFO = True, False
 
-    def __init__(self, name: str, using="default", **kwargs):
-        """ Constructs a role by name
-            :param name: role name.
-            :type  name: str
+
+class Role:
+    """Role, can be granted privileges which are allowed to execute some objects' apis."""
+
+    def __init__(self, name: str, using: str = "default", **kwargs) -> None:
+        """Constructs a role by name
+        :param name: role name.
+        :type  name: str
         """
         self._name = name
         self._using = using
@@ -31,7 +35,7 @@ class Role:
         return self._name
 
     def create(self):
-        """ Create a role
+        """Create a role
             It will success if the role isn't existed, otherwise fail.
 
         :example:
@@ -46,7 +50,7 @@ class Role:
         return self._get_connection().create_role(self._name)
 
     def drop(self):
-        """ Drop a role
+        """Drop a role
             It will success if the role is existed, otherwise fail.
 
         :example:
@@ -61,7 +65,7 @@ class Role:
         return self._get_connection().drop_role(self._name)
 
     def add_user(self, username: str):
-        """ Add user to role
+        """Add user to role
             The user will get permissions that the role are allowed to perform operations.
             :param username: user name.
             :type  username: str
@@ -78,7 +82,7 @@ class Role:
         return self._get_connection().add_user_to_role(username, self._name)
 
     def remove_user(self, username: str):
-        """ Remove user from role
+        """Remove user from role
             The user will remove permissions that the role are allowed to perform operations.
             :param username: user name.
             :type  username: str
@@ -95,7 +99,7 @@ class Role:
         return self._get_connection().remove_user_from_role(username, self._name)
 
     def get_users(self):
-        """ Get all users who are added to the role.
+        """Get all users who are added to the role.
             :return a RoleInfo object which contains a RoleItem group
                 According to the RoleItem, you can get a list of usernames.
 
@@ -110,13 +114,13 @@ class Role:
             >>> users = role.get_users()
             >>> print(f"users added to the role: {users}")
         """
-        roles = self._get_connection().select_one_role(self._name, True)
+        roles = self._get_connection().select_one_role(self._name, INCLUDE_USER_INFO)
         if len(roles.groups) == 0:
             return []
         return roles.groups[0].users
 
     def is_exist(self):
-        """ Check whether the role is existed.
+        """Check whether the role is existed.
             :return a bool value
                 It will be True if the role is existed, otherwise False.
 
@@ -128,11 +132,11 @@ class Role:
             >>> is_exist = role.is_exist()
             >>> print(f"the role: {is_exist}")
         """
-        roles = self._get_connection().select_one_role(self._name, False)
+        roles = self._get_connection().select_one_role(self._name, NOT_INCLUDE_USER_INFO)
         return len(roles.groups) != 0
 
     def grant(self, object: str, object_name: str, privilege: str, db_name: str = "default"):
-        """ Grant a privilege for the role
+        """Grant a privilege for the role
             :param object: object type.
             :type  object: str
             :param object_name: identifies a specific object name.
@@ -149,30 +153,31 @@ class Role:
             >>> role = Role(role_name)
             >>> role.grant("Collection", collection_name, "Insert")
         """
-        return self._get_connection().grant_privilege(self._name, object, object_name, privilege, db_name)
+        return self._get_connection().grant_privilege(
+            self._name, object, object_name, privilege, db_name
+        )
 
     def revoke(self, object: str, object_name: str, privilege: str, db_name: str = "default"):
-        """ Revoke a privilege for the role
-            :param object: object type.
-            :type  object: str
-            :param object_name: identifies a specific object name.
-            :type  object_name: str
-            :param privilege: privilege name.
-            :type  privilege: str
-            :param db_name: db name.
-            :type  db_name: str
+        """Revoke a privilege for the role
+        Args:
+            object(str): object type.
+            object_name(str): identifies a specific object name.
+            privilege(str): privilege name.
+            db_name(str): db name.
 
-        :example:
+        Examples:
             >>> from pymilvus import connections
             >>> from pymilvus.orm.role import Role
             >>> connections.connect()
             >>> role = Role(role_name)
             >>> role.revoke("Collection", collection_name, "Insert")
         """
-        return self._get_connection().revoke_privilege(self._name, object, object_name, privilege, db_name)
+        return self._get_connection().revoke_privilege(
+            self._name, object, object_name, privilege, db_name
+        )
 
     def list_grant(self, object: str, object_name: str, db_name: str = "default"):
-        """ List a grant info for the role and the specific object
+        """List a grant info for the role and the specific object
             :param object: object type.
             :type  object: str
             :param object_name: identifies a specific object name.
@@ -183,7 +188,8 @@ class Role:
             :rtype GrantInfo
 
             GrantInfo groups:
-            - GrantItem: <object:Collection>, <object_name:foo>, <role_name:x>, <grantor_name:root>, <privilege:Load>
+                - GrantItem: <object:Collection>, <object_name:foo>, <role_name:x>,
+                <grantor_name:root>, <privilege:Load>
 
         :example:
             >>> from pymilvus import connections
@@ -192,17 +198,20 @@ class Role:
             >>> role = Role(role_name)
             >>> role.list_grant("Collection", collection_name)
         """
-        return self._get_connection().select_grant_for_role_and_object(self._name, object, object_name, db_name)
+        return self._get_connection().select_grant_for_role_and_object(
+            self._name, object, object_name, db_name
+        )
 
     def list_grants(self, db_name: str = "default"):
-        """ List a grant info for the role
+        """List a grant info for the role
             :param db_name: db name.
             :type  db_name: str
             :return a GrantInfo object
             :rtype GrantInfo
 
             GrantInfo groups:
-            - GrantItem: <object:Collection>, <object_name:foo>, <role_name:x>, <grantor_name:root>, <privilege:Load>
+            - GrantItem: <object:Collection>, <object_name:foo>, <role_name:x>,
+                <grantor_name:root>, <privilege:Load>
 
         :example:
             >>> from pymilvus import connections

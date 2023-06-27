@@ -10,9 +10,11 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+from typing import Any
+
 
 class MutationResult:
-    def __init__(self, mr):
+    def __init__(self, mr: Any) -> None:
         self._mr = mr
 
     @property
@@ -51,7 +53,7 @@ class MutationResult:
     def err_index(self):
         return self._mr.err_index if self._mr else []
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return the information of mutation result
 

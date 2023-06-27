@@ -1,19 +1,50 @@
-from .constants import CALC_DIST_JACCARD, CALC_DIST_COSINE, OFFSET, LIMIT, METRIC_TYPE,\
-    FIELDS, PARAMS, RADIUS, RANGE_FILTER, DEFAULT_MAX_L2_DISTANCE, DEFAULT_MIN_IP_DISTANCE, \
-    DEFAULT_MAX_HAMMING_DISTANCE, DEFAULT_MAX_TANIMOTO_DISTANCE, DEFAULT_MAX_JACCARD_DISTANCE, \
-    DEFAULT_MIN_COSINE_DISTANCE, MAX_FILTERED_IDS_COUNT_ITERATION, ITERATION_EXTENSION_REDUCE_RATE, \
-    CALC_DIST_L2, CALC_DIST_IP, CALC_DIST_HAMMING, CALC_DIST_TANIMOTO
+from typing import Any, Dict, List, Optional, TypeVar
 
-from .types import DataType
-from ..exceptions import (
-    MilvusException,
+from pymilvus.exceptions import MilvusException
+
+from .connections import Connections
+from .constants import (
+    CALC_DIST_COSINE,
+    CALC_DIST_HAMMING,
+    CALC_DIST_IP,
+    CALC_DIST_JACCARD,
+    CALC_DIST_L2,
+    CALC_DIST_TANIMOTO,
+    DEFAULT_MAX_HAMMING_DISTANCE,
+    DEFAULT_MAX_JACCARD_DISTANCE,
+    DEFAULT_MAX_L2_DISTANCE,
+    DEFAULT_MAX_TANIMOTO_DISTANCE,
+    DEFAULT_MIN_COSINE_DISTANCE,
+    DEFAULT_MIN_IP_DISTANCE,
+    FIELDS,
+    ITERATION_EXTENSION_REDUCE_RATE,
+    LIMIT,
+    MAX_FILTERED_IDS_COUNT_ITERATION,
+    METRIC_TYPE,
+    OFFSET,
+    PARAMS,
+    RADIUS,
+    RANGE_FILTER,
 )
+from .schema import CollectionSchema
+from .types import DataType
+
+QueryIterator = TypeVar("QueryIterator")
+SearchIterator = TypeVar("SearchIterator")
 
 
 class QueryIterator:
-
-    def __init__(self, connection, collection_name, expr, output_fields=None, partition_names=None, schema=None,
-                 timeout=None, **kwargs):
+    def __init__(
+        self,
+        connection: Connections,
+        collection_name: str,
+        expr: str,
+        output_fields: Optional[List[str]] = None,
+        partition_names: Optional[List[str]] = None,
+        schema: Optional[CollectionSchema] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> QueryIterator:
         self._conn = connection
         self._collection_name = collection_name
         self._expr = expr
@@ -38,76 +69,88 @@ class QueryIterator:
         first_cursor_kwargs[LIMIT] = self._kwargs[OFFSET]
         first_cursor_kwargs[ITERATION_EXTENSION_REDUCE_RATE] = 0
 
-        res = self._conn.query(self._collection_name, self._expr, self._output_fields, self._partition_names,
-                               timeout=self._timeout, **first_cursor_kwargs)
+        res = self._conn.query(
+            collection_name=self._collection_name,
+            expr=self._expr,
+            output_field=self._output_fields,
+            partition_name=self._partition_names,
+            timeout=self._timeout,
+            **first_cursor_kwargs,
+        )
         self.__update_cursor(res)
         self._kwargs[OFFSET] = 0
 
-    def __maybe_cache(self, result):
+    def __maybe_cache(self, result: List):
         if len(result) < 2 * self._kwargs[LIMIT]:
             return
         start = self._kwargs[LIMIT]
         cache_result = result[start:]
-        cache_id = iteratorCache.cache(cache_result, NO_CACHE_ID)
+        cache_id = iterator_cache.cache(cache_result, NO_CACHE_ID)
         self._cache_id_in_use = cache_id
 
-    def __is_res_sufficient(self, res):
+    def __is_res_sufficient(self, res: List):
         return res is not None and len(res) >= self._kwargs[LIMIT]
 
     def next(self):
-        cached_res = iteratorCache.fetch_cache(self._cache_id_in_use)
+        cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
         ret = None
         if self.__is_res_sufficient(cached_res):
-            ret = cached_res[0:self._kwargs[LIMIT]]
-            res_to_cache = cached_res[self._kwargs[LIMIT]:]
-            iteratorCache.cache(res_to_cache, self._cache_id_in_use)
+            ret = cached_res[0 : self._kwargs[LIMIT]]
+            res_to_cache = cached_res[self._kwargs[LIMIT] :]
+            iterator_cache.cache(res_to_cache, self._cache_id_in_use)
         else:
-            iteratorCache.release_cache(self._cache_id_in_use)
+            iterator_cache.release_cache(self._cache_id_in_use)
             current_expr = self.__setup_next_expr()
-            res = self._conn.query(self._collection_name, current_expr, self._output_fields, self._partition_names,
-                                   timeout=self._timeout, **self._kwargs)
+            res = self._conn.query(
+                collection_name=self._collection_name,
+                expr=current_expr,
+                output_fields=self._output_fields,
+                partition_names=self._partition_names,
+                timeout=self._timeout,
+                **self._kwargs,
+            )
             self.__maybe_cache(res)
-            ret = res[0:min(self._kwargs[LIMIT], len(res))]
+            ret = res[0 : min(self._kwargs[LIMIT], len(res))]
         self.__update_cursor(ret)
         return ret
 
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
         for field in fields:
-            if field['is_primary']:
-                if field['type'] == DataType.VARCHAR:
+            if field["is_primary"]:
+                if field["type"] == DataType.VARCHAR:
                     self._pk_str = True
                 else:
                     self._pk_str = False
-                self._pk_field_name = field['name']
+                self._pk_field_name = field["name"]
                 break
         if self._pk_field_name is None or self._pk_field_name == "":
             raise MilvusException(message="schema must contain pk field, broke")
 
-    def __setup_next_expr(self):
+    def __setup_next_expr(self) -> None:
         current_expr = self._expr
         if self._next_id is None:
             return current_expr
         filtered_pk_str = ""
         if self._pk_str:
-            filtered_pk_str = f"{self._pk_field_name} > \"{self._next_id}\""
+            filtered_pk_str = f'{self._pk_field_name} > "{self._next_id}"'
         else:
             filtered_pk_str = f"{self._pk_field_name} > {self._next_id}"
         if current_expr is None or len(current_expr) == 0:
             return filtered_pk_str
         return current_expr + " and " + filtered_pk_str
 
-    def __update_cursor(self, res):
+    def __update_cursor(self, res: List) -> None:
         if len(res) == 0:
             return
         self._next_id = res[-1][self._pk_field_name]
 
-    def close(self):
+    def close(self) -> None:
         # release cache in use
-        iteratorCache.release_cache(self._cache_id_in_use)
+        iterator_cache.release_cache(self._cache_id_in_use)
 
 
-def default_radius(metrics):
+def default_radius(metrics: str):
     if metrics is CALC_DIST_L2:
         return DEFAULT_MAX_L2_DISTANCE
     if metrics is CALC_DIST_IP:
@@ -124,16 +167,35 @@ def default_radius(metrics):
 
 
 class SearchIterator:
-
-    def __init__(self, connection, collection_name, data, ann_field, param, limit, expr=None, partition_names=None,
-                 output_fields=None, timeout=None, round_decimal=-1, schema=None, **kwargs):
+    def __init__(
+        self,
+        connection: Connections,
+        collection_name: str,
+        data: List,
+        ann_field: str,
+        param: Dict,
+        limit: int,
+        expr: Optional[str] = None,
+        partition_names: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        round_decimal: int = -1,
+        schema: Optional[CollectionSchema] = None,
+        **kwargs,
+    ) -> SearchIterator:
         if len(data) > 1:
             raise MilvusException(message="Not support multiple vector iterator at present")
         self._conn = connection
-        self._iterator_params = {'collection_name': collection_name, "data": data,
-                                 "ann_field": ann_field, "limit": limit,
-                                 "output_fields": output_fields, "partition_names": partition_names,
-                                 "timeout": timeout, "round_decimal": round_decimal}
+        self._iterator_params = {
+            "collection_name": collection_name,
+            "data": data,
+            "ann_field": ann_field,
+            "limit": limit,
+            "output_fields": output_fields,
+            "partition_names": partition_names,
+            "timeout": timeout,
+            "round_decimal": round_decimal,
+        }
         self._expr = expr
         self._param = param
         self._kwargs = kwargs
@@ -149,12 +211,12 @@ class SearchIterator:
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
         for field in fields:
-            if field['is_primary']:
-                if field['type'] == DataType.VARCHAR:
+            if field["is_primary"]:
+                if field["type"] == DataType.VARCHAR:
                     self._pk_str = True
                 else:
                     self._pk_str = False
-                self._pk_field_name = field['name']
+                self._pk_field_name = field["name"]
                 break
         if self._pk_field_name is None or self._pk_field_name == "":
             raise MilvusException(message="schema must contain pk field, broke")
@@ -173,7 +235,7 @@ class SearchIterator:
         if self._kwargs.get(OFFSET, 0) != 0:
             raise MilvusException(message="Not support offset when searching iteration")
 
-    def __update_cursor(self, res):
+    def __update_cursor(self, res: Any):
         if len(res[0]) == 0:
             return
         last_hit = res[0][-1]
@@ -187,39 +249,43 @@ class SearchIterator:
             if hit.distance == last_hit.distance:
                 self._filtered_ids.append(hit.id)
         if len(self._filtered_ids) > MAX_FILTERED_IDS_COUNT_ITERATION:
-            raise MilvusException(message=f"filtered ids length has accumulated to more than "
-                                          f"{str(MAX_FILTERED_IDS_COUNT_ITERATION)}, "
-                                          f"there is a danger of overly memory consumption")
-
+            raise MilvusException(
+                message=f"filtered ids length has accumulated to more than "
+                f"{MAX_FILTERED_IDS_COUNT_ITERATION!s}, "
+                f"there is a danger of overly memory consumption"
+            )
 
     def next(self):
         next_params = self.__next_params()
         next_expr = self.__filtered_duplicated_result_expr(self._expr)
-        res = self._conn.search(self._iterator_params['collection_name'],
-                                self._iterator_params['data'],
-                                self._iterator_params['ann_field'],
-                                next_params,
-                                self._iterator_params['limit'],
-                                next_expr,
-                                self._iterator_params['partition_names'],
-                                self._iterator_params['output_fields'],
-                                self._iterator_params['round_decimal'],
-                                timeout=self._iterator_params['timeout'],
-                                schema=self._schema, **self._kwargs)
+        res = self._conn.search(
+            self._iterator_params["collection_name"],
+            self._iterator_params["data"],
+            self._iterator_params["ann_field"],
+            next_params,
+            self._iterator_params["limit"],
+            next_expr,
+            self._iterator_params["partition_names"],
+            self._iterator_params["output_fields"],
+            self._iterator_params["round_decimal"],
+            timeout=self._iterator_params["timeout"],
+            schema=self._schema,
+            **self._kwargs,
+        )
         self.__update_cursor(res)
         return res
 
     # at present, the range_filter parameter means 'larger/less and equal',
     # so there would be vectors with same distances returned multiple times in different pages
     # we need to refine and remove these results before returning
-    def __filtered_duplicated_result_expr(self, expr):
+    def __filtered_duplicated_result_expr(self, expr: str):
         if len(self._filtered_ids) == 0:
             return expr
 
         filtered_ids_str = ""
         for filtered_id in self._filtered_ids:
             if self._pk_str:
-                filtered_ids_str += f"\"{filtered_id}\","
+                filtered_ids_str += f'"{filtered_id}",'
             else:
                 filtered_ids_str += f"{filtered_id},"
         filtered_ids_str = filtered_ids_str[0:-1]
@@ -242,26 +308,25 @@ class SearchIterator:
 
 
 class IteratorCache:
-
-    def __init__(self):
+    def __init__(self) -> None:
         self._cache_id = 0
         self._cache_map = {}
 
-    def cache(self, result, cache_id):
+    def cache(self, result: Any, cache_id: int):
         if cache_id == NO_CACHE_ID:
             self._cache_id += 1
             cache_id = self._cache_id
         self._cache_map[cache_id] = result
         return cache_id
 
-    def fetch_cache(self, cache_id):
+    def fetch_cache(self, cache_id: int):
         return self._cache_map.get(cache_id, None)
 
-    def release_cache(self, cache_id):
+    def release_cache(self, cache_id: int):
         if self._cache_map.get(cache_id, None) is not None:
             self._cache_map.pop(cache_id)
 
 
 NO_CACHE_ID = -1
 # Singleton Mode in Python
-iteratorCache = IteratorCache()
+iterator_cache = IteratorCache()
