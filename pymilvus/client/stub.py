@@ -1,17 +1,25 @@
 from urllib import parse
 
-from .grpc_handler import GrpcHandler
-from ..exceptions import MilvusException, ParamError
-from .types import CompactionState, CompactionPlans, Replica, BulkInsertState, ResourceGroupInfo
-from ..settings import Config
-from ..decorators import deprecated
+from pymilvus.decorators import deprecated
+from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.settings import Config
 
 from .check import is_legal_host, is_legal_port
+from .grpc_handler import GrpcHandler
+from .types import (
+    BulkInsertState,
+    CompactionPlans,
+    CompactionState,
+    Replica,
+    ResourceGroupInfo,
+)
 
 
 class Milvus:
     @deprecated
-    def __init__(self, host=None, port=Config.GRPC_PORT, uri=Config.GRPC_URI, channel=None, **kwargs):
+    def __init__(
+        self, host=None, port=Config.GRPC_PORT, uri=Config.GRPC_URI, channel=None, **kwargs
+    ) -> None:
         self.address = self.__get_address(host, port, uri)
         self._handler = GrpcHandler(address=self.address, channel=channel, **kwargs)
 
@@ -20,12 +28,12 @@ class Milvus:
 
     def __get_address(self, host=None, port=Config.GRPC_PORT, uri=Config.GRPC_URI):
         if host is None and uri is None:
-            raise ParamError(message='Host and uri cannot both be None')
+            raise ParamError(message="Host and uri cannot both be None")
 
         if host is None:
             try:
                 parsed_uri = parse.urlparse(uri, "tcp")
-            except (Exception) as e:
+            except Exception as e:
                 raise ParamError(message=f"Illegal uri [{uri}]: {e}") from e
 
             host, port = parsed_uri.hostname, parsed_uri.port
@@ -60,7 +68,7 @@ class Milvus:
         self._handler = None
 
     def create_collection(self, collection_name, fields, timeout=None, **kwargs):
-        """ Creates a collection.
+        """Creates a collection.
 
         :param collection_name: The name of the collection. A collection name can only include
         numbers, letters, and underscores, and must not begin with a number.
@@ -193,7 +201,9 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.load_collection(collection_name, replica_number, timeout=timeout, **kwargs)
+            return handler.load_collection(
+                collection_name, replica_number, timeout=timeout, **kwargs
+            )
 
     def release_collection(self, collection_name, timeout=None):
         """
@@ -360,9 +370,12 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.load_partitions(collection_name=collection_name,
-                                           partition_names=partition_names,
-                                           replica_number=replica_number, timeout=timeout)
+            return handler.load_partitions(
+                collection_name=collection_name,
+                partition_names=partition_names,
+                replica_number=replica_number,
+                timeout=timeout,
+            )
 
     def release_partitions(self, collection_name, partition_names, timeout=None):
         """
@@ -386,8 +399,9 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.release_partitions(collection_name=collection_name,
-                                              partition_names=partition_names, timeout=timeout)
+            return handler.release_partitions(
+                collection_name=collection_name, partition_names=partition_names, timeout=timeout
+            )
 
     def list_partitions(self, collection_name, timeout=None):
         """
@@ -433,7 +447,9 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            stats = handler.get_partition_stats(collection_name, partition_name, timeout=timeout, **kwargs)
+            stats = handler.get_partition_stats(
+                collection_name, partition_name, timeout=timeout, **kwargs
+            )
             result = {stat.key: stat.value for stat in stats}
             result["row_count"] = int(result["row_count"])
             return result
@@ -632,7 +648,9 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.create_index(collection_name, field_name, params, timeout=timeout, **kwargs)
+            return handler.create_index(
+                collection_name, field_name, params, timeout=timeout, **kwargs
+            )
 
     def drop_index(self, collection_name, field_name, timeout=None):
         """
@@ -656,8 +674,12 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.drop_index(collection_name=collection_name,
-                                      field_name=field_name, index_name="", timeout=timeout)
+            return handler.drop_index(
+                collection_name=collection_name,
+                field_name=field_name,
+                index_name="",
+                timeout=timeout,
+            )
 
     def describe_index(self, collection_name, index_name="", timeout=None):
         """
@@ -718,7 +740,9 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.batch_insert(collection_name, entities, partition_name, timeout=timeout, **kwargs)
+            return handler.batch_insert(
+                collection_name, entities, partition_name, timeout=timeout, **kwargs
+            )
 
     def delete(self, collection_name, expr, partition_name=None, timeout=None, **kwargs):
         """
@@ -783,8 +807,20 @@ class Milvus:
         with self._connection() as handler:
             return handler.flush(collection_names, timeout=timeout, **kwargs)
 
-    def search(self, collection_name, data, anns_field, param, limit, expression=None, partition_names=None,
-               output_fields=None, timeout=None, round_decimal=-1, **kwargs):
+    def search(
+        self,
+        collection_name,
+        data,
+        anns_field,
+        param,
+        limit,
+        expression=None,
+        partition_names=None,
+        output_fields=None,
+        timeout=None,
+        round_decimal=-1,
+        **kwargs,
+    ):
         """
         Searches a collection based on the given expression and returns query results.
 
@@ -842,8 +878,19 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.search(collection_name, data, anns_field, param, limit, expression, partition_names,
-                                  output_fields, round_decimal=round_decimal, timeout=timeout, **kwargs)
+            return handler.search(
+                collection_name,
+                data,
+                anns_field,
+                param,
+                limit,
+                expression,
+                partition_names,
+                output_fields,
+                round_decimal=round_decimal,
+                timeout=timeout,
+                **kwargs,
+            )
 
     def get_query_segment_info(self, collection_name, timeout=None, **kwargs):
         """
@@ -862,7 +909,7 @@ class Milvus:
             return handler.get_query_segment_info(collection_name, timeout=timeout, **kwargs)
 
     def load_collection_progress(self, collection_name, timeout=None):
-        """ {
+        """{
             'loading_progress': '100%',
             'num_loaded_partitions': 3,
             'not_loaded_partitions': [],
@@ -872,14 +919,16 @@ class Milvus:
             return handler.load_collection_progress(collection_name, timeout=timeout)
 
     def load_partitions_progress(self, collection_name, partition_names, timeout=None):
-        """ {
+        """{
             'loading_progress': '100%',
             'num_loaded_partitions': 3,
             'not_loaded_partitions': [],
         }
         """
         with self._connection() as handler:
-            return handler.load_partitions_progress(collection_name, partition_names, timeout=timeout)
+            return handler.load_partitions_progress(
+                collection_name, partition_names, timeout=timeout
+            )
 
     def wait_for_loading_collection_complete(self, collection_name, timeout=None):
         with self._connection() as handler:
@@ -887,7 +936,9 @@ class Milvus:
 
     def wait_for_loading_partitions_complete(self, collection_name, partition_names, timeout=None):
         with self._connection() as handler:
-            return handler.wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
+            return handler.wait_for_loading_partitions(
+                collection_name, partition_names, timeout=timeout
+            )
 
     def get_index_build_progress(self, collection_name, index_name, timeout=None):
         with self._connection() as handler:
@@ -901,7 +952,15 @@ class Milvus:
         with self._connection() as handler:
             return handler.dummy(request_type, timeout=timeout)
 
-    def query(self, collection_name, expr, output_fields=None, partition_names=None, timeout=None, **kwargs):
+    def query(
+        self,
+        collection_name,
+        expr,
+        output_fields=None,
+        partition_names=None,
+        timeout=None,
+        **kwargs,
+    ):
         """
         Query with a set of criteria, and results in a list of records that match the query exactly.
 
@@ -946,9 +1005,19 @@ class Milvus:
         :raises MilvusException: If the return result from server is not ok
         """
         with self._connection() as handler:
-            return handler.query(collection_name, expr, output_fields, partition_names, timeout=timeout, **kwargs)
+            return handler.query(
+                collection_name, expr, output_fields, partition_names, timeout=timeout, **kwargs
+            )
 
-    def load_balance(self, collection_name: str, src_node_id, dst_node_ids, sealed_segment_ids, timeout=None, **kwargs):
+    def load_balance(
+        self,
+        collection_name: str,
+        src_node_id,
+        dst_node_ids,
+        sealed_segment_ids,
+        timeout=None,
+        **kwargs,
+    ):
         """
         Do load balancing operation from source query node to destination query node.
         :param collection_name: The collection to balance.
@@ -970,8 +1039,14 @@ class Milvus:
         :raises MilvusException: If sealed segments not exist.
         """
         with self._connection() as handler:
-            return handler.load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids,
-                                        timeout=timeout, **kwargs)
+            return handler.load_balance(
+                collection_name,
+                src_node_id,
+                dst_node_ids,
+                sealed_segment_ids,
+                timeout=timeout,
+                **kwargs,
+            )
 
     def compact(self, collection_name, timeout=None, **kwargs) -> int:
         """
@@ -1010,7 +1085,9 @@ class Milvus:
         with self._connection() as handler:
             return handler.get_compaction_state(compaction_id, timeout=timeout, **kwargs)
 
-    def wait_for_compaction_completed(self, compaction_id: int, timeout=None, **kwargs) -> CompactionState:
+    def wait_for_compaction_completed(
+        self, compaction_id: int, timeout=None, **kwargs
+    ) -> CompactionState:
         with self._connection() as handler:
             return handler.wait_for_compaction_completed(compaction_id, timeout=timeout, **kwargs)
 
@@ -1033,7 +1110,7 @@ class Milvus:
             return handler.get_compaction_plans(compaction_id, timeout=timeout, **kwargs)
 
     def get_replicas(self, collection_name: str, timeout=None, **kwargs) -> Replica:
-        """ Get replica infos of a collection
+        """Get replica infos of a collection
 
         :param collection_name: the name of the collection
         :type  collection_name: str
@@ -1049,8 +1126,10 @@ class Milvus:
         with self._connection() as handler:
             return handler.get_replicas(collection_name, timeout=timeout, **kwargs)
 
-    def do_bulk_insert(self, collection_name: str, partition_name: str, files: list, timeout=None, **kwargs) -> int:
-        """ do_bulk_insert inserts entities through files, currently supports row-based json file.
+    def do_bulk_insert(
+        self, collection_name: str, partition_name: str, files: list, timeout=None, **kwargs
+    ) -> int:
+        """do_bulk_insert inserts entities through files, currently supports row-based json file.
         User need to create the json file with a specified json format which is described in the official user guide.
         Let's say a collection has two fields: "id" and "vec"(dimension=8), the row-based json format is:
           {"rows": [
@@ -1086,7 +1165,9 @@ class Milvus:
         :raises BaseException: If the files input is illegal.
         """
         with self._connection() as handler:
-            return handler.do_bulk_insert(collection_name, partition_name, files, timeout=timeout, **kwargs)
+            return handler.do_bulk_insert(
+                collection_name, partition_name, files, timeout=timeout, **kwargs
+            )
 
     def get_bulk_insert_state(self, task_id, timeout=None, **kwargs) -> BulkInsertState:
         """get_bulk_insert_state returns state of a certain task_id
@@ -1117,7 +1198,7 @@ class Milvus:
             return handler.list_bulk_insert_tasks(timeout=timeout, **kwargs)
 
     def create_user(self, user, password, timeout=None, **kwargs):
-        """ Create a user using the given user and password.
+        """Create a user using the given user and password.
         :param user: the user name.
         :type  user: str
         :param password: the password.
@@ -1146,7 +1227,7 @@ class Milvus:
             handler.update_password(user, old_password, new_password, timeout=timeout, **kwargs)
 
     def delete_user(self, user, timeout=None, **kwargs):
-        """ Delete user corresponding to the username.
+        """Delete user corresponding to the username.
         :param user: the user name.
         :type  user: str
         :param timeout: The timeout for this method, unit: second
@@ -1156,7 +1237,7 @@ class Milvus:
             handler.delete_user(user, timeout=timeout, **kwargs)
 
     def list_usernames(self, timeout=None, **kwargs):
-        """ List all usernames.
+        """List all usernames.
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
         :return list of str:
@@ -1166,7 +1247,7 @@ class Milvus:
             return handler.list_usernames(timeout=timeout, **kwargs)
 
     def create_role(self, role_name, timeout=None, **kwargs):
-        """ Create Role
+        """Create Role
         :param role_name: the role name.
         :type  role_name: str
         """
@@ -1174,7 +1255,7 @@ class Milvus:
             handler.create_role(role_name, timeout=timeout, **kwargs)
 
     def drop_role(self, role_name, timeout=None, **kwargs):
-        """ Drop Role
+        """Drop Role
         :param role_name: role name.
         :type  role_name: str
         """
@@ -1182,7 +1263,7 @@ class Milvus:
             handler.drop_role(role_name, timeout=timeout, **kwargs)
 
     def add_user_to_role(self, username, role_name, timeout=None, **kwargs):
-        """ Add User To Role
+        """Add User To Role
         :param username: user name.
         :type  username: str
         :param role_name: role name.
@@ -1192,7 +1273,7 @@ class Milvus:
             handler.add_user_to_role(username, role_name, timeout=timeout, **kwargs)
 
     def remove_user_from_role(self, username, role_name, timeout=None, **kwargs):
-        """ Remove User From Role
+        """Remove User From Role
         :param username: user name.
         :type  username: str
         :param role_name: role name.
@@ -1202,7 +1283,7 @@ class Milvus:
             handler.remove_user_from_role(username, role_name, timeout=timeout, **kwargs)
 
     def select_one_role(self, role_name, include_user_info, timeout=None, **kwargs):
-        """ Select One Role Info
+        """Select One Role Info
         :param role_name: role name.
         :type  role_name: str
         :param include_user_info: whether to obtain the user information associated with the role
@@ -1212,7 +1293,7 @@ class Milvus:
             handler.select_one_role(role_name, include_user_info, timeout=timeout, **kwargs)
 
     def select_all_role(self, include_user_info, timeout=None, **kwargs):
-        """ Select All Role Info
+        """Select All Role Info
         :param include_user_info: whether to obtain the user information associated with roles
         :type  include_user_info: bool
         """
@@ -1220,7 +1301,7 @@ class Milvus:
             handler.select_all_role(include_user_info, timeout=timeout, **kwargs)
 
     def select_one_user(self, username, include_role_info, timeout=None, **kwargs):
-        """ Select One User Info
+        """Select One User Info
         :param username: user name.
         :type  username: str
         :param include_role_info: whether to obtain the role information associated with the user
@@ -1230,16 +1311,15 @@ class Milvus:
             handler.select_one_user(username, include_role_info, timeout=timeout, **kwargs)
 
     def select_all_user(self, include_role_info, timeout=None, **kwargs):
-        """ Select All User Info
+        """Select All User Info
         :param include_role_info: whether to obtain the role information associated with users
         :type  include_role_info: bool
         """
         with self._connection() as handler:
             handler.select_all_role(include_role_info, timeout=timeout, **kwargs)
 
-    def grant_privilege(self, role_name, object, object_name, privilege,
-                        timeout=None, **kwargs):
-        """ Grant Privilege
+    def grant_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
+        """Grant Privilege
         :param role_name: role name.
         :type  role_name: str
         :param object: object that will be granted the privilege.
@@ -1250,12 +1330,12 @@ class Milvus:
         :type  privilege: str
         """
         with self._connection() as handler:
-            handler.grant_privilege(role_name, object, object_name, privilege,
-                                    timeout=timeout, **kwargs)
+            handler.grant_privilege(
+                role_name, object, object_name, privilege, timeout=timeout, **kwargs
+            )
 
-    def revoke_privilege(self, role_name, object, object_name, privilege,
-                         timeout=None, **kwargs):
-        """ Revoke Privilege
+    def revoke_privilege(self, role_name, object, object_name, privilege, timeout=None, **kwargs):
+        """Revoke Privilege
         :param role_name: role name.
         :type  role_name: str
         :param object: object that will be granted the privilege.
@@ -1266,20 +1346,22 @@ class Milvus:
         :type  privilege: str
         """
         with self._connection() as handler:
-            handler.revoke_privilege(role_name, object, object_name, privilege,
-                                     timeout=timeout, **kwargs)
+            handler.revoke_privilege(
+                role_name, object, object_name, privilege, timeout=timeout, **kwargs
+            )
 
     def select_grant_for_one_role(self, role_name, timeout=None, **kwargs):
-        """ Select the grant info about the role
+        """Select the grant info about the role
         :param role_name: role name.
         :type  role_name: str
         """
         with self._connection() as handler:
             handler.select_grant_for_one_role(role_name, timeout=timeout, **kwargs)
 
-    def select_grant_for_role_and_object(self, role_name, object, object_name,
-                                         timeout=None, **kwargs):
-        """ Select the grant info about the role and specific object
+    def select_grant_for_role_and_object(
+        self, role_name, object, object_name, timeout=None, **kwargs
+    ):
+        """Select the grant info about the role and specific object
         :param role_name: role name.
         :type  role_name: str
         :param object: object that will be selected the privilege info.
@@ -1288,7 +1370,9 @@ class Milvus:
         :type  object_name: str
         """
         with self._connection() as handler:
-            handler.select_grant_for_role_and_object(role_name, object, object_name, timeout=timeout, **kwargs)
+            handler.select_grant_for_role_and_object(
+                role_name, object, object_name, timeout=timeout, **kwargs
+            )
 
     def get_version(self, timeout=None, **kwargs):
         with self._connection() as handler:
@@ -1313,8 +1397,7 @@ class Milvus:
             handler.drop_resource_group(name, timeout=timeout, **kwargs)
 
     def list_resource_groups(self, timeout=None, **kwargs):
-        """list all resource group names
-        """
+        """list all resource group names"""
         with self._connection() as handler:
             handler.list_resource_groups(timeout=timeout, **kwargs)
 
@@ -1342,7 +1425,9 @@ class Milvus:
         with self._connection() as handler:
             handler.transfer_node(source, target, num_node, timeout=timeout, **kwargs)
 
-    def transfer_replica(self, source, target, collection_name, num_replica, timeout=None, **kwargs):
+    def transfer_replica(
+        self, source, target, collection_name, num_replica, timeout=None, **kwargs
+    ):
         """transfer num_replica from source resource group to target resource group
 
         :param source: source resource group name
@@ -1356,4 +1441,5 @@ class Milvus:
         """
         with self._connection() as handler:
             handler.transfer_replica(
-                source, target, collection_name, num_replica, timeout=timeout, **kwargs)
+                source, target, collection_name, num_replica, timeout=timeout, **kwargs
+            )

@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 import pytest
 
 from pymilvus import CollectionSchema, FieldSchema, DataType, MilvusException
@@ -139,13 +139,6 @@ class TestFieldSchema:
             target = f.to_dict()
             assert target == dicts[i]
             assert target is not dicts[i]
-
-    #  def test_parse_fields_from_dataframe(self, dataframe1):
-    #      fields = parse_fields_from_dataframe(dataframe1)
-    #      assert len(fields) == len(dataframe1.columns)
-    #      for f in fields:
-    #          if f.dtype == DataType.FLOAT_VECTOR:
-    #              assert f.dim == len(dataframe1['float_vec'].values[0])
 
 
 class TestCheckInsertDataSchema:

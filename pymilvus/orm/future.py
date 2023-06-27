@@ -10,46 +10,42 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+from typing import Any
 
-from .search import SearchResult
 from .mutation import MutationResult
+from .search import SearchResult
 
 
 # TODO(dragondriver): how could we inherit the docstring elegantly?
 class BaseFuture:
-    def __init__(self, future):
+    def __init__(self, future: Any) -> None:
         self._f = future
 
-    def result(self, **kwargs):
-        """
-        Return the result from future object.
+    def result(self) -> Any:
+        """Return the result from future object.
 
         It's a synchronous interface. It will wait executing until
         server respond or timeout occur(if specified).
         """
         return self.on_response(self._f.result())
 
-    def on_response(self, res):
+    def on_response(self, res: Any):
         return res
 
     def cancel(self):
-        """
-        Cancel the request.
-        """
+        """Cancel the request."""
         return self._f.cancel()
 
     def done(self):
-        """
-        Wait for request done.
-        """
+        """Wait for request done."""
         return self._f.done()
 
 
 class SearchFuture(BaseFuture):
-    def on_response(self, res):
+    def on_response(self, res: Any):
         return SearchResult(res)
 
 
 class MutationFuture(BaseFuture):
-    def on_response(self, res):
+    def on_response(self, res: Any):
         return MutationResult(res)

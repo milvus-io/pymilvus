@@ -1,8 +1,9 @@
 import threading
+from typing import ClassVar, Dict
 
 
 class Singleton(type):
-    _ins = {}
+    _ins: ClassVar[Dict] = {}
     _lock = threading.Lock()
 
     def __call__(cls, *args, **kwargs):

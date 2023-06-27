@@ -19,7 +19,7 @@ class ErrorCode(IntEnum):
 
 
 class MilvusException(Exception):
-    def __init__(self, code: int = ErrorCode.UNEXPECTED_ERROR, message: str = ""):
+    def __init__(self, code: int = ErrorCode.UNEXPECTED_ERROR, message: str = "") -> None:
         super().__init__()
         self._code = code
         self._message = message
@@ -32,40 +32,40 @@ class MilvusException(Exception):
     def message(self):
         return self._message
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"<{type(self).__name__}: (code={self.code}, message={self.message})>"
 
 
 class ParamError(MilvusException):
-    """ Raise when params are incorrect """
+    """Raise when params are incorrect"""
 
 
 class ConnectError(MilvusException):
-    """ Connect server fail """
+    """Connect server fail"""
 
 
 class MilvusUnavailableException(MilvusException):
-    """ Raise when server's Unavaliable"""
+    """Raise when server's Unavaliable"""
 
 
 class CollectionNotExistException(MilvusException):
-    """ Raise when collections doesn't exist """
+    """Raise when collections doesn't exist"""
 
 
 class DescribeCollectionException(MilvusException):
-    """ Raise when fail to describe collection """
+    """Raise when fail to describe collection"""
 
 
 class PartitionNotExistException(MilvusException):
-    """ Raise when partition doesn't exist """
+    """Raise when partition doesn't exist"""
 
 
 class PartitionAlreadyExistException(MilvusException):
-    """ Raise when create an exsiting partition """
+    """Raise when create an exsiting partition"""
 
 
 class IndexNotExistException(MilvusException):
-    """ Raise when index doesn't exist """
+    """Raise when index doesn't exist"""
 
 
 class AmbiguousIndexName(MilvusException):
@@ -73,62 +73,65 @@ class AmbiguousIndexName(MilvusException):
 
 
 class CannotInferSchemaException(MilvusException):
-    """ Raise when cannot trasfer dataframe to schema """
+    """Raise when cannot trasfer dataframe to schema"""
 
 
 class SchemaNotReadyException(MilvusException):
-    """ Raise when schema is wrong """
+    """Raise when schema is wrong"""
 
 
 class DataTypeNotMatchException(MilvusException):
-    """ Raise when datatype dosen't match """
+    """Raise when datatype dosen't match"""
 
 
 class DataTypeNotSupportException(MilvusException):
-    """ Raise when datatype isn't supported """
+    """Raise when datatype isn't supported"""
 
 
 class DataNotMatchException(MilvusException):
-    """ Raise when insert data isn't match with schema """
+    """Raise when insert data isn't match with schema"""
 
 
 class ConnectionNotExistException(MilvusException):
-    """ Raise when connections doesn't exist """
+    """Raise when connections doesn't exist"""
 
 
 class ConnectionConfigException(MilvusException):
-    """ Raise when configs of connection are invalid """
+    """Raise when configs of connection are invalid"""
 
 
 class PrimaryKeyException(MilvusException):
-    """ Raise when primarykey are invalid """
+    """Raise when primarykey are invalid"""
 
 
 class PartitionKeyException(MilvusException):
-    """ Raise when partitionkey are invalid """
+    """Raise when partitionkey are invalid"""
 
 
 class FieldsTypeException(MilvusException):
-    """ Raise when fields is invalid """
+    """Raise when fields is invalid"""
 
 
 class FieldTypeException(MilvusException):
-    """ Raise when one field is invalid """
+    """Raise when one field is invalid"""
 
 
 class AutoIDException(MilvusException):
-    """ Raise when autoID is invalid """
+    """Raise when autoID is invalid"""
 
 
 class InvalidConsistencyLevel(MilvusException):
-    """ Raise when consistency level is invalid """
+    """Raise when consistency level is invalid"""
 
 
 class ExceptionsMessage:
     NoHostPort = "connection configuration must contain 'host' and 'port'."
     HostType = "Type of 'host' must be str."
     PortType = "Type of 'port' must be str or int."
-    ConnDiffConf = "Alias of %r already creating connections, but the configure is not the same as passed in."
+    ConnDiffConf = (
+        "Alias of %r already creating connections, "
+        "but the configure is not the same as passed in."
+    )
     AliasType = "Alias should be string, but %r is given."
     ConnLackConf = "You need to pass in the configuration of the connection named %r ."
     ConnectFirst = "should create connect first."
@@ -136,13 +139,20 @@ class ExceptionsMessage:
     NoSchema = "Should be passed into the schema."
     EmptySchema = "The field of the schema cannot be empty."
     SchemaType = "Schema type must be schema.CollectionSchema."
-    SchemaInconsistent = "The collection already exist, but the schema is not the same as the schema passed in."
+    SchemaInconsistent = (
+        "The collection already exist, but the schema is not the same as the schema passed in."
+    )
     AutoIDWithData = "Auto_id is True, primary field should not have data."
     AutoIDType = "Param auto_id must be bool type."
     NumPartitionsType = "Param num_partitions must be int type."
-    AutoIDInconsistent = "The auto_id of the collection is inconsistent with the auto_id of the primary key field."
+    AutoIDInconsistent = (
+        "The auto_id of the collection is inconsistent "
+        "with the auto_id of the primary key field."
+    )
     AutoIDIllegalRanges = "The auto-generated id ranges should be pairs."
-    ConsistencyLevelInconsistent = "The parameter consistency_level is inconsistent with that of existed collection."
+    ConsistencyLevelInconsistent = (
+        "The parameter consistency_level is inconsistent with that of existed collection."
+    )
     AutoIDOnlyOnPK = "The auto_id can only be specified on the primary key field"
     AutoIDFieldType = "The auto_id can only be specified on field with DataType.INT64"
     FieldsNumInconsistent = "The data fields number is not match with schema."
@@ -177,4 +187,6 @@ class ExceptionsMessage:
     ExprType = "The type of expr must be string ,but %r is given."
     EnvConfigErr = "Environment variable %s has a wrong format, please check it: %s"
     AmbiguousIndexName = "There are multiple indexes, please specify the index_name."
-    InsertUnexpectedField = "Attempt to insert an unexpected field to collection without enabling dynamic field"
+    InsertUnexpectedField = (
+        "Attempt to insert an unexpected field to collection without enabling dynamic field"
+    )

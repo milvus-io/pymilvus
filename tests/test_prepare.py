@@ -178,5 +178,5 @@ class TestCreateCollectionRequest:
             {"float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
         ]
 
-        Prepare.row_insert_or_upsert_param("", rows, "", fields_info=schema.to_dict()["fields"], isInsert=True, enable_dynamic=True)
+        Prepare.row_insert_or_upsert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
 
