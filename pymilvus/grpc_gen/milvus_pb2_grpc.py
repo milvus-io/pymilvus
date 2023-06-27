@@ -396,6 +396,21 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.ConnectRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ConnectResponse.FromString,
                 )
+        self.CreateDatabase = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CreateDatabase',
+                request_serializer=milvus__pb2.CreateDatabaseRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.DropDatabase = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DropDatabase',
+                request_serializer=milvus__pb2.DropDatabaseRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.ListDatabases = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListDatabases',
+                request_serializer=milvus__pb2.ListDatabasesRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListDatabasesResponse.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -864,6 +879,24 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateDatabase(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropDatabase(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListDatabases(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -1246,6 +1279,21 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.Connect,
                     request_deserializer=milvus__pb2.ConnectRequest.FromString,
                     response_serializer=milvus__pb2.ConnectResponse.SerializeToString,
+            ),
+            'CreateDatabase': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateDatabase,
+                    request_deserializer=milvus__pb2.CreateDatabaseRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DropDatabase': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropDatabase,
+                    request_deserializer=milvus__pb2.DropDatabaseRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'ListDatabases': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListDatabases,
+                    request_deserializer=milvus__pb2.ListDatabasesRequest.FromString,
+                    response_serializer=milvus__pb2.ListDatabasesResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -2546,6 +2594,57 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/Connect',
             milvus__pb2.ConnectRequest.SerializeToString,
             milvus__pb2.ConnectResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreateDatabase(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CreateDatabase',
+            milvus__pb2.CreateDatabaseRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DropDatabase(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DropDatabase',
+            milvus__pb2.DropDatabaseRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListDatabases(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListDatabases',
+            milvus__pb2.ListDatabasesRequest.SerializeToString,
+            milvus__pb2.ListDatabasesResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

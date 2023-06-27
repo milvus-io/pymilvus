@@ -189,6 +189,14 @@ class CreateCredentialRequest(_message.Message):
     username: str
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., username: _Optional[str] = ..., password: _Optional[str] = ..., created_utc_timestamps: _Optional[int] = ..., modified_utc_timestamps: _Optional[int] = ...) -> None: ...
 
+class CreateDatabaseRequest(_message.Message):
+    __slots__ = ["base", "db_name"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ...) -> None: ...
+
 class CreateIndexRequest(_message.Message):
     __slots__ = ["base", "collection_name", "db_name", "extra_params", "field_name", "index_name"]
     BASE_FIELD_NUMBER: _ClassVar[int]
@@ -408,6 +416,14 @@ class DropCollectionRequest(_message.Message):
     collection_name: str
     db_name: str
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+
+class DropDatabaseRequest(_message.Message):
+    __slots__ = ["base", "db_name"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class DropIndexRequest(_message.Message):
     __slots__ = ["base", "collection_name", "db_name", "field_name", "index_name"]
@@ -707,14 +723,16 @@ class GetIndexStatisticsResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., index_descriptions: _Optional[_Iterable[_Union[IndexDescription, _Mapping]]] = ...) -> None: ...
 
 class GetLoadStateRequest(_message.Message):
-    __slots__ = ["base", "collection_name", "partition_names"]
+    __slots__ = ["base", "collection_name", "db_name", "partition_names"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     PARTITION_NAMES_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     collection_name: str
+    db_name: str
     partition_names: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class GetLoadStateResponse(_message.Message):
     __slots__ = ["state", "status"]
@@ -725,14 +743,16 @@ class GetLoadStateResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., state: _Optional[_Union[_common_pb2.LoadState, str]] = ...) -> None: ...
 
 class GetLoadingProgressRequest(_message.Message):
-    __slots__ = ["base", "collection_name", "partition_names"]
+    __slots__ = ["base", "collection_name", "db_name", "partition_names"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     PARTITION_NAMES_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     collection_name: str
+    db_name: str
     partition_names: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class GetLoadingProgressResponse(_message.Message):
     __slots__ = ["progress", "refresh_progress", "status"]
@@ -819,16 +839,18 @@ class GetQuerySegmentInfoResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., infos: _Optional[_Iterable[_Union[QuerySegmentInfo, _Mapping]]] = ...) -> None: ...
 
 class GetReplicasRequest(_message.Message):
-    __slots__ = ["base", "collectionID", "collection_name", "with_shard_nodes"]
+    __slots__ = ["base", "collectionID", "collection_name", "db_name", "with_shard_nodes"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     WITH_SHARD_NODES_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     collectionID: int
     collection_name: str
+    db_name: str
     with_shard_nodes: bool
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collectionID: _Optional[int] = ..., with_shard_nodes: bool = ..., collection_name: _Optional[str] = ...) -> None: ...
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., collectionID: _Optional[int] = ..., with_shard_nodes: bool = ..., collection_name: _Optional[str] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class GetReplicasResponse(_message.Message):
     __slots__ = ["replicas", "status"]
@@ -873,16 +895,18 @@ class GetVersionResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., version: _Optional[str] = ...) -> None: ...
 
 class GrantEntity(_message.Message):
-    __slots__ = ["grantor", "object", "object_name", "role"]
+    __slots__ = ["db_name", "grantor", "object", "object_name", "role"]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     GRANTOR_FIELD_NUMBER: _ClassVar[int]
     OBJECT_FIELD_NUMBER: _ClassVar[int]
     OBJECT_NAME_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
+    db_name: str
     grantor: GrantorEntity
     object: ObjectEntity
     object_name: str
     role: RoleEntity
-    def __init__(self, role: _Optional[_Union[RoleEntity, _Mapping]] = ..., object: _Optional[_Union[ObjectEntity, _Mapping]] = ..., object_name: _Optional[str] = ..., grantor: _Optional[_Union[GrantorEntity, _Mapping]] = ...) -> None: ...
+    def __init__(self, role: _Optional[_Union[RoleEntity, _Mapping]] = ..., object: _Optional[_Union[ObjectEntity, _Mapping]] = ..., object_name: _Optional[str] = ..., grantor: _Optional[_Union[GrantorEntity, _Mapping]] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class GrantPrivilegeEntity(_message.Message):
     __slots__ = ["entities"]
@@ -933,20 +957,22 @@ class Hits(_message.Message):
     def __init__(self, IDs: _Optional[_Iterable[int]] = ..., row_data: _Optional[_Iterable[bytes]] = ..., scores: _Optional[_Iterable[float]] = ...) -> None: ...
 
 class ImportRequest(_message.Message):
-    __slots__ = ["channel_names", "collection_name", "files", "options", "partition_name", "row_based"]
+    __slots__ = ["channel_names", "collection_name", "db_name", "files", "options", "partition_name", "row_based"]
     CHANNEL_NAMES_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
     OPTIONS_FIELD_NUMBER: _ClassVar[int]
     PARTITION_NAME_FIELD_NUMBER: _ClassVar[int]
     ROW_BASED_FIELD_NUMBER: _ClassVar[int]
     channel_names: _containers.RepeatedScalarFieldContainer[str]
     collection_name: str
+    db_name: str
     files: _containers.RepeatedScalarFieldContainer[str]
     options: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     partition_name: str
     row_based: bool
-    def __init__(self, collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., channel_names: _Optional[_Iterable[str]] = ..., row_based: bool = ..., files: _Optional[_Iterable[str]] = ..., options: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+    def __init__(self, collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., channel_names: _Optional[_Iterable[str]] = ..., row_based: bool = ..., files: _Optional[_Iterable[str]] = ..., options: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class ImportResponse(_message.Message):
     __slots__ = ["status", "tasks"]
@@ -1032,13 +1058,29 @@ class ListCredUsersResponse(_message.Message):
     usernames: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., usernames: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class ListDatabasesRequest(_message.Message):
+    __slots__ = ["base"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ...) -> None: ...
+
+class ListDatabasesResponse(_message.Message):
+    __slots__ = ["db_names", "status"]
+    DB_NAMES_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    db_names: _containers.RepeatedScalarFieldContainer[str]
+    status: _common_pb2.Status
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_names: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class ListImportTasksRequest(_message.Message):
-    __slots__ = ["collection_name", "limit"]
+    __slots__ = ["collection_name", "db_name", "limit"]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     collection_name: str
+    db_name: str
     limit: int
-    def __init__(self, collection_name: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    def __init__(self, collection_name: _Optional[str] = ..., limit: _Optional[int] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class ListImportTasksResponse(_message.Message):
     __slots__ = ["status", "tasks"]
@@ -1063,18 +1105,20 @@ class ListResourceGroupsResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., resource_groups: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class LoadBalanceRequest(_message.Message):
-    __slots__ = ["base", "collectionName", "dst_nodeIDs", "sealed_segmentIDs", "src_nodeID"]
+    __slots__ = ["base", "collectionName", "db_name", "dst_nodeIDs", "sealed_segmentIDs", "src_nodeID"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONNAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     DST_NODEIDS_FIELD_NUMBER: _ClassVar[int]
     SEALED_SEGMENTIDS_FIELD_NUMBER: _ClassVar[int]
     SRC_NODEID_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     collectionName: str
+    db_name: str
     dst_nodeIDs: _containers.RepeatedScalarFieldContainer[int]
     sealed_segmentIDs: _containers.RepeatedScalarFieldContainer[int]
     src_nodeID: int
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., src_nodeID: _Optional[int] = ..., dst_nodeIDs: _Optional[_Iterable[int]] = ..., sealed_segmentIDs: _Optional[_Iterable[int]] = ..., collectionName: _Optional[str] = ...) -> None: ...
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., src_nodeID: _Optional[int] = ..., dst_nodeIDs: _Optional[_Iterable[int]] = ..., sealed_segmentIDs: _Optional[_Iterable[int]] = ..., collectionName: _Optional[str] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class LoadCollectionRequest(_message.Message):
     __slots__ = ["base", "collection_name", "db_name", "refresh", "replica_number", "resource_groups"]
@@ -1303,16 +1347,16 @@ class ReleasePartitionsRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RenameCollectionRequest(_message.Message):
-    __slots__ = ["base", "db", "newName", "oldName"]
+    __slots__ = ["base", "db_name", "newName", "oldName"]
     BASE_FIELD_NUMBER: _ClassVar[int]
-    DB_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     NEWNAME_FIELD_NUMBER: _ClassVar[int]
     OLDNAME_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
-    db: str
+    db_name: str
     newName: str
     oldName: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db: _Optional[str] = ..., oldName: _Optional[str] = ..., newName: _Optional[str] = ...) -> None: ...
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., oldName: _Optional[str] = ..., newName: _Optional[str] = ...) -> None: ...
 
 class ReplicaInfo(_message.Message):
     __slots__ = ["collectionID", "node_ids", "num_outbound_node", "partition_ids", "replicaID", "resource_group_name", "shard_replicas"]
@@ -1601,18 +1645,20 @@ class TransferNodeRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., source_resource_group: _Optional[str] = ..., target_resource_group: _Optional[str] = ..., num_node: _Optional[int] = ...) -> None: ...
 
 class TransferReplicaRequest(_message.Message):
-    __slots__ = ["base", "collection_name", "num_replica", "source_resource_group", "target_resource_group"]
+    __slots__ = ["base", "collection_name", "db_name", "num_replica", "source_resource_group", "target_resource_group"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     NUM_REPLICA_FIELD_NUMBER: _ClassVar[int]
     SOURCE_RESOURCE_GROUP_FIELD_NUMBER: _ClassVar[int]
     TARGET_RESOURCE_GROUP_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     collection_name: str
+    db_name: str
     num_replica: int
     source_resource_group: str
     target_resource_group: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., source_resource_group: _Optional[str] = ..., target_resource_group: _Optional[str] = ..., collection_name: _Optional[str] = ..., num_replica: _Optional[int] = ...) -> None: ...
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., source_resource_group: _Optional[str] = ..., target_resource_group: _Optional[str] = ..., collection_name: _Optional[str] = ..., num_replica: _Optional[int] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class UpdateCredentialRequest(_message.Message):
     __slots__ = ["base", "created_utc_timestamps", "modified_utc_timestamps", "newPassword", "oldPassword", "username"]
