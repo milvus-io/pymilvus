@@ -76,7 +76,7 @@ class MilvusClient:
 
         if id_type == "int":
             pk_data_type = DataType.INT64
-        elif id_type == "string":
+        elif id_type in ("string", "str"):
             pk_data_type = DataType.VARCHAR
         else:
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
@@ -85,8 +85,12 @@ class MilvusClient:
             if auto_id:
                 raise AutoIDException(message=ExceptionsMessage.AutoIDFieldType)
 
+        pk_args = {}
+        if "max_length" in kwargs and pk_data_type == DataType.VARCHAR:
+            pk_args["max_length"] = kwargs["max_length"]
+
+        schema.add_field(primary_field_name, pk_data_type, is_primary=True, **pk_args)
         vector_type = DataType.FLOAT_VECTOR
-        schema.add_field(primary_field_name, pk_data_type, is_primary=True)
         schema.add_field(vector_field_name, vector_type, dim=dimension)
         schema.verify()
 
