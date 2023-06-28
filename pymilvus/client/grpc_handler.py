@@ -481,10 +481,10 @@ class GrpcHandler:
             raise err
 
     @retry_on_rpc_failure()
-    def delete(self, collection_name, expression, partition_name=None, timeout=None, **kwargs):
+    def delete(self, collection_name, expr, partition_name=None, timeout=None, **kwargs):
         check_pass_param(collection_name=collection_name)
         try:
-            req = Prepare.delete_request(collection_name, partition_name, expression)
+            req = Prepare.delete_request(collection_name, partition_name, expr)
             future = self._stub.Delete.future(req, timeout=timeout)
 
             if kwargs.get("_async", False):
@@ -580,7 +580,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure(retry_on_deadline=False)
     def search(self, collection_name, data, anns_field, param, limit,
-               expression=None, partition_names=None, output_fields=None,
+               expr=None, partition_names=None, output_fields=None,
                round_decimal=-1, timeout=None, **kwargs):
         check_pass_param(
             limit=limit,
@@ -594,7 +594,7 @@ class GrpcHandler:
         )
 
         requests = Prepare.search_requests_with_expr(collection_name, data, anns_field, param, limit,
-                                                     expression, partition_names, output_fields, round_decimal,
+                                                     expr, partition_names, output_fields, round_decimal,
                                                      **kwargs)
         return self._execute_search_requests(requests, timeout, round_decimal=round_decimal, **kwargs)
 
