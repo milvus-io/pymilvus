@@ -157,7 +157,7 @@ class ExceptionsMessage:
     PartitionKeyType = "Partition key field type must be DataType.INT64 or DataType.VARCHAR."
     PartitionKeyNotPrimary = "Primary key filed should not be primary field"
     IsPrimaryType = "Param is_primary must be bool type."
-    PrimaryFieldType = "Param primary_field must be str type."
+    PrimaryFieldType = "Param primary_field must be int or str type."
     PartitionKeyFieldType = "Param partition_key_field must be str type."
     PartitionKeyFieldNotExist = "the specified partition key field {%s} not exist"
     IsPartitionKeyType = "Param is_partition_key must be bool type."
