@@ -27,7 +27,7 @@ dependencies=[
 
 classifiers=[
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: Apeche 2.0 License",
+    "License :: OSI Approved :: Apeche Software License",
 ]
 
 dynamic = ["version"]
