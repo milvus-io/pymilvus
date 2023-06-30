@@ -642,16 +642,24 @@ class GrpcHandler:
 
         collection_desc = self.describe_collection(collection_name, timeout=timeout, **copy_kwargs)
 
+        field_existed = False
         valid_field = False
+
         for fields in collection_desc["fields"]:
             if field_name != fields["name"]:
                 continue
-            valid_field = True
+            field_existed = True
             if fields["type"] != DataType.FLOAT_VECTOR and fields["type"] != DataType.BINARY_VECTOR:
                 break
+            valid_field = True
 
+        if not field_existed:
+            raise MilvusException(
+                message=f"cannot create index on non-existed field: {field_name}")
+            
         if not valid_field:
-            raise MilvusException(message=f"cannot create index on non-existed field: {field_name}")
+            raise MilvusException(
+                message=f"cannot create index on scalar field: {field_name}")
 
         # sync flush
         _async = kwargs.get("_async", False)
