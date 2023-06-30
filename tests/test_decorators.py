@@ -1,3 +1,5 @@
+import time
+
 import grpc
 import pytest
 
@@ -38,21 +40,21 @@ class TestDecorators:
         assert self.count_test_retry_decorators_Unavailable == times + 1
 
     @pytest.mark.parametrize("times", [0, 1, 2, 3])
-    def test_retry_decorators_deadline_exceeded(self, times):
-        self.count_test_retry_decorators_deadline_exceeded = 0
+    def test_retry_decorators_unavailable(self, times):
+        self.count_test_retry_decorators_unavailable = 0
 
         @retry_on_rpc_failure(retry_times=times)
         def test_api(self, code):
-            self.count_test_retry_decorators_deadline_exceeded += 1
+            self.count_test_retry_decorators_unavailable += 1
             self.mock_failure(code)
 
         with pytest.raises(MilvusException) as e:
-            test_api(self, grpc.StatusCode.DEADLINE_EXCEEDED)
+            test_api(self, grpc.StatusCode.UNAVAILABLE)
             assert "deadline exceeded" in e.reason()
             print(e)
 
         # the first execute + retry times
-        assert self.count_test_retry_decorators_deadline_exceeded == times + 1
+        assert self.count_test_retry_decorators_unavailable == times + 1
 
     def test_retry_decorators_timeout(self):
         self.count_test_retry_decorators_timeout = 0
@@ -60,13 +62,14 @@ class TestDecorators:
         @retry_on_rpc_failure()
         def test_api(self, code, timeout=None):
             self.count_test_retry_decorators_timeout += 1
+            time.sleep(1)
             self.mock_failure(code)
 
         with pytest.raises(MilvusException) as e:
-            test_api(self, grpc.StatusCode.DEADLINE_EXCEEDED, timeout=1)
+            test_api(self, grpc.StatusCode.UNAVAILABLE, timeout=1)
             print(e)
 
-        assert self.count_test_retry_decorators_timeout == 6
+        assert self.count_test_retry_decorators_timeout == 1
 
     @pytest.mark.skip("Do not open this unless you have loads of time, get some coffee and wait")
     def test_retry_decorators_default_behaviour(self):
@@ -78,7 +81,7 @@ class TestDecorators:
             self.mock_failure(code)
 
         with pytest.raises(MilvusException) as e:
-            test_api(self, grpc.StatusCode.DEADLINE_EXCEEDED)
+            test_api(self, grpc.StatusCode.UNAVAILABLE)
             print(e)
 
         assert self.test_retry_decorators_default_retry_times == 7 + 1
