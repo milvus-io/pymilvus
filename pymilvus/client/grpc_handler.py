@@ -250,7 +250,7 @@ class GrpcHandler:
         if status.error_code != 0:
             raise MilvusException(status.error_code, status.reason)
 
-    @retry_on_rpc_failure(retry_on_deadline=False)
+    @retry_on_rpc_failure()
     def drop_collection(self, collection_name, timeout=None):
         check_pass_param(collection_name=collection_name)
         request = Prepare.drop_collection_request(collection_name)
@@ -523,7 +523,7 @@ class GrpcHandler:
                 return SearchFuture(None, None, pre_err)
             raise pre_err
 
-    @retry_on_rpc_failure(retry_on_deadline=False)
+    @retry_on_rpc_failure()
     def search(self, collection_name, data, anns_field, param, limit,
                expression=None, partition_names=None, output_fields=None,
                round_decimal=-1, timeout=None, **kwargs):

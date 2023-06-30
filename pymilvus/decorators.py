@@ -1,11 +1,11 @@
-import time
 import datetime
-import logging
 import functools
+import logging
+import time
 
 import grpc
 
-from .exceptions import MilvusException, MilvusUnavailableException
+from .exceptions import MilvusException
 from .grpc_gen import common_pb2
 
 LOGGER = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def deprecated(func):
     return inner
 
 
-def retry_on_rpc_failure(retry_times=10, initial_back_off=0.01, max_back_off=60, back_off_multiplier=3, retry_on_deadline=True):
+def retry_on_rpc_failure(retry_times=10, initial_back_off=0.01, max_back_off=60, back_off_multiplier=3):
     # the default 7 retry_times will cost about 26s
     def wrapper(func):
         @functools.wraps(func)
@@ -49,22 +49,13 @@ def retry_on_rpc_failure(retry_times=10, initial_back_off=0.01, max_back_off=60,
                 try:
                     return func(self, *args, **kwargs)
                 except grpc.RpcError as e:
-                    # DEADLINE_EXCEEDED means that the task wat not completed
-                    # UNAVAILABLE means that the service is not reachable currently
                     # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
-                    if e.code() != grpc.StatusCode.DEADLINE_EXCEEDED and e.code() != grpc.StatusCode.UNAVAILABLE:
-                        raise MilvusException(message=str(e)) from e
-                    if not retry_on_deadline and e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+                    if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
                         raise MilvusException(message=str(e)) from e
                     if timeout(start_time):
                         timeout_msg = f"Retry timeout: {retry_timeout}s" if retry_timeout is not None \
                             else f"Retry run out of {retry_times} retry times"
-
-                        if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
-                            raise MilvusException(message=f"rpc deadline exceeded: {timeout_msg}") from e
-                        if e.code() == grpc.StatusCode.UNAVAILABLE:
-                            raise MilvusUnavailableException(message=f"server Unavailable: {timeout_msg}") from e
-                        raise MilvusException(message=str(e)) from e
+                        raise MilvusException(e.code, f"{timeout_msg}, message={e.details()}") from e
 
                     if counter > 3:
                         retry_msg = f"[{func.__name__}] retry:{counter}, cost: {back_off:.2f}s, reason: <{e.__class__.__name__}: {e.code()}, {e.details()}>"
