@@ -12,19 +12,23 @@
 
 import copy
 import threading
+from typing import Callable, Tuple, Union
 from urllib import parse
-from typing import Tuple
 
-from ..client.check import is_legal_host, is_legal_port, is_legal_address
-from ..client.grpc_handler import GrpcHandler
-from ..client.utils import get_server_type, ZILLIZ
-
-from ..settings import Config
-from ..exceptions import ExceptionsMessage, ConnectionConfigException, ConnectionNotExistException
+from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
+from pymilvus.client.grpc_handler import GrpcHandler
+from pymilvus.client.utils import ZILLIZ, get_server_type
+from pymilvus.exceptions import (
+    ConnectionConfigException,
+    ConnectionNotExistException,
+    ExceptionsMessage,
+)
+from pymilvus.settings import Config
 
 VIRTUAL_PORT = 443
 
-def synchronized(func):
+
+def synchronized(func: Callable):
     """
     Decorator in order to achieve thread-safe singleton class.
     """
@@ -40,7 +44,7 @@ def synchronized(func):
 class SingleInstanceMetaClass(type):
     instance = None
 
-    def __init__(cls, *args, **kwargs):
+    def __init__(cls, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def __call__(cls, *args, **kwargs):
@@ -56,10 +60,10 @@ class SingleInstanceMetaClass(type):
 
 
 class Connections(metaclass=SingleInstanceMetaClass):
-    """ Class for managing all connections of milvus.  Used as a singleton in this module.  """
+    """Class for managing all connections of milvus.  Used as a singleton in this module."""
 
-    def __init__(self):
-        """ Constructs a default milvus alias config
+    def __init__(self) -> None:
+        """Constructs a default milvus alias config
 
             default config will be read from env: MILVUS_URI and MILVUS_CONN_ALIAS
             with default value: default="localhost:19530"
@@ -82,7 +86,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         self._connected_alias = {}
         self._env_uri = None
 
-        if Config.MILVUS_URI != "":
+        if Config.MILVUS_URI:
             address, parsed_uri = self.__parse_address_from_uri(Config.MILVUS_URI)
             self._env_uri = (address, parsed_uri)
 
@@ -98,21 +102,25 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         self.add_connection(**{Config.MILVUS_CONN_ALIAS: default_conn_config})
 
-    def __verify_host_port(self, host, port):
+    def __verify_host_port(self, host: str, port: Union[int, str]):
         if not is_legal_host(host):
             raise ConnectionConfigException(message=ExceptionsMessage.HostType)
         if not is_legal_port(port):
             raise ConnectionConfigException(message=ExceptionsMessage.PortType)
         if not 0 <= int(port) < 65535:
-            raise ConnectionConfigException(message=f"port number {port} out of range, valid range [0, 65535)")
+            msg = f"port number {port} out of range, valid range [0, 65535)"
+            raise ConnectionConfigException(message=msg)
 
     def __parse_address_from_uri(self, uri: str) -> (str, parse.ParseResult):
-        illegal_uri_msg = "Illegal uri: [{}], expected form 'http[s]://[user:password@]example.com:12345'"
+        illegal_uri_msg = (
+            "Illegal uri: [{}], expected form 'http[s]://[user:password@]example.com:12345'"
+        )
         try:
             parsed_uri = parse.urlparse(uri)
-        except (Exception) as e:
+        except Exception as e:
             raise ConnectionConfigException(
-                message=f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>") from None
+                message=f"{illegal_uri_msg.format(uri)}: <{type(e).__name__}, {e}>"
+            ) from None
 
         if len(parsed_uri.netloc) == 0:
             raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}") from None
@@ -129,7 +137,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         return addr, parsed_uri
 
     def add_connection(self, **kwargs):
-        """ Configures a milvus connection.
+        """Configures a milvus connection.
 
         Addresses priority in kwargs: address, uri, host and port
 
@@ -141,7 +149,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 Example uri: "http://localhost:19530", "tcp:localhost:19530", "https://ok.s3.south.com:19530".
 
             * *host* (``str``) -- Optional. The host of Milvus instance.
-                Default at "localhost", PyMilvus will fill in the default host if only port is provided.
+                Default at "localhost", PyMilvus will fill in the default host
+                if only port is provided.
 
             * *port* (``str/int``) -- Optional. The port of Milvus instance.
                 Default at 19530, PyMilvus will fill in the default port if only host is provided.
@@ -163,11 +172,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 config.get("address", ""),
                 config.get("uri", ""),
                 config.get("host", ""),
-                config.get("port", ""))
+                config.get("port", ""),
+            )
 
-            if alias in self._connected_alias:
-                if self._alias[alias].get("address") != addr:
-                    raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
+            if alias in self._connected_alias and self._alias[alias].get("address") != addr:
+                raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
 
             alias_config = {
                 "address": addr,
@@ -176,12 +185,18 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             self._alias[alias] = alias_config
 
-    def __get_full_address(self, address: str = "", uri: str = "", host: str = "", port: str = "") -> (
-    str, parse.ParseResult):
+    def __get_full_address(
+        self,
+        address: str = "",
+        uri: str = "",
+        host: str = "",
+        port: str = "",
+    ) -> (str, parse.ParseResult):
         if address != "":
             if not is_legal_address(address):
                 raise ConnectionConfigException(
-                    message=f"Illegal address: {address}, should be in form 'localhost:19530'")
+                    message=f"Illegal address: {address}, should be in form 'localhost:19530'"
+                )
             return address, None
 
         if uri != "":
@@ -195,7 +210,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         return f"{host}:{port}", None
 
     def disconnect(self, alias: str):
-        """ Disconnects connection from the registry.
+        """Disconnects connection from the registry.
 
         :param alias: The name of milvus connection
         :type alias: str
@@ -207,7 +222,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             self._connected_alias.pop(alias).close()
 
     def remove_connection(self, alias: str):
-        """ Removes connection from the registry.
+        """Removes connection from the registry.
 
         :param alias: The name of milvus connection
         :type alias: str
@@ -218,8 +233,15 @@ class Connections(metaclass=SingleInstanceMetaClass):
         self.disconnect(alias)
         self._alias.pop(alias, None)
 
-    # pylint: disable=too-many-statements
-    def connect(self, alias=Config.MILVUS_CONN_ALIAS, user="", password="", db_name="", token="", **kwargs):
+    def connect(
+        self,
+        alias: str = Config.MILVUS_CONN_ALIAS,
+        user: str = "",
+        password: str = "",
+        db_name: str = "",
+        token: str = "",
+        **kwargs,
+    ) -> None:
         """
         Constructs a milvus connection and register it under given alias.
 
@@ -229,16 +251,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
         :param kwargs:
             * *address* (``str``) -- Optional. The actual address of Milvus instance.
                 Example address: "localhost:19530"
-
             * *uri* (``str``) -- Optional. The uri of Milvus instance.
                 Example uri: "http://localhost:19530", "tcp:localhost:19530", "https://ok.s3.south.com:19530".
-
             * *host* (``str``) -- Optional. The host of Milvus instance.
-                Default at "localhost", PyMilvus will fill in the default host if only port is provided.
-
+                Default at "localhost", PyMilvus will fill in the default host
+                if only port is provided.
             * *port* (``str/int``) -- Optional. The port of Milvus instance.
                 Default at 19530, PyMilvus will fill in the default port if only host is provided.
-
             * *secure* (``bool``) --
                 Optional. Default is false. If set to true, tls will be enabled.
             * *user* (``str``) --
@@ -249,7 +268,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 the user.
             * *token* (``str``) --
                 Optional. Serving as the key for identification and authentication purposes.
-                Whenever a token is furnished, we shall supplement the corresponding header to each RPC call.
+                Whenever a token is furnished, we shall supplement the corresponding header
+                to each RPC call.
             * *db_name* (``str``) --
                 Optional. default database name of this connection
             * *client_key_path* (``str``) --
@@ -280,21 +300,16 @@ class Connections(metaclass=SingleInstanceMetaClass):
             timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
 
             gh._wait_for_channel_ready(timeout=timeout)
-            kwargs.pop('password')
+            kwargs.pop("password")
             kwargs.pop("token", None)
-            #  kwargs.pop('db_name', None)
-            kwargs.pop('secure', None)
-            kwargs.pop("db_name", "")
+            kwargs.pop("secure", None)
+            kwargs.pop("db_name", None)
 
             self._connected_alias[alias] = gh
             self._alias[alias] = copy.deepcopy(kwargs)
 
         def with_config(config: Tuple) -> bool:
-            for c in config:
-                if c != "":
-                    return True
-
-            return False
+            return any(c for c in config)
 
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
@@ -304,47 +319,37 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if uri is not None:
             server_type = get_server_type(uri)
             if server_type == ZILLIZ and ":" not in token:
-                kwargs["uri"] = uri+":"+str(VIRTUAL_PORT)
+                kwargs["uri"] = uri + ":" + str(VIRTUAL_PORT)
 
         config = (
             kwargs.pop("address", ""),
             kwargs.pop("uri", ""),
             kwargs.pop("host", ""),
-            kwargs.pop("port", "")
+            kwargs.pop("port", ""),
         )
 
         # Make sure passed in None doesnt break
-        user = user or ""
-        password = password or ""
-        token = token or ""
-        # Make sure passed in are Strings
-        user = str(user)
-        password = str(password)
-        token = str(token)
+        user, password, token = str(user) or "", str(password) or "", str(token) or ""
 
         # 1st Priority: connection from params
         if with_config(config):
             in_addr, parsed_uri = self.__get_full_address(*config)
             kwargs["address"] = in_addr
 
-            if self.has_connection(alias):
-                if self._alias[alias].get("address") != in_addr:
-                    raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
+            if self.has_connection(alias) and self._alias[alias].get("address") != in_addr:
+                raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
 
             # uri might take extra info
             if parsed_uri is not None:
-                user = parsed_uri.username if parsed_uri.username is not None else user
-                password = parsed_uri.password if parsed_uri.password is not None else password
+                user = parsed_uri.username or user
+                password = parsed_uri.password or password
 
                 group = parsed_uri.path.split("/")
-                db_name = "default"
-                if len(group) > 1:
-                    db_name = group[1]
+                db_name = group[1] if len(group) > 1 else "default"
 
                 # Set secure=True if https scheme
                 if parsed_uri.scheme == "https":
                     kwargs["secure"] = True
-
 
             connect_milvus(**kwargs, user=user, password=password, token=token, db_name=db_name)
             return
@@ -375,7 +380,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         raise ConnectionConfigException(message=ExceptionsMessage.ConnLackConf % alias)
 
     def list_connections(self) -> list:
-        """ List names of all connections.
+        """List names of all connections.
 
         :return list:
             Names of all connections.
@@ -384,7 +389,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
             >>> connections.list_connections()
-            // TODO [('default', None), ('test', <pymilvus.client.grpc_handler.GrpcHandler object at 0x7f05003f3e80>)]
         """
         return [(k, self._connected_alias.get(k, None)) for k in self._alias]
 
@@ -403,7 +407,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
             >>> connections.list_connections()
-            [('default', None), ('test', <pymilvus.client.grpc_handler.GrpcHandler object at 0x7f4045335f10>)]
             >>> connections.get_connection_addr('test')
             {'host': 'localhost', 'port': '19530'}
         """
@@ -413,7 +416,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         return self._alias.get(alias, {})
 
     def has_connection(self, alias: str) -> bool:
-        """ Check if connection named alias exists.
+        """Check if connection named alias exists.
 
         :param alias: The name of milvus connection
         :type  alias: str
@@ -425,7 +428,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
             >>> connections.list_connections()
-            [('default', None), ('test', <pymilvus.client.grpc_handler.GrpcHandler object at 0x7f4045335f10>)]
             >>> connections.get_connection_addr('test')
             {'host': 'localhost', 'port': '19530'}
         """
@@ -433,8 +435,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
         return alias in self._connected_alias
 
-    def _fetch_handler(self, alias=Config.MILVUS_CONN_ALIAS) -> GrpcHandler:
-        """ Retrieves a GrpcHandler by alias. """
+    def _fetch_handler(self, alias: str = Config.MILVUS_CONN_ALIAS) -> GrpcHandler:
+        """Retrieves a GrpcHandler by alias."""
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 

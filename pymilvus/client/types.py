@@ -1,15 +1,18 @@
 import time
 from enum import IntEnum
-from ..grpc_gen import common_pb2
-from ..exceptions import (
+from typing import Any, ClassVar, Dict, List, TypeVar, Union
+
+from pymilvus.exceptions import (
     AutoIDException,
     ExceptionsMessage,
     InvalidConsistencyLevel,
 )
-from ..grpc_gen import milvus_pb2 as milvus_types
+from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
-
+Status = TypeVar("Status")
 ConsistencyLevel = common_pb2.ConsistencyLevel
+
 
 class Status:
     """
@@ -46,23 +49,20 @@ class Status:
     INDEX_NOT_EXIST = 25
     EMPTY_COLLECTION = 26
 
-    def __init__(self, code=SUCCESS, message="Success"):
+    def __init__(self, code: int = SUCCESS, message: str = "Success") -> None:
         self.code = code
         self.message = message
 
-    def __repr__(self):
-        attr_list = [f'{key}={value}' for key, value in self.__dict__.items()]
+    def __repr__(self) -> str:
+        attr_list = [f"{key}={value}" for key, value in self.__dict__.items()]
         return f"{self.__class__.__name__}({', '.join(attr_list)})"
 
-    def __eq__(self, other):
-        """ Make Status comparable with self by code """
+    def __eq__(self, other: Union[int, Status]):
+        """Make Status comparable with self by code"""
         if isinstance(other, int):
             return self.code == other
 
         return isinstance(other, self.__class__) and self.code == other.code
-
-    def __ne__(self, other):
-        return self != other
 
     def OK(self):
         return self.code == Status.SUCCESS
@@ -113,10 +113,10 @@ class IndexType(IntEnum):
     IVF_FLAT = IVFLAT
     IVF_SQ8_H = IVF_SQ8H
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: {self._name_}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._name_
 
 
@@ -132,10 +132,10 @@ class MetricType(IntEnum):
     SUBSTRUCTURE = 6
     SUPERSTRUCTURE = 7
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: {self._name_}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._name_
 
 
@@ -174,19 +174,19 @@ class State(IntEnum):
             return State.Completed
         return State.UndefiedState
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: {self._name_}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._name_
 
 
 class LoadState(IntEnum):
     """
-    NotExist:     collection or partition isn't existed
-    NotLoad:      collection or partition isn't loaded
-    Loading:      collection or partition is loading
-    Loaded:       collection or partition is loaded
+    NotExist: collection or partition isn't existed
+    NotLoad:  collection or partition isn't loaded
+    Loading:  collection or partition is loading
+    Loaded:   collection or partition is loaded
     """
 
     NotExist = 0
@@ -194,27 +194,35 @@ class LoadState(IntEnum):
     Loading = 2
     Loaded = 3
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: {self._name_}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._name_
+
 
 class CompactionState:
     """
-    in_executing:   number of plans in executing
-    in_timeout:     number of plans failed of timeout
-    completed:      number of plans successfully completed
+    in_executing: number of plans in executing
+    in_timeout:   number of plans failed of timeout
+    completed:    number of plans successfully completed
     """
 
-    def __init__(self, compaction_id: int, state: State, in_executing: int, in_timeout: int, completed: int):
+    def __init__(
+        self,
+        compaction_id: int,
+        state: State,
+        in_executing: int,
+        in_timeout: int,
+        completed: int,
+    ) -> None:
         self.compaction_id = compaction_id
         self.state = state
         self.in_executing = in_executing
         self.in_timeout = in_timeout
         self.completed = completed
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"""
 CompactionState
  - compaction id: {self.compaction_id}
@@ -226,11 +234,11 @@ CompactionState
 
 
 class Plan:
-    def __init__(self, sources: list, target: int):
+    def __init__(self, sources: list, target: int) -> None:
         self.sources = sources
         self.target = target
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"""
 Plan:
  - sources: {self.sources}
@@ -239,12 +247,12 @@ Plan:
 
 
 class CompactionPlans:
-    def __init__(self, compaction_id: int, state: int):
+    def __init__(self, compaction_id: int, state: int) -> None:
         self.compaction_id = compaction_id
         self.state = State.new(state)
         self.plans = []
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"""
 Compaction Plans:
  - compaction id: {self.compaction_id}
@@ -253,7 +261,7 @@ Compaction Plans:
  """
 
 
-def cmp_consistency_level(l1, l2):
+def cmp_consistency_level(l1: Union[str, int], l2: Union[str, int]):
     if isinstance(l1, str):
         try:
             l1 = ConsistencyLevel.Value(l1)
@@ -266,18 +274,16 @@ def cmp_consistency_level(l1, l2):
         except ValueError:
             return False
 
-    if isinstance(l1, int):
-        if l1 not in ConsistencyLevel.values():
-            return False
+    if isinstance(l1, int) and l1 not in ConsistencyLevel.values():
+        return False
 
-    if isinstance(l2, int):
-        if l2 not in ConsistencyLevel.values():
-            return False
+    if isinstance(l2, int) and l2 not in ConsistencyLevel.values():
+        return False
 
     return l1 == l2
 
 
-def get_consistency_level(consistency_level):
+def get_consistency_level(consistency_level: Union[str, int]):
     if isinstance(consistency_level, int):
         if consistency_level in ConsistencyLevel.values():
             return consistency_level
@@ -286,18 +292,23 @@ def get_consistency_level(consistency_level):
         try:
             return ConsistencyLevel.Value(consistency_level)
         except ValueError as e:
-            raise InvalidConsistencyLevel(message=f"invalid consistency level: {consistency_level}") from e
+            raise InvalidConsistencyLevel(
+                message=f"invalid consistency level: {consistency_level}"
+            ) from e
     raise InvalidConsistencyLevel(message="invalid consistency level")
 
 
 class Shard:
-    def __init__(self, channel_name: str, shard_nodes: list, shard_leader: int):
+    def __init__(self, channel_name: str, shard_nodes: list, shard_leader: int) -> None:
         self._channel_name = channel_name
         self._shard_nodes = set(shard_nodes)
         self._shard_leader = shard_leader
 
-    def __repr__(self):
-        return f"""Shard: <channel_name:{self.channel_name}>, <shard_leader:{self.shard_leader}>, <shard_nodes:{self.shard_nodes}>"""
+    def __repr__(self) -> str:
+        return (
+            f"Shard: <channel_name:{self.channel_name}>, "
+            f"<shard_leader:{self.shard_leader}>, <shard_nodes:{self.shard_nodes}>"
+        )
 
     @property
     def channel_name(self) -> str:
@@ -313,7 +324,14 @@ class Shard:
 
 
 class Group:
-    def __init__(self, group_id: int, shards: list, group_nodes: list, resource_group: str, num_outbound_node: dict):
+    def __init__(
+        self,
+        group_id: int,
+        shards: List[str],
+        group_nodes: List[tuple],
+        resource_group: str,
+        num_outbound_node: dict,
+    ) -> None:
         self._id = group_id
         self._shards = shards
         self._group_nodes = tuple(group_nodes)
@@ -321,8 +339,11 @@ class Group:
         self._num_outbound_node = num_outbound_node
 
     def __repr__(self) -> str:
-        s = f"Group: <group_id:{self.id}>, <group_nodes:{self.group_nodes}>, <shards:{self.shards}>, <resource_group: {self.resource_group}>, <num_outbound_node: {self.num_outbound_node}>"
-        return s
+        return (
+            f"Group: <group_id:{self.id}>, <group_nodes:{self.group_nodes}>, "
+            f"<shards:{self.shards}>, <resource_group: {self.resource_group}>, "
+            f"<num_outbound_node: {self.num_outbound_node}>"
+        )
 
     @property
     def id(self):
@@ -344,16 +365,24 @@ class Group:
     def num_outbound_node(self):
         return self._num_outbound_node
 
+
 class Replica:
     """
     Replica groups:
         - Group: <group_id:2>, <group_nodes:(1, 2, 3)>,
-            <shards:[Shard: <shard_id:10>, <channel_name:channel-1>, <shard_leader:1>, <shard_nodes:(1, 2, 3)>]>
+            <shards:[Shard: <shard_id:10>,
+                <channel_name:channel-1>,
+                <shard_leader:1>,
+                <shard_nodes:(1, 2, 3)>]>
         - Group: <group_id:2>, <group_nodes:(1, 2, 3)>,
-            <shards:[Shard: <shard_id:10>, <channel_name:channel-1>, <shard_leader:1>, <shard_nodes:(1, 2, 3)>]>
+            <shards:[Shard:
+                <shard_id:10>,
+                <channel_name:channel-1>,
+                <shard_leader:1>,
+                <shard_nodes:(1, 2, 3)>]>
     """
 
-    def __init__(self, groups: list):
+    def __init__(self, groups: list) -> None:
         self._groups = groups
 
     def __repr__(self) -> str:
@@ -369,6 +398,7 @@ class Replica:
 
 class BulkInsertState:
     """enum states of bulk insert task"""
+
     ImportPending = 0
     ImportFailed = 1
     ImportStarted = 2
@@ -386,15 +416,18 @@ class BulkInsertState:
 
     """
     Bulk insert state example:
-        - taskID            : 44353845454358,
-        - state             : "BulkLoadPersisted",
-        - row_count         : 1000,
-        - infos             : {"files": "rows.json", "collection": "c1", "partition": "", "failed_reason": ""},
-        - id_list           : [44353845455401, 44353845456401]
-        - create_ts         : 1661398759,
+        - taskID    : 44353845454358,
+        - state     : "BulkLoadPersisted",
+        - row_count : 1000,
+        - infos     : {"files": "rows.json",
+                       "collection": "c1",
+                       "partition": "",
+                       "failed_reason": ""},
+        - id_list   : [44353845455401, 44353845456401]
+        - create_ts : 1661398759,
     """
 
-    state_2_state = {
+    state_2_state: ClassVar[Dict] = {
         common_pb2.ImportPending: ImportPending,
         common_pb2.ImportFailed: ImportFailed,
         common_pb2.ImportStarted: ImportStarted,
@@ -403,7 +436,7 @@ class BulkInsertState:
         common_pb2.ImportFailedAndCleaned: ImportFailedAndCleaned,
     }
 
-    state_2_name = {
+    state_2_name: ClassVar[Dict] = {
         ImportPending: "Pending",
         ImportFailed: "Failed",
         ImportStarted: "Started",
@@ -413,7 +446,15 @@ class BulkInsertState:
         ImportUnknownState: "Unknown",
     }
 
-    def __init__(self, task_id, state, row_count: int, id_ranges: list, infos, create_ts: int):
+    def __init__(
+        self,
+        task_id: int,
+        state: State,
+        row_count: int,
+        id_ranges: list,
+        infos: Dict,
+        create_ts: int,
+    ):
         self._task_id = task_id
         self._state = state
         self._row_count = row_count
@@ -431,8 +472,14 @@ class BulkInsertState:
     - id_ranges       : {},
     - create_ts       : {}
 >"""
-        return fmt.format(self._task_id, self.state_name, self.row_count, self.infos,
-                          self.id_ranges, self.create_time_str)
+        return fmt.format(
+            self._task_id,
+            self.state_name,
+            self.row_count,
+            self.infos,
+            self.id_ranges,
+            self.create_time_str,
+        )
 
     @property
     def task_id(self):
@@ -534,7 +581,7 @@ class BulkInsertState:
 
 
 class GrantItem:
-    def __init__(self, entity):
+    def __init__(self, entity: Any) -> None:
         self._object = entity.object.name
         self._object_name = entity.object_name
         self._db_name = entity.db_name
@@ -543,11 +590,12 @@ class GrantItem:
         self._privilege = entity.grantor.privilege.name
 
     def __repr__(self) -> str:
-        s = f"GrantItem: <object:{self.object}>, <object_name:{self.object_name}>, " \
-            f"<db_name:{self.db_name}>, " \
-            f"<role_name:{self.role_name}>, <grantor_name:{self.grantor_name}>, " \
+        return (
+            f"GrantItem: <object:{self.object}>, <object_name:{self.object_name}>, "
+            f"<db_name:{self.db_name}>, "
+            f"<role_name:{self.role_name}>, <grantor_name:{self.grantor_name}>, "
             f"<privilege:{self.privilege}>"
-        return s
+        )
 
     @property
     def object(self):
@@ -577,11 +625,13 @@ class GrantItem:
 class GrantInfo:
     """
     GrantInfo groups:
-    - GrantItem: <object:Collection>, <object_name:foo>, <role_name:x>, <grantor_name:root>, <privilege:Load>
-    - GrantItem: <object:Global>, <object_name:*>, <role_name:x>, <grantor_name:root>, <privilege:CreateCollection>
+    - GrantItem: <object:Collection>, <object_name:foo>, <role_name:x>,
+        <grantor_name:root>, <privilege:Load>
+    - GrantItem: <object:Global>, <object_name:*>, <role_name:x>,
+        <grantor_name:root>, <privilege:CreateCollection>
     """
 
-    def __init__(self, entities):
+    def __init__(self, entities: List[milvus_types.RoleEntity]) -> None:
         groups = []
         for entity in entities:
             if isinstance(entity, milvus_types.GrantEntity):
@@ -601,7 +651,7 @@ class GrantInfo:
 
 
 class UserItem:
-    def __init__(self, username, entities):
+    def __init__(self, username: str, entities: List[milvus_types.RoleEntity]) -> None:
         self._username = username
         roles = []
         for entity in entities:
@@ -610,8 +660,7 @@ class UserItem:
         self._roles = tuple(roles)
 
     def __repr__(self) -> str:
-        s = f"UserItem: <username:{self.username}>, <roles:{self.roles}>"
-        return s
+        return f"UserItem: <username:{self.username}>, <roles:{self.roles}>"
 
     @property
     def username(self):
@@ -628,7 +677,7 @@ class UserInfo:
     - UserItem: <username:root>, <roles:('admin', 'public')>
     """
 
-    def __init__(self, results):
+    def __init__(self, results: List[milvus_types.UserResult]):
         groups = []
         for result in results:
             if isinstance(result, milvus_types.UserResult):
@@ -648,7 +697,7 @@ class UserInfo:
 
 
 class RoleItem:
-    def __init__(self, role_name, entities):
+    def __init__(self, role_name: str, entities: List[milvus_types.UserEntity]):
         self._role_name = role_name
         users = []
         for entity in entities:
@@ -657,8 +706,7 @@ class RoleItem:
         self._users = tuple(users)
 
     def __repr__(self) -> str:
-        s = f"RoleItem: <role_name:{self.role_name}>, <users:{self.users}>"
-        return s
+        return f"RoleItem: <role_name:{self.role_name}>, <users:{self.users}>"
 
     @property
     def role_name(self):
@@ -675,7 +723,7 @@ class RoleInfo:
     - UserItem: <role_name:admin>, <users:('root',)>
     """
 
-    def __init__(self, results):
+    def __init__(self, results: List[milvus_types.RoleResult]) -> None:
         groups = []
         for result in results:
             if isinstance(result, milvus_types.RoleResult):
@@ -695,7 +743,7 @@ class RoleInfo:
 
 
 class ResourceGroupInfo:
-    def __init__(self, resource_group):
+    def __init__(self, resource_group: Any) -> None:
         self._name = resource_group.name
         self._capacity = resource_group.capacity
         self._num_available_node = resource_group.num_available_node
@@ -704,40 +752,33 @@ class ResourceGroupInfo:
         self._num_incoming_node = resource_group.num_incoming_node
 
     def __repr__(self) -> str:
-        s = f"""ResourceGroupInfo:
+        return f"""ResourceGroupInfo:
 <name:{self.name}>,
 <capacity:{self.capacity}>,
 <num_available_node:{self.num_available_node}>,
 <num_loaded_replica:{self.num_loaded_replica}>,
 <num_outgoing_node:{self.num_outgoing_node}>,
 <num_incoming_node:{self.num_incoming_node}>"""
-        return s
-
 
     @property
     def name(self):
         return self._name
 
-
     @property
     def capacity(self):
         return self._capacity
-
 
     @property
     def num_available_node(self):
         return self._num_available_node
 
-
     @property
     def num_loaded_replica(self):
         return self._num_loaded_replica
 
-
     @property
     def num_outgoing_node(self):
         return self._num_outgoing_node
-
 
     @property
     def num_incoming_node(self):

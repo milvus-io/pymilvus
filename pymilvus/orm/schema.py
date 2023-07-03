@@ -11,27 +11,33 @@
 # the License.
 
 import copy
-from typing import List, Union, Dict
-import pandas
+from typing import Any, Dict, List, Optional, Union
+
+import pandas as pd
 from pandas.api.types import is_list_like
 
-from .constants import COMMON_TYPE_PARAMS
-from .types import DataType, map_numpy_dtype_to_datatype, infer_dtype_bydata
-from ..exceptions import (
+from pymilvus.exceptions import (
+    AutoIDException,
     CannotInferSchemaException,
+    DataNotMatchException,
     DataTypeNotSupportException,
-    PrimaryKeyException,
-    PartitionKeyException,
+    ExceptionsMessage,
     FieldsTypeException,
     FieldTypeException,
-    AutoIDException,
-    ExceptionsMessage,
-    DataNotMatchException,
+    PartitionKeyException,
+    PrimaryKeyException,
     SchemaNotReadyException,
 )
 
+from .constants import COMMON_TYPE_PARAMS
+from .types import (
+    DataType,
+    infer_dtype_bydata,
+    map_numpy_dtype_to_datatype,
+)
 
-def validate_primary_key(primary_field):
+
+def validate_primary_key(primary_field: Any):
     if primary_field is None:
         raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyNotExist)
 
@@ -39,24 +45,24 @@ def validate_primary_key(primary_field):
         raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyType)
 
 
-def validate_partition_key(partition_key_field_name, partition_key_field, primary_field_name):
+def validate_partition_key(
+    partition_key_field_name: Any, partition_key_field: Any, primary_field_name: Any
+):
     # not allow partition_key field is primary key field
     if partition_key_field is not None:
         if partition_key_field.name == primary_field_name:
-            PartitionKeyException(
-                message=ExceptionsMessage.PartitionKeyNotPrimary)
+            PartitionKeyException(message=ExceptionsMessage.PartitionKeyNotPrimary)
 
         if partition_key_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
-            raise PartitionKeyException(
-                message=ExceptionsMessage.PartitionKeyType)
-    else:
-        if partition_key_field_name is not None:
-            raise PartitionKeyException(
-                message=ExceptionsMessage.PartitionKeyFieldNotExist % partition_key_field_name)
+            raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyType)
+    elif partition_key_field_name is not None:
+        raise PartitionKeyException(
+            message=ExceptionsMessage.PartitionKeyFieldNotExist % partition_key_field_name
+        )
 
 
 class CollectionSchema:
-    def __init__(self, fields, description="", **kwargs):
+    def __init__(self, fields: List, description: str = "", **kwargs):
         self._kwargs = copy.deepcopy(kwargs)
         self._fields = []
         self._description = description
@@ -72,24 +78,20 @@ class CollectionSchema:
         if kwargs.get("check_fields", True):
             self._check_fields()
 
-
     def _check_kwargs(self):
         primary_field_name = self._kwargs.get("primary_field", None)
         partition_key_field_name = self._kwargs.get("partition_key_field", None)
         if primary_field_name is not None and not isinstance(primary_field_name, str):
-            raise PrimaryKeyException(
-                message=ExceptionsMessage.PrimaryFieldType)
+            raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
         if partition_key_field_name is not None and not isinstance(partition_key_field_name, str):
-            raise PartitionKeyException(
-                message=ExceptionsMessage.PartitionKeyFieldType)
+            raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyFieldType)
 
         for field in self._fields:
             if not isinstance(field, FieldSchema):
                 raise FieldTypeException(message=ExceptionsMessage.FieldType)
 
-        if "auto_id" in self._kwargs:
-            if not isinstance(self._kwargs["auto_id"], bool):
-                raise AutoIDException(0, ExceptionsMessage.AutoIDType)
+        if "auto_id" in self._kwargs and not isinstance(self._kwargs["auto_id"], bool):
+            raise AutoIDException(0, ExceptionsMessage.AutoIDType)
 
     def _check_fields(self):
         primary_field_name = self._kwargs.get("primary_field", None)
@@ -102,21 +104,25 @@ class CollectionSchema:
 
             if field.is_primary:
                 if primary_field_name is not None and primary_field_name != field.name:
-                    raise PrimaryKeyException(
-                        message=ExceptionsMessage.PrimaryKeyOnlyOne % (primary_field_name, field.name))
+                    msg = ExceptionsMessage.PrimaryKeyOnlyOne % (primary_field_name, field.name)
+                    raise PrimaryKeyException(message=msg)
                 self._primary_field = field
                 primary_field_name = field.name
 
             if field.is_partition_key:
                 if partition_key_field_name is not None and partition_key_field_name != field.name:
-                    raise PartitionKeyException(
-                        message=ExceptionsMessage.PartitionKeyOnlyOne % (partition_key_field_name, field.name))
+                    msg = ExceptionsMessage.PartitionKeyOnlyOne % (
+                        partition_key_field_name,
+                        field.name,
+                    )
+                    raise PartitionKeyException(message=msg)
                 self._partition_key_field = field
                 partition_key_field_name = field.name
 
         validate_primary_key(self._primary_field)
-        validate_partition_key(partition_key_field_name,
-                                self._partition_key_field, self._primary_field.name)
+        validate_partition_key(
+            partition_key_field_name, self._partition_key_field, self._primary_field.name
+        )
 
         auto_id = self._kwargs.get("auto_id", False)
         if auto_id:
@@ -129,22 +135,23 @@ class CollectionSchema:
         self._check_kwargs()
         self._check_fields()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self.to_dict())
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.fields)
 
-    def __eq__(self, other):
-        """ The order of the fields of schema must be consistent."""
+    def __eq__(self, other: Any):
+        """The order of the fields of schema must be consistent."""
         return self.to_dict() == other.to_dict()
 
     @classmethod
-    def construct_from_dict(cls, raw):
-        fields = [FieldSchema.construct_from_dict(
-            field_raw) for field_raw in raw['fields']]
+    def construct_from_dict(cls, raw: Dict):
+        fields = [FieldSchema.construct_from_dict(field_raw) for field_raw in raw["fields"]]
         enable_dynamic_field = raw.get("enable_dynamic_field", False)
-        return CollectionSchema(fields, raw.get('description', ""), enable_dynamic_field=enable_dynamic_field)
+        return CollectionSchema(
+            fields, raw.get("description", ""), enable_dynamic_field=enable_dynamic_field
+        )
 
     @property
     def primary_field(self):
@@ -207,7 +214,7 @@ class CollectionSchema:
         return self.primary_field.auto_id
 
     @auto_id.setter
-    def auto_id(self, value):
+    def auto_id(self, value: bool):
         if self.primary_field:
             self.primary_field.auto_id = bool(value)
 
@@ -216,7 +223,7 @@ class CollectionSchema:
         return self._enable_dynamic_field
 
     @enable_dynamic_field.setter
-    def enable_dynamic_field(self, value):
+    def enable_dynamic_field(self, value: bool):
         self._enable_dynamic_field = bool(value)
 
     def to_dict(self):
@@ -233,23 +240,21 @@ class CollectionSchema:
         # final check, detect obvious problems
         self._check()
 
-    def add_field(self, field_name, datatype, **kwargs):
+    def add_field(self, field_name: str, datatype: DataType, **kwargs):
         field = FieldSchema(field_name, datatype, **kwargs)
         self._fields.append(field)
         return self
 
 
 class FieldSchema:
-    def __init__(self, name: str, dtype: DataType, description="", **kwargs):
+    def __init__(self, name: str, dtype: DataType, description: str = "", **kwargs) -> None:
         self.name = name
         try:
             dtype = DataType(dtype)
         except ValueError:
-            raise DataTypeNotSupportException(
-                message=ExceptionsMessage.FieldDtype) from None
+            raise DataTypeNotSupportException(message=ExceptionsMessage.FieldDtype) from None
         if dtype == DataType.UNKNOWN:
-            raise DataTypeNotSupportException(
-                message=ExceptionsMessage.FieldDtype)
+            raise DataTypeNotSupportException(message=ExceptionsMessage.FieldDtype)
         self._dtype = dtype
         self._description = description
         self._type_params = {}
@@ -263,27 +268,24 @@ class FieldSchema:
             if not isinstance(self.auto_id, bool):
                 raise AutoIDException(message=ExceptionsMessage.AutoIDType)
             if not self.is_primary and self.auto_id:
-                raise PrimaryKeyException(
-                    message=ExceptionsMessage.AutoIDOnlyOnPK)
+                raise PrimaryKeyException(message=ExceptionsMessage.AutoIDOnlyOnPK)
 
         if not isinstance(kwargs.get("is_partition_key", False), bool):
-            raise PartitionKeyException(
-                message=ExceptionsMessage.IsPartitionKeyType)
+            raise PartitionKeyException(message=ExceptionsMessage.IsPartitionKeyType)
         self.is_partition_key = kwargs.get("is_partition_key", False)
-
         self._parse_type_params()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self.to_dict())
 
-    def __deepcopy__(self, memodict=None):
+    def __deepcopy__(self, memodict: Optional[Dict] = None):
         if memodict is None:
             memodict = {}
         return self.construct_from_dict(self.to_dict())
 
     def _parse_type_params(self):
         # update self._type_params according to self._kwargs
-        if self._dtype not in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR, DataType.VARCHAR,):
+        if self._dtype not in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR, DataType.VARCHAR):
             return
         if not self._kwargs:
             return
@@ -296,15 +298,15 @@ class FieldSchema:
                     self._type_params[k] = self._kwargs[k]
 
     @classmethod
-    def construct_from_dict(cls, raw):
+    def construct_from_dict(cls, raw: Dict):
         kwargs = {}
         kwargs.update(raw.get("params", {}))
-        kwargs['is_primary'] = raw.get("is_primary", False)
+        kwargs["is_primary"] = raw.get("is_primary", False)
         if raw.get("auto_id", None) is not None:
-            kwargs['auto_id'] = raw.get("auto_id", None)
-        kwargs['is_partition_key'] = raw.get("is_partition_key", False)
-        kwargs['is_dynamic'] = raw.get("is_dynamic", False)
-        return FieldSchema(raw['name'], raw['type'], raw.get("description", ""), **kwargs)
+            kwargs["auto_id"] = raw.get("auto_id", None)
+        kwargs["is_partition_key"] = raw.get("is_partition_key", False)
+        kwargs["is_dynamic"] = raw.get("is_dynamic", False)
+        return FieldSchema(raw["name"], raw["type"], raw.get("description", ""), **kwargs)
 
     def to_dict(self):
         _dict = {
@@ -323,12 +325,12 @@ class FieldSchema:
             _dict["is_dynamic"] = self.is_dynamic
         return _dict
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str):
         if self._type_params and item in self._type_params:
             return self._type_params[item]
         return None
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any):
         if not isinstance(other, FieldSchema):
             return False
         return self.to_dict() == other.to_dict()
@@ -373,11 +375,13 @@ class FieldSchema:
         return self._dtype
 
 
-def check_insert_or_upsert_is_row_based(data: Union[List[List], List[Dict], Dict, pandas.DataFrame]) -> bool:
-    if not isinstance(data, (pandas.DataFrame, list, dict)):
-        raise DataTypeNotSupportException(message="The type of data should be list or pandas.DataFrame or dict")
+def check_is_row_based(data: Union[List[List], List[Dict], Dict, pd.DataFrame]) -> bool:
+    if not isinstance(data, (pd.DataFrame, list, dict)):
+        raise DataTypeNotSupportException(
+            message="The type of data should be list or pandas.DataFrame or dict"
+        )
 
-    if isinstance(data, pandas.DataFrame):
+    if isinstance(data, pd.DataFrame):
         return False
 
     if isinstance(data, dict):
@@ -392,8 +396,8 @@ def check_insert_or_upsert_is_row_based(data: Union[List[List], List[Dict], Dict
     return False
 
 
-def check_insert_data_schema(schema: CollectionSchema, data: [List[List], pandas.DataFrame]) -> None:
-    """ check if the insert data is consist with the collection schema
+def check_insert_data_schema(schema: CollectionSchema, data: [List[List], pd.DataFrame]) -> None:
+    """check if the insert data is consist with the collection schema
 
     Args:
         schema (CollectionSchema): the schema of the collection
@@ -405,13 +409,12 @@ def check_insert_data_schema(schema: CollectionSchema, data: [List[List], pandas
     """
     if schema is None:
         raise SchemaNotReadyException(message="Schema shouldn't be None")
-    if schema.auto_id:
-        if isinstance(data, pandas.DataFrame):
-            if schema.primary_field.name in data:
-                if not data[schema.primary_field.name].isnull().all():
-                    raise DataNotMatchException(
-                        message=f"Please don't provide data for auto_id primary field: {schema.primary_field.name}")
-                data = data.drop(schema.primary_field.name, axis=1)
+    if schema.auto_id and isinstance(data, pd.DataFrame) and schema.primary_field.name in data:
+        if not data[schema.primary_field.name].isnull().all():
+            raise DataNotMatchException(
+                message=f"Please don't provide data for auto_id primary field: {schema.primary_field.name}"
+            )
+        data = data.drop(schema.primary_field.name, axis=1)
 
     infer_fields = parse_fields_from_data(data)
     tmp_fields = copy.deepcopy(schema.fields)
@@ -420,25 +423,27 @@ def check_insert_data_schema(schema: CollectionSchema, data: [List[List], pandas
         if field.is_primary and field.auto_id:
             tmp_fields.pop(i)
 
-    check_infer_fields_valid(infer_fields, tmp_fields, isinstance(data, pandas.DataFrame))
+    check_infer_fields_valid(infer_fields, tmp_fields, isinstance(data, pd.DataFrame))
 
-def parse_fields_from_data(data: [List[List], pandas.DataFrame]) -> List[FieldSchema]:
-    if not isinstance(data, (pandas.DataFrame, list)):
-        raise DataTypeNotSupportException(message="The type of data should be list or pandas.DataFrame")
 
-    if isinstance(data, pandas.DataFrame):
+def parse_fields_from_data(data: [List[List], pd.DataFrame]) -> List[FieldSchema]:
+    if not isinstance(data, (pd.DataFrame, list)):
+        raise DataTypeNotSupportException(
+            message="The type of data should be list or pandas.DataFrame"
+        )
+
+    if isinstance(data, pd.DataFrame):
         return construct_fields_from_dataframe(data)
 
     for d in data:
         if not is_list_like(d):
             raise DataTypeNotSupportException(message="data should be a list of list")
 
-    fields = [FieldSchema("", infer_dtype_bydata(d[0])) for d in data]
-    return fields
+    return [FieldSchema("", infer_dtype_bydata(d[0])) for d in data]
 
-def construct_fields_from_dataframe(df: pandas.DataFrame) -> List[FieldSchema]:
-    col_names, data_types, column_params_map = prepare_fields_from_dataframe(
-        df)
+
+def construct_fields_from_dataframe(df: pd.DataFrame) -> List[FieldSchema]:
+    col_names, data_types, column_params_map = prepare_fields_from_dataframe(df)
     fields = []
     for name, dtype in zip(col_names, data_types):
         type_params = column_params_map.get(name, {})
@@ -448,7 +453,7 @@ def construct_fields_from_dataframe(df: pandas.DataFrame) -> List[FieldSchema]:
     return fields
 
 
-def prepare_fields_from_dataframe(df: pandas.DataFrame):
+def prepare_fields_from_dataframe(df: pd.DataFrame):
     d_types = list(df.dtypes)
     data_types = list(map(map_numpy_dtype_to_datatype, d_types))
     col_names = list(df.columns)
@@ -457,45 +462,52 @@ def prepare_fields_from_dataframe(df: pandas.DataFrame):
 
     if DataType.UNKNOWN in data_types:
         if len(df) == 0:
-            raise CannotInferSchemaException(
-                message=ExceptionsMessage.DataFrameInvalid)
-        values = df.head(1).values[0]
+            raise CannotInferSchemaException(message=ExceptionsMessage.DataFrameInvalid)
+        values = df.head(1).to_numpy()[0]
         for i, dtype in enumerate(data_types):
             if dtype == DataType.UNKNOWN:
                 new_dtype = infer_dtype_bydata(values[i])
                 if new_dtype in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR):
                     vector_type_params = {}
                     if new_dtype == DataType.BINARY_VECTOR:
-                        vector_type_params['dim'] = len(values[i]) * 8
+                        vector_type_params["dim"] = len(values[i]) * 8
                     else:
-                        vector_type_params['dim'] = len(values[i])
+                        vector_type_params["dim"] = len(values[i])
                     column_params_map[col_names[i]] = vector_type_params
                 data_types[i] = new_dtype
 
     if DataType.UNKNOWN in data_types:
-        raise CannotInferSchemaException(
-            message=ExceptionsMessage.DataFrameInvalid)
+        raise CannotInferSchemaException(message=ExceptionsMessage.DataFrameInvalid)
 
     return col_names, data_types, column_params_map
 
 
-def check_infer_fields_valid(infer_fields: List[FieldSchema], tmp_fields: list, is_data_frame: bool):
+def check_infer_fields_valid(
+    infer_fields: List[FieldSchema],
+    tmp_fields: List,
+    is_data_frame: bool,
+):
     if len(infer_fields) != len(tmp_fields):
         i_name = [f.name for f in infer_fields]
         t_name = [f.name for f in tmp_fields]
         raise DataNotMatchException(
-            message=f"The fields don't match with schema fields, expected: {t_name}, got {i_name}")
+            message=f"The fields don't match with schema fields, expected: {t_name}, got {i_name}"
+        )
 
     for x, y in zip(infer_fields, tmp_fields):
         if x.dtype != y.dtype:
-            raise DataNotMatchException(
-                message=f"The data type of field {y.name} doesn't match, expected: {y.dtype.name}, got {x.dtype.name}")
+            msg = (
+                f"The data type of field {y.name} doesn't match, "
+                f"expected: {y.dtype.name}, got {x.dtype.name}"
+            )
+            raise DataNotMatchException(message=msg)
         if is_data_frame and x.name != y.name:
             raise DataNotMatchException(
-                message=f"The name of field don't match, expected: {y.name}, got {x.name}")
+                message=f"The name of field don't match, expected: {y.name}, got {x.name}"
+            )
 
 
-def check_schema(schema):
+def check_schema(schema: CollectionSchema):
     if schema is None:
         raise SchemaNotReadyException(message=ExceptionsMessage.NoSchema)
     if len(schema.fields) < 1:

@@ -21,12 +21,12 @@ The following collection shows Milvus versions and recommended PyMilvus versions
 | 1.1.\* | 1.1.2 |
 | 2.0.\* | 2.0.2 |
 | 2.1.\* | 2.1.3 |
-| 2.2.\* | 2.2.0 |
+| 2.2.\* | 2.2.13 |
 
 
 ## Installation
 
-You can install PyMilvus via `pip` or `pip3` for Python 3.6+:
+You can install PyMilvus via `pip` or `pip3` for Python 3.7+:
 
 ```shell
 $ pip3 install pymilvus
@@ -35,7 +35,7 @@ $ pip3 install pymilvus
 You can install a specific version of PyMilvus by:
 
 ```shell
-$ pip3 install pymilvus==2.2.0
+$ pip3 install pymilvus==2.2.13
 ```
 
 You can upgrade PyMilvus to the latest version by:
@@ -66,7 +66,21 @@ Q3. How to use the local PyMilvus repository for Milvus server?
 
 A3.
 ```shell
-$ python setup.py install
+$ make install
+```
+
+Q4. How to check coding styles?
+
+A4.
+```shell
+make lint
+```
+
+Q5. How to fix the coding styles?
+
+Q5
+```shell
+make format
 ```
 
 
