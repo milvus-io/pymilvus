@@ -11,11 +11,13 @@
 # the License.
 
 import abc
-from ..client.abstract import Entity
+from typing import Any, Iterable
+
+from pymilvus.client.abstract import Entity
 
 
 class _IterableWrapper:
-    def __init__(self, iterable_obj):
+    def __init__(self, iterable_obj: Iterable) -> None:
         self._iterable = iterable_obj
 
     def __iter__(self):
@@ -24,7 +26,7 @@ class _IterableWrapper:
     def __next__(self):
         return self.on_result(self._iterable.__next__())
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str):
         s = self._iterable.__getitem__(item)
         if isinstance(item, slice):
             _start = item.start or 0
@@ -37,31 +39,25 @@ class _IterableWrapper:
             return elements
         return s
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._iterable.__len__()
 
     @abc.abstractmethod
-    def on_result(self, res):
+    def on_result(self, res: Any):
         raise NotImplementedError
 
 
 # TODO: how to add docstring to method of subclass and don't change the implementation?
 #       for example like below:
 # class Hits(_IterableWrapper):
-#     __init__.__doc__ = """doc of __init__"""
-#     __iter__.__doc__ = """doc of __iter__"""
-#     __next__.__doc__ = """doc of __next__"""
-#     __getitem__.__doc__ = """doc of __getitem__"""
-#     __len__.__doc__ = """doc of __len__"""
 #
 #     def on_result(self, res):
-#         return Hit(res)
 
 
 class DocstringMeta(type):
-    def __new__(cls, name, bases, attrs):
+    def __new__(cls, name: str, bases: Any, attrs: Any):
         doc_meta = attrs.pop("docstring", None)
-        new_cls = super(DocstringMeta, cls).__new__(cls, name, bases, attrs)
+        new_cls = super().__new__(cls, name, bases, attrs)
         if doc_meta:
             for member_name, member in attrs.items():
                 if member_name in doc_meta:
@@ -71,20 +67,12 @@ class DocstringMeta(type):
 
 # for example:
 # class Hits(_IterableWrapper, metaclass=DocstringMeta):
-#     docstring = {
-#         "__init__": """doc of __init__""",
-#         "__iter__": """doc of __iter__""",
-#         "__next__": """doc of __next__""",
-#         "__getitem__": """doc of __getitem__""",
-#         "__len__": """doc of __len__""",
-#     }
 #
 #     def on_result(self, res):
-#         return Hit(res)
 
 
 class Hit:
-    def __init__(self, hit):
+    def __init__(self, hit: Any) -> None:
         """
         Construct a Hit object from response. A hit represent a record corresponding to the query.
         """
@@ -130,7 +118,7 @@ class Hit:
         """
         return self._hit.score
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return the information of hit record.
 
@@ -146,7 +134,7 @@ class Hit:
 
 
 class Hits:
-    def __init__(self, hits):
+    def __init__(self, hits: Any) -> None:
         """
         Construct a Hits object from response.
         """
@@ -166,7 +154,7 @@ class Hits:
         """
         return Hit(self._hits.__next__())
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str):
         """
         Return the kth Hit corresponding to the query.
 
@@ -194,10 +182,10 @@ class Hits:
         """
         return self._hits.__len__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(list(map(str, self.__getitem__(slice(0, 10)))))
 
-    def on_result(self, res):
+    def on_result(self, res: Any):
         return Hit(res)
 
     @property
@@ -222,7 +210,7 @@ class Hits:
 
 
 class SearchResult:
-    def __init__(self, query_result=None):
+    def __init__(self, query_result: Any = None) -> None:
         """
         Construct a search result from response.
         """
@@ -240,7 +228,7 @@ class SearchResult:
         """
         return self.on_result(self._qs.__next__())
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Any):
         """
         Return the Hits corresponding to the nth query.
 
@@ -268,8 +256,8 @@ class SearchResult:
         """
         return self._qs.__len__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(list(map(str, self.__getitem__(slice(0, 10)))))
 
-    def on_result(self, res):
+    def on_result(self, res: Any):
         return Hits(res)

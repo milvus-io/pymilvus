@@ -1,4 +1,4 @@
-from ..grpc_gen import common_pb2
+from pymilvus.grpc_gen import common_pb2
 
 ConsistencyLevel = common_pb2.ConsistencyLevel
 

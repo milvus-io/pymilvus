@@ -166,4 +166,4 @@ class TestCheckInsertDataSchema:
         ]
 
         with pytest.raises(MilvusException):
-            s.check_insert_or_upsert_data_schema(schema, data)
+            s.check_insert_schema(schema, data)

@@ -1,13 +1,18 @@
-import ujson
+from typing import Any, Dict, List, Optional
+
 import numpy as np
+import ujson
 
-from ..grpc_gen import schema_pb2 as schema_types
+from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.grpc_gen import schema_pb2 as schema_types
+from pymilvus.settings import Config
+
 from .types import DataType
-from ..exceptions import ParamError, MilvusException
-from ..settings import Config
+
+CHECK_STR_ARRAY = True
 
 
-def entity_type_to_dtype(entity_type):
+def entity_type_to_dtype(entity_type: Any):
     if isinstance(entity_type, int):
         return entity_type
     if isinstance(entity_type, str):
@@ -16,24 +21,26 @@ def entity_type_to_dtype(entity_type):
     raise ParamError(message=f"invalid entity type: {entity_type}")
 
 
-def get_max_len_of_var_char(field_info) -> int:
+def get_max_len_of_var_char(field_info: Dict) -> int:
     k = Config.MaxVarCharLengthKey
     v = Config.MaxVarCharLength
     return field_info.get("params", {}).get(k, v)
 
 
-def check_str_arr(str_arr, max_len):
+def check_str_arr(str_arr: Any, max_len: int):
     for s in str_arr:
         if not isinstance(s, str):
             raise ParamError(message=f"expect string input, got: {type(s)}")
         if len(s) > max_len:
-            raise ParamError(message=f"invalid input, length of string exceeds max length. length: {len(s)}, "
-                                     f"max length: {max_len}")
+            raise ParamError(
+                message=f"invalid input, length of string exceeds max length. "
+                f"length: {len(s)}, max length: {max_len}"
+            )
 
 
-def convert_to_str_array(orig_str_arr, field_info, check=True):
+def convert_to_str_array(orig_str_arr: Any, field_info: Any, check: bool = True):
     arr = []
-    if Config.EncodeProtocol.lower() != 'utf-8'.lower():
+    if Config.EncodeProtocol.lower() != "utf-8".lower():
         for s in orig_str_arr:
             arr.append(s.encode(Config.EncodeProtocol))
     else:
@@ -44,88 +51,83 @@ def convert_to_str_array(orig_str_arr, field_info, check=True):
     return arr
 
 
-def entity_to_str_arr(entity, field_info, check=True):
+def entity_to_str_arr(entity: Any, field_info: Any, check: bool = True):
     return convert_to_str_array(entity.get("values", []), field_info, check=check)
 
 
-def convert_to_json(obj):
+def convert_to_json(obj: object):
     return ujson.dumps(obj, ensure_ascii=False).encode(Config.EncodeProtocol)
 
 
-def convert_to_json_arr(objs):
+def convert_to_json_arr(objs: List[object]):
     arr = []
     for obj in objs:
         arr.append(ujson.dumps(obj, ensure_ascii=False).encode(Config.EncodeProtocol))
     return arr
 
 
-def entity_to_json_arr(entity):
+def entity_to_json_arr(entity: Dict):
     return convert_to_json_arr(entity.get("values", []))
 
 
-def pack_field_value_to_field_data(field_value, field_data, field_info):
+def pack_field_value_to_field_data(field_value: Any, field_data: Any, field_info: Any):
     field_type = field_data.type
-    if field_type in (DataType.BOOL,):
+    if field_type == DataType.BOOL:
         field_data.scalars.bool_data.data.append(field_value)
-    elif field_type in (DataType.INT8,):
+    elif field_type in (DataType.INT8, DataType.INT16, DataType.INT32):
         field_data.scalars.int_data.data.append(field_value)
-    elif field_type in (DataType.INT16,):
-        field_data.scalars.int_data.data.append(field_value)
-    elif field_type in (DataType.INT32,):
-        field_data.scalars.int_data.data.append(field_value)
-    elif field_type in (DataType.INT64,):
+    elif field_type == DataType.INT64:
         field_data.scalars.long_data.data.append(field_value)
-    elif field_type in (DataType.FLOAT,):
+    elif field_type == DataType.FLOAT:
         field_data.scalars.float_data.data.append(field_value)
-    elif field_type in (DataType.DOUBLE,):
+    elif field_type == DataType.DOUBLE:
         field_data.scalars.double_data.data.append(field_value)
-    elif field_type in (DataType.FLOAT_VECTOR,):
+    elif field_type == DataType.FLOAT_VECTOR:
         field_data.vectors.dim = len(field_value)
         field_data.vectors.float_vector.data.extend(field_value)
-    elif field_type in (DataType.BINARY_VECTOR,):
+    elif field_type == DataType.BINARY_VECTOR:
         field_data.vectors.dim = len(field_value) * 8
         field_data.vectors.binary_vector += bytes(field_value)
-    elif field_type in (DataType.VARCHAR,):
+    elif field_type == DataType.VARCHAR:
         field_data.scalars.string_data.data.append(
-            convert_to_str_array(field_value, field_info, True))
-    elif field_type in (DataType.JSON,):
+            convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
+        )
+    elif field_type == DataType.JSON:
         field_data.scalars.json_data.data.append(convert_to_json(field_value))
     else:
         raise ParamError(message=f"UnSupported data type: {field_type}")
 
 
 # TODO: refactor here.
-def entity_to_field_data(entity, field_info):
+def entity_to_field_data(entity: Any, field_info: Any):
     field_data = schema_types.FieldData()
 
     entity_type = entity.get("type")
     field_data.field_name = entity.get("name")
     field_data.type = entity_type_to_dtype(entity_type)
 
-    if entity_type in (DataType.BOOL,):
+    if entity_type == DataType.BOOL:
         field_data.scalars.bool_data.data.extend(entity.get("values"))
-    elif entity_type in (DataType.INT8,):
+    elif entity_type in (DataType.INT8, DataType.INT16, DataType.INT32):
         field_data.scalars.int_data.data.extend(entity.get("values"))
-    elif entity_type in (DataType.INT16,):
-        field_data.scalars.int_data.data.extend(entity.get("values"))
-    elif entity_type in (DataType.INT32,):
-        field_data.scalars.int_data.data.extend(entity.get("values"))
-    elif entity_type in (DataType.INT64,):
+    elif entity_type == DataType.INT64:
         field_data.scalars.long_data.data.extend(entity.get("values"))
-    elif entity_type in (DataType.FLOAT,):
+    elif entity_type == DataType.FLOAT:
         field_data.scalars.float_data.data.extend(entity.get("values"))
-    elif entity_type in (DataType.DOUBLE,):
+    elif entity_type == DataType.DOUBLE:
         field_data.scalars.double_data.data.extend(entity.get("values"))
-    elif entity_type in (DataType.FLOAT_VECTOR,):
+    elif entity_type == DataType.FLOAT_VECTOR:
         field_data.vectors.dim = len(entity.get("values")[0])
         all_floats = [f for vector in entity.get("values") for f in vector]
         field_data.vectors.float_vector.data.extend(all_floats)
-    elif entity_type in (DataType.BINARY_VECTOR,):
+    elif entity_type == DataType.BINARY_VECTOR:
         field_data.vectors.dim = len(entity.get("values")[0]) * 8
-        field_data.vectors.binary_vector = b''.join(entity.get("values"))
-    elif entity_type in (DataType.VARCHAR,):
-        field_data.scalars.string_data.data.extend(entity_to_str_arr(entity, field_info, True))
-    elif entity_type in (DataType.JSON,):
+        field_data.vectors.binary_vector = b"".join(entity.get("values"))
+    elif entity_type == DataType.VARCHAR:
+        field_data.scalars.string_data.data.extend(
+            entity_to_str_arr(entity, field_info, CHECK_STR_ARRAY)
+        )
+    elif entity_type == DataType.JSON:
         field_data.scalars.json_data.data.extend(entity_to_json_arr(entity))
     else:
         raise ParamError(message=f"UnSupported data type: {entity_type}")
@@ -133,7 +135,7 @@ def entity_to_field_data(entity, field_info):
     return field_data
 
 
-def extract_dynamic_field_from_result(raw):
+def extract_dynamic_field_from_result(raw: Any):
     dynamic_field_name = None
     field_names = set()
     if raw.fields_data:
@@ -153,61 +155,81 @@ def extract_dynamic_field_from_result(raw):
 
 
 # pylint: disable=R1702 (too-many-nested-blocks)
-def extract_row_data_from_fields_data(fields_data, index, dynamic_output_fields=None):
+def extract_row_data_from_fields_data(
+    fields_data: Any,
+    index: Any,
+    dynamic_output_fields: Optional[List] = None,
+):
     if not fields_data:
         return {}
 
     entity_row_data = {}
     dynamic_fields = dynamic_output_fields or set()
-    for field_data in fields_data:
-        if field_data.type == DataType.BOOL:
-            if len(field_data.scalars.bool_data.data) >= index:
-                entity_row_data[field_data.field_name] = field_data.scalars.bool_data.data[index]
-        elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-            if len(field_data.scalars.int_data.data) >= index:
-                entity_row_data[field_data.field_name] = field_data.scalars.int_data.data[index]
-        elif field_data.type == DataType.INT64:
-            if len(field_data.scalars.long_data.data) >= index:
-                entity_row_data[field_data.field_name] = field_data.scalars.long_data.data[index]
-        elif field_data.type == DataType.FLOAT:
-            if len(field_data.scalars.float_data.data) >= index:
-                entity_row_data[field_data.field_name] = np.single(field_data.scalars.float_data.data[index])
-        elif field_data.type == DataType.DOUBLE:
-            if len(field_data.scalars.double_data.data) >= index:
-                entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[index]
-        elif field_data.type == DataType.VARCHAR:
-            if len(field_data.scalars.string_data.data) >= index:
-                entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
-        elif field_data.type == DataType.STRING:
+
+    def check_append(field_data: Any):
+        if field_data.type == DataType.STRING:
             raise MilvusException(message="Not support string yet")
-            # result[field_data.field_name] = field_data.scalars.string_data.data[index]
-        elif field_data.type == DataType.JSON:
-            if len(field_data.scalars.json_data.data) >= index:
-                json_value = field_data.scalars.json_data.data[index]
-                json_dict = ujson.loads(json_value)
-                if field_data.is_dynamic:
-                    if dynamic_fields:
-                        for key in json_dict:
-                            if key in dynamic_fields:
-                                entity_row_data[key] = json_dict[key]
-                    else:
-                        entity_row_data.update(json_dict)
-                    continue
+
+        if field_data.type == DataType.BOOL and len(field_data.scalars.bool_data.data) >= index:
+            entity_row_data[field_data.field_name] = field_data.scalars.bool_data.data[index]
+            return
+
+        if (
+            field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32)
+            and len(field_data.scalars.int_data.data) >= index
+        ):
+            entity_row_data[field_data.field_name] = field_data.scalars.int_data.data[index]
+            return
+
+        if field_data.type == DataType.INT64 and len(field_data.scalars.long_data.data) >= index:
+            entity_row_data[field_data.field_name] = field_data.scalars.long_data.data[index]
+            return
+
+        if field_data.type == DataType.FLOAT and len(field_data.scalars.float_data.data) >= index:
+            entity_row_data[field_data.field_name] = np.single(
+                field_data.scalars.float_data.data[index]
+            )
+            return
+
+        if field_data.type == DataType.DOUBLE and len(field_data.scalars.double_data.data) >= index:
+            entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[index]
+            return
+
+        if (
+            field_data.type == DataType.VARCHAR
+            and len(field_data.scalars.string_data.data) >= index
+        ):
+            entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
+            return
+
+        if field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
+            json_value = field_data.scalars.json_data.data[index]
+            json_dict = ujson.loads(json_value)
+
+            if not field_data.is_dynamic:
                 entity_row_data[field_data.field_name] = json_dict
-        elif field_data.type == DataType.FLOAT_VECTOR:
+                return
+
+            tmp_dict = {k: v for k, v in json_dict.items() if k in dynamic_fields}
+            entity_row_data.update(tmp_dict)
+            return
+
+        if field_data.type == DataType.FLOAT_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.float_vector.data) >= index * dim:
-                start_pos = index * dim
-                end_pos = index * dim + dim
-                entity_row_data[field_data.field_name] = [np.single(x) for x in
-                                                          field_data.vectors.float_vector.data[
-                                                          start_pos:end_pos]]
+                start_pos, end_pos = index * dim, (index + 1) * dim
+                entity_row_data[field_data.field_name] = [
+                    np.single(x) for x in field_data.vectors.float_vector.data[start_pos:end_pos]
+                ]
         elif field_data.type == DataType.BINARY_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.binary_vector) >= index * (dim // 8):
-                start_pos = index * (dim // 8)
-                end_pos = (index + 1) * (dim // 8)
+                start_pos, end_pos = index * (dim // 8), (index + 1) * (dim // 8)
                 entity_row_data[field_data.field_name] = [
-                    field_data.vectors.binary_vector[start_pos:end_pos]]
+                    field_data.vectors.binary_vector[start_pos:end_pos]
+                ]
+
+    for field_data in fields_data:
+        check_append(field_data)
 
     return entity_row_data

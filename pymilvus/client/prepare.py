@@ -1,30 +1,31 @@
 import base64
-from typing import Dict, Iterable, Union
-
 import datetime
+from typing import Any, Dict, Iterable, List, Optional, Union
+
 import ujson
 
-from . import blob
-from . import entity_helper
-from . import ts_utils
+from pymilvus.client import __version__
+from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
+from pymilvus.grpc_gen import common_pb2 as common_types
+from pymilvus.grpc_gen import milvus_pb2 as milvus_types
+from pymilvus.grpc_gen import schema_pb2 as schema_types
+from pymilvus.orm.schema import CollectionSchema
+
+from . import blob, entity_helper, ts_utils
 from .check import check_pass_param, is_legal_collection_properties
+from .constants import DEFAULT_CONSISTENCY_LEVEL, ITERATION_EXTENSION_REDUCE_RATE
 from .types import DataType, PlaceholderType, get_consistency_level
 from .utils import traverse_info, traverse_rows_info
-from .constants import DEFAULT_CONSISTENCY_LEVEL, ITERATION_EXTENSION_REDUCE_RATE
-from ..exceptions import ParamError, DataNotMatchException, ExceptionsMessage
-from ..orm.schema import CollectionSchema
-
-from ..client import __version__
-
-from ..grpc_gen import common_pb2 as common_types
-from ..grpc_gen import schema_pb2 as schema_types
-from ..grpc_gen import milvus_pb2 as milvus_types
 
 
 class Prepare:
     @classmethod
-    def create_collection_request(cls, collection_name: str, fields: Union[Dict[str, Iterable], CollectionSchema],
-                                  **kwargs) -> milvus_types.CreateCollectionRequest:
+    def create_collection_request(
+        cls,
+        collection_name: str,
+        fields: Union[Dict[str, Iterable], CollectionSchema],
+        **kwargs,
+    ) -> milvus_types.CreateCollectionRequest:
         """
         Args:
             fields (Union(Dict[str, Iterable], CollectionSchema)).
@@ -41,63 +42,82 @@ class Prepare:
         """
 
         if isinstance(fields, CollectionSchema):
-            schema = cls.get_schema_from_collection_schema(collection_name, fields, **kwargs)
+            schema = cls.get_schema_from_collection_schema(collection_name, fields)
         else:
             schema = cls.get_schema(collection_name, fields, **kwargs)
 
-        consistency_level = get_consistency_level(kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL))
+        consistency_level = get_consistency_level(
+            kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
+        )
 
-        req = milvus_types.CreateCollectionRequest(collection_name=collection_name,
-                                                   schema=bytes(schema.SerializeToString()),
-                                                   consistency_level=consistency_level)
+        req = milvus_types.CreateCollectionRequest(
+            collection_name=collection_name,
+            schema=bytes(schema.SerializeToString()),
+            consistency_level=consistency_level,
+        )
 
         properties = kwargs.get("properties")
         if is_legal_collection_properties(properties):
-            properties = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()]
+            properties = [
+                common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()
+            ]
             req.properties.extend(properties)
 
         same_key = set(kwargs.keys()).intersection({"num_shards", "shards_num"})
         if len(same_key) > 0:
             if len(same_key) > 1:
-                raise ParamError(message="got both num_shards and shards_num in kwargs, expected only one of them")
+                msg = "got both num_shards and shards_num in kwargs, expected only one of them"
+                raise ParamError(message=msg)
 
             num_shards = kwargs[list(same_key)[0]]
             if not isinstance(num_shards, int):
-                raise ParamError(message=f"invalid num_shards type, got {type(num_shards)}, expected int")
+                msg = f"invalid num_shards type, got {type(num_shards)}, expected int"
+                raise ParamError(message=msg)
             req.shards_num = num_shards
 
         num_partitions = kwargs.get("num_partitions", None)
         if num_partitions is not None:
             if not isinstance(num_partitions, int) or isinstance(num_partitions, bool):
-                raise ParamError(message=f"invalid num_partitions type, got {type(num_partitions)}, expected int")
+                msg = f"invalid num_partitions type, got {type(num_partitions)}, expected int"
+                raise ParamError(message=msg)
             if num_partitions < 1:
-                raise ParamError(
-                    message=f"The specified num_partitions should be greater than or equal to 1, got {num_partitions}")
+                msg = f"The specified num_partitions should be greater than or equal to 1, got {num_partitions}"
+                raise ParamError(message=msg)
             req.num_partitions = num_partitions
 
         return req
 
     @classmethod
-    def get_schema_from_collection_schema(cls, collection_name: str, fields: CollectionSchema,
-                                          **kwargs) -> schema_types.CollectionSchema:
+    def get_schema_from_collection_schema(
+        cls,
+        collection_name: str,
+        fields: CollectionSchema,
+    ) -> schema_types.CollectionSchema:
         coll_description = fields.description
         if not isinstance(coll_description, (str, bytes)):
-            raise ParamError(
-                message=f"description [{coll_description}] has type {type(coll_description).__name__},  but expected one of: bytes, str")
+            msg = (
+                f"description [{coll_description}] has type {type(coll_description).__name__}, "
+                "but expected one of: bytes, str"
+            )
+            raise ParamError(message=msg)
 
-        schema = schema_types.CollectionSchema(name=collection_name,
-                                               autoID=fields.auto_id,
-                                               description=coll_description,
-                                               enable_dynamic_field=fields.enable_dynamic_field)
+        schema = schema_types.CollectionSchema(
+            name=collection_name,
+            autoID=fields.auto_id,
+            description=coll_description,
+            enable_dynamic_field=fields.enable_dynamic_field,
+        )
         for f in fields.fields:
-            field_schema = schema_types.FieldSchema(name=f.name,
-                                                    data_type=f.dtype,
-                                                    description=f.description,
-                                                    is_primary_key=f.is_primary,
-                                                    autoID=f.auto_id,
-                                                    is_partition_key=f.is_partition_key,
-                                                    default_value=f.default_value,
-                                                    is_dynamic=f.is_dynamic)
+            field_schema = schema_types.FieldSchema(
+                name=f.name,
+                data_type=f.dtype,
+                description=f.description,
+                is_primary_key=f.is_primary,
+                autoID=f.auto_id,
+                is_partition_key=f.is_partition_key,
+                default_value=f.default_value,
+                is_dynamic=f.is_dynamic,
+            )
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
                 field_schema.type_params.append(kv_pair)
@@ -105,8 +125,69 @@ class Prepare:
             schema.fields.append(field_schema)
         return schema
 
+    @staticmethod
+    def get_field_schema(
+        field: Dict,
+        primary_field: Any,
+        auto_id_field: Any,
+    ) -> (schema_types.FieldSchema, Any, Any):
+        field_name = field.get("name")
+        if field_name is None:
+            raise ParamError(message="You should specify the name of field!")
+
+        data_type = field.get("type")
+        if data_type is None:
+            raise ParamError(message="You should specify the data type of field!")
+        if not isinstance(data_type, (int, DataType)):
+            raise ParamError(message="Field type must be of DataType!")
+
+        is_primary = field.get("is_primary", False)
+        if not isinstance(is_primary, bool):
+            raise ParamError(message="is_primary must be boolean")
+        if is_primary:
+            if primary_field is not None:
+                raise ParamError(message="A collection should only have one primary field")
+            if DataType(data_type) not in [DataType.INT64, DataType.VARCHAR]:
+                msg = "int64 and varChar are the only supported types of primary key"
+                raise ParamError(message=msg)
+            primary_field = field_name
+
+        auto_id = field.get("auto_id", False)
+        if not isinstance(auto_id, bool):
+            raise ParamError(message="auto_id must be boolean")
+        if auto_id:
+            if auto_id_field is not None:
+                raise ParamError(message="A collection should only have one autoID field")
+            if DataType(data_type) != DataType.INT64:
+                msg = "int64 is the only supported type of automatic generated id"
+                raise ParamError(message=msg)
+            auto_id_field = field_name
+
+        field_schema = schema_types.FieldSchema(
+            name=field_name,
+            data_type=data_type,
+            default_value=field.get("default_value", None),
+            description=field.get("description", ""),
+            is_primary_key=is_primary,
+            autoID=auto_id,
+            is_partition_key=field.get("is_partition_key", False),
+        )
+
+        type_params = field.get("params", {})
+        if not isinstance(type_params, dict):
+            raise ParamError(message="params should be dictionary type")
+        kvs = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in type_params.items()]
+        field_schema.type_params.extend(kvs)
+
+        return field_schema, primary_field, auto_id_field
+
     @classmethod
-    def get_schema(cls, collection_name: str, fields: Dict[str, Iterable], **kwargs) -> schema_types.CollectionSchema:
+    def get_schema(
+        cls,
+        collection_name: str,
+        fields: Dict[str, Iterable],
+        **kwargs,
+    ) -> schema_types.CollectionSchema:
         if not isinstance(fields, dict):
             raise ParamError(message="Param fields must be a dict")
 
@@ -120,93 +201,54 @@ class Prepare:
         if "enable_dynamic_field" in fields:
             enable_dynamic_field = fields["enable_dynamic_field"]
 
-        schema = schema_types.CollectionSchema(name=collection_name,
-                                               autoID=False,
-                                               description=fields.get('description', ''),
-                                               enable_dynamic_field=enable_dynamic_field)
+        schema = schema_types.CollectionSchema(
+            name=collection_name,
+            autoID=False,
+            description=fields.get("description", ""),
+            enable_dynamic_field=enable_dynamic_field,
+        )
 
-        primary_field = None
-        auto_id_field = None
+        primary_field, auto_id_field = None, None
         for field in all_fields:
-            field_name = field.get('name')
-            if field_name is None:
-                raise ParamError(message="You should specify the name of field!")
-
-            data_type = field.get('type')
-            if data_type is None:
-                raise ParamError(message="You should specify the data type of field!")
-            if not isinstance(data_type, (int, DataType)):
-                raise ParamError(message="Field type must be of DataType!")
-
-            is_primary = field.get("is_primary", False)
-            if not isinstance(is_primary, bool):
-                raise ParamError(message="is_primary must be boolean")
-            if is_primary:
-                if primary_field is not None:
-                    raise ParamError(message="A collection should only have one primary field")
-                if DataType(data_type) not in [DataType.INT64, DataType.VARCHAR]:
-                    raise ParamError(message="int64 and varChar are the only supported types of primary key")
-                primary_field = field_name
-
-            auto_id = field.get('auto_id', False)
-            if not isinstance(auto_id, bool):
-                raise ParamError(message="auto_id must be boolean")
-            if auto_id:
-                if auto_id_field is not None:
-                    raise ParamError(message="A collection should only have one autoID field")
-                if DataType(data_type) != DataType.INT64:
-                    raise ParamError(message="int64 is the only supported type of automatic generated id")
-                auto_id_field = field_name
-
-            field_schema = schema_types.FieldSchema(name=field_name,
-                                                    data_type=data_type,
-                                                    default_value=field.get("default_value", None),
-                                                    description=field.get('description', ''),
-                                                    is_primary_key=is_primary,
-                                                    autoID=auto_id,
-                                                    is_partition_key=field.get("is_partition_key", False))
-
-            type_params = field.get('params', {})
-            if not isinstance(type_params, dict):
-                raise ParamError(message="params should be dictionary type")
-            kvs = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in type_params.items()]
-            field_schema.type_params.extend(kvs)
+            (field_schema, primary_field, auto_id_field) = cls.get_field_schema(
+                field, primary_field, auto_id_field
+            )
 
             schema.fields.append(field_schema)
         return schema
 
     @classmethod
-    def drop_collection_request(cls, collection_name):
+    def drop_collection_request(cls, collection_name: str) -> milvus_types.DropCollectionRequest:
         return milvus_types.DropCollectionRequest(collection_name=collection_name)
 
     @classmethod
-    # TODO remove
-    def has_collection_request(cls, collection_name):
-        return milvus_types.HasCollectionRequest(collection_name=collection_name)
-
-    @classmethod
-    def describe_collection_request(cls, collection_name):
+    def describe_collection_request(
+        cls,
+        collection_name: str,
+    ) -> milvus_types.DescribeCollectionRequest:
         return milvus_types.DescribeCollectionRequest(collection_name=collection_name)
 
     @classmethod
-    def alter_collection_request(cls, collection_name, properties):
-        kvs = []
-        for k in properties:
-            kv = common_types.KeyValuePair(key=k, value=str(properties[k]))
-            kvs.append(kv)
+    def alter_collection_request(
+        cls,
+        collection_name: str,
+        properties: Dict,
+    ) -> milvus_types.AlterCollectionRequest:
+        kvs = [common_types.KeyDataPair(key=k, value=str(v)) for k, v in properties.items()]
 
         return milvus_types.AlterCollectionRequest(collection_name=collection_name, properties=kvs)
 
     @classmethod
-    def collection_stats_request(cls, collection_name):
+    def collection_stats_request(cls, collection_name: str):
         return milvus_types.CollectionStatsRequest(collection_name=collection_name)
 
     @classmethod
-    def show_collections_request(cls, collection_names=None):
+    def show_collections_request(cls, collection_names: Optional[List[str]] = None):
         req = milvus_types.ShowCollectionsRequest()
         if collection_names:
             if not isinstance(collection_names, (list,)):
-                raise ParamError(message=f"collection_names must be a list of strings, but got: {collection_names}")
+                msg = f"collection_names must be a list of strings, but got: {collection_names}"
+                raise ParamError(message=msg)
             for collection_name in collection_names:
                 check_pass_param(collection_name=collection_name)
             req.collection_names.extend(collection_names)
@@ -214,32 +256,46 @@ class Prepare:
         return req
 
     @classmethod
-    def rename_collections_request(cls, old_name=None, new_name=None):
+    def rename_collections_request(cls, old_name: str, new_name: str):
         return milvus_types.RenameCollectionRequest(oldName=old_name, newName=new_name)
 
     @classmethod
-    def create_partition_request(cls, collection_name, partition_name):
-        return milvus_types.CreatePartitionRequest(collection_name=collection_name, partition_name=partition_name)
+    def create_partition_request(cls, collection_name: str, partition_name: str):
+        return milvus_types.CreatePartitionRequest(
+            collection_name=collection_name, partition_name=partition_name
+        )
 
     @classmethod
-    def drop_partition_request(cls, collection_name, partition_name):
-        return milvus_types.DropPartitionRequest(collection_name=collection_name, partition_name=partition_name)
+    def drop_partition_request(cls, collection_name: str, partition_name: str):
+        return milvus_types.DropPartitionRequest(
+            collection_name=collection_name, partition_name=partition_name
+        )
 
     @classmethod
-    def has_partition_request(cls, collection_name, partition_name):
-        return milvus_types.HasPartitionRequest(collection_name=collection_name, partition_name=partition_name)
+    def has_partition_request(cls, collection_name: str, partition_name: str):
+        return milvus_types.HasPartitionRequest(
+            collection_name=collection_name, partition_name=partition_name
+        )
 
     @classmethod
-    def partition_stats_request(cls, collection_name, partition_name):
-        return milvus_types.PartitionStatsRequest(collection_name=collection_name, partition_name=partition_name)
+    def partition_stats_request(cls, collection_name: str, partition_name: str):
+        return milvus_types.PartitionStatsRequest(
+            collection_name=collection_name, partition_name=partition_name
+        )
 
     @classmethod
-    def show_partitions_request(cls, collection_name, partition_names=None, type_in_memory=False):
+    def show_partitions_request(
+        cls,
+        collection_name: str,
+        partition_names: Optional[List[str]] = None,
+        type_in_memory: bool = False,
+    ):
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         req = milvus_types.ShowPartitionsRequest(collection_name=collection_name)
         if partition_names:
             if not isinstance(partition_names, (list,)):
-                raise ParamError(message=f"partition_names must be a list of strings, but got: {partition_names}")
+                msg = f"partition_names must be a list of strings, but got: {partition_names}"
+                raise ParamError(msg)
             for partition_name in partition_names:
                 check_pass_param(partition_name=partition_name)
             req.partition_names.extend(partition_names)
@@ -250,7 +306,9 @@ class Prepare:
         return req
 
     @classmethod
-    def get_loading_progress(cls, collection_name, partition_names=None):
+    def get_loading_progress(
+        cls, collection_name: str, partition_names: Optional[List[str]] = None
+    ):
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         req = milvus_types.GetLoadingProgressRequest(collection_name=collection_name)
         if partition_names:
@@ -258,7 +316,7 @@ class Prepare:
         return req
 
     @classmethod
-    def get_load_state(cls, collection_name, partition_names=None):
+    def get_load_state(cls, collection_name: str, partition_names: Optional[List[str]] = None):
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         req = milvus_types.GetLoadStateRequest(collection_name=collection_name)
         if partition_names:
@@ -267,111 +325,112 @@ class Prepare:
 
     @classmethod
     def empty(cls):
-        raise DeprecationWarning("no empty request later")
-        # return common_types.Empty()
+        msg = "no empty request later"
+        raise DeprecationWarning(msg)
 
     @classmethod
     def register_link_request(cls):
         return milvus_types.RegisterLinkRequest()
 
     @classmethod
-    def partition_name(cls, collection_name, partition_name):
+    def partition_name(cls, collection_name: str, partition_name: str):
         if not isinstance(collection_name, str):
             raise ParamError(message="collection_name must be of str type")
         if not isinstance(partition_name, str):
             raise ParamError(message="partition_name must be of str type")
-        return milvus_types.PartitionName(collection_name=collection_name,
-                                          tag=partition_name)
+        return milvus_types.PartitionName(collection_name=collection_name, tag=partition_name)
 
     # pylint: disable=too-many-statements
     @classmethod
-    def row_insert_or_upsert_param(cls, collection_name, entities, partition_name, fields_info=None, is_insert=True,
-                                   enable_dynamic=False, **kwargs):
-        # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client. It will be filled in proxy.
-
-        tag = partition_name if isinstance(partition_name, str) else ""
-        request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
-
-        if not is_insert:
-            request = milvus_types.UpsertRequest(collection_name=collection_name, partition_name=tag)
-
+    def row_insert_or_upsert_param(
+        cls,
+        collection_name: str,
+        entities: List,
+        partition_name: str,
+        fields_info: Any,
+        is_insert: bool = True,
+        enable_dynamic: bool = False,
+    ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
-        _, _, auto_id_loc = traverse_rows_info(fields_info, entities)
+        # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client.
+        tag = partition_name if isinstance(partition_name, str) else ""
+        if is_insert:
+            request = milvus_types.InsertRequest(
+                collection_name=collection_name, partition_name=tag, num_rows=len(entities)
+            )
+        else:
+            request = milvus_types.UpsertRequest(
+                collection_name=collection_name, partition_name=tag, num_rows=len(entities)
+            )
 
-        meta_field = schema_types.FieldData()
-        fields_data, field_info_map = {}, {}
-        for field in fields_info:
-            if field.get("auto_id", False):
-                continue
-            field_name, field_type = field["name"], field["type"]
-            field_info_map[field_name] = field
-            field_data = schema_types.FieldData()
-            field_data.field_name = field_name
-            field_data.type = field_type
-            fields_data[field_name] = field_data
+        fields_data = {
+            field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
+            for field in fields_info
+            if not field.get("auto_id", False)
+        }
+        field_info_map = {
+            field["name"]: field for field in fields_info if not field.get("auto_id", False)
+        }
 
-        if enable_dynamic:
-            meta_field.is_dynamic, meta_field.type = True, DataType.JSON
+        meta_field = (
+            schema_types.FieldData(is_dynamic=True, type=DataType.JSON) if enable_dynamic else None
+        )
+        if meta_field is not None:
             field_info_map[meta_field.field_name] = meta_field
             fields_data[meta_field.field_name] = meta_field
 
         try:
             for entity in entities:
-                json_dict = {}
-                for key in entity:
-                    if key in fields_data:
-                        field_info, field_data = field_info_map[key], fields_data[key]
-                        entity_helper.pack_field_value_to_field_data(entity[key], field_data, field_info)
-                    elif enable_dynamic:
-                        json_dict[key] = entity[key]
-                    else:
+                for k, v in entity.items():
+                    if k not in fields_data and not enable_dynamic:
                         raise DataNotMatchException(message=ExceptionsMessage.InsertUnexpectedField)
 
-                if enable_dynamic:
+                    if k in fields_data:
+                        field_info, field_data = field_info_map[k], fields_data[k]
+                        entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+
+                json_dict = {
+                    k: v for k, v in entity.items() if k not in fields_data and enable_dynamic
+                }
+
+                if enable_dynamic and len(json_dict) > 0:
                     json_value = entity_helper.convert_to_json(json_dict)
                     meta_field.scalars.json_data.data.append(json_value)
 
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
 
-        request.num_rows = len(entities)
-        for field in fields_info:
-            if not field.get("auto_id", False):
-                field_name = field["name"]
-                field_data = fields_data[field_name]
-                request.fields_data.append(field_data)
+        request.fields_data.extend(
+            [fields_data[field["name"]] for field in fields_info if not field.get("auto_id", False)]
+        )
 
         if enable_dynamic:
             request.fields_data.append(meta_field)
 
+        _, _, auto_id_loc = traverse_rows_info(fields_info, entities)
         if auto_id_loc is not None:
-            if enable_dynamic:
-                # len(fields_data) = len(fields_info) - 1(auto_ID) + 1 (dynamic_field)
-                if len(fields_data) != len(fields_info):
-                    raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
-            # len(fields_data) = len(fields_info) - 1(auto_ID)
-            elif len(fields_data) + 1 != len(fields_info):
+            if (enable_dynamic and len(fields_data) != len(fields_info)) or (
+                not enable_dynamic and len(fields_data) + 1 != len(fields_info)
+            ):
                 raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
-        elif enable_dynamic:
-            if len(fields_data) != len(fields_info) + 1:
-                raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
+        elif enable_dynamic and len(fields_data) != len(fields_info) + 1:
+            raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
         return request
 
     @classmethod
-    def batch_insert_or_upsert_param(cls, collection_name, entities, partition_name, fields_info=None, is_insert=True,
-                                     **kwargs):
-        # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client. It will be filled in proxy.
-
-        tag = partition_name if isinstance(partition_name, str) else ""
-        request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
-
-        if not is_insert:
-            request = milvus_types.UpsertRequest(collection_name=collection_name, partition_name=tag)
-
+    def batch_insert_or_upsert_param(
+        cls,
+        collection_name: str,
+        entities: List,
+        partition_name: str,
+        fields_info: Any,
+        is_insert: bool = True,
+    ):
+        # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client.
         for entity in entities:
-            if not entity.get("name", None) or not entity.get("type", None):
+            if not entity.get("name") or not entity.get("type"):
                 raise ParamError(message="Missing param in entities, a field must have type, name")
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -383,10 +442,22 @@ class Prepare:
             raise ParamError(message="primary key not found")
 
         if auto_id_loc is None and len(entities) != len(fields_info):
-            raise ParamError(message=f"number of fields: {len(fields_info)}, number of entities: {len(entities)}")
+            msg = f"number of fields: {len(fields_info)}, number of entities: {len(entities)}"
+            raise ParamError(msg)
 
         if auto_id_loc is not None and len(entities) + 1 != len(fields_info):
-            raise ParamError(message=f"number of fields: {len(fields_info)}, number of entities: {len(entities)}")
+            msg = f"number of fields: {len(fields_info)}, number of entities: {len(entities)}"
+            raise ParamError(msg)
+
+        tag = partition_name if isinstance(partition_name, str) else ""
+        if is_insert:
+            request = milvus_types.InsertRequest(
+                collection_name=collection_name, partition_name=tag
+            )
+        else:
+            request = milvus_types.UpsertRequest(
+                collection_name=collection_name, partition_name=tag
+            )
 
         row_num = 0
         try:
@@ -395,9 +466,12 @@ class Prepare:
                 # if current length is zero, consider use default value
                 if current != 0:
                     if row_num not in (0, current):
-                        raise ParamError(message="row num misaligned current[{current}]!= previous[{row_num}]")
+                        msg = f"row num misaligned current[{current}]!= previous[{row_num}]"
+                        raise ParamError(msg)
                     row_num = current
-                field_data = entity_helper.entity_to_field_data(entity, fields_info[location[entity.get("name")]])
+                field_data = entity_helper.entity_to_field_data(
+                    entity, fields_info[location[entity.get("name")]]
+                )
                 request.fields_data.append(field_data)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
@@ -409,13 +483,13 @@ class Prepare:
         return request
 
     @classmethod
-    def delete_request(cls, collection_name, partition_name, expr):
-        def check_str(instr, prefix):
+    def delete_request(cls, collection_name: str, partition_name: str, expr: str):
+        def check_str(instr: str, prefix: str):
             if instr is None:
                 raise ParamError(message=f"{prefix} cannot be None")
             if not isinstance(instr, str):
                 raise ParamError(message=f"{prefix} value {instr} is illegal")
-            if instr == "":
+            if len(instr) == 0:
                 raise ParamError(message=f"{prefix} cannot be empty")
 
         check_str(collection_name, "collection_name")
@@ -423,23 +497,35 @@ class Prepare:
             check_str(partition_name, "partition_name")
         check_str(expr, "expr")
 
-        request = milvus_types.DeleteRequest(collection_name=collection_name, expr=expr, partition_name=partition_name)
-        return request
+        return milvus_types.DeleteRequest(
+            collection_name=collection_name, partition_name=partition_name, expr=expr
+        )
 
     @classmethod
-    def _prepare_placeholders(cls, vectors, nq, tag, pl_type, is_binary):
+    def _prepare_placeholders(cls, vectors: Any, nq: int, tag: Any, pl_type: Any, is_binary: bool):
         pl = common_types.PlaceholderValue(tag=tag)
         pl.type = pl_type
         for i in range(0, nq):
             if is_binary:
-                pl.values.append(blob.vectorBinaryToBytes(vectors[i]))
+                pl.values.append(blob.vector_binary_to_bytes(vectors[i]))
             else:
-                pl.values.append(blob.vectorFloatToBytes(vectors[i]))
+                pl.values.append(blob.vector_float_to_bytes(vectors[i]))
         return pl
 
     @classmethod
-    def search_requests_with_expr(cls, collection_name, data, anns_field, param, limit, expr=None,
-                                  partition_names=None, output_fields=None, round_decimal=-1, **kwargs):
+    def search_requests_with_expr(
+        cls,
+        collection_name: str,
+        data: List,
+        anns_field: str,
+        param: Dict,
+        limit: int,
+        expr: Optional[str] = None,
+        partition_names: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        round_decimal: int = -1,
+        **kwargs,
+    ):
         requests = []
         if len(data) <= 0:
             return requests
@@ -471,7 +557,7 @@ class Prepare:
         if anns_field:
             search_params["anns_field"] = anns_field
 
-        def dump(v):
+        def dump(v: Dict):
             if isinstance(v, dict):
                 return ujson.dumps(v)
             return str(v)
@@ -497,139 +583,193 @@ class Prepare:
         request.dsl_type = common_types.DslType.BoolExprV1
         if expr is not None:
             request.dsl = expr
-        request.search_params.extend([common_types.KeyValuePair(key=str(key), value=dump(value))
-                                      for key, value in search_params.items()])
+        request.search_params.extend(
+            [
+                common_types.KeyValuePair(key=str(key), value=dump(value))
+                for key, value in search_params.items()
+            ]
+        )
 
         requests.append(request)
         return requests
 
     @classmethod
-    def create_alias_request(cls, collection_name, alias):
+    def create_alias_request(cls, collection_name: str, alias: str):
         return milvus_types.CreateAliasRequest(collection_name=collection_name, alias=alias)
 
     @classmethod
-    def drop_alias_request(cls, alias):
+    def drop_alias_request(cls, alias: str):
         return milvus_types.DropAliasRequest(alias=alias)
 
     @classmethod
-    def alter_alias_request(cls, collection_name, alias):
+    def alter_alias_request(cls, collection_name: str, alias: str):
         return milvus_types.AlterAliasRequest(collection_name=collection_name, alias=alias)
 
     @classmethod
-    def create_index_request(cls, collection_name, field_name, params, **kwargs):
-        index_params = milvus_types.CreateIndexRequest(collection_name=collection_name, field_name=field_name,
-                                                       index_name=kwargs.get("index_name", ""))
+    def create_index_request(cls, collection_name: str, field_name: str, params: Dict, **kwargs):
+        index_params = milvus_types.CreateIndexRequest(
+            collection_name=collection_name,
+            field_name=field_name,
+            index_name=kwargs.get("index_name", ""),
+        )
 
-        # index_params.collection_name = collection_name
-        # index_params.field_name = field_name
-
-        def dump(tv):
+        def dump(tv: Dict):
             if isinstance(tv, dict):
                 return ujson.dumps(tv)
             return str(tv)
 
         if isinstance(params, dict):
             for tk, tv in params.items():
-                if tk == "dim":
-                    if not tv or not isinstance(tv, int):
-                        raise ParamError(message="dim must be of int!")
+                if tk == "dim" and (not tv or not isinstance(tv, int)):
+                    raise ParamError(message="dim must be of int!")
                 kv_pair = common_types.KeyValuePair(key=str(tk), value=dump(tv))
                 index_params.extra_params.append(kv_pair)
 
         return index_params
 
     @classmethod
-    def describe_index_request(cls, collection_name, index_name):
-        return milvus_types.DescribeIndexRequest(collection_name=collection_name, index_name=index_name)
+    def describe_index_request(cls, collection_name: str, index_name: str):
+        return milvus_types.DescribeIndexRequest(
+            collection_name=collection_name, index_name=index_name
+        )
 
     @classmethod
     def get_index_build_progress(cls, collection_name: str, index_name: str):
-        return milvus_types.GetIndexBuildProgressRequest(collection_name=collection_name, index_name=index_name)
+        return milvus_types.GetIndexBuildProgressRequest(
+            collection_name=collection_name, index_name=index_name
+        )
 
     @classmethod
     def get_index_state_request(cls, collection_name: str, index_name: str):
-        return milvus_types.GetIndexStateRequest(collection_name=collection_name, index_name=index_name)
+        return milvus_types.GetIndexStateRequest(
+            collection_name=collection_name, index_name=index_name
+        )
 
     @classmethod
-    def load_collection(cls, db_name, collection_name, replica_number, refresh, resource_groups):
-        return milvus_types.LoadCollectionRequest(db_name=db_name, collection_name=collection_name,
-                                                  replica_number=replica_number, refresh=refresh,
-                                                  resource_groups=resource_groups)
+    def load_collection(
+        cls,
+        db_name: str,
+        collection_name: str,
+        replica_number: int,
+        refresh: bool,
+        resource_groups: List[str],
+    ):
+        return milvus_types.LoadCollectionRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            replica_number=replica_number,
+            refresh=refresh,
+            resource_groups=resource_groups,
+        )
 
     @classmethod
-    def release_collection(cls, db_name, collection_name):
-        return milvus_types.ReleaseCollectionRequest(db_name=db_name, collection_name=collection_name)
+    def release_collection(cls, db_name: str, collection_name: str):
+        return milvus_types.ReleaseCollectionRequest(
+            db_name=db_name, collection_name=collection_name
+        )
 
     @classmethod
-    def load_partitions(cls, db_name, collection_name, partition_names, replica_number, refresh, resource_groups):
-        return milvus_types.LoadPartitionsRequest(db_name=db_name, collection_name=collection_name,
-                                                  partition_names=partition_names,
-                                                  replica_number=replica_number,
-                                                  refresh=refresh,
-                                                  resource_groups=resource_groups)
+    def load_partitions(
+        cls,
+        db_name: str,
+        collection_name: str,
+        partition_names: List[str],
+        replica_number: int,
+        refresh: bool,
+        resource_groups: List[str],
+    ):
+        return milvus_types.LoadPartitionsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            partition_names=partition_names,
+            replica_number=replica_number,
+            refresh=refresh,
+            resource_groups=resource_groups,
+        )
 
     @classmethod
-    def release_partitions(cls, db_name, collection_name, partition_names):
-        return milvus_types.ReleasePartitionsRequest(db_name=db_name, collection_name=collection_name,
-                                                     partition_names=partition_names)
+    def release_partitions(cls, db_name: str, collection_name: str, partition_names: List[str]):
+        return milvus_types.ReleasePartitionsRequest(
+            db_name=db_name, collection_name=collection_name, partition_names=partition_names
+        )
 
     @classmethod
-    def get_collection_stats_request(cls, collection_name):
+    def get_collection_stats_request(cls, collection_name: str):
         return milvus_types.GetCollectionStatisticsRequest(collection_name=collection_name)
 
     @classmethod
-    def get_persistent_segment_info_request(cls, collection_name):
+    def get_persistent_segment_info_request(cls, collection_name: str):
         return milvus_types.GetPersistentSegmentInfoRequest(collectionName=collection_name)
 
     @classmethod
-    def get_flush_state_request(cls, segment_ids):
+    def get_flush_state_request(cls, segment_ids: List[int]):
         return milvus_types.GetFlushStateRequest(segmentIDs=segment_ids)
 
     @classmethod
-    def get_query_segment_info_request(cls, collection_name):
+    def get_query_segment_info_request(cls, collection_name: str):
         return milvus_types.GetQuerySegmentInfoRequest(collectionName=collection_name)
 
     @classmethod
-    def flush_param(cls, collection_names):
+    def flush_param(cls, collection_names: List[str]):
         return milvus_types.FlushRequest(collection_names=collection_names)
 
     @classmethod
-    def drop_index_request(cls, collection_name, field_name, index_name):
-        return milvus_types.DropIndexRequest(db_name="", collection_name=collection_name, field_name=field_name,
-                                             index_name=index_name)
+    def drop_index_request(cls, collection_name: str, field_name: str, index_name: str):
+        return milvus_types.DropIndexRequest(
+            db_name="",
+            collection_name=collection_name,
+            field_name=field_name,
+            index_name=index_name,
+        )
 
     @classmethod
-    def get_partition_stats_request(cls, collection_name, partition_name):
-        return milvus_types.GetPartitionStatisticsRequest(db_name="", collection_name=collection_name,
-                                                          partition_name=partition_name)
+    def get_partition_stats_request(cls, collection_name: str, partition_name: str):
+        return milvus_types.GetPartitionStatisticsRequest(
+            db_name="", collection_name=collection_name, partition_name=partition_name
+        )
 
     @classmethod
-    def dummy_request(cls, request_type):
+    def dummy_request(cls, request_type: Any):
         return milvus_types.DummyRequest(request_type=request_type)
 
     @classmethod
-    def retrieve_request(cls, collection_name, ids, output_fields, partition_names):
+    def retrieve_request(
+        cls,
+        collection_name: str,
+        ids: List[str],
+        output_fields: List[str],
+        partition_names: List[str],
+    ):
         ids = schema_types.IDs(int_id=schema_types.LongArray(data=ids))
-        return milvus_types.RetrieveRequest(db_name="",
-                                            collection_name=collection_name,
-                                            ids=ids,
-                                            output_fields=output_fields,
-                                            partition_names=partition_names)
+        return milvus_types.RetrieveRequest(
+            db_name="",
+            collection_name=collection_name,
+            ids=ids,
+            output_fields=output_fields,
+            partition_names=partition_names,
+        )
 
     @classmethod
-    def query_request(cls, collection_name, expr, output_fields, partition_names, **kwargs):
-
+    def query_request(
+        cls,
+        collection_name: str,
+        expr: str,
+        output_fields: List[str],
+        partition_names: List[str],
+        **kwargs,
+    ):
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
-        req = milvus_types.QueryRequest(db_name="",
-                                        collection_name=collection_name,
-                                        expr=expr,
-                                        output_fields=output_fields,
-                                        partition_names=partition_names,
-                                        guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
-                                        travel_timestamp=kwargs.get("travel_timestamp", 0),
-                                        use_default_consistency=use_default_consistency,
-                                        consistency_level=kwargs.get("consistency_level", 0)
-                                        )
+        req = milvus_types.QueryRequest(
+            db_name="",
+            collection_name=collection_name,
+            expr=expr,
+            output_fields=output_fields,
+            partition_names=partition_names,
+            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
+            travel_timestamp=kwargs.get("travel_timestamp", 0),
+            use_default_consistency=use_default_consistency,
+            consistency_level=kwargs.get("consistency_level", 0),
+        )
 
         limit = kwargs.get("limit", None)
         if limit is not None:
@@ -640,25 +780,35 @@ class Prepare:
             req.query_params.append(common_types.KeyValuePair(key="offset", value=str(offset)))
 
         ignore_growing = kwargs.get("ignore_growing", False)
-        req.query_params.append(common_types.KeyValuePair(key="ignore_growing", value=str(ignore_growing)))
+        req.query_params.append(
+            common_types.KeyValuePair(key="ignore_growing", value=str(ignore_growing))
+        )
 
         use_iteration_extension_reduce_rate = kwargs.get(ITERATION_EXTENSION_REDUCE_RATE, 0)
-        req.query_params.append(common_types.KeyValuePair(key=ITERATION_EXTENSION_REDUCE_RATE,
-                                                          value=str(use_iteration_extension_reduce_rate)))
+        req.query_params.append(
+            common_types.KeyValuePair(
+                key=ITERATION_EXTENSION_REDUCE_RATE, value=str(use_iteration_extension_reduce_rate)
+            )
+        )
         return req
 
     @classmethod
-    def load_balance_request(cls, collection_name, src_node_id, dst_node_ids, sealed_segment_ids):
-        request = milvus_types.LoadBalanceRequest(
+    def load_balance_request(
+        cls,
+        collection_name: str,
+        src_node_id: int,
+        dst_node_ids: List[int],
+        sealed_segment_ids: List[int],
+    ):
+        return milvus_types.LoadBalanceRequest(
             collectionName=collection_name,
             src_nodeID=src_node_id,
             dst_nodeIDs=dst_node_ids,
             sealed_segmentIDs=sealed_segment_ids,
         )
-        return request
 
     @classmethod
-    def manual_compaction(cls, collection_id, timetravel):
+    def manual_compaction(cls, collection_id: int, timetravel: int):
         if collection_id is None or not isinstance(collection_id, int):
             raise ParamError(message=f"collection_id value {collection_id} is illegal")
 
@@ -694,11 +844,10 @@ class Prepare:
         if collection_id is None or not isinstance(collection_id, int):
             raise ParamError(message=f"collection_id value {collection_id} is illegal")
 
-        request = milvus_types.GetReplicasRequest(
+        return milvus_types.GetReplicasRequest(
             collectionID=collection_id,
             with_shard_nodes=True,
         )
-        return request
 
     @classmethod
     def do_bulk_insert(cls, collection_name: str, partition_name: str, files: list, **kwargs):
@@ -719,41 +868,44 @@ class Prepare:
         return req
 
     @classmethod
-    def get_bulk_insert_state(cls, task_id):
+    def get_bulk_insert_state(cls, task_id: int):
         if task_id is None or not isinstance(task_id, int):
-            raise ParamError(f"task_id value {task_id} is not an integer")
+            msg = f"task_id value {task_id} is not an integer"
+            raise ParamError(msg)
 
-        req = milvus_types.GetImportStateRequest(task=task_id)
-        return req
+        return milvus_types.GetImportStateRequest(task=task_id)
 
     @classmethod
-    def list_bulk_insert_tasks(cls, limit, collection_name):
+    def list_bulk_insert_tasks(cls, limit: int, collection_name: str):
         if limit is None or not isinstance(limit, int):
-            raise ParamError(f"limit value {limit} is not an integer")
+            msg = f"limit value {limit} is not an integer"
+            raise ParamError(msg)
 
-        request = milvus_types.ListImportTasksRequest(
+        return milvus_types.ListImportTasksRequest(
             collection_name=collection_name,
             limit=limit,
         )
-        return request
 
     @classmethod
-    def create_user_request(cls, user, password):
+    def create_user_request(cls, user: str, password: str):
         check_pass_param(user=user, password=password)
-        return milvus_types.CreateCredentialRequest(username=user, password=base64.b64encode(password.encode('utf-8')))
+        return milvus_types.CreateCredentialRequest(
+            username=user, password=base64.b64encode(password.encode("utf-8"))
+        )
 
     @classmethod
-    def update_password_request(cls, user, old_password, new_password):
+    def update_password_request(cls, user: str, old_password: str, new_password: str):
         check_pass_param(user=user)
         check_pass_param(password=old_password)
         check_pass_param(password=new_password)
-        return milvus_types.UpdateCredentialRequest(username=user,
-                                                    oldPassword=base64.b64encode(old_password.encode('utf-8')),
-                                                    newPassword=base64.b64encode(new_password.encode('utf-8')),
-                                                    )
+        return milvus_types.UpdateCredentialRequest(
+            username=user,
+            oldPassword=base64.b64encode(old_password.encode("utf-8")),
+            newPassword=base64.b64encode(new_password.encode("utf-8")),
+        )
 
     @classmethod
-    def delete_user_request(cls, user):
+    def delete_user_request(cls, user: str):
         if not isinstance(user, str):
             raise ParamError(message=f"invalid user {user}")
         return milvus_types.DeleteCredentialRequest(username=user)
@@ -763,79 +915,99 @@ class Prepare:
         return milvus_types.ListCredUsersRequest()
 
     @classmethod
-    def create_role_request(cls, role_name):
+    def create_role_request(cls, role_name: str):
         check_pass_param(role_name=role_name)
         return milvus_types.CreateRoleRequest(entity=milvus_types.RoleEntity(name=role_name))
 
     @classmethod
-    def drop_role_request(cls, role_name):
+    def drop_role_request(cls, role_name: str):
         check_pass_param(role_name=role_name)
         return milvus_types.DropRoleRequest(role_name=role_name)
 
     @classmethod
-    def operate_user_role_request(cls, username, role_name, operate_user_role_type):
+    def operate_user_role_request(cls, username: str, role_name: str, operate_user_role_type: Any):
         check_pass_param(user=username)
         check_pass_param(role_name=role_name)
         check_pass_param(operate_user_role_type=operate_user_role_type)
-        return milvus_types.OperateUserRoleRequest(username=username, role_name=role_name, type=operate_user_role_type)
+        return milvus_types.OperateUserRoleRequest(
+            username=username, role_name=role_name, type=operate_user_role_type
+        )
 
     @classmethod
-    def select_role_request(cls, role_name, include_user_info):
+    def select_role_request(cls, role_name: str, include_user_info: bool):
         if role_name:
             check_pass_param(role_name=role_name)
         check_pass_param(include_user_info=include_user_info)
-        return milvus_types.SelectRoleRequest(role=milvus_types.RoleEntity(name=role_name) if role_name else None,
-                                              include_user_info=include_user_info)
+        return milvus_types.SelectRoleRequest(
+            role=milvus_types.RoleEntity(name=role_name) if role_name else None,
+            include_user_info=include_user_info,
+        )
 
     @classmethod
-    def select_user_request(cls, username, include_role_info):
+    def select_user_request(cls, username: str, include_role_info: bool):
         if username:
             check_pass_param(user=username)
         check_pass_param(include_role_info=include_role_info)
-        return milvus_types.SelectUserRequest(user=milvus_types.UserEntity(name=username) if username else None,
-                                              include_role_info=include_role_info)
+        return milvus_types.SelectUserRequest(
+            user=milvus_types.UserEntity(name=username) if username else None,
+            include_role_info=include_role_info,
+        )
 
     @classmethod
-    def operate_privilege_request(cls, role_name, object, object_name, privilege, db_name, operate_privilege_type):
+    def operate_privilege_request(
+        cls,
+        role_name: str,
+        object: Any,
+        object_name: str,
+        privilege: str,
+        db_name: str,
+        operate_privilege_type: Any,
+    ):
         check_pass_param(role_name=role_name)
         check_pass_param(object=object)
         check_pass_param(object_name=object_name)
         check_pass_param(privilege=privilege)
         check_pass_param(operate_privilege_type=operate_privilege_type)
         return milvus_types.OperatePrivilegeRequest(
-            entity=milvus_types.GrantEntity(role=milvus_types.RoleEntity(name=role_name),
-                                            object=milvus_types.ObjectEntity(name=object),
-                                            object_name=object_name,
-                                            db_name=db_name,
-                                            grantor=milvus_types.GrantorEntity(
-                                                privilege=milvus_types.PrivilegeEntity(name=privilege))),
-            type=operate_privilege_type)
+            entity=milvus_types.GrantEntity(
+                role=milvus_types.RoleEntity(name=role_name),
+                object=milvus_types.ObjectEntity(name=object),
+                object_name=object_name,
+                db_name=db_name,
+                grantor=milvus_types.GrantorEntity(
+                    privilege=milvus_types.PrivilegeEntity(name=privilege)
+                ),
+            ),
+            type=operate_privilege_type,
+        )
 
     @classmethod
-    def select_grant_request(cls, role_name, object, object_name, db_name):
+    def select_grant_request(cls, role_name: str, object: str, object_name: str, db_name: str):
         check_pass_param(role_name=role_name)
         if object:
             check_pass_param(object=object)
         if object_name:
             check_pass_param(object_name=object_name)
         return milvus_types.SelectGrantRequest(
-            entity=milvus_types.GrantEntity(role=milvus_types.RoleEntity(name=role_name),
-                                            object=milvus_types.ObjectEntity(name=object) if object else None,
-                                            object_name=object_name if object_name else None,
-                                            db_name=db_name,
-                                            ))
+            entity=milvus_types.GrantEntity(
+                role=milvus_types.RoleEntity(name=role_name),
+                object=milvus_types.ObjectEntity(name=object) if object else None,
+                object_name=object_name if object_name else None,
+                db_name=db_name,
+            ),
+        )
 
     @classmethod
     def get_server_version(cls):
         return milvus_types.GetVersionRequest()
 
     @classmethod
-    def create_resource_group(cls, name):
+    def create_resource_group(cls, name: str):
         check_pass_param(resource_group_name=name)
         return milvus_types.CreateResourceGroupRequest(resource_group=name)
 
     @classmethod
-    def drop_resource_group(cls, name):
+    def drop_resource_group(cls, name: str):
         check_pass_param(resource_group_name=name)
         return milvus_types.DropResourceGroupRequest(resource_group=name)
 
@@ -844,37 +1016,39 @@ class Prepare:
         return milvus_types.ListResourceGroupsRequest()
 
     @classmethod
-    def describe_resource_group(cls, name):
+    def describe_resource_group(cls, name: str):
         check_pass_param(resource_group_name=name)
         return milvus_types.DescribeResourceGroupRequest(resource_group=name)
 
     @classmethod
-    def transfer_node(cls, source, target, num_node):
+    def transfer_node(cls, source: str, target: str, num_node: int):
         check_pass_param(resource_group_name=source)
         check_pass_param(resource_group_name=target)
-        return milvus_types.TransferNodeRequest(source_resource_group=source,
-                                                target_resource_group=target,
-                                                num_node=num_node)
+        return milvus_types.TransferNodeRequest(
+            source_resource_group=source, target_resource_group=target, num_node=num_node
+        )
 
     @classmethod
-    def transfer_replica(cls, source, target, collection_name, num_replica):
+    def transfer_replica(cls, source: str, target: str, collection_name: str, num_replica: int):
         check_pass_param(resource_group_name=source)
         check_pass_param(resource_group_name=target)
-        return milvus_types.TransferReplicaRequest(source_resource_group=source,
-                                                   target_resource_group=target,
-                                                   collection_name=collection_name,
-                                                   num_replica=num_replica)
+        return milvus_types.TransferReplicaRequest(
+            source_resource_group=source,
+            target_resource_group=target,
+            collection_name=collection_name,
+            num_replica=num_replica,
+        )
 
     @classmethod
     def flush_all_request(cls):
         return milvus_types.FlushAllRequest()
 
     @classmethod
-    def get_flush_all_state_request(cls, flush_all_ts):
+    def get_flush_all_state_request(cls, flush_all_ts: int):
         return milvus_types.GetFlushAllStateRequest(flush_all_ts=flush_all_ts)
 
     @classmethod
-    def register_request(cls, user, host, **kwargs):
+    def register_request(cls, user: str, host: str, **kwargs):
         reserved = {}
         for k, v in kwargs.items():
             reserved[k] = v
@@ -894,18 +1068,15 @@ class Prepare:
         )
 
     @classmethod
-    def create_database_req(cls, db_name):
+    def create_database_req(cls, db_name: str):
         check_pass_param(db_name=db_name)
-        req = milvus_types.CreateDatabaseRequest(db_name=db_name)
-        return req
+        return milvus_types.CreateDatabaseRequest(db_name=db_name)
 
     @classmethod
-    def drop_database_req(cls, db_name):
+    def drop_database_req(cls, db_name: str):
         check_pass_param(db_name=db_name)
-        req = milvus_types.DropDatabaseRequest(db_name=db_name)
-        return req
+        return milvus_types.DropDatabaseRequest(db_name=db_name)
 
     @classmethod
     def list_database_req(cls):
-        req = milvus_types.ListDatabasesRequest()
-        return req
+        return milvus_types.ListDatabasesRequest()

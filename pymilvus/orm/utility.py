@@ -10,18 +10,22 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional
+
+from pymilvus.client.types import BulkInsertState
+from pymilvus.client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
+from pymilvus.client.utils import mkts_from_datetime as _mkts_from_datetime
+from pymilvus.client.utils import mkts_from_hybridts as _mkts_from_hybridts
+from pymilvus.client.utils import mkts_from_unixtime as _mkts_from_unixtime
+from pymilvus.exceptions import MilvusException
+
 from .connections import connections
 
-from ..client.utils import mkts_from_hybridts as _mkts_from_hybridts
-from ..client.utils import mkts_from_unixtime as _mkts_from_unixtime
-from ..client.utils import mkts_from_datetime as _mkts_from_datetime
-from ..client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
-from ..client.types import BulkInsertState
 
-
-def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
-    """
-    Generate a hybrid timestamp based on an existing hybrid timestamp, timedelta and incremental time internval.
+def mkts_from_hybridts(hybridts: int, milliseconds: float = 0.0, delta: Optional[timedelta] = None):
+    """Generate a hybrid timestamp based on an existing hybrid timestamp,
+    timedelta and incremental time internval.
 
     :param hybridts: The original hybrid timestamp used to generate a new hybrid timestamp.
                      Non-negative interger range from 0 to 18446744073709551615.
@@ -38,12 +42,11 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
         Hybrid timetamp is a non-negative interger range from 0 to 18446744073709551615.
 
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="get collection entities num")
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR,  dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_vector])
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
         >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
@@ -55,7 +58,7 @@ def mkts_from_hybridts(hybridts, milliseconds=0., delta=None):
     return _mkts_from_hybridts(hybridts, milliseconds=milliseconds, delta=delta)
 
 
-def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
+def mkts_from_unixtime(epoch: float, milliseconds: float = 0.0, delta: Optional[timedelta] = None):
     """
     Generate a hybrid timestamp based on Unix Epoch time, timedelta and incremental time internval.
 
@@ -83,7 +86,9 @@ def mkts_from_unixtime(epoch, milliseconds=0., delta=None):
     return _mkts_from_unixtime(epoch, milliseconds=milliseconds, delta=delta)
 
 
-def mkts_from_datetime(d_time, milliseconds=0., delta=None):
+def mkts_from_datetime(
+    d_time: datetime, milliseconds: float = 0.0, delta: Optional[timedelta] = None
+):
     """
     Generate a hybrid timestamp based on datetime, timedelta and incremental time internval.
 
@@ -109,7 +114,7 @@ def mkts_from_datetime(d_time, milliseconds=0., delta=None):
     return _mkts_from_datetime(d_time, milliseconds=milliseconds, delta=delta)
 
 
-def hybridts_to_datetime(hybridts, tz=None):
+def hybridts_to_datetime(hybridts: int, tz: Optional[timezone] = None):
     """
     Convert a hybrid timestamp to the datetime according to timezone.
 
@@ -117,7 +122,7 @@ def hybridts_to_datetime(hybridts, tz=None):
                      Non-negative interger range from 0 to 18446744073709551615.
     :type  hybridts: int
     :param tz: Timezone defined by a fixed offset from UTC. If argument tz is None or not specified,
-               the hybridts is converted to the platform’s local date and time.
+               the hybridts is converted to the platform`s local date and time.
     :type  tz: datetime.timezone
 
     :return datetime:
@@ -133,13 +138,15 @@ def hybridts_to_datetime(hybridts, tz=None):
         >>> d = utility.hybridts_to_datetime(ts)
     """
     import datetime
+
     if tz is not None and not isinstance(tz, datetime.timezone):
-        raise Exception("parameter tz should be type of datetime.timezone")
+        msg = "parameter tz should be type of datetime.timezone"
+        raise MilvusException(message=msg)
     epoch = _hybridts_to_unixtime(hybridts)
     return datetime.datetime.fromtimestamp(epoch, tz=tz)
 
 
-def hybridts_to_unixtime(hybridts):
+def hybridts_to_unixtime(hybridts: int):
     """
     Convert a hybrid timestamp to UNIX Epoch time ignoring the logic part.
 
@@ -148,7 +155,8 @@ def hybridts_to_unixtime(hybridts):
     :type  hybridts: int
 
     :return float:
-        The Unix Epoch time is the number of seconds that have elapsed since January 1, 1970 (midnight UTC/GMT).
+        The Unix Epoch time is the number of seconds that have elapsed since
+        January 1, 1970 (midnight UTC/GMT).
 
     :example:
         >>> import time
@@ -161,12 +169,17 @@ def hybridts_to_unixtime(hybridts):
     return _hybridts_to_unixtime(hybridts)
 
 
-def _get_connection(alias):
+def _get_connection(alias: str):
     return connections._fetch_handler(alias)
 
 
-def loading_progress(collection_name, partition_names=None, using="default", timeout=None):
-    """ Show loading progress of sealed segments in percentage.
+def loading_progress(
+    collection_name: str,
+    partition_names: Optional[List[str]] = None,
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
+    """Show loading progress of sealed segments in percentage.
 
     :param collection_name: The name of collection is loading
     :type  collection_name: str
@@ -178,10 +191,9 @@ def loading_progress(collection_name, partition_names=None, using="default", tim
         {'loading_progress': '100%'}
     :raises PartitionNotExistException: If partition doesn't exist.
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> import pandas as pd
         >>> import random
-        >>> connections.connect()
         >>> fields = [
         ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
         ...     FieldSchema("films", DataType.FLOAT_VECTOR, dim=8),
@@ -193,19 +205,28 @@ def loading_progress(collection_name, partition_names=None, using="default", tim
         ...     "films": [[random.random() for _ in range(8)] for _ in range (10)],
         ... })
         >>> collection.insert(data)
-        >>> collection.create_index("films", {"index_type": "IVF_FLAT", "params": {"nlist": 8}, "metric_type": "L2"})
+        >>> collection.create_index(
+        ...     "films",
+        ...     {"index_type": "IVF_FLAT", "params": {"nlist": 8}, "metric_type": "L2"})
         >>> collection.load(_async=True)
         >>> utility.loading_progress("test_loading_progress")
         {'loading_progress': '100%'}
     """
-    progress = _get_connection(using).get_loading_progress(collection_name, partition_names, timeout=timeout)
+    progress = _get_connection(using).get_loading_progress(
+        collection_name, partition_names, timeout=timeout
+    )
     return {
         "loading_progress": f"{progress:.0f}%",
     }
 
 
-def load_state(collection_name, partition_names=None, using="default", timeout=None):
-    """ Show load state of collection or partitions.
+def load_state(
+    collection_name: str,
+    partition_names: Optional[float] = None,
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
+    """Show load state of collection or partitions.
     :param collection_name: The name of collection is loading
     :type  collection_name: str
 
@@ -216,11 +237,10 @@ def load_state(collection_name, partition_names=None, using="default", timeout=N
         The current state of collection or partitions.
 
     :example:
-        >>> from pymilvus import Collection, connections, FieldSchema, CollectionSchema, DataType, utility
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> from pymilvus.client.types import LoadState
         >>> import pandas as pd
         >>> import random
-        >>> connections.connect()
         >>> assert utility.load_state("test_load_state") == LoadState.NotExist
         >>> fields = [
         ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
@@ -234,14 +254,21 @@ def load_state(collection_name, partition_names=None, using="default", timeout=N
         ...     "films": [[random.random() for _ in range(8)] for _ in range (10)],
         ... })
         >>> collection.insert(data)
-        >>> collection.create_index("films", {"index_type": "IVF_FLAT", "params": {"nlist": 8}, "metric_type": "L2"})
+        >>> collection.create_index(
+        ...     "films",
+        ...     {"index_type": "IVF_FLAT", "params": {"nlist": 8}, "metric_type": "L2"})
         >>> collection.load(_async=True)
         >>> assert utility.load_state("test_load_state") == LoadState.Loaded
     """
     return _get_connection(using).get_load_state(collection_name, partition_names, timeout=timeout)
 
 
-def wait_for_loading_complete(collection_name, partition_names=None, timeout=None, using="default"):
+def wait_for_loading_complete(
+    collection_name: str,
+    partition_names: Optional[List[str]] = None,
+    timeout: Optional[float] = None,
+    using: str = "default",
+):
     """
     Block until loading is done or Raise Exception after timeout.
 
@@ -258,12 +285,11 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
     :raises PartitionNotExistException: If partition doesn't exist.
 
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_fvec = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_fvec], description="get collection entities num")
+        >>> field_fvec = FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_fvec])
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import pandas as pd
         >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
@@ -275,10 +301,17 @@ def wait_for_loading_complete(collection_name, partition_names=None, timeout=Non
     """
     if not partition_names or len(partition_names) == 0:
         return _get_connection(using).wait_for_loading_collection(collection_name, timeout=timeout)
-    return _get_connection(using).wait_for_loading_partitions(collection_name, partition_names, timeout=timeout)
+    return _get_connection(using).wait_for_loading_partitions(
+        collection_name, partition_names, timeout=timeout
+    )
 
 
-def index_building_progress(collection_name, index_name="", using="default", timeout=None):
+def index_building_progress(
+    collection_name: str,
+    index_name: str = "",
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
     """
     Show # indexed entities vs. # total entities.
 
@@ -298,9 +331,7 @@ def index_building_progress(collection_name, index_name="", using="default", tim
     :raises CollectionNotExistException: If collection doesn't exist.
     :raises IndexNotExistException: If index doesn't exist.
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect()
-        >>>
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> fields = [
         ...     FieldSchema("int64", DataType.INT64, is_primary=True, auto_id=True),
         ...     FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=128),
@@ -317,14 +348,23 @@ def index_building_progress(collection_name, index_name="", using="default", tim
         ...    "index_type": "IVF_FLAT",
         ...    "params": {"nlist": 1024}
         ... }
-        >>> index = c.create_index(field_name="float_vector", index_params=index_params, index_name="ivf_flat")
+        >>> index = c.create_index(
+        ...     field_name="float_vector",
+        ...     index_params=index_params,
+        ...     index_name="ivf_flat")
         >>> utility.index_building_progress("test_collection", c.name)
     """
     return _get_connection(using).get_index_build_progress(
-        collection_name=collection_name, index_name=index_name, timeout=timeout)
+        collection_name=collection_name, index_name=index_name, timeout=timeout
+    )
 
 
-def wait_for_index_building_complete(collection_name, index_name="", timeout=None, using="default"):
+def wait_for_index_building_complete(
+    collection_name: str,
+    index_name: str = "",
+    timeout: Optional[float] = None,
+    using: str = "default",
+):
     """
     Block until building is done or Raise Exception after timeout.
 
@@ -341,11 +381,10 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
     :raises IndexNotExistException: If index doesn't exist.
 
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> import random
@@ -367,10 +406,12 @@ def wait_for_index_building_complete(collection_name, index_name="", timeout=Non
         >>> utility.loading_progress("test_collection")
 
     """
-    return _get_connection(using).wait_for_creating_index(collection_name, index_name, timeout=timeout)[0]
+    return _get_connection(using).wait_for_creating_index(
+        collection_name, index_name, timeout=timeout
+    )[0]
 
 
-def has_collection(collection_name, using="default", timeout=None):
+def has_collection(collection_name: str, using: str = "default", timeout: Optional[float] = None):
     """
     Checks whether a specified collection exists.
 
@@ -381,11 +422,10 @@ def has_collection(collection_name, using="default", timeout=None):
         Whether the collection exists.
 
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR,  dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_collection("test_collection")
@@ -393,7 +433,12 @@ def has_collection(collection_name, using="default", timeout=None):
     return _get_connection(using).has_collection(collection_name, timeout=timeout)
 
 
-def has_partition(collection_name, partition_name, using="default", timeout=None):
+def has_partition(
+    collection_name: str,
+    partition_name: str,
+    using: str = "default",
+    timeout: Optional[float] = None,
+) -> bool:
     """
     Checks if a specified partition exists in a collection.
 
@@ -407,11 +452,10 @@ def has_partition(collection_name, partition_name, using="default", timeout=None
         Whether the partition exist.
 
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_partition("_default")
@@ -419,7 +463,7 @@ def has_partition(collection_name, partition_name, using="default", timeout=None
     return _get_connection(using).has_partition(collection_name, partition_name, timeout=timeout)
 
 
-def drop_collection(collection_name, timeout=None, using="default"):
+def drop_collection(collection_name: str, timeout: Optional[float] = None, using: str = "default"):
     """
     Drop a collection by name
 
@@ -430,8 +474,7 @@ def drop_collection(collection_name, timeout=None, using="default"):
     :type  timeout: float
 
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> schema = CollectionSchema(fields=[
         ...     FieldSchema("int64", DataType.INT64, description="int64", is_primary=True),
         ...     FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=128),
@@ -446,7 +489,12 @@ def drop_collection(collection_name, timeout=None, using="default"):
     return _get_connection(using).drop_collection(collection_name, timeout=timeout)
 
 
-def rename_collection(old_collection_name, new_collection_name, timeout=None, using="default"):
+def rename_collection(
+    old_collection_name: str,
+    new_collection_name: str,
+    timeout: Optional[float] = None,
+    using: str = "default",
+):
     """
     Rename a collection to new collection name
 
@@ -461,8 +509,7 @@ def rename_collection(old_collection_name, new_collection_name, timeout=None, us
     :type  timeout: float
 
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> schema = CollectionSchema(fields=[
         ...     FieldSchema("int64", DataType.INT64, description="int64", is_primary=True),
         ...     FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=128),
@@ -474,10 +521,12 @@ def rename_collection(old_collection_name, new_collection_name, timeout=None, us
         >>> utility.has_collection("new_collection")
         >>> False
     """
-    return _get_connection(using).rename_collections(old_collection_name, new_collection_name, timeout=timeout)
+    return _get_connection(using).rename_collections(
+        old_collection_name, new_collection_name, timeout=timeout
+    )
 
 
-def list_collections(timeout=None, using="default") -> list:
+def list_collections(timeout: Optional[float] = None, using: str = "default") -> list:
     """
     Returns a list of all collection names.
 
@@ -489,11 +538,10 @@ def list_collections(timeout=None, using="default") -> list:
         List of collection names, return when operation is successful
 
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=_DIM)
         >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="test")
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.list_collections()
@@ -501,8 +549,15 @@ def list_collections(timeout=None, using="default") -> list:
     return _get_connection(using).list_collections(timeout=timeout)
 
 
-def load_balance(collection_name: str, src_node_id, dst_node_ids=None, sealed_segment_ids=None, timeout=None, using="default"):
-    """ Do load balancing operation from source query node to destination query node.
+def load_balance(
+    collection_name: str,
+    src_node_id: int,
+    dst_node_ids: Optional[List[int]] = None,
+    sealed_segment_ids: Optional[List[int]] = None,
+    timeout: Optional[float] = None,
+    using: str = "default",
+):
+    """Do load balancing operation from source query node to destination query node.
 
     :param collection_name: The collection to balance.
     :type  collection_name: str
@@ -530,17 +585,22 @@ def load_balance(collection_name: str, src_node_id, dst_node_ids=None, sealed_se
         >>> src_node_id = 0
         >>> dst_node_ids = [1]
         >>> sealed_segment_ids = []
-        >>> res = utility.load_balance("test_collection", src_node_id, dst_node_ids, sealed_segment_ids)
+        >>> res = utility.load_balance("test", src_node_id, dst_node_ids, sealed_segment_ids)
     """
     if dst_node_ids is None:
         dst_node_ids = []
     if sealed_segment_ids is None:
         sealed_segment_ids = []
-    return _get_connection(using).\
-            load_balance(collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout)
+    return _get_connection(using).load_balance(
+        collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout
+    )
 
 
-def get_query_segment_info(collection_name, timeout=None, using="default"):
+def get_query_segment_info(
+    collection_name: str,
+    timeout: Optional[float] = None,
+    using: str = "default",
+):
     """
     Notifies Proxy to return segments information from query nodes.
 
@@ -554,12 +614,11 @@ def get_query_segment_info(collection_name, timeout=None, using="default"):
     :rtype: QuerySegmentInfo
 
     :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, connections, utility
-        >>> connections.connect(alias="default")
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> _DIM = 128
         >>> field_int64 = FieldSchema("int64", DataType.INT64, description="int64", is_primary=True)
-        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=_DIM)
-        >>> schema = CollectionSchema(fields=[field_int64, field_vector], description="get collection entities num")
+        >>> field_vector = FieldSchema("float_vector", DataType.FLOAT_VECTOR,  dim=_DIM)
+        >>> schema = CollectionSchema(fields=[field_int64, field_vector])
         >>> collection = Collection(name="test_get_segment_info", schema=schema)
         >>> import pandas as pd
         >>> int64_series = pd.Series(data=list(range(10, 20)), index=list(range(10)))i
@@ -572,8 +631,13 @@ def get_query_segment_info(collection_name, timeout=None, using="default"):
     return _get_connection(using).get_query_segment_info(collection_name, timeout=timeout)
 
 
-def create_alias(collection_name: str, alias: str, timeout=None, using="default"):
-    """ Specify alias for a collection.
+def create_alias(
+    collection_name: str,
+    alias: str,
+    timeout: Optional[float] = None,
+    using: str = "default",
+):
+    """Specify alias for a collection.
     Alias cannot be duplicated, you can't assign the same alias to different collections.
     But you can specify multiple aliases for a collection, for example:
         before create_alias("collection_1", "bob"):
@@ -592,8 +656,7 @@ def create_alias(collection_name: str, alias: str, timeout=None, using="default"
     :raises BaseException: If the alias failed to create.
 
     :example:
-        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
-        >>> connections.connect()
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> schema = CollectionSchema([
         ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
         ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -605,8 +668,8 @@ def create_alias(collection_name: str, alias: str, timeout=None, using="default"
     return _get_connection(using).create_alias(collection_name, alias, timeout=timeout)
 
 
-def drop_alias(alias: str, timeout=None, using="default"):
-    """ Delete the alias.
+def drop_alias(alias: str, timeout: Optional[float] = None, using: str = "default"):
+    """Delete the alias.
     No need to provide collection name because an alias can only be assigned to one collection
     and the server knows which collection it belongs.
     For example:
@@ -626,8 +689,7 @@ def drop_alias(alias: str, timeout=None, using="default"):
     :raises BaseException: If the alias doesn't exist.
 
     :example:
-        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
-        >>> connections.connect()
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> schema = CollectionSchema([
         ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
         ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -640,8 +702,13 @@ def drop_alias(alias: str, timeout=None, using="default"):
     return _get_connection(using).drop_alias(alias, timeout=timeout)
 
 
-def alter_alias(collection_name: str, alias: str, timeout=None, using="default"):
-    """ Change the alias of a collection to another collection.
+def alter_alias(
+    collection_name: str,
+    alias: str,
+    timeout: Optional[float] = None,
+    using: str = "default",
+):
+    """Change the alias of a collection to another collection.
     Raise error if the alias doesn't exist.
     Alias cannot be duplicated, you can't assign same alias to different collections.
     This api can change alias owner collection, for example:
@@ -666,8 +733,7 @@ def alter_alias(collection_name: str, alias: str, timeout=None, using="default")
     :raises BaseException: If the alias failed to alter.
 
     :example:
-        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
-        >>> connections.connect()
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> schema = CollectionSchema([
         ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
         ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -680,15 +746,14 @@ def alter_alias(collection_name: str, alias: str, timeout=None, using="default")
     return _get_connection(using).alter_alias(collection_name, alias, timeout=timeout)
 
 
-def list_aliases(collection_name: str, timeout=None, using="default"):
-    """ Returns alias list of the collection.
+def list_aliases(collection_name: str, timeout: Optional[float] = None, using: str = "default"):
+    """Returns alias list of the collection.
 
     :return list of str:
         The collection aliases, returned when the operation succeeds.
 
     :example:
-        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
-        >>> connections.connect()
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> fields = [
         ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
         ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
@@ -701,24 +766,37 @@ def list_aliases(collection_name: str, timeout=None, using="default"):
     """
     conn = _get_connection(using)
     resp = conn.describe_collection(collection_name, timeout=timeout)
-    aliases = resp["aliases"]
-    return aliases
+    return resp["aliases"]
 
 
-def do_bulk_insert(collection_name: str, files: list, partition_name=None, timeout=None, using="default", **kwargs) -> int:
-    """ do_bulk_insert inserts entities through files, currently supports row-based json file.
-    User need to create the json file with a specified json format which is described in the official user guide.
-    Let's say a collection has two fields: "id" and "vec"(dimension=8), the row-based json format is:
+def do_bulk_insert(
+    collection_name: str,
+    files: List[str],
+    partition_name: Optional[str] = None,
+    timeout: Optional[float] = None,
+    using: str = "default",
+    **kwargs,
+) -> int:
+    """do_bulk_insert inserts entities through files, currently supports row-based json file.
+    User need to create the json file with a specified json format which is described in
+    the official user guide.
+
+    Let's say a collection has two fields: "id" and "vec"(dimension=8),
+    the row-based json format is:
+
       {"rows": [
           {"id": "0", "vec": [0.190, 0.046, 0.143, 0.972, 0.592, 0.238, 0.266, 0.995]},
           {"id": "1", "vec": [0.149, 0.586, 0.012, 0.673, 0.588, 0.917, 0.949, 0.944]},
           ......
         ]
       }
-    The json file must be uploaded to root path of MinIO/S3 storage which is accessed by milvus server.
-    For example:
-        the milvus.yml specify the MinIO/S3 storage bucketName as "a-bucket", user can upload his json file
-         to a-bucket/xxx.json, then call do_bulk_insert(files=["a-bucket/xxx.json"])
+
+    The json file must be uploaded to root path of MinIO/S3 storage which is
+    accessed by milvus server. For example:
+
+        the milvus.yml specify the MinIO/S3 storage bucketName as "a-bucket",
+        user can upload his json file to a-bucket/xxx.json,
+        then call do_bulk_insert(files=["a-bucket/xxx.json"])
 
     :param collection_name: the name of the collection
     :type  collection_name: str
@@ -726,7 +804,8 @@ def do_bulk_insert(collection_name: str, files: list, partition_name=None, timeo
     :param partition_name: the name of the partition
     :type  partition_name: str
 
-    :param files: related path of the file to be imported, for row-based json file, only allow one file each invocation.
+    :param files: related path of the file to be imported, for row-based json file,
+        only allow one file each invocation.
     :type  files: list[str]
 
     :param timeout: The timeout for this method, unit: second
@@ -741,8 +820,7 @@ def do_bulk_insert(collection_name: str, files: list, partition_name=None, timeo
     :raises BaseException: If the files input is illegal.
 
     :example:
-        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
-        >>> connections.connect()
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> schema = CollectionSchema([
         ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
         ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
@@ -751,10 +829,17 @@ def do_bulk_insert(collection_name: str, files: list, partition_name=None, timeo
         >>> task_id = utility.do_bulk_insert(collection_name=collection.name, files=['data.json'])
         >>> print(task_id)
     """
-    return _get_connection(using).do_bulk_insert(collection_name, partition_name, files, timeout=timeout, **kwargs)
+    return _get_connection(using).do_bulk_insert(
+        collection_name, partition_name, files, timeout=timeout, **kwargs
+    )
 
 
-def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> BulkInsertState:
+def get_bulk_insert_state(
+    task_id: int,
+    timeout: Optional[float] = None,
+    using: str = "default",
+    **kwargs,
+) -> BulkInsertState:
     """get_bulk_insert_state returns state of a certain task_id
 
     :param task_id: the task id returned by bulk_insert
@@ -766,17 +851,26 @@ def get_bulk_insert_state(task_id, timeout=None, using="default", **kwargs) -> B
     :example:
         >>> from pymilvus import connections, utility, BulkInsertState
         >>> connections.connect()
-        >>> state = utility.get_bulk_insert_state(task_id=id) # the id is returned by do_bulk_insert()
-        >>> if state.state == BulkInsertState.ImportFailed or state.state == BulkInsertState.ImportFailedAndCleaned:
-        >>>    print("task id:", state.task_id, "failed, reason:", state.failed_reason)
+        >>> # the id is returned by do_bulk_insert()
+        >>> state = utility.get_bulk_insert_state(task_id=id)
+        >>> if state.state == BulkInsertState.ImportFailed or \
+        ...     state.state == BulkInsertState.ImportFailedAndCleaned:
+        >>>     print("task id:", state.task_id, "failed, reason:", state.failed_reason)
     """
     return _get_connection(using).get_bulk_insert_state(task_id, timeout=timeout, **kwargs)
 
 
-def list_bulk_insert_tasks(limit=0, collection_name=None, timeout=None, using="default", **kwargs) -> list:
+def list_bulk_insert_tasks(
+    limit: int = 0,
+    collection_name: Optional[str] = None,
+    timeout: Optional[float] = None,
+    using: str = "default",
+    **kwargs,
+) -> list:
     """list_bulk_insert_tasks lists all bulk load tasks
 
-    :param limit: maximum number of tasks returned, list all tasks if the value is 0, else return the latest tasks
+    :param limit: maximum number of tasks returned, list all tasks if the value is 0,
+        else return the latest tasks
     :type  limit: int
 
     :param collection_name: target collection name, list all tasks if the name is empty
@@ -791,10 +885,18 @@ def list_bulk_insert_tasks(limit=0, collection_name=None, timeout=None, using="d
         >>> tasks = utility.list_bulk_insert_tasks(collection_name=collection_name)
         >>> print(tasks)
     """
-    return _get_connection(using).list_bulk_insert_tasks(limit, collection_name, timeout=timeout, **kwargs)
+    return _get_connection(using).list_bulk_insert_tasks(
+        limit, collection_name, timeout=timeout, **kwargs
+    )
 
 
-def reset_password(user: str, old_password: str, new_password: str, using="default", timeout=None):
+def reset_password(
+    user: str,
+    old_password: str,
+    new_password: str,
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
     """
         Reset the user & password of the connection.
         You must provide the original password to check if the operation is valid.
@@ -817,8 +919,13 @@ def reset_password(user: str, old_password: str, new_password: str, using="defau
     return _get_connection(using).reset_password(user, old_password, new_password, timeout=timeout)
 
 
-def create_user(user: str, password: str, using="default", timeout=None):
-    """ Create User using the given user and password.
+def create_user(
+    user: str,
+    password: str,
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
+    """Create User using the given user and password.
     :param user: the user name.
     :type  user: str
     :param password: the password.
@@ -835,7 +942,13 @@ def create_user(user: str, password: str, using="default", timeout=None):
     return _get_connection(using).create_user(user, password, timeout=timeout)
 
 
-def update_password(user: str, old_password, new_password: str, using="default", timeout=None):
+def update_password(
+    user: str,
+    old_password: str,
+    new_password: str,
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
     """
         Update user password using the given user and password.
         You must provide the original password to check if the operation is valid.
@@ -860,8 +973,8 @@ def update_password(user: str, old_password, new_password: str, using="default",
     return _get_connection(using).update_password(user, old_password, new_password, timeout=timeout)
 
 
-def delete_user(user: str, using="default", timeout=None):
-    """ Delete User corresponding to the username.
+def delete_user(user: str, using: str = "default", timeout: Optional[float] = None):
+    """Delete User corresponding to the username.
     :param user: the user name.
     :type  user: str
 
@@ -875,8 +988,8 @@ def delete_user(user: str, using="default", timeout=None):
     return _get_connection(using).delete_user(user, timeout=timeout)
 
 
-def list_usernames(using="default", timeout=None):
-    """ List all usernames.
+def list_usernames(using: str = "default", timeout: Optional[float] = None):
+    """List all usernames.
     :return list of str:
         The usernames in Milvus instances.
 
@@ -889,8 +1002,8 @@ def list_usernames(using="default", timeout=None):
     return _get_connection(using).list_usernames(timeout=timeout)
 
 
-def list_roles(include_user_info: bool, using="default", timeout=None):
-    """ List All Role Info
+def list_roles(include_user_info: bool, using: str = "default", timeout: Optional[float] = None):
+    """List All Role Info
     :param include_user_info: whether to obtain the user information associated with roles
     :type  include_user_info: bool
     :return RoleInfo
@@ -904,8 +1017,13 @@ def list_roles(include_user_info: bool, using="default", timeout=None):
     return _get_connection(using).select_all_role(include_user_info, timeout=timeout)
 
 
-def list_user(username: str, include_role_info: bool, using="default", timeout=None):
-    """ List One User Info
+def list_user(
+    username: str,
+    include_role_info: bool,
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
+    """List One User Info
     :param username: user name.
     :type  username: str
     :param include_role_info: whether to obtain the role information associated with the user
@@ -921,8 +1039,8 @@ def list_user(username: str, include_role_info: bool, using="default", timeout=N
     return _get_connection(using).select_one_user(username, include_role_info, timeout=timeout)
 
 
-def list_users(include_role_info: bool, using="default", timeout=None):
-    """ List All User Info
+def list_users(include_role_info: bool, using: str = "default", timeout: Optional[float] = None):
+    """List All User Info
     :param include_role_info: whether to obtain the role information associated with users
     :type  include_role_info: bool
     :return UserInfo
@@ -935,8 +1053,9 @@ def list_users(include_role_info: bool, using="default", timeout=None):
     """
     return _get_connection(using).select_all_user(include_role_info, timeout=timeout)
 
-def get_server_version(using="default", timeout=None) -> str:
-    """ get the running server's version
+
+def get_server_version(using: str = "default", timeout: Optional[float] = None) -> str:
+    """get the running server's version
 
     :returns: server's version
     :rtype: str
@@ -949,8 +1068,9 @@ def get_server_version(using="default", timeout=None) -> str:
     """
     return _get_connection(using).get_server_version(timeout=timeout)
 
-def create_resource_group(name, using="default", timeout=None):
-    """ Create a resource group
+
+def create_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
+    """Create a resource group
         It will success whether or not the resource group exists.
 
     :example:
@@ -962,8 +1082,9 @@ def create_resource_group(name, using="default", timeout=None):
     """
     return _get_connection(using).create_resource_group(name, timeout)
 
-def drop_resource_group(name, using="default", timeout=None):
-    """ Drop a resource group
+
+def drop_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
+    """Drop a resource group
         It will success if the resource group is existed and empty, otherwise fail.
 
     :example:
@@ -975,8 +1096,9 @@ def drop_resource_group(name, using="default", timeout=None):
     """
     return _get_connection(using).drop_resource_group(name, timeout)
 
-def describe_resource_group(name, using="default", timeout=None):
-    """ Drop a resource group
+
+def describe_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
+    """Drop a resource group
         It will success if the resource group is existed and empty, otherwise fail.
 
     :example:
@@ -987,7 +1109,8 @@ def describe_resource_group(name, using="default", timeout=None):
     """
     return _get_connection(using).describe_resource_group(name, timeout)
 
-def list_resource_groups(using="default", timeout=None):
+
+def list_resource_groups(using: str = "default", timeout: Optional[float] = None):
     """list all resource group names
 
     :return: all resource group names
@@ -1001,7 +1124,13 @@ def list_resource_groups(using="default", timeout=None):
     return _get_connection(using).list_resource_groups(timeout)
 
 
-def transfer_node(source_group, target_group, num_nodes, using="default", timeout=None):
+def transfer_node(
+    source_group: str,
+    target_group: str,
+    num_nodes: int,
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
     """transfer num_node from source resource group to target resource_group
 
     :param source_group: source resource group name
@@ -1019,7 +1148,14 @@ def transfer_node(source_group, target_group, num_nodes, using="default", timeou
     return _get_connection(using).transfer_node(source_group, target_group, num_nodes, timeout)
 
 
-def transfer_replica(source_group, target_group, collection_name, num_replicas, using="default", timeout=None):
+def transfer_replica(
+    source_group: str,
+    target_group: str,
+    collection_name: str,
+    num_replicas: int,
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
     """transfer num_replica from source resource group to target resource group
 
     :param source_group: source resource group name
@@ -1036,23 +1172,25 @@ def transfer_replica(source_group, target_group, collection_name, num_replicas, 
         >>> connections.connect()
         >>> rgs = utility.transfer_replica(source, target, collection_name, num_replica)
     """
-    return _get_connection(using).transfer_replica(source_group, target_group, collection_name, num_replicas, timeout)
+    return _get_connection(using).transfer_replica(
+        source_group, target_group, collection_name, num_replicas, timeout
+    )
 
 
-def flush_all(using="default", timeout=None, **kwargs):
-    """ Flush all collections. All insertions, deletions, and upserts before `flush_all` will be synced.
+def flush_all(using: str = "default", timeout: Optional[float] = None, **kwargs):
+    """Flush all collections. All insertions, deletions, and upserts before
+        `flush_all` will be synced.
 
     Args:
         timeout (float): an optional duration of time in seconds to allow for the RPCs.
-            If timeout is not set, the client keeps waiting until the server responds or an error occurs.
-            **kwargs (``dict``, optional):
-
-        * *_async*(``bool``)
-            Indicate if invoke asynchronously. Default `False`.
+            If timeout is not set, the client keeps waiting until the server responds or
+            an error occurs.
+        **kwargs (``dict``, optional):
+            * *_async*(``bool``)
+                Indicate if invoke asynchronously. Default `False`.
 
     Examples:
-        >>> from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, utility
-        >>> connections.connect()
+        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> fields = [
         ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
         ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
@@ -1068,9 +1206,9 @@ def flush_all(using="default", timeout=None, **kwargs):
     return _get_connection(using).flush_all(timeout=timeout, **kwargs)
 
 
-def get_server_type(using="default"):
-    """ Get the server type. Now, it will return "zilliz" if the connection related to an instance on the zilliz cloud,
-        otherwise "milvus" will be returned.
+def get_server_type(using: str = "default"):
+    """Get the server type. Now, it will return "zilliz" if the connection related to
+        an instance on the zilliz cloud, otherwise "milvus" will be returned.
 
     :param using: Alias to the connection. Default connection is used if this is not specified.
     :type  using: str
@@ -1081,9 +1219,15 @@ def get_server_type(using="default"):
     return _get_connection(using).get_server_type()
 
 
-def list_indexes(collection_name, using="default", timeout=None, **kwargs):
-    """ List all indexes of collection. If `field_name` is not specified, return all the indexes of this collection,
-        otherwise this interface will return all indexes on this field of the collection.
+def list_indexes(
+    collection_name: str,
+    using: str = "default",
+    timeout: Optional[float] = None,
+    **kwargs,
+):
+    """List all indexes of collection. If `field_name` is not specified,
+        return all the indexes of this collection, otherwise this interface will return
+        all indexes on this field of the collection.
 
     :param collection_name: The name of collection.
     :type  collection_name: str
@@ -1096,8 +1240,9 @@ def list_indexes(collection_name, using="default", timeout=None, **kwargs):
     :type  timeout: float/int
 
     :param kwargs:
-            * *field_name* (``str``)
-                The name of field. If no field name is specified, all indexes of this collection will be returned.
+        * *field_name* (``str``)
+            The name of field. If no field name is specified, all indexes
+            of this collection will be returned.
     :type  kwargs: dict
 
     :return: The name list of all indexes.

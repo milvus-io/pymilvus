@@ -1,8 +1,10 @@
-import sys
 import datetime
-from typing import Any, Union
-from ..exceptions import ParamError
-from ..grpc_gen import milvus_pb2 as milvus_types
+import sys
+from typing import Any, Callable, Union
+
+from pymilvus.exceptions import ParamError
+from pymilvus.grpc_gen import milvus_pb2 as milvus_types
+
 from .singleton_utils import Singleton
 
 
@@ -42,22 +44,14 @@ def is_legal_port(port: Any) -> bool:
 
 
 def is_legal_vector(array: Any) -> bool:
-    if not array or \
-            not isinstance(array, list) or \
-            len(array) == 0:
+    if not array or not isinstance(array, list) or len(array) == 0:
         return False
-
-    # for v in array:
-    #     if not isinstance(v, float):
-    #         return False
 
     return True
 
 
 def is_legal_bin_vector(array: Any) -> bool:
-    if not array or \
-            not isinstance(array, bytes) or \
-            len(array) == 0:
+    if not array or not isinstance(array, bytes) or len(array) == 0:
         return False
 
     return True
@@ -76,7 +70,7 @@ def int_or_str(item: Union[int, str]) -> str:
 
 def is_correct_date_str(param: str) -> bool:
     try:
-        datetime.datetime.strptime(param, '%Y-%m-%d')
+        datetime.datetime.strptime(param, "%Y-%m-%d")
     except ValueError:
         return False
 
@@ -140,16 +134,18 @@ def is_legal_cmd(cmd: Any) -> bool:
 
 def parser_range_date(date: Union[str, datetime.date]) -> str:
     if isinstance(date, datetime.date):
-        return date.strftime('%Y-%m-%d')
+        return date.strftime("%Y-%m-%d")
 
     if isinstance(date, str):
         if not is_correct_date_str(date):
-            raise ParamError(message='Date string should be YY-MM-DD format!')
+            raise ParamError(message="Date string should be YY-MM-DD format!")
 
         return date
 
-    raise ParamError(message='Date should be YY-MM-DD format string or datetime.date, '
-                     'or datetime.datetime object')
+    raise ParamError(
+        message="Date should be YY-MM-DD format string or datetime.date, "
+        "or datetime.datetime object"
+    )
 
 
 def is_legal_date_range(start: str, end: str) -> bool:
@@ -168,21 +164,18 @@ def is_legal_partition_name(tag: Any) -> bool:
 def is_legal_limit(limit: Any) -> bool:
     return isinstance(limit, int) and limit > 0
 
+
 def is_legal_anns_field(field: Any) -> bool:
     return field is None or isinstance(field, str)
 
+
 def is_legal_search_data(data: Any) -> bool:
     import numpy as np
+
     if not isinstance(data, (list, np.ndarray)):
         return False
 
-    for vector in data:
-        # list -> float vector
-        # bytes -> byte vector
-        if not isinstance(vector, (list, bytes, np.ndarray)):
-            return False
-
-    return True
+    return all(isinstance(vector, (list, bytes, np.ndarray)) for vector in data)
 
 
 def is_legal_output_fields(output_fields: Any) -> bool:
@@ -192,11 +185,7 @@ def is_legal_output_fields(output_fields: Any) -> bool:
     if not isinstance(output_fields, list):
         return False
 
-    for field in output_fields:
-        if not is_legal_field_name(field):
-            return False
-
-    return True
+    return all(is_legal_field_name(field) for field in output_fields)
 
 
 def is_legal_partition_name_array(tag_array: Any) -> bool:
@@ -206,26 +195,26 @@ def is_legal_partition_name_array(tag_array: Any) -> bool:
     if not isinstance(tag_array, list):
         return False
 
-    for tag in tag_array:
-        if not is_legal_partition_name(tag):
-            return False
+    return all(is_legal_partition_name(tag) for tag in tag_array)
 
-    return True
 
 def is_legal_replica_number(replica_number: int) -> bool:
     return isinstance(replica_number, int)
 
+
 # https://milvus.io/cn/docs/v1.0.0/metric.md#floating
 def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
-    if index_type not in ("GPU_IVF_FLAT",
-                          "GPU_IVF_PQ",
-                          "FLAT",
-                          "IVF_FLAT",
-                          "IVF_SQ8",
-                          "IVF_PQ",
-                          "HNSW",
-                          "AUTOINDEX",
-                          "DISKANN"):
+    if index_type not in (
+        "GPU_IVF_FLAT",
+        "GPU_IVF_PQ",
+        "FLAT",
+        "IVF_FLAT",
+        "IVF_SQ8",
+        "IVF_PQ",
+        "HNSW",
+        "AUTOINDEX",
+        "DISKANN",
+    ):
         return False
     if metric_type not in ("L2", "IP", "COSINE"):
         return False
@@ -237,9 +226,8 @@ def is_legal_binary_index_metric_type(index_type: str, metric_type: str) -> bool
     if index_type == "BIN_FLAT":
         if metric_type in ("JACCARD", "TANIMOTO", "HAMMING", "SUBSTRUCTURE", "SUPERSTRUCTURE"):
             return True
-    elif index_type == "BIN_IVF_FLAT":
-        if metric_type in ("JACCARD", "TANIMOTO", "HAMMING"):
-            return True
+    elif index_type == "BIN_IVF_FLAT" and metric_type in ("JACCARD", "TANIMOTO", "HAMMING"):
+        return True
     return False
 
 
@@ -258,11 +246,12 @@ def is_legal_travel_timestamp(ts: Any) -> bool:
 def is_legal_guarantee_timestamp(ts: Any) -> bool:
     return ts is None or isinstance(ts, int) and ts >= 0
 
-def is_legal_user(user) -> bool:
+
+def is_legal_user(user: Any) -> bool:
     return isinstance(user, str)
 
 
-def is_legal_password(password) -> bool:
+def is_legal_password(password: Any) -> bool:
     return isinstance(password, str)
 
 
@@ -271,8 +260,10 @@ def is_legal_role_name(role_name: Any) -> bool:
 
 
 def is_legal_operate_user_role_type(operate_user_role_type: Any) -> bool:
-    return operate_user_role_type in \
-        (milvus_types.OperateUserRoleType.AddUserToRole, milvus_types.OperateUserRoleType.RemoveUserFromRole)
+    return operate_user_role_type in (
+        milvus_types.OperateUserRoleType.AddUserToRole,
+        milvus_types.OperateUserRoleType.RemoveUserFromRole,
+    )
 
 
 def is_legal_include_user_info(include_user_info: Any) -> bool:
@@ -300,8 +291,10 @@ def is_legal_collection_properties(properties: Any) -> bool:
 
 
 def is_legal_operate_privilege_type(operate_privilege_type: Any) -> bool:
-    return operate_privilege_type in \
-            (milvus_types.OperatePrivilegeType.Grant, milvus_types.OperatePrivilegeType.Revoke)
+    return operate_privilege_type in (
+        milvus_types.OperatePrivilegeType.Grant,
+        milvus_types.OperatePrivilegeType.Revoke,
+    )
 
 
 class ParamChecker(metaclass=Singleton):
@@ -341,7 +334,7 @@ class ParamChecker(metaclass=Singleton):
             "resource_group_name": is_legal_table_name,
         }
 
-    def check(self, key, value):
+    def check(self, key: str, value: Callable):
         if key in self.check_dict:
             if not self.check_dict[key](value):
                 _raise_param_error(key, value)

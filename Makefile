@@ -2,7 +2,12 @@ unittest:
 	PYTHONPATH=`pwd` python3 -m pytest tests --cov=pymilvus -v
 
 lint:
-	PYTHONPATH=`pwd` pylint --rcfile=pylint.conf pymilvus
+	PYTHONPATH=`pwd` black pymilvus --check
+	PYTHONPATH=`pwd` ruff check pymilvus
+
+format:
+	PYTHONPATH=`pwd` black pymilvus
+	PYTHONPATH=`pwd` ruff check pymilvus --fix
 
 codecov:
 	PYTHONPATH=`pwd` pytest --cov=pymilvus --cov-report=xml tests -x -v -rxXs
@@ -24,7 +29,7 @@ gen_proto:
 
 check_proto_product: gen_proto
 	./check_proto_product.sh
-	
+
 version:
 	python -m setuptools_scm
 
