@@ -944,9 +944,11 @@ class Milvus:
         with self._connection() as handler:
             return handler.get_index_build_progress(collection_name, index_name, timeout=timeout)
 
-    def wait_for_creating_index(self, collection_name, index_name, timeout=None):
+    def wait_for_creating_index(self, collection_name, index_name, timeout=None, refresh=False):
         with self._connection() as handler:
-            return handler.wait_for_creating_index(collection_name, index_name, timeout=timeout)
+            return handler.wait_for_creating_index(
+                collection_name, index_name, timeout=timeout, refresh=refresh
+            )
 
     def dummy(self, request_type, timeout=None):
         with self._connection() as handler:
