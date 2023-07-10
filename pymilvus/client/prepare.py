@@ -340,7 +340,7 @@ class Prepare:
         return milvus_types.PartitionName(collection_name=collection_name, tag=partition_name)
 
     @classmethod
-    def row_insert_or_upsert_param(
+    def row_insert_param(
         cls,
         collection_name: str,
         entities: List,

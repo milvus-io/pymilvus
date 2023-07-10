@@ -447,13 +447,12 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    def _prepare_row_insert_or_upsert_request(
+    def _prepare_row_insert_request(
         self,
         collection_name: str,
         rows: List,
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
-        is_insert: bool = True,
         **kwargs,
     ):
         if not isinstance(rows, list):
@@ -465,7 +464,7 @@ class GrpcHandler:
 
         fields_info = collection_schema["fields"]
         enable_dynamic = collection_schema.get("enable_dynamic_field", False)
-        return Prepare.row_insert_or_upsert_param(
+        return Prepare.row_insert_param(
             collection_name,
             rows,
             partition_name,
@@ -511,7 +510,7 @@ class GrpcHandler:
     ):
         if isinstance(entities, dict):
             entities = [entities]
-        request = self._prepare_row_insert_or_upsert_request(
+        request = self._prepare_row_insert_request(
             collection_name, entities, partition_name, timeout, **kwargs
         )
         rf = self._stub.Insert.future(request, timeout=timeout)
