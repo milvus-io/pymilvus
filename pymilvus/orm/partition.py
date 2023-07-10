@@ -25,18 +25,18 @@ from pymilvus.exceptions import (
 from .mutation import MutationResult
 from .search import SearchResult
 
-CollectionT = TypeVar("Collection")
-PartitionT = TypeVar("Partition")
+Collection = TypeVar("Collection")
+Partition = TypeVar("Partition")
 
 
 class Partition:
     def __init__(
         self,
-        collection: Union[CollectionT, str],
+        collection: Union[Collection, str],
         name: str,
         description: str = "",
         **kwargs,
-    ) -> PartitionT:
+    ) -> Partition:
         from .collection import Collection
 
         if isinstance(collection, Collection):
