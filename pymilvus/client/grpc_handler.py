@@ -447,56 +447,34 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
+    def _get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        schema = kwargs.get("schema", None)
+        if not schema:
+            schema = self.describe_collection(collection_name, timeout=timeout)
+
+        fields_info = schema.get("fields")
+        enable_dynamic = schema.get("enable_dynamic_field", False)
+
+        return fields_info, enable_dynamic
+
     def _prepare_row_insert_request(
         self,
         collection_name: str,
-        rows: List,
+        entity_rows: List,
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        if not isinstance(rows, list):
+        if not isinstance(entity_rows, list):
             raise ParamError(message="None rows, please provide valid row data.")
 
-        collection_schema = kwargs.get("schema", None)
-        if not collection_schema:
-            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
-
-        fields_info = collection_schema["fields"]
-        enable_dynamic = collection_schema.get("enable_dynamic_field", False)
+        fields_info, enable_dynamic = self._get_info(collection_name, timeout, **kwargs)
         return Prepare.row_insert_param(
             collection_name,
-            rows,
+            entity_rows,
             partition_name,
             fields_info,
             enable_dynamic=enable_dynamic,
-        )
-
-    def _prepare_batch_insert_request(
-        self,
-        collection_name: str,
-        entities: List,
-        partition_name: Optional[str] = None,
-        timeout: Optional[float] = None,
-        **kwargs,
-    ):
-        insert_param = kwargs.get("insert_param", None)
-
-        if insert_param and not isinstance(insert_param, milvus_types.RowBatch):
-            raise ParamError(message="The value of key 'insert_param' is invalid")
-        if not isinstance(entities, list):
-            raise ParamError(message="None entities, please provide valid entities.")
-
-        collection_schema = kwargs.get("schema", None)
-        if not collection_schema:
-            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
-
-        fields_info = collection_schema["fields"]
-
-        return (
-            insert_param
-            if insert_param
-            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
         )
 
     @retry_on_rpc_failure()
@@ -521,6 +499,32 @@ class GrpcHandler:
             return m
 
         raise MilvusException(response.status.error_code, response.status.reason)
+
+    def _prepare_batch_insert_request(
+        self,
+        collection_name: str,
+        entities: List,
+        partition_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        param = kwargs.get("insert_param")
+        if not isinstance(param, milvus_types.RowBatch):
+            raise ParamError(message="The value of key 'insert_param' is invalid")
+        if not isinstance(entities, list):
+            raise ParamError(message="None entities, please provide valid entities.")
+
+        schema = kwargs.get("schema")
+        if not schema:
+            schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+
+        fields_info = schema["fields"]
+
+        return (
+            param
+            if param
+            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
+        )
 
     @retry_on_rpc_failure()
     def batch_insert(

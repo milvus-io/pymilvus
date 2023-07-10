@@ -179,4 +179,3 @@ class TestCreateCollectionRequest:
         ]
 
         Prepare.row_insert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
-
