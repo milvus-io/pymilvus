@@ -203,11 +203,14 @@ def extract_row_data_from_fields_data(
             return
 
         if field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
-            json_value = field_data.scalars.json_data.data[index]
-            json_dict = ujson.loads(json_value)
+            json_dict = ujson.loads(field_data.scalars.json_data.data[index])
 
             if not field_data.is_dynamic:
                 entity_row_data[field_data.field_name] = json_dict
+                return
+
+            if not dynamic_fields:
+                entity_row_data.update(json_dict)
                 return
 
             tmp_dict = {k: v for k, v in json_dict.items() if k in dynamic_fields}

@@ -141,7 +141,7 @@ target-version = "py37"
 
 [tool.ruff.mccabe]
 # Unlike Flake8, default to a complexity level of 10.
-max-complexity = 17
+max-complexity = 18
 
 [tool.ruff.pycodestyle]
 max-doc-length = 100
