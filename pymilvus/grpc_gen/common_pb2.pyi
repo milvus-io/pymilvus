@@ -266,6 +266,7 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeCreateDatabase: _ClassVar[ObjectPrivilege]
     PrivilegeDropDatabase: _ClassVar[ObjectPrivilege]
     PrivilegeListDatabases: _ClassVar[ObjectPrivilege]
+    PrivilegeFlushAll: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
@@ -508,6 +509,7 @@ PrivilegeRenameCollection: ObjectPrivilege
 PrivilegeCreateDatabase: ObjectPrivilege
 PrivilegeDropDatabase: ObjectPrivilege
 PrivilegeListDatabases: ObjectPrivilege
+PrivilegeFlushAll: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
