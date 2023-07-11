@@ -340,31 +340,13 @@ class Prepare:
             raise ParamError(message="partition_name must be of str type")
         return milvus_types.PartitionName(collection_name=collection_name, tag=partition_name)
 
-    # pylint: disable=too-many-statements
-    @classmethod
-    def row_insert_or_upsert_param(
-        cls,
-        collection_name: str,
+    @staticmethod
+    def _parse_row_request(
+        request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
+        fields_info: dict,
+        enable_dynamic: bool,
         entities: List,
-        partition_name: str,
-        fields_info: Any,
-        is_insert: bool = True,
-        enable_dynamic: bool = False,
     ):
-        if not fields_info:
-            raise ParamError(message="Missing collection meta to validate entities")
-
-        # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client.
-        tag = partition_name if isinstance(partition_name, str) else ""
-        if is_insert:
-            request = milvus_types.InsertRequest(
-                collection_name=collection_name, partition_name=tag, num_rows=len(entities)
-            )
-        else:
-            request = milvus_types.UpsertRequest(
-                collection_name=collection_name, partition_name=tag, num_rows=len(entities)
-            )
-
         fields_data = {
             field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
             for field in fields_info
@@ -420,15 +402,50 @@ class Prepare:
         return request
 
     @classmethod
-    def batch_insert_or_upsert_param(
+    def row_insert_param(
         cls,
         collection_name: str,
         entities: List,
         partition_name: str,
         fields_info: Any,
-        is_insert: bool = True,
+        enable_dynamic: bool = False,
     ):
-        # insert_request.hash_keys and upsert_request.hash_keys won't be filled in client.
+        if not fields_info:
+            raise ParamError(message="Missing collection meta to validate entities")
+
+        # insert_request.hash_keys won't be filled in client.
+        tag = partition_name if isinstance(partition_name, str) else ""
+        request = milvus_types.InsertRequest(
+            collection_name=collection_name, partition_name=tag, num_rows=len(entities)
+        )
+
+        return cls._parse_row_request(request, fields_info, enable_dynamic, entities)
+
+    @classmethod
+    def row_upsert_param(
+        cls,
+        collection_name: str,
+        entities: List,
+        partition_name: str,
+        fields_info: Any,
+        enable_dynamic: bool = False,
+    ):
+        if not fields_info:
+            raise ParamError(message="Missing collection meta to validate entities")
+
+        # upsert_request.hash_keys won't be filled in client.
+        tag = partition_name if isinstance(partition_name, str) else ""
+        request = milvus_types.UpsertRequest(
+            collection_name=collection_name, partition_name=tag, num_rows=len(entities)
+        )
+
+        return cls._parse_row_request(request, fields_info, enable_dynamic, entities)
+
+    @staticmethod
+    def _pre_batch_check(
+        entities: List,
+        fields_info: Any,
+    ):
         for entity in entities:
             if not entity.get("name") or not entity.get("type"):
                 raise ParamError(message="Missing param in entities, a field must have type, name")
@@ -448,17 +465,15 @@ class Prepare:
         if auto_id_loc is not None and len(entities) + 1 != len(fields_info):
             msg = f"number of fields: {len(fields_info)}, number of entities: {len(entities)}"
             raise ParamError(msg)
+        return location
 
-        tag = partition_name if isinstance(partition_name, str) else ""
-        if is_insert:
-            request = milvus_types.InsertRequest(
-                collection_name=collection_name, partition_name=tag
-            )
-        else:
-            request = milvus_types.UpsertRequest(
-                collection_name=collection_name, partition_name=tag
-            )
-
+    @staticmethod
+    def _parse_batch_request(
+        request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
+        entities: List,
+        fields_info: Any,
+        location: Dict,
+    ):
         row_num = 0
         try:
             for entity in entities:
@@ -479,8 +494,35 @@ class Prepare:
         if row_num == 0:
             raise ParamError(message=ExceptionsMessage.NumberRowsInvalid)
         request.num_rows = row_num
-
         return request
+
+    @classmethod
+    def batch_insert_param(
+        cls,
+        collection_name: str,
+        entities: List,
+        partition_name: str,
+        fields_info: Any,
+    ):
+        location = cls._pre_batch_check(entities, fields_info)
+        tag = partition_name if isinstance(partition_name, str) else ""
+        request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
+
+        return cls._parse_batch_request(request, entities, fields_info, location)
+
+    @classmethod
+    def batch_upsert_param(
+        cls,
+        collection_name: str,
+        entities: List,
+        partition_name: str,
+        fields_info: Any,
+    ):
+        location = cls._batch_pre_check(entities, fields_info)
+        tag = partition_name if isinstance(partition_name, str) else ""
+        request = milvus_types.UpsertRequest(collection_name=collection_name, partition_name=tag)
+
+        return cls._parse_batch_request(request, entities, fields_info, location)
 
     @classmethod
     def delete_request(cls, collection_name: str, partition_name: str, expr: str):

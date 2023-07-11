@@ -447,66 +447,34 @@ class GrpcHandler:
 
         raise MilvusException(status.error_code, status.reason)
 
-    def _prepare_row_insert_or_upsert_request(
+    def _get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        schema = kwargs.get("schema", None)
+        if not schema:
+            schema = self.describe_collection(collection_name, timeout=timeout)
+
+        fields_info = schema.get("fields")
+        enable_dynamic = schema.get("enable_dynamic_field", False)
+
+        return fields_info, enable_dynamic
+
+    def _prepare_row_insert_request(
         self,
         collection_name: str,
-        rows: List,
+        entity_rows: List,
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
-        is_insert: bool = True,
         **kwargs,
     ):
-        if not isinstance(rows, list):
+        if not isinstance(entity_rows, list):
             raise ParamError(message="None rows, please provide valid row data.")
 
-        collection_schema = kwargs.get("schema", None)
-        if not collection_schema:
-            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
-
-        fields_info = collection_schema["fields"]
-        enable_dynamic = collection_schema.get("enable_dynamic_field", False)
-        return Prepare.row_insert_or_upsert_param(
+        fields_info, enable_dynamic = self._get_info(collection_name, timeout, **kwargs)
+        return Prepare.row_insert_param(
             collection_name,
-            rows,
+            entity_rows,
             partition_name,
             fields_info,
-            is_insert,
             enable_dynamic=enable_dynamic,
-        )
-
-    def _prepare_batch_insert_or_upsert_request(
-        self,
-        collection_name: str,
-        entities: List,
-        partition_name: Optional[str] = None,
-        timeout: Optional[float] = None,
-        is_insert: bool = True,
-        **kwargs,
-    ):
-        param = kwargs.get("insert_param", None)
-
-        if not is_insert:
-            param = kwargs.get("upsert_param", None)
-
-        if param and not isinstance(param, milvus_types.RowBatch):
-            if is_insert:
-                raise ParamError(message="The value of key 'insert_param' is invalid")
-            raise ParamError(message="The value of key 'upsert_param' is invalid")
-        if not isinstance(entities, list):
-            raise ParamError(message="None entities, please provide valid entities.")
-
-        collection_schema = kwargs.get("schema", None)
-        if not collection_schema:
-            collection_schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
-
-        fields_info = collection_schema["fields"]
-
-        return (
-            param
-            if param
-            else Prepare.batch_insert_or_upsert_param(
-                collection_name, entities, partition_name, fields_info, is_insert
-            )
         )
 
     @retry_on_rpc_failure()
@@ -520,7 +488,7 @@ class GrpcHandler:
     ):
         if isinstance(entities, dict):
             entities = [entities]
-        request = self._prepare_row_insert_or_upsert_request(
+        request = self._prepare_row_insert_request(
             collection_name, entities, partition_name, timeout, **kwargs
         )
         rf = self._stub.Insert.future(request, timeout=timeout)
@@ -531,6 +499,32 @@ class GrpcHandler:
             return m
 
         raise MilvusException(response.status.error_code, response.status.reason)
+
+    def _prepare_batch_insert_request(
+        self,
+        collection_name: str,
+        entities: List,
+        partition_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        param = kwargs.get("insert_param")
+        if not isinstance(param, milvus_types.RowBatch):
+            raise ParamError(message="The value of key 'insert_param' is invalid")
+        if not isinstance(entities, list):
+            raise ParamError(message="None entities, please provide valid entities.")
+
+        schema = kwargs.get("schema")
+        if not schema:
+            schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+
+        fields_info = schema["fields"]
+
+        return (
+            param
+            if param
+            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
+        )
 
     @retry_on_rpc_failure()
     def batch_insert(
@@ -545,7 +539,7 @@ class GrpcHandler:
             raise ParamError(message="Invalid binary vector data exists")
 
         try:
-            request = self._prepare_batch_insert_or_upsert_request(
+            request = self._prepare_batch_insert_request(
                 collection_name, entities, partition_name, timeout, **kwargs
             )
             rf = self._stub.Insert.future(request, timeout=timeout)
@@ -599,6 +593,33 @@ class GrpcHandler:
                 return MutationFuture(None, None, err)
             raise err from err
 
+    def _prepare_batch_upsert_request(
+        self,
+        collection_name: str,
+        entities: List,
+        partition_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        is_insert: bool = True,
+        **kwargs,
+    ):
+        param = kwargs.get("upsert_param")
+        if not isinstance(param, milvus_types.RowBatch):
+            raise ParamError(message="The value of key 'upsert_param' is invalid")
+        if not isinstance(entities, list):
+            raise ParamError(message="None entities, please provide valid entities.")
+
+        schema = kwargs.get("schema")
+        if not schema:
+            schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+
+        fields_info = schema["fields"]
+
+        return (
+            param
+            if param
+            else Prepare.batch_upsert_param(collection_name, entities, partition_name, fields_info)
+        )
+
     @retry_on_rpc_failure()
     def upsert(
         self,
@@ -612,7 +633,7 @@ class GrpcHandler:
             raise ParamError(message="Invalid binary vector data exists")
 
         try:
-            request = self._prepare_batch_insert_or_upsert_request(
+            request = self._prepare_batch_upsert_request(
                 collection_name, entities, partition_name, timeout, False, **kwargs
             )
             rf = self._stub.Upsert.future(request, timeout=timeout)
@@ -634,6 +655,26 @@ class GrpcHandler:
                 return MutationFuture(None, None, err)
             raise err from err
 
+    def _prepare_row_upsert_request(
+        self,
+        collection_name: str,
+        rows: List,
+        partition_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        if not isinstance(rows, list):
+            raise ParamError(message="None rows, please provide valid row data.")
+
+        fields_info, enable_dynamic = self._get_info(collection_name, timeout, **kwargs)
+        return Prepare.row_upsert_param(
+            collection_name,
+            rows,
+            partition_name,
+            fields_info,
+            enable_dynamic=enable_dynamic,
+        )
+
     @retry_on_rpc_failure()
     def upsert_rows(
         self,
@@ -645,7 +686,7 @@ class GrpcHandler:
     ):
         if isinstance(entities, dict):
             entities = [entities]
-        request = self._prepare_row_insert_or_upsert_request(
+        request = self._prepare_row_upsert_request(
             collection_name, entities, partition_name, timeout, False, **kwargs
         )
         rf = self._stub.Upsert.future(request, timeout=timeout)
