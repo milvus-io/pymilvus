@@ -509,7 +509,7 @@ class GrpcHandler:
         **kwargs,
     ):
         param = kwargs.get("insert_param")
-        if not isinstance(param, milvus_types.RowBatch):
+        if param and not isinstance(param, milvus_types.InsertRequest):
             raise ParamError(message="The value of key 'insert_param' is invalid")
         if not isinstance(entities, list):
             raise ParamError(message="None entities, please provide valid entities.")
@@ -603,7 +603,7 @@ class GrpcHandler:
         **kwargs,
     ):
         param = kwargs.get("upsert_param")
-        if not isinstance(param, milvus_types.RowBatch):
+        if param and not isinstance(param, milvus_types.UpsertRequest):
             raise ParamError(message="The value of key 'upsert_param' is invalid")
         if not isinstance(entities, list):
             raise ParamError(message="None entities, please provide valid entities.")
