@@ -407,7 +407,7 @@ def wait_for_index_building_complete(
 
     """
     return _get_connection(using).wait_for_creating_index(
-        collection_name, index_name, timeout=timeout
+        collection_name, index_name, timeout=timeout, refresh=True
     )[0]
 
 

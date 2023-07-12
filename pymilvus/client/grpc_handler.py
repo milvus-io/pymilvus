@@ -850,6 +850,7 @@ class GrpcHandler:
                         index_name=index_name,
                         timeout=timeout,
                         field_name=field_name,
+                        refresh=False,
                     )
                     if not index_success:
                         raise MilvusException(message=fail_reason)
@@ -872,6 +873,7 @@ class GrpcHandler:
                 index_name=index_name,
                 timeout=timeout,
                 field_name=field_name,
+                refresh=False,
             )
             if not index_success:
                 raise MilvusException(message=fail_reason)
@@ -962,6 +964,16 @@ class GrpcHandler:
     def wait_for_creating_index(
         self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
     ):
+        if kwargs.get("refresh", False):
+            index_info = self.describe_index(collection_name, index_name, timeout)
+            index_params = {
+                "index_type": index_info["index_type"],
+                "metric_type": index_info["metric_type"],
+                "params": index_info["params"],
+            }
+            self.create_index(
+                collection_name, index_info["field_name"], index_params, timeout, _async=True
+            )
         start = time.time()
         while True:
             time.sleep(0.5)
