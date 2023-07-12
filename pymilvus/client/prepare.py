@@ -518,7 +518,7 @@ class Prepare:
         partition_name: str,
         fields_info: Any,
     ):
-        location = cls._batch_pre_check(entities, fields_info)
+        location = cls._pre_batch_check(entities, fields_info)
         tag = partition_name if isinstance(partition_name, str) else ""
         request = milvus_types.UpsertRequest(collection_name=collection_name, partition_name=tag)
 
