@@ -328,7 +328,7 @@ class MilvusClient:
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> List[List[float]]:
+    ) -> List[dict]:
         """Grab the inserted vectors using the primary key from the Collection.
 
         Due to current implementations, grabbing a large amount of vectors is slow.
