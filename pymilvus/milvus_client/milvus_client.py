@@ -6,7 +6,6 @@ from uuid import uuid4
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import ExceptionsMessage
 from pymilvus.exceptions import (
-    AutoIDException,
     DataTypeNotMatchException,
     MilvusException,
     PrimaryKeyException,
@@ -90,9 +89,6 @@ class MilvusClient:
             pk_data_type = DataType.VARCHAR
         else:
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
-
-        if pk_data_type == DataType.VARCHAR and auto_id:
-            raise AutoIDException(message=ExceptionsMessage.AutoIDFieldType)
 
         pk_args = {}
         if "max_length" in kwargs and pk_data_type == DataType.VARCHAR:

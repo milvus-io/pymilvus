@@ -132,9 +132,6 @@ class CollectionSchema:
         if auto_id:
             self._primary_field.auto_id = auto_id
 
-        if self._primary_field.auto_id and self._primary_field.dtype == DataType.VARCHAR:
-            raise AutoIDException(0, ExceptionsMessage.AutoIDFieldType)
-
     def _check(self):
         self._check_kwargs()
         self._check_fields()
