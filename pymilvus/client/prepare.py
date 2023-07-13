@@ -69,7 +69,7 @@ class Prepare:
                 msg = "got both num_shards and shards_num in kwargs, expected only one of them"
                 raise ParamError(message=msg)
 
-            num_shards = kwargs[list(same_key)[0]]
+            num_shards = kwargs[next(iter(same_key))]
             if not isinstance(num_shards, int):
                 msg = f"invalid num_shards type, got {type(num_shards)}, expected int"
                 raise ParamError(message=msg)
