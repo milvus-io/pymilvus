@@ -162,7 +162,9 @@ class ExceptionsMessage:
         "The parameter consistency_level is inconsistent with that of existed collection."
     )
     AutoIDOnlyOnPK = "The auto_id can only be specified on the primary key field"
-    AutoIDFieldType = "The auto_id can only be specified on field with DataType.INT64"
+    AutoIDFieldType = (
+        "The auto_id can only be specified on field with DataType.INT64 and DataType.VARCHAR."
+    )
     DefaultValueTypeNotSupport = "default_value only support scalars except array and json for now."
     NumberRowsInvalid = "Must pass in at least one column"
     FieldsNumInconsistent = "The data fields number is not match with schema."
