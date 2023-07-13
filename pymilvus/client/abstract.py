@@ -98,8 +98,12 @@ class FieldSchema:
                 self.params[type_param.key] = json.loads(type_param.value)
             else:
                 self.params[type_param.key] = type_param.value
-                # maybe we'd better not to check these fields in ORM.
-                if type_param.key in ["dim", Config.MaxVarCharLengthKey]:
+                if type_param.key in ["dim"]:
+                    self.params[type_param.key] = int(type_param.value)
+                if (
+                    type_param.key in [Config.MaxVarCharLengthKey]
+                    and raw.data_type == DataType.VARCHAR
+                ):
                     self.params[type_param.key] = int(type_param.value)
 
         index_dict = {}
