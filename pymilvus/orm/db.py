@@ -1,6 +1,6 @@
 from typing import Optional
 
-from . import connections
+from .connections import connections
 
 
 def _get_connection(alias: str):
