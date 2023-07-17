@@ -106,7 +106,7 @@ def entity_to_field_data(entity: Any, field_info: Dict):
 
     if entity_type in (DataType.BOOL,):
         field_data.scalars.bool_data.data.extend(entity.get("values"))
-    elif entity_type in (DataType.INT8, DataType.INT16, DataType.INT64):
+    elif entity_type in (DataType.INT8, DataType.INT16, DataType.INT32):
         field_data.scalars.int_data.data.extend(entity.get("values"))
     elif entity_type in (DataType.INT64,):
         field_data.scalars.long_data.data.extend(entity.get("values"))
