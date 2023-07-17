@@ -585,21 +585,20 @@ class Collection:
             anns_field (``str``): The name of the vector field used to search of collection.
             param (``dict[str, Any]``):
                 The parameters of search. The followings are valid keys of param.
-                * *nprobe*, *ef*, *search_k*, etc
-                    Corresponding search params for a certain index.
                 * *metric_type* (``str``)
                     similar metricy types, the value must be of type str.
                 * *offset* (``int``, optional)
                     offset for pagination.
                 * *limit* (``int``, optional)
                     limit for the search results and pagination.
+                * *params of index: *nprobe*, *ef*, *search_k*, etc
+                    Corresponding search params for a certain index.
                 example for param::
 
                     {
-                        "nprobe": 128,
                         "metric_type": "L2",
                         "offset": 10,
-                        "limit": 10,
+                        "params": {"nprobe": 12},
                     }
 
             limit (``int``): The max number of returned record, also known as `topk`.
