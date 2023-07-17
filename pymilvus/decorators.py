@@ -68,7 +68,13 @@ def retry_on_rpc_failure(
                     return func(*args, **kwargs)
                 except grpc.RpcError as e:
                     # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
-                    if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+                    if e.code() in (
+                        grpc.StatusCode.DEADLINE_EXCEEDED,
+                        grpc.StatusCode.PERMISSION_DENIED,
+                        grpc.StatusCode.UNAUTHENTICATED,
+                        grpc.StatusCode.INVALID_ARGUMENT,
+                        grpc.StatusCode.ALREADY_EXISTS,
+                    ):
                         raise MilvusException(message=str(e)) from e
                     if timeout(start_time):
                         raise MilvusException(e.code, f"{to_msg}, message={e.details()}") from e
