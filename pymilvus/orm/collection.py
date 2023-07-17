@@ -48,7 +48,7 @@ from .schema import (
     check_insert_schema,
     check_is_row_based,
     check_schema,
-    check_upset_schema,
+    check_upsert_schema,
     construct_fields_from_dataframe,
 )
 from .search import SearchResult
@@ -611,7 +611,7 @@ class Collection:
         row_based = check_is_row_based(data)
         conn = self._get_connection()
         if not row_based:
-            check_upset_schema(self._schema, data)
+            check_upsert_schema(self._schema, data)
             entities = Prepare.prepare_upsert_data(data, self._schema)
 
             res = conn.upsert(

@@ -421,7 +421,7 @@ def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
     check_infer_fields_valid(infer_fields, tmp_fields, is_data_frame)
 
 
-def check_upset_schema(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
+def check_upsert_schema(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
     if schema is None:
         raise SchemaNotReadyException(message="Schema shouldn't be None")
     if schema.auto_id:
