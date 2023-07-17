@@ -485,11 +485,9 @@ class QueryResult(LoopBase):
                 elif field_data.type == DataType.BINARY_VECTOR:
                     dim = field_data.vectors.dim
                     field.vectors.dim = dim
-                    field.vectors.binary_vector.data.extend(
-                        field_data.vectors.binary_vector.data[
-                            start_pos * (dim / 8) : end_pos * (dim / 8)
-                        ]
-                    )
+                    field.vectors.binary_vector += field_data.vectors.binary_vector[
+                        start_pos * (dim // 8) : end_pos * (dim // 8)
+                    ]
                 hit.fields_data.append(field)
             self._hits.append(hit)
             offset += raw.results.topks[i]
@@ -571,11 +569,9 @@ class ChunkedQueryResult(LoopBase):
                     elif field_data.type == DataType.BINARY_VECTOR:
                         dim = field_data.vectors.dim
                         field.vectors.dim = dim
-                        field.vectors.binary_vector.data.extend(
-                            field_data.vectors.binary_vector.data[
-                                start_pos * (dim / 8) : end_pos * (dim / 8)
-                            ]
-                        )
+                        field.vectors.binary_vector += field_data.vectors.binary_vector[
+                            start_pos * (dim // 8) : end_pos * (dim // 8)
+                        ]
                     hit.fields_data.append(field)
                 self._hits.append(hit)
                 offset += raw.results.topks[i]
