@@ -812,7 +812,7 @@ class Collection:
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         return SearchIterator(
-            connections=self._get_connection(),
+            connection=self._get_connection(),
             collection_name=self._name,
             data=data,
             ann_field=anns_field,
@@ -933,9 +933,8 @@ class Collection:
     ):
         if not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
-        conn = self._get_connection()
         return QueryIterator(
-            connection=conn,
+            connection=self._get_connection(),
             collection_name=self._name,
             expr=expr,
             output_fields=output_fields,
