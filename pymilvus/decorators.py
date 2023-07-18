@@ -29,9 +29,9 @@ def deprecated(func: Any):
 
 def retry_on_rpc_failure(
     *,
-    retry_times: int = 10,
+    retry_times: int = 75,
     initial_back_off: float = 0.01,
-    max_back_off: float = 60,
+    max_back_off: float = 3,
     back_off_multiplier: int = 3,
 ):
     def wrapper(func: Any):
