@@ -670,9 +670,11 @@ class Prepare:
         return index_params
 
     @classmethod
-    def describe_index_request(cls, collection_name: str, index_name: str):
+    def describe_index_request(
+        cls, collection_name: str, index_name: str, timestamp: Optional[int] = None
+    ):
         return milvus_types.DescribeIndexRequest(
-            collection_name=collection_name, index_name=index_name
+            collection_name=collection_name, index_name=index_name, timestamp=timestamp
         )
 
     @classmethod

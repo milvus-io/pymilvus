@@ -10,7 +10,7 @@ from urllib import parse
 import grpc
 from grpc._cython import cygrpc
 
-from pymilvus.decorators import retry_on_rpc_failure, upgrade_reminder
+from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure, upgrade_reminder
 from pymilvus.exceptions import (
     AmbiguousIndexName,
     DescribeCollectionException,
@@ -894,10 +894,15 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def describe_index(
-        self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
+        self,
+        collection_name: str,
+        index_name: str,
+        timeout: Optional[float] = None,
+        timestamp: Optional[int] = None,
+        **kwargs,
     ):
         check_pass_param(collection_name=collection_name)
-        request = Prepare.describe_index_request(collection_name, index_name)
+        request = Prepare.describe_index_request(collection_name, index_name, timestamp=timestamp)
 
         rf = self._stub.DescribeIndex.future(request, timeout=timeout)
         response = rf.result()
@@ -937,9 +942,14 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def get_index_state(
-        self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
+        self,
+        collection_name: str,
+        index_name: str,
+        timeout: Optional[float] = None,
+        timestamp: Optional[int] = None,
+        **kwargs,
     ):
-        request = Prepare.describe_index_request(collection_name, index_name)
+        request = Prepare.describe_index_request(collection_name, index_name, timestamp)
         rf = self._stub.DescribeIndex.future(request, timeout=timeout)
         response = rf.result()
         status = response.status
@@ -962,11 +972,12 @@ class GrpcHandler:
     def wait_for_creating_index(
         self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
     ):
+        timestamp = self.alloc_timestamp()
         start = time.time()
         while True:
             time.sleep(0.5)
             state, fail_reason = self.get_index_state(
-                collection_name, index_name, timeout=timeout, **kwargs
+                collection_name, index_name, timeout=timeout, timestamp=timestamp, **kwargs
             )
             if state == IndexState.Finished:
                 return True, fail_reason
@@ -1818,3 +1829,12 @@ class GrpcHandler:
         if response.status.error_code != common_pb2.Success:
             raise MilvusException(response.status.error_code, response.status.reason)
         return response.identifier
+
+    @retry_on_rpc_failure()
+    @ignore_unimplemented(0)
+    def alloc_timestamp(self, timeout: Optional[float] = None) -> int:
+        request = milvus_types.AllocTimestampRequest()
+        response = self._stub.AllocTimestamp(request, timeout=timeout)
+        if response.status.error_code != common_pb2.Success:
+            raise MilvusException(response.status.error_code, response.status.reason)
+        return response.timestamp

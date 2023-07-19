@@ -174,6 +174,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DataNodeTt: _ClassVar[MsgType]
     Connect: _ClassVar[MsgType]
     ListClientInfos: _ClassVar[MsgType]
+    AllocTimestamp: _ClassVar[MsgType]
     CreateCredential: _ClassVar[MsgType]
     GetCredential: _ClassVar[MsgType]
     DeleteCredential: _ClassVar[MsgType]
@@ -443,6 +444,7 @@ SegmentFlushDone: MsgType
 DataNodeTt: MsgType
 Connect: MsgType
 ListClientInfos: MsgType
+AllocTimestamp: MsgType
 CreateCredential: MsgType
 GetCredential: MsgType
 DeleteCredential: MsgType
