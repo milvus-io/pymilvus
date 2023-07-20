@@ -519,18 +519,20 @@ class CreateIndexRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., field_name: _Optional[str] = ..., extra_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_name: _Optional[str] = ...) -> None: ...
 
 class DescribeIndexRequest(_message.Message):
-    __slots__ = ["base", "db_name", "collection_name", "field_name", "index_name"]
+    __slots__ = ["base", "db_name", "collection_name", "field_name", "index_name", "timestamp"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     INDEX_NAME_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
     field_name: str
     index_name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., field_name: _Optional[str] = ..., index_name: _Optional[str] = ...) -> None: ...
+    timestamp: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., field_name: _Optional[str] = ..., index_name: _Optional[str] = ..., timestamp: _Optional[int] = ...) -> None: ...
 
 class IndexDescription(_message.Message):
     __slots__ = ["index_name", "indexID", "params", "field_name", "indexed_rows", "total_rows", "state", "index_state_fail_reason", "pending_index_rows"]
@@ -1686,16 +1688,18 @@ class RenameCollectionRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., oldName: _Optional[str] = ..., newName: _Optional[str] = ...) -> None: ...
 
 class GetIndexStatisticsRequest(_message.Message):
-    __slots__ = ["base", "db_name", "collection_name", "index_name"]
+    __slots__ = ["base", "db_name", "collection_name", "index_name", "timestamp"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     INDEX_NAME_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
     index_name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., index_name: _Optional[str] = ...) -> None: ...
+    timestamp: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., index_name: _Optional[str] = ..., timestamp: _Optional[int] = ...) -> None: ...
 
 class GetIndexStatisticsResponse(_message.Message):
     __slots__ = ["status", "index_descriptions"]
@@ -1722,6 +1726,20 @@ class ConnectResponse(_message.Message):
     server_info: _common_pb2.ServerInfo
     identifier: int
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., server_info: _Optional[_Union[_common_pb2.ServerInfo, _Mapping]] = ..., identifier: _Optional[int] = ...) -> None: ...
+
+class AllocTimestampRequest(_message.Message):
+    __slots__ = ["base"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ...) -> None: ...
+
+class AllocTimestampResponse(_message.Message):
+    __slots__ = ["status", "timestamp"]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    timestamp: int
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., timestamp: _Optional[int] = ...) -> None: ...
 
 class CreateDatabaseRequest(_message.Message):
     __slots__ = ["base", "db_name"]
