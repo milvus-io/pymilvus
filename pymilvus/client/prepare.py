@@ -255,8 +255,10 @@ class Prepare:
         return req
 
     @classmethod
-    def rename_collections_request(cls, old_name: str, new_name: str):
-        return milvus_types.RenameCollectionRequest(oldName=old_name, newName=new_name)
+    def rename_collections_request(cls, old_name: str, new_db_name: str, new_name: str):
+        return milvus_types.RenameCollectionRequest(
+            oldName=old_name, newName=new_name, newDBName=new_db_name
+        )
 
     @classmethod
     def create_partition_request(cls, collection_name: str, partition_name: str):

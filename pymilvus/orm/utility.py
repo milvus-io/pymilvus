@@ -492,6 +492,7 @@ def drop_collection(collection_name: str, timeout: Optional[float] = None, using
 def rename_collection(
     old_collection_name: str,
     new_collection_name: str,
+    new_db_name: str = "default",
     timeout: Optional[float] = None,
     using: str = "default",
 ):
@@ -522,7 +523,7 @@ def rename_collection(
         >>> False
     """
     return _get_connection(using).rename_collections(
-        old_collection_name, new_collection_name, timeout=timeout
+        old_collection_name, new_db_name, new_collection_name, timeout=timeout
     )
 
 
