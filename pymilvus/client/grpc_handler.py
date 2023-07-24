@@ -724,7 +724,7 @@ class GrpcHandler:
             if field_name != fields["name"]:
                 continue
             valid_field = True
-            if fields["type"] != DataType.FLOAT_VECTOR and fields["type"] != DataType.BINARY_VECTOR:
+            if fields["type"] not in {DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR}:
                 break
 
         if not valid_field:
