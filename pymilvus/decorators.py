@@ -74,8 +74,9 @@ def retry_on_rpc_failure(
                         grpc.StatusCode.UNAUTHENTICATED,
                         grpc.StatusCode.INVALID_ARGUMENT,
                         grpc.StatusCode.ALREADY_EXISTS,
+                        grpc.StatusCode.RESOURCE_EXHAUSTED,
                     ):
-                        raise MilvusException(message=str(e)) from e
+                        raise e from e
                     if timeout(start_time):
                         raise MilvusException(e.code, f"{to_msg}, message={e.details()}") from e
 
