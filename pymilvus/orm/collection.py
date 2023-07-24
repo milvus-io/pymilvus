@@ -663,8 +663,6 @@ class Collection:
                     similar metricy types, the value must be of type str.
                 * *offset* (``int``, optional)
                     offset for pagination.
-                * *limit* (``int``, optional)
-                    limit for the search results and pagination.
                 * *params of index: *nprobe*, *ef*, *search_k*, etc
                     Corresponding search params for a certain index.
                 example for param::
@@ -676,7 +674,7 @@ class Collection:
                     }
 
             limit (``int``): The max number of returned record, also known as `topk`.
-            expr (``str``): The boolean expression used to filter attribute. Default to None.
+            expr (``str``, Optional): The boolean expression used to filter attribute.
 
                 example for expr::
 
@@ -700,6 +698,9 @@ class Collection:
                 * *_callback* (``function``, optional)
                     The callback function which is invoked after server response successfully.
                     It functions only if _async is set to True.
+
+                * *offset* (``int``, optinal)
+                    offset for pagination.
 
                 * *consistency_level* (``str/int``, optional)
                     Which consistency level to use when searching in the collection.
