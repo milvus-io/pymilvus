@@ -523,7 +523,10 @@ def rename_collection(
         >>> False
     """
     return _get_connection(using).rename_collections(
-        old_collection_name, new_db_name, new_collection_name, timeout=timeout
+        old_name=old_collection_name,
+        new_name=new_collection_name,
+        new_db_name=new_db_name,
+        timeout=timeout,
     )
 
 

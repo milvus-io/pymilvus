@@ -356,12 +356,17 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def rename_collections(
-        self, old_name: str, new_db_name: str, new_name: str, timeout: Optional[float] = None
+        self,
+        old_name: str,
+        new_name: str,
+        new_db_name: str = "default",
+        timeout: Optional[float] = None,
     ):
         check_pass_param(collection_name=new_name)
-        check_pass_param(collection_name=new_db_name)
         check_pass_param(collection_name=old_name)
-        request = Prepare.rename_collections_request(old_name, new_db_name, new_name)
+        if new_db_name:
+            check_pass_param(db_name=new_db_name)
+        request = Prepare.rename_collections_request(old_name, new_name, new_db_name)
         rf = self._stub.RenameCollection.future(request, timeout=timeout)
         response = rf.result()
 
