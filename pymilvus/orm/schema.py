@@ -425,7 +425,7 @@ def check_upsert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
     if schema is None:
         raise SchemaNotReadyException(message="Schema shouldn't be None")
     if schema.auto_id:
-        raise UpsertAutoIDTrueException(ExceptionsMessage.UpsertAutoIDTrue)
+        raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
 
     infer_fields, tmp_fields, is_data_frame = parse_fields_from_data(schema, data)
     check_infer_fields_valid(infer_fields, tmp_fields, is_data_frame)
