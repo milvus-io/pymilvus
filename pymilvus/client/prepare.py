@@ -585,13 +585,23 @@ class Prepare:
         params = param.get("params", {})
         if not isinstance(params, dict):
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
+
         search_params = {
             "topk": limit,
             "params": params,
             "round_decimal": round_decimal,
-            "offset": param.get("offset", 0),
             "ignore_growing": ignore_growing,
         }
+
+        # parse offset
+        if "offset" in kwargs and "offset" in param:
+            raise ParamError(message="Provide offset both in kwargs and param, expect just one")
+
+        offset = kwargs.get("offset") or param.get("offset")
+        if offset is not None:
+            if not isinstance(offset, int):
+                raise ParamError(message=f"wrong type for offset, expect int, got {type(offset)}")
+            search_params["offset"] = offset
 
         if param.get("metric_type", None) is not None:
             search_params["metric_type"] = param["metric_type"]
