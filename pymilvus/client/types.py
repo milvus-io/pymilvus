@@ -521,8 +521,8 @@ class BulkInsertState:
         auto generated ids if the primary key is auto generated
 
         the id list of response is id ranges
-        for example, if the response return [1, 100, 200, 250]
-        the full id list should be [1, 2, 3 ... , 99, 100, 200, 201, 202 ... , 249, 250]
+        for example, if the response return [1, 100, 200, 250], the id ranges: [1,100),[200,250)
+        the full id list should be [1, 2, 3 ... , 99, 200, 201, 202 ... , 249]
         """
 
         if len(self._id_ranges) % 2 != 0:
@@ -531,7 +531,7 @@ class BulkInsertState:
         ids = []
         for i in range(int(len(self._id_ranges) / 2)):
             begin = self._id_ranges[i * 2]
-            end = self._id_ranges[i * 2 + 1] + 1
+            end = self._id_ranges[i * 2 + 1]
             for j in range(begin, end):
                 ids.append(j)
 
