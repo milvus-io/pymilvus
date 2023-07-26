@@ -233,7 +233,7 @@ class Prepare:
         collection_name: str,
         properties: Dict,
     ) -> milvus_types.AlterCollectionRequest:
-        kvs = [common_types.KeyDataPair(key=k, value=str(v)) for k, v in properties.items()]
+        kvs = [common_types.KeyValuePair(key=k, value=str(v)) for k, v in properties.items()]
 
         return milvus_types.AlterCollectionRequest(collection_name=collection_name, properties=kvs)
 
