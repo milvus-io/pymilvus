@@ -180,3 +180,8 @@ class TestCreateCollectionRequest:
 
         Prepare.row_insert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
 
+
+class TestAlterCollectionRequest:
+    def test_alter_collection_request(self):
+        schema = Prepare.alter_collection_request('foo', {'collection.ttl.seconds': 1800})
+
