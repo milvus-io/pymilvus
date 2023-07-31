@@ -1148,7 +1148,7 @@ class GrpcHandler:
         def _check():
             for collection_name in collection_names:
                 segment_ids = future.result().coll_segIDs[collection_name].data
-                self._wait_for_flushed(segment_ids)
+                self._wait_for_flushed(segment_ids, timeout=timeout)
 
         if kwargs.get("_async", False):
             flush_future = FlushFuture(future)
