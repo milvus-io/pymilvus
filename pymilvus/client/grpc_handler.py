@@ -748,7 +748,6 @@ class GrpcHandler:
             search_data=data,
             partition_name_array=partition_names,
             output_fields=output_fields,
-            travel_timestamp=kwargs.get("travel_timestamp", 0),
             guarantee_timestamp=kwargs.get("guarantee_timestamp", None),
         )
 
@@ -1389,7 +1388,7 @@ class GrpcHandler:
         if response.status.error_code != 0:
             raise MilvusException(response.status.error_code, response.status.reason)
 
-        req = Prepare.manual_compaction(response.collectionID, 0)
+        req = Prepare.manual_compaction(response.collectionID)
         future = self._stub.ManualCompaction.future(req, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:

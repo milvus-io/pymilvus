@@ -625,7 +625,6 @@ class Prepare:
             partition_names=partition_names,
             output_fields=output_fields,
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
-            travel_timestamp=kwargs.get("travel_timestamp", 0),
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
             nq=nq,
@@ -820,7 +819,6 @@ class Prepare:
             output_fields=output_fields,
             partition_names=partition_names,
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
-            travel_timestamp=kwargs.get("travel_timestamp", 0),
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
         )
@@ -862,16 +860,12 @@ class Prepare:
         )
 
     @classmethod
-    def manual_compaction(cls, collection_id: int, timetravel: int):
+    def manual_compaction(cls, collection_id: int):
         if collection_id is None or not isinstance(collection_id, int):
             raise ParamError(message=f"collection_id value {collection_id} is illegal")
 
-        if timetravel is None or not isinstance(timetravel, int):
-            raise ParamError(message=f"timetravel value {timetravel} is illegal")
-
         request = milvus_types.ManualCompactionRequest()
         request.collectionID = collection_id
-        request.timetravel = timetravel
 
         return request
 

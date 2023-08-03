@@ -865,9 +865,6 @@ class Milvus:
             * *graceful_time* (``int``) --
               Only used in bounded consistency level. If graceful_time is set, PyMilvus will use current timestamp minus
               the graceful_time as the `guarantee_timestamp`. This option is 5s by default if not set.
-            * *travel_timestamp* (``int``) --
-              Users can specify a timestamp in a search to get results based on a data view
-                        at a specified point in time.
 
         :return: Query result. QueryResult is iterable and is a 2d-array-like class, the first dimension is
                  the number of vectors to query (nq), the second dimension is the number of limit(topk).
@@ -996,9 +993,6 @@ class Milvus:
             * *graceful_time* (``int``) --
               Only used in bounded consistency level. If graceful_time is set, PyMilvus will use current timestamp minus
               the graceful_time as the `guarantee_timestamp`. This option is 5s by default if not set.
-            * *travel_timestamp* (``int``) --
-              Users can specify a timestamp in a search to get results based on a data view
-                        at a specified point in time.
 
         :raises RpcError: If gRPC encounter an error
         :raises ParamError: If parameters are invalid
