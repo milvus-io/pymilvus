@@ -457,9 +457,6 @@ class Partition:
 
                     Note: only valid in Bounded consistency level
 
-                * *travel_timestamp* (``int``, optional)
-                    A specific timestamp to get results based on a data view at.
-
         Returns:
             SearchResult:
                 Returns ``SearchResult`` if `_async` is False , otherwise ``SearchFuture``
@@ -561,9 +558,6 @@ class Partition:
                     `guarantee_timestamp`. By default with 5s.
 
                     Note: only valid in Bounded consistency level
-
-                * *travel_timestamp* (``int``, optional)
-                    A specific timestamp to get results based on a data view at.
 
                 * *offset* (``int``)
                     Combined with limit to enable pagination

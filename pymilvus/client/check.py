@@ -239,10 +239,6 @@ def is_legal_round_decimal(round_decimal: Any) -> bool:
     return isinstance(round_decimal, int) and -2 < round_decimal < 7
 
 
-def is_legal_travel_timestamp(ts: Any) -> bool:
-    return isinstance(ts, int) and ts >= 0
-
-
 def is_legal_guarantee_timestamp(ts: Any) -> bool:
     return ts is None or isinstance(ts, int) and ts >= 0
 
@@ -317,7 +313,6 @@ class ParamChecker(metaclass=Singleton):
             "search_data": is_legal_search_data,
             "output_fields": is_legal_output_fields,
             "round_decimal": is_legal_round_decimal,
-            "travel_timestamp": is_legal_travel_timestamp,
             "guarantee_timestamp": is_legal_guarantee_timestamp,
             "user": is_legal_user,
             "password": is_legal_password,
