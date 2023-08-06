@@ -558,16 +558,16 @@ def check_infer_fields_valid(
         )
 
     for x, y in zip(infer_fields, tmp_fields):
+        if is_data_frame and x.name != y.name:
+            raise DataNotMatchException(
+                message=f"The name of field don't match, expected: {y.name}, got {x.name}"
+            )
         if x.dtype != y.dtype:
             msg = (
                 f"The data type of field {y.name} doesn't match, "
                 f"expected: {y.dtype.name}, got {x.dtype.name}"
             )
             raise DataNotMatchException(message=msg)
-        if is_data_frame and x.name != y.name:
-            raise DataNotMatchException(
-                message=f"The name of field don't match, expected: {y.name}, got {x.name}"
-            )
 
 
 def check_schema(schema: CollectionSchema):
