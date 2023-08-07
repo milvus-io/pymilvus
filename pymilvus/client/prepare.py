@@ -378,7 +378,7 @@ class Prepare:
                     k: v for k, v in entity.items() if k not in fields_data and enable_dynamic
                 }
 
-                if enable_dynamic and len(json_dict) > 0:
+                if enable_dynamic:
                     json_value = entity_helper.convert_to_json(json_dict)
                     meta_field.scalars.json_data.data.append(json_value)
 
