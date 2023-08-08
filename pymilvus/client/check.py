@@ -202,37 +202,6 @@ def is_legal_replica_number(replica_number: int) -> bool:
     return isinstance(replica_number, int)
 
 
-# https://milvus.io/cn/docs/v1.0.0/metric.md#floating
-def is_legal_index_metric_type(index_type: str, metric_type: str) -> bool:
-    if index_type not in (
-        "FLAT",
-        "IVF_FLAT",
-        "IVF_SQ8",
-        "IVF_PQ",
-        "HNSW",
-        "AUTOINDEX",
-        "DISKANN",
-        "ANNOY",
-        "RHNSW_FLAT",
-        "RHNSW_PQ",
-        "RHNSW_SQ",
-    ):
-        return False
-    if metric_type not in ("L2", "IP"):
-        return False
-    return True
-
-
-# https://milvus.io/cn/docs/v1.0.0/metric.md#binary
-def is_legal_binary_index_metric_type(index_type: str, metric_type: str) -> bool:
-    if index_type == "BIN_FLAT":
-        if metric_type in ("JACCARD", "TANIMOTO", "HAMMING", "SUBSTRUCTURE", "SUPERSTRUCTURE"):
-            return True
-    elif index_type == "BIN_IVF_FLAT" and metric_type in ("JACCARD", "TANIMOTO", "HAMMING"):
-        return True
-    return False
-
-
 def _raise_param_error(param_name: str, param_value: Any) -> None:
     raise ParamError(message=f"`{param_name}` value {param_value} is illegal")
 
