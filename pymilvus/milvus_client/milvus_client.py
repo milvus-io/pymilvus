@@ -15,7 +15,7 @@ from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
 from pymilvus.orm.types import DataType
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
