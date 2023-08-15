@@ -117,10 +117,10 @@ class GrpcHandler:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any):
+    def __exit__(self: object, exc_type: object, exc_val: object, exc_tb: object):
         pass
 
-    def _wait_for_channel_ready(self, timeout: Union[int, float] = 10):
+    def _wait_for_channel_ready(self, timeout: Union[float] = 10):
         if self._channel is None:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
