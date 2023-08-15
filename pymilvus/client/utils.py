@@ -55,7 +55,7 @@ def hybridts_to_unixtime(ts: int):
 
 def mkts_from_hybridts(
     hybridts: int,
-    milliseconds: Union[int, float] = 0.0,
+    milliseconds: Union[float] = 0.0,
     delta: Optional[timedelta] = None,
 ) -> int:
     if not isinstance(milliseconds, (int, float)):
@@ -76,8 +76,8 @@ def mkts_from_hybridts(
 
 
 def mkts_from_unixtime(
-    epoch: Union[int, float],
-    milliseconds: Union[int, float] = 0.0,
+    epoch: Union[float],
+    milliseconds: Union[float] = 0.0,
     delta: Optional[timedelta] = None,
 ) -> int:
     if not isinstance(epoch, (int, float)):
@@ -98,7 +98,7 @@ def mkts_from_unixtime(
 
 def mkts_from_datetime(
     d_time: datetime.datetime,
-    milliseconds: Union[int, float] = 0.0,
+    milliseconds: Union[float] = 0.0,
     delta: Optional[timedelta] = None,
 ) -> int:
     if not isinstance(d_time, datetime.datetime):

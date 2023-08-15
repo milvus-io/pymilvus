@@ -1,3 +1,4 @@
+import copy
 from typing import Any, Dict, List, Optional, TypeVar
 
 from pymilvus.exceptions import MilvusException
@@ -197,7 +198,7 @@ class SearchIterator:
             "round_decimal": round_decimal,
         }
         self._expr = expr
-        self._param = param
+        self.__check_set_params(param)
         self._kwargs = kwargs
         self._distance_cursor = [None]
         self._filtered_ids = []
@@ -207,6 +208,12 @@ class SearchIterator:
         self.__check_radius()
         self.__seek()
         self.__setup__pk_prop()
+
+    def __check_set_params(self, param: Dict):
+        if param is None:
+            self._param = {}
+        else:
+            self._param = copy.deepcopy(param)
 
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
