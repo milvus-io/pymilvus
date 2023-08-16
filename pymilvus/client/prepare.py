@@ -13,7 +13,7 @@ from pymilvus.orm.schema import CollectionSchema
 
 from . import blob, entity_helper, ts_utils
 from .check import check_pass_param, is_legal_collection_properties
-from .constants import DEFAULT_CONSISTENCY_LEVEL, ITERATION_EXTENSION_REDUCE_RATE
+from .constants import DEFAULT_CONSISTENCY_LEVEL
 from .types import DataType, PlaceholderType, get_consistency_level
 from .utils import traverse_info, traverse_rows_info
 
@@ -834,13 +834,6 @@ class Prepare:
         ignore_growing = kwargs.get("ignore_growing", False)
         req.query_params.append(
             common_types.KeyValuePair(key="ignore_growing", value=str(ignore_growing))
-        )
-
-        use_iteration_extension_reduce_rate = kwargs.get(ITERATION_EXTENSION_REDUCE_RATE, 0)
-        req.query_params.append(
-            common_types.KeyValuePair(
-                key=ITERATION_EXTENSION_REDUCE_RATE, value=str(use_iteration_extension_reduce_rate)
-            )
         )
         return req
 
