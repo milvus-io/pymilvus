@@ -919,14 +919,12 @@ class Collection:
 
     def query_iterator(
         self,
-        expr: str,
+        expr: Optional[str] = None,
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        if not isinstance(expr, str):
-            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         return QueryIterator(
             connection=self._get_connection(),
             collection_name=self._name,
