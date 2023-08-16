@@ -798,7 +798,7 @@ class Collection:
         data: List,
         anns_field: str,
         param: Dict,
-        limit: int,
+        batch_size: Optional[int] = 1000,
         expr: Optional[str] = None,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -814,7 +814,7 @@ class Collection:
             data=data,
             ann_field=anns_field,
             param=param,
-            limit=limit,
+            batch_size=batch_size,
             expr=expr,
             partition_names=partition_names,
             output_fields=output_fields,
@@ -919,15 +919,19 @@ class Collection:
 
     def query_iterator(
         self,
+        batch_size: Optional[int] = 1000,
         expr: Optional[str] = None,
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        if expr is not None and not isinstance(expr, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         return QueryIterator(
             connection=self._get_connection(),
             collection_name=self._name,
+            batch_size=batch_size,
             expr=expr,
             output_fields=output_fields,
             partition_names=partition_names,

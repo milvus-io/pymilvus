@@ -19,8 +19,7 @@ CONSISTENCY_LEVEL = "Eventually"
 LIMIT = 5
 NUM_ENTITIES = 1000
 DIM = 8
-CLEAR_EXIST = False
-
+CLEAR_EXIST = True
 
 def re_create_collection():
     if utility.has_collection(COLLECTION_NAME) and CLEAR_EXIST:
@@ -77,7 +76,7 @@ def prepare_data(collection):
 def query_iterate_collection_no_offset(collection):
     expr = f"10 <= {AGE} <= 14"
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
-                                               offset=0, limit=5, consistency_level=CONSISTENCY_LEVEL,
+                                               offset=0, batch_size=5, consistency_level=CONSISTENCY_LEVEL,
                                                iteration_extension_reduce_rate=10)
     page_idx = 0
     while True:
@@ -94,7 +93,7 @@ def query_iterate_collection_no_offset(collection):
 def query_iterate_collection_with_offset(collection):
     expr = f"10 <= {AGE} <= 14"
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
-                                               offset=10, limit=5, consistency_level=CONSISTENCY_LEVEL,
+                                               offset=10, batch_size=50, consistency_level=CONSISTENCY_LEVEL,
                                                iteration_extension_reduce_rate=10)
     page_idx = 0
     while True:
@@ -117,7 +116,7 @@ def search_iterator_collection(collection):
         "metric_type": "L2",
         "params": {"nprobe": 10, "radius": 1.0},
     }
-    search_iterator = collection.search_iterator(vectors_to_search, PICTURE, search_params, limit=5,
+    search_iterator = collection.search_iterator(vectors_to_search, PICTURE, search_params, batch_size=500,
                                                  output_fields=[USER_ID])
     page_idx = 0
     while True:

@@ -1,10 +1,14 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TypeVar
 
-from pymilvus.exceptions import MilvusException
+from pymilvus.exceptions import (
+    MilvusException,
+    ParamError,
+)
 
 from .connections import Connections
 from .constants import (
+    BATCH_SIZE,
     CALC_DIST_COSINE,
     CALC_DIST_HAMMING,
     CALC_DIST_IP,
@@ -21,6 +25,7 @@ from .constants import (
     INT64_MAX,
     ITERATION_EXTENSION_REDUCE_RATE,
     LIMIT,
+    MAX_BATCH_SIZE,
     MAX_FILTERED_IDS_COUNT_ITERATION,
     METRIC_TYPE,
     OFFSET,
@@ -40,6 +45,7 @@ class QueryIterator:
         self,
         connection: Connections,
         collection_name: str,
+        batch_size: Optional[int] = 1000,
         expr: Optional[str] = None,
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
@@ -54,10 +60,19 @@ class QueryIterator:
         self._schema = schema
         self._timeout = timeout
         self._kwargs = kwargs
+        self.__check_set_batch_size(batch_size)
         self.__setup__pk_prop()
         self.__set_up_expr(expr)
         self.__seek()
         self._cache_id_in_use = NO_CACHE_ID
+
+    def __check_set_batch_size(self, batch_size: int):
+        if batch_size < 0:
+            raise ParamError(message="batch size cannot be less than zero")
+        if batch_size > MAX_BATCH_SIZE:
+            raise ParamError(message=f"batch size cannot be larger than {MAX_BATCH_SIZE}")
+        self._kwargs[BATCH_SIZE] = batch_size
+        self._kwargs[LIMIT] = batch_size
 
     # rely on pk prop, so this method should be called after __set_up_expr
     def __set_up_expr(self, expr: str):
@@ -92,22 +107,22 @@ class QueryIterator:
         self._kwargs[OFFSET] = 0
 
     def __maybe_cache(self, result: List):
-        if len(result) < 2 * self._kwargs[LIMIT]:
+        if len(result) < 2 * self._kwargs[BATCH_SIZE]:
             return
-        start = self._kwargs[LIMIT]
+        start = self._kwargs[BATCH_SIZE]
         cache_result = result[start:]
         cache_id = iterator_cache.cache(cache_result, NO_CACHE_ID)
         self._cache_id_in_use = cache_id
 
     def __is_res_sufficient(self, res: List):
-        return res is not None and len(res) >= self._kwargs[LIMIT]
+        return res is not None and len(res) >= self._kwargs[BATCH_SIZE]
 
     def next(self):
         cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
         ret = None
         if self.__is_res_sufficient(cached_res):
-            ret = cached_res[0 : self._kwargs[LIMIT]]
-            res_to_cache = cached_res[self._kwargs[LIMIT] :]
+            ret = cached_res[0 : self._kwargs[BATCH_SIZE]]
+            res_to_cache = cached_res[self._kwargs[BATCH_SIZE] :]
             iterator_cache.cache(res_to_cache, self._cache_id_in_use)
         else:
             iterator_cache.release_cache(self._cache_id_in_use)
@@ -121,7 +136,7 @@ class QueryIterator:
                 **self._kwargs,
             )
             self.__maybe_cache(res)
-            ret = res[0 : min(self._kwargs[LIMIT], len(res))]
+            ret = res[0 : min(self._kwargs[BATCH_SIZE], len(res))]
         self.__update_cursor(ret)
         return ret
 
@@ -185,7 +200,7 @@ class SearchIterator:
         data: List,
         ann_field: str,
         param: Dict,
-        limit: int,
+        batch_size: Optional[int] = 1000,
         expr: Optional[str] = None,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -195,13 +210,15 @@ class SearchIterator:
         **kwargs,
     ) -> SearchIterator:
         if len(data) > 1:
-            raise MilvusException(message="Not support multiple vector iterator at present")
+            raise ParamError(message="Not support multiple vector iterator at present")
+        if len(data) == 0:
+            raise ParamError(message="vector_data for search cannot be empty")
         self._conn = connection
         self._iterator_params = {
             "collection_name": collection_name,
             "data": data,
             "ann_field": ann_field,
-            "limit": limit,
+            BATCH_SIZE: batch_size,
             "output_fields": output_fields,
             "partition_names": partition_names,
             "timeout": timeout,
@@ -214,10 +231,16 @@ class SearchIterator:
         self._filtered_ids = []
         self._filtered_distance = None
         self._schema = schema
+        self.__check_remove_limit()
         self.__check_metrics()
         self.__check_radius()
         self.__seek()
         self.__setup__pk_prop()
+
+    # as we use batch_size as the page size, so we remove LIMIT here
+    def __check_remove_limit(self):
+        if self._kwargs.get(LIMIT, 0) != 0:
+            self._kwargs.pop(LIMIT)
 
     def __check_set_params(self, param: Dict):
         if param is None:
@@ -280,7 +303,7 @@ class SearchIterator:
             self._iterator_params["data"],
             self._iterator_params["ann_field"],
             next_params,
-            self._iterator_params["limit"],
+            self._iterator_params[BATCH_SIZE],
             next_expr,
             self._iterator_params["partition_names"],
             self._iterator_params["output_fields"],
