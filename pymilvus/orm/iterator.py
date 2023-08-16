@@ -1,4 +1,4 @@
-import copy
+from copy import deepcopy
 from typing import Any, Dict, List, Optional, TypeVar
 
 from pymilvus.exceptions import MilvusException
@@ -18,6 +18,7 @@ from .constants import (
     DEFAULT_MIN_COSINE_DISTANCE,
     DEFAULT_MIN_IP_DISTANCE,
     FIELDS,
+    INT64_MAX,
     ITERATION_EXTENSION_REDUCE_RATE,
     LIMIT,
     MAX_FILTERED_IDS_COUNT_ITERATION,
@@ -39,7 +40,7 @@ class QueryIterator:
         self,
         connection: Connections,
         collection_name: str,
-        expr: str,
+        expr: Optional[str] = None,
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
         schema: Optional[CollectionSchema] = None,
@@ -48,15 +49,24 @@ class QueryIterator:
     ) -> QueryIterator:
         self._conn = connection
         self._collection_name = collection_name
-        self._expr = expr
         self._output_fields = output_fields
         self._partition_names = partition_names
         self._schema = schema
         self._timeout = timeout
         self._kwargs = kwargs
         self.__setup__pk_prop()
+        self.__set_up_expr(expr)
         self.__seek()
         self._cache_id_in_use = NO_CACHE_ID
+
+    # rely on pk prop, so this method should be called after __set_up_expr
+    def __set_up_expr(self, expr: str):
+        if expr is not None:
+            self._expr = expr
+        elif self._pk_str:
+            self._expr = self._pk_field_name + ' != ""'
+        else:
+            self._expr = self._pk_field_name + " < " + str(INT64_MAX)
 
     def __seek(self):
         self._cache_id_in_use = NO_CACHE_ID
@@ -213,7 +223,7 @@ class SearchIterator:
         if param is None:
             self._param = {}
         else:
-            self._param = copy.deepcopy(param)
+            self._param = deepcopy(param)
 
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
