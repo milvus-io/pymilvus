@@ -19,7 +19,7 @@ CONSISTENCY_LEVEL = "Eventually"
 LIMIT = 5
 NUM_ENTITIES = 1000
 DIM = 8
-CLEAR_EXIST = True
+CLEAR_EXIST = False
 
 def re_create_collection():
     if utility.has_collection(COLLECTION_NAME) and CLEAR_EXIST:
@@ -107,6 +107,23 @@ def query_iterate_collection_with_offset(collection):
         page_idx += 1
         print(f"page{page_idx}-------------------------")
 
+def query_iterate_collection_with_limit(collection):
+    expr = f"10 <= {AGE} <= 44"
+    query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
+                                               batch_size=80, limit=530, consistency_level=CONSISTENCY_LEVEL,
+                                               iteration_extension_reduce_rate=10)
+    page_idx = 0
+    while True:
+        res = query_iterator.next()
+        if len(res) == 0:
+            print("query iteration finished, close")
+            query_iterator.close()
+            break
+        for i in range(len(res)):
+            print(res[i])
+        page_idx += 1
+        print(f"page{page_idx}-------------------------")
+
 def search_iterator_collection(collection):
     SEARCH_NQ = 1
     DIM = 8
@@ -130,14 +147,38 @@ def search_iterator_collection(collection):
         page_idx += 1
         print(f"page{page_idx}-------------------------")
 
+def search_iterator_collection_with_limit(collection):
+    SEARCH_NQ = 1
+    DIM = 8
+    rng = np.random.default_rng(seed=19530)
+    vectors_to_search = rng.random((SEARCH_NQ, DIM))
+    search_params = {
+        "metric_type": "L2",
+        "params": {"nprobe": 10, "radius": 1.0},
+    }
+    search_iterator = collection.search_iterator(vectors_to_search, PICTURE, search_params, batch_size=200, limit=755,
+                                                 output_fields=[USER_ID])
+    page_idx = 0
+    while True:
+        res = search_iterator.next()
+        if len(res[0]) == 0:
+            print("query iteration finished, close")
+            search_iterator.close()
+            break
+        for i in range(len(res[0])):
+            print(res[0][i])
+        page_idx += 1
+        print(f"page{page_idx}-------------------------")
 
 def main():
     connections.connect("default", host=HOST, port=PORT)
     collection = re_create_collection()
-    collection = prepare_data(collection)
-    query_iterate_collection_no_offset(collection)
-    query_iterate_collection_with_offset(collection)
-    search_iterator_collection(collection)
+    #collection = prepare_data(collection)
+    #query_iterate_collection_no_offset(collection)
+    #query_iterate_collection_with_offset(collection)
+    #query_iterate_collection_with_limit(collection)
+    #search_iterator_collection(collection)
+    search_iterator_collection_with_limit(collection)
 
 
 if __name__ == '__main__':

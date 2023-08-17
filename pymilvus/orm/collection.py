@@ -54,6 +54,7 @@ from .schema import (
 from .search import SearchResult
 from .types import DataType
 from .utility import _get_connection
+from .constants import UNLIMITED
 
 
 class Collection:
@@ -799,6 +800,7 @@ class Collection:
         anns_field: str,
         param: Dict,
         batch_size: Optional[int] = 1000,
+        limit: Optional[int] = UNLIMITED,
         expr: Optional[str] = None,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -815,6 +817,7 @@ class Collection:
             ann_field=anns_field,
             param=param,
             batch_size=batch_size,
+            limit=limit,
             expr=expr,
             partition_names=partition_names,
             output_fields=output_fields,
@@ -920,6 +923,7 @@ class Collection:
     def query_iterator(
         self,
         batch_size: Optional[int] = 1000,
+        limit: Optional[int] = UNLIMITED,
         expr: Optional[str] = None,
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
@@ -932,6 +936,7 @@ class Collection:
             connection=self._get_connection(),
             collection_name=self._name,
             batch_size=batch_size,
+            limit=limit,
             expr=expr,
             output_fields=output_fields,
             partition_names=partition_names,

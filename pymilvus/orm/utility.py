@@ -21,6 +21,7 @@ from pymilvus.client.utils import mkts_from_unixtime as _mkts_from_unixtime
 from pymilvus.exceptions import MilvusException
 
 from .connections import connections
+from pymilvus.orm.schema import CollectionSchema
 
 
 def mkts_from_hybridts(hybridts: int, milliseconds: float = 0.0, delta: Optional[timedelta] = None):
@@ -1260,3 +1261,10 @@ def list_indexes(
                 # list all indexes of this field.
                 index_name_list.append(index.index_name)
     return index_name_list
+
+def get_collection_schema(collection_name: str, timeout: Optional[float] = None, using: str = "default"):
+    """Return schema of the collection"""
+    conn = _get_connection(using)
+    resp = conn.describe_collection(collection_name, timeout=timeout)
+    schema = CollectionSchema.construct_from_dict(resp)
+    return schema

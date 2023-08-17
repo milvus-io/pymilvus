@@ -24,17 +24,19 @@ from .constants import (
     FIELDS,
     INT64_MAX,
     ITERATION_EXTENSION_REDUCE_RATE,
-    LIMIT,
+    MILVUS_LIMIT,
     MAX_BATCH_SIZE,
     MAX_FILTERED_IDS_COUNT_ITERATION,
     METRIC_TYPE,
     OFFSET,
     PARAMS,
+    UNLIMITED,
     RADIUS,
     RANGE_FILTER,
 )
 from .schema import CollectionSchema
 from .types import DataType
+from pymilvus.client.abstract import ChunkedQueryResult
 
 QueryIterator = TypeVar("QueryIterator")
 SearchIterator = TypeVar("SearchIterator")
@@ -46,6 +48,7 @@ class QueryIterator:
         connection: Connections,
         collection_name: str,
         batch_size: Optional[int] = 1000,
+        limit: Optional[int] = -1,
         expr: Optional[str] = None,
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
@@ -61,6 +64,8 @@ class QueryIterator:
         self._timeout = timeout
         self._kwargs = kwargs
         self.__check_set_batch_size(batch_size)
+        self._limit = limit
+        self._returned_count = 0
         self.__setup__pk_prop()
         self.__set_up_expr(expr)
         self.__seek()
@@ -72,7 +77,7 @@ class QueryIterator:
         if batch_size > MAX_BATCH_SIZE:
             raise ParamError(message=f"batch size cannot be larger than {MAX_BATCH_SIZE}")
         self._kwargs[BATCH_SIZE] = batch_size
-        self._kwargs[LIMIT] = batch_size
+        self._kwargs[MILVUS_LIMIT] = batch_size
 
     # rely on pk prop, so this method should be called after __set_up_expr
     def __set_up_expr(self, expr: str):
@@ -92,7 +97,7 @@ class QueryIterator:
         first_cursor_kwargs = self._kwargs.copy()
         first_cursor_kwargs[OFFSET] = 0
         # offset may be too large, needed to seek in multiple times
-        first_cursor_kwargs[LIMIT] = self._kwargs[OFFSET]
+        first_cursor_kwargs[MILVUS_LIMIT] = self._kwargs[OFFSET]
         first_cursor_kwargs[ITERATION_EXTENSION_REDUCE_RATE] = 0
 
         res = self._conn.query(
@@ -137,8 +142,23 @@ class QueryIterator:
             )
             self.__maybe_cache(res)
             ret = res[0 : min(self._kwargs[BATCH_SIZE], len(res))]
+
+        ret = self.check_reached_limit(ret)
         self.__update_cursor(ret)
+        self._returned_count += len(ret)
         return ret
+
+    def check_reached_limit(self, ret: List):
+        if self._limit == UNLIMITED:
+            return ret
+        else:
+            left_count = self._limit - self._returned_count
+            if left_count >= len(ret):
+                return ret
+            else:
+                # has exceeded the limit, cut off the result and return
+                return ret[0: left_count]
+
 
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
@@ -201,6 +221,7 @@ class SearchIterator:
         ann_field: str,
         param: Dict,
         batch_size: Optional[int] = 1000,
+        limit: Optional[int] = UNLIMITED,
         expr: Optional[str] = None,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -210,7 +231,7 @@ class SearchIterator:
         **kwargs,
     ) -> SearchIterator:
         if len(data) > 1:
-            raise ParamError(message="Not support multiple vector iterator at present")
+            raise ParamError(message="Not support search iteration over multiple vectors at present")
         if len(data) == 0:
             raise ParamError(message="vector_data for search cannot be empty")
         self._conn = connection
@@ -231,16 +252,24 @@ class SearchIterator:
         self._filtered_ids = []
         self._filtered_distance = None
         self._schema = schema
-        self.__check_remove_limit()
+        self._limit = limit
+        self._returned_count = 0
         self.__check_metrics()
         self.__check_radius()
         self.__seek()
         self.__setup__pk_prop()
 
-    # as we use batch_size as the page size, so we remove LIMIT here
-    def __check_remove_limit(self):
-        if self._kwargs.get(LIMIT, 0) != 0:
-            self._kwargs.pop(LIMIT)
+    def check_reached_limit(self, ret: List):
+        if self._limit == UNLIMITED:
+            return ret
+        else:
+            left_count = self._limit - self._returned_count
+            if left_count >= len(ret[0]):
+                return ret
+            else:
+                # has exceeded the limit, cut off the result and return
+                left_ret_arr = ret[0][0:left_count]
+                return ChunkedQueryResult(left_ret_arr)
 
     def __check_set_params(self, param: Dict):
         if param is None:
@@ -312,7 +341,9 @@ class SearchIterator:
             schema=self._schema,
             **self._kwargs,
         )
+        res = self.check_reached_limit(res)
         self.__update_cursor(res)
+        self._returned_count += len(res[0])
         return res
 
     # at present, the range_filter parameter means 'larger/less and equal',
@@ -345,6 +376,12 @@ class SearchIterator:
 
     def close(self):
         pass
+
+
+class SearchPage:
+    """Since we only support nq=1 in search iteration, so search iteration responce should be different
+    from raw responce of search operation"""
+    def __init__(self):
 
 
 class IteratorCache:
