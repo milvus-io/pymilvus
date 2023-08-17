@@ -534,6 +534,9 @@ def list_collections(timeout: Optional[float] = None, using: str = "default") ->
                     is set to None, client waits until server response or error occur.
     :type  timeout: float
 
+    :param using: An optional alias for the database host. Default value is "default".
+    :type using: str
+
     :return list[str]:
         List of collection names, return when operation is successful
 
