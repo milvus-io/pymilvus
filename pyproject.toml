@@ -87,8 +87,7 @@ ignore = [
     "ARG002",
     "E501", # black takes care of it
     "ARG005", # [ruff] ARG005 Unused lambda argument: `disable` [E]
-    "TRY400",
-    "PYI024"
+    "TRY400", # TRY400 Use `logging.exception` instead of `logging.error` TODO
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
