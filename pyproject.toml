@@ -36,8 +36,6 @@ dynamic = ["version"]
 "repository" = 'https://github.com/milvus-io/pymilvus'
 
 [tool.setuptools_scm]
-'local_scheme'= 'no-local-version'
-'version_scheme'= 'release-branch-semver'
 
 [tool.black]
 line-length = 100
