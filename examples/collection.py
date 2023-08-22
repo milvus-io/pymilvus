@@ -17,6 +17,8 @@ import numpy as np
 from sklearn import preprocessing
 import string
 
+from pymilvus.orm import db
+
 default_dim = 128
 default_nb = 3000
 default_float_vec_field_name = "float_vector"
@@ -30,10 +32,10 @@ all_index_types = [
     "IVF_PQ",
     "HNSW",
     # "NSG",
-    "ANNOY",
-    "RHNSW_FLAT",
-    "RHNSW_PQ",
-    "RHNSW_SQ",
+    # "ANNOY",
+    # "RHNSW_FLAT",
+    # "RHNSW_PQ",
+    # "RHNSW_SQ",
     "BIN_FLAT",
     "BIN_IVF_FLAT"
 ]
@@ -305,16 +307,34 @@ def test_rename_collection():
         FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=128),
     ])
 
-    old_collection = "old_collection"
-    new_collection = "new_collection"
+    old_collection = gen_unique_str()
+    new_collection = gen_unique_str()
     Collection(old_collection, schema=schema)
 
     print("\nlist collections:")
-    print(utility.list_collections())
+    print("rename collection name start, db:default, collections:", utility.list_collections())
     assert utility.has_collection(old_collection)
 
     utility.rename_collection(old_collection, new_collection)
     assert utility.has_collection(new_collection)
+    assert not utility.has_collection(old_collection)
+    print("rename collection name end, db:default, collections:", utility.list_collections())
+
+    # create db1
+    new_db = "new_db"
+    if new_db not in db.list_database():
+        print("\ncreate database: new_db")
+        db.create_database(db_name=new_db)
+    utility.rename_collection(new_collection, new_collection, new_db)
+    print("rename db name end, db:default, collections:", utility.list_collections())
+
+    db.using_database(db_name=new_db)
+    assert utility.has_collection(new_collection)
+    print("rename db name end, db:", new_db, "collections:", utility.list_collections())
+
+    db.using_database(db_name="default")
+    assert not utility.has_collection(new_collection)
+    print("db:default, collections:", utility.list_collections())
 
 
 if __name__ == "__main__":

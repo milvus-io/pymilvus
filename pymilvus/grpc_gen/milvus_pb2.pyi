@@ -1676,16 +1676,18 @@ class ResourceGroup(_message.Message):
     def __init__(self, name: _Optional[str] = ..., capacity: _Optional[int] = ..., num_available_node: _Optional[int] = ..., num_loaded_replica: _Optional[_Mapping[str, int]] = ..., num_outgoing_node: _Optional[_Mapping[str, int]] = ..., num_incoming_node: _Optional[_Mapping[str, int]] = ...) -> None: ...
 
 class RenameCollectionRequest(_message.Message):
-    __slots__ = ["base", "db_name", "oldName", "newName"]
+    __slots__ = ["base", "db_name", "oldName", "newName", "newDBName"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     OLDNAME_FIELD_NUMBER: _ClassVar[int]
     NEWNAME_FIELD_NUMBER: _ClassVar[int]
+    NEWDBNAME_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     oldName: str
     newName: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., oldName: _Optional[str] = ..., newName: _Optional[str] = ...) -> None: ...
+    newDBName: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., oldName: _Optional[str] = ..., newName: _Optional[str] = ..., newDBName: _Optional[str] = ...) -> None: ...
 
 class GetIndexStatisticsRequest(_message.Message):
     __slots__ = ["base", "db_name", "collection_name", "index_name", "timestamp"]
@@ -1764,9 +1766,11 @@ class ListDatabasesRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ...) -> None: ...
 
 class ListDatabasesResponse(_message.Message):
-    __slots__ = ["status", "db_names"]
+    __slots__ = ["status", "db_names", "created_timestamp"]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DB_NAMES_FIELD_NUMBER: _ClassVar[int]
+    CREATED_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     db_names: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_names: _Optional[_Iterable[str]] = ...) -> None: ...
+    created_timestamp: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_names: _Optional[_Iterable[str]] = ..., created_timestamp: _Optional[_Iterable[int]] = ...) -> None: ...
