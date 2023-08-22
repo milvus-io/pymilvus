@@ -2,12 +2,16 @@
 
 [![version](https://img.shields.io/pypi/v/pymilvus.svg?color=blue)](https://pypi.org/project/pymilvus/)
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/pymilvus?logo=python&logoColor=blue)](https://pypi.org/project/pymilvus/)
-[![Downloads](https://pepy.tech/badge/pymilvus)](https://pepy.tech/project/pymilvus)
-[![Downloads](https://pepy.tech/badge/pymilvus/month)](https://pepy.tech/project/pymilvus/month)
-[![Downloads](https://pepy.tech/badge/pymilvus/week)](https://pepy.tech/project/pymilvus/week)
+[![Downloads](https://static.pepy.tech/badge/pymilvus)](https://pepy.tech/project/pymilvus)
+[![Downloads](https://static.pepy.tech/badge/pymilvus/month)](https://pepy.tech/project/pymilvus)
+[![Downloads](https://static.pepy.tech/badge/pymilvus/week)](https://pepy.tech/project/pymilvus)
+
 [![license](https://img.shields.io/hexpm/l/plug.svg?color=green)](https://github.com/milvus-io/pymilvus/blob/master/LICENSE)
 [![Mergify Status][mergify-status]][mergify]
+![Static Badge](https://img.shields.io/badge/slack-%23py--milvus-blue?style=social&logo=slack&link=https%3A%2F%2Fmilvusio.slack.com%2Farchives%2FC024XTWMT4L)
 
+[mergify]: https://mergify.com
+[mergify-status]: https://img.shields.io/endpoint.svg?url=https://api.mergify.com/v1/badges/milvus-io/pymilvus&style=flat
 
 Python SDK for [Milvus](https://github.com/milvus-io/milvus). To contribute code to this project, please read our [contribution guidelines](https://github.com/milvus-io/milvus/blob/master/CONTRIBUTING.md) first. If you have some ideas or encounter a problem, you can find us in the Slack channel [#py-milvus](https://milvusio.slack.com/archives/C024XTWMT4L).
 
@@ -21,7 +25,8 @@ The following collection shows Milvus versions and recommended PyMilvus versions
 | 1.1.\* | 1.1.2 |
 | 2.0.\* | 2.0.2 |
 | 2.1.\* | 2.1.3 |
-| 2.2.\* | 2.2.13 |
+| 2.2.\* | 2.2.15 |
+| 2.3.\* | 2.3.0 |
 
 
 ## Installation
@@ -35,7 +40,7 @@ $ pip3 install pymilvus
 You can install a specific version of PyMilvus by:
 
 ```shell
-$ pip3 install pymilvus==2.2.13
+$ pip3 install pymilvus==2.3.0
 ```
 
 You can upgrade PyMilvus to the latest version by:
@@ -86,7 +91,7 @@ make format
 
 ## Documentation
 
-Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.2.x/About.md
+Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.3.x/About.md
 
 ## Developing package releases
 
@@ -109,7 +114,3 @@ $ python3 -m pip install --extra-index-url https://test.pypi.org/simple/ pymilvu
 
 ## License
 [Apache License 2.0](LICENSE)
-
-
-[mergify]: https://mergify.io
-[mergify-status]: https://img.shields.io/endpoint.svg?url=https://gh.mergify.io/badges/milvus-io/pymilvus&style=plastic

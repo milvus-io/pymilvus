@@ -94,6 +94,7 @@ class PlaceholderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     None: _ClassVar[PlaceholderType]
     BinaryVector: _ClassVar[PlaceholderType]
     FloatVector: _ClassVar[PlaceholderType]
+    Float16Vector: _ClassVar[PlaceholderType]
     Int64: _ClassVar[PlaceholderType]
     VarChar: _ClassVar[PlaceholderType]
 
@@ -367,6 +368,7 @@ Importing: SegmentState
 None: PlaceholderType
 BinaryVector: PlaceholderType
 FloatVector: PlaceholderType
+Float16Vector: PlaceholderType
 Int64: PlaceholderType
 VarChar: PlaceholderType
 Undefined: MsgType

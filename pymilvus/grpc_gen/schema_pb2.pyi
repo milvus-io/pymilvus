@@ -23,6 +23,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     JSON: _ClassVar[DataType]
     BinaryVector: _ClassVar[DataType]
     FloatVector: _ClassVar[DataType]
+    Float16Vector: _ClassVar[DataType]
 
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
@@ -44,6 +45,7 @@ Array: DataType
 JSON: DataType
 BinaryVector: DataType
 FloatVector: DataType
+Float16Vector: DataType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
@@ -190,14 +192,16 @@ class ScalarField(_message.Message):
     def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ...) -> None: ...
 
 class VectorField(_message.Message):
-    __slots__ = ["dim", "float_vector", "binary_vector"]
+    __slots__ = ["dim", "float_vector", "binary_vector", "float16_vector"]
     DIM_FIELD_NUMBER: _ClassVar[int]
     FLOAT_VECTOR_FIELD_NUMBER: _ClassVar[int]
     BINARY_VECTOR_FIELD_NUMBER: _ClassVar[int]
+    FLOAT16_VECTOR_FIELD_NUMBER: _ClassVar[int]
     dim: int
     float_vector: FloatArray
     binary_vector: bytes
-    def __init__(self, dim: _Optional[int] = ..., float_vector: _Optional[_Union[FloatArray, _Mapping]] = ..., binary_vector: _Optional[bytes] = ...) -> None: ...
+    float16_vector: bytes
+    def __init__(self, dim: _Optional[int] = ..., float_vector: _Optional[_Union[FloatArray, _Mapping]] = ..., binary_vector: _Optional[bytes] = ..., float16_vector: _Optional[bytes] = ...) -> None: ...
 
 class FieldData(_message.Message):
     __slots__ = ["type", "field_name", "scalars", "vectors", "field_id", "is_dynamic"]
