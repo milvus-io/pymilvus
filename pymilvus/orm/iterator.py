@@ -12,8 +12,11 @@ from .connections import Connections
 from .constants import (
     BATCH_SIZE,
     CALC_DIST_COSINE,
+    CALC_DIST_HAMMING,
     CALC_DIST_IP,
+    CALC_DIST_JACCARD,
     CALC_DIST_L2,
+    CALC_DIST_TANIMOTO,
     DEFAULT_SEARCH_EXTENSION_RATE,
     FIELDS,
     INT64_MAX,
@@ -192,29 +195,11 @@ class QueryIterator:
 
 
 def metrics_positive_related(metrics: str) -> bool:
-    if metrics is CALC_DIST_L2:
+    if metrics in [CALC_DIST_L2, CALC_DIST_JACCARD, CALC_DIST_HAMMING, CALC_DIST_TANIMOTO]:
         return True
     if metrics is CALC_DIST_IP or metrics is CALC_DIST_COSINE:
         return False
     raise MilvusException(message=f"unsupported metrics type for search iteration{metrics}")
-
-
-class SearchHit:
-    def __init__(self, id: Any, distance: Any):
-        self._id = id
-        self._distance = distance
-
-
-"""
-class SearchHits:
-
-    def __init__(self, ids: list, distances: list):
-        self._ids = ids
-        self._distances = distances
-
-    def __next__(self):
-        return Hit()
-"""
 
 
 class SearchPage(LoopBase):
@@ -256,6 +241,20 @@ class SearchPage(LoopBase):
         if others is not None:
             for other in others:
                 self._results.append(other)
+
+    def ids(self):
+        ids = []
+        for res in self._results:
+            for hit in res:
+                ids.append(hit.id)
+        return ids
+
+    def distances(self):
+        distances = []
+        for res in self._results:
+            for hit in res:
+                distances.append(hit.distance)
+        return distances
 
 
 class SearchIterator:
@@ -335,6 +334,8 @@ class SearchIterator:
             self._param = {}
         else:
             self._param = deepcopy(param)
+        if PARAMS not in self._param:
+            self._param[PARAMS] = {}
 
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
