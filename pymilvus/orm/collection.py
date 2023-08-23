@@ -489,7 +489,6 @@ class Collection:
         """
         if data is None:
             return MutationResult(data)
-
         row_based = check_is_row_based(data)
         conn = self._get_connection()
         if not row_based:

@@ -108,10 +108,6 @@ class PartitionKeyException(MilvusException):
     """Raise when partitionkey are invalid"""
 
 
-class DefaultValueException(MilvusException):
-    """Raise when DefaultValue are invalid"""
-
-
 class FieldsTypeException(MilvusException):
     """Raise when fields is invalid"""
 
@@ -165,7 +161,6 @@ class ExceptionsMessage:
     AutoIDFieldType = (
         "The auto_id can only be specified on field with DataType.INT64 and DataType.VARCHAR."
     )
-    DefaultValueTypeNotSupport = "default_value only support scalars except array and json for now."
     NumberRowsInvalid = "Must pass in at least one column"
     FieldsNumInconsistent = "The data fields number is not match with schema."
     NoVector = "No vector field is found."
