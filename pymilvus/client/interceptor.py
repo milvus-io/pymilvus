@@ -13,8 +13,7 @@
 # limitations under the License.
 """Base class for interceptors that operate on all RPC types."""
 
-import collections
-from typing import Any, Callable, List
+from typing import Any, Callable, List, NamedTuple
 
 import grpc
 
@@ -74,7 +73,7 @@ class _GenericClientInterceptor(
 
 
 class _ClientCallDetails(
-    collections.namedtuple("_ClientCallDetails", ("method", "timeout", "metadata", "credentials")),
+    NamedTuple("_ClientCallDetails", ("method", "timeout", "metadata", "credentials")),
     grpc.ClientCallDetails,
 ):
     pass
