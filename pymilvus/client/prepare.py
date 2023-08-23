@@ -115,7 +115,6 @@ class Prepare:
                 is_primary_key=f.is_primary,
                 autoID=f.auto_id,
                 is_partition_key=f.is_partition_key,
-                default_value=f.default_value,
                 is_dynamic=f.is_dynamic,
             )
             for k, v in f.params.items():
@@ -166,7 +165,6 @@ class Prepare:
         field_schema = schema_types.FieldSchema(
             name=field_name,
             data_type=data_type,
-            default_value=field.get("default_value", None),
             description=field.get("description", ""),
             is_primary_key=is_primary,
             autoID=auto_id,
@@ -449,8 +447,14 @@ class Prepare:
         fields_info: Any,
     ):
         for entity in entities:
-            if not entity.get("name") or not entity.get("type"):
-                raise ParamError(message="Missing param in entities, a field must have type, name")
+            if (
+                not entity.get("name", None)
+                or not entity.get("values", None)
+                or not entity.get("type", None)
+            ):
+                raise ParamError(
+                    message="Missing param in entities, a field must have type, name and values"
+                )
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
@@ -476,16 +480,19 @@ class Prepare:
         fields_info: Any,
         location: Dict,
     ):
-        row_num = 0
+        pre_field_size = 0
         try:
             for entity in entities:
-                current = len(entity.get("values"))
-                # if current length is zero, consider use default value
-                if current != 0:
-                    if row_num not in (0, current):
-                        msg = f"row num misaligned current[{current}]!= previous[{row_num}]"
-                        raise ParamError(msg)
-                    row_num = current
+                latest_field_size = len(entity.get("values"))
+                if pre_field_size not in (0, latest_field_size):
+                    raise ParamError(
+                        message=(
+                            f"Field data size misaligned for field [{entity.get('name')}] ",
+                            f"got size=[{latest_field_size}] ",
+                            f"alignment size=[{pre_field_size}]",
+                        )
+                    )
+                pre_field_size = latest_field_size
                 field_data = entity_helper.entity_to_field_data(
                     entity, fields_info[location[entity.get("name")]]
                 )
@@ -493,9 +500,9 @@ class Prepare:
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
 
-        if row_num == 0:
+        if pre_field_size == 0:
             raise ParamError(message=ExceptionsMessage.NumberRowsInvalid)
-        request.num_rows = row_num
+        request.num_rows = pre_field_size
         return request
 
     @classmethod

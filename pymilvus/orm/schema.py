@@ -14,7 +14,7 @@ import copy
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
-from pandas.api.types import is_list_like, is_scalar
+from pandas.api.types import is_list_like
 
 from pymilvus.exceptions import (
     AutoIDException,
@@ -24,18 +24,15 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     FieldsTypeException,
     FieldTypeException,
-    ParamError,
     PartitionKeyException,
     PrimaryKeyException,
     SchemaNotReadyException,
     UpsertAutoIDTrueException,
 )
-from pymilvus.grpc_gen import schema_pb2 as schema_types
 
 from .constants import COMMON_TYPE_PARAMS
 from .types import (
     DataType,
-    infer_dtype_by_scaladata,
     infer_dtype_bydata,
     map_numpy_dtype_to_datatype,
 )
@@ -274,12 +271,6 @@ class FieldSchema:
         if not isinstance(kwargs.get("is_partition_key", False), bool):
             raise PartitionKeyException(message=ExceptionsMessage.IsPartitionKeyType)
         self.is_partition_key = kwargs.get("is_partition_key", False)
-        self.default_value = kwargs.get("default_value", None)
-        if isinstance(self.default_value, schema_types.ValueField):
-            if self.default_value.WhichOneof("data") is None:
-                self.default_value = None
-        else:
-            self.default_value = infer_default_value_bydata(kwargs.get("default_value", None))
         self._parse_type_params()
 
     def __repr__(self) -> str:
@@ -312,7 +303,6 @@ class FieldSchema:
         if raw.get("auto_id", None) is not None:
             kwargs["auto_id"] = raw.get("auto_id", None)
         kwargs["is_partition_key"] = raw.get("is_partition_key", False)
-        kwargs["default_value"] = raw.get("default_value", None)
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
         return FieldSchema(raw["name"], raw["type"], raw.get("description", ""), **kwargs)
 
@@ -329,10 +319,6 @@ class FieldSchema:
             _dict["auto_id"] = self.auto_id
         if self.is_partition_key:
             _dict["is_partition_key"] = True
-        if self.default_value is not None:
-            if self.default_value.WhichOneof("data") is None:
-                self.default_value = None
-            _dict["default_value"] = self.default_value
         if self.is_dynamic:
             _dict["is_dynamic"] = self.is_dynamic
         return _dict
@@ -449,16 +435,12 @@ def parse_fields_from_data(schema: CollectionSchema, data: Union[List[List], pd.
     for i, field in enumerate(tmp_fields):
         try:
             d = data[i]
-            # if pass in None, considering to be passed in order according to the schema
-            if d is None:
-                infer_fields.append(FieldSchema("", field.dtype))
-                continue
             if not is_list_like(d):
                 raise DataTypeNotSupportException(message="data should be a list of list")
             try:
                 elem = d[0]
                 infer_fields.append(FieldSchema("", infer_dtype_bydata(elem)))
-            # if pass in [], considering to be passed in order according to the schema
+            # if pass in [] or None, considering to be passed in order according to the schema
             except IndexError:
                 infer_fields.append(FieldSchema("", field.dtype))
         # the last missing part of data is also completed in order according to the schema
@@ -581,27 +563,3 @@ def check_schema(schema: CollectionSchema):
             vector_fields.append(field.name)
     if len(vector_fields) < 1:
         raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
-
-
-def infer_default_value_bydata(data: Any):
-    if data is None:
-        return None
-    default_data = schema_types.ValueField()
-    d_type = DataType.UNKNOWN
-    if is_scalar(data):
-        d_type = infer_dtype_by_scaladata(data)
-    if d_type is DataType.BOOL:
-        default_data.bool_data = data
-    elif d_type in (DataType.INT8, DataType.INT16, DataType.INT32):
-        default_data.int_data = data
-    elif d_type is DataType.INT64:
-        default_data.long_data = data
-    elif d_type is DataType.FLOAT:
-        default_data.float_data = data
-    elif d_type is DataType.DOUBLE:
-        default_data.double_data = data
-    elif d_type is DataType.VARCHAR:
-        default_data.string_data = data
-    else:
-        raise ParamError(message=f"Default value unsupported data type: {d_type}")
-    return default_data

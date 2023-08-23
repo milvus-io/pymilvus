@@ -60,6 +60,7 @@ class LoopCache:
 class FieldSchema:
     def __init__(self, raw: Any):
         self._raw = raw
+
         #
         self.field_id = 0
         self.name = None
@@ -70,8 +71,8 @@ class FieldSchema:
         self.indexes = []
         self.params = {}
         self.is_partition_key = False
-        self.default_value = None
         self.is_dynamic = False
+
         ##
         self.__pack(self._raw)
 
@@ -83,9 +84,6 @@ class FieldSchema:
         self.auto_id = raw.autoID
         self.type = raw.data_type
         self.is_partition_key = raw.is_partition_key
-        self.default_value = raw.default_value
-        if raw.default_value is not None and raw.default_value.WhichOneof("data") is None:
-            self.default_value = None
         try:
             self.is_dynamic = raw.is_dynamic
         except Exception:
@@ -118,15 +116,12 @@ class FieldSchema:
         self.indexes.extend([index_dict])
 
     def dict(self):
-        if self.default_value is not None and self.default_value.WhichOneof("data") is None:
-            self.default_value = None
         _dict = {
             "field_id": self.field_id,
             "name": self.name,
             "description": self.description,
             "type": self.type,
             "params": self.params or {},
-            "default_value": self.default_value,
         }
 
         if self.is_partition_key:
