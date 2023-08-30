@@ -10,6 +10,22 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+from .bulk_writer.bulk_import import (
+    bulk_insert,
+    get_job_progress,
+    list_jobs,
+)
+
+# bulk writer
+from .bulk_writer.constants import (
+    BulkFileType,
+)
+from .bulk_writer.local_bulk_writer import (
+    LocalBulkWriter,
+)
+from .bulk_writer.remote_bulk_writer import (
+    RemoteBulkWriter,
+)
 from .client import __version__
 from .client.prepare import Prepare
 from .client.stub import Milvus
@@ -124,4 +140,10 @@ __all__ = [
     "ResourceGroupInfo",
     "Connections",
     "IndexType",
+    "BulkFileType",
+    "LocalBulkWriter",
+    "RemoteBulkWriter",
+    "bulk_insert",
+    "get_job_progress",
+    "list_jobs",
 ]
