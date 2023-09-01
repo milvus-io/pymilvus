@@ -530,7 +530,7 @@ def rename_collection(
     )
 
 
-def list_collections(timeout: Optional[float] = None, using: str = "default") -> list:
+def list_collections(timeout: Optional[float] = None, using: str = "default") -> List[str]:
     """
     Returns a list of all collection names.
 

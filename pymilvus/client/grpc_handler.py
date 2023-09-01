@@ -346,7 +346,7 @@ class GrpcHandler:
         raise DescribeCollectionException(status.error_code, status.reason)
 
     @retry_on_rpc_failure()
-    def list_collections(self, timeout: Optional[float] = None):
+    def list_collections(self, timeout: Optional[float] = None) -> List[str]:
         request = Prepare.show_collections_request()
         rf = self._stub.ShowCollections.future(request, timeout=timeout)
         response = rf.result()
