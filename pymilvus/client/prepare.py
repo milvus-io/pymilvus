@@ -556,7 +556,7 @@ class Prepare:
     def _prepare_placeholders(cls, vectors: Any, nq: int, tag: Any, pl_type: Any, is_binary: bool):
         pl = common_types.PlaceholderValue(tag=tag)
         pl.type = pl_type
-        for i in range(0, nq):
+        for i in range(nq):
             if is_binary:
                 pl.values.append(blob.vector_binary_to_bytes(vectors[i]))
             else:

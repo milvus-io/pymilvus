@@ -88,7 +88,10 @@ ignore = [
     "E501", # black takes care of it
     "ARG005", # [ruff] ARG005 Unused lambda argument: `disable` [E]
     "TRY400",
-    "PYI024"
+    "PLR0912", # TODO
+    "C901", # TODO
+    "PYI041", # TODO
+    "PYI024", # TODO
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.

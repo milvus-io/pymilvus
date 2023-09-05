@@ -1363,7 +1363,7 @@ class GrpcHandler:
         _, dynamic_fields = entity_helper.extract_dynamic_field_from_result(response)
 
         results = []
-        for index in range(0, num_entities):
+        for index in range(num_entities):
             entity_row_data = entity_helper.extract_row_data_from_fields_data(
                 response.fields_data, index, dynamic_fields
             )
