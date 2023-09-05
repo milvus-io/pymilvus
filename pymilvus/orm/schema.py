@@ -141,7 +141,7 @@ class CollectionSchema:
     def __len__(self) -> int:
         return len(self.fields)
 
-    def __eq__(self, other: Any):
+    def __eq__(self, other: object):
         """The order of the fields of schema must be consistent."""
         return self.to_dict() == other.to_dict()
 
@@ -330,7 +330,7 @@ class FieldSchema:
             return self._type_params[item]
         return None
 
-    def __eq__(self, other: Any):
+    def __eq__(self, other: object):
         if not isinstance(other, FieldSchema):
             return False
         return self.to_dict() == other.to_dict()

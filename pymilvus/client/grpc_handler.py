@@ -117,7 +117,7 @@ class GrpcHandler:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any):
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object):
         pass
 
     def _wait_for_channel_ready(self, timeout: Union[int, float] = 10):
@@ -1246,7 +1246,7 @@ class GrpcHandler:
         _, dynamic_fields = entity_helper.extract_dynamic_field_from_result(response)
 
         results = []
-        for index in range(0, num_entities):
+        for index in range(num_entities):
             entity_row_data = entity_helper.extract_row_data_from_fields_data(
                 response.fields_data, index, dynamic_fields
             )
