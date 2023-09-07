@@ -40,22 +40,41 @@ class LocalBulkWriter(BulkWriter):
     ):
         super().__init__(schema, segment_size, file_type)
         self._local_path = local_path
-        self._make_dir()
+        self._uuid = str(uuid.uuid4())
         self._flush_count = 0
         self._working_thread = {}
+        self._local_files = []
+
+    @property
+    def uuid(self):
+        return self._uuid
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object):
+        self._exit()
 
     def __del__(self):
+        self._exit()
+
+    def _exit(self):
+        if Path(self._local_path).exists() and not any(Path(self._local_path).iterdir()):
+            Path(self._local_path).rmdir()
+            logger.info(f"Delete empty directory '{self._local_path}'")
+
         if len(self._working_thread) > 0:
             for k, th in self._working_thread.items():
-                logger.info(f"Wait thread '{k}' to finish")
+                logger.info(f"Wait flush thread '{k}' to finish")
                 th.join()
 
     def _make_dir(self):
         Path(self._local_path).mkdir(exist_ok=True)
-        uidir = Path(self._local_path).joinpath(str(uuid.uuid4()))
-        Path(uidir).mkdir(exist_ok=True)
+        logger.info(f"Data path created: {self._local_path}")
+        uidir = Path(self._local_path).joinpath(self._uuid)
         self._local_path = uidir
-        logger.info(f"Local buffer writer initialized, target path: {uidir}")
+        Path(uidir).mkdir(exist_ok=True)
+        logger.info(f"Data path created: {uidir}")
 
     def append_row(self, row: dict, **kwargs):
         super().append_row(row, **kwargs)
@@ -76,16 +95,19 @@ class LocalBulkWriter(BulkWriter):
         x = Thread(target=self._flush, args=(call_back,))
         x.start()
         if not _async:
+            logger.info("Wait flush to finish")
             x.join()
         super().commit()  # reset the buffer size
 
     def _flush(self, call_back: Optional[Callable] = None):
+        self._make_dir()
         self._working_thread[threading.current_thread().name] = threading.current_thread()
         self._flush_count = self._flush_count + 1
         target_path = Path.joinpath(self._local_path, str(self._flush_count))
 
         old_buffer = super()._new_buffer()
         file_list = old_buffer.persist(str(target_path))
+        self._local_files.append(file_list)
         if call_back:
             call_back(file_list)
         del self._working_thread[threading.current_thread().name]
@@ -93,3 +115,7 @@ class LocalBulkWriter(BulkWriter):
     @property
     def data_path(self):
         return self._local_path
+
+    @property
+    def batch_files(self):
+        return self._local_files
