@@ -11,6 +11,7 @@
 # the License.
 
 import logging
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
@@ -57,17 +58,23 @@ class RemoteBulkWriter(LocalBulkWriter):
         self,
         schema: CollectionSchema,
         remote_path: str,
-        local_path: str,
         connect_param: ConnectParam,
         segment_size: int = 512 * MB,
     ):
-        super().__init__(schema, local_path, segment_size)
-        uid = Path(super().data_path).name
-        self._remote_path = Path("/").joinpath(remote_path).joinpath(uid)
+        local_path = Path(sys.argv[0]).resolve().parent.joinpath("bulk_writer")
+        super().__init__(schema, str(local_path), segment_size)
+        self._remote_path = Path("/").joinpath(remote_path).joinpath(super().uuid)
         self._connect_param = connect_param
         self._client = None
         self._get_client()
+        self._remote_files = []
         logger.info(f"Remote buffer writer initialized, target path: {self._remote_path}")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object):
+        super().__exit__(exc_type, exc_val, exc_tb)
 
     def _get_client(self):
         try:
@@ -110,7 +117,11 @@ class RemoteBulkWriter(LocalBulkWriter):
 
     def _local_rm(self, file: str):
         try:
-            Path.unlink(file)
+            Path(file).unlink()
+            parent_dir = Path(file).parent
+            if not any(Path(parent_dir).iterdir()):
+                Path(parent_dir).rmdir()
+                logger.info(f"Delete empty directory '{parent_dir!s}'")
         except Exception:
             logger.warning(f"Failed to delete local file: {file}")
 
@@ -133,23 +144,31 @@ class RemoteBulkWriter(LocalBulkWriter):
                     Path.joinpath(self._remote_path, relative_file_path.lstrip("/"))
                 )
 
-                if not self._remote_exists(minio_file_path):
-                    minio_client.fput_object(
-                        bucket_name=self._connect_param._bucket_name,
-                        object_name=minio_file_path,
-                        file_path=file_path,
+                if self._remote_exists(minio_file_path):
+                    logger.info(
+                        f"Remote file '{minio_file_path}' already exists, will overwrite it"
                     )
-                    logger.info(f"Upload file '{file_path}' to '{minio_file_path}'")
-                else:
-                    logger.info(f"Remote file '{minio_file_path}' already exists")
-                remote_files.append(minio_file_path)
+
+                minio_client.fput_object(
+                    bucket_name=self._connect_param._bucket_name,
+                    object_name=minio_file_path,
+                    file_path=file_path,
+                )
+                logger.info(f"Upload file '{file_path}' to '{minio_file_path}'")
+
+                remote_files.append(str(minio_file_path))
                 self._local_rm(file_path)
         except Exception as e:
             self._throw(f"Failed to call MinIO/S3 api, error: {e}")
 
         logger.info(f"Successfully upload files: {file_list}")
+        self._remote_files.append(remote_files)
         return remote_files
 
     @property
     def data_path(self):
         return self._remote_path
+
+    @property
+    def batch_files(self):
+        return self._remote_files

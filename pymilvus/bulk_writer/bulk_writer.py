@@ -94,18 +94,26 @@ class BulkWriter:
 
         row_size = 0
         for field in self._schema.fields:
+            if field.is_primary and field.auto_id:
+                if field.name in row:
+                    self._throw(
+                        f"The primary key field '{field.name}' is auto-id, no need to provide"
+                    )
+                else:
+                    continue
+
             if field.name not in row:
                 self._throw(f"The field '{field.name}' is missed in the row")
-
-            if field.is_parimary and field.auto_id:
-                self._throw(f"The primary key field '{field.name}' is auto-id, no need to provide")
 
             dtype = DataType(field.dtype)
             validator = TYPE_VALIDATOR[dtype.name]
             if dtype in {DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR}:
                 dim = field.params["dim"]
                 if not validator(row[field.name], dim):
-                    self._throw(f"Illegal vector data for vector field '{dtype.name}'")
+                    self._throw(
+                        f"Illegal vector data for vector field: '{dtype.name}',"
+                        f" dim is not {dim} or type mismatch"
+                    )
 
                 vec_size = (
                     len(row[field.name]) * 4
@@ -116,12 +124,22 @@ class BulkWriter:
             elif dtype == DataType.VARCHAR:
                 max_len = field.params["max_length"]
                 if not validator(row[field.name], max_len):
-                    self._throw(f"Illegal varchar value for field '{dtype.name}'")
+                    self._throw(
+                        f"Illegal varchar value for field '{dtype.name}',"
+                        f" length exceeds {max_len} or type mismatch"
+                    )
+
+                row_size = row_size + len(row[field.name])
+            elif dtype == DataType.JSON:
+                if not validator(row[field.name]):
+                    self._throw(f"Illegal varchar value for field '{dtype.name}', type mismatch")
 
                 row_size = row_size + len(row[field.name])
             else:
                 if not validator(row[field.name]):
-                    self._throw(f"Illegal scalar value for field '{dtype.name}'")
+                    self._throw(
+                        f"Illegal scalar value for field '{dtype.name}', value overflow or type mismatch"
+                    )
 
                 row_size = row_size + TYPE_SIZE[dtype.name]
 
