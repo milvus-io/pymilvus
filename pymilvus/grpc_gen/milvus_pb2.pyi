@@ -767,7 +767,7 @@ class FlushRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_names: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FlushResponse(_message.Message):
-    __slots__ = ["status", "db_name", "coll_segIDs", "flush_coll_segIDs", "coll_seal_times"]
+    __slots__ = ["status", "db_name", "coll_segIDs", "flush_coll_segIDs", "coll_seal_times", "coll_flush_ts"]
     class CollSegIDsEntry(_message.Message):
         __slots__ = ["key", "value"]
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -789,17 +789,26 @@ class FlushResponse(_message.Message):
         key: str
         value: int
         def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    class CollFlushTsEntry(_message.Message):
+        __slots__ = ["key", "value"]
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLL_SEGIDS_FIELD_NUMBER: _ClassVar[int]
     FLUSH_COLL_SEGIDS_FIELD_NUMBER: _ClassVar[int]
     COLL_SEAL_TIMES_FIELD_NUMBER: _ClassVar[int]
+    COLL_FLUSH_TS_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     db_name: str
     coll_segIDs: _containers.MessageMap[str, _schema_pb2.LongArray]
     flush_coll_segIDs: _containers.MessageMap[str, _schema_pb2.LongArray]
     coll_seal_times: _containers.ScalarMap[str, int]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_name: _Optional[str] = ..., coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., flush_coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., coll_seal_times: _Optional[_Mapping[str, int]] = ...) -> None: ...
+    coll_flush_ts: _containers.ScalarMap[str, int]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_name: _Optional[str] = ..., coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., flush_coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., coll_seal_times: _Optional[_Mapping[str, int]] = ..., coll_flush_ts: _Optional[_Mapping[str, int]] = ...) -> None: ...
 
 class QueryRequest(_message.Message):
     __slots__ = ["base", "db_name", "collection_name", "expr", "output_fields", "partition_names", "travel_timestamp", "guarantee_timestamp", "query_params", "not_return_all_meta", "consistency_level", "use_default_consistency"]
@@ -884,8 +893,12 @@ class CalcDistanceResults(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., int_dist: _Optional[_Union[_schema_pb2.IntArray, _Mapping]] = ..., float_dist: _Optional[_Union[_schema_pb2.FloatArray, _Mapping]] = ...) -> None: ...
 
 class FlushAllRequest(_message.Message):
-    __slots__ = []
-    def __init__(self) -> None: ...
+    __slots__ = ["base", "db_name"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class FlushAllResponse(_message.Message):
     __slots__ = ["status", "flush_all_ts"]
@@ -1118,10 +1131,16 @@ class CompactionMergeInfo(_message.Message):
     def __init__(self, sources: _Optional[_Iterable[int]] = ..., target: _Optional[int] = ...) -> None: ...
 
 class GetFlushStateRequest(_message.Message):
-    __slots__ = ["segmentIDs"]
+    __slots__ = ["segmentIDs", "flush_ts", "db_name", "collection_name"]
     SEGMENTIDS_FIELD_NUMBER: _ClassVar[int]
+    FLUSH_TS_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     segmentIDs: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, segmentIDs: _Optional[_Iterable[int]] = ...) -> None: ...
+    flush_ts: int
+    db_name: str
+    collection_name: str
+    def __init__(self, segmentIDs: _Optional[_Iterable[int]] = ..., flush_ts: _Optional[int] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
 
 class GetFlushStateResponse(_message.Message):
     __slots__ = ["status", "flushed"]
@@ -1132,12 +1151,14 @@ class GetFlushStateResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., flushed: bool = ...) -> None: ...
 
 class GetFlushAllStateRequest(_message.Message):
-    __slots__ = ["base", "flush_all_ts"]
+    __slots__ = ["base", "flush_all_ts", "db_name"]
     BASE_FIELD_NUMBER: _ClassVar[int]
     FLUSH_ALL_TS_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     flush_all_ts: int
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., flush_all_ts: _Optional[int] = ...) -> None: ...
+    db_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., flush_all_ts: _Optional[int] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class GetFlushAllStateResponse(_message.Message):
     __slots__ = ["status", "flushed"]
