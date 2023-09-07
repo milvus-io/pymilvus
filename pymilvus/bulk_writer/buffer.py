@@ -37,6 +37,8 @@ class Buffer:
         self._buffer = {}
         self._file_type = file_type
         for field in schema.fields:
+            if field.is_primary and field.auto_id:
+                continue
             self._buffer[field.name] = []
 
         if len(self._buffer) == 0:

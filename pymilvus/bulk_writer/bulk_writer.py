@@ -94,11 +94,16 @@ class BulkWriter:
 
         row_size = 0
         for field in self._schema.fields:
+            if field.is_primary and field.auto_id:
+                if field.name in row:
+                    self._throw(
+                        f"The primary key field '{field.name}' is auto-id, no need to provide"
+                    )
+                else:
+                    continue
+
             if field.name not in row:
                 self._throw(f"The field '{field.name}' is missed in the row")
-
-            if field.is_parimary and field.auto_id:
-                self._throw(f"The primary key field '{field.name}' is auto-id, no need to provide")
 
             dtype = DataType(field.dtype)
             validator = TYPE_VALIDATOR[dtype.name]

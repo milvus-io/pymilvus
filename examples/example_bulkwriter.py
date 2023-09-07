@@ -10,10 +10,12 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+import csv
 import os
 import json
 import random
 import threading
+import pandas as pd
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -42,7 +44,7 @@ HOST = '127.0.0.1'
 PORT = '19530'
 
 COLLECTION_NAME = "test_abc"
-DIM = 256
+DIM = 512
 
 def create_connection():
     print(f"\nCreate connection...")
@@ -54,13 +56,28 @@ def build_collection():
     if utility.has_collection(COLLECTION_NAME):
         utility.drop_collection(COLLECTION_NAME)
 
-    field1 = FieldSchema(name="id", dtype=DataType.INT64, auto_id=True, is_primary=True)
-    field2 = FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=DIM)
-    field3 = FieldSchema(name="desc", dtype=DataType.VARCHAR, max_length=100)
-    schema = CollectionSchema(fields=[field1, field2, field3])
+    field1 = FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True)
+    field2 = FieldSchema(name="path", dtype=DataType.VARCHAR, max_length=512)
+    field3 = FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=DIM)
+    field4 = FieldSchema(name="label", dtype=DataType.VARCHAR, max_length=512)
+    schema = CollectionSchema(fields=[field1, field2, field3, field4])
     collection = Collection(name=COLLECTION_NAME, schema=schema)
     print("Collection created")
     return collection.schema
+
+def read_sample_data(file_path: str, writer: [LocalBulkWriter, RemoteBulkWriter]):
+    csv_data = pd.read_csv(file_path)
+    print(f"The csv file has {csv_data.shape[0]} rows")
+    for i in range(csv_data.shape[0]):
+        row = {}
+        for col in csv_data.columns.values:
+            if col == "vector":
+                vec = json.loads(csv_data[col][i])
+                row[col] = vec
+            else:
+                row[col] = csv_data[col][i]
+
+        writer.append_row(row)
 
 def test_local_writer_json(schema: CollectionSchema):
     local_writer = LocalBulkWriter(schema=schema,
@@ -68,8 +85,8 @@ def test_local_writer_json(schema: CollectionSchema):
                                    segment_size=4*1024*1024,
                                    file_type=BulkFileType.JSON_RB,
                                    )
-    for i in range(10):
-        local_writer.append_row({"id": i, "vector": [random.random() for _ in range(DIM)], "desc": f"description_{i}"})
+
+    read_sample_data("/tmp/train_embeddings.csv", local_writer)
 
     local_writer.commit()
     print("test local writer done!")
@@ -77,9 +94,11 @@ def test_local_writer_json(schema: CollectionSchema):
     return local_writer.data_path
 
 def test_local_writer_npy(schema: CollectionSchema):
-    local_writer = LocalBulkWriter(schema=schema, local_path="/tmp/bulk_data", segment_size=4*1024*1024)
-    for i in range(10000):
-        local_writer.append_row({"id": i, "vector": [random.random() for _ in range(DIM)], "desc": f"description_{i}"})
+    local_writer = LocalBulkWriter(schema=schema,
+                                   local_path="/tmp/bulk_data",
+                                   segment_size=4*1024*1024
+                                   )
+    read_sample_data("/tmp/train_embeddings.csv", local_writer)
 
     local_writer.commit()
     print("test local writer done!")
@@ -89,7 +108,7 @@ def test_local_writer_npy(schema: CollectionSchema):
 
 def _append_row(writer: LocalBulkWriter, begin: int, end: int):
     for i in range(begin, end):
-        writer.append_row({"id": i, "vector": [random.random() for _ in range(DIM)], "desc": f"description_{i}"})
+        writer.append_row({"path": f"path_{i}", "vector": [random.random() for _ in range(DIM)], "label": f"label_{i}"})
 
 def test_parallel_append(schema: CollectionSchema):
     local_writer = LocalBulkWriter(schema=schema,
@@ -120,7 +139,7 @@ def test_parallel_append(schema: CollectionSchema):
     assert len(rows) == thread_count*rows_per_thread
     for i in range(len(rows)):
         row = rows[i]
-        assert row['desc'] == f"description_{row['id']}"
+        assert row['label'] == f"label_{row['id']}"
 
 
 def test_remote_writer(schema: CollectionSchema):
@@ -136,10 +155,7 @@ def test_remote_writer(schema: CollectionSchema):
                                      segment_size=50 * 1024 * 1024,
                                      )
 
-    for i in range(10000):
-        if i % 1000 == 0:
-            logger.info(f"{i} rows has been append to remote writer")
-        remote_writer.append_row({"id": i, "vector": [random.random() for _ in range(DIM)], "desc": f"description_{i}"})
+    read_sample_data("/tmp/train_embeddings.csv", remote_writer)
 
     remote_writer.commit()
     print("test remote writer done!")
