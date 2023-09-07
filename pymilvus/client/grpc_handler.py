@@ -1217,9 +1217,14 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def get_flush_state(
-        self, collection_name: str, flush_ts: int, timeout: Optional[float] = None, **kwargs
+        self,
+        segment_ids: List[int],
+        collection_name: str,
+        flush_ts: int,
+        timeout: Optional[float] = None,
+        **kwargs,
     ):
-        req = Prepare.get_flush_state_request(collection_name, flush_ts)
+        req = Prepare.get_flush_state_request(segment_ids, collection_name, flush_ts)
         future = self._stub.GetFlushState.future(req, timeout=timeout)
         response = future.result()
         status = response.status
@@ -1241,12 +1246,19 @@ class GrpcHandler:
         raise MilvusException(status.error_code, status.reason)
 
     def _wait_for_flushed(
-        self, collection_name: str, flush_ts: int, timeout: Optional[float] = None, **kwargs
+        self,
+        segment_ids: List[int],
+        collection_name: str,
+        flush_ts: int,
+        timeout: Optional[float] = None,
+        **kwargs,
     ):
         flush_ret = False
         start = time.time()
         while not flush_ret:
-            flush_ret = self.get_flush_state(collection_name, flush_ts, timeout, **kwargs)
+            flush_ret = self.get_flush_state(
+                segment_ids, collection_name, flush_ts, timeout, **kwargs
+            )
             end = time.time()
             if timeout is not None and end - start > timeout:
                 raise MilvusException(
@@ -1272,8 +1284,9 @@ class GrpcHandler:
 
         def _check():
             for collection_name in collection_names:
+                segment_ids = future.result().coll_segIDs[collection_name].data
                 flush_ts = future.result().coll_flush_ts[collection_name]
-                self._wait_for_flushed(collection_name, flush_ts, timeout=timeout)
+                self._wait_for_flushed(segment_ids, collection_name, flush_ts, timeout=timeout)
 
         if kwargs.get("_async", False):
             flush_future = FlushFuture(future)
