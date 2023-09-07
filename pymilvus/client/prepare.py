@@ -764,8 +764,10 @@ class Prepare:
         return milvus_types.GetPersistentSegmentInfoRequest(collectionName=collection_name)
 
     @classmethod
-    def get_flush_state_request(cls, collection_name: str, flush_ts: int):
-        return milvus_types.GetFlushStateRequest(collection_name=collection_name, flush_ts=flush_ts)
+    def get_flush_state_request(cls, segment_ids: List[int], collection_name: str, flush_ts: int):
+        return milvus_types.GetFlushStateRequest(
+            segmentIDs=segment_ids, collection_name=collection_name, flush_ts=flush_ts
+        )
 
     @classmethod
     def get_query_segment_info_request(cls, collection_name: str):
