@@ -271,6 +271,7 @@ class FieldSchema:
         if not isinstance(kwargs.get("is_partition_key", False), bool):
             raise PartitionKeyException(message=ExceptionsMessage.IsPartitionKeyType)
         self.is_partition_key = kwargs.get("is_partition_key", False)
+        self.element_type = kwargs.get("element_type", None)
         self._parse_type_params()
 
     def __repr__(self) -> str:
@@ -283,7 +284,12 @@ class FieldSchema:
 
     def _parse_type_params(self):
         # update self._type_params according to self._kwargs
-        if self._dtype not in (DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR, DataType.VARCHAR):
+        if self._dtype not in (
+            DataType.BINARY_VECTOR,
+            DataType.FLOAT_VECTOR,
+            DataType.VARCHAR,
+            DataType.ARRAY,
+        ):
             return
         if not self._kwargs:
             return
@@ -304,6 +310,7 @@ class FieldSchema:
             kwargs["auto_id"] = raw.get("auto_id", None)
         kwargs["is_partition_key"] = raw.get("is_partition_key", False)
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
+        kwargs["element_type"] = raw.get("element_type", None)
         return FieldSchema(raw["name"], raw["type"], raw.get("description", ""), **kwargs)
 
     def to_dict(self):
@@ -321,6 +328,8 @@ class FieldSchema:
             _dict["is_partition_key"] = True
         if self.is_dynamic:
             _dict["is_dynamic"] = self.is_dynamic
+        if self.dtype == DataType.ARRAY and self.element_type:
+            _dict["element_type"] = self.element_type
         return _dict
 
     def __getattr__(self, item: str):
