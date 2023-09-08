@@ -238,7 +238,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         alias: str = Config.MILVUS_CONN_ALIAS,
         user: str = "",
         password: str = "",
-        db_name: str = "",
+        db_name: str = "default",
         token: str = "",
         **kwargs,
     ) -> None:
@@ -345,7 +345,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 password = parsed_uri.password or password
 
                 group = parsed_uri.path.split("/")
-                db_name = group[1] if len(group) > 1 else "default"
+                db_name = group[1] if len(group) > 1 else db_name
 
                 # Set secure=True if https scheme
                 if parsed_uri.scheme == "https":
