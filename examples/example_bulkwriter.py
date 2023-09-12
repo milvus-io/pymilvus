@@ -295,7 +295,9 @@ def test_retrieve_imported_data(bin_vec: bool):
 
 def test_cloud_bulkinsert():
     url = "https://_your_cloud_server_url_"
+    api_key = "_api_key_for_the_url_"
     cluster_id = "_your_cloud_instance_id_"
+    collection_name = "_collection_name_on_the_cloud_"
 
     print(f"\n===================== import files to cloud vectordb ====================")
     object_url = "_your_object_storage_service_url_"
@@ -303,31 +305,34 @@ def test_cloud_bulkinsert():
     object_url_secret_key = "_your_object_storage_service_secret_key_"
     resp = bulk_import(
         url=url,
+        api_key=api_key,
         object_url=object_url,
         access_key=object_url_access_key,
         secret_key=object_url_secret_key,
         cluster_id=cluster_id,
-        collection_name=CSV_COLLECTION_NAME,
+        collection_name=collection_name,
     )
-    print(resp)
+    print(resp.json())
 
     print(f"\n===================== get import job progress ====================")
-    job_id = resp['data']['jobId']
+    job_id = resp.json()['data']['jobId']
     resp = get_import_progress(
         url=url,
+        api_key=api_key,
         job_id=job_id,
         cluster_id=cluster_id,
     )
-    print(resp)
+    print(resp.json())
 
     print(f"\n===================== list import jobs ====================")
     resp = list_import_jobs(
         url=url,
+        api_key=api_key,
         cluster_id=cluster_id,
         page_size=10,
         current_page=1,
     )
-    print(resp)
+    print(resp.json())
 
 
 if __name__ == '__main__':
@@ -351,5 +356,6 @@ if __name__ == '__main__':
     test_call_bulkinsert(schema, batch_files)
     test_retrieve_imported_data(bin_vec=True)
 
+    # to test cloud bulkinsert api, you need to apply a cloud service from Zilliz Cloud(https://zilliz.com/cloud)
     # test_cloud_bulkinsert()
 
