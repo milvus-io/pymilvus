@@ -12,6 +12,8 @@
 
 from enum import IntEnum
 
+import numpy as np
+
 from pymilvus.client.types import (
     DataType,
 )
@@ -41,9 +43,23 @@ TYPE_VALIDATOR = {
     DataType.FLOAT.name: lambda x: isinstance(x, float),
     DataType.DOUBLE.name: lambda x: isinstance(x, float),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,
-    DataType.JSON.name: lambda x: isinstance(x, dict),
+    DataType.JSON.name: lambda x: isinstance(x, dict) and len(x) <= 65535,
     DataType.FLOAT_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) == dim,
-    DataType.BINARY_VECTOR.name: lambda x, dim: isinstance(x, bytes) and len(x) * 8 == dim,
+    DataType.BINARY_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) * 8 == dim,
+}
+
+NUMPY_TYPE_CREATOR = {
+    DataType.BOOL.name: np.dtype("bool"),
+    DataType.INT8.name: np.dtype("int8"),
+    DataType.INT16.name: np.dtype("int16"),
+    DataType.INT32.name: np.dtype("int32"),
+    DataType.INT64.name: np.dtype("int64"),
+    DataType.FLOAT.name: np.dtype("float32"),
+    DataType.DOUBLE.name: np.dtype("float64"),
+    DataType.VARCHAR.name: None,
+    DataType.JSON.name: None,
+    DataType.FLOAT_VECTOR.name: np.dtype("float32"),
+    DataType.BINARY_VECTOR.name: np.dtype("uint8"),
 }
 
 
