@@ -16,11 +16,18 @@ from pathlib import Path
 
 import numpy as np
 
+from pymilvus.client.types import (
+    DataType,
+)
 from pymilvus.exceptions import MilvusException
-from pymilvus.orm.schema import CollectionSchema
+from pymilvus.orm.schema import (
+    CollectionSchema,
+    FieldSchema,
+)
 
 from .constants import (
     DYNAMIC_FIELD_NAME,
+    NUMPY_TYPE_CREATOR,
     BulkFileType,
 )
 
@@ -35,9 +42,13 @@ class Buffer:
         file_type: BulkFileType = BulkFileType.NPY,
     ):
         self._buffer = {}
+        self._fields = {}
         self._file_type = file_type
         for field in schema.fields:
+            if field.is_primary and field.auto_id:
+                continue
             self._buffer[field.name] = []
+            self._fields[field.name] = field
 
         if len(self._buffer) == 0:
             self._throw("Illegal collection schema: fields list is empty")
@@ -45,6 +56,9 @@ class Buffer:
         # dynamic field, internal name is '$meta'
         if schema.enable_dynamic_field:
             self._buffer[DYNAMIC_FIELD_NAME] = []
+            self._fields[DYNAMIC_FIELD_NAME] = FieldSchema(
+                name=DYNAMIC_FIELD_NAME, dtype=DataType.JSON
+            )
 
     @property
     def row_count(self) -> int:
@@ -75,7 +89,7 @@ class Buffer:
                 self._buffer[k].append(row[k])
 
         if DYNAMIC_FIELD_NAME in self._buffer:
-            self._buffer[DYNAMIC_FIELD_NAME].append(json.dumps(dynamic_values))
+            self._buffer[DYNAMIC_FIELD_NAME].append(dynamic_values)
 
     def persist(self, local_path: str) -> list:
         # verify row count of fields are equal
@@ -100,14 +114,28 @@ class Buffer:
         return []
 
     def _persist_npy(self, local_path: str):
-        Path(local_path).mkdir(exist_ok=True)
-
         file_list = []
         for k in self._buffer:
             full_file_name = Path(local_path).joinpath(k + ".npy")
-            file_list.append(full_file_name)
+            file_list.append(str(full_file_name))
             try:
-                np.save(full_file_name, self._buffer[k])
+                Path(local_path).mkdir(exist_ok=True)
+
+                # numpy data type specify
+                dt = None
+                field_schema = self._fields[k]
+                if field_schema.dtype.name in NUMPY_TYPE_CREATOR:
+                    dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
+
+                # for JSON field, convert to string array
+                if field_schema.dtype == DataType.JSON:
+                    str_arr = []
+                    for val in self._buffer[k]:
+                        str_arr.append(json.dumps(val))
+                    self._buffer[k] = str_arr
+
+                arr = np.array(self._buffer[k], dtype=dt)
+                np.save(str(full_file_name), arr)
             except Exception as e:
                 self._throw(f"Failed to persist column-based file {full_file_name}, error: {e}")
 
@@ -145,4 +173,4 @@ class Buffer:
             self._throw(f"Failed to persist row-based file {file_path}, error: {e}")
 
         logger.info(f"Successfully persist row-based file {file_path}")
-        return [file_path]
+        return [str(file_path)]
