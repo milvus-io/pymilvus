@@ -44,7 +44,9 @@ def _handle_response(url: str, res: json):
         _throw(f"Failed to request url: {url}, code: {inner_code}, message: {inner_message}")
 
 
-def _post_request(url: str, api_key: str, params: {}, timeout: int = 20, **kwargs):
+def _post_request(
+    url: str, api_key: str, params: {}, timeout: int = 20, **kwargs
+) -> requests.Response:
     try:
         resp = requests.post(
             url=url, headers=_http_headers(api_key), json=params, timeout=timeout, **kwargs
@@ -57,7 +59,9 @@ def _post_request(url: str, api_key: str, params: {}, timeout: int = 20, **kwarg
         _throw(f"Failed to post url: {url}, error: {err}")
 
 
-def _get_request(url: str, api_key: str, params: {}, timeout: int = 20, **kwargs):
+def _get_request(
+    url: str, api_key: str, params: {}, timeout: int = 20, **kwargs
+) -> requests.Response:
     try:
         resp = requests.get(
             url=url, headers=_http_headers(api_key), params=params, timeout=timeout, **kwargs
@@ -80,7 +84,7 @@ def bulk_import(
     cluster_id: str,
     collection_name: str,
     **kwargs,
-):
+) -> requests.Response:
     """call bulkinsert restful interface to import files
 
     Args:
@@ -108,7 +112,9 @@ def bulk_import(
     return resp
 
 
-def get_import_progress(url: str, api_key: str, job_id: str, cluster_id: str, **kwargs):
+def get_import_progress(
+    url: str, api_key: str, job_id: str, cluster_id: str, **kwargs
+) -> requests.Response:
     """get job progress
 
     Args:
@@ -132,7 +138,7 @@ def get_import_progress(url: str, api_key: str, job_id: str, cluster_id: str, **
 
 def list_import_jobs(
     url: str, api_key: str, cluster_id: str, page_size: int, current_page: int, **kwargs
-):
+) -> requests.Response:
     """list jobs in a cluster
 
     Args:
