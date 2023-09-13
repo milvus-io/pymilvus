@@ -15,7 +15,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from threading import Thread
+from threading import Lock, Thread
 from typing import Callable, Optional
 
 from pymilvus.orm.schema import CollectionSchema
@@ -43,7 +43,9 @@ class LocalBulkWriter(BulkWriter):
         self._uuid = str(uuid.uuid4())
         self._flush_count = 0
         self._working_thread = {}
+        self._working_thread_lock = Lock()
         self._local_files = []
+        self._make_dir()
 
     @property
     def uuid(self):
@@ -59,10 +61,12 @@ class LocalBulkWriter(BulkWriter):
         self._exit()
 
     def _exit(self):
+        # remove the uuid folder
         if Path(self._local_path).exists() and not any(Path(self._local_path).iterdir()):
             Path(self._local_path).rmdir()
             logger.info(f"Delete empty directory '{self._local_path}'")
 
+        # wait flush thread
         if len(self._working_thread) > 0:
             for k, th in self._working_thread.items():
                 logger.info(f"Wait flush thread '{k}' to finish")
@@ -79,38 +83,52 @@ class LocalBulkWriter(BulkWriter):
     def append_row(self, row: dict, **kwargs):
         super().append_row(row, **kwargs)
 
-        if super().buffer_size > super().segment_size:
-            self.commit(_async=True)
+        # only one thread can enter this section to persist data,
+        # in the _flush() method, the buffer will be swapped to a new one.
+        # in anync mode, the flush thread is asynchronously, other threads can
+        # continue to append if the new buffer size is less than target size
+        with self._working_thread_lock:
+            if super().buffer_size > super().segment_size:
+                self.commit(_async=True)
 
     def commit(self, **kwargs):
+        # _async=True, the flush thread is asynchronously
         while len(self._working_thread) > 0:
-            logger.info("Previous flush action is not finished, waiting...")
-            time.sleep(0.5)
+            logger.info(
+                f"Previous flush action is not finished, {threading.current_thread().name} is waiting..."
+            )
+            time.sleep(1.0)
 
         logger.info(
             f"Prepare to flush buffer, row_count: {super().buffer_row_count}, size: {super().buffer_size}"
         )
         _async = kwargs.get("_async", False)
         call_back = kwargs.get("call_back", None)
+
         x = Thread(target=self._flush, args=(call_back,))
+        logger.info(f"Flush thread begin, name: {x.name}")
+        self._working_thread[x.name] = x
         x.start()
         if not _async:
             logger.info("Wait flush to finish")
             x.join()
+
         super().commit()  # reset the buffer size
+        logger.info(f"Commit done with async={_async}")
 
     def _flush(self, call_back: Optional[Callable] = None):
-        self._make_dir()
-        self._working_thread[threading.current_thread().name] = threading.current_thread()
         self._flush_count = self._flush_count + 1
         target_path = Path.joinpath(self._local_path, str(self._flush_count))
 
         old_buffer = super()._new_buffer()
-        file_list = old_buffer.persist(str(target_path))
-        self._local_files.append(file_list)
-        if call_back:
-            call_back(file_list)
+        if old_buffer.row_count > 0:
+            file_list = old_buffer.persist(str(target_path))
+            self._local_files.append(file_list)
+            if call_back:
+                call_back(file_list)
+
         del self._working_thread[threading.current_thread().name]
+        logger.info(f"Flush thread done, name: {threading.current_thread().name}")
 
     @property
     def data_path(self):

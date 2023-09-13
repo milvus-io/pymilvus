@@ -145,18 +145,20 @@ def test_parallel_append(schema: CollectionSchema):
         try:
             for i in range(begin, end):
                 writer.append_row({"path": f"path_{i}", "vector": gen_float_vector(), "label": f"label_{i}"})
+                if i%100 == 0:
+                    print(f"{threading.current_thread().name} inserted {i-begin} items")
         except Exception as e:
             print("failed to append row!")
 
     local_writer = LocalBulkWriter(
         schema=schema,
         local_path="/tmp/bulk_writer",
-        segment_size=1000 * 1024 * 1024,
+        segment_size=128 * 1024 * 1024, # 128MB
         file_type=BulkFileType.JSON_RB,
     )
     threads = []
-    thread_count = 100
-    rows_per_thread = 100
+    thread_count = 10
+    rows_per_thread = 1000
     for k in range(thread_count):
         x = threading.Thread(target=_append_row, args=(local_writer, k*rows_per_thread, (k+1)*rows_per_thread,))
         threads.append(x)
@@ -169,17 +171,24 @@ def test_parallel_append(schema: CollectionSchema):
 
     local_writer.commit()
     print(f"Append finished, {thread_count*rows_per_thread} rows")
-    file_path = os.path.join(local_writer.data_path, "1.json")
-    with open(file_path, 'r') as file:
-        data = json.load(file)
 
-    print("Verify the output content...")
-    rows = data['rows']
-    assert len(rows) == thread_count*rows_per_thread
-    for row in rows:
-        pa = row['path']
-        label = row['label']
-        assert pa.replace("path_", "") == label.replace("label_", "")
+    row_count = 0
+    batch_files = local_writer.batch_files
+    for batch in batch_files:
+        for file_path in batch:
+            with open(file_path, 'r') as file:
+                data = json.load(file)
+
+            rows = data['rows']
+            row_count = row_count + len(rows)
+            print(f"The file {file_path} contains {len(rows)} rows. Verify the content...")
+
+            for row in rows:
+                pa = row['path']
+                label = row['label']
+                assert pa.replace("path_", "") == label.replace("label_", "")
+
+    assert row_count == thread_count * rows_per_thread
     print("Data is correct")
 
 
@@ -196,8 +205,15 @@ def test_remote_writer(schema: CollectionSchema):
             ),
             segment_size=50 * 1024 * 1024,
     ) as remote_writer:
+        # read data from csv
         read_sample_data("./data/train_embeddings.csv", remote_writer)
         remote_writer.commit()
+
+        # append rows
+        for i in range(10000):
+            remote_writer.append_row({"path": f"path_{i}", "vector": gen_float_vector(), "label": f"label_{i}"})
+        remote_writer.commit()
+
         batch_files = remote_writer.batch_files
 
     print(f"Test remote writer done! output remote files: {batch_files}")
@@ -205,7 +221,7 @@ def test_remote_writer(schema: CollectionSchema):
 
 def test_all_types_writer(bin_vec: bool, schema: CollectionSchema)->list:
     print(f"\n===================== all types test ====================")
-    remote_writer = RemoteBulkWriter(
+    with RemoteBulkWriter(
         schema=schema,
         remote_path="bulk_data",
         connect_param=RemoteBulkWriter.ConnectParam(
@@ -214,30 +230,29 @@ def test_all_types_writer(bin_vec: bool, schema: CollectionSchema)->list:
             secret_key=MINIO_SECRET_KEY,
             bucket_name="a-bucket",
         ),
-    )
+    ) as remote_writer:
+        print("Append rows")
+        for i in range(10000):
+            row = {
+                "id": i,
+                "bool": True if i%5 == 0 else False,
+                "int8": i%128,
+                "int16": i%1000,
+                "int32": i%100000,
+                "int64": i,
+                "float": i/3,
+                "double": i/7,
+                "varchar": f"varchar_{i}",
+                "json": {"dummy": i, "ok": f"name_{i}"},
+                "vector": gen_binary_vector() if bin_vec else gen_float_vector(),
+                f"dynamic_{i}": i,
+            }
+            remote_writer.append_row(row)
 
-    print("Append rows")
-    for i in range(10000):
-        row = {
-            "id": i,
-            "bool": True if i%5 == 0 else False,
-            "int8": i%128,
-            "int16": i%1000,
-            "int32": i%100000,
-            "int64": i,
-            "float": i/3,
-            "double": i/7,
-            "varchar": f"varchar_{i}",
-            "json": {"dummy": i, "ok": f"name_{i}"},
-            "vector": gen_binary_vector() if bin_vec else gen_float_vector(),
-            f"dynamic_{i}": i,
-        }
-        remote_writer.append_row(row)
-
-    print("Generate data files...")
-    remote_writer.commit()
-    print(f"Data files have been uploaded: {remote_writer.batch_files}")
-    return remote_writer.batch_files
+        print("Generate data files...")
+        remote_writer.commit()
+        print(f"Data files have been uploaded: {remote_writer.batch_files}")
+        return remote_writer.batch_files
 
 
 def test_call_bulkinsert(schema: CollectionSchema, batch_files: list):

@@ -77,6 +77,12 @@ class RemoteBulkWriter(LocalBulkWriter):
 
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object):
         super().__exit__(exc_type, exc_val, exc_tb)
+        # remove the temp folder "bulk_writer"
+        if Path(self._local_path).parent.exists() and not any(
+            Path(self._local_path).parent.iterdir()
+        ):
+            Path(self._local_path).parent.rmdir()
+            logger.info(f"Delete empty directory '{Path(self._local_path).parent}'")
 
     def _get_client(self):
         try:
