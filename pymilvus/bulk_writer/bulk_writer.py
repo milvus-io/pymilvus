@@ -77,8 +77,9 @@ class BulkWriter:
             self._buffer.append_row(row)
 
     def commit(self, **kwargs):
-        self._buffer_size = 0
-        self._buffer_row_count = 0
+        with self._buffer_lock:
+            self._buffer_size = 0
+            self._buffer_row_count = 0
 
     @property
     def data_path(self):
@@ -143,5 +144,6 @@ class BulkWriter:
 
                 row_size = row_size + TYPE_SIZE[dtype.name]
 
-        self._buffer_size = self._buffer_size + row_size
-        self._buffer_row_count = self._buffer_row_count + 1
+        with self._buffer_lock:
+            self._buffer_size = self._buffer_size + row_size
+            self._buffer_row_count = self._buffer_row_count + 1
