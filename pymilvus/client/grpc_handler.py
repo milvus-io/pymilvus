@@ -1804,7 +1804,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def get_flush_all_state(self, flush_all_ts: int, timeout: Optional[float] = None, **kwargs):
-        req = Prepare.get_flush_all_state_request(flush_all_ts)
+        req = Prepare.get_flush_all_state_request(flush_all_ts, kwargs.get("db", ""))
         response = self._stub.GetFlushAllState(req, timeout=timeout)
         status = response.status
         if status.error_code == 0:
@@ -1827,7 +1827,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def flush_all(self, timeout: Optional[float] = None, **kwargs):
-        request = Prepare.flush_all_request()
+        request = Prepare.flush_all_request(kwargs.get("db", ""))
         future = self._stub.FlushAll.future(request, timeout=timeout)
         response = future.result()
         if response.status.error_code != 0:

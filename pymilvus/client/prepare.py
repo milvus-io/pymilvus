@@ -1092,12 +1092,12 @@ class Prepare:
         )
 
     @classmethod
-    def flush_all_request(cls):
-        return milvus_types.FlushAllRequest()
+    def flush_all_request(cls, db_name: str):
+        return milvus_types.FlushAllRequest(db_name=db_name)
 
     @classmethod
-    def get_flush_all_state_request(cls, flush_all_ts: int):
-        return milvus_types.GetFlushAllStateRequest(flush_all_ts=flush_all_ts)
+    def get_flush_all_state_request(cls, flush_all_ts: int, db_name: str):
+        return milvus_types.GetFlushAllStateRequest(flush_all_ts=flush_all_ts, db_name=db_name)
 
     @classmethod
     def register_request(cls, user: str, host: str, **kwargs):
