@@ -1193,6 +1193,8 @@ def flush_all(using: str = "default", timeout: Optional[float] = None, **kwargs)
             If timeout is not set, the client keeps waiting until the server responds or
             an error occurs.
         **kwargs (``dict``, optional):
+            * *db*(``string``)
+                database to flush.
             * *_async*(``bool``)
                 Indicate if invoke asynchronously. Default `False`.
 
