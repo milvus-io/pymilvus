@@ -63,10 +63,3 @@ class MutationResult:
         return self._mr.__str__() if self._mr else ""
 
     __repr__ = __str__
-
-    # TODO
-    # def error_code(self):
-    #     pass
-    #
-    # def error_reason(self):
-    #     pass

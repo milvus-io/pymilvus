@@ -6,7 +6,7 @@ from typing import Any, Callable, Optional
 
 import grpc
 
-from .exceptions import MilvusException
+from .exceptions import ErrorCode, MilvusException
 from .grpc_gen import common_pb2
 
 LOGGER = logging.getLogger(__name__)
@@ -95,7 +95,9 @@ def retry_on_rpc_failure(
                         raise MilvusException(
                             code=e.code, message=f"{to_msg}, message={e.message}"
                         ) from e
-                    if _retry_on_rate_limit and e.code == common_pb2.RateLimit:
+                    if _retry_on_rate_limit and (
+                        e.code == ErrorCode.RATE_LIMIT or e.compatible_code == common_pb2.RateLimit
+                    ):
                         time.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
                     else:

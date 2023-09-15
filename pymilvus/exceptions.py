@@ -12,17 +12,29 @@
 
 from enum import IntEnum
 
+from .grpc_gen import common_pb2
+
 
 class ErrorCode(IntEnum):
     SUCCESS = 0
     UNEXPECTED_ERROR = 1
+    RATE_LIMIT = 8
+    FORCE_DENY = 9
+    COLLECTION_NOT_FOUND = 100
 
 
 class MilvusException(Exception):
-    def __init__(self, code: int = ErrorCode.UNEXPECTED_ERROR, message: str = "") -> None:
+    def __init__(
+        self,
+        code: int = ErrorCode.UNEXPECTED_ERROR,
+        message: str = "",
+        compatible_code: int = common_pb2.UnexpectedError,
+    ) -> None:
         super().__init__()
         self._code = code
         self._message = message
+        # for compatibility, remove it after 2.4.0
+        self._compatible_code = compatible_code
 
     @property
     def code(self):
@@ -31,6 +43,10 @@ class MilvusException(Exception):
     @property
     def message(self):
         return self._message
+
+    @property
+    def compatible_code(self):
+        return self._compatible_code
 
     def __str__(self) -> str:
         return f"<{type(self).__name__}: (code={self.code}, message={self.message})>"

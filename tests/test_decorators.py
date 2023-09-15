@@ -4,7 +4,7 @@ import grpc
 import pytest
 
 from pymilvus.decorators import retry_on_rpc_failure, error_handler
-from pymilvus.exceptions import MilvusUnavailableException, MilvusException
+from pymilvus.exceptions import ErrorCode, MilvusUnavailableException, MilvusException
 from pymilvus.grpc_gen import common_pb2
 
 
@@ -15,12 +15,12 @@ class TestDecorators:
         if code == MockDeadlineExceededError().code():
             raise MockDeadlineExceededError()
 
-    def mock_milvus_exception(self, code: common_pb2.ErrorCode):
-        if code == common_pb2.ForceDeny:
+    def mock_milvus_exception(self, code: ErrorCode):
+        if code == ErrorCode.FORCE_DENY:
             raise MockForceDenyError()
-        if code == common_pb2.RateLimit:
+        if code == ErrorCode.RATE_LIMIT:
             raise MockRateLimitError()
-        raise MilvusException(common_pb2.UNEXPECTED_ERROR, str("unexpected error"))
+        raise MilvusException(ErrorCode.UNEXPECTED_ERROR, str("unexpected error"))
 
     @pytest.mark.parametrize("times", [0, 1, 2, 3])
     def test_retry_decorators_unavailable(self, times):
@@ -95,7 +95,7 @@ class TestDecorators:
             self.mock_milvus_exception(code)
 
         with pytest.raises(MilvusException) as e:
-            test_api(self, common_pb2.ForceDeny)
+            test_api(self, ErrorCode.FORCE_DENY)
         print(e)
         assert "force deny" in e.value.message
 
@@ -112,7 +112,7 @@ class TestDecorators:
             self.mock_milvus_exception(code)
 
         with pytest.raises(MilvusException) as e:
-            test_api(self, common_pb2.RateLimit, retry_on_rate_limit=False)
+            test_api(self, ErrorCode.RATE_LIMIT, retry_on_rate_limit=False)
         print(e)
         assert "rate limit" in e.value.message
 
@@ -129,7 +129,7 @@ class TestDecorators:
             self.mock_milvus_exception(code)
 
         with pytest.raises(MilvusException) as e:
-            test_api(self, common_pb2.RateLimit, retry_on_rate_limit=True)
+            test_api(self, ErrorCode.RATE_LIMIT, retry_on_rate_limit=True)
         print(e)
         assert "rate limit" in e.value.message
 
@@ -152,11 +152,13 @@ class MockDeadlineExceededError(grpc.RpcError):
     def details(self):
         return "details of deadline exceeded"
 
+
 class MockForceDenyError(MilvusException):
-    def __init__(self, code=common_pb2.ForceDeny, message="force deny"):
+    def __init__(self, code=ErrorCode.FORCE_DENY, message="force deny"):
         super(MilvusException, self).__init__(message)
         self._code = code
         self._message = message
+        self._compatible_code = common_pb2.ForceDeny
 
     @property
     def code(self):
@@ -165,12 +167,18 @@ class MockForceDenyError(MilvusException):
     @property
     def message(self):
         return self._message
+
+    @property
+    def compatible_code(self):
+        return self._compatible_code
+
 
 class MockRateLimitError(MilvusException):
-    def __init__(self, code=common_pb2.RateLimit, message="rate limit"):
+    def __init__(self, code=ErrorCode.RATE_LIMIT, message="rate limit"):
         super(MilvusException, self).__init__(message)
         self._code = code
         self._message = message
+        self._compatible_code = common_pb2.RateLimit
 
     @property
     def code(self):
@@ -179,3 +187,7 @@ class MockRateLimitError(MilvusException):
     @property
     def message(self):
         return self._message
+
+    @property
+    def compatible_code(self):
+        return self._compatible_code
