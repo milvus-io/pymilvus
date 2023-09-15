@@ -12,6 +12,7 @@
 
 import json
 import logging
+from urllib.parse import urlparse
 
 import requests
 
@@ -98,7 +99,12 @@ def bulk_import(
     Returns:
         json: response of the restful interface
     """
-    request_url = f"https://{url}/v1/vector/collections/import"
+    up = urlparse(url)
+    if up.scheme.startswith("http"):
+        request_url = f"{url}/v1/vector/collections/import"
+    else:
+        request_url = f"https://{url}/v1/vector/collections/import"
+
     params = {
         "objectUrl": object_url,
         "accessKey": access_key,
@@ -125,7 +131,12 @@ def get_import_progress(
     Returns:
         json: response of the restful interface
     """
-    request_url = f"https://{url}/v1/vector/collections/import/get"
+    up = urlparse(url)
+    if up.scheme.startswith("http"):
+        request_url = f"{url}/v1/vector/collections/import/get"
+    else:
+        request_url = f"https://{url}/v1/vector/collections/import/get"
+
     params = {
         "jobId": job_id,
         "clusterId": cluster_id,
@@ -150,7 +161,12 @@ def list_import_jobs(
     Returns:
         json: response of the restful interface
     """
-    request_url = f"https://{url}/v1/vector/collections/import/list"
+    up = urlparse(url)
+    if up.scheme.startswith("http"):
+        request_url = f"{url}/v1/vector/collections/import/list"
+    else:
+        request_url = f"https://{url}/v1/vector/collections/import/list"
+
     params = {
         "clusterId": cluster_id,
         "pageSize": page_size,

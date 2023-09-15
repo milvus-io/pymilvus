@@ -371,6 +371,6 @@ if __name__ == '__main__':
     test_call_bulkinsert(schema, batch_files)
     test_retrieve_imported_data(bin_vec=True)
 
-    # to test cloud bulkinsert api, you need to apply a cloud service from Zilliz Cloud(https://zilliz.com/cloud)
+    # # to test cloud bulkinsert api, you need to apply a cloud service from Zilliz Cloud(https://zilliz.com/cloud)
     # test_cloud_bulkinsert()
 
