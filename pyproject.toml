@@ -93,7 +93,6 @@ ignore = [
     "PLR0912", # TODO
     "C901", # TODO
     "PYI041", # TODO
-    "PYI024", # TODO
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
