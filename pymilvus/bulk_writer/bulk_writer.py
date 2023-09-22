@@ -10,8 +10,11 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+import json
 import logging
 from threading import Lock
+
+import numpy as np
 
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
@@ -85,6 +88,16 @@ class BulkWriter:
     def data_path(self):
         return ""
 
+    def _try_convert_json(self, field_name: str, obj: object):
+        if isinstance(obj, str):
+            try:
+                return json.loads(obj)
+            except Exception as e:
+                self._throw(
+                    f"Illegal JSON value for field '{field_name}', type mismatch or illegal format, error: {e}"
+                )
+        return obj
+
     def _throw(self, msg: str):
         logger.error(msg)
         raise MilvusException(message=msg)
@@ -109,10 +122,12 @@ class BulkWriter:
             dtype = DataType(field.dtype)
             validator = TYPE_VALIDATOR[dtype.name]
             if dtype in {DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR}:
+                if isinstance(row[field.name], np.ndarray):
+                    row[field.name] = row[field.name].tolist()
                 dim = field.params["dim"]
                 if not validator(row[field.name], dim):
                     self._throw(
-                        f"Illegal vector data for vector field: '{dtype.name}',"
+                        f"Illegal vector data for vector field: '{field.name}',"
                         f" dim is not {dim} or type mismatch"
                     )
 
@@ -126,20 +141,23 @@ class BulkWriter:
                 max_len = field.params["max_length"]
                 if not validator(row[field.name], max_len):
                     self._throw(
-                        f"Illegal varchar value for field '{dtype.name}',"
+                        f"Illegal varchar value for field '{field.name}',"
                         f" length exceeds {max_len} or type mismatch"
                     )
 
                 row_size = row_size + len(row[field.name])
             elif dtype == DataType.JSON:
+                row[field.name] = self._try_convert_json(field.name, row[field.name])
                 if not validator(row[field.name]):
-                    self._throw(f"Illegal varchar value for field '{dtype.name}', type mismatch")
+                    self._throw(f"Illegal JSON value for field '{field.name}', type mismatch")
 
                 row_size = row_size + len(row[field.name])
             else:
+                if isinstance(row[field.name], np.generic):
+                    row[field.name] = row[field.name].item()
                 if not validator(row[field.name]):
                     self._throw(
-                        f"Illegal scalar value for field '{dtype.name}', value overflow or type mismatch"
+                        f"Illegal scalar value for field '{field.name}', value overflow or type mismatch"
                     )
 
                 row_size = row_size + TYPE_SIZE[dtype.name]
