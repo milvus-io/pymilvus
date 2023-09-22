@@ -232,7 +232,8 @@ def test_all_types_writer(bin_vec: bool, schema: CollectionSchema)->list:
         ),
     ) as remote_writer:
         print("Append rows")
-        for i in range(10000):
+        batch_count = 10000
+        for i in range(batch_count):
             row = {
                 "id": i,
                 "bool": True if i%5 == 0 else False,
@@ -248,6 +249,23 @@ def test_all_types_writer(bin_vec: bool, schema: CollectionSchema)->list:
                 f"dynamic_{i}": i,
             }
             remote_writer.append_row(row)
+
+        # append rows by numpy type
+        for i in range(batch_count):
+            remote_writer.append_row({
+                "id": np.int64(i+batch_count),
+                "bool": True if i % 3 == 0 else False,
+                "int8": np.int8(i%128),
+                "int16": np.int16(i%1000),
+                "int32": np.int32(i%100000),
+                "int64": np.int64(i),
+                "float": np.float32(i/3),
+                "double": np.float64(i/7),
+                "varchar": f"varchar_{i}",
+                "json": json.dumps({"dummy": i, "ok": f"name_{i}"}),
+                "vector": gen_binary_vector() if bin_vec else gen_float_vector(),
+                f"dynamic_{i}": i,
+            })
 
         print("Generate data files...")
         remote_writer.commit()
