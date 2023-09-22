@@ -81,6 +81,7 @@ class DataType(IntEnum):
 
     STRING = 20
     VARCHAR = 21
+    ARRAY = 22
     JSON = 23
 
     BINARY_VECTOR = 100

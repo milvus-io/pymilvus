@@ -72,7 +72,8 @@ class FieldSchema:
         self.params = {}
         self.is_partition_key = False
         self.is_dynamic = False
-
+        # For array field
+        self.element_type = None
         ##
         self.__pack(self._raw)
 
@@ -84,6 +85,7 @@ class FieldSchema:
         self.auto_id = raw.autoID
         self.type = raw.data_type
         self.is_partition_key = raw.is_partition_key
+        self.element_type = raw.element_type
         try:
             self.is_dynamic = raw.is_dynamic
         except Exception:
@@ -122,6 +124,7 @@ class FieldSchema:
             "description": self.description,
             "type": self.type,
             "params": self.params or {},
+            "element_type": self.element_type,
         }
 
         if self.is_partition_key:
@@ -560,6 +563,13 @@ class ChunkedQueryResult(LoopBase):
                     elif field_data.type == DataType.JSON:
                         field.scalars.json_data.data.extend(
                             field_data.scalars.json_data.data[start_pos:end_pos]
+                        )
+                    elif field_data.type == DataType.ARRAY:
+                        field.scalars.array_data.data.extend(
+                            field_data.scalars.array_data.data[start_pos:end_pos]
+                        )
+                        field.scalars.array_data.element_type = (
+                            field_data.scalars.array_data.element_type
                         )
                     elif field_data.type == DataType.FLOAT_VECTOR:
                         dim = field_data.vectors.dim

@@ -70,6 +70,40 @@ def entity_to_json_arr(entity: Dict):
     return convert_to_json_arr(entity.get("values", []))
 
 
+def convert_to_array_arr(objs: List[Any]):
+    return [convert_to_array_arr(obj) for obj in objs]
+
+
+def convert_to_array(obj: List[Any], field_info: Any):
+    field_data = schema_types.ScalarField()
+    element_type = field_info.get("element_type", None)
+    if element_type == DataType.BOOL:
+        field_data.bool_data.data.extend(obj)
+        return field_data
+    if element_type in (DataType.INT8, DataType.INT16, DataType.INT32):
+        field_data.int_data.data.extend(obj)
+        return field_data
+    if element_type == DataType.INT64:
+        field_data.long_data.data.extend(obj)
+        return field_data
+    if element_type == DataType.FLOAT:
+        field_data.float_data.data.extend(obj)
+        return field_data
+    if element_type == DataType.DOUBLE:
+        field_data.double_data.data.extend(obj)
+        return field_data
+    if element_type in (DataType.VARCHAR, DataType.STRING):
+        field_data.string_data.data.extend(obj)
+        return field_data
+    raise ParamError(
+        message=f"UnSupported element type: {element_type} for Array field: {field_info.get('name')}"
+    )
+
+
+def entity_to_array_arr(entity: List[Any]):
+    return convert_to_array_arr(entity.get("values", []))
+
+
 def pack_field_value_to_field_data(field_value: Any, field_data: Any, field_info: Any):
     field_type = field_data.type
     if field_type == DataType.BOOL:
@@ -94,6 +128,8 @@ def pack_field_value_to_field_data(field_value: Any, field_data: Any, field_info
         )
     elif field_type == DataType.JSON:
         field_data.scalars.json_data.data.append(convert_to_json(field_value))
+    elif field_type == DataType.ARRAY:
+        field_data.scalars.array_data.data.append(convert_to_array(field_value, field_info))
     else:
         raise ParamError(message=f"UnSupported data type: {field_type}")
 
@@ -129,6 +165,8 @@ def entity_to_field_data(entity: Any, field_info: Any):
         )
     elif entity_type == DataType.JSON:
         field_data.scalars.json_data.data.extend(entity_to_json_arr(entity))
+    elif entity_type == DataType.ARRAY:
+        field_data.scalars.array_data.data.extend(entity_to_array_arr(entity))
     else:
         raise ParamError(message=f"UnSupported data type: {entity_type}")
 
@@ -152,6 +190,37 @@ def extract_dynamic_field_from_result(raw: Any):
         if name not in field_names:
             dynamic_fields.add(name)
     return dynamic_field_name, dynamic_fields
+
+
+def extract_array_row_data(field_data: Any, index: int):
+    array = field_data.scalars.array_data.data[index]
+    row = []
+    if field_data.scalars.array_data.element_type == DataType.INT64:
+        row.extend(array.long_data.data)
+        return row
+    if field_data.scalars.array_data.element_type == DataType.BOOL:
+        row.extend(array.bool_data.data)
+        return row
+    if field_data.scalars.array_data.element_type in (
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+    ):
+        row.extend(array.int_data.data)
+        return row
+    if field_data.scalars.array_data.element_type == DataType.FLOAT:
+        row.extend(array.float_data.data)
+        return row
+    if field_data.scalars.array_data.element_type == DataType.DOUBLE:
+        row.extend(array.double_data.data)
+        return row
+    if field_data.scalars.array_data.element_type in (
+        DataType.STRING,
+        DataType.VARCHAR,
+    ):
+        row.extend(array.string_data.data)
+        return row
+    return row
 
 
 # pylint: disable=R1702 (too-many-nested-blocks)
@@ -216,6 +285,8 @@ def extract_row_data_from_fields_data(
             tmp_dict = {k: v for k, v in json_dict.items() if k in dynamic_fields}
             entity_row_data.update(tmp_dict)
             return
+        if field_data.type == DataType.ARRAY and len(field_data.scalars.array_data.data) >= index:
+            entity_row_data[field_data.field_name] = extract_array_row_data(field_data, index)
 
         if field_data.type == DataType.FLOAT_VECTOR:
             dim = field_data.vectors.dim

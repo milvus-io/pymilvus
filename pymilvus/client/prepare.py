@@ -116,6 +116,7 @@ class Prepare:
                 autoID=f.auto_id,
                 is_partition_key=f.is_partition_key,
                 is_dynamic=f.is_dynamic,
+                element_type=f.element_type,
             )
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
