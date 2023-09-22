@@ -697,7 +697,7 @@ class GrpcHandler:
         if isinstance(entities, dict):
             entities = [entities]
         request = self._prepare_row_upsert_request(
-            collection_name, entities, partition_name, timeout, False, **kwargs
+            collection_name, entities, partition_name, timeout, **kwargs
         )
         rf = self._stub.Upsert.future(request, timeout=timeout)
         response = rf.result()
