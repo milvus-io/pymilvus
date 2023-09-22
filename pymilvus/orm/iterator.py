@@ -18,6 +18,7 @@ from .constants import (
     CALC_DIST_L2,
     CALC_DIST_TANIMOTO,
     DEFAULT_SEARCH_EXTENSION_RATE,
+    EF,
     FIELDS,
     INT64_MAX,
     ITERATION_EXTENSION_REDUCE_RATE,
@@ -39,7 +40,11 @@ QueryIterator = TypeVar("QueryIterator")
 SearchIterator = TypeVar("SearchIterator")
 
 
-def extend_batch_size(batch_size: int) -> int:
+def extend_batch_size(batch_size: int, next_param: dict) -> int:
+    if EF in next_param[PARAMS]:
+        return min(
+            MAX_BATCH_SIZE, batch_size * DEFAULT_SEARCH_EXTENSION_RATE, next_param[PARAMS][EF]
+        )
     return min(MAX_BATCH_SIZE, batch_size * DEFAULT_SEARCH_EXTENSION_RATE)
 
 
@@ -294,6 +299,7 @@ class SearchIterator:
         }
         self._expr = expr
         self.__check_set_params(param)
+        self.__check_for_special_index_param()
         self._kwargs = kwargs
         self._filtered_ids = []
         self._filtered_distance = None
@@ -336,6 +342,15 @@ class SearchIterator:
             self._param = deepcopy(param)
         if PARAMS not in self._param:
             self._param[PARAMS] = {}
+
+    def __check_for_special_index_param(self):
+        if (
+            EF in self._param[PARAMS]
+            and self._param[PARAMS][EF] < self._iterator_params[BATCH_SIZE]
+        ):
+            raise MilvusException(
+                message="When using hnsw index, provided ef must be larger than or equal to batch size"
+            )
 
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
@@ -472,7 +487,7 @@ class SearchIterator:
             self._iterator_params["data"],
             self._iterator_params["ann_field"],
             next_params,
-            extend_batch_size(self._iterator_params[BATCH_SIZE]),
+            extend_batch_size(self._iterator_params[BATCH_SIZE], next_params),
             next_expr,
             self._iterator_params["partition_names"],
             self._iterator_params["output_fields"],
