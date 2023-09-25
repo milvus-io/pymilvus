@@ -2,6 +2,7 @@ import grpc
 import grpc_testing
 import pytest
 import random
+from pymilvus.exceptions import ErrorCode
 
 from pymilvus.grpc_gen import milvus_pb2, schema_pb2, common_pb2
 from pymilvus import Milvus, DataType
@@ -18,11 +19,13 @@ class Fields:
 
         def __eq__(self, other):
             if isinstance(other, Fields.NormalizedField):
-                return self.name == other.name and \
-                       self.is_primary_key == other.is_primary_key and \
-                       self.data_type == other.data_type and \
-                       self.type_params == other.type_params and \
-                       self.autoID == other.autoID
+                return (
+                    self.name == other.name
+                    and self.is_primary_key == other.is_primary_key
+                    and self.data_type == other.data_type
+                    and self.type_params == other.type_params
+                    and self.autoID == other.autoID
+                )
             return False
 
         def __repr__(self):
@@ -36,20 +39,23 @@ class Fields:
     @classmethod
     def equal(cls, grpc_fields, dict_fields):
         n_grpc_fields = {
-            field.name: Fields.NormalizedField(name=field.name,
-                                               is_primary_key=field.is_primary_key,
-                                               data_type=field.data_type,
-                                               type_params={pair.key: pair.value for pair in field.type_params},
-                                               autoID=field.autoID
-                                               )
-            for field in grpc_fields}
+            field.name: Fields.NormalizedField(
+                name=field.name,
+                is_primary_key=field.is_primary_key,
+                data_type=field.data_type,
+                type_params={pair.key: pair.value for pair in field.type_params},
+                autoID=field.autoID,
+            )
+            for field in grpc_fields
+        }
         n_dict_fields = {
-            field["name"]: Fields.NormalizedField(name=field["name"],
-                                                  is_primary_key=field.get("is_primary", False),
-                                                  data_type=field["type"],
-                                                  type_params=field.get("params", dict()),
-                                                  autoID=field.get("auto_id", False)
-                                                  )
+            field["name"]: Fields.NormalizedField(
+                name=field["name"],
+                is_primary_key=field.get("is_primary", False),
+                data_type=field["type"],
+                type_params=field.get("params", dict()),
+                autoID=field.get("auto_id", False),
+            )
             for field in dict_fields
         }
         return n_grpc_fields == n_dict_fields
@@ -63,8 +69,9 @@ class TestCreateCollection:
     def setup(self) -> None:
         self._real_time = grpc_testing.strict_real_time()
         self._real_time_channel = grpc_testing.channel(
-            milvus_pb2.DESCRIPTOR.services_by_name.values(), self._real_time)
-        self._servicer = milvus_pb2.DESCRIPTOR.services_by_name['MilvusService']
+            milvus_pb2.DESCRIPTOR.services_by_name.values(), self._real_time
+        )
+        self._servicer = milvus_pb2.DESCRIPTOR.services_by_name["MilvusService"]
         self._milvus = Milvus(channel=self._real_time_channel)
 
     def teardown(self) -> None:
@@ -84,13 +91,22 @@ class TestCreateCollection:
             "params": {"dim": "4"},
         }
         fields = {"fields": [id_field, vector_field], "enable_dynamic_field": True}
-        future = self._milvus.create_collection(collection_name=collection_name, fields=fields, _async=True)
+        future = self._milvus.create_collection(
+            collection_name=collection_name, fields=fields, _async=True
+        )
 
         invocation_metadata, request, rpc = self._real_time_channel.take_unary_unary(
-            self._servicer.methods_by_name['CreateCollection']
+            self._servicer.methods_by_name["CreateCollection"]
         )
         rpc.send_initial_metadata(())
-        rpc.terminate(common_pb2.Status(error_code=common_pb2.Success, reason="success"), (), grpc.StatusCode.OK, '')
+        rpc.terminate(
+            common_pb2.Status(
+                code=ErrorCode.SUCCESS, error_code=common_pb2.Success, reason="success"
+            ),
+            (),
+            grpc.StatusCode.OK,
+            "",
+        )
 
         request_schema = schema_pb2.CollectionSchema()
         request_schema.ParseFromString(request.schema)
@@ -100,5 +116,5 @@ class TestCreateCollection:
         assert request_schema.enable_dynamic_field == fields["enable_dynamic_field"]
 
         return_value = future.result()
-        assert return_value.error_code == common_pb2.Success
+        assert return_value.code == 0
         assert return_value.reason == "success"

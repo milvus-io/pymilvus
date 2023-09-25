@@ -21,14 +21,15 @@ class Status:
     :attribute message: str (optional) current status message
     """
 
-    SUCCESS = common_pb2.Success
-    UNEXPECTED_ERROR = common_pb2.UnexpectedError
+    SUCCESS = 0
+    UNEXPECTED_ERROR = 1
     CONNECT_FAILED = 2
     PERMISSION_DENIED = 3
     COLLECTION_NOT_EXISTS = 4
     ILLEGAL_ARGUMENT = 5
     ILLEGAL_RANGE = 6
     ILLEGAL_DIMENSION = 7
+    # TODO in new error code, 8 is for RATE_LIMIT, 9 for FORCE_DENY
     ILLEGAL_INDEX_TYPE = 8
     ILLEGAL_COLLECTION_NAME = 9
     ILLEGAL_TOPK = 10

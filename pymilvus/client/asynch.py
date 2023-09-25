@@ -161,11 +161,11 @@ class Future(AbstractFuture):
 
 class SearchFuture(Future):
     def on_response(self, response: Any):
-        if response.status.error_code == 0:
+        if response.status.code == 0:
             return QueryResult(response)
 
         status = response.status
-        raise MilvusException(status.error_code, status.reason)
+        raise MilvusException(status.code, status.reason, status.error_code)
 
 
 # TODO: if ChunkedFuture is more common later, consider using ChunkedFuture as Base Class,
@@ -246,8 +246,8 @@ class ChunkedSearchFuture(Future):
 
     def on_response(self, response: Any):
         for raw in response:
-            if raw.status.error_code != 0:
-                raise MilvusException(raw.status.error_code, raw.status.reason)
+            if raw.status.code != 0:
+                raise MilvusException(raw.status.code, raw.status.reason, raw.status.error_code)
 
         return ChunkedQueryResult(response)
 
@@ -255,19 +255,19 @@ class ChunkedSearchFuture(Future):
 class MutationFuture(Future):
     def on_response(self, response: Any):
         status = response.status
-        if status.error_code == 0:
+        if status.code == 0:
             return MutationResult(response)
 
         status = response.status
-        raise MilvusException(status.error_code, status.reason)
+        raise MilvusException(status.code, status.reason, status.error_code)
 
 
 class CreateIndexFuture(Future):
     def on_response(self, response: Any):
-        if response.error_code != 0:
-            raise MilvusException(response.error_code, response.reason)
+        if response.code != 0:
+            raise MilvusException(response.code, response.reason, response.error_code)
 
-        return Status(response.error_code, response.reason)
+        return Status(response.code, response.reason)
 
 
 class CreateFlatIndexFuture(AbstractFuture):
@@ -327,17 +327,19 @@ class CreateFlatIndexFuture(AbstractFuture):
 
 class FlushFuture(Future):
     def on_response(self, response: Any):
-        if response.status.error_code != 0:
-            raise MilvusException(response.status.error_code, response.status.reason)
+        if response.status.code != 0:
+            raise MilvusException(
+                response.status.code, response.status.reason, response.status.error_code
+            )
 
 
 class LoadCollectionFuture(Future):
     def on_response(self, response: Any):
-        if response.error_code != 0:
-            raise MilvusException(response.error_code, response.reason)
+        if response.code != 0:
+            raise MilvusException(response.code, response.reason, response.error_code)
 
 
 class LoadPartitionsFuture(Future):
     def on_response(self, response: Any):
-        if response.error_code != 0:
-            raise MilvusException(response.error_code, response.reason)
+        if response.code != 0:
+            raise MilvusException(response.code, response.reason, response.error_code)
