@@ -21,7 +21,6 @@ from .constants import (
     EF,
     FIELDS,
     INT64_MAX,
-    ITERATION_EXTENSION_REDUCE_RATE,
     MAX_BATCH_SIZE,
     MAX_FILTERED_IDS_COUNT_ITERATION,
     MAX_TRY_TIME,
@@ -104,7 +103,6 @@ class QueryIterator:
         first_cursor_kwargs[OFFSET] = 0
         # offset may be too large, needed to seek in multiple times
         first_cursor_kwargs[MILVUS_LIMIT] = self._kwargs[OFFSET]
-        first_cursor_kwargs[ITERATION_EXTENSION_REDUCE_RATE] = 0
 
         res = self._conn.query(
             collection_name=self._collection_name,
