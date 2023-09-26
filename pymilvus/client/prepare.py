@@ -13,7 +13,7 @@ from pymilvus.orm.schema import CollectionSchema
 
 from . import blob, entity_helper, ts_utils
 from .check import check_pass_param, is_legal_collection_properties
-from .constants import DEFAULT_CONSISTENCY_LEVEL
+from .constants import DEFAULT_CONSISTENCY_LEVEL, REDUCE_STOP_FOR_BEST
 from .types import DataType, PlaceholderType, get_consistency_level
 from .utils import traverse_info, traverse_rows_info
 
@@ -844,8 +844,12 @@ class Prepare:
             req.query_params.append(common_types.KeyValuePair(key="offset", value=str(offset)))
 
         ignore_growing = kwargs.get("ignore_growing", False)
+        stop_reduce_for_best = kwargs.get(REDUCE_STOP_FOR_BEST, False)
         req.query_params.append(
             common_types.KeyValuePair(key="ignore_growing", value=str(ignore_growing))
+        )
+        req.query_params.append(
+            common_types.KeyValuePair(key=REDUCE_STOP_FOR_BEST, value=str(stop_reduce_for_best))
         )
         return req
 

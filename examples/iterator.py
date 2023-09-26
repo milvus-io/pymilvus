@@ -21,31 +21,47 @@ NUM_ENTITIES = 1000
 DIM = 8
 CLEAR_EXIST = False
 
-def re_create_collection():
-    if utility.has_collection(COLLECTION_NAME) and CLEAR_EXIST:
-        utility.drop_collection(COLLECTION_NAME)
-        print(f"dropped existed collection{COLLECTION_NAME}")
 
-    fields = [
-        FieldSchema(name=USER_ID, dtype=DataType.VARCHAR, is_primary=True,
-                    auto_id=False, max_length=MAX_LENGTH),
-        FieldSchema(name=AGE, dtype=DataType.INT64),
-        FieldSchema(name=DEPOSIT, dtype=DataType.DOUBLE),
-        FieldSchema(name=PICTURE, dtype=DataType.FLOAT_VECTOR, dim=DIM)
-    ]
+def re_create_collection(skip_data_period: bool):
+    if not skip_data_period:
+        if utility.has_collection(COLLECTION_NAME) and CLEAR_EXIST:
+            utility.drop_collection(COLLECTION_NAME)
+            print(f"dropped existed collection{COLLECTION_NAME}")
 
-    schema = CollectionSchema(fields)
-    print(f"Create collection {COLLECTION_NAME}")
-    collection = Collection(COLLECTION_NAME, schema, consistency_level=CONSISTENCY_LEVEL)
+        fields = [
+            FieldSchema(name=USER_ID, dtype=DataType.VARCHAR, is_primary=True,
+                        auto_id=False, max_length=MAX_LENGTH),
+            FieldSchema(name=AGE, dtype=DataType.INT64),
+            FieldSchema(name=DEPOSIT, dtype=DataType.DOUBLE),
+            FieldSchema(name=PICTURE, dtype=DataType.FLOAT_VECTOR, dim=DIM)
+        ]
+
+        schema = CollectionSchema(fields)
+        print(f"Create collection {COLLECTION_NAME}")
+        collection = Collection(COLLECTION_NAME, schema, consistency_level=CONSISTENCY_LEVEL, num_shards=2)
+    else:
+        collection = Collection(COLLECTION_NAME)
     return collection
+
+
+def random_pk(filter_set: set, lower_bound: int, upper_bound: int) -> str:
+    ret: str = ""
+    while True:
+        candidate = str(random.randint(lower_bound, upper_bound))
+        if candidate in filter_set:
+            continue
+        ret = candidate
+        break
+    return ret
 
 
 def insert_data(collection):
     rng = np.random.default_rng(seed=19530)
     batch_count = 5
+    filter_set: set = {}
     for i in range(batch_count):
         entities = [
-            [str(random.randint(NUM_ENTITIES * i, NUM_ENTITIES * (i + 1))) for ni in range(NUM_ENTITIES)],
+            [random_pk(filter_set, 0, batch_count * NUM_ENTITIES) for _ in range(NUM_ENTITIES)],
             [int(ni % 100) for ni in range(NUM_ENTITIES)],
             [float(ni) for ni in range(NUM_ENTITIES)],
             rng.random((NUM_ENTITIES, DIM)),
@@ -53,6 +69,7 @@ def insert_data(collection):
         collection.insert(entities)
         collection.flush()
         print(f"Finish insert batch{i}, number of entities in Milvus: {collection.num_entities}")
+
 
 def prepare_index(collection):
     index = {
@@ -74,9 +91,12 @@ def prepare_data(collection):
 
 
 def query_iterate_collection_no_offset(collection):
-    expr = f"10 <= {AGE} <= 14"
+    expr = f"10 <= {AGE} <= 25"
+
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
-                                               offset=0, batch_size=5, consistency_level=CONSISTENCY_LEVEL)
+                                               offset=0, batch_size=5, consistency_level=CONSISTENCY_LEVEL,
+                                               reduce_stop_for_best="false")
+    no_best_ids: set = set({})
     page_idx = 0
     while True:
         res = query_iterator.next()
@@ -86,8 +106,32 @@ def query_iterate_collection_no_offset(collection):
             break
         for i in range(len(res)):
             print(res[i])
+            no_best_ids.add(res[i]['id'])
         page_idx += 1
         print(f"page{page_idx}-------------------------")
+
+    print("best---------------------------")
+    query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
+                                               offset=0, batch_size=5, consistency_level=CONSISTENCY_LEVEL,
+                                                   reduce_stop_for_best="true")
+    best_ids: set = set({})
+    page_idx = 0
+    while True:
+        res = query_iterator.next()
+        if len(res) == 0:
+            print("query iteration finished, close")
+            query_iterator.close()
+            break
+        for i in range(len(res)):
+            print(res[i])
+            best_ids.add(res[i]['id'])
+        page_idx += 1
+        print(f"page{page_idx}-------------------------")
+
+    diff = best_ids.difference(no_best_ids)
+    for id in diff:
+        print(f"diff id:{id}")
+
 
 def query_iterate_collection_with_offset(collection):
     expr = f"10 <= {AGE} <= 14"
@@ -105,6 +149,7 @@ def query_iterate_collection_with_offset(collection):
         page_idx += 1
         print(f"page{page_idx}-------------------------")
 
+
 def query_iterate_collection_with_limit(collection):
     expr = f"10 <= {AGE} <= 44"
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
@@ -120,6 +165,7 @@ def query_iterate_collection_with_limit(collection):
             print(res[i])
         page_idx += 1
         print(f"page{page_idx}-------------------------")
+
 
 def search_iterator_collection(collection):
     SEARCH_NQ = 1
@@ -144,6 +190,7 @@ def search_iterator_collection(collection):
         page_idx += 1
         print(f"page{page_idx}-------------------------")
 
+
 def search_iterator_collection_with_limit(collection):
     SEARCH_NQ = 1
     DIM = 8
@@ -167,10 +214,13 @@ def search_iterator_collection_with_limit(collection):
         page_idx += 1
         print(f"page{page_idx}-------------------------")
 
+
 def main():
+    skip_data_period = False
     connections.connect("default", host=HOST, port=PORT)
-    collection = re_create_collection()
-    collection = prepare_data(collection)
+    collection = re_create_collection(skip_data_period)
+    if not skip_data_period:
+        collection = prepare_data(collection)
     query_iterate_collection_no_offset(collection)
     query_iterate_collection_with_offset(collection)
     query_iterate_collection_with_limit(collection)
