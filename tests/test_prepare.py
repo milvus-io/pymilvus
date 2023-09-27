@@ -29,7 +29,7 @@ class TestPrepare:
         ret = Prepare.search_requests_with_expr("name", data, "v", search_params, 100)
 
         offset_exists = False
-        for p in ret[0].search_params:
+        for p in ret.search_params:
             if p.key == "offset":
                 offset_exists = True
                 assert p.value == "10"

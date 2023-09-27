@@ -1,60 +1,14 @@
 import abc
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+import ujson
 
 from pymilvus.exceptions import MilvusException
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
 
-from . import entity_helper
 from .constants import DEFAULT_CONSISTENCY_LEVEL
 from .types import DataType
-
-
-class LoopBase:
-    def __init__(self):
-        self.__index = 0
-
-    def __iter__(self):
-        return self
-
-    def __getitem__(self, item: Any):
-        if isinstance(item, slice):
-            _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
-            _step = item.step or 1
-
-            return [self.get__item(i) for i in range(_start, _end, _step)]
-
-        if item >= self.__len__():
-            msg = "Index out of range"
-            raise IndexError(msg)
-
-        return self.get__item(item)
-
-    def __next__(self):
-        while self.__index < self.__len__():
-            self.__index += 1
-            return self.__getitem__(self.__index - 1)
-
-        # iterate stop, raise Exception
-        self.__index = 0
-        raise StopIteration
-
-    def __str__(self):
-        return str(list(map(str, self.__getitem__(slice(0, 10)))))
-
-    @abc.abstractmethod
-    def get__item(self, item: Any):
-        raise NotImplementedError
-
-
-class LoopCache:
-    def __init__(self):
-        self._array = []
-
-    def fill(self, index: int, obj: Any):
-        if len(self._array) + 1 < index:
-            pass
 
 
 class FieldSchema:
@@ -224,125 +178,6 @@ class CollectionSchema:
         return self.dict().__str__()
 
 
-class Entity:
-    def __init__(self, entity_id: int, entity_row_data: Any, entity_score: float):
-        self._id = entity_id
-        self._row_data = entity_row_data
-        self._score = entity_score
-        self._distance = entity_score
-
-    def __str__(self):
-        return f"id: {self._id}, distance: {self._distance}, entity: {self._row_data}"
-
-    def __getattr__(self, item: Any):
-        return self.value_of_field(item)
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def fields(self):
-        return [k for k, v in self._row_data.items()]
-
-    def get(self, field: Any):
-        return self.value_of_field(field)
-
-    def value_of_field(self, field: Any):
-        if field not in self._row_data:
-            raise MilvusException(message=f"Field {field} is not in return entity")
-        return self._row_data[field]
-
-    def type_of_field(self, field: Any):
-        msg = "TODO: support field in Hits"
-        raise NotImplementedError(msg)
-
-    def to_dict(self):
-        return {"id": self._id, "distance": self._distance, "entity": self._row_data}
-
-
-class Hit:
-    def __init__(self, entity_id: int, entity_row_data: Any, entity_score: float):
-        self._id = entity_id
-        self._row_data = entity_row_data
-        self._score = entity_score
-        self._distance = entity_score
-
-    def __str__(self):
-        return str(self.entity)
-
-    __repr__ = __str__
-
-    @property
-    def entity(self):
-        return Entity(self._id, self._row_data, self._score)
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def distance(self):
-        return self._distance
-
-    @property
-    def score(self):
-        return self._score
-
-    def to_dict(self):
-        return self.entity.to_dict()
-
-
-class Hits(LoopBase):
-    def __init__(self, raw: Any, round_decimal: int = -1):
-        super().__init__()
-        self._raw = raw
-        if round_decimal != -1:
-            self._distances = [round(x, round_decimal) for x in self._raw.scores]
-        else:
-            self._distances = self._raw.scores
-
-        self._dynamic_field_name = None
-        self._dynamic_fields = set()
-        (
-            self._dynamic_field_name,
-            self._dynamic_fields,
-        ) = entity_helper.extract_dynamic_field_from_result(self._raw)
-
-    def __len__(self):
-        if self._raw.ids.HasField("int_id"):
-            return len(self._raw.ids.int_id.data)
-        if self._raw.ids.HasField("str_id"):
-            return len(self._raw.ids.str_id.data)
-        return 0
-
-    def get__item(self, item: Any):
-        if self._raw.ids.HasField("int_id"):
-            entity_id = self._raw.ids.int_id.data[item]
-        elif self._raw.ids.HasField("str_id"):
-            entity_id = self._raw.ids.str_id.data[item]
-        else:
-            raise MilvusException(message="Unsupported ids type")
-
-        entity_row_data = entity_helper.extract_row_data_from_fields_data(
-            self._raw.fields_data, item, self._dynamic_fields
-        )
-        entity_score = self._distances[item]
-        return Hit(entity_id, entity_row_data, entity_score)
-
-    @property
-    def ids(self):
-        if self._raw.ids.HasField("int_id"):
-            return self._raw.ids.int_id.data
-        if self._raw.ids.HasField("str_id"):
-            return self._raw.ids.str_id.data
-        return []
-
-    @property
-    def distances(self):
-        return self._distances
-
-
 class MutationResult:
     def __init__(self, raw: Any):
         self._raw = raw
@@ -422,175 +257,301 @@ class MutationResult:
         self._err_index = raw.err_index
 
 
-class QueryResult(LoopBase):
-    def __init__(self, raw: Any):
-        super().__init__()
-        self._raw = raw
-        self._pack(raw.hits)
+class SequenceIterator:
+    def __init__(self, seq: Sequence[Any]):
+        self._seq = seq
+        self._idx = 0
 
-    def __len__(self):
-        return self._nq
+    def __next__(self) -> Any:
+        if self._idx < len(self._seq):
+            res = self._seq[self._idx]
+            self._idx += 1
+            return res
+        raise StopIteration
 
-    def _pack(self, raw: Any):
-        self._nq = raw.results.num_queries
-        self._topk = raw.results.top_k
-        self._hits = []
-        offset = 0
-        for i in range(self._nq):
-            hit = schema_pb2.SearchResultData()
-            start_pos = offset
-            end_pos = offset + raw.results.topks[i]
-            hit.scores.append(raw.results.scores[start_pos:end_pos])
-            if raw.results.ids.HasField("int_id"):
-                hit.ids.append(raw.results.ids.int_id.data[start_pos:end_pos])
-            elif raw.results.ids.HasField("str_id"):
-                hit.ids.append(raw.results.ids.str_id.data[start_pos:end_pos])
-            for field_data in raw.result.fields_data:
-                field = schema_pb2.FieldData()
-                field.type = field_data.type
-                field.field_name = field_data.field_name
-                if field_data.type == DataType.BOOL:
-                    field.scalars.bool_data.data.extend(
-                        field_data.scalars.bool_data.data[start_pos:end_pos]
-                    )
-                elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                    field.scalars.int_data.data.extend(
-                        field_data.scalars.int_data.data[start_pos:end_pos]
-                    )
-                elif field_data.type == DataType.INT64:
-                    field.scalars.long_data.data.extend(
-                        field_data.scalars.long_data.data[start_pos:end_pos]
-                    )
-                elif field_data.type == DataType.FLOAT:
-                    field.scalars.float_data.data.extend(
-                        field_data.scalars.float_data.data[start_pos:end_pos]
-                    )
-                elif field_data.type == DataType.DOUBLE:
-                    field.scalars.double_data.data.extend(
-                        field_data.scalars.double_data.data[start_pos:end_pos]
-                    )
-                elif field_data.type == DataType.VARCHAR:
-                    field.scalars.string_data.data.extend(
-                        field_data.scalars.string_data.data[start_pos:end_pos]
-                    )
-                elif field_data.type == DataType.STRING:
-                    raise MilvusException(message="Not support string yet")
-                elif field_data.type == DataType.JSON:
-                    field.scalars.json_data.data.extend(
-                        field_data.scalars.json_data.data[start_pos:end_pos]
-                    )
-                elif field_data.type == DataType.FLOAT_VECTOR:
-                    dim = field.vectors.dim
-                    field.vectors.dim = dim
-                    field.vectors.float_vector.data.extend(
-                        field_data.vectors.float_data.data[start_pos * dim : end_pos * dim]
-                    )
-                elif field_data.type == DataType.BINARY_VECTOR:
-                    dim = field_data.vectors.dim
-                    field.vectors.dim = dim
-                    field.vectors.binary_vector += field_data.vectors.binary_vector[
-                        start_pos * (dim // 8) : end_pos * (dim // 8)
-                    ]
-                hit.fields_data.append(field)
-            self._hits.append(hit)
-            offset += raw.results.topks[i]
 
+class SearchResult(list):
+    """nq results: List[Hits]"""
+
+    def __init__(self, res: schema_pb2.SearchResultData, round_decimal: Optional[int] = None):
+        self._nq = res.num_queries
+        all_topks = res.topks
+
+        output_fields = res.output_fields
+        fields_data = res.fields_data
+
+        all_pks: List[Union[str, int]] = []
+        all_scores: List[float] = []
+
+        if res.ids.HasField("int_id"):
+            all_pks = res.ids.int_id.data
+        elif res.ids.HasField("str_id"):
+            all_pks = res.ids.str_id.data
+
+        if isinstance(round_decimal, int) and round_decimal > 0:
+            all_scores = [round(x, round_decimal) for x in res.scores]
+        else:
+            all_scores = res.scores
+
+        data = []
+        nq_thres = 0
+        for topk in all_topks:
+            start, end = nq_thres, nq_thres + topk
+            nq_th_fields = self.get_fields_by_range(start, end, fields_data)
+            data.append(
+                Hits(topk, all_pks[start:end], all_scores[start:end], nq_th_fields, output_fields)
+            )
+            nq_thres += topk
+
+        super().__init__(data)
+
+    def get_fields_by_range(
+        self, start: int, end: int, all_fields_data: List[schema_pb2.FieldData]
+    ) -> Dict[str, Tuple[List[Any], schema_pb2.FieldData]]:
+        field2data: Dict[str, Tuple[List[Any], schema_pb2.FieldData]] = {}
+
+        for field in all_fields_data:
+            name, scalars, dtype = field.field_name, field.scalars, field.type
+            field_meta = schema_pb2.FieldData(
+                type=dtype,
+                field_name=name,
+                field_id=field.field_id,
+                is_dynamic=field.is_dynamic,
+            )
+            if dtype == DataType.BOOL:
+                field2data[name] = scalars.bool_data.data[start:end], field_meta
+                continue
+
+            if dtype in (DataType.INT8, DataType.INT16, DataType.INT32):
+                field2data[name] = scalars.int_data.data[start:end], field_meta
+                continue
+
+            if dtype == DataType.INT64:
+                field2data[name] = scalars.long_data.data[start:end], field_meta
+                continue
+
+            if dtype == DataType.FLOAT:
+                field2data[name] = scalars.float_data.data[start:end], field_meta
+                continue
+
+            if dtype == DataType.DOUBLE:
+                field2data[name] = scalars.double_data.data[start:end], field_meta
+                continue
+
+            if dtype == DataType.VARCHAR:
+                field2data[name] = scalars.string_data.data[start:end], field_meta
+                continue
+
+            if dtype == DataType.JSON:
+                json_dict_list = list(map(ujson.loads, scalars.json_data.data[start:end]))
+                field2data[name] = json_dict_list, field_meta
+                continue
+
+            if dtype == DataType.ARRAY:
+                topk_array_fields = scalars.array_data.data[start:end]
+                field2data[name] = (
+                    extract_array_row_data(topk_array_fields, scalars.array_data.element_type),
+                    field_meta,
+                )
+                continue
+
+            # vectors
+            dim, vectors = field.vectors.dim, field.vectors
+            field_meta.vectors.dim = dim
+            if dtype == DataType.FLOAT_VECTOR:
+                field2data[name] = vectors.float_vector.data[start * dim : end * dim], field_meta
+                continue
+
+            if dtype == DataType.BINARY_VECTOR:
+                field2data[name] = (
+                    vectors.binary_vector[start * (dim // 8) : end * (dim // 8)],
+                    field_meta,
+                )
+                continue
+
+        return field2data
+
+    def __iter__(self) -> SequenceIterator:
+        return SequenceIterator(self)
+
+    def __str__(self) -> str:
+        """Only print at most 10 query results"""
+        return str(list(map(str, self[:10])))
+
+    __repr__ = __str__
+
+
+class Hits(list):
+    ids: List[Union[str, int]]
+    distances: List[float]
+
+    def __init__(
+        self,
+        topk: int,
+        pks: Union[int, str],
+        distances: List[float],
+        fields: Dict[str, Tuple[List[Any], schema_pb2.FieldData]],
+        output_fields: List[str],
+    ):
+        """
+        Args:
+            fields(Dict[str, Tuple[List[Any], schema_pb2.FieldData]]):
+                field name to a tuple of topk data and field meta
+        """
+        self.ids = pks
+        self.distances = distances
+
+        all_fields = list(fields.keys())
+        dynamic_fields = list(set(output_fields) - set(all_fields))
+
+        hits = []
+        for i in range(topk):
+            curr_field = {}
+            for fname, (data, field_meta) in fields.items():
+                if len(data) <= i:
+                    curr_field[fname] = None
+                # Get vectors
+                if field_meta.type in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR):
+                    dim = field_meta.vectors.dim
+                    dim = dim // 8 if field_meta.type == DataType.BINARY_VECTOR else dim
+
+                    curr_field[fname] = data[i * dim : (i + 1) * dim]
+                    continue
+
+                # Get dynamic fields
+                if field_meta.type == DataType.JSON and field_meta.is_dynamic:
+                    if len(dynamic_fields) > 0:
+                        curr_field.update({k: v for k, v in data[i].items() if k in dynamic_fields})
+                        continue
+
+                    if fname in output_fields:
+                        curr_field.update(data[i])
+                        continue
+
+                # normal fields
+                curr_field[fname] = data[i]
+
+            hits.append(Hit(pks[i], distances[i], curr_field))
+
+        super().__init__(hits)
+
+    def __iter__(self) -> SequenceIterator:
+        return SequenceIterator(self)
+
+    def __str__(self) -> str:
+        """Only print at most 10 query results"""
+        return str(list(map(str, self[:10])))
+
+    __repr__ = __str__
+
+
+class Hit:
+    id: Union[int, str]
+    distance: float
+    fields: Dict[str, Any]
+
+    def __init__(self, pk: Union[int, str], distance: float, fields: Dict[str, Any]):
+        self.id = pk
+        self.distance = distance
+        self.fields = fields
+
+    def __getattr__(self, item: str):
+        if item not in self.fields:
+            raise MilvusException(message=f"Field {item} is not in the hit entity")
+        return self.fields[item]
+
+    @property
+    def entity(self):
+        return self
+
+    @property
+    def pk(self) -> Union[str, int]:
+        return self.id
+
+    @property
+    def score(self) -> float:
+        return self.distance
+
+    def get(self, field_name: str) -> Any:
+        return self.fields.get(field_name)
+
+    def __str__(self) -> str:
+        return f"pk: {self.id}, distance: {self.distance}, entity: {self.fields}"
+
+    __repr__ = __str__
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "distance": self.distance,
+            "entity": self.fields,
+        }
+
+
+def extract_array_row_data(
+    scalars: List[schema_pb2.ScalarField], element_type: DataType
+) -> List[List[Any]]:
+    row = []
+    for ith_array in scalars:
+        if element_type == DataType.INT64:
+            row.append(ith_array.long_data.data)
+            continue
+
+        if element_type == DataType.BOOL:
+            row.append(ith_array.bool_data.data)
+            continue
+
+        if element_type in (DataType.INT8, DataType.INT16, DataType.INT32):
+            row.append(ith_array.int_data.data)
+            continue
+
+        if element_type == DataType.FLOAT:
+            row.append(ith_array.float_data.data)
+            continue
+
+        if element_type == DataType.DOUBLE:
+            row.append(ith_array.double_data.data)
+            continue
+
+        if element_type in (DataType.STRING, DataType.VARCHAR):
+            row.append(ith_array.string_data.data)
+            continue
+    return row
+
+
+class LoopBase:
+    def __init__(self):
+        self.__index = 0
+
+    def __iter__(self):
+        return self
+
+    def __getitem__(self, item: Any):
+        if isinstance(item, slice):
+            _start = item.start or 0
+            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
+            _step = item.step or 1
+
+            return [self.get__item(i) for i in range(_start, _end, _step)]
+
+        if item >= self.__len__():
+            msg = "Index out of range"
+            raise IndexError(msg)
+
+        return self.get__item(item)
+
+    def __next__(self):
+        while self.__index < self.__len__():
+            self.__index += 1
+            return self.__getitem__(self.__index - 1)
+
+        # iterate stop, raise Exception
+        self.__index = 0
+        raise StopIteration
+
+    def __str__(self):
+        return str(list(map(str, self.__getitem__(slice(0, 10)))))
+
+    @abc.abstractmethod
     def get__item(self, item: Any):
-        return Hits(self._hits[item])
-
-
-class ChunkedQueryResult(LoopBase):
-    def __init__(self, raw_list: List, round_decimal: int = -1):
-        super().__init__()
-        self._raw_list = raw_list
-        self._nq = 0
-        self.round_decimal = round_decimal
-
-        self._pack(self._raw_list)
-
-    def __len__(self):
-        return self._nq
-
-    def _pack(self, raw_list: List):
-        self._hits = []
-        for raw in raw_list:
-            nq = raw.results.num_queries
-            self._nq += nq
-            self._topk = raw.results.top_k
-            offset = 0
-
-            for i in range(nq):
-                hit = schema_pb2.SearchResultData()
-                start_pos = offset
-                end_pos = offset + raw.results.topks[i]
-                hit.scores.extend(raw.results.scores[start_pos:end_pos])
-                if raw.results.ids.HasField("int_id"):
-                    hit.ids.int_id.data.extend(raw.results.ids.int_id.data[start_pos:end_pos])
-                elif raw.results.ids.HasField("str_id"):
-                    hit.ids.str_id.data.extend(raw.results.ids.str_id.data[start_pos:end_pos])
-                hit.output_fields.extend(raw.results.output_fields)
-                for field_data in raw.results.fields_data:
-                    field = schema_pb2.FieldData()
-                    field.type = field_data.type
-                    field.field_name = field_data.field_name
-                    field.is_dynamic = field_data.is_dynamic
-                    if field_data.type == DataType.BOOL:
-                        field.scalars.bool_data.data.extend(
-                            field_data.scalars.bool_data.data[start_pos:end_pos]
-                        )
-                    elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-                        field.scalars.int_data.data.extend(
-                            field_data.scalars.int_data.data[start_pos:end_pos]
-                        )
-                    elif field_data.type == DataType.INT64:
-                        field.scalars.long_data.data.extend(
-                            field_data.scalars.long_data.data[start_pos:end_pos]
-                        )
-                    elif field_data.type == DataType.FLOAT:
-                        field.scalars.float_data.data.extend(
-                            field_data.scalars.float_data.data[start_pos:end_pos]
-                        )
-                    elif field_data.type == DataType.DOUBLE:
-                        field.scalars.double_data.data.extend(
-                            field_data.scalars.double_data.data[start_pos:end_pos]
-                        )
-                    elif field_data.type == DataType.VARCHAR:
-                        field.scalars.string_data.data.extend(
-                            field_data.scalars.string_data.data[start_pos:end_pos]
-                        )
-                    elif field_data.type == DataType.STRING:
-                        raise MilvusException(message="Not support string yet")
-                    elif field_data.type == DataType.JSON:
-                        field.scalars.json_data.data.extend(
-                            field_data.scalars.json_data.data[start_pos:end_pos]
-                        )
-                    elif field_data.type == DataType.ARRAY:
-                        field.scalars.array_data.data.extend(
-                            field_data.scalars.array_data.data[start_pos:end_pos]
-                        )
-                        field.scalars.array_data.element_type = (
-                            field_data.scalars.array_data.element_type
-                        )
-                    elif field_data.type == DataType.FLOAT_VECTOR:
-                        dim = field_data.vectors.dim
-                        field.vectors.dim = dim
-                        field.vectors.float_vector.data.extend(
-                            field_data.vectors.float_vector.data[start_pos * dim : end_pos * dim]
-                        )
-                    elif field_data.type == DataType.BINARY_VECTOR:
-                        dim = field_data.vectors.dim
-                        field.vectors.dim = dim
-                        field.vectors.binary_vector += field_data.vectors.binary_vector[
-                            start_pos * (dim // 8) : end_pos * (dim // 8)
-                        ]
-                    hit.fields_data.append(field)
-                self._hits.append(hit)
-                offset += raw.results.topks[i]
-
-    def get__item(self, item: Any):
-        return Hits(self._hits[item], self.round_decimal)
-
-
-def _abstract():
-    msg = "You need to override this function"
-    raise NotImplementedError(msg)
+        raise NotImplementedError

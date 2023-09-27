@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
+from pymilvus.client.abstract import SearchResult
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
     CompactionPlans,
@@ -33,6 +34,7 @@ from pymilvus.exceptions import (
     PartitionNotExistException,
     SchemaNotReadyException,
 )
+from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
 
 from .connections import connections
@@ -52,7 +54,6 @@ from .schema import (
     check_upsert_schema,
     construct_fields_from_dataframe,
 )
-from .search import SearchResult
 from .types import DataType
 from .utility import _get_connection
 
@@ -774,8 +775,12 @@ class Collection:
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
+        if isinstance(data, list) and len(data) == 0:
+            resp = SearchResult(schema_pb2.SearchResultData())
+            return SearchFuture(None) if kwargs.get("_async", False) else resp
+
         conn = self._get_connection()
-        res = conn.search(
+        resp = conn.search(
             self._name,
             data,
             anns_field,
@@ -789,9 +794,8 @@ class Collection:
             schema=self._schema_dict,
             **kwargs,
         )
-        if kwargs.get("_async", False):
-            return SearchFuture(res)
-        return SearchResult(res)
+
+        return SearchFuture(resp) if kwargs.get("_async", False) else resp
 
     def search_iterator(
         self,

@@ -1,10 +1,11 @@
 import abc
 import threading
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Optional
 
 from pymilvus.exceptions import MilvusException
+from pymilvus.grpc_gen import milvus_pb2
 
-from .abstract import ChunkedQueryResult, MutationResult, QueryResult
+from .abstract import MutationResult, SearchResult
 from .types import Status
 
 
@@ -160,96 +161,12 @@ class Future(AbstractFuture):
 
 
 class SearchFuture(Future):
-    def on_response(self, response: Any):
+    def on_response(self, response: milvus_pb2.SearchResults):
         if response.status.code == 0:
-            return QueryResult(response)
+            return SearchResult(response.results)
 
         status = response.status
         raise MilvusException(status.code, status.reason, status.error_code)
-
-
-# TODO: if ChunkedFuture is more common later, consider using ChunkedFuture as Base Class,
-#       then Future(future, done_cb, pre_exception) equal
-#       to ChunkedFuture([future], done_cb, pre_exception)
-class ChunkedSearchFuture(Future):
-    def __init__(
-        self,
-        future_list: List,
-        done_callback: Optional[Callable] = None,
-        pre_exception: Optional[Callable] = None,
-    ) -> None:
-        super().__init__(None, done_callback, pre_exception)
-        self._future_list = future_list
-        self._response = []
-
-    def result(self, **kwargs):
-        self.exception()
-        with self._condition:
-            to = kwargs.get("timeout", None)
-            if self._results is None:
-                for future in self._future_list:
-                    if future:
-                        self._response.append(future.result(timeout=to))
-
-                if len(self._response) > 0 and not self._results:
-                    self._results = self.on_response(self._response)
-
-                    self._callback()
-
-            self._done = True
-
-            self._condition.notify_all()
-
-        self.exception()
-        if kwargs.get("raw", False) is True:
-            # just return response object received from gRPC
-            msg = "Not supported to return response object received from gRPC"
-            raise AttributeError(msg)
-
-        if self._results:
-            return self._results
-        return self.on_response(self._response)
-
-    def cancel(self):
-        with self._condition:
-            for future in self._future_list:
-                if future:
-                    future.cancel()
-            self._condition.notify_all()
-
-    def is_done(self):
-        return self._done
-
-    def done(self):
-        with self._condition:
-            if self._results is None:
-                try:
-                    for future in self._future_list:
-                        if future:
-                            self._response.append(future.result(timeout=None))
-
-                    if len(self._response) > 0 and not self._results:
-                        self._results = self.on_response(self._response)
-                        self._callback()  # https://github.com/milvus-io/milvus/issues/6160
-
-                except Exception as e:
-                    self._exception = e
-
-            self._condition.notify_all()
-
-    def exception(self):
-        if self._exception:
-            raise self._exception
-        for future in self._future_list:
-            if future:
-                future.exception()
-
-    def on_response(self, response: Any):
-        for raw in response:
-            if raw.status.code != 0:
-                raise MilvusException(raw.status.code, raw.status.reason, raw.status.error_code)
-
-        return ChunkedQueryResult(response)
 
 
 class MutationFuture(Future):

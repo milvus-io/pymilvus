@@ -12,14 +12,16 @@
 
 from typing import Any
 
+from pymilvus.client.abstract import SearchResult
+from pymilvus.grpc_gen import schema_pb2
+
 from .mutation import MutationResult
-from .search import SearchResult
 
 
 # TODO(dragondriver): how could we inherit the docstring elegantly?
 class BaseFuture:
     def __init__(self, future: Any) -> None:
-        self._f = future
+        self._f = future if future is not None else _EmptySearchFuture()
 
     def result(self) -> Any:
         """Return the result from future object.
@@ -41,11 +43,22 @@ class BaseFuture:
         return self._f.done()
 
 
-class SearchFuture(BaseFuture):
-    def on_response(self, res: Any):
-        return SearchResult(res)
+class _EmptySearchFuture:
+    def result(self) -> schema_pb2.SearchResultData:
+        return schema_pb2.SearchResultData()
+
+    def cancel(self) -> None:
+        pass
+
+    def done(self) -> None:
+        pass
 
 
 class MutationFuture(BaseFuture):
     def on_response(self, res: Any):
         return MutationResult(res)
+
+
+class SearchFuture(BaseFuture):
+    def on_response(self, res: Any):
+        return SearchResult(res)
