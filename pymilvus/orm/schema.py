@@ -98,9 +98,10 @@ class CollectionSchema:
         primary_field_name = self._kwargs.get("primary_field", None)
         partition_key_field_name = self._kwargs.get("partition_key_field", None)
         for field in self._fields:
-            if primary_field_name == field.name:
+            if primary_field_name and primary_field_name == field.name:
                 field.is_primary = True
-            if partition_key_field_name == field.name:
+
+            if partition_key_field_name and partition_key_field_name == field.name:
                 field.is_partition_key = True
 
             if field.is_primary:
@@ -403,6 +404,45 @@ def check_is_row_based(data: Union[List[List], List[Dict], Dict, pd.DataFrame]) 
     return False
 
 
+def _check_insert_data(data: Union[List[List], pd.DataFrame]):
+    if not isinstance(data, (pd.DataFrame, list)):
+        raise DataTypeNotSupportException(
+            message="The type of data should be list or pandas.DataFrame"
+        )
+    is_dataframe = isinstance(data, pd.DataFrame)
+    for col in data:
+        if not is_dataframe and not is_list_like(col):
+            raise DataTypeNotSupportException(message="data should be a list of list")
+
+
+def _check_data_schema_cnt(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
+    tmp_fields = copy.deepcopy(schema.fields)
+    for i, field in enumerate(tmp_fields):
+        if field.is_primary and field.auto_id:
+            tmp_fields.pop(i)
+
+    field_cnt = len(tmp_fields)
+    is_dataframe = isinstance(data, pd.DataFrame)
+    data_cnt = len(data.columns) if is_dataframe else len(data)
+    if field_cnt != data_cnt:
+        message = (
+            f"The data don't match with schema fields, expect {field_cnt} list, got {len(data)}"
+        )
+        if is_dataframe:
+            i_name = [f.name for f in tmp_fields]
+            t_name = list(data.columns)
+            message = f"The fields don't match with schema fields, expected: {i_name}, got {t_name}"
+
+        raise DataNotMatchException(message=message)
+
+    if is_dataframe:
+        for x, y in zip(list(data.columns), tmp_fields):
+            if x != y.name:
+                raise DataNotMatchException(
+                    message=f"The name of field don't match, expected: {y.name}, got {x}"
+                )
+
+
 def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
     if schema is None:
         raise SchemaNotReadyException(message="Schema shouldn't be None")
@@ -410,10 +450,12 @@ def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
         if not data[schema.primary_field.name].isnull().all():
             msg = f"Expect no data for auto_id primary field: {schema.primary_field.name}"
             raise DataNotMatchException(message=msg)
-        data = data.drop(schema.primary_field.name, axis=1)
+        columns = list(data.columns)
+        columns.remove(schema.primary_field)
+        data = data[[columns]]
 
-    infer_fields, tmp_fields, is_data_frame = parse_fields_from_data(schema, data)
-    check_infer_fields_valid(infer_fields, tmp_fields, is_data_frame)
+    _check_data_schema_cnt(schema, data)
+    _check_insert_data(data)
 
 
 def check_upsert_schema(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
@@ -422,78 +464,8 @@ def check_upsert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
     if schema.auto_id:
         raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
 
-    infer_fields, tmp_fields, is_data_frame = parse_fields_from_data(schema, data)
-    check_infer_fields_valid(infer_fields, tmp_fields, is_data_frame)
-
-
-def parse_fields_from_data(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
-    if not isinstance(data, (pd.DataFrame, list)):
-        raise DataTypeNotSupportException(
-            message="The type of data should be list or pandas.DataFrame"
-        )
-
-    if isinstance(data, pd.DataFrame):
-        return parse_fields_from_dataframe(schema, data)
-
-    tmp_fields = copy.deepcopy(schema.fields)
-    for i, field in enumerate(tmp_fields):
-        if field.is_primary and field.auto_id:
-            tmp_fields.pop(i)
-
-    infer_fields = []
-    for i, field in enumerate(tmp_fields):
-        try:
-            d = data[i]
-            if not is_list_like(d):
-                raise DataTypeNotSupportException(message="data should be a list of list")
-            try:
-                elem = d[0]
-                infer_fields.append(FieldSchema("", infer_dtype_bydata(elem)))
-            # if pass in [] or None, considering to be passed in order according to the schema
-            except IndexError:
-                infer_fields.append(FieldSchema("", field.dtype))
-        # the last missing part of data is also completed in order according to the schema
-        except IndexError:
-            infer_fields.append(FieldSchema("", field.dtype))
-
-    index = len(tmp_fields)
-    while index < len(data):
-        fields = FieldSchema("", infer_dtype_bydata(data[index][0]))
-        infer_fields.append(fields)
-        index = index + 1
-
-    return infer_fields, tmp_fields, False
-
-
-def parse_fields_from_dataframe(schema: CollectionSchema, df: pd.DataFrame):
-    col_names, data_types, column_params_map = prepare_fields_from_dataframe(df)
-    tmp_fields = copy.deepcopy(schema.fields)
-    for i, field in enumerate(schema.fields):
-        if field.is_primary and field.auto_id:
-            tmp_fields.pop(i)
-    infer_fields = []
-    for field in tmp_fields:
-        # if no data pass in, considering to be passed in order according to the schema
-        if field.name not in col_names:
-            field_schema = FieldSchema(field.name, field.dtype)
-            col_names.append(field.name)
-            data_types.append(field.dtype)
-            infer_fields.append(field_schema)
-        else:
-            type_params = column_params_map.get(field.name, {})
-            field_schema = FieldSchema(
-                field.name, data_types[col_names.index(field.name)], **type_params
-            )
-            infer_fields.append(field_schema)
-
-    infer_name = [f.name for f in infer_fields]
-    for name, dtype in zip(col_names, data_types):
-        if name not in infer_name:
-            type_params = column_params_map.get(name, {})
-            field_schema = FieldSchema(name, dtype, **type_params)
-            infer_fields.append(field_schema)
-
-    return infer_fields, tmp_fields, True
+    _check_data_schema_cnt(schema, data)
+    _check_insert_data(data)
 
 
 def construct_fields_from_dataframe(df: pd.DataFrame) -> List[FieldSchema]:
@@ -534,31 +506,6 @@ def prepare_fields_from_dataframe(df: pd.DataFrame):
         raise CannotInferSchemaException(message=ExceptionsMessage.DataFrameInvalid)
 
     return col_names, data_types, column_params_map
-
-
-def check_infer_fields_valid(
-    infer_fields: List[FieldSchema],
-    tmp_fields: List,
-    is_data_frame: bool,
-):
-    if len(infer_fields) != len(tmp_fields):
-        i_name = [f.name for f in infer_fields]
-        t_name = [f.name for f in tmp_fields]
-        raise DataNotMatchException(
-            message=f"The fields don't match with schema fields, expected: {t_name}, got {i_name}"
-        )
-
-    for x, y in zip(infer_fields, tmp_fields):
-        if is_data_frame and x.name != y.name:
-            raise DataNotMatchException(
-                message=f"The name of field don't match, expected: {y.name}, got {x.name}"
-            )
-        if x.dtype != y.dtype:
-            msg = (
-                f"The data type of field {y.name} doesn't match, "
-                f"expected: {y.dtype.name}, got {x.dtype.name}"
-            )
-            raise DataNotMatchException(message=msg)
 
 
 def check_schema(schema: CollectionSchema):
