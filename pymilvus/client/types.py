@@ -49,6 +49,7 @@ class Status:
     OUT_OF_MEMORY = 24
     INDEX_NOT_EXIST = 25
     EMPTY_COLLECTION = 26
+    INDEX_NOT_FOUND = 700
 
     def __init__(self, code: int = SUCCESS, message: str = "Success") -> None:
         self.code = code

@@ -911,7 +911,7 @@ class GrpcHandler:
         status = response.status
         if status.code == 0:
             return response.index_descriptions
-        if status.code == Status.INDEX_NOT_EXIST:
+        if status.code in [Status.INDEX_NOT_EXIST, Status.INDEX_NOT_FOUND]:
             return []
         raise MilvusException(status.code, status.reason, status.error_code)
 
@@ -930,7 +930,7 @@ class GrpcHandler:
         rf = self._stub.DescribeIndex.future(request, timeout=timeout)
         response = rf.result()
         status = response.status
-        if status.code == Status.INDEX_NOT_EXIST:
+        if status.code in [Status.INDEX_NOT_EXIST, Status.INDEX_NOT_FOUND]:
             return None
         if status.code != 0:
             raise MilvusException(status.code, status.reason)
