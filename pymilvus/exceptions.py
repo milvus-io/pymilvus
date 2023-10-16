@@ -21,6 +21,7 @@ class ErrorCode(IntEnum):
     RATE_LIMIT = 8
     FORCE_DENY = 9
     COLLECTION_NOT_FOUND = 100
+    INDEX_NOT_FOUND = 700
 
 
 class MilvusException(Exception):
