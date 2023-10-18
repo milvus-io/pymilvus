@@ -493,19 +493,19 @@ class MilvusClient:
         self,
         collection_name: str,
         schema: CollectionSchema,
-        index_param: Dict,
+        index_params: Dict,
         timeout: Optional[float] = None,
         **kwargs,
     ):
         schema.verify()
-        if kwargs.get("auto_id", True):
+        if kwargs.get("auto_id", False):
             schema.auto_id = True
         if kwargs.get("enable_dynamic_field", False):
             schema.enable_dynamic_field = True
         schema.verify()
 
-        index_param = index_param or {}
-        vector_field_name = index_param.pop("field_name", "")
+        index_params = index_params or {}
+        vector_field_name = index_params.pop("field_name", "")
         if not vector_field_name:
             schema_dict = schema.to_dict()
             vector_field_name = self._get_vector_field_name(schema_dict)
@@ -520,7 +520,7 @@ class MilvusClient:
             logger.error("Failed to create collection: %s", collection_name)
             raise ex from ex
 
-        self._create_index(collection_name, vector_field_name, index_param, timeout=timeout)
+        self._create_index(collection_name, vector_field_name, index_params, timeout=timeout)
         self._load(collection_name, timeout=timeout)
 
     def close(self):

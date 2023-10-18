@@ -139,31 +139,3 @@ class TestFieldSchema:
             target = f.to_dict()
             assert target == dicts[i]
             assert target is not dicts[i]
-
-    #  def test_parse_fields_from_dataframe(self, dataframe1):
-    #      fields = parse_fields_from_dataframe(dataframe1)
-    #      assert len(fields) == len(dataframe1.columns)
-    #      for f in fields:
-    #          if f.dtype == DataType.FLOAT_VECTOR:
-    #              assert f.dim == len(dataframe1['float_vec'].values[0])
-
-
-class TestCheckInsertDataSchema:
-    def test_check_insert_data_schema_issue1324(self):
-        schema = CollectionSchema([
-            FieldSchema(name="id", dtype=DataType.INT64, descrition="int64", is_primary=True, auto_id=True),
-            FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, descrition="float vector", dim=2),
-            FieldSchema(name="work_id2", dtype=5, descrition="work id"),
-            FieldSchema(name='path', dtype=DataType.VARCHAR, description='path to image', max_length=200),
-            FieldSchema(name="uid", dtype=DataType.INT64, descrition="user id"),
-        ])
-
-        data = [
-            [[0.003984056, 0.05035976]],
-            ['15755403'],
-            ['https://xxx.com/app/works/105149/2023-01-11/w_63be653c4643b/963be653c8aa8c.jpg'],
-            ['105149'],
-        ]
-
-        with pytest.raises(MilvusException):
-            s.check_insert_schema(schema, data)

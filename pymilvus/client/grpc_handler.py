@@ -570,7 +570,6 @@ class GrpcHandler:
                 m = MutationResult(response)
                 ts_utils.update_collection_ts(collection_name, m.timestamp)
                 return m
-
             raise MilvusException(
                 response.status.code, response.status.reason, response.status.error_code
             )

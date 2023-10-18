@@ -70,8 +70,8 @@ def entity_to_json_arr(entity: Dict):
     return convert_to_json_arr(entity.get("values", []))
 
 
-def convert_to_array_arr(objs: List[Any]):
-    return [convert_to_array_arr(obj) for obj in objs]
+def convert_to_array_arr(objs: List[Any], field_info: Any):
+    return [convert_to_array(obj, field_info) for obj in objs]
 
 
 def convert_to_array(obj: List[Any], field_info: Any):
@@ -100,8 +100,8 @@ def convert_to_array(obj: List[Any], field_info: Any):
     )
 
 
-def entity_to_array_arr(entity: List[Any]):
-    return convert_to_array_arr(entity.get("values", []))
+def entity_to_array_arr(entity: List[Any], field_info: Any):
+    return convert_to_array_arr(entity.get("values", []), field_info)
 
 
 def pack_field_value_to_field_data(field_value: Any, field_data: Any, field_info: Any):
@@ -166,7 +166,7 @@ def entity_to_field_data(entity: Any, field_info: Any):
     elif entity_type == DataType.JSON:
         field_data.scalars.json_data.data.extend(entity_to_json_arr(entity))
     elif entity_type == DataType.ARRAY:
-        field_data.scalars.array_data.data.extend(entity_to_array_arr(entity))
+        field_data.scalars.array_data.data.extend(entity_to_array_arr(entity, field_info))
     else:
         raise ParamError(message=f"UnSupported data type: {entity_type}")
 
