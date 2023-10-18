@@ -116,23 +116,17 @@ class FieldSchema:
         self.indexes.extend([index_dict])
 
     def dict(self):
-        _dict = {
+        return {
             "field_id": self.field_id,
             "name": self.name,
             "description": self.description,
             "type": self.type,
             "params": self.params or {},
+            "is_primary": self.is_primary,
+            "auto_id": self.auto_id,
+            "is_partition_key": self.is_partition_key,
+            "is_dynamic": self.is_dynamic,
         }
-
-        if self.is_partition_key:
-            _dict["is_partition_key"] = True
-        if self.is_dynamic:
-            _dict["is_dynamic"] = True
-        if self.auto_id:
-            _dict["auto_id"] = True
-        if self.is_primary:
-            _dict["is_primary"] = self.is_primary
-        return _dict
 
 
 class CollectionSchema:
@@ -211,9 +205,8 @@ class CollectionSchema:
             "consistency_level": self.consistency_level,
             "properties": self.properties,
             "num_partitions": self.num_partitions,
+            "enable_dynamic_field": self.enable_dynamic_field,
         }
-        if self.enable_dynamic_field:
-            _dict["enable_dynamic_field"] = self.enable_dynamic_field
         self._rewrite_schema_dict(_dict)
         return _dict
 
