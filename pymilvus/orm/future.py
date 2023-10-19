@@ -12,7 +12,6 @@
 
 from typing import Any
 
-from pymilvus.client.abstract import SearchResult
 from pymilvus.grpc_gen import schema_pb2
 
 from .mutation import MutationResult
@@ -60,5 +59,6 @@ class MutationFuture(BaseFuture):
 
 
 class SearchFuture(BaseFuture):
-    def on_response(self, res: Any):
-        return SearchResult(res)
+    """SearchFuture of async already returns SearchResult, add BaseFuture
+    functions into async.SearchFuture
+    """
