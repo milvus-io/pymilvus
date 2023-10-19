@@ -79,7 +79,7 @@ entities = [
 insert_result = hello_milvus.insert(entities)
 
 hello_milvus.flush()
-print(f"Number of entities in Milvus: {hello_milvus.num_entities}")  # check the num_entites
+print(f"Number of entities in Milvus: {hello_milvus.num_entities}")  # check the num_entities
 
 ################################################################################
 # 4. create index
