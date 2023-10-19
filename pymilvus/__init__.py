@@ -27,6 +27,8 @@ from .bulk_writer.remote_bulk_writer import (
     RemoteBulkWriter,
 )
 from .client import __version__
+from .client.abstract import Hit, Hits, SearchResult
+from .client.asynch import SearchFuture
 from .client.prepare import Prepare
 from .client.stub import Milvus
 from .client.types import (
@@ -48,12 +50,11 @@ from .milvus_client.milvus_client import MilvusClient
 from .orm import db, utility
 from .orm.collection import Collection
 from .orm.connections import Connections, connections
-from .orm.future import MutationFuture, SearchFuture
+from .orm.future import MutationFuture
 from .orm.index import Index
 from .orm.partition import Partition
 from .orm.role import Role
 from .orm.schema import CollectionSchema, FieldSchema
-from .orm.search import Hit, Hits, SearchResult
 from .orm.utility import (
     create_resource_group,
     create_user,

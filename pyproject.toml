@@ -132,7 +132,8 @@ exclude = [
     "venv",
     "grpc_gen",
     "__pycache__",
-    "pymilvus/client/stub.py"
+    "pymilvus/client/stub.py",
+    "tests",
 ]
 
 # Same as Black.

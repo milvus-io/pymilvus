@@ -24,9 +24,8 @@ from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils
-from .abstract import ChunkedQueryResult, CollectionSchema, MutationResult
+from .abstract import CollectionSchema, MutationResult, SearchResult
 from .asynch import (
-    ChunkedSearchFuture,
     CreateIndexFuture,
     FlushFuture,
     LoadPartitionsFuture,
@@ -721,31 +720,26 @@ class GrpcHandler:
             response.status.code, response.status.reason, response.status.error_code
         )
 
-    def _execute_search_requests(self, requests: Any, timeout: Optional[float] = None, **kwargs):
+    def _execute_search(
+        self, request: milvus_types.SearchRequest, timeout: Optional[float] = None, **kwargs
+    ):
         try:
             if kwargs.get("_async", False):
-                futures = []
-                for request in requests:
-                    ft = self._stub.Search.future(request, timeout=timeout)
-                    futures.append(ft)
+                future = self._stub.Search.future(request, timeout=timeout)
                 func = kwargs.get("_callback", None)
-                return ChunkedSearchFuture(futures, func)
+                return SearchFuture(future, func)
 
-            raws = []
-            for request in requests:
-                response = self._stub.Search(request, timeout=timeout)
+            response = self._stub.Search(request, timeout=timeout)
+            if response.status.code != 0:
+                raise MilvusException(response.status.code, response.status.reason)
 
-                if response.status.code != 0:
-                    raise MilvusException(response.status.code, response.status.reason)
-
-                raws.append(response)
             round_decimal = kwargs.get("round_decimal", -1)
-            return ChunkedQueryResult(raws, round_decimal)
+            return SearchResult(response.results, round_decimal)
 
-        except Exception as pre_err:
+        except Exception as e:
             if kwargs.get("_async", False):
-                return SearchFuture(None, None, pre_err)
-            raise pre_err from pre_err
+                return SearchFuture(None, None, e)
+            raise e from e
 
     @retry_on_rpc_failure()
     def search(
@@ -772,7 +766,7 @@ class GrpcHandler:
             guarantee_timestamp=kwargs.get("guarantee_timestamp", None),
         )
 
-        requests = Prepare.search_requests_with_expr(
+        request = Prepare.search_requests_with_expr(
             collection_name,
             data,
             anns_field,
@@ -784,9 +778,7 @@ class GrpcHandler:
             round_decimal,
             **kwargs,
         )
-        return self._execute_search_requests(
-            requests, timeout, round_decimal=round_decimal, **kwargs
-        )
+        return self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
 
     @retry_on_rpc_failure()
     def get_query_segment_info(self, collection_name: str, timeout: float = 30, **kwargs):

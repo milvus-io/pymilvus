@@ -577,11 +577,7 @@ class Prepare:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         **kwargs,
-    ):
-        requests = []
-        if len(data) <= 0:
-            return requests
-
+    ) -> milvus_types.SearchRequest:
         if isinstance(data[0], bytes):
             is_binary = True
             pl_type = PlaceholderType.BinaryVector
@@ -651,8 +647,7 @@ class Prepare:
             ]
         )
 
-        requests.append(request)
-        return requests
+        return request
 
     @classmethod
     def create_alias_request(cls, collection_name: str, alias: str):

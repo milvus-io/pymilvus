@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, TypeVar, Union
 import pandas as pd
 import ujson
 
+from pymilvus.client.abstract import SearchResult
 from pymilvus.client.types import Replica
 from pymilvus.exceptions import (
     ExceptionsMessage,
@@ -23,7 +24,6 @@ from pymilvus.exceptions import (
 )
 
 from .mutation import MutationResult
-from .search import SearchResult
 
 Collection = TypeVar("Collection")
 Partition = TypeVar("Partition")

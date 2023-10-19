@@ -1,12 +1,11 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TypeVar
 
-from pymilvus.client.abstract import LoopBase
+from pymilvus.client.abstract import Hits, LoopBase
 from pymilvus.exceptions import (
     MilvusException,
     ParamError,
 )
-from pymilvus.orm.search import Hits
 
 from .connections import Connections
 from .constants import (
