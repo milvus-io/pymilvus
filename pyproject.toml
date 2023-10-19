@@ -24,7 +24,7 @@ dependencies=[
     "pandas>=1.2.4",
     "numpy<1.25.0;python_version<='3.8'",
     "requests",
-    "minio",
+    "minio>=7.0.0",
 ]
 
 classifiers=[
