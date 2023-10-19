@@ -364,7 +364,7 @@ class GrpcHandler:
         self,
         old_name: str,
         new_name: str,
-        new_db_name: str = "default",
+        new_db_name: str = "",
         timeout: Optional[float] = None,
     ):
         check_pass_param(collection_name=new_name)
