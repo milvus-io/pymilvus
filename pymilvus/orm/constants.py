@@ -36,6 +36,7 @@ RADIUS = "radius"
 RANGE_FILTER = "range_filter"
 FIELDS = "fields"
 EF = "ef"
+IS_PRIMARY = "is_primary"
 STOP_REDUCE_FOR_BEST = "stop_reduce_for_best"
 DEFAULT_MAX_L2_DISTANCE = 99999999.0
 DEFAULT_MIN_IP_DISTANCE = -99999999.0
