@@ -469,7 +469,7 @@ class Hit:
         return self.fields.get(field_name)
 
     def __str__(self) -> str:
-        return f"pk: {self.id}, distance: {self.distance}, entity: {self.fields}"
+        return f"id: {self.id}, distance: {self.distance}, entity: {self.fields}"
 
     __repr__ = __str__
 

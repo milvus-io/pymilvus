@@ -12,6 +12,7 @@
 
 from typing import Any
 
+from pymilvus.client.abstract import SearchResult
 from pymilvus.grpc_gen import schema_pb2
 
 from .mutation import MutationResult
@@ -43,8 +44,8 @@ class BaseFuture:
 
 
 class _EmptySearchFuture:
-    def result(self) -> schema_pb2.SearchResultData:
-        return schema_pb2.SearchResultData()
+    def result(self) -> SearchResult:
+        return SearchResult(schema_pb2.SearchResultData())
 
     def cancel(self) -> None:
         pass
