@@ -20,6 +20,7 @@ from .constants import (
     EF,
     FIELDS,
     INT64_MAX,
+    IS_PRIMARY,
     MAX_BATCH_SIZE,
     MAX_FILTERED_IDS_COUNT_ITERATION,
     MAX_TRY_TIME,
@@ -163,7 +164,7 @@ class QueryIterator:
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
         for field in fields:
-            if field["is_primary"]:
+            if field[IS_PRIMARY]:
                 if field["type"] == DataType.VARCHAR:
                     self._pk_str = True
                 else:
@@ -352,7 +353,7 @@ class SearchIterator:
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
         for field in fields:
-            if field["is_primary"]:
+            if IS_PRIMARY in field and field[IS_PRIMARY]:
                 if field["type"] == DataType.VARCHAR:
                     self._pk_str = True
                 else:
