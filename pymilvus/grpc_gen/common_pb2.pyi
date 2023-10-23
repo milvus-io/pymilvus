@@ -599,18 +599,27 @@ class Address(_message.Message):
     def __init__(self, ip: _Optional[str] = ..., port: _Optional[int] = ...) -> None: ...
 
 class MsgBase(_message.Message):
-    __slots__ = ["msg_type", "msgID", "timestamp", "sourceID", "targetID"]
+    __slots__ = ["msg_type", "msgID", "timestamp", "sourceID", "targetID", "properties"]
+    class PropertiesEntry(_message.Message):
+        __slots__ = ["key", "value"]
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     MSG_TYPE_FIELD_NUMBER: _ClassVar[int]
     MSGID_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     SOURCEID_FIELD_NUMBER: _ClassVar[int]
     TARGETID_FIELD_NUMBER: _ClassVar[int]
+    PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     msg_type: MsgType
     msgID: int
     timestamp: int
     sourceID: int
     targetID: int
-    def __init__(self, msg_type: _Optional[_Union[MsgType, str]] = ..., msgID: _Optional[int] = ..., timestamp: _Optional[int] = ..., sourceID: _Optional[int] = ..., targetID: _Optional[int] = ...) -> None: ...
+    properties: _containers.ScalarMap[str, str]
+    def __init__(self, msg_type: _Optional[_Union[MsgType, str]] = ..., msgID: _Optional[int] = ..., timestamp: _Optional[int] = ..., sourceID: _Optional[int] = ..., targetID: _Optional[int] = ..., properties: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class MsgHeader(_message.Message):
     __slots__ = ["base"]
