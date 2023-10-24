@@ -40,7 +40,7 @@ from .types import (
 
 def validate_primary_key(primary_field: Any):
     if primary_field is None:
-        raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyNotExist)
+        raise PrimaryKeyException(message=ExceptionsMessage.NoPrimaryKey)
 
     if primary_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
         raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyType)
