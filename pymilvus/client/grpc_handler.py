@@ -320,17 +320,17 @@ class GrpcHandler:
         rf = self._stub.DescribeCollection.future(request, timeout=timeout)
 
         reply = rf.result()
-        if reply.status.code == ErrorCode.SUCCESS:
-            return True
-
-        if reply.status.code == ErrorCode.COLLECTION_NOT_FOUND:
-            return False
-
         # For compatibility with Milvus less than 2.3.2, which does not support status.code.
         if (
             reply.status.error_code == common_pb2.UnexpectedError
             and "can't find collection" in reply.status.reason
         ):
+            return False
+
+        if reply.status.code == ErrorCode.SUCCESS:
+            return True
+
+        if reply.status.code == ErrorCode.COLLECTION_NOT_FOUND:
             return False
 
         raise MilvusException(reply.status.code, reply.status.reason, reply.status.error_code)
