@@ -319,7 +319,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
         uri = kwargs.get("uri")
         if uri is not None:
             server_type = get_server_type(uri)
-            if server_type == ZILLIZ and ":" not in token:
+            parsed_uri = parse.urlparse(uri)
+            if server_type == ZILLIZ and parsed_uri.port is None:
                 kwargs["uri"] = uri + ":" + str(VIRTUAL_PORT)
 
         config = (
