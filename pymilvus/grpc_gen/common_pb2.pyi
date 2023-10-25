@@ -599,7 +599,7 @@ class Address(_message.Message):
     def __init__(self, ip: _Optional[str] = ..., port: _Optional[int] = ...) -> None: ...
 
 class MsgBase(_message.Message):
-    __slots__ = ["msg_type", "msgID", "timestamp", "sourceID", "targetID", "properties"]
+    __slots__ = ["msg_type", "msgID", "timestamp", "sourceID", "targetID", "properties", "replicateInfo"]
     class PropertiesEntry(_message.Message):
         __slots__ = ["key", "value"]
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -613,13 +613,23 @@ class MsgBase(_message.Message):
     SOURCEID_FIELD_NUMBER: _ClassVar[int]
     TARGETID_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    REPLICATEINFO_FIELD_NUMBER: _ClassVar[int]
     msg_type: MsgType
     msgID: int
     timestamp: int
     sourceID: int
     targetID: int
     properties: _containers.ScalarMap[str, str]
-    def __init__(self, msg_type: _Optional[_Union[MsgType, str]] = ..., msgID: _Optional[int] = ..., timestamp: _Optional[int] = ..., sourceID: _Optional[int] = ..., targetID: _Optional[int] = ..., properties: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    replicateInfo: ReplicateInfo
+    def __init__(self, msg_type: _Optional[_Union[MsgType, str]] = ..., msgID: _Optional[int] = ..., timestamp: _Optional[int] = ..., sourceID: _Optional[int] = ..., targetID: _Optional[int] = ..., properties: _Optional[_Mapping[str, str]] = ..., replicateInfo: _Optional[_Union[ReplicateInfo, _Mapping]] = ...) -> None: ...
+
+class ReplicateInfo(_message.Message):
+    __slots__ = ["isReplicate", "msgTimestamp"]
+    ISREPLICATE_FIELD_NUMBER: _ClassVar[int]
+    MSGTIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    isReplicate: bool
+    msgTimestamp: int
+    def __init__(self, isReplicate: bool = ..., msgTimestamp: _Optional[int] = ...) -> None: ...
 
 class MsgHeader(_message.Message):
     __slots__ = ["base"]

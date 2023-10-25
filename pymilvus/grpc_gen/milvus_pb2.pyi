@@ -1,6 +1,7 @@
 from . import common_pb2 as _common_pb2
 from . import schema_pb2 as _schema_pb2
 from . import feder_pb2 as _feder_pb2
+from . import msg_pb2 as _msg_pb2
 from google.protobuf import descriptor_pb2 as _descriptor_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -1795,3 +1796,29 @@ class ListDatabasesResponse(_message.Message):
     db_names: _containers.RepeatedScalarFieldContainer[str]
     created_timestamp: _containers.RepeatedScalarFieldContainer[int]
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_names: _Optional[_Iterable[str]] = ..., created_timestamp: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class ReplicateMessageRequest(_message.Message):
+    __slots__ = ["base", "channel_name", "BeginTs", "EndTs", "Msgs", "StartPositions", "EndPositions"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    CHANNEL_NAME_FIELD_NUMBER: _ClassVar[int]
+    BEGINTS_FIELD_NUMBER: _ClassVar[int]
+    ENDTS_FIELD_NUMBER: _ClassVar[int]
+    MSGS_FIELD_NUMBER: _ClassVar[int]
+    STARTPOSITIONS_FIELD_NUMBER: _ClassVar[int]
+    ENDPOSITIONS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    channel_name: str
+    BeginTs: int
+    EndTs: int
+    Msgs: _containers.RepeatedScalarFieldContainer[bytes]
+    StartPositions: _containers.RepeatedCompositeFieldContainer[_msg_pb2.MsgPosition]
+    EndPositions: _containers.RepeatedCompositeFieldContainer[_msg_pb2.MsgPosition]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., channel_name: _Optional[str] = ..., BeginTs: _Optional[int] = ..., EndTs: _Optional[int] = ..., Msgs: _Optional[_Iterable[bytes]] = ..., StartPositions: _Optional[_Iterable[_Union[_msg_pb2.MsgPosition, _Mapping]]] = ..., EndPositions: _Optional[_Iterable[_Union[_msg_pb2.MsgPosition, _Mapping]]] = ...) -> None: ...
+
+class ReplicateMessageResponse(_message.Message):
+    __slots__ = ["status", "position"]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    POSITION_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    position: str
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., position: _Optional[str] = ...) -> None: ...
