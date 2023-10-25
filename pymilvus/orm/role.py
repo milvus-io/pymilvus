@@ -135,7 +135,7 @@ class Role:
         roles = self._get_connection().select_one_role(self._name, NOT_INCLUDE_USER_INFO)
         return len(roles.groups) != 0
 
-    def grant(self, object: str, object_name: str, privilege: str, db_name: str = "default"):
+    def grant(self, object: str, object_name: str, privilege: str, db_name: str = ""):
         """Grant a privilege for the role
             :param object: object type.
             :type  object: str
@@ -157,7 +157,7 @@ class Role:
             self._name, object, object_name, privilege, db_name
         )
 
-    def revoke(self, object: str, object_name: str, privilege: str, db_name: str = "default"):
+    def revoke(self, object: str, object_name: str, privilege: str, db_name: str = ""):
         """Revoke a privilege for the role
         Args:
             object(str): object type.
@@ -176,7 +176,7 @@ class Role:
             self._name, object, object_name, privilege, db_name
         )
 
-    def list_grant(self, object: str, object_name: str, db_name: str = "default"):
+    def list_grant(self, object: str, object_name: str, db_name: str = ""):
         """List a grant info for the role and the specific object
             :param object: object type.
             :type  object: str
@@ -202,7 +202,7 @@ class Role:
             self._name, object, object_name, db_name
         )
 
-    def list_grants(self, db_name: str = "default"):
+    def list_grants(self, db_name: str = ""):
         """List a grant info for the role
             :param db_name: db name.
             :type  db_name: str
