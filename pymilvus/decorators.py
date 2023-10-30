@@ -174,7 +174,7 @@ def ignore_unimplemented(default_return_value: Any):
                 return func(*args, **kwargs)
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.UNIMPLEMENTED:
-                    LOGGER.warning(f"{func.__name__} unimplemented, ignore it")
+                    LOGGER.debug(f"{func.__name__} unimplemented, ignore it")
                     return default_return_value
                 raise e from e
             except Exception as e:
