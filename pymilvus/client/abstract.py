@@ -118,7 +118,7 @@ class CollectionSchema:
     def __pack(self, raw: Any):
         self.collection_name = raw.schema.name
         self.description = raw.schema.description
-        self.aliases = raw.aliases
+        self.aliases = list(raw.aliases)
         self.collection_id = raw.collectionID
         self.num_shards = raw.shards_num
         self.num_partitions = raw.num_partitions
@@ -141,7 +141,8 @@ class CollectionSchema:
 
         # for s in raw.statistics:
 
-        self.properties = raw.properties
+        for p in raw.properties:
+            self.properties[p.key] = p.value
 
     @classmethod
     def _rewrite_schema_dict(cls, schema_dict: Dict):
