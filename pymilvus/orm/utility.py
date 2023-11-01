@@ -222,7 +222,7 @@ def loading_progress(
 
 def load_state(
     collection_name: str,
-    partition_names: Optional[float] = None,
+    partition_names: Optional[List[str]] = None,
     using: str = "default",
     timeout: Optional[float] = None,
 ):
