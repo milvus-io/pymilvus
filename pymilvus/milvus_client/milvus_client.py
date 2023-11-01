@@ -56,13 +56,9 @@ class MilvusClient:
             logger.debug("tqdm not found")
             self.tqdm = lambda x, disable: x
 
-        self.uri = uri
-        self.timeout = timeout
-        self.conn = None
-
-        self.default_search_params = None
-
-        self._using = self._create_connection(uri, user, password, db_name, token, **kwargs)
+        self._using = self._create_connection(
+            uri, user, password, db_name, token, timeout=timeout, **kwargs
+        )
         self.is_self_hosted = bool(
             utility.get_server_type(using=self._using) == "milvus",
         )
