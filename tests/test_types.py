@@ -83,7 +83,8 @@ class TestTypes:
             "abc",
             np.int8(1),
             np.int16(1),
-            [np.int8(1)]
+            [np.int8(1)],
+            [np.float16(1.0)]
         ]
 
         wants = [
@@ -98,6 +99,7 @@ class TestTypes:
             DataType.INT8,
             DataType.INT16,
             DataType.FLOAT_VECTOR,
+            DataType.FLOAT16_VECTOR,
         ]
 
         actual = []

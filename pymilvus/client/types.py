@@ -87,6 +87,7 @@ class DataType(IntEnum):
 
     BINARY_VECTOR = 100
     FLOAT_VECTOR = 101
+    FLOAT16_VECTOR = 102
 
     UNKNOWN = 999
 
@@ -154,6 +155,7 @@ class PlaceholderType(IntEnum):
     NoneType = 0
     BinaryVector = 100
     FloatVector = 101
+    Float16Vector = 102
 
 
 class State(IntEnum):
