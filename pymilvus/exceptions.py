@@ -215,3 +215,6 @@ class ExceptionsMessage:
         "Attempt to insert an unexpected field to collection without enabling dynamic field"
     )
     UpsertAutoIDTrue = "Upsert don't support autoid == true"
+    AmbiguousDeleteFilterParam = (
+        "Ambiguous filter parameter, only one deletion condition can be specified."
+    )
