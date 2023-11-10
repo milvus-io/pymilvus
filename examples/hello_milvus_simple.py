@@ -36,8 +36,8 @@ first_pk_data = milvus_client.get(collection_name, pks[0:1])
 print(f"data of primary key {pks[0]} is", first_pk_data)
 
 print(f"start to delete first 2 of primary keys in collection {collection_name}")
-delete_pks = milvus_client.delete(collection_name, pks[0:2])
-print("deleted:", delete_pks)
+milvus_client.delete(collection_name, pks[0:2])
+
 rng = np.random.default_rng(seed=19530)
 vectors_to_search = rng.random((1, dim))
 

@@ -379,6 +379,15 @@ class MilvusClient:
         Delete all the entries based on the pk. If unsure of pk you can first query the collection
         to grab the corresponding data. Then you can delete using the pk_field.
 
+
+        Starting from version 2.3.2, Milvus no longer includes the primary keys in the result
+        when processing the delete operation on expressions.
+        This change is due to the large amount of data involved.
+        The delete interface no longer returns any results.
+        If no exceptions are thrown, it indicates a successful deletion.
+        However, for backward compatibility, If the primary_keys returned from Milvus is not empty
+        the list of primary keys is still returned.
+
         Args:
             pks (list, str, int): The pk's to delete. Depending on pk_field type it can be int
                 or str or alist of either.
@@ -403,11 +412,15 @@ class MilvusClient:
         ret_pks = []
         try:
             res = conn.delete(collection_name, expr, timeout=timeout, **kwargs)
-            ret_pks.extend(res.primary_keys)
+            if res.primary_keys:
+                ret_pks.extend(res.primary_keys)
         except Exception as ex:
             logger.error("Failed to delete primary keys in collection: %s", collection_name)
             raise ex from ex
-        return ret_pks
+
+        if ret_pks:
+            return ret_pks
+        return None
 
     def num_entities(self, collection_name: str, timeout: Optional[float] = None) -> int:
         """return the number of rows in the collection.
