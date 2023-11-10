@@ -8,6 +8,7 @@ from pymilvus.client.types import ExceptionsMessage
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     MilvusException,
+    ParamError,
     PrimaryKeyException,
 )
 from pymilvus.orm import utility
@@ -58,9 +59,7 @@ class MilvusClient:
         self._using = self._create_connection(
             uri, user, password, db_name, token, timeout=timeout, **kwargs
         )
-        self.is_self_hosted = bool(
-            utility.get_server_type(using=self._using) == "milvus",
-        )
+        self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
 
     def create_collection(
         self,
@@ -104,10 +103,7 @@ class MilvusClient:
         except Exception as ex:
             logger.error("Failed to create collection: %s", collection_name)
             raise ex from ex
-        index_params = {
-            "metric_type": metric_type,
-            "params": {},
-        }
+        index_params = {"metric_type": metric_type, "params": {}}
         self._create_index(collection_name, vector_field_name, index_params, timeout=timeout)
         self._load(collection_name, timeout=timeout)
 
@@ -121,21 +117,10 @@ class MilvusClient:
         """Create a index on the collection"""
         conn = self._get_connection()
         try:
-            conn.create_index(
-                collection_name,
-                vec_field_name,
-                index_params,
-                timeout=timeout,
-            )
-            logger.debug(
-                "Successfully created an index on collection: %s",
-                collection_name,
-            )
+            conn.create_index(collection_name, vec_field_name, index_params, timeout=timeout)
+            logger.debug("Successfully created an index on collection: %s", collection_name)
         except Exception as ex:
-            logger.error(
-                "Failed to create an index on collection: %s",
-                collection_name,
-            )
+            logger.error("Failed to create an index on collection: %s", collection_name)
             raise ex from ex
 
     def insert(
@@ -195,9 +180,7 @@ class MilvusClient:
                 pks.extend(res.primary_keys)
             except Exception as ex:
                 logger.error(
-                    "Failed to insert batch starting at entity: %s/%s",
-                    str(i),
-                    str(len(data)),
+                    "Failed to insert batch starting at entity: %s/%s", str(i), str(len(data))
                 )
                 raise ex from ex
 
@@ -370,8 +353,9 @@ class MilvusClient:
     def delete(
         self,
         collection_name: str,
-        pks: Union[list, str, int],
+        pks: Optional[Union[list, str, int]] = None,
         timeout: Optional[float] = None,
+        filter: Optional[str] = "",
         **kwargs,
     ):
         """Delete entries in the collection by their pk.
@@ -390,7 +374,8 @@ class MilvusClient:
 
         Args:
             pks (list, str, int): The pk's to delete. Depending on pk_field type it can be int
-                or str or alist of either.
+                or str or alist of either. Default to None.
+            filter(str, optional): A filter to use for the deletion. Defaults to empty.
             timeout (int, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
         """
@@ -398,17 +383,26 @@ class MilvusClient:
         if isinstance(pks, (int, str)):
             pks = [pks]
 
-        if len(pks) == 0:
-            return []
-
+        expr = ""
         conn = self._get_connection()
-        try:
-            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
-        except Exception as ex:
-            logger.error("Failed to describe collection: %s", collection_name)
-            raise ex from ex
+        if pks:
+            try:
+                schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+            except Exception as ex:
+                logger.error("Failed to describe collection: %s", collection_name)
+                raise ex from ex
 
-        expr = self._pack_pks_expr(schema_dict, pks)
+            expr = self._pack_pks_expr(schema_dict, pks)
+
+        if filter:
+            if expr:
+                raise ParamError(message=ExceptionsMessage.AmbiguousDeleteFilterParam)
+
+            if not isinstance(filter, str):
+                raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+
+            expr = filter
+
         ret_pks = []
         try:
             res = conn.delete(collection_name, expr, timeout=timeout, **kwargs)
@@ -600,8 +594,5 @@ class MilvusClient:
         try:
             conn.load_collection(collection_name, timeout=timeout)
         except MilvusException as ex:
-            logger.error(
-                "Failed to load collection: %s",
-                collection_name,
-            )
+            logger.error("Failed to load collection: %s", collection_name)
             raise ex from ex
