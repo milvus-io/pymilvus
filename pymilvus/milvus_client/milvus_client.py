@@ -373,7 +373,7 @@ class MilvusClient:
         pks: Union[list, str, int],
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> List[Union[str, int]]:
+    ):
         """Delete entries in the collection by their pk.
 
         Delete all the entries based on the pk. If unsure of pk you can first query the collection
@@ -385,8 +385,8 @@ class MilvusClient:
         This change is due to the large amount of data involved.
         The delete interface no longer returns any results.
         If no exceptions are thrown, it indicates a successful deletion.
-        However, for backward compatibility, If the primary_keys returned from Milvus is not empty
-        the list of primary keys is still returned.
+        However, for backward compatibility, If the primary_keys returned from old
+        Milvus(previous 2.3.2) is not empty, the list of primary keys is still returned.
 
         Args:
             pks (list, str, int): The pk's to delete. Depending on pk_field type it can be int
