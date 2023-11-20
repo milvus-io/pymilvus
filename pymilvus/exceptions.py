@@ -73,10 +73,6 @@ class DescribeCollectionException(MilvusException):
     """Raise when fail to describe collection"""
 
 
-class PartitionNotExistException(MilvusException):
-    """Raise when partition doesn't exist"""
-
-
 class PartitionAlreadyExistException(MilvusException):
     """Raise when create an exsiting partition"""
 
@@ -202,7 +198,6 @@ class ExceptionsMessage:
     NdArrayNotSupport = "Data type not support numpy.ndarray."
     TypeOfDataAndSchemaInconsistent = "The types of schema and data do not match."
     PartitionAlreadyExist = "Partition already exist."
-    PartitionNotExist = "Partition not exist."
     IndexNotExist = "Index doesn't exist."
     CollectionType = "The type of collection must be pymilvus.Collection."
     FieldsType = "The fields of schema must be type list."

@@ -189,7 +189,7 @@ def loading_progress(
 
     :return dict:
         {'loading_progress': '100%'}
-    :raises PartitionNotExistException: If partition doesn't exist.
+    :raises MilvusException: If anything goes wrong.
     :example:
         >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
         >>> import pandas as pd
@@ -281,8 +281,7 @@ def wait_for_loading_complete(
     :param timeout: The timeout for this method, unit: second
     :type  timeout: int
 
-    :raises CollectionNotExistException: If collection doesn't exist.
-    :raises PartitionNotExistException: If partition doesn't exist.
+    :raises MilvusException: If anything goes wrong.
 
     :example:
         >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility

@@ -17,11 +17,7 @@ import ujson
 
 from pymilvus.client.abstract import SearchResult
 from pymilvus.client.types import Replica
-from pymilvus.exceptions import (
-    ExceptionsMessage,
-    MilvusException,
-    PartitionNotExistException,
-)
+from pymilvus.exceptions import MilvusException
 
 from .mutation import MutationResult
 
@@ -163,7 +159,7 @@ class Partition:
                 responds or an error occurs.
 
         Raises:
-            PartitionNotExistException: If the partitoin doesn't exist
+            MilvusException: If anything goes wrong.
 
         Examples:
             >>> from pymilvus import connections, Collection, Partition
@@ -173,8 +169,6 @@ class Partition:
             >>> partition.drop()
         """
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self.name, timeout=timeout, **kwargs) is False:
-            raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
         return conn.drop_partition(self._collection.name, self.name, timeout=timeout, **kwargs)
 
     def load(self, replica_number: int = 1, timeout: Optional[float] = None, **kwargs):
@@ -202,15 +196,13 @@ class Partition:
             >>> partition.load()
         """
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self.name, **kwargs):
-            return conn.load_partitions(
-                collection_name=self._collection.name,
-                partition_names=[self.name],
-                replica_number=replica_number,
-                timeout=timeout,
-                **kwargs,
-            )
-        raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
+        return conn.load_partitions(
+            collection_name=self._collection.name,
+            partition_names=[self.name],
+            replica_number=replica_number,
+            timeout=timeout,
+            **kwargs,
+        )
 
     def release(self, timeout: Optional[float] = None, **kwargs):
         """Release the partition data from memory.
@@ -237,14 +229,12 @@ class Partition:
             >>> partition.release()
         """
         conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self._name, **kwargs):
-            return conn.release_partitions(
-                collection_name=self._collection.name,
-                partition_names=[self.name],
-                timeout=timeout,
-                **kwargs,
-            )
-        raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
+        return conn.release_partitions(
+            collection_name=self._collection.name,
+            partition_names=[self.name],
+            timeout=timeout,
+            **kwargs,
+        )
 
     def insert(
         self,
@@ -286,10 +276,6 @@ class Partition:
             >>> res.insert_count
             10
         """
-        conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self.name, **kwargs) is False:
-            raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
-
         return self._collection.insert(data, self.name, timeout=timeout, **kwargs)
 
     def delete(self, expr: str, timeout: Optional[float] = None, **kwargs):
@@ -366,10 +352,6 @@ class Partition:
             >>> res.upsert_count
             10
         """
-        conn = self._get_connection()
-        if conn.has_partition(self._collection.name, self.name, **kwargs) is False:
-            raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
-
         return self._collection.upsert(data, self.name, timeout=timeout, **kwargs)
 
     def search(
