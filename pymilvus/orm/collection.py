@@ -31,7 +31,6 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     IndexNotExistException,
     PartitionAlreadyExistException,
-    PartitionNotExistException,
     SchemaNotReadyException,
 )
 from pymilvus.grpc_gen import schema_pb2
@@ -1069,7 +1068,6 @@ class Collection:
                 or error occur.
 
         Raises:
-            PartitionNotExistException: If the partition doesn't exists.
             MilvusException: If anything goes wrong.
 
         Examples:
@@ -1087,8 +1085,6 @@ class Collection:
             >>> collection.has_partition("comedy")
             False
         """
-        if self.has_partition(partition_name, **kwargs) is False:
-            raise PartitionNotExistException(message=ExceptionsMessage.PartitionNotExist)
         conn = self._get_connection()
         return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
