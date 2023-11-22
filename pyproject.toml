@@ -25,6 +25,7 @@ dependencies=[
     "numpy<1.25.0;python_version<='3.8'",
     "requests",
     "minio>=7.0.0",
+    "pyarrow>=12.0.0",
 ]
 
 classifiers=[

@@ -46,6 +46,7 @@ TYPE_VALIDATOR = {
     DataType.JSON.name: lambda x: isinstance(x, dict) and len(x) <= 65535,
     DataType.FLOAT_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) == dim,
     DataType.BINARY_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) * 8 == dim,
+    DataType.ARRAY.name: lambda x: isinstance(x, list),
 }
 
 NUMPY_TYPE_CREATOR = {
@@ -60,9 +61,11 @@ NUMPY_TYPE_CREATOR = {
     DataType.JSON.name: None,
     DataType.FLOAT_VECTOR.name: np.dtype("float32"),
     DataType.BINARY_VECTOR.name: np.dtype("uint8"),
+    DataType.ARRAY.name: None,
 }
 
 
 class BulkFileType(IntEnum):
     NPY = 1
     JSON_RB = 2
+    PARQUET = 3

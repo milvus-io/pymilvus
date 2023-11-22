@@ -127,9 +127,9 @@ class RemoteBulkWriter(LocalBulkWriter):
         try:
             Path(file).unlink()
             parent_dir = Path(file).parent
-            if not any(Path(parent_dir).iterdir()):
+            if parent_dir != self._local_path and (not any(Path(parent_dir).iterdir())):
                 Path(parent_dir).rmdir()
-                logger.info(f"Delete empty directory '{parent_dir!s}'")
+                logger.info(f"Delete empty directory '{parent_dir}'")
         except Exception:
             logger.warning(f"Failed to delete local file: {file}")
 
@@ -144,7 +144,7 @@ class RemoteBulkWriter(LocalBulkWriter):
 
             for file_path in file_list:
                 ext = Path(file_path).suffix
-                if ext not in {".json", ".npy"}:
+                if ext not in [".json", ".npy", ".parquet"]:
                     continue
 
                 relative_file_path = str(file_path).replace(str(super().data_path), "")

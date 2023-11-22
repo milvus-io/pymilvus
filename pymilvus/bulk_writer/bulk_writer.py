@@ -43,6 +43,7 @@ class BulkWriter:
         self._schema = schema
         self._buffer_size = 0
         self._buffer_row_count = 0
+        self._total_row_count = 0
         self._segment_size = segment_size
         self._file_type = file_type
         self._buffer_lock = Lock()
@@ -63,6 +64,10 @@ class BulkWriter:
     @property
     def buffer_row_count(self):
         return self._buffer_row_count
+
+    @property
+    def total_row_count(self):
+        return self._total_row_count
 
     @property
     def segment_size(self):
@@ -165,3 +170,4 @@ class BulkWriter:
         with self._buffer_lock:
             self._buffer_size = self._buffer_size + row_size
             self._buffer_row_count = self._buffer_row_count + 1
+            self._total_row_count = self._total_row_count + 1
