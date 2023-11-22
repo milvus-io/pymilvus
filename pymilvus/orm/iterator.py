@@ -200,9 +200,9 @@ class QueryIterator:
 def metrics_positive_related(metrics: str) -> bool:
     if metrics in [CALC_DIST_L2, CALC_DIST_JACCARD, CALC_DIST_HAMMING, CALC_DIST_TANIMOTO]:
         return True
-    if metrics is CALC_DIST_IP or metrics is CALC_DIST_COSINE:
+    if metrics in [CALC_DIST_IP, CALC_DIST_COSINE]:
         return False
-    raise MilvusException(message=f"unsupported metrics type for search iteration{metrics}")
+    raise MilvusException(message=f"unsupported metrics type for search iteration: {metrics}")
 
 
 class SearchPage(LoopBase):
