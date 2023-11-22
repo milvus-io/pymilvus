@@ -1,3 +1,4 @@
+import logging
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TypeVar
 
@@ -35,6 +36,8 @@ from .constants import (
 from .schema import CollectionSchema
 from .types import DataType
 
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.ERROR)
 QueryIterator = TypeVar("QueryIterator")
 SearchIterator = TypeVar("SearchIterator")
 
@@ -313,12 +316,18 @@ class SearchIterator:
     def __init_search_iterator(self):
         init_page = self.__execute_next_search(self._param, self._expr)
         if len(init_page) == 0:
-            raise MilvusException(
-                message="Cannot init search iterator because there's no matched vectors returned"
+            message = (
+                "Cannot init search iterator because init page contains no matched rows, "
+                "please check the radius and range_filter set up by searchParams"
             )
+            LOGGER.error(message)
+            self._cache_id = NO_CACHE_ID
+            self._init_success = False
+            return
         self._cache_id = iterator_cache.cache(init_page, NO_CACHE_ID)
         self.__set_up_range_parameters(init_page)
         self.__update_filtered_ids(init_page)
+        self._init_success = True
 
     def __set_up_range_parameters(self, page: SearchPage):
         first_hit, last_hit = page[0], page[-1]
@@ -371,10 +380,23 @@ class SearchIterator:
     so range search parameters are disabled to clients"""
 
     def __check_rm_range_search_parameters(self):
-        if PARAMS in self._param and RADIUS in self._param[PARAMS]:
-            del self._param[PARAMS][RADIUS]
-        if PARAMS in self._param and RANGE_FILTER in self._param[PARAMS]:
-            del self._param[PARAMS][RANGE_FILTER]
+        if (
+            (PARAMS in self._param)
+            and (RADIUS in self._param[PARAMS])
+            and (RANGE_FILTER in self._param[PARAMS])
+        ):
+            radius = self._param[PARAMS][RADIUS]
+            range_filter = self._param[PARAMS][RANGE_FILTER]
+            if metrics_positive_related(self._param[METRIC_TYPE]) and radius <= range_filter:
+                raise MilvusException(
+                    message=f"for metrics:{self._param[METRIC_TYPE]}, radius must be "
+                    f"larger than range_filter, please adjust your parameter"
+                )
+            if not metrics_positive_related(self._param[METRIC_TYPE]) and radius >= range_filter:
+                raise MilvusException(
+                    message=f"for metrics:{self._param[METRIC_TYPE]}, radius must be "
+                    f"smalled than range_filter, please adjust your parameter"
+                )
 
     def __check_offset(self):
         if self._kwargs.get(OFFSET, 0) != 0:
@@ -432,7 +454,7 @@ class SearchIterator:
 
     def next(self):
         # 0. check reached limit
-        if self.__check_reached_limit():
+        if not self._init_success or self.__check_reached_limit():
             return SearchPage(None)
         ret_len = self._iterator_params[BATCH_SIZE]
         if self._limit is not UNLIMITED:
@@ -446,7 +468,7 @@ class SearchIterator:
             return ret_page
 
         # 2. if cached page not enough, try to fill the result by probing with constant width
-        # until finish filling or exceed max trial time: 10
+        # until finish filling or exceeding max trial time: 10
         new_page = self.__try_search_fill()
         cached_page_len = self.__push_new_page_to_cache(new_page)
         ret_len = min(cached_page_len, ret_len)
@@ -522,9 +544,17 @@ class SearchIterator:
         coefficient = max(1, coefficient)
         next_params = self._param.copy()
         if metrics_positive_related(self._param[METRIC_TYPE]):
-            next_params[PARAMS][RADIUS] = self._tail_band + self._width * coefficient
+            next_radius = self._tail_band + self._width * coefficient
+            if RADIUS in self._param[PARAMS] and next_radius > self._param[PARAMS][RADIUS]:
+                next_params[PARAMS][RADIUS] = self._param[PARAMS][RADIUS]
+            else:
+                next_params[PARAMS][RADIUS] = next_radius
         else:
-            next_params[PARAMS][RADIUS] = self._tail_band - self._width * coefficient
+            next_radius = self._tail_band - self._width * coefficient
+            if RADIUS in self._param[PARAMS] and next_radius < self._param[PARAMS][RADIUS]:
+                next_params[PARAMS][RADIUS] = self._param[PARAMS][RADIUS]
+            else:
+                next_params[PARAMS][RADIUS] = next_radius
         next_params[PARAMS][RANGE_FILTER] = self._tail_band
         return next_params
 
