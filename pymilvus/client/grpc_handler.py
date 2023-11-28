@@ -129,7 +129,7 @@ class GrpcHandler:
 
         try:
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
-            self._setup_identifier_interceptor(self._user)
+            self._setup_identifier_interceptor(self._user, timeout=timeout)
         except grpc.FutureTimeoutError as e:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
@@ -244,9 +244,9 @@ class GrpcHandler:
         self._request_id = req_id
         self._setup_grpc_channel()
 
-    def _setup_identifier_interceptor(self, user: str):
+    def _setup_identifier_interceptor(self, user: str, timeout: int = 10):
         host = socket.gethostname()
-        self._identifier = self.__internal_register(user, host)
+        self._identifier = self.__internal_register(user, host, timeout=timeout)
         self._identifier_interceptor = interceptor.header_adder_interceptor(
             ["identifier"], [str(self._identifier)]
         )
@@ -1884,7 +1884,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     @upgrade_reminder
-    def __internal_register(self, user: str, host: str) -> int:
+    def __internal_register(self, user: str, host: str, **kwargs) -> int:
         req = Prepare.register_request(user, host)
         response = self._stub.Connect(request=req)
         if response.status.code != ErrorCode.SUCCESS:
