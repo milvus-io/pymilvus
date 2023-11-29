@@ -15,6 +15,7 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from pymilvus.client.types import (
     DataType,
@@ -109,6 +110,8 @@ class Buffer:
             return self._persist_npy(local_path)
         if self._file_type == BulkFileType.JSON_RB:
             return self._persist_json_rows(local_path)
+        if self._file_type == BulkFileType.PARQUET:
+            return self._persist_parquet(local_path)
 
         self._throw(f"Unsupported file tpye: {self._file_type}")
         return []
@@ -173,4 +176,37 @@ class Buffer:
             self._throw(f"Failed to persist row-based file {file_path}, error: {e}")
 
         logger.info(f"Successfully persist row-based file {file_path}")
+        return [str(file_path)]
+
+    def _persist_parquet(self, local_path: str):
+        file_path = Path(local_path + ".parquet")
+
+        data = {}
+        for k in self._buffer:
+            field_schema = self._fields[k]
+            if field_schema.dtype == DataType.JSON:
+                # for JSON field, store as string array
+                str_arr = []
+                for val in self._buffer[k]:
+                    str_arr.append(json.dumps(val))
+                data[k] = pd.Series(str_arr, dtype=None)
+            elif field_schema.dtype == DataType.FLOAT_VECTOR:
+                arr = []
+                for val in self._buffer[k]:
+                    arr.append(np.array(val, dtype=np.dtype("float32")))
+                data[k] = pd.Series(arr)
+            elif field_schema.dtype == DataType.BINARY_VECTOR:
+                arr = []
+                for val in self._buffer[k]:
+                    arr.append(np.array(val, dtype=np.dtype("uint8")))
+                data[k] = pd.Series(arr)
+            elif field_schema.dtype.name in NUMPY_TYPE_CREATOR:
+                dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
+                data[k] = pd.Series(self._buffer[k], dtype=dt)
+
+        # write to Parquet file
+        data_frame = pd.DataFrame(data=data)
+        data_frame.to_parquet(file_path, engine="pyarrow")  # don't use fastparquet
+
+        logger.info(f"Successfully persist parquet file {file_path}")
         return [str(file_path)]

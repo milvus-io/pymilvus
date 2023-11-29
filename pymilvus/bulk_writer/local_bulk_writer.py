@@ -45,6 +45,7 @@ class LocalBulkWriter(BulkWriter):
         self._working_thread = {}
         self._working_thread_lock = Lock()
         self._local_files = []
+
         self._make_dir()
 
     @property
@@ -61,24 +62,28 @@ class LocalBulkWriter(BulkWriter):
         self._exit()
 
     def _exit(self):
-        # remove the uuid folder
-        if Path(self._local_path).exists() and not any(Path(self._local_path).iterdir()):
-            Path(self._local_path).rmdir()
-            logger.info(f"Delete empty directory '{self._local_path}'")
-
         # wait flush thread
         if len(self._working_thread) > 0:
             for k, th in self._working_thread.items():
                 logger.info(f"Wait flush thread '{k}' to finish")
                 th.join()
 
+        self._rm_dir()
+
     def _make_dir(self):
         Path(self._local_path).mkdir(exist_ok=True)
         logger.info(f"Data path created: {self._local_path}")
+
         uidir = Path(self._local_path).joinpath(self._uuid)
         self._local_path = uidir
         Path(uidir).mkdir(exist_ok=True)
         logger.info(f"Data path created: {uidir}")
+
+    def _rm_dir(self):
+        # remove the uuid folder if it is empty
+        if Path(self._local_path).exists() and not any(Path(self._local_path).iterdir()):
+            Path(self._local_path).rmdir()
+            logger.info(f"Delete local directory '{self._local_path}'")
 
     def append_row(self, row: dict, **kwargs):
         super().append_row(row, **kwargs)
