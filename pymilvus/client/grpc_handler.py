@@ -58,8 +58,10 @@ from .types import (
 )
 from .utils import (
     check_invalid_binary_vector,
+    check_status,
     get_server_type,
-    len_of, check_status, is_successful,
+    is_successful,
+    len_of,
 )
 
 
@@ -1185,7 +1187,6 @@ class GrpcHandler:
         req = Prepare.get_persistent_segment_info_request(collection_name)
         future = self._stub.GetPersistentSegmentInfo.future(req, timeout=timeout)
         response = future.result()
-        status = response.status
         check_status(response.status)
         return response.infos  # todo: A wrapper class of PersistentSegmentInfo
 
