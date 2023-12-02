@@ -1377,8 +1377,7 @@ class GrpcHandler:
         future = self._stub.Query.future(request, timeout=timeout)
         response = future.result()
         if (
-            response.status.code == Status.EMPTY_COLLECTION
-            or response.status.error_code == Status.EMPTY_COLLECTION
+            Status.EMPTY_COLLECTION in {response.status.code, response.status.error_code}
         ):
             return []
         if response.status.code != Status.SUCCESS or response.status.error_code != Status.SUCCESS:
