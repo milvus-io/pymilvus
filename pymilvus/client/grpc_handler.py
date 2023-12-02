@@ -1376,7 +1376,10 @@ class GrpcHandler:
 
         future = self._stub.Query.future(request, timeout=timeout)
         response = future.result()
-        if response.status.code == Status.EMPTY_COLLECTION or response.status.error_code == Status.EMPTY_COLLECTION:
+        if (
+            response.status.code == Status.EMPTY_COLLECTION
+            or response.status.error_code == Status.EMPTY_COLLECTION
+        ):
             return []
         if response.status.code != Status.SUCCESS or response.status.error_code != Status.SUCCESS:
             raise MilvusException(
@@ -1887,7 +1890,10 @@ class GrpcHandler:
     def __internal_register(self, user: str, host: str, **kwargs) -> int:
         req = Prepare.register_request(user, host)
         response = self._stub.Connect(request=req)
-        if response.status.code != ErrorCode.SUCCESS or response.status.error_code != ErrorCode.SUCCESS:
+        if (
+            response.status.code != ErrorCode.SUCCESS
+            or response.status.error_code != ErrorCode.SUCCESS
+        ):
             raise MilvusException(
                 response.status.code, response.status.reason, response.status.error_code
             )
@@ -1898,7 +1904,10 @@ class GrpcHandler:
     def alloc_timestamp(self, timeout: Optional[float] = None) -> int:
         request = milvus_types.AllocTimestampRequest()
         response = self._stub.AllocTimestamp(request, timeout=timeout)
-        if response.status.code != ErrorCode.SUCCESS or response.status.error_code != ErrorCode.SUCCESS:
+        if (
+            response.status.code != ErrorCode.SUCCESS
+            or response.status.error_code != ErrorCode.SUCCESS
+        ):
             raise MilvusException(
                 response.status.code, response.status.reason, response.status.error_code
             )
