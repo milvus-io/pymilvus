@@ -162,7 +162,7 @@ class Future(AbstractFuture):
 
 class SearchFuture(Future):
     def on_response(self, response: milvus_pb2.SearchResults):
-        if response.status.code == 0:
+        if response.status.code == 0 and response.status.error_code == 0:
             return SearchResult(response.results)
 
         status = response.status
@@ -172,7 +172,7 @@ class SearchFuture(Future):
 class MutationFuture(Future):
     def on_response(self, response: Any):
         status = response.status
-        if status.code == 0:
+        if status.code == 0 and status.error_code == 0:
             return MutationResult(response)
 
         status = response.status
@@ -181,7 +181,7 @@ class MutationFuture(Future):
 
 class CreateIndexFuture(Future):
     def on_response(self, response: Any):
-        if response.code != 0:
+        if response.code != 0 or response.error_code != 0:
             raise MilvusException(response.code, response.reason, response.error_code)
 
         return Status(response.code, response.reason)
@@ -244,7 +244,7 @@ class CreateFlatIndexFuture(AbstractFuture):
 
 class FlushFuture(Future):
     def on_response(self, response: Any):
-        if response.status.code != 0:
+        if response.status.code != 0 or response.status.error_code != 0:
             raise MilvusException(
                 response.status.code, response.status.reason, response.status.error_code
             )
@@ -252,11 +252,11 @@ class FlushFuture(Future):
 
 class LoadCollectionFuture(Future):
     def on_response(self, response: Any):
-        if response.code != 0:
+        if response.code != 0 or response.error_code != 0:
             raise MilvusException(response.code, response.reason, response.error_code)
 
 
 class LoadPartitionsFuture(Future):
     def on_response(self, response: Any):
-        if response.code != 0:
+        if response.code != 0 or response.error_code != 0:
             raise MilvusException(response.code, response.reason, response.error_code)
