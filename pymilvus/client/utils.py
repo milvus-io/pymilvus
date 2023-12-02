@@ -6,6 +6,7 @@ from pymilvus.exceptions import MilvusException, ParamError
 
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from .types import DataType
+from ..grpc_gen.common_pb2 import Status
 
 MILVUS = "milvus"
 ZILLIZ = "zilliz"
@@ -48,17 +49,13 @@ valid_binary_metric_types = [
 ]
 
 
-def check_status(status):
-    if is_failed(status):
+def check_status(status: Status):
+    if status.code != 0 or status.error_code != 0:
         raise MilvusException(status.code, status.reason, status.error_code)
 
 
 def is_successful(status):
     return status.code == 0 and status.error_code == 0
-
-
-def is_failed(status):
-    return status.code != 0 or status.error_code != 0
 
 
 def hybridts_to_unixtime(ts: int):

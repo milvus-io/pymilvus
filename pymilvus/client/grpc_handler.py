@@ -549,11 +549,12 @@ class GrpcHandler:
             check_status(response.status)
             m = MutationResult(response)
             ts_utils.update_collection_ts(collection_name, m.timestamp)
-            return m
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
             raise err from err
+        else:
+            return m
 
     @retry_on_rpc_failure()
     def delete(
@@ -579,11 +580,12 @@ class GrpcHandler:
             check_status(response.status)
             m = MutationResult(response)
             ts_utils.update_collection_ts(collection_name, m.timestamp)
-            return m
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
             raise err from err
+        else:
+            return m
 
     def _prepare_batch_upsert_request(
         self,
@@ -639,11 +641,12 @@ class GrpcHandler:
             check_status(response.status)
             m = MutationResult(response)
             ts_utils.update_collection_ts(collection_name, m.timestamp)
-            return m
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
             raise err from err
+        else:
+            return m
 
     def _prepare_row_upsert_request(
         self,
