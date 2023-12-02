@@ -48,15 +48,28 @@ valid_binary_metric_types = [
 ]
 
 
+def check_status(status):
+    if is_failed(status):
+        raise MilvusException(status.code, status.reason, status.error_code)
+
+
+def is_successful(status):
+    return status.code == 0 and status.error_code == 0
+
+
+def is_failed(status):
+    return status.code != 0 or status.error_code != 0
+
+
 def hybridts_to_unixtime(ts: int):
     physical = ts >> LOGICAL_BITS
     return physical / 1000.0
 
 
 def mkts_from_hybridts(
-    hybridts: int,
-    milliseconds: Union[float] = 0.0,
-    delta: Optional[timedelta] = None,
+        hybridts: int,
+        milliseconds: Union[float] = 0.0,
+        delta: Optional[timedelta] = None,
 ) -> int:
     if not isinstance(milliseconds, (int, float)):
         raise MilvusException(message="parameter milliseconds should be type of int or float")
@@ -76,9 +89,9 @@ def mkts_from_hybridts(
 
 
 def mkts_from_unixtime(
-    epoch: Union[float],
-    milliseconds: Union[float] = 0.0,
-    delta: Optional[timedelta] = None,
+        epoch: Union[float],
+        milliseconds: Union[float] = 0.0,
+        delta: Optional[timedelta] = None,
 ) -> int:
     if not isinstance(epoch, (int, float)):
         raise MilvusException(message="parameter epoch should be type of int or float")
@@ -97,9 +110,9 @@ def mkts_from_unixtime(
 
 
 def mkts_from_datetime(
-    d_time: datetime.datetime,
-    milliseconds: Union[float] = 0.0,
-    delta: Optional[timedelta] = None,
+        d_time: datetime.datetime,
+        milliseconds: Union[float] = 0.0,
+        delta: Optional[timedelta] = None,
 ) -> int:
     if not isinstance(d_time, datetime.datetime):
         raise MilvusException(message="parameter d_time should be type of datetime.datetime")
@@ -217,7 +230,7 @@ def traverse_rows_info(fields_info: Any, entities: List):
                 if entity_dim != field_dim:
                     raise ParamError(
                         message=f"Collection field dim is {field_dim}"
-                        f", but entities field dim is {entity_dim}"
+                                f", but entities field dim is {entity_dim}"
                     )
 
     # though impossible from sdk
@@ -248,7 +261,7 @@ def traverse_info(fields_info: Any, entities: List):
                 if field_type != entity_type:
                     raise ParamError(
                         message=f"Collection field type is {field_type}"
-                        f", but entities field type is {entity_type}"
+                                f", but entities field type is {entity_type}"
                     )
 
                 entity_dim, field_dim = 0, 0
@@ -259,13 +272,13 @@ def traverse_info(fields_info: Any, entities: List):
                 if entity_type in [DataType.FLOAT_VECTOR] and entity_dim != field_dim:
                     raise ParamError(
                         message=f"Collection field dim is {field_dim}"
-                        f", but entities field dim is {entity_dim}"
+                                f", but entities field dim is {entity_dim}"
                     )
 
                 if entity_type in [DataType.BINARY_VECTOR] and entity_dim * 8 != field_dim:
                     raise ParamError(
                         message=f"Collection field dim is {field_dim}"
-                        f", but entities field dim is {entity_dim * 8}"
+                                f", but entities field dim is {entity_dim * 8}"
                     )
 
                 location[field["name"]] = i
@@ -284,12 +297,12 @@ def get_server_type(host: str):
     splits = host.split(".")
     len_of_splits = len(splits)
     if (
-        len_of_splits >= 2
-        and (
+            len_of_splits >= 2
+            and (
             splits[len_of_splits - 2].lower() == "zilliz"
             or splits[len_of_splits - 2].lower() == "zillizcloud"
-        )
-        and splits[len_of_splits - 1].lower() == "com"
+    )
+            and splits[len_of_splits - 1].lower() == "com"
     ):
         return ZILLIZ
     return MILVUS
