@@ -730,7 +730,7 @@ class GrpcHandler:
                 return SearchFuture(future, func)
 
             response = self._stub.Search(request, timeout=timeout)
-            if response.status.code == 0 and response.status.error_code == 0:
+            if response.status.code != 0 or response.status.error_code != 0:
                 raise MilvusException(response.status.code, response.status.reason)
 
             round_decimal = kwargs.get("round_decimal", -1)
