@@ -3,10 +3,10 @@ from datetime import timedelta
 from typing import Any, List, Optional, Union
 
 from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.grpc_gen.common_pb2 import Status
 
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from .types import DataType
-from ..grpc_gen.common_pb2 import Status
 
 MILVUS = "milvus"
 ZILLIZ = "zilliz"
@@ -54,7 +54,7 @@ def check_status(status: Status):
         raise MilvusException(status.code, status.reason, status.error_code)
 
 
-def is_successful(status):
+def is_successful(status: Status):
     return status.code == 0 and status.error_code == 0
 
 
