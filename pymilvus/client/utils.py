@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import Any, List, Optional, Union
 
 from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.grpc_gen.common_pb2 import Status
 
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from .types import DataType
@@ -46,6 +47,15 @@ valid_binary_metric_types = [
     "SUBSTRUCTURE",
     "SUPERSTRUCTURE",
 ]
+
+
+def check_status(status: Status):
+    if status.code != 0 or status.error_code != 0:
+        raise MilvusException(status.code, status.reason, status.error_code)
+
+
+def is_successful(status: Status):
+    return status.code == 0 and status.error_code == 0
 
 
 def hybridts_to_unixtime(ts: int):
