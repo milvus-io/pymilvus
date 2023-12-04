@@ -764,7 +764,7 @@ class GrpcHandler:
         request = Prepare.create_alias_request(collection_name, alias)
         rf = self._stub.CreateAlias.future(request, timeout=timeout)
         response = rf.result()
-        check_status(response.status)
+        check_status(response)
 
     @retry_on_rpc_failure()
     def drop_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
