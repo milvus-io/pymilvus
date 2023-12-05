@@ -13,7 +13,7 @@ from pymilvus.orm.schema import CollectionSchema
 
 from . import blob, entity_helper, ts_utils
 from .check import check_pass_param, is_legal_collection_properties
-from .constants import DEFAULT_CONSISTENCY_LEVEL, REDUCE_STOP_FOR_BEST
+from .constants import DEFAULT_CONSISTENCY_LEVEL, GROUP_BY_FIELD, REDUCE_STOP_FOR_BEST
 from .types import DataType, PlaceholderType, get_consistency_level
 from .utils import traverse_info, traverse_rows_info
 
@@ -611,6 +611,9 @@ class Prepare:
 
         if param.get("metric_type", None) is not None:
             search_params["metric_type"] = param["metric_type"]
+
+        if param.get(GROUP_BY_FIELD, None) is not None:
+            search_params[GROUP_BY_FIELD] = param[GROUP_BY_FIELD]
 
         if anns_field:
             search_params["anns_field"] = anns_field
