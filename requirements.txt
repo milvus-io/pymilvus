@@ -37,3 +37,5 @@ ruff
 black
 requests
 minio
+poetry
+poetry-dynamic-versioning>=1.0.0,<2.0.0

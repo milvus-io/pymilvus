@@ -1,11 +1,28 @@
 [build-system]
-requires = [
-  "setuptools >= 67",
-  "wheel",
-  "gitpython",
-  "setuptools_scm[toml]>=6.2",
-]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.poetry]
+name = "pymilvus"
+description = "Python Sdk for Milvus"
+authors = ["Milvus Team <milvus-team@zilliz.com>"]
+readme = "README.md"
+packages = [{include = "pymilvus"}]
+version = "0.0.0"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+fix-shallow-repository = true
+format-jinja = """
+    {%- if distance == 0 -%}
+        {{ serialize_pep440(base, stage, revision) }}
+    {%- elif base is not none and base.startswith(branch) -%}
+        {{ serialize_pep440(bump_version(base, 1), "rc", distance) }}
+    {%- else -%}
+        {{ serialize_pep440(bump_version(base), "rc", distance) }}
+    {%- endif -%}
+"""
 
 [project]
 name="pymilvus"
@@ -166,3 +183,4 @@ builtins-ignorelist = [
     "dict", # TODO
     "filter",
 ]
+
