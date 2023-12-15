@@ -25,6 +25,8 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
+        pip install --upgrade pipx
+        pipx install poetry
         pip install -e .
 
     - name: Try generate proto
