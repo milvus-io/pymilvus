@@ -7,13 +7,13 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+
 [project]
 name="pymilvus"
 authors = [
   {name='Milvus Team', email="milvus-team@zilliz.com"},
 ]
-requires-python = '>=3.7'
-
+requires-python = '>=3.8'
 description = "Python Sdk for Milvus"
 readme = "README.md"
 dependencies=[
@@ -38,9 +38,10 @@ dynamic = ["version"]
 [project.urls]
 "repository" = 'https://github.com/milvus-io/pymilvus'
 
+[tool.setuptools.dynamic]
+version = { attr = "_version_helper.version"}
+
 [tool.setuptools_scm]
-'local_scheme'= 'no-local-version'
-'version_scheme'= 'no-guess-dev'
 
 [tool.black]
 line-length = 100
@@ -166,3 +167,4 @@ builtins-ignorelist = [
     "dict", # TODO
     "filter",
 ]
+
