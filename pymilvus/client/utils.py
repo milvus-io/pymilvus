@@ -289,17 +289,4 @@ def traverse_info(fields_info: Any, entities: List):
 
 
 def get_server_type(host: str):
-    if host is None or not isinstance(host, str):
-        return MILVUS
-    splits = host.split(".")
-    len_of_splits = len(splits)
-    if (
-        len_of_splits >= 2
-        and (
-            splits[len_of_splits - 2].lower() == "zilliz"
-            or splits[len_of_splits - 2].lower() == "zillizcloud"
-        )
-        and splits[len_of_splits - 1].lower() == "com"
-    ):
-        return ZILLIZ
-    return MILVUS
+    return ZILLIZ if (isinstance(host, str) and "zilliz" in host.lower()) else MILVUS

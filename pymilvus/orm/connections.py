@@ -17,7 +17,6 @@ from urllib import parse
 
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
 from pymilvus.client.grpc_handler import GrpcHandler
-from pymilvus.client.utils import ZILLIZ, get_server_type
 from pymilvus.exceptions import (
     ConnectionConfigException,
     ConnectionNotExistException,
@@ -113,7 +112,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def __parse_address_from_uri(self, uri: str) -> (str, parse.ParseResult):
         illegal_uri_msg = (
-            "Illegal uri: [{}], expected form 'http[s]://[user:password@]example.com:12345'"
+            "Illegal uri: [{}], expected form 'http[s]://[user:password@]example.com[:12345]'"
         )
         try:
             parsed_uri = parse.urlparse(uri)
@@ -126,7 +125,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionConfigException(message=f"{illegal_uri_msg.format(uri)}") from None
 
         host = parsed_uri.hostname if parsed_uri.hostname is not None else Config.DEFAULT_HOST
-        port = parsed_uri.port if parsed_uri.port is not None else Config.DEFAULT_PORT
+        default_port = "443" if parsed_uri.scheme == "https" else Config.DEFAULT_PORT
+        port = parsed_uri.port if parsed_uri.port is not None else default_port
         addr = f"{host}:{port}"
 
         self.__verify_host_port(host, port)
@@ -302,7 +302,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
             gh._wait_for_channel_ready(timeout=timeout)
             kwargs.pop("password")
             kwargs.pop("token", None)
-            kwargs.pop("db_name", None)
             kwargs.pop("secure", None)
             kwargs.pop("db_name", "")
 
@@ -314,14 +313,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
-
-        # Set port if server type is zilliz cloud serverless
-        uri = kwargs.get("uri")
-        if uri is not None:
-            server_type = get_server_type(uri)
-            parsed_uri = parse.urlparse(uri)
-            if server_type == ZILLIZ and parsed_uri.port is None:
-                kwargs["uri"] = uri + ":" + str(VIRTUAL_PORT)
 
         config = (
             kwargs.pop("address", ""),
@@ -335,14 +326,15 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         # 1st Priority: connection from params
         if with_config(config):
-            in_addr, parsed_uri = self.__get_full_address(*config)
-            kwargs["address"] = in_addr
+            addr, parsed_uri = self.__get_full_address(*config)
+            kwargs["address"] = addr
 
-            if self.has_connection(alias) and self._alias[alias].get("address") != in_addr:
+            if self.has_connection(alias) and self._alias[alias].get("address") != addr:
                 raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
 
             # uri might take extra info
             if parsed_uri is not None:
+                # get db_name from uri
                 user = parsed_uri.username or user
                 password = parsed_uri.password or password
 
