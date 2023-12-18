@@ -4,9 +4,9 @@ pull_request_rules:
       - or:
         - base=master
         - base~=2\.\d
-      - "status-success=Run Python Tests (3.7)"
-      - "status-success=Run Check Proto (3.7)"
-      - "status-success=Code lint check (3.7)"
+      - "status-success=Run Python Tests (3.8)"
+      - "status-success=Run Check Proto (3.8)"
+      - "status-success=Code lint check (3.8)"
       - "status-success=Run Python Tests (3.11)"
       - "status-success=Run Check Proto (3.11)"
       - "status-success=Code lint check (3.11)"
