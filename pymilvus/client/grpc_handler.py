@@ -24,7 +24,7 @@ from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils
-from .abstract import CollectionSchema, MutationResult, SearchResult
+from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, MutationResult, SearchResult
 from .asynch import (
     CreateIndexFuture,
     FlushFuture,
@@ -708,6 +708,25 @@ class GrpcHandler:
                 return SearchFuture(None, None, e)
             raise e from e
 
+    def _execute_searchV2(
+        self, request: milvus_types.SearchRequestV2, timeout: Optional[float] = None, **kwargs
+    ):
+        try:
+            if kwargs.get("_async", False):
+                future = self._stub.SearchV2.future(request, timeout=timeout)
+                func = kwargs.get("_callback", None)
+                return SearchFuture(future, func)
+
+            response = self._stub.SearchV2(request, timeout=timeout)
+            check_status(response.status)
+            round_decimal = kwargs.get("round_decimal", -1)
+            return SearchResult(response.results, round_decimal)
+
+        except Exception as e:
+            if kwargs.get("_async", False):
+                return SearchFuture(None, None, e)
+            raise e from e
+
     @retry_on_rpc_failure()
     def search(
         self,
@@ -746,6 +765,56 @@ class GrpcHandler:
             **kwargs,
         )
         return self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
+
+    @retry_on_rpc_failure()
+    def searchV2(
+        self,
+        collection_name: str,
+        reqs: List[AnnSearchRequest],
+        rerank: BaseRanker,
+        limit: int,
+        partition_names: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        round_decimal: int = -1,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(
+            limit=limit,
+            round_decimal=round_decimal,
+            partition_name_array=partition_names,
+            output_fields=output_fields,
+            guarantee_timestamp=kwargs.get("guarantee_timestamp", None),
+        )
+
+        requests = []
+        for req in reqs:
+            search_request = Prepare.search_requests_with_expr(
+                collection_name,
+                req.data,
+                req.anns_field,
+                req.param,
+                req.limit,
+                req.expr,
+                partition_names=partition_names,
+                round_decimal=round_decimal,
+                **kwargs,
+            )
+            requests.append(search_request)
+
+        search_request_v2 = Prepare.search_requestV2_with_ranker(
+            collection_name,
+            requests,
+            rerank.dict(),
+            limit,
+            partition_names,
+            output_fields,
+            round_decimal,
+            **kwargs,
+        )
+        return self._execute_searchV2(
+            search_request_v2, timeout, round_decimal=round_decimal, **kwargs
+        )
 
     @retry_on_rpc_failure()
     def get_query_segment_info(self, collection_name: str, timeout: float = 30, **kwargs):

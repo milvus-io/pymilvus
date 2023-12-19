@@ -3,11 +3,11 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import ujson
 
-from pymilvus.exceptions import MilvusException
+from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage, MilvusException
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
 
-from .constants import DEFAULT_CONSISTENCY_LEVEL
+from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
 from .types import DataType
 
 
@@ -269,6 +269,100 @@ class SequenceIterator:
             self._idx += 1
             return res
         raise StopIteration
+
+
+class BaseRanker:
+    def __int__(self):
+        return
+
+    def dict(self):
+        return {}
+
+    def __str__(self):
+        return self.dict().__str__()
+
+
+class RRFRanker(BaseRanker):
+    def __init__(
+        self,
+        k: int = 60,
+    ):
+        self._strategy = RANKER_TYPE_RRF
+        self._k = k
+
+    def dict(self):
+        params = {
+            "k": self._k,
+        }
+        return {
+            "strategy": self._strategy,
+            "params": params,
+        }
+
+
+class WeightedRanker(BaseRanker):
+    def __init__(self, *nums):
+        self._strategy = RANKER_TYPE_WEIGHTED
+        weights = []
+        for num in nums:
+            weights.append(num)
+        self._weights = weights
+
+    def dict(self):
+        params = {
+            "weights": self._weights,
+        }
+        return {
+            "strategy": self._strategy,
+            "params": params,
+        }
+
+
+class AnnSearchRequest:
+    def __init__(
+        self,
+        data: List,
+        anns_field: str,
+        param: Dict,
+        limit: int,
+        expr: Optional[str] = None,
+    ):
+        self._data = data
+        self._anns_field = anns_field
+        self._param = param
+        self._limit = limit
+
+        if expr is not None and not isinstance(expr, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
+        self._expr = expr
+
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def anns_field(self):
+        return self._anns_field
+
+    @property
+    def param(self):
+        return self._param
+
+    @property
+    def limit(self):
+        return self._limit
+
+    @property
+    def expr(self):
+        return self._expr
+
+    def __str__(self):
+        return {
+            "anns_field": self.anns_field,
+            "param": self.param,
+            "limit": self.limit,
+            "expr": self.expr,
+        }.__str__()
 
 
 class SearchResult(list):

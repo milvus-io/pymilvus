@@ -10,3 +10,6 @@ DEFAULT_CONSISTENCY_LEVEL = ConsistencyLevel.Bounded
 DEFAULT_RESOURCE_GROUP = "__default_resource_group"
 REDUCE_STOP_FOR_BEST = "reduce_stop_for_best"
 GROUP_BY_FIELD = "group_by_field"
+
+RANKER_TYPE_RRF = "rrf"
+RANKER_TYPE_WEIGHTED = "weighted"

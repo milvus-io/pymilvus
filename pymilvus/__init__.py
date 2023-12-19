@@ -27,7 +27,7 @@ from .bulk_writer.remote_bulk_writer import (
     RemoteBulkWriter,
 )
 from .client import __version__
-from .client.abstract import Hit, Hits, SearchResult
+from .client.abstract import AnnSearchRequest, Hit, Hits, RRFRanker, SearchResult, WeightedRanker
 from .client.asynch import SearchFuture
 from .client.prepare import Prepare
 from .client.stub import Milvus
@@ -147,4 +147,7 @@ __all__ = [
     "bulk_import",
     "get_import_progress",
     "list_import_jobs",
+    "AnnSearchRequest",
+    "RRFRanker",
+    "WeightedRanker",
 ]

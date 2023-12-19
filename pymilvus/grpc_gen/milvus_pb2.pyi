@@ -519,6 +519,20 @@ class CreateIndexRequest(_message.Message):
     index_name: str
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., field_name: _Optional[str] = ..., extra_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_name: _Optional[str] = ...) -> None: ...
 
+class AlterIndexRequest(_message.Message):
+    __slots__ = ["base", "db_name", "collection_name", "index_name", "extra_params"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    INDEX_NAME_FIELD_NUMBER: _ClassVar[int]
+    EXTRA_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    index_name: str
+    extra_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., index_name: _Optional[str] = ..., extra_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+
 class DescribeIndexRequest(_message.Message):
     __slots__ = ["base", "db_name", "collection_name", "field_name", "index_name", "timestamp"]
     BASE_FIELD_NUMBER: _ClassVar[int]
@@ -756,6 +770,34 @@ class SearchResults(_message.Message):
     results: _schema_pb2.SearchResultData
     collection_name: str
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., results: _Optional[_Union[_schema_pb2.SearchResultData, _Mapping]] = ..., collection_name: _Optional[str] = ...) -> None: ...
+
+class SearchRequestV2(_message.Message):
+    __slots__ = ["base", "db_name", "collection_name", "partition_names", "requests", "rank_params", "travel_timestamp", "guarantee_timestamp", "not_return_all_meta", "output_fields", "consistency_level", "use_default_consistency"]
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    PARTITION_NAMES_FIELD_NUMBER: _ClassVar[int]
+    REQUESTS_FIELD_NUMBER: _ClassVar[int]
+    RANK_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    TRAVEL_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    GUARANTEE_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    NOT_RETURN_ALL_META_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    CONSISTENCY_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    USE_DEFAULT_CONSISTENCY_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    partition_names: _containers.RepeatedScalarFieldContainer[str]
+    requests: _containers.RepeatedCompositeFieldContainer[SearchRequest]
+    rank_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    travel_timestamp: int
+    guarantee_timestamp: int
+    not_return_all_meta: bool
+    output_fields: _containers.RepeatedScalarFieldContainer[str]
+    consistency_level: _common_pb2.ConsistencyLevel
+    use_default_consistency: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., requests: _Optional[_Iterable[_Union[SearchRequest, _Mapping]]] = ..., rank_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., not_return_all_meta: bool = ..., output_fields: _Optional[_Iterable[str]] = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ...) -> None: ...
 
 class FlushRequest(_message.Message):
     __slots__ = ["base", "db_name", "collection_names"]
