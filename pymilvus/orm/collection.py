@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
-from pymilvus.client.abstract import SearchResult
+from pymilvus.client.abstract import BaseRanker, SearchResult
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
     CompactionPlans,
@@ -786,6 +786,148 @@ class Collection:
             param,
             limit,
             expr,
+            partition_names,
+            output_fields,
+            round_decimal,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs,
+        )
+
+        return SearchFuture(resp) if kwargs.get("_async", False) else resp
+
+    def searchV2(
+        self,
+        reqs: List,
+        rerank: BaseRanker,
+        limit: int,
+        partition_names: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        round_decimal: int = -1,
+        **kwargs,
+    ):
+        """Conducts multi vector similarity search with a rerank for rearrangement.
+
+        Args:
+            reqs (``List[AnnSearchRequest]``): The vector search requests.
+            rerank (``BaseRanker``): The reranker for rearrange nummer of limit results.
+            limit (``int``): The max number of returned record, also known as `topk`.
+
+            partition_names (``List[str]``, optional): The names of partitions to search on.
+            output_fields (``List[str]``, optional):
+                The name of fields to return in the search result.  Can only get scalar fields.
+            round_decimal (``int``, optional):
+                The specified number of decimal places of returned distance.
+                Defaults to -1 means no round to returned distance.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional search params
+
+                *  *_async* (``bool``, optional)
+                    Indicate if invoke asynchronously.
+                    Returns a SearchFuture if True, else returns results from server directly.
+
+                * *_callback* (``function``, optional)
+                    The callback function which is invoked after server response successfully.
+                    It functions only if _async is set to True.
+
+                * *offset* (``int``, optinal)
+                    offset for pagination.
+
+                * *consistency_level* (``str/int``, optional)
+                    Which consistency level to use when searching in the collection.
+
+                    Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
+
+                    Note: this parameter overwrites the same one specified when creating collection,
+                    if no consistency level was specified, search will use the
+                    consistency level when you create the collection.
+
+                * *guarantee_timestamp* (``int``, optional)
+                    Instructs Milvus to see all operations performed before this timestamp.
+                    By default Milvus will search all operations performed to date.
+
+                    Note: only valid in Customized consistency level.
+
+                * *graceful_time* (``int``, optional)
+                    Search will use the (current_timestamp - the graceful_time) as the
+                    `guarantee_timestamp`. By default with 5s.
+
+                    Note: only valid in Bounded consistency level
+
+        Returns:
+            SearchResult:
+                Returns ``SearchResult`` if `_async` is False , otherwise ``SearchFuture``
+
+        .. _Metric type documentations:
+            https://milvus.io/docs/v2.2.x/metric.md
+        .. _Index documentations:
+            https://milvus.io/docs/v2.2.x/index.md
+        .. _How guarantee ts works:
+            https://github.com/milvus-io/milvus/blob/master/docs/developer_guides/how-guarantee-ts-works.md
+
+        Raises:
+            MilvusException: If anything goes wrong
+
+        Examples:
+            >>> from pymilvus import (Collection, FieldSchema, CollectionSchema, DataType,
+            >>>     AnnSearchRequest, RRFRanker, WeightedRanker)
+            >>> import random
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2),
+            ...     FieldSchema("poster", dtype=DataType.FLOAT_VECTOR, dim=2),
+            ... ])
+            >>> collection = Collection("test_collection_search", schema)
+            >>> # insert
+            >>> data = [
+            ...     [i for i in range(10)],
+            ...     [[random.random() for _ in range(2)] for _ in range(10)],
+            ...     [[random.random() for _ in range(2)] for _ in range(10)],
+            ... ]
+            >>> collection.insert(data)
+            >>> index_param = {"index_type": "FLAT", "metric_type": "L2", "params": {}}
+            >>> collection.create_index("films", index_param)
+            >>> collection.create_index("poster", index_param)
+            >>> collection.load()
+            >>> # search
+            >>> search_param1 = {
+            ...     "data": [[1.0, 1.0]],
+            ...     "anns_field": "films",
+            ...     "param": {"metric_type": "L2", "offset": 1},
+            ...     "limit": 2,
+            ...     "expr": "film_id > 0",
+            ... }
+            >>> req1 = AnnSearchRequest(**search_param1)
+            >>> search_param2 = {
+            ...     "data": [[2.0, 2.0]],
+            ...     "anns_field": "poster",
+            ...     "param": {"metric_type": "L2", "offset": 1},
+            ...     "limit": 2,
+            ...     "expr": "film_id > 0",
+            ... }
+            >>> req2 = AnnSearchRequest(**search_param2)
+            >>> res = collection.searchV2([req1, req2], WeightedRanker(0.9, 0.1), 2)
+            >>> assert len(res) == 1
+            >>> hits = res[0]
+            >>> assert len(hits) == 2
+            >>> print(f"- Total hits: {len(hits)}, hits ids: {hits.ids} ")
+            - Total hits: 2, hits ids: [8, 5]
+            >>> print(f"- Top1 hit id: {hits[0].id}, score: {hits[0].score} ")
+            - Top1 hit id: 8, score: 0.10143111646175385
+        """
+        if isinstance(reqs, list) and len(reqs) == 0:
+            resp = SearchResult(schema_pb2.SearchResultData())
+            return SearchFuture(None) if kwargs.get("_async", False) else resp
+
+        conn = self._get_connection()
+        resp = conn.searchV2(
+            self._name,
+            reqs,
+            rerank,
+            limit,
             partition_names,
             output_fields,
             round_decimal,

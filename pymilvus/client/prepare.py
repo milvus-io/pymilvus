@@ -653,6 +653,47 @@ class Prepare:
         return request
 
     @classmethod
+    def search_requestV2_with_ranker(
+        cls,
+        collection_name: str,
+        reqs: List,
+        rerank_param: Dict,
+        limit: int,
+        partition_names: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        round_decimal: int = -1,
+        **kwargs,
+    ) -> milvus_types.SearchRequestV2:
+
+        use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
+        rerank_param["limit"] = limit
+        rerank_param["round_decimal"] = round_decimal
+
+        def dump(v: Dict):
+            if isinstance(v, dict):
+                return ujson.dumps(v)
+            return str(v)
+
+        request = milvus_types.SearchRequestV2(
+            collection_name=collection_name,
+            partition_names=partition_names,
+            requests=reqs,
+            output_fields=output_fields,
+            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
+            use_default_consistency=use_default_consistency,
+            consistency_level=kwargs.get("consistency_level", 0),
+        )
+
+        request.rank_params.extend(
+            [
+                common_types.KeyValuePair(key=str(key), value=dump(value))
+                for key, value in rerank_param.items()
+            ]
+        )
+
+        return request
+
+    @classmethod
     def create_alias_request(cls, collection_name: str, alias: str):
         return milvus_types.CreateAliasRequest(collection_name=collection_name, alias=alias)
 
