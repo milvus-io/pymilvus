@@ -339,8 +339,6 @@ class SearchIterator:
             self._width = last_hit.distance - first_hit.distance
         else:
             self._width = first_hit.distance - last_hit.distance
-        self._width *= DEFAULT_SEARCH_EXTENSION_RATE
-        # commonly, we extend width to twice to avoid one more time search
 
     def __set_up_range_parameters(self, page: SearchPage):
         self.__update_width(page)
