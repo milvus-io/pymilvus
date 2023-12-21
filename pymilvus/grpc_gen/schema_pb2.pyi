@@ -55,7 +55,7 @@ FieldDropping: FieldState
 FieldDropped: FieldState
 
 class FieldSchema(_message.Message):
-    __slots__ = ("fieldID", "name", "is_primary_key", "description", "data_type", "type_params", "index_params", "autoID", "state", "element_type", "default_value", "is_dynamic", "is_partition_key")
+    __slots__ = ("fieldID", "name", "is_primary_key", "description", "data_type", "type_params", "index_params", "autoID", "state", "element_type", "default_value", "is_dynamic", "is_partition_key", "is_clustering_key")
     FIELDID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     IS_PRIMARY_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -69,6 +69,7 @@ class FieldSchema(_message.Message):
     DEFAULT_VALUE_FIELD_NUMBER: _ClassVar[int]
     IS_DYNAMIC_FIELD_NUMBER: _ClassVar[int]
     IS_PARTITION_KEY_FIELD_NUMBER: _ClassVar[int]
+    IS_CLUSTERING_KEY_FIELD_NUMBER: _ClassVar[int]
     fieldID: int
     name: str
     is_primary_key: bool
@@ -82,7 +83,8 @@ class FieldSchema(_message.Message):
     default_value: ValueField
     is_dynamic: bool
     is_partition_key: bool
-    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ..., element_type: _Optional[_Union[DataType, str]] = ..., default_value: _Optional[_Union[ValueField, _Mapping]] = ..., is_dynamic: bool = ..., is_partition_key: bool = ...) -> None: ...
+    is_clustering_key: bool
+    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ..., element_type: _Optional[_Union[DataType, str]] = ..., default_value: _Optional[_Union[ValueField, _Mapping]] = ..., is_dynamic: bool = ..., is_partition_key: bool = ..., is_clustering_key: bool = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
     __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field")
