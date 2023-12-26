@@ -128,6 +128,26 @@ def is_legal_nprobe(nprobe: Any) -> bool:
     return isinstance(nprobe, int)
 
 
+def is_legal_itopk_size(itopk_size: Any) -> bool:
+    return isinstance(itopk_size, int)
+
+
+def is_legal_search_width(search_width: Any) -> bool:
+    return isinstance(search_width, int)
+
+
+def is_legal_min_iterations(min_iterations: Any) -> bool:
+    return isinstance(min_iterations, int)
+
+
+def is_legal_max_iterations(max_iterations: Any) -> bool:
+    return isinstance(max_iterations, int)
+
+
+def is_legal_team_size(team_size: Any) -> bool:
+    return isinstance(team_size, int)
+
+
 def is_legal_cmd(cmd: Any) -> bool:
     return cmd and isinstance(cmd, str)
 
@@ -298,6 +318,11 @@ class ParamChecker(metaclass=Singleton):
             "properties": is_legal_collection_properties,
             "replica_number": is_legal_replica_number,
             "resource_group_name": is_legal_table_name,
+            "itopk_size": is_legal_itopk_size,
+            "search_width": is_legal_search_width,
+            "min_iterations": is_legal_min_iterations,
+            "max_iterations": is_legal_max_iterations,
+            "team_size": is_legal_team_size,
         }
 
     def check(self, key: str, value: Callable):

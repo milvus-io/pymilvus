@@ -23,6 +23,7 @@ valid_index_types = [
     "BIN_IVF_FLAT",
     "DISKANN",
     "AUTOINDEX",
+    "GPU_CAGRA",
 ]
 
 valid_index_params_keys = [
@@ -33,6 +34,8 @@ valid_index_params_keys = [
     "efConstruction",
     "PQM",
     "n_trees",
+    "intermediate_graph_degree",
+    "graph_degree",
 ]
 
 valid_binary_index_types = [
