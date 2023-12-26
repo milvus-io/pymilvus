@@ -42,25 +42,31 @@ def retry_on_rpc_failure(
             # This has to make sure every timeout parameter is passing
             # throught kwargs form as `timeout=10`
             _timeout = kwargs.get("timeout", None)
+            _retry_times = kwargs.get("retry_times", None)
             _retry_on_rate_limit = kwargs.get("retry_on_rate_limit", True)
 
             retry_timeout = _timeout if _timeout is not None and isinstance(_timeout, int) else None
+            final_retry_times = (
+                _retry_times
+                if _retry_times is not None and isinstance(_retry_times, int)
+                else retry_times
+            )
             counter = 1
             back_off = initial_back_off
             start_time = time.time()
 
             def timeout(start_time: Optional[float] = None) -> bool:
                 """If timeout is valid, use timeout as the retry limits,
-                If timeout is None, use retry_times as the retry limits.
+                If timeout is None, use final_retry_times as the retry limits.
                 """
                 if retry_timeout is not None:
                     return time.time() - start_time >= retry_timeout
-                return counter > retry_times
+                return counter > final_retry_times
 
             to_msg = (
                 f"Retry timeout: {retry_timeout}s"
                 if retry_timeout is not None
-                else f"Retry run out of {retry_times} retry times"
+                else f"Retry run out of {final_retry_times} retry times"
             )
 
             while True:
