@@ -31,6 +31,7 @@ from .constants import (
     PARAMS,
     RADIUS,
     RANGE_FILTER,
+    REDUCE_STOP_FOR_BEST,
     UNLIMITED,
 )
 from .schema import CollectionSchema
@@ -77,11 +78,15 @@ class QueryIterator:
         self._kwargs = kwargs
         self.__check_set_batch_size(batch_size)
         self._limit = limit
+        self.__check_set_reduce_stop_for_best()
         self._returned_count = 0
         self.__setup__pk_prop()
         self.__set_up_expr(expr)
         self.__seek()
         self._cache_id_in_use = NO_CACHE_ID
+
+    def __check_set_reduce_stop_for_best(self):
+        self._kwargs[REDUCE_STOP_FOR_BEST] = "True"
 
     def __check_set_batch_size(self, batch_size: int):
         if batch_size < 0:
