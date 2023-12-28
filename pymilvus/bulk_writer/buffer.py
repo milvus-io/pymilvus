@@ -28,6 +28,7 @@ from pymilvus.orm.schema import (
 
 from .constants import (
     DYNAMIC_FIELD_NAME,
+    MB,
     NUMPY_TYPE_CREATOR,
     BulkFileType,
 )
@@ -74,6 +75,14 @@ class Buffer:
         logger.error(msg)
         raise MilvusException(message=msg)
 
+    def _raw_obj(self, x: object):
+        if isinstance(x, np.ndarray):
+            return x.tolist()
+        if isinstance(x, np.generic):
+            return x.item()
+
+        return x
+
     def append_row(self, row: dict):
         dynamic_values = {}
         if DYNAMIC_FIELD_NAME in row and not isinstance(row[DYNAMIC_FIELD_NAME], dict):
@@ -85,14 +94,14 @@ class Buffer:
                 continue
 
             if k not in self._buffer:
-                dynamic_values[k] = row[k]
+                dynamic_values[k] = self._raw_obj(row[k])
             else:
                 self._buffer[k].append(row[k])
 
         if DYNAMIC_FIELD_NAME in self._buffer:
             self._buffer[DYNAMIC_FIELD_NAME].append(dynamic_values)
 
-    def persist(self, local_path: str) -> list:
+    def persist(self, local_path: str, **kwargs) -> list:
         # verify row count of fields are equal
         row_count = -1
         for k in self._buffer:
@@ -107,17 +116,18 @@ class Buffer:
 
         # output files
         if self._file_type == BulkFileType.NPY:
-            return self._persist_npy(local_path)
+            return self._persist_npy(local_path, **kwargs)
         if self._file_type == BulkFileType.JSON_RB:
-            return self._persist_json_rows(local_path)
+            return self._persist_json_rows(local_path, **kwargs)
         if self._file_type == BulkFileType.PARQUET:
-            return self._persist_parquet(local_path)
+            return self._persist_parquet(local_path, **kwargs)
 
         self._throw(f"Unsupported file tpye: {self._file_type}")
         return []
 
-    def _persist_npy(self, local_path: str):
+    def _persist_npy(self, local_path: str, **kwargs):
         file_list = []
+        row_count = len(next(iter(self._buffer.values())))
         for k in self._buffer:
             full_file_name = Path(local_path).joinpath(k + ".npy")
             file_list.append(str(full_file_name))
@@ -127,7 +137,10 @@ class Buffer:
                 # numpy data type specify
                 dt = None
                 field_schema = self._fields[k]
-                if field_schema.dtype.name in NUMPY_TYPE_CREATOR:
+                if field_schema.dtype == DataType.ARRAY:
+                    element_type = field_schema.element_type
+                    dt = NUMPY_TYPE_CREATOR[element_type.name]
+                elif field_schema.dtype.name in NUMPY_TYPE_CREATOR:
                     dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
 
                 # for JSON field, convert to string array
@@ -140,9 +153,9 @@ class Buffer:
                 arr = np.array(self._buffer[k], dtype=dt)
                 np.save(str(full_file_name), arr)
             except Exception as e:
-                self._throw(f"Failed to persist column-based file {full_file_name}, error: {e}")
+                self._throw(f"Failed to persist file {full_file_name}, error: {e}")
 
-            logger.info(f"Successfully persist column-based file {full_file_name}")
+            logger.info(f"Successfully persist file {full_file_name}, row count: {row_count}")
 
         if len(file_list) != len(self._buffer):
             logger.error("Some of fields were not persisted successfully, abort the files")
@@ -154,7 +167,7 @@ class Buffer:
 
         return file_list
 
-    def _persist_json_rows(self, local_path: str):
+    def _persist_json_rows(self, local_path: str, **kwargs):
         rows = []
         row_count = len(next(iter(self._buffer.values())))
         row_index = 0
@@ -173,12 +186,12 @@ class Buffer:
             with file_path.open("w") as json_file:
                 json.dump(data, json_file, indent=2)
         except Exception as e:
-            self._throw(f"Failed to persist row-based file {file_path}, error: {e}")
+            self._throw(f"Failed to persist file {file_path}, error: {e}")
 
-        logger.info(f"Successfully persist row-based file {file_path}")
+        logger.info(f"Successfully persist file {file_path}, row count: {len(rows)}")
         return [str(file_path)]
 
-    def _persist_parquet(self, local_path: str):
+    def _persist_parquet(self, local_path: str, **kwargs):
         file_path = Path(local_path + ".parquet")
 
         data = {}
@@ -203,10 +216,35 @@ class Buffer:
             elif field_schema.dtype.name in NUMPY_TYPE_CREATOR:
                 dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
                 data[k] = pd.Series(self._buffer[k], dtype=dt)
+            else:
+                # dtype is null, let pandas deduce the type, might not work
+                data[k] = pd.Series(self._buffer[k])
+
+        # calculate a proper row group size
+        row_group_size_min = 1000
+        row_group_size = 10000
+        row_group_size_max = 1000000
+        if "buffer_size" in kwargs and "buffer_row_count" in kwargs:
+            row_group_bytes = kwargs.get(
+                "row_group_bytes", 32 * MB
+            )  # 32MB is an experience value that avoid high memory usage of parquet reader on server-side
+            buffer_size = kwargs.get("buffer_size", 1)
+            buffer_row_count = kwargs.get("buffer_row_count", 1)
+            size_per_row = int(buffer_size / buffer_row_count) + 1
+            row_group_size = int(row_group_bytes / size_per_row)
+            if row_group_size < row_group_size_min:
+                row_group_size = row_group_size_min
+            if row_group_size > row_group_size_max:
+                row_group_size = row_group_size_max
 
         # write to Parquet file
         data_frame = pd.DataFrame(data=data)
-        data_frame.to_parquet(file_path, engine="pyarrow")  # don't use fastparquet
+        data_frame.to_parquet(
+            file_path, row_group_size=row_group_size, engine="pyarrow"
+        )  # don't use fastparquet
 
-        logger.info(f"Successfully persist parquet file {file_path}")
+        logger.info(
+            f"Successfully persist file {file_path}, total size: {buffer_size},"
+            f" row count: {buffer_row_count}, row group size: {row_group_size}"
+        )
         return [str(file_path)]
