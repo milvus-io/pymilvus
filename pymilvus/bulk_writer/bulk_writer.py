@@ -18,7 +18,7 @@ import numpy as np
 
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
-from pymilvus.orm.schema import CollectionSchema
+from pymilvus.orm.schema import CollectionSchema, FieldSchema
 
 from .buffer import (
     Buffer,
@@ -39,6 +39,7 @@ class BulkWriter:
         schema: CollectionSchema,
         segment_size: int,
         file_type: BulkFileType = BulkFileType.NPY,
+        **kwargs,
     ):
         self._schema = schema
         self._buffer_size = 0
@@ -107,6 +108,62 @@ class BulkWriter:
         logger.error(msg)
         raise MilvusException(message=msg)
 
+    def _verify_vector(self, x: object, field: FieldSchema):
+        dtype = DataType(field.dtype)
+        validator = TYPE_VALIDATOR[dtype.name]
+        dim = field.params["dim"]
+        if not validator(x, dim):
+            self._throw(
+                f"Illegal vector data for vector field: '{field.name}',"
+                f" dim is not {dim} or type mismatch"
+            )
+
+        return len(x) * 4 if dtype == DataType.FLOAT_VECTOR else len(x) / 8
+
+    def _verify_json(self, x: object, field: FieldSchema):
+        size = 0
+        validator = TYPE_VALIDATOR[DataType.JSON.name]
+        if isinstance(x, str):
+            size = len(x)
+            x = self._try_convert_json(field.name, x)
+        elif validator(x):
+            size = len(json.dumps(x))
+        else:
+            self._throw(f"Illegal JSON value for field '{field.name}', type mismatch")
+
+        return x, size
+
+    def _verify_varchar(self, x: object, field: FieldSchema):
+        max_len = field.params["max_length"]
+        validator = TYPE_VALIDATOR[DataType.VARCHAR.name]
+        if not validator(x, max_len):
+            self._throw(
+                f"Illegal varchar value for field '{field.name}',"
+                f" length exceeds {max_len} or type mismatch"
+            )
+
+        return len(x)
+
+    def _verify_array(self, x: object, field: FieldSchema):
+        max_capacity = field.params["max_capacity"]
+        element_type = field.element_type
+        validator = TYPE_VALIDATOR[DataType.ARRAY.name]
+        if not validator(x, max_capacity):
+            self._throw(
+                f"Illegal array value for field '{field.name}', length exceeds capacity or type mismatch"
+            )
+
+        row_size = 0
+        if element_type.name in TYPE_SIZE:
+            row_size = TYPE_SIZE[element_type.name] * len(x)
+        elif element_type == DataType.VARCHAR:
+            for ele in x:
+                row_size = row_size + self._verify_varchar(ele, field)
+        else:
+            self._throw(f"Unsupported element type for array field '{field.name}'")
+
+        return row_size
+
     def _verify_row(self, row: dict):
         if not isinstance(row, dict):
             self._throw("The input row must be a dict object")
@@ -125,41 +182,26 @@ class BulkWriter:
                 self._throw(f"The field '{field.name}' is missed in the row")
 
             dtype = DataType(field.dtype)
-            validator = TYPE_VALIDATOR[dtype.name]
             if dtype in {DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR}:
                 if isinstance(row[field.name], np.ndarray):
                     row[field.name] = row[field.name].tolist()
-                dim = field.params["dim"]
-                if not validator(row[field.name], dim):
-                    self._throw(
-                        f"Illegal vector data for vector field: '{field.name}',"
-                        f" dim is not {dim} or type mismatch"
-                    )
 
-                vec_size = (
-                    len(row[field.name]) * 4
-                    if dtype == DataType.FLOAT_VECTOR
-                    else len(row[field.name]) / 8
-                )
-                row_size = row_size + vec_size
+                row_size = row_size + self._verify_vector(row[field.name], field)
             elif dtype == DataType.VARCHAR:
-                max_len = field.params["max_length"]
-                if not validator(row[field.name], max_len):
-                    self._throw(
-                        f"Illegal varchar value for field '{field.name}',"
-                        f" length exceeds {max_len} or type mismatch"
-                    )
-
-                row_size = row_size + len(row[field.name])
+                row_size = row_size + self._verify_varchar(row[field.name], field)
             elif dtype == DataType.JSON:
-                row[field.name] = self._try_convert_json(field.name, row[field.name])
-                if not validator(row[field.name]):
-                    self._throw(f"Illegal JSON value for field '{field.name}', type mismatch")
+                row[field.name], size = self._verify_json(row[field.name], field)
+                row_size = row_size + size
+            elif dtype == DataType.ARRAY:
+                if isinstance(row[field.name], np.ndarray):
+                    row[field.name] = row[field.name].tolist()
 
-                row_size = row_size + len(row[field.name])
+                row_size = row_size + self._verify_array(row[field.name], field)
             else:
                 if isinstance(row[field.name], np.generic):
                     row[field.name] = row[field.name].item()
+
+                validator = TYPE_VALIDATOR[dtype.name]
                 if not validator(row[field.name]):
                     self._throw(
                         f"Illegal scalar value for field '{field.name}', value overflow or type mismatch"

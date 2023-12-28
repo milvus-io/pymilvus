@@ -26,11 +26,11 @@ DEFAULT_BUCKET_NAME = "a-bucket"
 
 TYPE_SIZE = {
     DataType.BOOL.name: 1,
-    DataType.INT8.name: 8,
-    DataType.INT16.name: 8,
-    DataType.INT32.name: 8,
+    DataType.INT8.name: 1,
+    DataType.INT16.name: 2,
+    DataType.INT32.name: 4,
     DataType.INT64.name: 8,
-    DataType.FLOAT.name: 8,
+    DataType.FLOAT.name: 4,
     DataType.DOUBLE.name: 8,
 }
 
@@ -43,10 +43,10 @@ TYPE_VALIDATOR = {
     DataType.FLOAT.name: lambda x: isinstance(x, float),
     DataType.DOUBLE.name: lambda x: isinstance(x, float),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,
-    DataType.JSON.name: lambda x: isinstance(x, dict) and len(x) <= 65535,
+    DataType.JSON.name: lambda x: isinstance(x, (dict, list)),
     DataType.FLOAT_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) == dim,
     DataType.BINARY_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) * 8 == dim,
-    DataType.ARRAY.name: lambda x: isinstance(x, list),
+    DataType.ARRAY.name: lambda x, cap: isinstance(x, list) and len(x) <= cap,
 }
 
 NUMPY_TYPE_CREATOR = {

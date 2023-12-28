@@ -37,8 +37,9 @@ class LocalBulkWriter(BulkWriter):
         local_path: str,
         segment_size: int = 512 * MB,
         file_type: BulkFileType = BulkFileType.NPY,
+        **kwargs,
     ):
-        super().__init__(schema, segment_size, file_type)
+        super().__init__(schema, segment_size, file_type, **kwargs)
         self._local_path = local_path
         self._uuid = str(uuid.uuid4())
         self._flush_count = 0
@@ -127,7 +128,11 @@ class LocalBulkWriter(BulkWriter):
 
         old_buffer = super()._new_buffer()
         if old_buffer.row_count > 0:
-            file_list = old_buffer.persist(str(target_path))
+            file_list = old_buffer.persist(
+                local_path=str(target_path),
+                buffer_size=self.buffer_size,
+                buffer_row_count=self.buffer_row_count,
+            )
             self._local_files.append(file_list)
             if call_back:
                 call_back(file_list)
