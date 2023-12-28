@@ -98,6 +98,10 @@ def is_legal_field_name(field_name: Any) -> bool:
     return field_name and isinstance(field_name, str)
 
 
+def is_legal_index_name(index_name: Any) -> bool:
+    return index_name and isinstance(index_name, str)
+
+
 def is_legal_nlist(nlist: Any) -> bool:
     return not isinstance(nlist, bool) and isinstance(nlist, int)
 
@@ -323,6 +327,7 @@ class ParamChecker(metaclass=Singleton):
             "min_iterations": is_legal_min_iterations,
             "max_iterations": is_legal_max_iterations,
             "team_size": is_legal_team_size,
+            "index_name": is_legal_index_name,
         }
 
     def check(self, key: str, value: Callable):

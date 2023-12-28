@@ -1349,6 +1349,48 @@ class Collection:
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params, timeout=timeout, **kwargs)
 
+    def alter_index(
+        self,
+        index_name: str,
+        extra_params: dict,
+        timeout: Optional[float] = None,
+    ):
+        """Alter index for a specified field, with a index name.
+
+        Args:
+            index_name (``str``): The name of the index to alter
+            extra_params (``dict``): The parameters to index
+                * *mmap.enabled* (``str``)
+                    "mmap.enabled" as the key, example values: True or False.
+
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server
+                response or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Examples:
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
+            >>> from pymilvus import IndexType, MetricType
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("title", DataType.STRING),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_collection_alter_index", schema)
+            >>> index_params = {
+            ...     "index_type": IndexType.IVF_FLAT,
+            ...     "metric_type": MetricType.L2,
+            ...     "params": {"nlist": 128}
+            ... }
+            >>> collection.create_index("films", index_params, index_name="idx")
+            Status(code=0, message='')
+            >>> collection.alter_index("idx", {"mmap.enabled": True})
+        """
+        conn = self._get_connection()
+        return conn.alter_index(self._name, index_name, extra_params, timeout=timeout)
+
     def has_index(self, timeout: Optional[float] = None, **kwargs) -> bool:
         """Check whether a specified index exists.
 

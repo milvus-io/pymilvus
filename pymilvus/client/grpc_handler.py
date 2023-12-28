@@ -923,6 +923,26 @@ class GrpcHandler:
         return Status(status.code, status.reason)
 
     @retry_on_rpc_failure()
+    def alter_index(
+        self,
+        collection_name: str,
+        index_name: str,
+        extra_params: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, index_name=index_name)
+        if extra_params is None:
+            raise ParamError(message="extra_params should not be None")
+
+        request = Prepare.alter_index_request(collection_name, index_name, extra_params)
+
+        rf = self._stub.AlterIndex.future(request, timeout=timeout)
+        response = rf.result()
+        status = response.status
+        check_status(status)
+
+    @retry_on_rpc_failure()
     def list_indexes(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.describe_index_request(collection_name, "")

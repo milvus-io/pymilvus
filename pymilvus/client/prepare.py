@@ -713,9 +713,7 @@ class Prepare:
         )
 
         def dump(tv: Dict):
-            if isinstance(tv, dict):
-                return ujson.dumps(tv)
-            return str(tv)
+            return ujson.dumps(tv) if isinstance(tv, dict) else str(tv)
 
         if isinstance(params, dict):
             for tk, tv in params.items():
@@ -725,6 +723,18 @@ class Prepare:
                 index_params.extra_params.append(kv_pair)
 
         return index_params
+
+    @classmethod
+    def alter_index_request(cls, collection_name: str, index_name: str, extra_params: dict):
+        def dump(tv: Dict):
+            return ujson.dumps(tv) if isinstance(tv, dict) else str(tv)
+
+        params = []
+        for k, v in extra_params.items():
+            params.append(common_types.KeyValuePair(key=str(k), value=dump(v)))
+        return milvus_types.AlterIndexRequest(
+            collection_name=collection_name, index_name=index_name, extra_params=params
+        )
 
     @classmethod
     def describe_index_request(
