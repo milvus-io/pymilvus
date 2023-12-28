@@ -664,7 +664,6 @@ class Prepare:
         round_decimal: int = -1,
         **kwargs,
     ) -> milvus_types.SearchRequestV2:
-
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
         rerank_param["limit"] = limit
         rerank_param["round_decimal"] = round_decimal
