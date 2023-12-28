@@ -186,9 +186,9 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.SearchRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SearchResults.FromString,
                 )
-        self.SearchV2 = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/SearchV2',
-                request_serializer=milvus__pb2.SearchRequestV2.SerializeToString,
+        self.HybridSearch = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/HybridSearch',
+                request_serializer=milvus__pb2.HybridSearchRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SearchResults.FromString,
                 )
         self.Flush = channel.unary_unary(
@@ -642,7 +642,7 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SearchV2(self, request, context):
+    def HybridSearch(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1114,9 +1114,9 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.SearchRequest.FromString,
                     response_serializer=milvus__pb2.SearchResults.SerializeToString,
             ),
-            'SearchV2': grpc.unary_unary_rpc_method_handler(
-                    servicer.SearchV2,
-                    request_deserializer=milvus__pb2.SearchRequestV2.FromString,
+            'HybridSearch': grpc.unary_unary_rpc_method_handler(
+                    servicer.HybridSearch,
+                    request_deserializer=milvus__pb2.HybridSearchRequest.FromString,
                     response_serializer=milvus__pb2.SearchResults.SerializeToString,
             ),
             'Flush': grpc.unary_unary_rpc_method_handler(
@@ -1948,7 +1948,7 @@ class MilvusService(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def SearchV2(request,
+    def HybridSearch(request,
             target,
             options=(),
             channel_credentials=None,
@@ -1958,8 +1958,8 @@ class MilvusService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/SearchV2',
-            milvus__pb2.SearchRequestV2.SerializeToString,
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/HybridSearch',
+            milvus__pb2.HybridSearchRequest.SerializeToString,
             milvus__pb2.SearchResults.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

@@ -504,7 +504,7 @@ class Partition:
             **kwargs,
         )
 
-    def searchV2(
+    def hybrid_search(
         self,
         reqs: List,
         rerank: BaseRanker,
@@ -619,7 +619,7 @@ class Partition:
             ...     "expr": "film_id > 0",
             ... }
             >>> req2 = AnnSearchRequest(**search_param2)
-            >>> res = partition.searchV2([req1, req2], WeightedRanker(0.9, 0.1), 2)
+            >>> res = partition.hybrid_search([req1, req2], WeightedRanker(0.9, 0.1), 2)
             >>> assert len(res) == 1
             >>> hits = res[0]
             >>> assert len(hits) == 2
@@ -629,7 +629,7 @@ class Partition:
             - Top1 hit id: 8, score: 0.10143111646175385
         """
 
-        return self._collection.searchV2(
+        return self._collection.hybrid_search(
             reqs=reqs,
             rerank=rerank,
             limit=limit,

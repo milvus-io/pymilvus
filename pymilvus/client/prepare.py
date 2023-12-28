@@ -653,7 +653,7 @@ class Prepare:
         return request
 
     @classmethod
-    def search_requestV2_with_ranker(
+    def hybrid_search_request_with_ranker(
         cls,
         collection_name: str,
         reqs: List,
@@ -663,7 +663,7 @@ class Prepare:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         **kwargs,
-    ) -> milvus_types.SearchRequestV2:
+    ) -> milvus_types.HybridSearchRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
         rerank_param["limit"] = limit
         rerank_param["round_decimal"] = round_decimal
@@ -673,7 +673,7 @@ class Prepare:
                 return ujson.dumps(v)
             return str(v)
 
-        request = milvus_types.SearchRequestV2(
+        request = milvus_types.HybridSearchRequest(
             collection_name=collection_name,
             partition_names=partition_names,
             requests=reqs,

@@ -137,6 +137,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DescribeIndex: _ClassVar[MsgType]
     DropIndex: _ClassVar[MsgType]
     GetIndexStatistics: _ClassVar[MsgType]
+    AlterIndex: _ClassVar[MsgType]
     Insert: _ClassVar[MsgType]
     Delete: _ClassVar[MsgType]
     Flush: _ClassVar[MsgType]
@@ -278,6 +279,11 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeDropDatabase: _ClassVar[ObjectPrivilege]
     PrivilegeListDatabases: _ClassVar[ObjectPrivilege]
     PrivilegeFlushAll: _ClassVar[ObjectPrivilege]
+    PrivilegeCreatePartition: _ClassVar[ObjectPrivilege]
+    PrivilegeDropPartition: _ClassVar[ObjectPrivilege]
+    PrivilegeShowPartitions: _ClassVar[ObjectPrivilege]
+    PrivilegeHasPartition: _ClassVar[ObjectPrivilege]
+    PrivilegeGetFlushState: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
@@ -409,6 +415,7 @@ CreateIndex: MsgType
 DescribeIndex: MsgType
 DropIndex: MsgType
 GetIndexStatistics: MsgType
+AlterIndex: MsgType
 Insert: MsgType
 Delete: MsgType
 Flush: MsgType
@@ -532,6 +539,11 @@ PrivilegeCreateDatabase: ObjectPrivilege
 PrivilegeDropDatabase: ObjectPrivilege
 PrivilegeListDatabases: ObjectPrivilege
 PrivilegeFlushAll: ObjectPrivilege
+PrivilegeCreatePartition: ObjectPrivilege
+PrivilegeDropPartition: ObjectPrivilege
+PrivilegeShowPartitions: ObjectPrivilege
+PrivilegeHasPartition: ObjectPrivilege
+PrivilegeGetFlushState: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
