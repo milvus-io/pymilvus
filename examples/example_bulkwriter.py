@@ -78,7 +78,7 @@ def build_simple_collection():
     print(f"Collection '{collection.name}' created")
     return collection.schema
 
-def build_all_type_schema(bin_vec: bool):
+def build_all_type_schema(bin_vec: bool, has_array: bool):
     print(f"\n===================== build all types schema ====================")
     fields = [
         FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
@@ -93,6 +93,11 @@ def build_all_type_schema(bin_vec: bool):
         FieldSchema(name="json", dtype=DataType.JSON),
         FieldSchema(name="vector", dtype=DataType.BINARY_VECTOR, dim=DIM) if bin_vec else FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=DIM),
     ]
+
+    if has_array:
+        fields.append(FieldSchema(name="array_str", dtype=DataType.ARRAY, max_capacity=100, element_type=DataType.VARCHAR, max_length=128))
+        fields.append(FieldSchema(name="array_int", dtype=DataType.ARRAY, max_capacity=100, element_type=DataType.INT64))
+
     schema = CollectionSchema(fields=fields, enable_dynamic_field=True)
     return schema
 
@@ -118,8 +123,6 @@ def local_writer(schema: CollectionSchema, file_type: BulkFileType):
             segment_size=128*1024*1024,
             file_type=file_type,
     ) as local_writer:
-        # read data from csv
-        read_sample_data("./data/train_embeddings.csv", local_writer)
 
         # append rows
         for i in range(100000):
@@ -245,6 +248,9 @@ def all_types_writer(bin_vec: bool, schema: CollectionSchema, file_type: BulkFil
                 "json": {"dummy": i, "ok": f"name_{i}"},
                 "vector": gen_binary_vector() if bin_vec else gen_float_vector(),
                 f"dynamic_{i}": i,
+                # bulkinsert doesn't support import npy with array field, the below values will be stored into dynamic field
+                "array_str": [f"str_{k}" for k in range(5)],
+                "array_int": [k for k in range(10)],
             }
             remote_writer.append_row(row)
 
@@ -263,6 +269,9 @@ def all_types_writer(bin_vec: bool, schema: CollectionSchema, file_type: BulkFil
                 "json": json.dumps({"dummy": i, "ok": f"name_{i}"}),
                 "vector": gen_binary_vector() if bin_vec else gen_float_vector(),
                 f"dynamic_{i}": i,
+                # bulkinsert doesn't support import npy with array field, the below values will be stored into dynamic field
+                "array_str": np.array([f"str_{k}" for k in range(5)], np.dtype("str")),
+                "array_int": np.array([k for k in range(10)], np.dtype("int64")),
             })
 
         print(f"{remote_writer.total_row_count} rows appends")
@@ -383,15 +392,17 @@ if __name__ == '__main__':
     parallel_append(schema)
 
     # float vectors + all scalar types
-    schema = build_all_type_schema(bin_vec=False)
     for file_type in file_types:
+        # Note: bulkinsert doesn't support import npy with array field
+        schema = build_all_type_schema(bin_vec=False, has_array=False if file_type==BulkFileType.NPY else True)
         batch_files = all_types_writer(bin_vec=False, schema=schema, file_type=file_type)
         call_bulkinsert(schema, batch_files)
         retrieve_imported_data(bin_vec=False)
 
     # binary vectors + all scalar types
-    schema = build_all_type_schema(bin_vec=True)
     for file_type in file_types:
+        # Note: bulkinsert doesn't support import npy with array field
+        schema = build_all_type_schema(bin_vec=True, has_array=False if file_type == BulkFileType.NPY else True)
         batch_files = all_types_writer(bin_vec=True, schema=schema, file_type=file_type)
         call_bulkinsert(schema, batch_files)
         retrieve_imported_data(bin_vec=True)
