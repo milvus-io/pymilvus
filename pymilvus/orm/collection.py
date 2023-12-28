@@ -796,7 +796,7 @@ class Collection:
 
         return SearchFuture(resp) if kwargs.get("_async", False) else resp
 
-    def searchV2(
+    def hybrid_search(
         self,
         reqs: List,
         rerank: BaseRanker,
@@ -909,7 +909,7 @@ class Collection:
             ...     "expr": "film_id > 0",
             ... }
             >>> req2 = AnnSearchRequest(**search_param2)
-            >>> res = collection.searchV2([req1, req2], WeightedRanker(0.9, 0.1), 2)
+            >>> res = collection.hybrid_search([req1, req2], WeightedRanker(0.9, 0.1), 2)
             >>> assert len(res) == 1
             >>> hits = res[0]
             >>> assert len(hits) == 2
@@ -923,7 +923,7 @@ class Collection:
             return SearchFuture(None) if kwargs.get("_async", False) else resp
 
         conn = self._get_connection()
-        resp = conn.searchV2(
+        resp = conn.hybrid_search(
             self._name,
             reqs,
             rerank,

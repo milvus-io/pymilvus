@@ -251,3 +251,25 @@ class SearchResultData(_message.Message):
     output_fields: _containers.RepeatedScalarFieldContainer[str]
     group_by_field_value: FieldData
     def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ...) -> None: ...
+
+class VectorClusteringInfo(_message.Message):
+    __slots__ = ["field", "centroid"]
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    CENTROID_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    centroid: VectorField
+    def __init__(self, field: _Optional[str] = ..., centroid: _Optional[_Union[VectorField, _Mapping]] = ...) -> None: ...
+
+class ScalarClusteringInfo(_message.Message):
+    __slots__ = ["field"]
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    def __init__(self, field: _Optional[str] = ...) -> None: ...
+
+class ClusteringInfo(_message.Message):
+    __slots__ = ["vector_clustering_infos", "scalar_clustering_infos"]
+    VECTOR_CLUSTERING_INFOS_FIELD_NUMBER: _ClassVar[int]
+    SCALAR_CLUSTERING_INFOS_FIELD_NUMBER: _ClassVar[int]
+    vector_clustering_infos: _containers.RepeatedCompositeFieldContainer[VectorClusteringInfo]
+    scalar_clustering_infos: _containers.RepeatedCompositeFieldContainer[ScalarClusteringInfo]
+    def __init__(self, vector_clustering_infos: _Optional[_Iterable[_Union[VectorClusteringInfo, _Mapping]]] = ..., scalar_clustering_infos: _Optional[_Iterable[_Union[ScalarClusteringInfo, _Mapping]]] = ...) -> None: ...

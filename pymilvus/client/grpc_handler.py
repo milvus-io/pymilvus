@@ -708,16 +708,16 @@ class GrpcHandler:
                 return SearchFuture(None, None, e)
             raise e from e
 
-    def _execute_searchV2(
-        self, request: milvus_types.SearchRequestV2, timeout: Optional[float] = None, **kwargs
+    def _execute_hybrid_search(
+        self, request: milvus_types.HybridSearchRequest, timeout: Optional[float] = None, **kwargs
     ):
         try:
             if kwargs.get("_async", False):
-                future = self._stub.SearchV2.future(request, timeout=timeout)
+                future = self._stub.HybridSearch.future(request, timeout=timeout)
                 func = kwargs.get("_callback", None)
                 return SearchFuture(future, func)
 
-            response = self._stub.SearchV2(request, timeout=timeout)
+            response = self._stub.HybridSearch(request, timeout=timeout)
             check_status(response.status)
             round_decimal = kwargs.get("round_decimal", -1)
             return SearchResult(response.results, round_decimal)
@@ -767,7 +767,7 @@ class GrpcHandler:
         return self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
 
     @retry_on_rpc_failure()
-    def searchV2(
+    def hybrid_search(
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
@@ -802,7 +802,7 @@ class GrpcHandler:
             )
             requests.append(search_request)
 
-        search_request_v2 = Prepare.search_requestV2_with_ranker(
+        hybrid_search_request = Prepare.hybrid_search_request_with_ranker(
             collection_name,
             requests,
             rerank.dict(),
@@ -812,8 +812,8 @@ class GrpcHandler:
             round_decimal,
             **kwargs,
         )
-        return self._execute_searchV2(
-            search_request_v2, timeout, round_decimal=round_decimal, **kwargs
+        return self._execute_hybrid_search(
+            hybrid_search_request, timeout, round_decimal=round_decimal, **kwargs
         )
 
     @retry_on_rpc_failure()
