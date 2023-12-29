@@ -530,6 +530,16 @@ class Collection:
             timeout (float, optional): an optional duration of time in seconds to allow
                 for the RPCs. If timeout is not set, the client keeps waiting until the
                 server responds or an error occurs.
+            **kwargs (``dict``): Optional search params
+
+                * *consistency_level* (``str/int``, optional)
+                    Which consistency level to use when searching in the collection.
+
+                    Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
+
+                    Note: this parameter overwrites the same one specified when creating collection,
+                    if no consistency level was specified, search will use the
+                    consistency level when you create the collection.
 
         Returns:
             MutationResult:

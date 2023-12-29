@@ -567,7 +567,12 @@ class GrpcHandler:
     ):
         check_pass_param(collection_name=collection_name)
         try:
-            req = Prepare.delete_request(collection_name, partition_name, expression)
+            req = Prepare.delete_request(
+                collection_name,
+                partition_name,
+                expression,
+                consistency_level=kwargs.get("consistency_level", 0),
+            )
             future = self._stub.Delete.future(req, timeout=timeout)
 
             if kwargs.get("_async", False):
