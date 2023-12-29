@@ -13,7 +13,11 @@ from pymilvus.orm.schema import CollectionSchema
 
 from . import blob, entity_helper, ts_utils
 from .check import check_pass_param, is_legal_collection_properties
-from .constants import DEFAULT_CONSISTENCY_LEVEL, GROUP_BY_FIELD, REDUCE_STOP_FOR_BEST
+from .constants import (
+    DEFAULT_CONSISTENCY_LEVEL,
+    GROUP_BY_FIELD,
+    REDUCE_STOP_FOR_BEST,
+)
 from .types import DataType, PlaceholderType, get_consistency_level
 from .utils import traverse_info, traverse_rows_info
 
@@ -535,7 +539,13 @@ class Prepare:
         return cls._parse_batch_request(request, entities, fields_info, location)
 
     @classmethod
-    def delete_request(cls, collection_name: str, partition_name: str, expr: str):
+    def delete_request(
+        cls,
+        collection_name: str,
+        partition_name: str,
+        expr: str,
+        consistency_level: Optional[Union[int, str]],
+    ):
         def check_str(instr: str, prefix: str):
             if instr is None:
                 raise ParamError(message=f"{prefix} cannot be None")
@@ -550,7 +560,10 @@ class Prepare:
         check_str(expr, "expr")
 
         return milvus_types.DeleteRequest(
-            collection_name=collection_name, partition_name=partition_name, expr=expr
+            collection_name=collection_name,
+            partition_name=partition_name,
+            expr=expr,
+            consistency_level=consistency_level,
         )
 
     @classmethod
