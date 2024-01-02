@@ -102,6 +102,20 @@ class TestDecorators:
         # the first execute + 0 retry times
         assert self.execute_times == 1
 
+    def test_retry_decorators_set_retry_times(self):
+        self.count_retry_times = 0
+
+        @retry_on_rpc_failure()
+        def test_api(self, code, retry_on_rate_limit, **kwargs):
+            self.count_retry_times += 1
+            self.mock_milvus_exception(code)
+
+        with pytest.raises(MilvusException) as e:
+            test_api(self, ErrorCode.RATE_LIMIT, retry_on_rate_limit=True, retry_times=3)
+
+        # the first execute + 0 retry times
+        assert self.count_retry_times == 3 + 1
+
     @pytest.mark.parametrize("times", [0, 1, 2, 3])
     def test_retry_decorators_rate_limit_without_retry(self, times):
         self.count_test_retry_decorators_force_deny = 0
