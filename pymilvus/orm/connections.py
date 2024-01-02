@@ -11,7 +11,9 @@
 # the License.
 
 import copy
+import logging
 import threading
+import time
 from typing import Callable, Tuple, Union
 from urllib import parse
 
@@ -23,6 +25,8 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
 )
 from pymilvus.settings import Config
+
+logger = logging.getLogger(__name__)
 
 VIRTUAL_PORT = 443
 
@@ -56,6 +60,53 @@ class SingleInstanceMetaClass(type):
     @synchronized
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls, *args, **kwargs)
+
+
+class ReconnectHandler:
+    def __init__(self, conns: object, connection_name: str, kwargs: object) -> None:
+        self.connection_name = connection_name
+        self.conns = conns
+        self._kwargs = kwargs
+        self.is_idle_state = False
+        self.reconnect_lock = threading.Lock()
+
+    def check_state_and_reconnect_later(self):
+        check_after_seconds = 3
+        logger.debug(f"state is idle, schedule reconnect in {check_after_seconds} seconds")
+        time.sleep(check_after_seconds)
+        if not self.is_idle_state:
+            logger.debug("idle state changed, skip reconnect")
+            return
+        with self.reconnect_lock:
+            logger.info("reconnect on idle state")
+            self.is_idle_state = False
+            try:
+                logger.debug("try disconnecting old connection...")
+                self.conns.disconnect(self.connection_name)
+            except Exception:
+                logger.warning("disconnect failed: {e}")
+            finally:
+                reconnected = False
+                while not reconnected:
+                    try:
+                        logger.debug("try reconnecting...")
+                        self.conns.connect(self.connection_name, **self._kwargs)
+                        reconnected = True
+                    except Exception as e:
+                        logger.warning(
+                            f"reconnect failed: {e}, try again after {check_after_seconds} seconds"
+                        )
+                        time.sleep(check_after_seconds)
+            logger.info("reconnected")
+
+    def reconnect_on_idle(self, state: object):
+        logger.debug(f"state change to: {state}")
+        with self.reconnect_lock:
+            if state.value[1] != "idle":
+                self.is_idle_state = False
+                return
+            self.is_idle_state = True
+            threading.Thread(target=self.check_state_and_reconnect_later).start()
 
 
 class Connections(metaclass=SingleInstanceMetaClass):
@@ -270,6 +321,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 Optional. Serving as the key for identification and authentication purposes.
                 Whenever a token is furnished, we shall supplement the corresponding header
                 to each RPC call.
+            * *keep_alive* (``bool``) --
+                Optional. Default is false. If set to true, client will keep an alive connection.
             * *db_name* (``str``) --
                 Optional. default database name of this connection
             * *client_key_path* (``str``) --
@@ -293,6 +346,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> connections.connect("test", host="localhost", port="19530")
         """
 
+        # kwargs_copy is used for auto reconnect
+        kwargs_copy = copy.deepcopy(kwargs)
+        kwargs_copy["user"] = user
+        kwargs_copy["password"] = password
+        kwargs_copy["db_name"] = db_name
+        kwargs_copy["token"] = token
+
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs)
 
@@ -300,6 +360,10 @@ class Connections(metaclass=SingleInstanceMetaClass):
             timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
 
             gh._wait_for_channel_ready(timeout=timeout)
+            if kwargs.get("keep_alive", False):
+                gh.register_state_change_callback(
+                    ReconnectHandler(self, alias, kwargs_copy).reconnect_on_idle
+                )
             kwargs.pop("password")
             kwargs.pop("token", None)
             kwargs.pop("secure", None)
