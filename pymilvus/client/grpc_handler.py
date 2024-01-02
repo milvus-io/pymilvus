@@ -4,7 +4,7 @@ import json
 import socket
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 from urllib import parse
 
 import grpc
@@ -87,6 +87,16 @@ class GrpcHandler:
         self._set_authorization(**kwargs)
         self._setup_db_interceptor(kwargs.get("db_name", None))
         self._setup_grpc_channel()
+        self.callbacks = []
+
+    def register_state_change_callback(self, callback: Callable):
+        self.callbacks.append(callback)
+        self._channel.subscribe(callback, try_to_connect=True)
+
+    def deregister_state_change_callbacks(self):
+        for callback in self.callbacks:
+            self._channel.unsubscribe(callback)
+        self.callbacks = []
 
     def __get_address(self, uri: str, host: str, port: str) -> str:
         if host != "" and port != "" and is_legal_host(host) and is_legal_port(port):
@@ -141,6 +151,7 @@ class GrpcHandler:
             raise e from e
 
     def close(self):
+        self.deregister_state_change_callbacks()
         self._channel.close()
 
     def reset_db_name(self, db_name: str):
