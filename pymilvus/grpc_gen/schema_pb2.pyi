@@ -1,4 +1,5 @@
 from . import common_pb2 as _common_pb2
+from google.protobuf import descriptor_pb2 as _descriptor_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -24,6 +25,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BinaryVector: _ClassVar[DataType]
     FloatVector: _ClassVar[DataType]
     Float16Vector: _ClassVar[DataType]
+    BFloat16Vector: _ClassVar[DataType]
 
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
@@ -46,6 +48,7 @@ JSON: DataType
 BinaryVector: DataType
 FloatVector: DataType
 Float16Vector: DataType
+BFloat16Vector: DataType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
@@ -192,16 +195,18 @@ class ScalarField(_message.Message):
     def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ...) -> None: ...
 
 class VectorField(_message.Message):
-    __slots__ = ["dim", "float_vector", "binary_vector", "float16_vector"]
+    __slots__ = ["dim", "float_vector", "binary_vector", "float16_vector", "bfloat16_vector"]
     DIM_FIELD_NUMBER: _ClassVar[int]
     FLOAT_VECTOR_FIELD_NUMBER: _ClassVar[int]
     BINARY_VECTOR_FIELD_NUMBER: _ClassVar[int]
     FLOAT16_VECTOR_FIELD_NUMBER: _ClassVar[int]
+    BFLOAT16_VECTOR_FIELD_NUMBER: _ClassVar[int]
     dim: int
     float_vector: FloatArray
     binary_vector: bytes
     float16_vector: bytes
-    def __init__(self, dim: _Optional[int] = ..., float_vector: _Optional[_Union[FloatArray, _Mapping]] = ..., binary_vector: _Optional[bytes] = ..., float16_vector: _Optional[bytes] = ...) -> None: ...
+    bfloat16_vector: bytes
+    def __init__(self, dim: _Optional[int] = ..., float_vector: _Optional[_Union[FloatArray, _Mapping]] = ..., binary_vector: _Optional[bytes] = ..., float16_vector: _Optional[bytes] = ..., bfloat16_vector: _Optional[bytes] = ...) -> None: ...
 
 class FieldData(_message.Message):
     __slots__ = ["type", "field_name", "scalars", "vectors", "field_id", "is_dynamic"]
@@ -228,7 +233,7 @@ class IDs(_message.Message):
     def __init__(self, int_id: _Optional[_Union[LongArray, _Mapping]] = ..., str_id: _Optional[_Union[StringArray, _Mapping]] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
-    __slots__ = ["num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields"]
+    __slots__ = ["num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value"]
     NUM_QUERIES_FIELD_NUMBER: _ClassVar[int]
     TOP_K_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -236,6 +241,7 @@ class SearchResultData(_message.Message):
     IDS_FIELD_NUMBER: _ClassVar[int]
     TOPKS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    GROUP_BY_FIELD_VALUE_FIELD_NUMBER: _ClassVar[int]
     num_queries: int
     top_k: int
     fields_data: _containers.RepeatedCompositeFieldContainer[FieldData]
@@ -243,4 +249,5 @@ class SearchResultData(_message.Message):
     ids: IDs
     topks: _containers.RepeatedScalarFieldContainer[int]
     output_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    group_by_field_value: FieldData
+    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ...) -> None: ...
