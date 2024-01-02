@@ -136,6 +136,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.CreateIndexRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.AlterIndex = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AlterIndex',
+                request_serializer=milvus__pb2.AlterIndexRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
         self.DescribeIndex = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DescribeIndex',
                 request_serializer=milvus__pb2.DescribeIndexRequest.SerializeToString,
@@ -179,6 +184,11 @@ class MilvusServiceStub(object):
         self.Search = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Search',
                 request_serializer=milvus__pb2.SearchRequest.SerializeToString,
+                response_deserializer=milvus__pb2.SearchResults.FromString,
+                )
+        self.SearchV2 = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/SearchV2',
+                request_serializer=milvus__pb2.SearchRequestV2.SerializeToString,
                 response_deserializer=milvus__pb2.SearchResults.FromString,
                 )
         self.Flush = channel.unary_unary(
@@ -570,6 +580,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def AlterIndex(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def DescribeIndex(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -621,6 +637,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def Search(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SearchV2(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1042,6 +1064,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.CreateIndexRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
+            'AlterIndex': grpc.unary_unary_rpc_method_handler(
+                    servicer.AlterIndex,
+                    request_deserializer=milvus__pb2.AlterIndexRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
             'DescribeIndex': grpc.unary_unary_rpc_method_handler(
                     servicer.DescribeIndex,
                     request_deserializer=milvus__pb2.DescribeIndexRequest.FromString,
@@ -1085,6 +1112,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'Search': grpc.unary_unary_rpc_method_handler(
                     servicer.Search,
                     request_deserializer=milvus__pb2.SearchRequest.FromString,
+                    response_serializer=milvus__pb2.SearchResults.SerializeToString,
+            ),
+            'SearchV2': grpc.unary_unary_rpc_method_handler(
+                    servicer.SearchV2,
+                    request_deserializer=milvus__pb2.SearchRequestV2.FromString,
                     response_serializer=milvus__pb2.SearchResults.SerializeToString,
             ),
             'Flush': grpc.unary_unary_rpc_method_handler(
@@ -1746,6 +1778,23 @@ class MilvusService(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
+    def AlterIndex(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AlterIndex',
+            milvus__pb2.AlterIndexRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
     def DescribeIndex(request,
             target,
             options=(),
@@ -1894,6 +1943,23 @@ class MilvusService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/Search',
             milvus__pb2.SearchRequest.SerializeToString,
+            milvus__pb2.SearchResults.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SearchV2(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/SearchV2',
+            milvus__pb2.SearchRequestV2.SerializeToString,
             milvus__pb2.SearchResults.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

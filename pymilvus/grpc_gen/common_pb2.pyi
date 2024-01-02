@@ -95,6 +95,7 @@ class PlaceholderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BinaryVector: _ClassVar[PlaceholderType]
     FloatVector: _ClassVar[PlaceholderType]
     Float16Vector: _ClassVar[PlaceholderType]
+    BFloat16Vector: _ClassVar[PlaceholderType]
     Int64: _ClassVar[PlaceholderType]
     VarChar: _ClassVar[PlaceholderType]
 
@@ -277,6 +278,11 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeDropDatabase: _ClassVar[ObjectPrivilege]
     PrivilegeListDatabases: _ClassVar[ObjectPrivilege]
     PrivilegeFlushAll: _ClassVar[ObjectPrivilege]
+    PrivilegeCreatePartition: _ClassVar[ObjectPrivilege]
+    PrivilegeDropPartition: _ClassVar[ObjectPrivilege]
+    PrivilegeShowPartitions: _ClassVar[ObjectPrivilege]
+    PrivilegeHasPartition: _ClassVar[ObjectPrivilege]
+    PrivilegeGetFlushState: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
@@ -369,6 +375,7 @@ None: PlaceholderType
 BinaryVector: PlaceholderType
 FloatVector: PlaceholderType
 Float16Vector: PlaceholderType
+BFloat16Vector: PlaceholderType
 Int64: PlaceholderType
 VarChar: PlaceholderType
 Undefined: MsgType
@@ -530,6 +537,11 @@ PrivilegeCreateDatabase: ObjectPrivilege
 PrivilegeDropDatabase: ObjectPrivilege
 PrivilegeListDatabases: ObjectPrivilege
 PrivilegeFlushAll: ObjectPrivilege
+PrivilegeCreatePartition: ObjectPrivilege
+PrivilegeDropPartition: ObjectPrivilege
+PrivilegeShowPartitions: ObjectPrivilege
+PrivilegeHasPartition: ObjectPrivilege
+PrivilegeGetFlushState: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -543,14 +555,18 @@ PRIVILEGE_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 privilege_ext_obj: _descriptor.FieldDescriptor
 
 class Status(_message.Message):
-    __slots__ = ["error_code", "reason", "code"]
+    __slots__ = ["error_code", "reason", "code", "retriable", "detail"]
     ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
+    RETRIABLE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
     error_code: ErrorCode
     reason: str
     code: int
-    def __init__(self, error_code: _Optional[_Union[ErrorCode, str]] = ..., reason: _Optional[str] = ..., code: _Optional[int] = ...) -> None: ...
+    retriable: bool
+    detail: str
+    def __init__(self, error_code: _Optional[_Union[ErrorCode, str]] = ..., reason: _Optional[str] = ..., code: _Optional[int] = ..., retriable: bool = ..., detail: _Optional[str] = ...) -> None: ...
 
 class KeyValuePair(_message.Message):
     __slots__ = ["key", "value"]
