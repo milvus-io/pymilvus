@@ -361,7 +361,7 @@ class TestIssues:
                 config = {"alias": alias, "host": "localhost", "port": "19531", "user": "root", "password": 12345, "secure": True}
                 connections.connect(**config)
                 config = connections.get_connection_addr(alias)
-                assert config == {"address": 'localhost:19531', "user": 'root'}
+                assert config == {"address": 'localhost:19531', "user": 'root', "secure": True}
 
                 connections.add_connection(default={"host": "localhost", "port": 19531})
                 config = connections.get_connection_addr("default")
@@ -370,4 +370,4 @@ class TestIssues:
                 connections.connect("default", user="root", password="12345", secure=True)
 
                 config = connections.get_connection_addr("default")
-                assert config == {"address": 'localhost:19531', "user": 'root'}
+                assert config == {"address": 'localhost:19531', "user": 'root', "secure": True}
