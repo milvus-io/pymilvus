@@ -219,7 +219,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             )
         """
         for alias, config in kwargs.items():
-            addr, _ = self.__get_full_address(
+            addr, parsed_uri = self.__get_full_address(
                 config.get("address", ""),
                 config.get("uri", ""),
                 config.get("host", ""),
@@ -233,6 +233,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 "address": addr,
                 "user": config.get("user", ""),
             }
+
+            if parsed_uri is not None and parsed_uri.scheme == "https":
+                alias_config["secure"] = True
 
             self._alias[alias] = alias_config
 
@@ -366,7 +369,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 )
             kwargs.pop("password")
             kwargs.pop("token", None)
-            kwargs.pop("secure", None)
             kwargs.pop("db_name", "")
 
             self._connected_alias[alias] = gh
