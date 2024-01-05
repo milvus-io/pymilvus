@@ -622,11 +622,12 @@ class Prepare:
                 raise ParamError(message=f"wrong type for offset, expect int, got {type(offset)}")
             search_params["offset"] = offset
 
+        group_by_field = kwargs.get(GROUP_BY_FIELD)
+        if group_by_field is not None:
+            search_params[GROUP_BY_FIELD] = group_by_field
+
         if param.get("metric_type", None) is not None:
             search_params["metric_type"] = param["metric_type"]
-
-        if param.get(GROUP_BY_FIELD, None) is not None:
-            search_params[GROUP_BY_FIELD] = param[GROUP_BY_FIELD]
 
         if anns_field:
             search_params["anns_field"] = anns_field
