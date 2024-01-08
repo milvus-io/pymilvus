@@ -968,12 +968,28 @@ class Prepare:
         )
 
     @classmethod
-    def do_bulk_insert(cls, collection_name: str, partition_name: str, files: list, **kwargs):
+    def do_bulk_insert(
+        cls,
+        collection_name: str,
+        partition_name: str,
+        files: list,
+        clustering_centroid: Optional[List[float]],
+        **kwargs,
+    ):
         channel_names = kwargs.get("channel_names", None)
+
+        float_array = schema_types.FloatArray(data=clustering_centroid)
+        vector = schema_types.VectorField(float_vector=float_array)
+        vector_clustering_info = schema_types.VectorClusteringInfo(centroid=vector)
+        clustering_info = schema_types.ClusteringInfo(
+            vector_clustering_infos=list[vector_clustering_info]
+        )
+        clustering_info_bytes = clustering_info.SerializeToString()
         req = milvus_types.ImportRequest(
             collection_name=collection_name,
             partition_name=partition_name,
             files=files,
+            clustering_info=clustering_info_bytes,
         )
         if channel_names is not None:
             req.channel_names.extend(channel_names)
