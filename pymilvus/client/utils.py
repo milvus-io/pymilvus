@@ -24,6 +24,7 @@ valid_index_types = [
     "DISKANN",
     "AUTOINDEX",
     "GPU_CAGRA",
+    "GPU_BRUTE_FORCE",
 ]
 
 valid_index_params_keys = [
