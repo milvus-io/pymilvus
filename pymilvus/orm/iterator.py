@@ -344,6 +344,9 @@ class SearchIterator:
             self._width = last_hit.distance - first_hit.distance
         else:
             self._width = first_hit.distance - last_hit.distance
+        if self._width == 0.0:
+            self._width = 0.05
+            # enable a minimum value for width to avoid radius and range_filter equal error
 
     def __set_up_range_parameters(self, page: SearchPage):
         self.__update_width(page)
