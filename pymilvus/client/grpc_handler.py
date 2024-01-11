@@ -888,7 +888,12 @@ class GrpcHandler:
             if field_name != fields["name"]:
                 continue
             valid_field = True
-            if fields["type"] not in {DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR}:
+            if fields["type"] not in {
+                DataType.FLOAT_VECTOR,
+                DataType.BINARY_VECTOR,
+                DataType.FLOAT16_VECTOR,
+                DataType.BFLOAT16_VECTOR,
+            }:
                 break
 
         if not valid_field:
