@@ -7,9 +7,9 @@ pull_request_rules:
       - "status-success=Run Python Tests (3.8)"
       - "status-success=Run Check Proto (3.8)"
       - "status-success=Code lint check (3.8)"
-      - "status-success=Run Python Tests (3.11)"
-      - "status-success=Run Check Proto (3.11)"
-      - "status-success=Code lint check (3.11)"
+      - "status-success=Run Python Tests (3.12)"
+      - "status-success=Run Check Proto (3.12)"
+      - "status-success=Code lint check (3.12)"
     actions:
       label:
         add:
