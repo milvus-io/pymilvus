@@ -75,6 +75,24 @@ class TestFieldSchema:
         return _dict
 
     @pytest.fixture(scope="function")
+    def raw_dict_float16_vector(self):
+        _dict = dict()
+        _dict["name"] = "TestFieldSchema_name_float16_vector"
+        _dict["description"] = "TestFieldSchema_description_float16_vector"
+        _dict["type"] = DataType.FLOAT16_VECTOR
+        _dict["params"] = {"dim": 128}
+        return _dict
+    
+    @pytest.fixture(scope="function")
+    def raw_dict_bfloat16_vector(self):
+        _dict = dict()
+        _dict["name"] = "TestFieldSchema_name_bfloat16_vector"
+        _dict["description"] = "TestFieldSchema_description_bfloat16_vector"
+        _dict["type"] = DataType.BFLOAT16_VECTOR
+        _dict["params"] = {"dim": 128}
+        return _dict
+
+    @pytest.fixture(scope="function")
     def raw_dict_norm(self):
         _dict = dict()
         _dict["name"] = "TestFieldSchema_name_norm"
@@ -108,6 +126,22 @@ class TestFieldSchema:
         assert field.is_primary is False
         assert field.name == raw_dict_binary_vector['name']
         assert field.dim == raw_dict_binary_vector['params']['dim']
+
+    def test_constructor_from_float16_dict(self, raw_dict_float16_vector):
+        field = FieldSchema.construct_from_dict(raw_dict_float16_vector)
+        assert field.dtype == DataType.FLOAT16_VECTOR
+        assert field.description == raw_dict_float16_vector['description']
+        assert field.is_primary is False
+        assert field.name == raw_dict_float16_vector['name']
+        assert field.dim == raw_dict_float16_vector['params']['dim']
+
+    def test_constructor_from_bfloat16_dict(self, raw_dict_bfloat16_vector):
+        field = FieldSchema.construct_from_dict(raw_dict_bfloat16_vector)
+        assert field.dtype == DataType.BFLOAT16_VECTOR
+        assert field.description == raw_dict_bfloat16_vector['description']
+        assert field.is_primary is False
+        assert field.name == raw_dict_bfloat16_vector['name']
+        assert field.dim == raw_dict_bfloat16_vector['params']['dim']
 
     def test_constructor_from_norm_dict(self, raw_dict_norm):
         field = FieldSchema.construct_from_dict(raw_dict_norm)

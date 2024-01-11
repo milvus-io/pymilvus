@@ -122,6 +122,12 @@ def pack_field_value_to_field_data(field_value: Any, field_data: Any, field_info
     elif field_type == DataType.BINARY_VECTOR:
         field_data.vectors.dim = len(field_value) * 8
         field_data.vectors.binary_vector += bytes(field_value)
+    elif field_type == DataType.FLOAT16_VECTOR:
+        field_data.vectors.dim = len(field_value) // 2
+        field_data.vectors.float16_vector += bytes(field_value)
+    elif field_type == DataType.BFLOAT16_VECTOR:
+        field_data.vectors.dim = len(field_value) // 2
+        field_data.vectors.bfloat16_vector += bytes(field_value)
     elif field_type == DataType.VARCHAR:
         field_data.scalars.string_data.data.append(
             convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
@@ -159,6 +165,12 @@ def entity_to_field_data(entity: Any, field_info: Any):
     elif entity_type == DataType.BINARY_VECTOR:
         field_data.vectors.dim = len(entity.get("values")[0]) * 8
         field_data.vectors.binary_vector = b"".join(entity.get("values"))
+    elif entity_type == DataType.FLOAT16_VECTOR:
+        field_data.vectors.dim = len(entity.get("values")[0]) // 2
+        field_data.vectors.float16_vector = b"".join(entity.get("values"))
+    elif entity_type == DataType.BFLOAT16_VECTOR:
+        field_data.vectors.dim = len(entity.get("values")[0]) // 2
+        field_data.vectors.bfloat16_vector = b"".join(entity.get("values"))
     elif entity_type == DataType.VARCHAR:
         field_data.scalars.string_data.data.extend(
             entity_to_str_arr(entity, field_info, CHECK_STR_ARRAY)

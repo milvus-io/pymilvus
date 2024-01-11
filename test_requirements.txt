@@ -5,3 +5,4 @@ grpcio-testing
 sklearn==0.0
 ruff
 black
+tensorflow
