@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ErrorCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     Success: _ClassVar[ErrorCode]
     UnexpectedError: _ClassVar[ErrorCode]
     ConnectFailed: _ClassVar[ErrorCode]
@@ -70,7 +70,7 @@ class ErrorCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DDRequestRace: _ClassVar[ErrorCode]
 
 class IndexState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     IndexStateNone: _ClassVar[IndexState]
     Unissued: _ClassVar[IndexState]
     InProgress: _ClassVar[IndexState]
@@ -79,7 +79,7 @@ class IndexState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Retry: _ClassVar[IndexState]
 
 class SegmentState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     SegmentStateNone: _ClassVar[SegmentState]
     NotExist: _ClassVar[SegmentState]
     Growing: _ClassVar[SegmentState]
@@ -90,7 +90,7 @@ class SegmentState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Importing: _ClassVar[SegmentState]
 
 class PlaceholderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     None: _ClassVar[PlaceholderType]
     BinaryVector: _ClassVar[PlaceholderType]
     FloatVector: _ClassVar[PlaceholderType]
@@ -100,7 +100,7 @@ class PlaceholderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VarChar: _ClassVar[PlaceholderType]
 
 class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     Undefined: _ClassVar[MsgType]
     CreateCollection: _ClassVar[MsgType]
     DropCollection: _ClassVar[MsgType]
@@ -204,18 +204,18 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ListDatabases: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     Dsl: _ClassVar[DslType]
     BoolExprV1: _ClassVar[DslType]
 
 class CompactionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     UndefiedState: _ClassVar[CompactionState]
     Executing: _ClassVar[CompactionState]
     Completed: _ClassVar[CompactionState]
 
 class ConsistencyLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     Strong: _ClassVar[ConsistencyLevel]
     Session: _ClassVar[ConsistencyLevel]
     Bounded: _ClassVar[ConsistencyLevel]
@@ -223,7 +223,7 @@ class ConsistencyLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Customized: _ClassVar[ConsistencyLevel]
 
 class ImportState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     ImportPending: _ClassVar[ImportState]
     ImportFailed: _ClassVar[ImportState]
     ImportStarted: _ClassVar[ImportState]
@@ -233,13 +233,13 @@ class ImportState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ImportFailedAndCleaned: _ClassVar[ImportState]
 
 class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     Collection: _ClassVar[ObjectType]
     Global: _ClassVar[ObjectType]
     User: _ClassVar[ObjectType]
 
 class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     PrivilegeAll: _ClassVar[ObjectPrivilege]
     PrivilegeCreateCollection: _ClassVar[ObjectPrivilege]
     PrivilegeDropCollection: _ClassVar[ObjectPrivilege]
@@ -286,7 +286,7 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeGetFlushState: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     Initializing: _ClassVar[StateCode]
     Healthy: _ClassVar[StateCode]
     Abnormal: _ClassVar[StateCode]
@@ -294,7 +294,7 @@ class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Stopping: _ClassVar[StateCode]
 
 class LoadState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     LoadStateNotExist: _ClassVar[LoadState]
     LoadStateNotLoad: _ClassVar[LoadState]
     LoadStateLoading: _ClassVar[LoadState]
@@ -557,7 +557,7 @@ PRIVILEGE_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 privilege_ext_obj: _descriptor.FieldDescriptor
 
 class Status(_message.Message):
-    __slots__ = ["error_code", "reason", "code", "retriable", "detail"]
+    __slots__ = ("error_code", "reason", "code", "retriable", "detail")
     ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
@@ -571,7 +571,7 @@ class Status(_message.Message):
     def __init__(self, error_code: _Optional[_Union[ErrorCode, str]] = ..., reason: _Optional[str] = ..., code: _Optional[int] = ..., retriable: bool = ..., detail: _Optional[str] = ...) -> None: ...
 
 class KeyValuePair(_message.Message):
-    __slots__ = ["key", "value"]
+    __slots__ = ("key", "value")
     KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     key: str
@@ -579,7 +579,7 @@ class KeyValuePair(_message.Message):
     def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
 
 class KeyDataPair(_message.Message):
-    __slots__ = ["key", "data"]
+    __slots__ = ("key", "data")
     KEY_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
     key: str
@@ -587,13 +587,13 @@ class KeyDataPair(_message.Message):
     def __init__(self, key: _Optional[str] = ..., data: _Optional[bytes] = ...) -> None: ...
 
 class Blob(_message.Message):
-    __slots__ = ["value"]
+    __slots__ = ("value",)
     VALUE_FIELD_NUMBER: _ClassVar[int]
     value: bytes
     def __init__(self, value: _Optional[bytes] = ...) -> None: ...
 
 class PlaceholderValue(_message.Message):
-    __slots__ = ["tag", "type", "values"]
+    __slots__ = ("tag", "type", "values")
     TAG_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUES_FIELD_NUMBER: _ClassVar[int]
@@ -603,13 +603,13 @@ class PlaceholderValue(_message.Message):
     def __init__(self, tag: _Optional[str] = ..., type: _Optional[_Union[PlaceholderType, str]] = ..., values: _Optional[_Iterable[bytes]] = ...) -> None: ...
 
 class PlaceholderGroup(_message.Message):
-    __slots__ = ["placeholders"]
+    __slots__ = ("placeholders",)
     PLACEHOLDERS_FIELD_NUMBER: _ClassVar[int]
     placeholders: _containers.RepeatedCompositeFieldContainer[PlaceholderValue]
     def __init__(self, placeholders: _Optional[_Iterable[_Union[PlaceholderValue, _Mapping]]] = ...) -> None: ...
 
 class Address(_message.Message):
-    __slots__ = ["ip", "port"]
+    __slots__ = ("ip", "port")
     IP_FIELD_NUMBER: _ClassVar[int]
     PORT_FIELD_NUMBER: _ClassVar[int]
     ip: str
@@ -617,9 +617,9 @@ class Address(_message.Message):
     def __init__(self, ip: _Optional[str] = ..., port: _Optional[int] = ...) -> None: ...
 
 class MsgBase(_message.Message):
-    __slots__ = ["msg_type", "msgID", "timestamp", "sourceID", "targetID", "properties", "replicateInfo"]
+    __slots__ = ("msg_type", "msgID", "timestamp", "sourceID", "targetID", "properties", "replicateInfo")
     class PropertiesEntry(_message.Message):
-        __slots__ = ["key", "value"]
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -642,7 +642,7 @@ class MsgBase(_message.Message):
     def __init__(self, msg_type: _Optional[_Union[MsgType, str]] = ..., msgID: _Optional[int] = ..., timestamp: _Optional[int] = ..., sourceID: _Optional[int] = ..., targetID: _Optional[int] = ..., properties: _Optional[_Mapping[str, str]] = ..., replicateInfo: _Optional[_Union[ReplicateInfo, _Mapping]] = ...) -> None: ...
 
 class ReplicateInfo(_message.Message):
-    __slots__ = ["isReplicate", "msgTimestamp"]
+    __slots__ = ("isReplicate", "msgTimestamp")
     ISREPLICATE_FIELD_NUMBER: _ClassVar[int]
     MSGTIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     isReplicate: bool
@@ -650,13 +650,13 @@ class ReplicateInfo(_message.Message):
     def __init__(self, isReplicate: bool = ..., msgTimestamp: _Optional[int] = ...) -> None: ...
 
 class MsgHeader(_message.Message):
-    __slots__ = ["base"]
+    __slots__ = ("base",)
     BASE_FIELD_NUMBER: _ClassVar[int]
     base: MsgBase
     def __init__(self, base: _Optional[_Union[MsgBase, _Mapping]] = ...) -> None: ...
 
 class DMLMsgHeader(_message.Message):
-    __slots__ = ["base", "shardName"]
+    __slots__ = ("base", "shardName")
     BASE_FIELD_NUMBER: _ClassVar[int]
     SHARDNAME_FIELD_NUMBER: _ClassVar[int]
     base: MsgBase
@@ -664,7 +664,7 @@ class DMLMsgHeader(_message.Message):
     def __init__(self, base: _Optional[_Union[MsgBase, _Mapping]] = ..., shardName: _Optional[str] = ...) -> None: ...
 
 class PrivilegeExt(_message.Message):
-    __slots__ = ["object_type", "object_privilege", "object_name_index", "object_name_indexs"]
+    __slots__ = ("object_type", "object_privilege", "object_name_index", "object_name_indexs")
     OBJECT_TYPE_FIELD_NUMBER: _ClassVar[int]
     OBJECT_PRIVILEGE_FIELD_NUMBER: _ClassVar[int]
     OBJECT_NAME_INDEX_FIELD_NUMBER: _ClassVar[int]
@@ -676,7 +676,7 @@ class PrivilegeExt(_message.Message):
     def __init__(self, object_type: _Optional[_Union[ObjectType, str]] = ..., object_privilege: _Optional[_Union[ObjectPrivilege, str]] = ..., object_name_index: _Optional[int] = ..., object_name_indexs: _Optional[int] = ...) -> None: ...
 
 class SegmentStats(_message.Message):
-    __slots__ = ["SegmentID", "NumRows"]
+    __slots__ = ("SegmentID", "NumRows")
     SEGMENTID_FIELD_NUMBER: _ClassVar[int]
     NUMROWS_FIELD_NUMBER: _ClassVar[int]
     SegmentID: int
@@ -684,9 +684,9 @@ class SegmentStats(_message.Message):
     def __init__(self, SegmentID: _Optional[int] = ..., NumRows: _Optional[int] = ...) -> None: ...
 
 class ClientInfo(_message.Message):
-    __slots__ = ["sdk_type", "sdk_version", "local_time", "user", "host", "reserved"]
+    __slots__ = ("sdk_type", "sdk_version", "local_time", "user", "host", "reserved")
     class ReservedEntry(_message.Message):
-        __slots__ = ["key", "value"]
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -707,9 +707,9 @@ class ClientInfo(_message.Message):
     def __init__(self, sdk_type: _Optional[str] = ..., sdk_version: _Optional[str] = ..., local_time: _Optional[str] = ..., user: _Optional[str] = ..., host: _Optional[str] = ..., reserved: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class ServerInfo(_message.Message):
-    __slots__ = ["build_tags", "build_time", "git_commit", "go_version", "deploy_mode", "reserved"]
+    __slots__ = ("build_tags", "build_time", "git_commit", "go_version", "deploy_mode", "reserved")
     class ReservedEntry(_message.Message):
-        __slots__ = ["key", "value"]
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str

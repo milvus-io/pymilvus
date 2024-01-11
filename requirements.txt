@@ -2,10 +2,10 @@ build==0.4.0
 certifi==2023.7.22
 chardet==4.0.0
 environs==9.5.0
-grpcio==1.56.2
-grpcio-testing==1.56.2
-grpcio-tools==1.56.2
-protobuf>=3.17.1
+grpcio==1.60.0
+grpcio-testing==1.60.0
+grpcio-tools==1.60.0
+protobuf==4.25.2
 idna==2.10
 packaging==20.9
 pep517==0.10.0
@@ -30,8 +30,8 @@ sphinxcontrib-prettyspecialmethods
 tqdm==4.65.0
 pyarrow>=12.0.0
 pytest>=5.3.4
-pytest-cov==2.8.1
-pytest-timeout==1.3.4
+pytest-cov>=2.8.1
+pytest-timeout>=1.3.4
 pandas>=1.1.5
 ruff
 black

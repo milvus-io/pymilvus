@@ -9,14 +9,14 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class InsertDataVersion(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     RowBased: _ClassVar[InsertDataVersion]
     ColumnBased: _ClassVar[InsertDataVersion]
 RowBased: InsertDataVersion
 ColumnBased: InsertDataVersion
 
 class InsertRequest(_message.Message):
-    __slots__ = ["base", "shardName", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID", "segmentID", "timestamps", "rowIDs", "row_data", "fields_data", "num_rows", "version"]
+    __slots__ = ("base", "shardName", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID", "segmentID", "timestamps", "rowIDs", "row_data", "fields_data", "num_rows", "version")
     BASE_FIELD_NUMBER: _ClassVar[int]
     SHARDNAME_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -50,7 +50,7 @@ class InsertRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., shardName: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., segmentID: _Optional[int] = ..., timestamps: _Optional[_Iterable[int]] = ..., rowIDs: _Optional[_Iterable[int]] = ..., row_data: _Optional[_Iterable[_Union[_common_pb2.Blob, _Mapping]]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., num_rows: _Optional[int] = ..., version: _Optional[_Union[InsertDataVersion, str]] = ...) -> None: ...
 
 class DeleteRequest(_message.Message):
-    __slots__ = ["base", "shardName", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID", "int64_primary_keys", "timestamps", "num_rows", "primary_keys"]
+    __slots__ = ("base", "shardName", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID", "int64_primary_keys", "timestamps", "num_rows", "primary_keys")
     BASE_FIELD_NUMBER: _ClassVar[int]
     SHARDNAME_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -78,7 +78,7 @@ class DeleteRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., shardName: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., int64_primary_keys: _Optional[_Iterable[int]] = ..., timestamps: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., primary_keys: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ...) -> None: ...
 
 class MsgPosition(_message.Message):
-    __slots__ = ["channel_name", "msgID", "msgGroup", "timestamp"]
+    __slots__ = ("channel_name", "msgID", "msgGroup", "timestamp")
     CHANNEL_NAME_FIELD_NUMBER: _ClassVar[int]
     MSGID_FIELD_NUMBER: _ClassVar[int]
     MSGGROUP_FIELD_NUMBER: _ClassVar[int]
@@ -90,7 +90,7 @@ class MsgPosition(_message.Message):
     def __init__(self, channel_name: _Optional[str] = ..., msgID: _Optional[bytes] = ..., msgGroup: _Optional[str] = ..., timestamp: _Optional[int] = ...) -> None: ...
 
 class CreateCollectionRequest(_message.Message):
-    __slots__ = ["base", "db_name", "collectionName", "partitionName", "dbID", "collectionID", "partitionID", "schema", "virtualChannelNames", "physicalChannelNames", "partitionIDs"]
+    __slots__ = ("base", "db_name", "collectionName", "partitionName", "dbID", "collectionID", "partitionID", "schema", "virtualChannelNames", "physicalChannelNames", "partitionIDs")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONNAME_FIELD_NUMBER: _ClassVar[int]
@@ -116,7 +116,7 @@ class CreateCollectionRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collectionName: _Optional[str] = ..., partitionName: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., schema: _Optional[bytes] = ..., virtualChannelNames: _Optional[_Iterable[str]] = ..., physicalChannelNames: _Optional[_Iterable[str]] = ..., partitionIDs: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class DropCollectionRequest(_message.Message):
-    __slots__ = ["base", "db_name", "collectionName", "dbID", "collectionID"]
+    __slots__ = ("base", "db_name", "collectionName", "dbID", "collectionID")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONNAME_FIELD_NUMBER: _ClassVar[int]
@@ -130,7 +130,7 @@ class DropCollectionRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collectionName: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ...) -> None: ...
 
 class CreatePartitionRequest(_message.Message):
-    __slots__ = ["base", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID"]
+    __slots__ = ("base", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -148,7 +148,7 @@ class CreatePartitionRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ...) -> None: ...
 
 class DropPartitionRequest(_message.Message):
-    __slots__ = ["base", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID"]
+    __slots__ = ("base", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -166,13 +166,13 @@ class DropPartitionRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ...) -> None: ...
 
 class TimeTickMsg(_message.Message):
-    __slots__ = ["base"]
+    __slots__ = ("base",)
     BASE_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ...) -> None: ...
 
 class DataNodeTtMsg(_message.Message):
-    __slots__ = ["base", "channel_name", "timestamp", "segments_stats"]
+    __slots__ = ("base", "channel_name", "timestamp", "segments_stats")
     BASE_FIELD_NUMBER: _ClassVar[int]
     CHANNEL_NAME_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
