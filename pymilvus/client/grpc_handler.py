@@ -337,6 +337,9 @@ class GrpcHandler:
         ):
             return False
 
+        if reply.status.error_code == common_pb2.CollectionNotExists:
+            return False
+
         if is_successful(reply.status):
             return True
 
@@ -386,7 +389,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def create_partition(
-        self, collection_name: str, partition_name: str, timeout: Optional[float] = None
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.create_partition_request(collection_name, partition_name)
@@ -396,7 +399,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def drop_partition(
-        self, collection_name: str, partition_name: str, timeout: Optional[float] = None
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
         check_pass_param(collection_name=collection_name, partition_name=partition_name)
         request = Prepare.drop_partition_request(collection_name, partition_name)
@@ -434,7 +437,7 @@ class GrpcHandler:
         return info_dict
 
     @retry_on_rpc_failure()
-    def list_partitions(self, collection_name: str, timeout: Optional[float] = None):
+    def list_partitions(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.show_partitions_request(collection_name)
 
@@ -1123,7 +1126,7 @@ class GrpcHandler:
         )
 
     @retry_on_rpc_failure()
-    def release_collection(self, collection_name: str, timeout: Optional[float] = None):
+    def release_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         check_pass_param(collection_name=collection_name)
         request = Prepare.release_collection("", collection_name)
         rf = self._stub.ReleaseCollection.future(request, timeout=timeout)
@@ -1258,7 +1261,11 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def release_partitions(
-        self, collection_name: str, partition_names: List[str], timeout: Optional[float] = None
+        self,
+        collection_name: str,
+        partition_names: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
     ):
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         request = Prepare.release_partitions("", collection_name, partition_names)
@@ -1367,7 +1374,7 @@ class GrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_pass_param(collection_name=collection_name, field_name=field_name)
+        check_pass_param(collection_name=collection_name)
         request = Prepare.drop_index_request(collection_name, field_name, index_name)
         future = self._stub.DropIndex.future(request, timeout=timeout)
         response = future.result()

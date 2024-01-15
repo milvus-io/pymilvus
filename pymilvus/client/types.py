@@ -627,6 +627,17 @@ class GrantItem:
     def privilege(self):
         return self._privilege
 
+    def __iter__(self):
+        yield "object_type", self.object
+        yield "object_name", self.object_name
+        if self.db_name:
+            yield "db_name", self.db_name
+
+        yield "role_name", self.role_name
+        yield "privilege", self.privilege
+        if self.grantor_name:
+            yield "grantor_name", self.grantor_name
+
 
 class GrantInfo:
     """
