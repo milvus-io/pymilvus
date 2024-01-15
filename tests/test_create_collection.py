@@ -66,7 +66,7 @@ class TestCreateCollection:
     def collection_name(self):
         return f"test_collection_{random.randint(100000, 999999)}"
 
-    def setup(self) -> None:
+    def setup_method(self) -> None:
         self._real_time = grpc_testing.strict_real_time()
         self._real_time_channel = grpc_testing.channel(
             milvus_pb2.DESCRIPTOR.services_by_name.values(), self._real_time
@@ -74,7 +74,7 @@ class TestCreateCollection:
         self._servicer = milvus_pb2.DESCRIPTOR.services_by_name["MilvusService"]
         self._milvus = Milvus(channel=self._real_time_channel)
 
-    def teardown(self) -> None:
+    def teardown_method(self) -> None:
         pass
 
     def test_create_collection(self, collection_name):
