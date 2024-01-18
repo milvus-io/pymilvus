@@ -41,7 +41,7 @@ class Buffer:
     def __init__(
         self,
         schema: CollectionSchema,
-        file_type: BulkFileType = BulkFileType.NPY,
+        file_type: BulkFileType = BulkFileType.NUMPY,
     ):
         self._buffer = {}
         self._fields = {}
@@ -115,9 +115,9 @@ class Buffer:
                 )
 
         # output files
-        if self._file_type == BulkFileType.NPY:
+        if self._file_type == BulkFileType.NUMPY:
             return self._persist_npy(local_path, **kwargs)
-        if self._file_type == BulkFileType.JSON_RB:
+        if self._file_type == BulkFileType.JSON:
             return self._persist_json_rows(local_path, **kwargs)
         if self._file_type == BulkFileType.PARQUET:
             return self._persist_parquet(local_path, **kwargs)

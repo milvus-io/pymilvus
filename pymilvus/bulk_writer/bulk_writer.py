@@ -37,17 +37,22 @@ class BulkWriter:
     def __init__(
         self,
         schema: CollectionSchema,
-        segment_size: int,
-        file_type: BulkFileType = BulkFileType.NPY,
+        chunk_size: int,
+        file_type: BulkFileType,
         **kwargs,
     ):
         self._schema = schema
         self._buffer_size = 0
         self._buffer_row_count = 0
         self._total_row_count = 0
-        self._segment_size = segment_size
         self._file_type = file_type
         self._buffer_lock = Lock()
+
+        # the old parameter segment_size is changed to chunk_size, compatible with the legacy code
+        self._chunk_size = chunk_size
+        segment_size = kwargs.get("segment_size", 0)
+        if segment_size > 0:
+            self._chunk_size = segment_size
 
         if len(self._schema.fields) == 0:
             self._throw("collection schema fields list is empty")
@@ -71,8 +76,8 @@ class BulkWriter:
         return self._total_row_count
 
     @property
-    def segment_size(self):
-        return self._segment_size
+    def chunk_size(self):
+        return self._chunk_size
 
     def _new_buffer(self):
         old_buffer = self._buffer
