@@ -43,7 +43,7 @@ TYPE_VALIDATOR = {
     DataType.FLOAT.name: lambda x: isinstance(x, float),
     DataType.DOUBLE.name: lambda x: isinstance(x, float),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,
-    DataType.JSON.name: lambda x: isinstance(x, (dict, list)),
+    DataType.JSON.name: lambda x: isinstance(x, dict),
     DataType.FLOAT_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) == dim,
     DataType.BINARY_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) * 8 == dim,
     DataType.ARRAY.name: lambda x, cap: isinstance(x, list) and len(x) <= cap,
@@ -66,6 +66,8 @@ NUMPY_TYPE_CREATOR = {
 
 
 class BulkFileType(IntEnum):
-    NPY = 1
-    JSON_RB = 2
+    NUMPY = 1
+    NPY = 1  # deprecated
+    JSON = 2
+    JSON_RB = 2  # deprecated
     PARQUET = 3

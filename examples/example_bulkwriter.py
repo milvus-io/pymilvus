@@ -108,7 +108,7 @@ def read_sample_data(file_path: str, writer: [LocalBulkWriter, RemoteBulkWriter]
         row = {}
         for col in csv_data.columns.values:
             if col == "vector":
-                vec = json.loads(csv_data[col][i])
+                vec = json.loads(csv_data[col][i]) # convert the string format vector to List[float]
                 row[col] = vec
             else:
                 row[col] = csv_data[col][i]
@@ -123,6 +123,8 @@ def local_writer(schema: CollectionSchema, file_type: BulkFileType):
             segment_size=128*1024*1024,
             file_type=file_type,
     ) as local_writer:
+        # read data from csv
+        read_sample_data("./data/train_embeddings.csv", local_writer)
 
         # append rows
         for i in range(100000):
@@ -179,7 +181,7 @@ def parallel_append(schema: CollectionSchema):
         schema=schema,
         local_path="/tmp/bulk_writer",
         segment_size=128 * 1024 * 1024, # 128MB
-        file_type=BulkFileType.JSON_RB,
+        file_type=BulkFileType.JSON,
     )
     threads = []
     thread_count = 10
@@ -267,7 +269,7 @@ def all_types_writer(bin_vec: bool, schema: CollectionSchema, file_type: BulkFil
                 "double": np.float64(i/7),
                 "varchar": f"varchar_{i}",
                 "json": json.dumps({"dummy": i, "ok": f"name_{i}"}),
-                "vector": gen_binary_vector() if bin_vec else gen_float_vector(),
+                "vector": np.array(gen_binary_vector(), np.dtype("int8")) if bin_vec else np.array(gen_float_vector(), np.dtype("float32")),
                 f"dynamic_{i}": i,
                 # bulkinsert doesn't support import npy with array field, the below values will be stored into dynamic field
                 "array_str": np.array([f"str_{k}" for k in range(5)], np.dtype("str")),
@@ -380,7 +382,11 @@ def cloud_bulkinsert():
 if __name__ == '__main__':
     create_connection()
 
-    file_types = [BulkFileType.JSON_RB, BulkFileType.NPY, BulkFileType.PARQUET]
+    file_types = [
+        BulkFileType.JSON,
+        BulkFileType.NUMPY,
+        BulkFileType.PARQUET,
+    ]
 
     schema = build_simple_collection()
     for file_type in file_types:
@@ -394,7 +400,7 @@ if __name__ == '__main__':
     # float vectors + all scalar types
     for file_type in file_types:
         # Note: bulkinsert doesn't support import npy with array field
-        schema = build_all_type_schema(bin_vec=False, has_array=False if file_type==BulkFileType.NPY else True)
+        schema = build_all_type_schema(bin_vec=False, has_array=False if file_type==BulkFileType.NUMPY else True)
         batch_files = all_types_writer(bin_vec=False, schema=schema, file_type=file_type)
         call_bulkinsert(schema, batch_files)
         retrieve_imported_data(bin_vec=False)
@@ -402,7 +408,7 @@ if __name__ == '__main__':
     # binary vectors + all scalar types
     for file_type in file_types:
         # Note: bulkinsert doesn't support import npy with array field
-        schema = build_all_type_schema(bin_vec=True, has_array=False if file_type == BulkFileType.NPY else True)
+        schema = build_all_type_schema(bin_vec=True, has_array=False if file_type == BulkFileType.NUMPY else True)
         batch_files = all_types_writer(bin_vec=True, schema=schema, file_type=file_type)
         call_bulkinsert(schema, batch_files)
         retrieve_imported_data(bin_vec=True)
