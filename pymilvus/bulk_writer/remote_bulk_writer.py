@@ -60,12 +60,12 @@ class RemoteBulkWriter(LocalBulkWriter):
         schema: CollectionSchema,
         remote_path: str,
         connect_param: ConnectParam,
-        segment_size: int = 512 * MB,
-        file_type: BulkFileType = BulkFileType.NPY,
+        chunk_size: int = 1024 * MB,
+        file_type: BulkFileType = BulkFileType.PARQUET,
         **kwargs,
     ):
         local_path = Path(sys.argv[0]).resolve().parent.joinpath("bulk_writer")
-        super().__init__(schema, str(local_path), segment_size, file_type, **kwargs)
+        super().__init__(schema, str(local_path), chunk_size, file_type, **kwargs)
         self._remote_path = Path("/").joinpath(remote_path).joinpath(super().uuid)
         self._connect_param = connect_param
         self._client = None

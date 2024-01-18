@@ -35,11 +35,11 @@ class LocalBulkWriter(BulkWriter):
         self,
         schema: CollectionSchema,
         local_path: str,
-        segment_size: int = 512 * MB,
-        file_type: BulkFileType = BulkFileType.NPY,
+        chunk_size: int = 128 * MB,
+        file_type: BulkFileType = BulkFileType.PARQUET,
         **kwargs,
     ):
-        super().__init__(schema, segment_size, file_type, **kwargs)
+        super().__init__(schema, chunk_size, file_type, **kwargs)
         self._local_path = local_path
         self._uuid = str(uuid.uuid4())
         self._flush_count = 0
@@ -94,7 +94,7 @@ class LocalBulkWriter(BulkWriter):
         # in anync mode, the flush thread is asynchronously, other threads can
         # continue to append if the new buffer size is less than target size
         with self._working_thread_lock:
-            if super().buffer_size > super().segment_size:
+            if super().buffer_size > super().chunk_size:
                 self.commit(_async=True)
 
     def commit(self, **kwargs):
