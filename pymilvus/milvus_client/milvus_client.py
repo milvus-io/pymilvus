@@ -817,7 +817,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-
         if isinstance(partition_names, str):
             partition_names = [partition_names]
         conn = self._get_connection()

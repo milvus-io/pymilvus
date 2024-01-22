@@ -191,7 +191,9 @@ class ExceptionsMessage:
     PartitionKeyFieldType = "Param partition_key_field must be str type."
     PartitionKeyFieldNotExist = "the specified partition key field {%s} not exist"
     IsPartitionKeyType = "Param is_partition_key must be bool type."
-    DataTypeInconsistent = "The data in the same column must be of the same type."
+    DataTypeInconsistent = (
+        "The Input data type is inconsistent with defined schema, please check it."
+    )
     DataTypeNotSupport = "Data type is not support."
     DataLengthsInconsistent = "Arrays must all be same length."
     DataFrameInvalid = "Cannot infer schema from empty dataframe."
