@@ -37,6 +37,8 @@ valid_index_params_keys = [
     "n_trees",
     "intermediate_graph_degree",
     "graph_degree",
+    "build_algo",
+    "cache_dataset_on_device",
 ]
 
 valid_binary_index_types = [
