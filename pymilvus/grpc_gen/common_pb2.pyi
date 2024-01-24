@@ -283,6 +283,10 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeShowPartitions: _ClassVar[ObjectPrivilege]
     PrivilegeHasPartition: _ClassVar[ObjectPrivilege]
     PrivilegeGetFlushState: _ClassVar[ObjectPrivilege]
+    PrivilegeCreateAlias: _ClassVar[ObjectPrivilege]
+    PrivilegeDropAlias: _ClassVar[ObjectPrivilege]
+    PrivilegeDescribeAlias: _ClassVar[ObjectPrivilege]
+    PrivilegeListAliases: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -542,6 +546,10 @@ PrivilegeDropPartition: ObjectPrivilege
 PrivilegeShowPartitions: ObjectPrivilege
 PrivilegeHasPartition: ObjectPrivilege
 PrivilegeGetFlushState: ObjectPrivilege
+PrivilegeCreateAlias: ObjectPrivilege
+PrivilegeDropAlias: ObjectPrivilege
+PrivilegeDescribeAlias: ObjectPrivilege
+PrivilegeListAliases: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
