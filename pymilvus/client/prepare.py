@@ -19,7 +19,7 @@ from .constants import (
     REDUCE_STOP_FOR_BEST,
 )
 from .types import DataType, PlaceholderType, get_consistency_level
-from .utils import traverse_info, traverse_rows_info
+from .utils import traverse_insert_info, traverse_rows_info, traverse_upsert_info
 
 
 class Prepare:
@@ -447,7 +447,7 @@ class Prepare:
         return cls._parse_row_request(request, fields_info, enable_dynamic, entities)
 
     @staticmethod
-    def _pre_batch_check(
+    def _pre_insert_batch_check(
         entities: List,
         fields_info: Any,
     ):
@@ -463,7 +463,7 @@ class Prepare:
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
-        location, primary_key_loc, auto_id_loc = traverse_info(fields_info, entities)
+        location, primary_key_loc, auto_id_loc = traverse_insert_info(fields_info, entities)
 
         # though impossible from sdk
         if primary_key_loc is None:
@@ -476,6 +476,35 @@ class Prepare:
         if auto_id_loc is not None and len(entities) + 1 != len(fields_info):
             msg = f"number of fields: {len(fields_info)}, number of entities: {len(entities)}"
             raise ParamError(msg)
+        return location
+
+    @staticmethod
+    def _pre_upsert_batch_check(
+        entities: List,
+        fields_info: Any,
+    ):
+        for entity in entities:
+            if (
+                not entity.get("name", None)
+                or not entity.get("values", None)
+                or not entity.get("type", None)
+            ):
+                raise ParamError(
+                    message="Missing param in entities, a field must have type, name and values"
+                )
+        if not fields_info:
+            raise ParamError(message="Missing collection meta to validate entities")
+
+        location, primary_key_loc = traverse_upsert_info(fields_info, entities)
+
+        # though impossible from sdk
+        if primary_key_loc is None:
+            raise ParamError(message="primary key not found")
+
+        if len(entities) != len(fields_info):
+            msg = f"number of fields: {len(fields_info)}, number of entities: {len(entities)}"
+            raise ParamError(msg)
+
         return location
 
     @staticmethod
@@ -518,7 +547,7 @@ class Prepare:
         partition_name: str,
         fields_info: Any,
     ):
-        location = cls._pre_batch_check(entities, fields_info)
+        location = cls._pre_insert_batch_check(entities, fields_info)
         tag = partition_name if isinstance(partition_name, str) else ""
         request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
 
@@ -532,7 +561,7 @@ class Prepare:
         partition_name: str,
         fields_info: Any,
     ):
-        location = cls._pre_batch_check(entities, fields_info)
+        location = cls._pre_upsert_batch_check(entities, fields_info)
         tag = partition_name if isinstance(partition_name, str) else ""
         request = milvus_types.UpsertRequest(collection_name=collection_name, partition_name=tag)
 
