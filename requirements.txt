@@ -37,3 +37,4 @@ ruff
 black
 requests
 minio
+azure-storage-blob
