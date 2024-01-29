@@ -34,7 +34,6 @@ from pymilvus.exceptions import (
     IndexNotExistException,
     PartitionAlreadyExistException,
     SchemaNotReadyException,
-    UpsertAutoIDTrueException,
 )
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
