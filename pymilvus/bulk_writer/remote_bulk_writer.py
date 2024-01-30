@@ -13,11 +13,14 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Union
 
+from azure.core.exceptions import AzureError
+from azure.storage.blob import BlobServiceClient
 from minio import Minio
 from minio.error import S3Error
 
+from pymilvus.exceptions import MilvusException
 from pymilvus.orm.schema import CollectionSchema
 
 from .constants import (
@@ -32,7 +35,7 @@ logger.setLevel(logging.DEBUG)
 
 
 class RemoteBulkWriter(LocalBulkWriter):
-    class ConnectParam:
+    class S3ConnectParam:
         def __init__(
             self,
             bucket_name: str = DEFAULT_BUCKET_NAME,
@@ -55,11 +58,56 @@ class RemoteBulkWriter(LocalBulkWriter):
             self._http_client = (http_client,)  # urllib3.poolmanager.PoolManager
             self._credentials = (credentials,)  # minio.credentials.Provider
 
+    ConnectParam = S3ConnectParam  # keep the ConnectParam for compatible with user's legacy code
+
+    class AzureConnectParam:
+        def __init__(
+            self,
+            container_name: str,
+            conn_str: str,
+            account_url: Optional[str] = None,
+            credential: Optional[Union[str, Dict[str, str]]] = None,
+            upload_chunk_size: int = 8 * 1024 * 1024,
+            upload_concurrency: int = 4,
+        ):
+            """Connection parameters for Azure blob storage
+            Args:
+                container_name(str): The target container name
+
+                conn_str(str): A connection string to an Azure Storage account,
+                    which can be parsed to an account_url and a credential.
+                    To generate a connection string, read this link:
+                    https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string
+
+                account_url(str): A string in format like https://<storage-account>.blob.core.windows.net
+                    Read this link for more info:
+                    https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview
+
+                credential: Account access key for the account, read this link for more info:
+                    https://learn.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?tabs=azure-portal#view-account-access-keys
+
+                upload_chunk_size: If the blob size is larger than this value or unknown,
+                    the blob is uploaded in chunks by parallel connections. This parameter is
+                    passed to max_single_put_size of Azure. Read this link for more info:
+                    https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-upload-python#specify-data-transfer-options-for-upload
+
+                upload_concurrency: The maximum number of parallel connections to use when uploading
+                    in chunks. This parameter is passed to max_concurrency of Azure.
+                    Read this link for more info:
+                    https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-upload-python#specify-data-transfer-options-for-upload
+            """
+            self._container_name = container_name
+            self._conn_str = conn_str
+            self._account_url = account_url
+            self._credential = credential
+            self._upload_chunk_size = upload_chunk_size
+            self._upload_concurrency = upload_concurrency
+
     def __init__(
         self,
         schema: CollectionSchema,
         remote_path: str,
-        connect_param: ConnectParam,
+        connect_param: Optional[Union[S3ConnectParam, AzureConnectParam]],
         chunk_size: int = 1024 * MB,
         file_type: BulkFileType = BulkFileType.PARQUET,
         **kwargs,
@@ -86,8 +134,11 @@ class RemoteBulkWriter(LocalBulkWriter):
             logger.info(f"Delete empty directory '{Path(self._local_path).parent}'")
 
     def _get_client(self):
-        try:
-            if self._client is None:
+        if self._client is not None:
+            return self._client
+
+        if isinstance(self._connect_param, RemoteBulkWriter.S3ConnectParam):
+            try:
 
                 def arg_parse(arg: Any):
                     return arg[0] if isinstance(arg, tuple) else arg
@@ -102,27 +153,113 @@ class RemoteBulkWriter(LocalBulkWriter):
                     http_client=arg_parse(self._connect_param._http_client),
                     credentials=arg_parse(self._connect_param._credentials),
                 )
-            else:
-                return self._client
-        except Exception as err:
-            logger.error(f"Failed to connect MinIO/S3, error: {err}")
-            raise
+                logger.info("Minio/S3 blob storage client successfully initialized")
+            except Exception as err:
+                logger.error(f"Failed to connect MinIO/S3, error: {err}")
+                raise
+        elif isinstance(self._connect_param, RemoteBulkWriter.AzureConnectParam):
+            try:
+                if (
+                    self._connect_param._conn_str is not None
+                    and len(self._connect_param._conn_str) > 0
+                ):
+                    self._client = BlobServiceClient.from_connection_string(
+                        conn_str=self._connect_param._conn_str,
+                        credential=self._connect_param._credential,
+                        max_block_size=self._connect_param._upload_chunk_size,
+                        max_single_put_size=self._connect_param._upload_chunk_size,
+                    )
+                elif (
+                    self._connect_param._account_url is not None
+                    and len(self._connect_param._account_url) > 0
+                ):
+                    self._client = BlobServiceClient(
+                        account_url=self._connect_param._account_url,
+                        credential=self._connect_param._credential,
+                        max_block_size=self._connect_param._upload_chunk_size,
+                        max_single_put_size=self._connect_param._upload_chunk_size,
+                    )
+                else:
+                    raise MilvusException(message="Illegal connection parameters")
+
+                logger.info("Azure blob storage client successfully initialized")
+            except Exception as err:
+                logger.error(f"Failed to connect Azure, error: {err}")
+                raise
+
+        return self._client
+
+    def _stat_object(self, object_name: str):
+        if isinstance(self._client, Minio):
+            return self._client.stat_object(
+                bucket_name=self._connect_param._bucket_name, object_name=object_name
+            )
+        if isinstance(self._client, BlobServiceClient):
+            blob = self._client.get_blob_client(
+                container=self._connect_param._container_name, blob=object_name
+            )
+            return blob.get_blob_properties()
+
+        raise MilvusException(message="Blob storage client is not initialized")
+
+    def _object_exists(self, object_name: str) -> bool:
+        try:
+            self._stat_object(object_name=object_name)
+        except S3Error as s3err:
+            if s3err.code == "NoSuchKey":
+                return False
+            self._throw(f"Failed to stat MinIO/S3 object '{object_name}', error: {s3err}")
+        except AzureError as azure_err:
+            if azure_err.error_code == "BlobNotFound":
+                return False
+            self._throw(f"Failed to stat Azure object '{object_name}', error: {azure_err}")
+
+        return True
+
+    def _bucket_exists(self) -> bool:
+        if isinstance(self._client, Minio):
+            return self._client.bucket_exists(self._connect_param._bucket_name)
+        if isinstance(self._client, BlobServiceClient):
+            containers = self._client.list_containers()
+            for container in containers:
+                if self._connect_param._container_name == container["name"]:
+                    return True
+            return False
+
+        raise MilvusException(message="Blob storage client is not initialized")
+
+    def _upload_object(self, file_path: str, object_name: str):
+        logger.info(f"Prepare to upload '{file_path}' to '{object_name}'")
+        if isinstance(self._client, Minio):
+            logger.info(f"Target bucket: '{self._connect_param._bucket_name}'")
+            self._client.fput_object(
+                bucket_name=self._connect_param._bucket_name,
+                object_name=object_name,
+                file_path=file_path,
+            )
+        elif isinstance(self._client, BlobServiceClient):
+            logger.info(f"Target bucket: '{self._connect_param._container_name}'")
+            container_client = self._client.get_container_client(
+                self._connect_param._container_name
+            )
+            with Path(file_path).open("rb") as data:
+                container_client.upload_blob(
+                    name=object_name,
+                    data=data,
+                    overwrite=True,
+                    max_concurrency=self._connect_param._upload_concurrency,
+                    connection_timeout=600,
+                )
+        else:
+            raise MilvusException(message="Blob storage client is not initialized")
+
+        logger.info(f"Upload file '{file_path}' to '{object_name}'")
 
     def append_row(self, row: dict, **kwargs):
         super().append_row(row, **kwargs)
 
     def commit(self, **kwargs):
         super().commit(call_back=self._upload)
-
-    def _remote_exists(self, file: str) -> bool:
-        try:
-            minio_client = self._get_client()
-            minio_client.stat_object(bucket_name=self._connect_param._bucket_name, object_name=file)
-        except S3Error as err:
-            if err.code == "NoSuchKey":
-                return False
-            self._throw(f"Failed to stat MinIO/S3 object, error: {err}")
-        return True
 
     def _local_rm(self, file: str):
         try:
@@ -137,11 +274,8 @@ class RemoteBulkWriter(LocalBulkWriter):
     def _upload(self, file_list: list):
         remote_files = []
         try:
-            logger.info("Prepare to upload files")
-            minio_client = self._get_client()
-            found = minio_client.bucket_exists(self._connect_param._bucket_name)
-            if not found:
-                self._throw(f"MinIO bucket '{self._connect_param._bucket_name}' doesn't exist")
+            if not self._bucket_exists():
+                self._throw("Blob storage bucket/container doesn't exist")
 
             for file_path in file_list:
                 ext = Path(file_path).suffix
@@ -153,22 +287,17 @@ class RemoteBulkWriter(LocalBulkWriter):
                     Path.joinpath(self._remote_path, relative_file_path.lstrip("/"))
                 ).lstrip("/")
 
-                if self._remote_exists(minio_file_path):
+                if self._object_exists(minio_file_path):
                     logger.info(
                         f"Remote file '{minio_file_path}' already exists, will overwrite it"
                     )
 
-                minio_client.fput_object(
-                    bucket_name=self._connect_param._bucket_name,
-                    object_name=minio_file_path,
-                    file_path=file_path,
-                )
-                logger.info(f"Upload file '{file_path}' to '{minio_file_path}'")
+                self._upload_object(object_name=minio_file_path, file_path=file_path)
 
                 remote_files.append(str(minio_file_path))
                 self._local_rm(file_path)
         except Exception as e:
-            self._throw(f"Failed to call MinIO/S3 api, error: {e}")
+            self._throw(f"Failed to upload files, error: {e}")
 
         logger.info(f"Successfully upload files: {file_list}")
         self._remote_files.append(remote_files)
