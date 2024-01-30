@@ -143,7 +143,7 @@ def remote_writer(schema: CollectionSchema, file_type: BulkFileType):
     with RemoteBulkWriter(
             schema=schema,
             remote_path="bulk_data",
-            connect_param=RemoteBulkWriter.ConnectParam(
+            connect_param=RemoteBulkWriter.S3ConnectParam(
                 endpoint=MINIO_ADDRESS,
                 access_key=MINIO_ACCESS_KEY,
                 secret_key=MINIO_SECRET_KEY,
@@ -226,7 +226,7 @@ def all_types_writer(bin_vec: bool, schema: CollectionSchema, file_type: BulkFil
     with RemoteBulkWriter(
             schema=schema,
             remote_path="bulk_data",
-            connect_param=RemoteBulkWriter.ConnectParam(
+            connect_param=RemoteBulkWriter.S3ConnectParam(
                 endpoint=MINIO_ADDRESS,
                 access_key=MINIO_ACCESS_KEY,
                 secret_key=MINIO_SECRET_KEY,
@@ -269,7 +269,7 @@ def all_types_writer(bin_vec: bool, schema: CollectionSchema, file_type: BulkFil
                 "double": np.float64(i/7),
                 "varchar": f"varchar_{i}",
                 "json": json.dumps({"dummy": i, "ok": f"name_{i}"}),
-                "vector": np.array(gen_binary_vector(), np.dtype("int8")) if bin_vec else np.array(gen_float_vector(), np.dtype("float32")),
+                "vector": np.array(gen_binary_vector()).astype(np.dtype("int8")) if bin_vec else np.array(gen_float_vector()).astype(np.dtype("float32")),
                 f"dynamic_{i}": i,
                 # bulkinsert doesn't support import npy with array field, the below values will be stored into dynamic field
                 "array_str": np.array([f"str_{k}" for k in range(5)], np.dtype("str")),
