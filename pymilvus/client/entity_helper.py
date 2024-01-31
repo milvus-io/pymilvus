@@ -3,7 +3,12 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import ujson
 
-from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.exceptions import (
+    DataNotMatchException,
+    ExceptionsMessage,
+    MilvusException,
+    ParamError,
+)
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 
@@ -56,13 +61,19 @@ def entity_to_str_arr(entity: Any, field_info: Any, check: bool = True):
 
 
 def convert_to_json(obj: object):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if not isinstance(k, str):
+                raise DataNotMatchException(message=ExceptionsMessage.JSONKeyMustBeStr)
+            if isinstance(v, np.ndarray):
+                obj[k] = v.tolist()
     return ujson.dumps(obj, ensure_ascii=False).encode(Config.EncodeProtocol)
 
 
 def convert_to_json_arr(objs: List[object]):
     arr = []
     for obj in objs:
-        arr.append(ujson.dumps(obj, ensure_ascii=False).encode(Config.EncodeProtocol))
+        arr.append(convert_to_json(obj))
     return arr
 
 
