@@ -218,3 +218,4 @@ class ExceptionsMessage:
     AmbiguousQueryFilterParam = (
         "Ambiguous parameter, either ids or filter should be specified, cannot support both."
     )
+    JSONKeyMustBeStr = "JSON key must be str."
