@@ -586,6 +586,7 @@ class GrpcHandler:
                 partition_name,
                 expression,
                 consistency_level=kwargs.get("consistency_level", 0),
+                param_name=kwargs.get("param_name", None),
             )
             future = self._stub.Delete.future(req, timeout=timeout)
 

@@ -210,7 +210,9 @@ class CollectionSchema:
             >>> schema.auto_id
             False
         """
-        return self.primary_field.auto_id
+        if self.primary_field:
+            return self.primary_field.auto_id
+        return self._kwargs.get("auto_id", False)
 
     @auto_id.setter
     def auto_id(self, value: bool):
