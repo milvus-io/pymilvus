@@ -1118,7 +1118,7 @@ class Collection:
         for index in tmp_index:
             if index is not None:
                 info_dict = {kv.key: kv.value for kv in index.params}
-                if info_dict.get("params", None):
+                if info_dict.get("params"):
                     info_dict["params"] = json.loads(info_dict["params"])
 
                 index_info = Index(

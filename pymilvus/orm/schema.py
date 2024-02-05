@@ -307,11 +307,11 @@ class FieldSchema:
         kwargs = {}
         kwargs.update(raw.get("params", {}))
         kwargs["is_primary"] = raw.get("is_primary", False)
-        if raw.get("auto_id", None) is not None:
-            kwargs["auto_id"] = raw.get("auto_id", None)
+        if raw.get("auto_id") is not None:
+            kwargs["auto_id"] = raw.get("auto_id")
         kwargs["is_partition_key"] = raw.get("is_partition_key", False)
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
-        kwargs["element_type"] = raw.get("element_type", None)
+        kwargs["element_type"] = raw.get("element_type")
         return FieldSchema(raw["name"], raw["type"], raw.get("description", ""), **kwargs)
 
     def to_dict(self):
