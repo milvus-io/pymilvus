@@ -145,7 +145,7 @@ class GrpcHandler:
         except grpc.FutureTimeoutError as e:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
-                message=f"Fail connecting to server on {self._address}. Timeout",
+                message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",
             ) from e
         except Exception as e:
             raise e from e
