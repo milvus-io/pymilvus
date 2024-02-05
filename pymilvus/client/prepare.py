@@ -370,6 +370,9 @@ class Prepare:
 
         try:
             for entity in entities:
+                if not isinstance(entity, Dict):
+                    msg = f"expected Dict, got '{type(entity).__name__}'"
+                    raise TypeError(msg)
                 for k, v in entity.items():
                     if k not in fields_data and not enable_dynamic:
                         raise DataNotMatchException(message=ExceptionsMessage.InsertUnexpectedField)
@@ -545,6 +548,7 @@ class Prepare:
         partition_name: str,
         expr: str,
         consistency_level: Optional[Union[int, str]],
+        **kwargs,
     ):
         def check_str(instr: str, prefix: str):
             if instr is None:
@@ -557,7 +561,8 @@ class Prepare:
         check_str(collection_name, "collection_name")
         if partition_name is not None and partition_name != "":
             check_str(partition_name, "partition_name")
-        check_str(expr, "expr")
+        param_name = kwargs.get("param_name", "expr")
+        check_str(expr, param_name)
 
         return milvus_types.DeleteRequest(
             collection_name=collection_name,
