@@ -724,6 +724,14 @@ class Prepare:
         return milvus_types.AlterAliasRequest(collection_name=collection_name, alias=alias)
 
     @classmethod
+    def describe_alias_request(cls, alias: str):
+        return milvus_types.DescribeAliasRequest(alias=alias)
+
+    @classmethod
+    def list_aliases_request(cls, collection_name: str, db_name: str = ""):
+        return milvus_types.ListAliasesRequest(collection_name=collection_name, db_name=db_name)
+
+    @classmethod
     def create_index_request(cls, collection_name: str, field_name: str, params: Dict, **kwargs):
         index_params = milvus_types.CreateIndexRequest(
             collection_name=collection_name,

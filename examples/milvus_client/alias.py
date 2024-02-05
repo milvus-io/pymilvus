@@ -43,8 +43,18 @@ print(fmt.format(f"Start inserting entities to {collection_name2}"))
 insert_result2 = milvus_client.insert(collection_name2, rows)
 print(insert_result2)
 
+
+
 alias = "alias_hello_milvus"
+milvus_client.drop_alias(alias)
 milvus_client.create_alias(collection_name, alias)
+
+aliases =  milvus_client.list_aliases(collection_name)
+print(f"aliases of {collection_name} is:", aliases)
+
+
+alias_info =  milvus_client.describe_alias(alias)
+print(f"info of {alias} is:", alias_info)
 
 assert milvus_client.describe_collection(alias) == milvus_client.describe_collection(collection_name)
 
