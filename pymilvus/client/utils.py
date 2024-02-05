@@ -181,6 +181,20 @@ def len_of(field_data: Any) -> int:
                     message=f"Invalid vector length: total_len={total_len}, dim={dim}"
                 )
             return int(total_len / dim)
+        if field_data.vectors.HasField("bfloat16_vector") or field_data.vectors.HasField(
+            "float16_vector"
+        ):
+            total_len = (
+                len(field_data.vectors.bfloat16_vector)
+                if field_data.vectors.HasField("bfloat16_vector")
+                else len(field_data.vectors.float16_vector)
+            )
+            data_wide_in_bytes = 2
+            if total_len % (dim * data_wide_in_bytes) != 0:
+                raise MilvusException(
+                    message=f"Invalid bfloat16 or float16 vector length: total_len={total_len}, dim={dim}"
+                )
+            return int(total_len / (dim * data_wide_in_bytes))
 
         total_len = len(field_data.vectors.binary_vector)
         return int(total_len / (dim / 8))
