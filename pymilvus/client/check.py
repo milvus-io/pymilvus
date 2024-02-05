@@ -102,6 +102,10 @@ def is_legal_index_name(index_name: Any) -> bool:
     return index_name and isinstance(index_name, str)
 
 
+def is_legal_timeout(timeout: Any) -> bool:
+    return timeout is None or isinstance(timeout, (int, float))
+
+
 def is_legal_nlist(nlist: Any) -> bool:
     return not isinstance(nlist, bool) and isinstance(nlist, int)
 
@@ -293,6 +297,7 @@ class ParamChecker(metaclass=Singleton):
         self.check_dict = {
             "db_name": is_legal_db_name,
             "collection_name": is_legal_table_name,
+            "alias": is_legal_table_name,
             "field_name": is_legal_field_name,
             "dimension": is_legal_dimension,
             "index_file_size": is_legal_index_size,
@@ -328,6 +333,7 @@ class ParamChecker(metaclass=Singleton):
             "max_iterations": is_legal_max_iterations,
             "team_size": is_legal_team_size,
             "index_name": is_legal_index_name,
+            "timeout": is_legal_timeout,
         }
 
     def check(self, key: str, value: Callable):

@@ -17,7 +17,6 @@ from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
 from pymilvus.orm.types import DataType
 
-from .check import check_param_type
 from .index import IndexParams
 
 logger = logging.getLogger(__name__)
@@ -51,8 +50,6 @@ class MilvusClient:
             timeout (float, optional): What timeout to use for function calls. Defaults
                 to None.
         """
-        # Optionial TQDM import
-        check_param_type("timeout", timeout, float)
         self._using = self._create_connection(
             uri, user, password, db_name, token, timeout=timeout, **kwargs
         )
@@ -72,7 +69,6 @@ class MilvusClient:
         index_params: Optional[IndexParams] = None,
         **kwargs,
     ):
-        check_param_type("timeout", timeout, float)
         if schema is None:
             return self._fast_create_collection(
                 collection_name,
@@ -139,9 +135,7 @@ class MilvusClient:
         index_params = self.prepare_index_params()
         index_type = ""
         index_name = ""
-        params = {
-            "metric_type": metric_type,
-        }
+        params = {"metric_type": metric_type}
         index_params.add_index(vector_field_name, index_type, index_name, params=params)
         self.create_index(collection_name, index_params, timeout=timeout)
         self.load_collection(collection_name, timeout=timeout)
@@ -153,16 +147,11 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_param_type("timeout", timeout, float)
         for index_param in index_params:
             self._create_index(collection_name, index_param, timeout=timeout, **kwargs)
 
     def _create_index(
-        self,
-        collection_name: str,
-        index_param: Dict,
-        timeout: Optional[float] = None,
-        **kwargs,
+        self, collection_name: str, index_param: Dict, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
         try:
@@ -213,7 +202,6 @@ class MilvusClient:
         Returns:
             Dict: Number of rows that were inserted.
         """
-        check_param_type("timeout", timeout, float)
         # If no data provided, we cannot input anything
         if isinstance(data, Dict):
             data = [data]
@@ -263,7 +251,6 @@ class MilvusClient:
         Returns:
             List[Union[str, int]]: A list of primary keys that were inserted.
         """
-        check_param_type("timeout", timeout, float)
         # If no data provided, we cannot input anything
         if isinstance(data, Dict):
             data = [data]
@@ -322,7 +309,6 @@ class MilvusClient:
             List[List[dict]]: A nested list of dicts containing the result data. Embeddings are
                 not included in the result data.
         """
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         try:
             res = conn.search(
@@ -376,7 +362,6 @@ class MilvusClient:
         Returns:
             List[dict]: A list of result dicts, vectors are not included.
         """
-        check_param_type("timeout", timeout, float)
         if filter and not isinstance(filter, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
 
@@ -442,7 +427,6 @@ class MilvusClient:
         Returns:
             List[dict]: A list of result dicts with keys {pk_field, vector_field}
         """
-        check_param_type("timeout", timeout, float)
         if not isinstance(ids, list):
             ids = [ids]
 
@@ -511,7 +495,6 @@ class MilvusClient:
         Returns:
             Dict: Number of rows that were deleted.
         """
-        check_param_type("timeout", timeout, float)
         pks = kwargs.get("pks", [])
         if isinstance(pks, (int, str)):
             pks = [pks]
@@ -563,7 +546,6 @@ class MilvusClient:
         return {"delete_count": res.delete_count}
 
     def get_collection_stats(self, collection_name: str, timeout: Optional[float] = None) -> Dict:
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         stats = conn.get_collection_stats(collection_name, timeout=timeout)
         result = {stat.key: stat.value for stat in stats}
@@ -571,12 +553,10 @@ class MilvusClient:
         return result
 
     def describe_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         return conn.describe_collection(collection_name, timeout=timeout, **kwargs)
 
     def has_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         return conn.has_collection(collection_name, timeout=timeout, **kwargs)
 
@@ -585,7 +565,6 @@ class MilvusClient:
         return conn.list_collections(**kwargs)
 
     def drop_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         """Delete the collection stored in this object"""
         conn = self._get_connection()
         conn.drop_collection(collection_name, timeout=timeout, **kwargs)
@@ -598,7 +577,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.rename_collections(old_name, new_name, target_db, timeout=timeout, **kwargs)
 
@@ -704,27 +682,19 @@ class MilvusClient:
 
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         try:
             conn.load_collection(collection_name, timeout=timeout, **kwargs)
         except MilvusException as ex:
-            logger.error(
-                "Failed to load collection: %s",
-                collection_name,
-            )
+            logger.error("Failed to load collection: %s", collection_name)
             raise ex from ex
 
     def release_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         try:
             conn.release_collection(collection_name, timeout=timeout, **kwargs)
         except MilvusException as ex:
-            logger.error(
-                "Failed to load collection: %s",
-                collection_name,
-            )
+            logger.error("Failed to load collection: %s", collection_name)
             raise ex from ex
 
     def get_load_state(
@@ -734,7 +704,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ) -> Dict:
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         partition_names = None
         if partition_name:
@@ -752,7 +721,6 @@ class MilvusClient:
         return ret
 
     def refresh_load(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         kwargs.pop("_refresh", None)
         conn = self._get_connection()
         conn.load_collection(collection_name, timeout=timeout, _refresh=True, **kwargs)
@@ -782,64 +750,38 @@ class MilvusClient:
         return index_name_list
 
     def drop_index(
-        self,
-        collection_name: str,
-        index_name: str,
-        timeout: Optional[float] = None,
-        **kwargs,
+        self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.drop_index(collection_name, "", index_name, timeout=timeout, **kwargs)
 
     def describe_index(
-        self,
-        collection_name: str,
-        index_name: str,
-        timeout: Optional[float] = None,
-        **kwargs,
+        self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
     ) -> Dict:
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         return conn.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
 
     def create_partition(
-        self,
-        collection_name: str,
-        partition_name: str,
-        timeout: Optional[float] = None,
-        **kwargs,
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.create_partition(collection_name, partition_name, timeout=timeout, **kwargs)
 
     def drop_partition(
-        self,
-        collection_name: str,
-        partition_name: str,
-        timeout: Optional[float] = None,
-        **kwargs,
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.drop_partition(collection_name, partition_name, timeout=timeout, **kwargs)
 
     def has_partition(
-        self,
-        collection_name: str,
-        partition_name: str,
-        timeout: Optional[float] = None,
-        **kwargs,
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ) -> bool:
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         return conn.has_partition(collection_name, partition_name, timeout=timeout, **kwargs)
 
     def list_partitions(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[str]:
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         return conn.list_partitions(collection_name, timeout=timeout, **kwargs)
 
@@ -850,7 +792,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_param_type("timeout", timeout, float)
         if isinstance(partition_names, str):
             partition_names = [partition_names]
 
@@ -864,7 +805,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_param_type("timeout", timeout, float)
         if isinstance(partition_names, str):
             partition_names = [partition_names]
         conn = self._get_connection()
@@ -873,7 +813,6 @@ class MilvusClient:
     def get_partition_stats(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ) -> Dict:
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         if not isinstance(partition_name, str):
             msg = f"wrong type of argument 'partition_name', str expected, got '{type(partition_name).__name__}'"
@@ -882,12 +821,10 @@ class MilvusClient:
         return {stat.key: stat.value for stat in ret}
 
     def create_user(self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         return conn.create_user(user_name, password, timeout=timeout, **kwargs)
 
     def drop_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         return conn.delete_user(user_name, timeout=timeout, **kwargs)
 
@@ -900,7 +837,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.update_password(user_name, old_password, new_password, timeout=timeout, **kwargs)
         if reset_connection:
@@ -908,12 +844,10 @@ class MilvusClient:
             conn._setup_grpc_channel()
 
     def list_users(self, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         return conn.list_usernames(timeout=timeout, **kwargs)
 
     def describe_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         try:
             res = conn.select_one_user(user_name, True, timeout=timeout, **kwargs)
@@ -921,38 +855,30 @@ class MilvusClient:
             raise ex from ex
         if res.groups:
             item = res.groups[0]
-            return {
-                "user_name": user_name,
-                "roles": item.roles,
-            }
+            return {"user_name": user_name, "roles": item.roles}
         return {}
 
     def grant_role(self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.add_user_to_role(user_name, role_name, timeout=timeout, **kwargs)
 
     def revoke_role(
         self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.remove_user_from_role(user_name, role_name, timeout=timeout, **kwargs)
 
     def create_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.create_role(role_name, timeout=timeout, **kwargs)
 
     def drop_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.drop_role(role_name, timeout=timeout, **kwargs)
 
     def describe_role(
         self, role_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[Dict]:
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         db_name = kwargs.pop("db_name", "")
         try:
@@ -962,7 +888,6 @@ class MilvusClient:
         return [dict(i) for i in res.groups]
 
     def list_roles(self, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         try:
             res = conn.select_all_role(False, timeout=timeout, **kwargs)
@@ -982,7 +907,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.grant_privilege(
             role_name, object_type, object_name, privilege, db_name, timeout=timeout, **kwargs
@@ -998,7 +922,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.revoke_privilege(
             role_name, object_type, object_name, privilege, db_name, timeout=timeout, **kwargs
@@ -1007,27 +930,28 @@ class MilvusClient:
     def create_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.create_alias(collection_name, alias, timeout=timeout, **kwargs)
 
     def drop_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.drop_alias(alias, timeout=timeout, **kwargs)
 
     def alter_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_param_type("timeout", timeout, float)
         conn = self._get_connection()
         conn.alter_alias(collection_name, alias, timeout=timeout, **kwargs)
 
     def describe_alias(self, alias: str, timeout: Optional[float] = None, **kwargs) -> Dict:
-        check_param_type("timeout", timeout, float)
+        conn = self._get_connection()
+        return conn.describe_alias(alias, timeout=timeout, **kwargs)
 
-    def list_aliases(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
-        check_param_type("timeout", timeout, float)
+    def list_aliases(
+        self, collection_name: str = "", timeout: Optional[float] = None, **kwargs
+    ) -> List[str]:
+        conn = self._get_connection()
+        return conn.list_aliases(collection_name, timeout=timeout, **kwargs)
 
     def using_database(self, db_name: str, **kwargs):
         conn = self._get_connection()
