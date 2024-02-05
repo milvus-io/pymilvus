@@ -39,7 +39,7 @@ print(insert_result)
 
 index_params = milvus_client.prepare_index_params()
 index_params.add_index(field_name = "embeddings", metric_type="L2")
-index_params.add_index(field_name = "title", index_type = "TRIE", index_name="my_trie")
+index_params.add_index(field_name = "title", index_type = "Trie", index_name="my_trie")
 
 print(fmt.format("Start create index"))
 milvus_client.create_index(collection_name, index_params)

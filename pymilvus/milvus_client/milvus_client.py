@@ -133,10 +133,7 @@ class MilvusClient:
             raise ex from ex
 
         index_params = self.prepare_index_params()
-        index_type = ""
-        index_name = ""
-        params = {"metric_type": metric_type}
-        index_params.add_index(vector_field_name, index_type, index_name, params=params)
+        index_params.add_index(vector_field_name, "", "", metric_type=metric_type)
         self.create_index(collection_name, index_params, timeout=timeout)
         self.load_collection(collection_name, timeout=timeout)
 
@@ -155,20 +152,16 @@ class MilvusClient:
     ):
         conn = self._get_connection()
         try:
-            params = index_param.get("params", {})
-            _index_type = index_param.get("index_type")
-            if _index_type:
-                params["index_type"] = _index_type
-            _metric_type = index_param.get("metric_type")
-            if _metric_type:
-                params["metric_type"] = _metric_type
-
+            params = index_param.pop("params", {})
+            field_name = index_param.pop("field_name", "")
+            index_name = index_param.pop("index_name", "")
+            params.update(index_param)
             conn.create_index(
                 collection_name,
-                index_param["field_name"],
+                field_name,
                 params,
-                index_name=index_param.get("index_name", ""),
                 timeout=timeout,
+                index_name=index_name,
                 **kwargs,
             )
             logger.debug("Successfully created an index on collection: %s", collection_name)
@@ -499,11 +492,24 @@ class MilvusClient:
         if isinstance(pks, (int, str)):
             pks = [pks]
 
+        for pk in pks:
+            if not isinstance(pk, (int, str)):
+                msg = f"wrong type of argument pks, expect list, int or str, got '{type(pk).__name__}'"
+                raise TypeError(msg)
+
         if ids is not None:
             if isinstance(ids, (int, str)):
                 pks.append(ids)
             elif isinstance(ids, list):
+                for id in ids:
+                    if not isinstance(id, (int, str)):
+                        msg = f"wrong type of argument ids, expect list, int or str, got '{type(id).__name__}'"
+                        raise TypeError(msg)
                 pks.extend(ids)
+            else:
+                msg = f"wrong type of argument ids, expect list, int or str, got '{type(ids).__name__}'"
+                raise TypeError(msg)
+
         expr = ""
         conn = self._get_connection()
         if pks:
@@ -549,7 +555,8 @@ class MilvusClient:
         conn = self._get_connection()
         stats = conn.get_collection_stats(collection_name, timeout=timeout)
         result = {stat.key: stat.value for stat in stats}
-        result["row_count"] = int(result["row_count"])
+        if "row_count" in result:
+            result["row_count"] = int(result["row_count"])
         return result
 
     def describe_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
@@ -818,7 +825,10 @@ class MilvusClient:
             msg = f"wrong type of argument 'partition_name', str expected, got '{type(partition_name).__name__}'"
             raise TypeError(msg)
         ret = conn.get_partition_stats(collection_name, partition_name, timeout=timeout, **kwargs)
-        return {stat.key: stat.value for stat in ret}
+        result = {stat.key: stat.value for stat in ret}
+        if "row_count" in result:
+            result["row_count"] = int(result["row_count"])
+        return
 
     def create_user(self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
