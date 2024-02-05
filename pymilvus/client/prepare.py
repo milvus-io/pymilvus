@@ -622,10 +622,10 @@ class Prepare:
                 raise ParamError(message=f"wrong type for offset, expect int, got {type(offset)}")
             search_params["offset"] = offset
 
-        if param.get("metric_type", None) is not None:
+        if param.get("metric_type") is not None:
             search_params["metric_type"] = param["metric_type"]
 
-        if param.get(GROUP_BY_FIELD, None) is not None:
+        if param.get(GROUP_BY_FIELD) is not None:
             search_params[GROUP_BY_FIELD] = param[GROUP_BY_FIELD]
 
         if anns_field:
