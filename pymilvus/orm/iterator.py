@@ -176,7 +176,7 @@ class QueryIterator:
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
         for field in fields:
-            if IS_PRIMARY in field and field[IS_PRIMARY]:
+            if field.get(IS_PRIMARY):
                 if field["type"] == DataType.VARCHAR:
                     self._pk_str = True
                 else:
@@ -383,7 +383,7 @@ class SearchIterator:
     def __setup__pk_prop(self):
         fields = self._schema[FIELDS]
         for field in fields:
-            if IS_PRIMARY in field and field[IS_PRIMARY]:
+            if field.get(IS_PRIMARY):
                 if field["type"] == DataType.VARCHAR:
                     self._pk_str = True
                 else:

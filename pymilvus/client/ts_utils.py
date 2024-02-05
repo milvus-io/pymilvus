@@ -75,7 +75,7 @@ def get_bounded_ts():
 
 
 def construct_guarantee_ts(collection_name: str, kwargs: Dict):
-    consistency_level = kwargs.get("consistency_level", None)
+    consistency_level = kwargs.get("consistency_level")
     use_default = consistency_level is None
     if use_default:
         # in case of the default consistency is Customized or Session,

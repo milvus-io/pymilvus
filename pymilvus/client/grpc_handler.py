@@ -1002,7 +1002,7 @@ class GrpcHandler:
             info_dict = {kv.key: kv.value for kv in response.index_descriptions[0].params}
             info_dict["field_name"] = response.index_descriptions[0].field_name
             info_dict["index_name"] = response.index_descriptions[0].index_name
-            if info_dict.get("params", None):
+            if info_dict.get("params"):
                 info_dict["params"] = json.loads(info_dict["params"])
             return info_dict
 

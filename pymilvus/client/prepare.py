@@ -626,7 +626,7 @@ class Prepare:
         if group_by_field is not None:
             search_params[GROUP_BY_FIELD] = group_by_field
 
-        if param.get("metric_type", None) is not None:
+        if param.get("metric_type") is not None:
             search_params["metric_type"] = param["metric_type"]
 
         if anns_field:
