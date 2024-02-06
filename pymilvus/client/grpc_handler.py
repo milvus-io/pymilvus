@@ -898,7 +898,9 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def list_aliases(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_pass_param(collection_name=collection_name, timeout=timeout)
+        check_pass_param(timeout=timeout)
+        if collection_name:
+            check_pass_param(collection_name=collection_name)
         request = Prepare.list_aliases_request(collection_name, kwargs.get("db_name", ""))
         rf = self._stub.ListAliases.future(request, timeout=timeout)
         response = rf.result()

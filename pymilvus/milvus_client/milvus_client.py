@@ -828,7 +828,7 @@ class MilvusClient:
         result = {stat.key: stat.value for stat in ret}
         if "row_count" in result:
             result["row_count"] = int(result["row_count"])
-        return
+        return result
 
     def create_user(self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
