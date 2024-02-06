@@ -325,6 +325,20 @@ def extract_row_data_from_fields_data(
                 entity_row_data[field_data.field_name] = [
                     field_data.vectors.binary_vector[start_pos:end_pos]
                 ]
+        elif field_data.type == DataType.BFLOAT16_VECTOR:
+            dim = field_data.vectors.dim
+            if len(field_data.vectors.bfloat16_vector) >= index * (dim * 2):
+                start_pos, end_pos = index * (dim * 2), (index + 1) * (dim * 2)
+                entity_row_data[field_data.field_name] = [
+                    field_data.vectors.bfloat16_vector[start_pos:end_pos]
+                ]
+        elif field_data.type == DataType.FLOAT16_VECTOR:
+            dim = field_data.vectors.dim
+            if len(field_data.vectors.float16_vector) >= index * (dim * 2):
+                start_pos, end_pos = index * (dim * 2), (index + 1) * (dim * 2)
+                entity_row_data[field_data.field_name] = [
+                    field_data.vectors.float16_vector[start_pos:end_pos]
+                ]
 
     for field_data in fields_data:
         check_append(field_data)

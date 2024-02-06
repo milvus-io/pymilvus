@@ -507,7 +507,7 @@ def prepare_fields_from_dataframe(df: pd.DataFrame):
                     if new_dtype == DataType.BINARY_VECTOR:
                         vector_type_params["dim"] = len(values[i]) * 8
                     elif new_dtype in (DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR):
-                        vector_type_params["dim"] = len(values[i]) / 2
+                        vector_type_params["dim"] = int(len(values[i]) // 2)
                     else:
                         vector_type_params["dim"] = len(values[i])
                     column_params_map[col_names[i]] = vector_type_params

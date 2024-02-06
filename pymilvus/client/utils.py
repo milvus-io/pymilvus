@@ -240,10 +240,18 @@ def traverse_rows_info(fields_info: Any, entities: List):
             if value is None:
                 raise ParamError(message=f"Field {field_name} don't match in entities[{j}]")
 
-            if field_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+            if field_type in [
+                DataType.FLOAT_VECTOR,
+                DataType.BINARY_VECTOR,
+                DataType.BFLOAT16_VECTOR,
+                DataType.FLOAT16_VECTOR,
+            ]:
                 field_dim = field["params"]["dim"]
-                entity_dim = len(value) if field_type == DataType.FLOAT_VECTOR else len(value) * 8
-
+                entity_dim = len(value)
+                if field_type in [DataType.BINARY_VECTOR]:
+                    entity_dim = entity_dim * 8
+                elif field_type in [DataType.BFLOAT16_VECTOR, DataType.FLOAT16_VECTOR]:
+                    entity_dim = int(entity_dim // 2)
                 if entity_dim != field_dim:
                     raise ParamError(
                         message=f"Collection field dim is {field_dim}"
@@ -282,7 +290,12 @@ def traverse_info(fields_info: Any, entities: List):
                     )
 
                 entity_dim, field_dim = 0, 0
-                if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+                if entity_type in [
+                    DataType.FLOAT_VECTOR,
+                    DataType.BINARY_VECTOR,
+                    DataType.BFLOAT16_VECTOR,
+                    DataType.FLOAT16_VECTOR,
+                ]:
                     field_dim = field["params"]["dim"]
                     entity_dim = len(entity["values"][0])
 
@@ -296,6 +309,15 @@ def traverse_info(fields_info: Any, entities: List):
                     raise ParamError(
                         message=f"Collection field dim is {field_dim}"
                         f", but entities field dim is {entity_dim * 8}"
+                    )
+
+                if (
+                    entity_type in [DataType.BFLOAT16_VECTOR, DataType.FLOAT16_VECTOR]
+                    and int(entity_dim // 2) != field_dim
+                ):
+                    raise ParamError(
+                        message=f"Collection field dim is {field_dim}"
+                        f", but entities field dim is {int(entity_dim // 2)}"
                     )
 
                 location[field["name"]] = i
