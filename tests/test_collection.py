@@ -146,6 +146,19 @@ class TestCollections:
         expr = "id in [ " + ids_expr + " ]"
         res = collection.query(expr)
 
+    @pytest.mark.xfail 
+    def test_query_with_output_fields(self, collection):
+        data = gen_list_data(default_nb)
+        ids = collection.insert(data)
+        assert len(ids) == default_nb
+        ids_expr = ",".join(str(x) for x in ids)
+        expr = "id in [ " + ids_expr + " ]"
+        output_fields = ["float_vector", "float16_vector", "bfloat16_vector"]
+        res = collection.query(expr, output_fields=output_fields)
+        assert len(res) == default_nb
+        for key in output_fields:
+            assert key in res
+
     @pytest.mark.xfail
     def test_partitions(self, collection):
         assert len(collection.partitions) == 1

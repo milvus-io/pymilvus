@@ -468,6 +468,19 @@ class SearchResult(list):
                 )
                 continue
 
+            if dtype == DataType.BFLOAT16_VECTOR:
+                field2data[name] = (
+                    vectors.bfloat16_vector[start * (dim * 2) : end * (dim * 2)],
+                    field_meta,
+                )
+                continue
+
+            if dtype == DataType.FLOAT16_VECTOR:
+                field2data[name] = (
+                    vectors.float16_vector[start * (dim * 2) : end * (dim * 2)],
+                    field_meta,
+                )
+                continue
         return field2data
 
     def __iter__(self) -> SequenceIterator:
@@ -510,10 +523,17 @@ class Hits(list):
                 if len(data) <= i:
                     curr_field[fname] = None
                 # Get vectors
-                if field_meta.type in (DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR):
+                if field_meta.type in (
+                    DataType.FLOAT_VECTOR,
+                    DataType.BINARY_VECTOR,
+                    DataType.BFLOAT16_VECTOR,
+                    DataType.FLOAT16_VECTOR,
+                ):
                     dim = field_meta.vectors.dim
-                    dim = dim // 8 if field_meta.type == DataType.BINARY_VECTOR else dim
-
+                    if field_meta.type in [DataType.BINARY_VECTOR]:
+                        dim = dim // 8
+                    elif field_meta.type in [DataType.BFLOAT16_VECTOR, DataType.FLOAT16_VECTOR]:
+                        dim = dim * 2
                     curr_field[fname] = data[i * dim : (i + 1) * dim]
                     continue
 

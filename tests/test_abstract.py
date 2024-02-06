@@ -202,3 +202,5 @@ class TestSearchResult:
         assert 1 == r[0][1].int8_field
         assert 2 == r[0][2].int16_field
         assert [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] == r[0][1].int64_array_field
+        assert 32 == len(r[0][0].entity.bfloat16_vector_field)
+        assert 32 == len(r[0][0].entity.float16_vector_field)
