@@ -1007,8 +1007,7 @@ class GrpcHandler:
 
         rf = self._stub.AlterIndex.future(request, timeout=timeout)
         response = rf.result()
-        status = response.status
-        check_status(status)
+        check_status(response)
 
     @retry_on_rpc_failure()
     def list_indexes(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
