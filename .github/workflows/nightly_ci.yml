@@ -25,7 +25,7 @@ jobs:
       IMAGE_REPO: "milvusdb"
       TAG_PREFIX: "master-"
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Get the latest of Milvus dev image tag
       shell: bash
@@ -44,7 +44,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Clone Milvus Repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: milvus-io/milvus
         path: 'milvus'
