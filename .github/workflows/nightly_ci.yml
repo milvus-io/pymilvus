@@ -39,7 +39,7 @@ jobs:
         IMAGE_TAG=${{ steps.extracter.outputs.tag }}  docker-compose up -d
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
