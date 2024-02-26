@@ -22,6 +22,7 @@ from .constants import (
     FIELDS,
     INT64_MAX,
     IS_PRIMARY,
+    ITERATOR_FIELD,
     MAX_BATCH_SIZE,
     MAX_FILTERED_IDS_COUNT_ITERATION,
     MAX_TRY_TIME,
@@ -76,6 +77,7 @@ class QueryIterator:
         self._schema = schema
         self._timeout = timeout
         self._kwargs = kwargs
+        self.__set_up_iteration_states()
         self.__check_set_batch_size(batch_size)
         self._limit = limit
         self.__check_set_reduce_stop_for_best()
@@ -84,6 +86,9 @@ class QueryIterator:
         self.__set_up_expr(expr)
         self.__seek()
         self._cache_id_in_use = NO_CACHE_ID
+
+    def __set_up_iteration_states(self):
+        self._kwargs[ITERATOR_FIELD] = "True"
 
     def __check_set_reduce_stop_for_best(self):
         self._kwargs[REDUCE_STOP_FOR_BEST] = "True"
@@ -311,6 +316,7 @@ class SearchIterator:
         self.__check_set_params(param)
         self.__check_for_special_index_param()
         self._kwargs = kwargs
+        self.__set_up_iteration_states()
         self._filtered_ids = []
         self._filtered_distance = None
         self._schema = schema
@@ -337,6 +343,9 @@ class SearchIterator:
         self.__set_up_range_parameters(init_page)
         self.__update_filtered_ids(init_page)
         self._init_success = True
+
+    def __set_up_iteration_states(self):
+        self._kwargs[ITERATOR_FIELD] = "True"
 
     def __update_width(self, page: SearchPage):
         first_hit, last_hit = page[0], page[-1]
