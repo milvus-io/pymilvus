@@ -165,11 +165,18 @@ class MilvusClient:
         **kwargs,
     ):
         conn = self._get_connection()
+        params = {}
+        if 'index_type' in index_param:
+            params['index_type'] = index_param['index_type']
+        if 'metric_type' in index_param:
+            params['metric_type'] = index_param['metric_type']
+        if 'params' in index_param:
+            params['params'] = index_param['params']
         try:
             conn.create_index(
                 collection_name,
                 index_param["field_name"],
-                index_param.get("params", {}),
+                params,
                 index_name=index_param.get("index_name", ""),
                 timeout=timeout,
                 **kwargs,

@@ -20,6 +20,7 @@ class IndexParam:
     def __iter__(self):
         yield "field_name", self._field_name
         yield "index_name", self._index_name
+        yield "index_type", self._index_type
         yield from self._kwargs.items()
 
     def __str__(self):
