@@ -16,6 +16,7 @@ from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
     DEFAULT_CONSISTENCY_LEVEL,
     GROUP_BY_FIELD,
+    ITERATOR_FIELD,
     REDUCE_STOP_FOR_BEST,
 )
 from .types import DataType, PlaceholderType, get_consistency_level
@@ -626,6 +627,10 @@ class Prepare:
             if not isinstance(offset, int):
                 raise ParamError(message=f"wrong type for offset, expect int, got {type(offset)}")
             search_params["offset"] = offset
+
+        is_iterator = kwargs.get(ITERATOR_FIELD)
+        if is_iterator is not None:
+            search_params[ITERATOR_FIELD] = is_iterator
 
         group_by_field = kwargs.get(GROUP_BY_FIELD)
         if group_by_field is not None:
