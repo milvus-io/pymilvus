@@ -3,13 +3,26 @@ import time
 import grpc
 import pytest
 
-from pymilvus.decorators import retry_on_rpc_failure, error_handler
+from pymilvus.decorators import retry_on_rpc_failure, error_handler, IGNORE_RETRY_CODES
 from pymilvus.exceptions import ErrorCode, MilvusUnavailableException, MilvusException
 from pymilvus.grpc_gen import common_pb2
 
 
+class MockUnRetriableError(grpc.RpcError):
+    def __init__(self, code: grpc.StatusCode):
+        self._code = code
+
+    def code(self):
+        return self._code
+
+    def details(self):
+        return "details of unretriable error"
+
+
 class TestDecorators:
     def mock_failure(self, code: grpc.StatusCode):
+        if code in IGNORE_RETRY_CODES:
+            raise MockUnRetriableError(code)
         if code == MockUnavailableError().code():
             raise MockUnavailableError()
         if code == MockDeadlineExceededError().code():
@@ -149,6 +162,23 @@ class TestDecorators:
 
         # the first execute + retry times
         assert self.count_test_retry_decorators_force_deny == times + 1
+
+    @pytest.mark.parametrize("code", IGNORE_RETRY_CODES)
+    def test_donot_retry_codes(self, code):
+        self.count_test_donot_retry = 0
+
+        @retry_on_rpc_failure()
+        def test_api(self, code):
+            self.count_test_donot_retry += 1
+            self.mock_failure(code)
+
+        with pytest.raises(grpc.RpcError) as e:
+            test_api(self, code)
+        print(e)
+        assert "unretriable" in e.value.details()
+
+        # no retry
+        assert self.count_test_donot_retry == 1
 
 
 class MockUnavailableError(grpc.RpcError):
