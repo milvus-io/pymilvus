@@ -23,10 +23,7 @@ def is_legal_address(addr: Any) -> bool:
 
 
 def is_legal_host(host: Any) -> bool:
-    if not isinstance(host, str):
-        return False
-
-    if len(host) == 0:
+    if not isinstance(host, str) or len(host) == 0 or (":" in host):
         return False
 
     return True
