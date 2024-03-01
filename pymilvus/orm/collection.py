@@ -494,7 +494,7 @@ class Collection:
         if not row_based:
             check_insert_schema(self._schema, data)
             entities = Prepare.prepare_insert_data(data, self._schema)
-            res = conn.batch_insert(
+            return conn.batch_insert(
                 self._name,
                 entities,
                 partition_name,
@@ -502,18 +502,14 @@ class Collection:
                 schema=self._schema_dict,
                 **kwargs,
             )
-            if kwargs.get("_async", False):
-                return MutationFuture(res)
-        else:
-            res = conn.insert_rows(
-                collection_name=self._name,
-                entities=data,
-                partition_name=partition_name,
-                timeout=timeout,
-                schema=self._schema_dict,
-                **kwargs,
-            )
-        return MutationResult(res)
+        return conn.insert_rows(
+            collection_name=self._name,
+            entities=data,
+            partition_name=partition_name,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs,
+        )
 
     def delete(
         self,
