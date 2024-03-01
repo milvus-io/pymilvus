@@ -216,7 +216,7 @@ class MilvusClient:
             )
         except Exception as ex:
             raise ex from ex
-        return {"insert_count": res.insert_count}
+        return {"insert_count": res.insert_count, "ids": res.primary_keys}
 
     def upsert(
         self,
