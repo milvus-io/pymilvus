@@ -1,6 +1,7 @@
 name: 🚀 Feature request
 description: Suggest an idea for pymilvus
 title: "[FEATURE]: "
+labels: [kind/feature]
 body:
 - type: markdown
   attributes:
