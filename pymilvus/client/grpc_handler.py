@@ -559,7 +559,7 @@ class GrpcHandler:
                 collection_name, entities, partition_name, timeout, **kwargs
             )
             rf = self._stub.Insert.future(request, timeout=timeout)
-            if kwargs.get("_async", False) is True:
+            if kwargs.get("_async", False):
                 cb = kwargs.get("_callback", None)
                 f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
                 f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
