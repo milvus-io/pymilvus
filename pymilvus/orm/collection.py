@@ -493,24 +493,15 @@ class Collection:
         conn = self._get_connection()
         if not row_based:
             check_insert_schema(self._schema, data)
-            entities = Prepare.prepare_insert_data(data, self._schema)
-            return conn.batch_insert(
-                self._name,
-                entities,
-                partition_name,
-                timeout=timeout,
-                schema=self._schema_dict,
-                **kwargs,
-            )
-        else:
-            return conn.insert_rows(
-                collection_name=self._name,
-                entities=data,
-                partition_name=partition_name,
-                timeout=timeout,
-                schema=self._schema_dict,
-                **kwargs,
-            )
+            data = Prepare.prepare_insert_data(data, self._schema)
+        return conn.batch_insert(
+            self._name,
+            data,
+            partition_name,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs,
+        )
 
     def delete(
         self,
