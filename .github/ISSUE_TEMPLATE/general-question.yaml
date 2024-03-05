@@ -1,6 +1,7 @@
 name: 🤔 General question
 description: Ask a general question about pymilvus
 title: "[QUESTION]: "
+labels: [kind/question]
 body:
 - type: checkboxes
   attributes:
