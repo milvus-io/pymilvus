@@ -67,7 +67,8 @@ class CollectionSchema:
         self._kwargs = copy.deepcopy(kwargs)
         self._fields = []
         self._description = description
-        self._enable_dynamic_field = self._kwargs.get("enable_dynamic_field", False)
+        # if "enable_dynamic_field" is not in kwargs, we keep None here
+        self._enable_dynamic_field = self._kwargs.get("enable_dynamic_field", None)
         self._primary_field = None
         self._partition_key_field = None
 
@@ -225,6 +226,10 @@ class CollectionSchema:
 
     @enable_dynamic_field.setter
     def enable_dynamic_field(self, value: bool):
+        if value is None:
+            # we keep None here
+            self._enable_dynamic_field = value
+            return
         self._enable_dynamic_field = bool(value)
 
     def to_dict(self):

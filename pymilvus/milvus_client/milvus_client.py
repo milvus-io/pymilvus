@@ -62,7 +62,7 @@ class MilvusClient:
         primary_field_name: str = "id",  # default is "id"
         id_type: str = "int",  # or "string",
         vector_field_name: str = "vector",  # default is  "vector"
-        metric_type: str = "IP",
+        metric_type: str = "COSINE",
         auto_id: bool = False,
         timeout: Optional[float] = None,
         schema: Optional[CollectionSchema] = None,
@@ -91,9 +91,9 @@ class MilvusClient:
         collection_name: str,
         dimension: int,
         primary_field_name: str = "id",  # default is "id"
-        id_type: str = "int",  # or "string",
+        id_type: Union[DataType, str] = DataType.INT64,  # or "string",
         vector_field_name: str = "vector",  # default is  "vector"
-        metric_type: str = "IP",
+        metric_type: str = "COSINE",
         auto_id: bool = False,
         timeout: Optional[float] = None,
         **kwargs,
@@ -106,9 +106,9 @@ class MilvusClient:
 
         schema = self.create_schema(auto_id=auto_id, **kwargs)
 
-        if id_type == "int":
+        if id_type in ("int", DataType.INT64):
             pk_data_type = DataType.INT64
-        elif id_type in ("string", "str"):
+        elif id_type in ("string", "str", DataType.VARCHAR):
             pk_data_type = DataType.VARCHAR
         else:
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
@@ -607,9 +607,10 @@ class MilvusClient:
         schema.verify()
         if kwargs.get("auto_id", False):
             schema.auto_id = True
-        if kwargs.get("enable_dynamic_field", False):
-            schema.enable_dynamic_field = True
         schema.verify()
+
+        if schema.enable_dynamic_field is None:
+            schema.enable_dynamic_field = kwargs.get("enable_dynamic_field", False)
 
         conn = self._get_connection()
         if "consistency_level" not in kwargs:
@@ -895,7 +896,10 @@ class MilvusClient:
             res = conn.select_grant_for_one_role(role_name, db_name, timeout=timeout, **kwargs)
         except Exception as ex:
             raise ex from ex
-        return [dict(i) for i in res.groups]
+        ret = {}
+        ret["role"] = role_name
+        ret["privileges"] = [dict(i) for i in res.groups]
+        return ret
 
     def list_roles(self, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
