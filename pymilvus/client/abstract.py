@@ -173,9 +173,8 @@ class CollectionSchema:
             "consistency_level": self.consistency_level,
             "properties": self.properties,
             "num_partitions": self.num_partitions,
+            "enable_dynamic_field": self.enable_dynamic_field,
         }
-        if self.enable_dynamic_field:
-            _dict["enable_dynamic_field"] = self.enable_dynamic_field
         self._rewrite_schema_dict(_dict)
         return _dict
 

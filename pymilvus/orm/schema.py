@@ -238,7 +238,7 @@ class CollectionSchema:
             "description": self._description,
             "fields": [s.to_dict() for s in self._fields],
         }
-        if self._enable_dynamic_field:
+        if self._enable_dynamic_field is not None:
             _dict["enable_dynamic_field"] = self._enable_dynamic_field
         return _dict
 
