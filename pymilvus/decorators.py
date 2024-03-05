@@ -27,6 +27,18 @@ def deprecated(func: Any):
     return inner
 
 
+# Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
+IGNORE_RETRY_CODES = (
+    grpc.StatusCode.DEADLINE_EXCEEDED,
+    grpc.StatusCode.PERMISSION_DENIED,
+    grpc.StatusCode.UNAUTHENTICATED,
+    grpc.StatusCode.INVALID_ARGUMENT,
+    grpc.StatusCode.ALREADY_EXISTS,
+    grpc.StatusCode.RESOURCE_EXHAUSTED,
+    grpc.StatusCode.UNIMPLEMENTED,
+)
+
+
 def retry_on_rpc_failure(
     *,
     retry_times: int = 75,
@@ -73,15 +85,8 @@ def retry_on_rpc_failure(
                 try:
                     return func(*args, **kwargs)
                 except grpc.RpcError as e:
-                    # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
-                    if e.code() in (
-                        grpc.StatusCode.DEADLINE_EXCEEDED,
-                        grpc.StatusCode.PERMISSION_DENIED,
-                        grpc.StatusCode.UNAUTHENTICATED,
-                        grpc.StatusCode.INVALID_ARGUMENT,
-                        grpc.StatusCode.ALREADY_EXISTS,
-                        grpc.StatusCode.RESOURCE_EXHAUSTED,
-                    ):
+                    # Do not retry on these codes
+                    if e.code() in IGNORE_RETRY_CODES:
                         raise e from e
                     if timeout(start_time):
                         raise MilvusException(e.code, f"{to_msg}, message={e.details()}") from e
