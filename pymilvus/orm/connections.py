@@ -257,11 +257,17 @@ class Connections(metaclass=SingleInstanceMetaClass):
             address, parsed = self.__parse_address_from_uri(uri)
             return address, parsed
 
-        host = host if host != "" else Config.DEFAULT_HOST
-        port = port if port != "" else Config.DEFAULT_PORT
-        self.__verify_host_port(host, port)
+        _host = host if host != "" else Config.DEFAULT_HOST
+        _port = port if port != "" else Config.DEFAULT_PORT
+        self.__verify_host_port(_host, _port)
 
-        return f"{host}:{port}", None
+        addr = f"{_host}:{_port}"
+        if not is_legal_address(addr):
+            raise ConnectionConfigException(
+                message=f"Illegal host: {host} or port: {port}, should be in form of '111.1.1.1', '19530'"
+            )
+
+        return addr, None
 
     def disconnect(self, alias: str):
         """Disconnects connection from the registry.
