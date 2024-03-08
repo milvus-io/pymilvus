@@ -108,10 +108,9 @@ class Buffer:
             if row_count < 0:
                 row_count = len(self._buffer[k])
             elif row_count != len(self._buffer[k]):
+                buffer_k_len = len(self._buffer[k])
                 self._throw(
-                    "Column `{}` row count {} doesn't equal to the first column row count {}".format(
-                        k, len(self._buffer[k]), row_count
-                    )
+                    f"Column {k} row count {buffer_k_len} doesn't equal to the first column row count {row_count}"
                 )
 
         # output files
