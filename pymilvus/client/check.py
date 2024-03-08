@@ -95,6 +95,14 @@ def is_legal_field_name(field_name: Any) -> bool:
     return field_name and isinstance(field_name, str)
 
 
+def is_legal_index_name(index_name: Any) -> bool:
+    return index_name and isinstance(index_name, str)
+
+
+def is_legal_timeout(timeout: Any) -> bool:
+    return timeout is None or isinstance(timeout, (int, float))
+
+
 def is_legal_nlist(nlist: Any) -> bool:
     return not isinstance(nlist, bool) and isinstance(nlist, int)
 
@@ -123,6 +131,26 @@ def is_legal_ids(ids: Any) -> bool:
 
 def is_legal_nprobe(nprobe: Any) -> bool:
     return isinstance(nprobe, int)
+
+
+def is_legal_itopk_size(itopk_size: Any) -> bool:
+    return isinstance(itopk_size, int)
+
+
+def is_legal_search_width(search_width: Any) -> bool:
+    return isinstance(search_width, int)
+
+
+def is_legal_min_iterations(min_iterations: Any) -> bool:
+    return isinstance(min_iterations, int)
+
+
+def is_legal_max_iterations(max_iterations: Any) -> bool:
+    return isinstance(max_iterations, int)
+
+
+def is_legal_team_size(team_size: Any) -> bool:
+    return isinstance(team_size, int)
 
 
 def is_legal_cmd(cmd: Any) -> bool:
@@ -266,6 +294,7 @@ class ParamChecker(metaclass=Singleton):
         self.check_dict = {
             "db_name": is_legal_db_name,
             "collection_name": is_legal_table_name,
+            "alias": is_legal_table_name,
             "field_name": is_legal_field_name,
             "dimension": is_legal_dimension,
             "index_file_size": is_legal_index_size,
@@ -295,6 +324,13 @@ class ParamChecker(metaclass=Singleton):
             "properties": is_legal_collection_properties,
             "replica_number": is_legal_replica_number,
             "resource_group_name": is_legal_table_name,
+            "itopk_size": is_legal_itopk_size,
+            "search_width": is_legal_search_width,
+            "min_iterations": is_legal_min_iterations,
+            "max_iterations": is_legal_max_iterations,
+            "team_size": is_legal_team_size,
+            "index_name": is_legal_index_name,
+            "timeout": is_legal_timeout,
         }
 
     def check(self, key: str, value: Callable):

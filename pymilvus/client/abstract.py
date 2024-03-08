@@ -54,10 +54,14 @@ class FieldSchema:
                 self.params[type_param.key] = type_param.value
                 if type_param.key in ["dim"]:
                     self.params[type_param.key] = int(type_param.value)
-                if (
-                    type_param.key in [Config.MaxVarCharLengthKey]
-                    and raw.data_type == DataType.VARCHAR
+                if type_param.key in [Config.MaxVarCharLengthKey] and raw.data_type in (
+                    DataType.VARCHAR,
+                    DataType.ARRAY,
                 ):
+                    self.params[type_param.key] = int(type_param.value)
+
+                # TO-DO: use constants defined in orm
+                if type_param.key in ["max_capacity"] and raw.data_type == DataType.ARRAY:
                     self.params[type_param.key] = int(type_param.value)
 
         index_dict = {}
@@ -169,9 +173,8 @@ class CollectionSchema:
             "consistency_level": self.consistency_level,
             "properties": self.properties,
             "num_partitions": self.num_partitions,
+            "enable_dynamic_field": self.enable_dynamic_field,
         }
-        if self.enable_dynamic_field:
-            _dict["enable_dynamic_field"] = self.enable_dynamic_field
         self._rewrite_schema_dict(_dict)
         return _dict
 

@@ -67,7 +67,8 @@ class CollectionSchema:
         self._kwargs = copy.deepcopy(kwargs)
         self._fields = []
         self._description = description
-        self._enable_dynamic_field = self._kwargs.get("enable_dynamic_field", False)
+        # if "enable_dynamic_field" is not in kwargs, we keep None here
+        self._enable_dynamic_field = self._kwargs.get("enable_dynamic_field", None)
         self._primary_field = None
         self._partition_key_field = None
 
@@ -210,7 +211,9 @@ class CollectionSchema:
             >>> schema.auto_id
             False
         """
-        return self.primary_field.auto_id
+        if self.primary_field:
+            return self.primary_field.auto_id
+        return self._kwargs.get("auto_id", False)
 
     @auto_id.setter
     def auto_id(self, value: bool):
@@ -219,7 +222,7 @@ class CollectionSchema:
 
     @property
     def enable_dynamic_field(self):
-        return self._enable_dynamic_field
+        return bool(self._enable_dynamic_field)
 
     @enable_dynamic_field.setter
     def enable_dynamic_field(self, value: bool):

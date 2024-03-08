@@ -24,12 +24,13 @@ rows = [
     {"vector": rng.random((1, dim))[0], "f": 1},
 ]
 print(fmt.format("Start inserting entities"))
-pks = milvus_client.insert(collection_name, rows, progress_bar=True)
-pks2 = milvus_client.insert(collection_name, {"vector": rng.random((1, dim))[0], "g": 1})
-pks.extend(pks2)
+pks_result = milvus_client.insert(collection_name, rows, progress_bar=True)
+pks = pks_result["ids"]
+pks2_result = milvus_client.insert(collection_name, {"vector": rng.random((1, dim))[0], "g": 1})
+pks.extend(pks2_result["ids"])
 print(fmt.format("Start searching based on vector similarity"))
 
-print("len of pks:", len(pks), "first pk is :", pks[0])
+print("len of primary keys:", len(pks), "first pk is :", pks[0])
 
 print(f"get first primary key {pks[0]} from {collection_name}")
 first_pk_data = milvus_client.get(collection_name, pks[0:1])
