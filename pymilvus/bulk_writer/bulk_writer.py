@@ -123,7 +123,7 @@ class BulkWriter:
                 f" dim is not {dim} or type mismatch"
             )
 
-        return len(x) * 4 if dtype == DataType.FLOAT_VECTOR else len(x) / 8
+        return len(x) * 4 if dtype == DataType.FLOAT_VECTOR else len(x)
 
     def _verify_json(self, x: object, field: FieldSchema):
         size = 0
