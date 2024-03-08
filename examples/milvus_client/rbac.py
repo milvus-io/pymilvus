@@ -59,8 +59,8 @@ print("current roles:", current_roles)
 
 for role in [role_db_rw, role_db_ro]:
     if role in current_roles:
-        privileges = milvus_client.describe_role(role)
-        for item in privileges:
+        role_info = milvus_client.describe_role(role)
+        for item in role_info['privileges']:
             milvus_client.revoke_privilege(role, item["object_type"], item["privilege"], item["object_name"])
         
         milvus_client.drop_role(role)
@@ -79,8 +79,8 @@ for item in db_ro_privileges:
 roles = milvus_client.list_roles()
 print("roles:", roles)
 for role in roles:
-    privileges = milvus_client.describe_role(role)
-    print(f"privileges for {role}:", privileges) 
+    role_info = milvus_client.describe_role(role)
+    print(f"info for {role}:", role_info)
 
 
 user1_info = milvus_client.describe_user("user1")

@@ -132,7 +132,7 @@ class MilvusClient:
             logger.error("Failed to create collection: %s", collection_name)
             raise ex from ex
 
-        index_params = self.prepare_index_params()
+        index_params = IndexParams()
         index_params.add_index(vector_field_name, "", "", metric_type=metric_type)
         self.create_index(collection_name, index_params, timeout=timeout)
         self.load_collection(collection_name, timeout=timeout)
@@ -278,6 +278,7 @@ class MilvusClient:
         search_params: Optional[dict] = None,
         timeout: Optional[float] = None,
         partition_names: Optional[List[str]] = None,
+        anns_field: Optional[str] = None,
         **kwargs,
     ) -> List[List[dict]]:
         """Search for a query vector/vectors.
@@ -307,7 +308,7 @@ class MilvusClient:
             res = conn.search(
                 collection_name,
                 data,
-                "",
+                anns_field or "",
                 search_params or {},
                 expression=filter,
                 limit=limit,
@@ -593,8 +594,8 @@ class MilvusClient:
         return CollectionSchema([], **kwargs)
 
     @classmethod
-    def prepare_index_params(cls):
-        return IndexParams()
+    def prepare_index_params(cls, field_name: str = "", **kwargs):
+        return IndexParams(field_name, **kwargs)
 
     def _create_collection_with_schema(
         self,
@@ -605,12 +606,6 @@ class MilvusClient:
         **kwargs,
     ):
         schema.verify()
-        if kwargs.get("auto_id", False):
-            schema.auto_id = True
-        schema.verify()
-
-        if schema.enable_dynamic_field is None:
-            schema.enable_dynamic_field = kwargs.get("enable_dynamic_field", False)
 
         conn = self._get_connection()
         if "consistency_level" not in kwargs:
