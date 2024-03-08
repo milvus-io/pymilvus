@@ -222,14 +222,10 @@ class CollectionSchema:
 
     @property
     def enable_dynamic_field(self):
-        return self._enable_dynamic_field
+        return bool(self._enable_dynamic_field)
 
     @enable_dynamic_field.setter
     def enable_dynamic_field(self, value: bool):
-        if value is None:
-            # we keep None here
-            self._enable_dynamic_field = value
-            return
         self._enable_dynamic_field = bool(value)
 
     def to_dict(self):
@@ -239,7 +235,7 @@ class CollectionSchema:
             "fields": [s.to_dict() for s in self._fields],
         }
         if self._enable_dynamic_field is not None:
-            _dict["enable_dynamic_field"] = self._enable_dynamic_field
+            _dict["enable_dynamic_field"] = self.enable_dynamic_field
         return _dict
 
     def verify(self):

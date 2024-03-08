@@ -11,8 +11,8 @@ schema.add_field("id", DataType.INT64, is_primary=True)
 schema.add_field("embeddings", DataType.FLOAT_VECTOR, dim=dimension)
 schema.add_field("info", DataType.JSON)
 
-index_param = client.prepare_index_params("embeddings", metric_type="L2")
-client.create_collection_with_schema(collection_name, schema, index_param)
+index_params = client.prepare_index_params("embeddings", metric_type="L2")
+client.create_collection(collection_name, schema=schema, index_params=index_params)
 
 rng = np.random.default_rng(seed=19530)
 rows = [

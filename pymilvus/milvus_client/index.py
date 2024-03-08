@@ -37,8 +37,10 @@ class IndexParam:
 
 
 class IndexParams:
-    def __init__(self):
+    def __init__(self, field_name: str = "", **kwargs):
         self._indexes = {}
+        if field_name:
+            self.add_index(field_name, **kwargs)
 
     def add_index(self, field_name: str, index_type: str = "", index_name: str = "", **kwargs):
         index_param = IndexParam(field_name, index_type, index_name, **kwargs)
