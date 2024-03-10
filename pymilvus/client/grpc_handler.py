@@ -294,7 +294,7 @@ class GrpcHandler:
     def create_collection(
         self, collection_name: str, fields: List, timeout: Optional[float] = None, **kwargs
     ):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
 
         rf = self._stub.CreateCollection.future(request, timeout=timeout)
@@ -306,7 +306,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def drop_collection(self, collection_name: str, timeout: Optional[float] = None):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_collection_request(collection_name)
 
         rf = self._stub.DropCollection.future(request, timeout=timeout)
@@ -317,7 +317,7 @@ class GrpcHandler:
     def alter_collection(
         self, collection_name: str, properties: List, timeout: Optional[float] = None, **kwargs
     ):
-        check_pass_param(collection_name=collection_name, properties=properties)
+        check_pass_param(collection_name=collection_name, properties=properties, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, properties)
         rf = self._stub.AlterCollection.future(request, timeout=timeout)
         status = rf.result()
@@ -325,7 +325,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def has_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         rf = self._stub.DescribeCollection.future(request, timeout=timeout)
 
@@ -335,6 +335,9 @@ class GrpcHandler:
             reply.status.error_code == common_pb2.UnexpectedError
             and "can't find collection" in reply.status.reason
         ):
+            return False
+
+        if reply.status.error_code == common_pb2.CollectionNotExists:
             return False
 
         if is_successful(reply.status):
@@ -347,7 +350,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def describe_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         rf = self._stub.DescribeCollection.future(request, timeout=timeout)
         response = rf.result()
@@ -375,7 +378,7 @@ class GrpcHandler:
         new_db_name: str = "",
         timeout: Optional[float] = None,
     ):
-        check_pass_param(collection_name=new_name)
+        check_pass_param(collection_name=new_name, timeout=timeout)
         check_pass_param(collection_name=old_name)
         if new_db_name:
             check_pass_param(db_name=new_db_name)
@@ -386,9 +389,11 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def create_partition(
-        self, collection_name: str, partition_name: str, timeout: Optional[float] = None
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_pass_param(collection_name=collection_name, partition_name=partition_name)
+        check_pass_param(
+            collection_name=collection_name, partition_name=partition_name, timeout=timeout
+        )
         request = Prepare.create_partition_request(collection_name, partition_name)
         rf = self._stub.CreatePartition.future(request, timeout=timeout)
         response = rf.result()
@@ -396,9 +401,11 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def drop_partition(
-        self, collection_name: str, partition_name: str, timeout: Optional[float] = None
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_pass_param(collection_name=collection_name, partition_name=partition_name)
+        check_pass_param(
+            collection_name=collection_name, partition_name=partition_name, timeout=timeout
+        )
         request = Prepare.drop_partition_request(collection_name, partition_name)
 
         rf = self._stub.DropPartition.future(request, timeout=timeout)
@@ -409,7 +416,9 @@ class GrpcHandler:
     def has_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_pass_param(collection_name=collection_name, partition_name=partition_name)
+        check_pass_param(
+            collection_name=collection_name, partition_name=partition_name, timeout=timeout
+        )
         request = Prepare.has_partition_request(collection_name, partition_name)
         rf = self._stub.HasPartition.future(request, timeout=timeout)
         response = rf.result()
@@ -434,8 +443,8 @@ class GrpcHandler:
         return info_dict
 
     @retry_on_rpc_failure()
-    def list_partitions(self, collection_name: str, timeout: Optional[float] = None):
-        check_pass_param(collection_name=collection_name)
+    def list_partitions(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.show_partitions_request(collection_name)
 
         rf = self._stub.ShowPartitions.future(request, timeout=timeout)
@@ -448,7 +457,7 @@ class GrpcHandler:
     def get_partition_stats(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_partition_stats_request(collection_name, partition_name)
         future = self._stub.GetPartitionStatistics.future(req, timeout=timeout)
         response = future.result()
@@ -550,7 +559,7 @@ class GrpcHandler:
                 collection_name, entities, partition_name, timeout, **kwargs
             )
             rf = self._stub.Insert.future(request, timeout=timeout)
-            if kwargs.get("_async", False) is True:
+            if kwargs.get("_async", False):
                 cb = kwargs.get("_callback", None)
                 f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
                 f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
@@ -576,13 +585,14 @@ class GrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         try:
             req = Prepare.delete_request(
                 collection_name,
                 partition_name,
                 expression,
                 consistency_level=kwargs.get("consistency_level", 0),
+                param_name=kwargs.get("param_name", None),
             )
             future = self._stub.Delete.future(req, timeout=timeout)
 
@@ -747,6 +757,7 @@ class GrpcHandler:
             partition_name_array=partition_names,
             output_fields=output_fields,
             guarantee_timestamp=kwargs.get("guarantee_timestamp", None),
+            timeout=timeout,
         )
 
         request = Prepare.search_requests_with_expr(
@@ -776,7 +787,7 @@ class GrpcHandler:
     def create_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_alias_request(collection_name, alias)
         rf = self._stub.CreateAlias.future(request, timeout=timeout)
         response = rf.result()
@@ -793,11 +804,46 @@ class GrpcHandler:
     def alter_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_alias_request(collection_name, alias)
         rf = self._stub.AlterAlias.future(request, timeout=timeout)
         response = rf.result()
         check_status(response)
+
+    @retry_on_rpc_failure()
+    def describe_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
+        check_pass_param(alias=alias, timeout=timeout)
+        request = Prepare.describe_alias_request(alias)
+        rf = self._stub.DescribeAlias.future(request, timeout=timeout)
+        response = rf.result()
+        check_status(response.status)
+        ret = {
+            "alias": alias,
+        }
+        if response.collection:
+            ret["collection_name"] = response.collection
+        if response.db_name:
+            ret["db_name"] = response.db_name
+        return ret
+
+    @retry_on_rpc_failure()
+    def list_aliases(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        check_pass_param(timeout=timeout)
+        if collection_name:
+            check_pass_param(collection_name=collection_name)
+        request = Prepare.list_aliases_request(collection_name, kwargs.get("db_name", ""))
+        rf = self._stub.ListAliases.future(request, timeout=timeout)
+        response = rf.result()
+        check_status(response.status)
+        ret = {
+            "aliases": [],
+        }
+        if response.collection_name:
+            ret["collection_name"] = response.collection_name
+        if response.db_name:
+            ret["db_name"] = response.db_name
+        ret["aliases"].extend(response.aliases)
+        return ret
 
     @retry_on_rpc_failure()
     def create_index(
@@ -871,7 +917,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def list_indexes(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_index_request(collection_name, "")
 
         rf = self._stub.DescribeIndex.future(request, timeout=timeout)
@@ -892,7 +938,7 @@ class GrpcHandler:
         timestamp: Optional[int] = None,
         **kwargs,
     ):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_index_request(collection_name, index_name, timestamp=timestamp)
 
         rf = self._stub.DescribeIndex.future(request, timeout=timeout)
@@ -987,7 +1033,9 @@ class GrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_pass_param(collection_name=collection_name, replica_number=replica_number)
+        check_pass_param(
+            collection_name=collection_name, replica_number=replica_number, timeout=timeout
+        )
         _refresh = kwargs.get("_refresh", False)
         _resource_groups = kwargs.get("_resource_groups")
         request = Prepare.load_collection(
@@ -1029,8 +1077,8 @@ class GrpcHandler:
         )
 
     @retry_on_rpc_failure()
-    def release_collection(self, collection_name: str, timeout: Optional[float] = None):
-        check_pass_param(collection_name=collection_name)
+    def release_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.release_collection("", collection_name)
         rf = self._stub.ReleaseCollection.future(request, timeout=timeout)
         response = rf.result()
@@ -1049,6 +1097,7 @@ class GrpcHandler:
             collection_name=collection_name,
             partition_name_array=partition_names,
             replica_number=replica_number,
+            timeout=timeout,
         )
         _refresh = kwargs.get("_refresh", False)
         _resource_groups = kwargs.get("_resource_groups")
@@ -1164,9 +1213,15 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def release_partitions(
-        self, collection_name: str, partition_names: List[str], timeout: Optional[float] = None
+        self,
+        collection_name: str,
+        partition_names: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
     ):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
+        check_pass_param(
+            collection_name=collection_name, partition_name_array=partition_names, timeout=timeout
+        )
         request = Prepare.release_partitions("", collection_name, partition_names)
         rf = self._stub.ReleasePartitions.future(request, timeout=timeout)
         response = rf.result()
@@ -1174,7 +1229,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def get_collection_stats(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        check_pass_param(collection_name=collection_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         index_param = Prepare.get_collection_stats_request(collection_name)
         future = self._stub.GetCollectionStatistics.future(index_param, timeout=timeout)
         response = future.result()
@@ -1237,6 +1292,7 @@ class GrpcHandler:
         if collection_names in (None, []) or not isinstance(collection_names, list):
             raise ParamError(message="Collection name list can not be None or empty")
 
+        check_pass_param(timeout=timeout)
         for name in collection_names:
             check_pass_param(collection_name=name)
 
@@ -1273,7 +1329,7 @@ class GrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_pass_param(collection_name=collection_name, field_name=field_name)
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_index_request(collection_name, field_name, index_name)
         future = self._stub.DropIndex.future(request, timeout=timeout)
         response = future.result()
@@ -1512,7 +1568,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def create_user(self, user: str, password: str, timeout: Optional[float] = None, **kwargs):
-        check_pass_param(user=user, password=password)
+        check_pass_param(user=user, password=password, timeout=timeout)
         req = Prepare.create_user_request(user, password)
         resp = self._stub.CreateCredential(req, timeout=timeout)
         check_status(resp)

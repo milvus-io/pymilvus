@@ -215,4 +215,7 @@ class ExceptionsMessage:
     AmbiguousDeleteFilterParam = (
         "Ambiguous filter parameter, only one deletion condition can be specified."
     )
+    AmbiguousQueryFilterParam = (
+        "Ambiguous parameter, either ids or filter should be specified, cannot support both."
+    )
     JSONKeyMustBeStr = "JSON key must be str."
