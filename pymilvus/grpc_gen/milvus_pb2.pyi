@@ -1,4 +1,5 @@
 from . import common_pb2 as _common_pb2
+from . import rg_pb2 as _rg_pb2
 from . import schema_pb2 as _schema_pb2
 from . import feder_pb2 as _feder_pb2
 from . import msg_pb2 as _msg_pb2
@@ -1112,12 +1113,14 @@ class LoadBalanceRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., src_nodeID: _Optional[int] = ..., dst_nodeIDs: _Optional[_Iterable[int]] = ..., sealed_segmentIDs: _Optional[_Iterable[int]] = ..., collectionName: _Optional[str] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class ManualCompactionRequest(_message.Message):
-    __slots__ = ("collectionID", "timetravel")
+    __slots__ = ("collectionID", "timetravel", "majorCompaction")
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
     TIMETRAVEL_FIELD_NUMBER: _ClassVar[int]
+    MAJORCOMPACTION_FIELD_NUMBER: _ClassVar[int]
     collectionID: int
     timetravel: int
-    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ...) -> None: ...
+    majorCompaction: bool
+    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ..., majorCompaction: bool = ...) -> None: ...
 
 class ManualCompactionResponse(_message.Message):
     __slots__ = ("status", "compactionID", "compactionPlanCount")
@@ -1633,12 +1636,29 @@ class CheckHealthResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., isHealthy: bool = ..., reasons: _Optional[_Iterable[str]] = ..., quota_states: _Optional[_Iterable[_Union[QuotaState, str]]] = ...) -> None: ...
 
 class CreateResourceGroupRequest(_message.Message):
-    __slots__ = ("base", "resource_group")
+    __slots__ = ("base", "resource_group", "config")
     BASE_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_GROUP_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     resource_group: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., resource_group: _Optional[str] = ...) -> None: ...
+    config: _rg_pb2.ResourceGroupConfig
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., resource_group: _Optional[str] = ..., config: _Optional[_Union[_rg_pb2.ResourceGroupConfig, _Mapping]] = ...) -> None: ...
+
+class UpdateResourceGroupsRequest(_message.Message):
+    __slots__ = ("base", "resource_groups")
+    class ResourceGroupsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _rg_pb2.ResourceGroupConfig
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_rg_pb2.ResourceGroupConfig, _Mapping]] = ...) -> None: ...
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_GROUPS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    resource_groups: _containers.MessageMap[str, _rg_pb2.ResourceGroupConfig]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., resource_groups: _Optional[_Mapping[str, _rg_pb2.ResourceGroupConfig]] = ...) -> None: ...
 
 class DropResourceGroupRequest(_message.Message):
     __slots__ = ("base", "resource_group")
@@ -1707,7 +1727,7 @@ class DescribeResourceGroupResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., resource_group: _Optional[_Union[ResourceGroup, _Mapping]] = ...) -> None: ...
 
 class ResourceGroup(_message.Message):
-    __slots__ = ("name", "capacity", "num_available_node", "num_loaded_replica", "num_outgoing_node", "num_incoming_node")
+    __slots__ = ("name", "capacity", "num_available_node", "num_loaded_replica", "num_outgoing_node", "num_incoming_node", "config", "nodes")
     class NumLoadedReplicaEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -1735,13 +1755,17 @@ class ResourceGroup(_message.Message):
     NUM_LOADED_REPLICA_FIELD_NUMBER: _ClassVar[int]
     NUM_OUTGOING_NODE_FIELD_NUMBER: _ClassVar[int]
     NUM_INCOMING_NODE_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    NODES_FIELD_NUMBER: _ClassVar[int]
     name: str
     capacity: int
     num_available_node: int
     num_loaded_replica: _containers.ScalarMap[str, int]
     num_outgoing_node: _containers.ScalarMap[str, int]
     num_incoming_node: _containers.ScalarMap[str, int]
-    def __init__(self, name: _Optional[str] = ..., capacity: _Optional[int] = ..., num_available_node: _Optional[int] = ..., num_loaded_replica: _Optional[_Mapping[str, int]] = ..., num_outgoing_node: _Optional[_Mapping[str, int]] = ..., num_incoming_node: _Optional[_Mapping[str, int]] = ...) -> None: ...
+    config: _rg_pb2.ResourceGroupConfig
+    nodes: _containers.RepeatedCompositeFieldContainer[_common_pb2.NodeInfo]
+    def __init__(self, name: _Optional[str] = ..., capacity: _Optional[int] = ..., num_available_node: _Optional[int] = ..., num_loaded_replica: _Optional[_Mapping[str, int]] = ..., num_outgoing_node: _Optional[_Mapping[str, int]] = ..., num_incoming_node: _Optional[_Mapping[str, int]] = ..., config: _Optional[_Union[_rg_pb2.ResourceGroupConfig, _Mapping]] = ..., nodes: _Optional[_Iterable[_Union[_common_pb2.NodeInfo, _Mapping]]] = ...) -> None: ...
 
 class RenameCollectionRequest(_message.Message):
     __slots__ = ("base", "db_name", "oldName", "newName", "newDBName")
