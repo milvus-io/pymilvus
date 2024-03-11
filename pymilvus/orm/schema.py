@@ -344,6 +344,7 @@ class FieldSchema:
             DataType.BFLOAT16_VECTOR,
             DataType.VARCHAR,
             DataType.ARRAY,
+            DataType.SPARSE_FLOAT_VECTOR,
         ):
             return
         if not self._kwargs:
@@ -537,6 +538,7 @@ def construct_fields_from_dataframe(df: pd.DataFrame) -> List[FieldSchema]:
 
 
 def prepare_fields_from_dataframe(df: pd.DataFrame):
+    # TODO: infer pd.SparseDtype as DataType.SPARSE_FLOAT_VECTOR
     d_types = list(df.dtypes)
     data_types = list(map(map_numpy_dtype_to_datatype, d_types))
     col_names = list(df.columns)
@@ -584,6 +586,7 @@ def check_schema(schema: CollectionSchema):
             DataType.BINARY_VECTOR,
             DataType.FLOAT16_VECTOR,
             DataType.BFLOAT16_VECTOR,
+            DataType.SPARSE_FLOAT_VECTOR,
         ):
             vector_fields.append(field.name)
     if len(vector_fields) < 1:

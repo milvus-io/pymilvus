@@ -4,14 +4,14 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 import ujson
 
-from pymilvus.client import __version__
+from pymilvus.client import __version__, entity_helper
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.orm.schema import CollectionSchema
 
-from . import blob, entity_helper, ts_utils
+from . import blob, ts_utils
 from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
     DEFAULT_CONSISTENCY_LEVEL,
@@ -460,7 +460,7 @@ class Prepare:
         for entity in entities:
             if (
                 not entity.get("name", None)
-                or not entity.get("values", None)
+                or entity.get("values", None) is None
                 or not entity.get("type", None)
             ):
                 raise ParamError(
@@ -494,7 +494,7 @@ class Prepare:
         pre_field_size = 0
         try:
             for entity in entities:
-                latest_field_size = len(entity.get("values"))
+                latest_field_size = entity_helper.get_input_num_rows(entity.get("values"))
                 if pre_field_size not in (0, latest_field_size):
                     raise ParamError(
                         message=(
@@ -578,6 +578,13 @@ class Prepare:
     def _prepare_placeholders(cls, vectors: Any, nq: int, tag: Any, pl_type: Any, is_binary: bool):
         pl = common_types.PlaceholderValue(tag=tag)
         pl.type = pl_type
+        # sparse vector
+        if pl_type == PlaceholderType.SparseFloatVector:
+            sparse_float_array_proto = entity_helper.sparse_rows_to_proto(vectors)
+            pl.values.extend(sparse_float_array_proto.contents)
+            return pl
+
+        # dense or binary vector
         for i in range(nq):
             if is_binary:
                 pl.values.append(blob.vector_binary_to_bytes(vectors[i]))
@@ -589,7 +596,7 @@ class Prepare:
     def search_requests_with_expr(
         cls,
         collection_name: str,
-        data: List,
+        data: Union[List, entity_helper.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
@@ -599,7 +606,10 @@ class Prepare:
         round_decimal: int = -1,
         **kwargs,
     ) -> milvus_types.SearchRequest:
-        if isinstance(data[0], bytes):
+        if entity_helper.entity_is_sparse_matrix(data):
+            is_binary = False
+            pl_type = PlaceholderType.SparseFloatVector
+        elif isinstance(data[0], bytes):
             is_binary = True
             pl_type = PlaceholderType.BinaryVector
         else:
@@ -649,7 +659,7 @@ class Prepare:
                 return ujson.dumps(v)
             return str(v)
 
-        nq = len(data)
+        nq = entity_helper.get_input_num_rows(data)
         tag = "$0"
         pl = cls._prepare_placeholders(data, nq, tag, pl_type, is_binary)
         plg = common_types.PlaceholderGroup()

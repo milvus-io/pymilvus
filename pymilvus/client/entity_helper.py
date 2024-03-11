@@ -1,7 +1,10 @@
-from typing import Any, Dict, List, Optional
+import math
+import struct
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import ujson
+from scipy import sparse
 
 from pymilvus.exceptions import (
     DataNotMatchException,
@@ -15,6 +18,172 @@ from pymilvus.settings import Config
 from .types import DataType
 
 CHECK_STR_ARRAY = True
+
+# in search results, if output fields includes a sparse float vector field, we
+# will return a SparseRowOutputType for each entity. Using Dict for readability.
+# TODO(SPARSE): to allow the user to specify output format.
+SparseRowOutputType = Dict[int, float]
+
+# we accept the following types as input for sparse matrix in user facing APIs
+# such as insert, search, etc.:
+# - scipy sparse array/matrix family: csr, csc, coo, bsr, dia, dok, lil
+# - iterable of iterables, each element(iterable) is a sparse vector with index
+#   as key and value as float.
+#   dict example: [{2: 0.33, 98: 0.72, ...}, {4: 0.45, 198: 0.52, ...}, ...]
+#   list of tuple example: [[(2, 0.33), (98, 0.72), ...], [(4, 0.45), ...], ...]
+#   both index/value can be str numbers: {'2': '3.1'}
+SparseMatrixInputType = Union[
+    Iterable[
+        Union[
+            SparseRowOutputType,
+            Iterable[Tuple[int, float]],  # only type hint, we accept int/float like types
+        ]
+    ],
+    sparse.csc_array,
+    sparse.coo_array,
+    sparse.bsr_array,
+    sparse.dia_array,
+    sparse.dok_array,
+    sparse.lil_array,
+    sparse.csr_array,
+    sparse.spmatrix,
+]
+
+
+def sparse_is_scipy_matrix(data: Any):
+    return isinstance(data, sparse.spmatrix)
+
+
+def sparse_is_scipy_array(data: Any):
+    # sparse.sparray, the common superclass of sparse.*_array, is introduced in
+    # scipy 1.11.0, which requires python 3.9, higher than pymilvus's current requirement.
+    return isinstance(
+        data,
+        (
+            sparse.bsr_array,
+            sparse.coo_array,
+            sparse.csc_array,
+            sparse.csr_array,
+            sparse.dia_array,
+            sparse.dok_array,
+            sparse.lil_array,
+        ),
+    )
+
+
+def sparse_is_scipy_format(data: Any):
+    return sparse_is_scipy_matrix(data) or sparse_is_scipy_array(data)
+
+
+def entity_is_sparse_matrix(entity: Any):
+    if sparse_is_scipy_format(entity):
+        return True
+    try:
+
+        def is_type_in_str(v: Any, t: Any):
+            if not isinstance(v, str):
+                return False
+            try:
+                t(v)
+            except ValueError:
+                return False
+            return True
+
+        def is_int_type(v: Any):
+            return isinstance(v, (int, np.integer)) or is_type_in_str(v, int)
+
+        def is_float_type(v: Any):
+            return isinstance(v, (float, np.floating)) or is_type_in_str(v, float)
+
+        # must be of multiple rows
+        for item in entity:
+            pairs = item.items() if isinstance(item, dict) else item
+            # each row must be a list of Tuple[int, float]
+            for pair in pairs:
+                if len(pair) != 2 or not is_int_type(pair[0]) or not is_float_type(pair[1]):
+                    return False
+    except Exception:
+        return False
+    return True
+
+
+# parses plain bytes to a sparse float vector(SparseRowOutputType)
+def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
+    if len(data) % 8 != 0:
+        msg = f"The length of data must be a multiple of 8, got {len(data)}"
+        raise ValueError(msg)
+
+    return {
+        struct.unpack("I", data[i : i + 4])[0]: struct.unpack("f", data[i + 4 : i + 8])[0]
+        for i in range(0, len(data), 8)
+    }
+
+
+# converts supported sparse matrix to schemapb.SparseFloatArray proto
+def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloatArray:
+    # converts a sparse float vector to plain bytes. the format is the same as how
+    # milvus interprets/persists the data.
+    def sparse_float_row_to_bytes(indices: Iterable[int], values: Iterable[float]):
+        if len(indices) != len(values):
+            msg = f"length of indices and values must be the same, got {len(indices)} and {len(values)}"
+            raise ValueError(msg)
+        data = b""
+        for i, v in sorted(zip(indices, values), key=lambda x: x[0]):
+            if not (0 <= i < 2**32 - 1):
+                msg = f"sparse vector index must be positive and less than 2^32-1: {i}"
+                raise ValueError(msg)
+            if math.isnan(v):
+                msg = "sparse vector value must not be NaN"
+                raise ValueError(msg)
+            data += struct.pack("I", i)
+            data += struct.pack("f", v)
+        return data
+
+    def unify_sparse_input(data: SparseMatrixInputType) -> sparse.csr_array:
+        if isinstance(data, sparse.csr_array):
+            return data
+        if sparse_is_scipy_array(data):
+            return data.tocsr()
+        if sparse_is_scipy_matrix(data):
+            return sparse.csr_array(data.tocsr())
+        row_indices = []
+        col_indices = []
+        values = []
+        for row_id, row_data in enumerate(data):
+            row = row_data.items() if isinstance(row_data, dict) else row_data
+            row_indices.extend([row_id] * len(row))
+            col_indices.extend(
+                [int(col_id) if isinstance(col_id, str) else col_id for col_id, _ in row]
+            )
+            values.extend([float(value) if isinstance(value, str) else value for _, value in row])
+        return sparse.csr_array((values, (row_indices, col_indices)))
+
+    csr = unify_sparse_input(data)
+    result = schema_types.SparseFloatArray()
+    result.dim = csr.shape[1]
+    for start, end in zip(csr.indptr[:-1], csr.indptr[1:]):
+        result.contents.append(
+            sparse_float_row_to_bytes(csr.indices[start:end], csr.data[start:end])
+        )
+    return result
+
+
+# converts schema_types.SparseFloatArray proto to Iterable[SparseRowOutputType]
+def sparse_proto_to_rows(
+    sfv: schema_types.SparseFloatArray, start: Optional[int] = None, end: Optional[int] = None
+) -> Iterable[SparseRowOutputType]:
+    if not isinstance(sfv, schema_types.SparseFloatArray):
+        msg = "Vector must be a sparse float vector"
+        raise TypeError(msg)
+    start = start or 0
+    end = end or len(sfv.contents)
+    return [sparse_parse_single_row(row_bytes) for row_bytes in sfv.contents[start:end]]
+
+
+def get_input_num_rows(entity: Any) -> int:
+    if sparse_is_scipy_format(entity):
+        return entity.shape[0]
+    return len(entity)
 
 
 def entity_type_to_dtype(entity_type: Any):
@@ -139,6 +308,17 @@ def pack_field_value_to_field_data(field_value: Any, field_data: Any, field_info
     elif field_type == DataType.BFLOAT16_VECTOR:
         field_data.vectors.dim = len(field_value) // 2
         field_data.vectors.bfloat16_vector += bytes(field_value)
+    elif field_type == DataType.SPARSE_FLOAT_VECTOR:
+        # field_value is a single row of sparse float vector in user provided format
+        if not sparse_is_scipy_format(field_value):
+            field_value = [field_value]
+        elif field_value.shape[0] != 1:
+            raise ParamError(message="invalid input for sparse float vector: expect 1 row")
+        if not entity_is_sparse_matrix(field_value):
+            raise ParamError(message="invalid input for sparse float vector")
+        field_data.vectors.sparse_float_vector.contents.append(
+            sparse_rows_to_proto(field_value).contents[0]
+        )
     elif field_type == DataType.VARCHAR:
         field_data.scalars.string_data.data.append(
             convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
@@ -190,6 +370,8 @@ def entity_to_field_data(entity: Any, field_info: Any):
         field_data.scalars.json_data.data.extend(entity_to_json_arr(entity))
     elif entity_type == DataType.ARRAY:
         field_data.scalars.array_data.data.extend(entity_to_array_arr(entity, field_info))
+    elif entity_type == DataType.SPARSE_FLOAT_VECTOR:
+        field_data.vectors.sparse_float_vector.CopyFrom(sparse_rows_to_proto(entity.get("values")))
     else:
         raise ParamError(message=f"UnSupported data type: {entity_type}")
 
@@ -247,6 +429,7 @@ def extract_array_row_data(field_data: Any, index: int):
 
 
 # pylint: disable=R1702 (too-many-nested-blocks)
+# pylint: disable=R0915 (too-many-statements)
 def extract_row_data_from_fields_data(
     fields_data: Any,
     index: Any,
@@ -305,8 +488,7 @@ def extract_row_data_from_fields_data(
                 entity_row_data.update(json_dict)
                 return
 
-            tmp_dict = {k: v for k, v in json_dict.items() if k in dynamic_fields}
-            entity_row_data.update(tmp_dict)
+            entity_row_data.update({k: v for k, v in json_dict.items() if k in dynamic_fields})
             return
         if field_data.type == DataType.ARRAY and len(field_data.scalars.array_data.data) >= index:
             entity_row_data[field_data.field_name] = extract_array_row_data(field_data, index)
@@ -339,6 +521,10 @@ def extract_row_data_from_fields_data(
                 entity_row_data[field_data.field_name] = [
                     field_data.vectors.float16_vector[start_pos:end_pos]
                 ]
+        elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
+            entity_row_data[field_data.field_name] = sparse_parse_single_row(
+                field_data.vectors.sparse_float_vector.contents[index]
+            )
 
     for field_data in fields_data:
         check_append(field_data)

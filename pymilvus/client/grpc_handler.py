@@ -757,7 +757,7 @@ class GrpcHandler:
     def search(
         self,
         collection_name: str,
-        data: List[List[float]],
+        data: Union[List[List[float]], entity_helper.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
@@ -940,6 +940,7 @@ class GrpcHandler:
                 DataType.BINARY_VECTOR,
                 DataType.FLOAT16_VECTOR,
                 DataType.BFLOAT16_VECTOR,
+                DataType.SPARSE_FLOAT_VECTOR,
             }:
                 break
 

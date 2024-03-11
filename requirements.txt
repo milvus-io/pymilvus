@@ -16,6 +16,7 @@ ujson>=2.0.0
 urllib3==1.26.18
 sklearn==0.0
 m2r==0.3.1
+scipy>=1.9.3
 Sphinx==4.0.0
 sphinx-copybutton
 sphinx-rtd-theme

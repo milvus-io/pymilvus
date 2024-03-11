@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
+from pymilvus.client import entity_helper
 from pymilvus.client.abstract import BaseRanker, SearchResult
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
@@ -28,6 +29,7 @@ from pymilvus.client.types import (
 from pymilvus.exceptions import (
     AutoIDException,
     DataTypeNotMatchException,
+    DataTypeNotSupportException,
     ExceptionsMessage,
     IndexNotExistException,
     PartitionAlreadyExistException,
@@ -168,6 +170,7 @@ class Collection:
     def _get_connection(self):
         return connections._fetch_handler(self._using)
 
+    # TODO(SPARSE): support pd.SparseDtype
     @classmethod
     def construct_from_dataframe(cls, name: str, dataframe: pd.DataFrame, **kwargs):
         if not isinstance(dataframe, pd.DataFrame):
@@ -449,7 +452,7 @@ class Collection:
 
     def insert(
         self,
-        data: Union[List, pd.DataFrame, Dict],
+        data: Union[List, pd.DataFrame, Dict, entity_helper.SparseMatrixInputType],
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
@@ -457,7 +460,7 @@ class Collection:
         """Insert data into the collection.
 
         Args:
-            data (``list/tuple/pandas.DataFrame``): The specified data to insert
+            data (``list/tuple/pandas.DataFrame/sparse types``): The specified data to insert
             partition_name (``str``): The partition name which the data will be inserted to,
                 if partition name is not passed, then the data will be inserted
                 to default partition
@@ -573,7 +576,7 @@ class Collection:
 
     def upsert(
         self,
-        data: Union[List, pd.DataFrame, Dict],
+        data: Union[List, pd.DataFrame, Dict, entity_helper.SparseMatrixInputType],
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
@@ -581,7 +584,7 @@ class Collection:
         """Upsert data into the collection.
 
         Args:
-            data (``list/tuple/pandas.DataFrame``): The specified data to upsert
+            data (``list/tuple/pandas.DataFrame/sparse types``): The specified data to upsert
             partition_name (``str``): The partition name which the data will be upserted at,
                 if partition name is not passed, then the data will be upserted
                 in default partition
@@ -645,7 +648,7 @@ class Collection:
 
     def search(
         self,
-        data: List,
+        data: Union[List, entity_helper.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
@@ -659,7 +662,7 @@ class Collection:
         """Conducts a vector similarity search with an optional boolean expression as filter.
 
         Args:
-            data (``List[List[float]]``): The vectors of search data.
+            data (``List[List[float]]/sparse types``): The vectors of search data.
                 the length of data is number of query (nq),
                 and the dim of every vector in data must be equal to the vector field of collection.
             anns_field (``str``): The name of the vector field used to search of collection.
@@ -780,7 +783,8 @@ class Collection:
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
-        if isinstance(data, list) and len(data) == 0:
+        empty_scipy_sparse = entity_helper.sparse_is_scipy_format(data) and (data.shape[0] == 0)
+        if (isinstance(data, list) and len(data) == 0) or empty_scipy_sparse:
             resp = SearchResult(schema_pb2.SearchResultData())
             return SearchFuture(None) if kwargs.get("_async", False) else resp
 
@@ -946,7 +950,7 @@ class Collection:
 
     def search_iterator(
         self,
-        data: List,
+        data: Union[List, entity_helper.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         batch_size: Optional[int] = 1000,
@@ -958,6 +962,10 @@ class Collection:
         round_decimal: int = -1,
         **kwargs,
     ):
+        if entity_helper.entity_is_sparse_matrix(data):
+            # search iterator is based on range_search, which is not yet supported for sparse.
+            raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
+
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         return SearchIterator(

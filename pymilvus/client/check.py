@@ -5,6 +5,7 @@ from typing import Any, Callable, Union
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
+from . import entity_helper
 from .singleton_utils import Singleton
 
 
@@ -38,24 +39,6 @@ def is_legal_port(port: Any) -> bool:
         else:
             return True
     return False
-
-
-def is_legal_vector(array: Any) -> bool:
-    if not array or not isinstance(array, list) or len(array) == 0:
-        return False
-
-    return True
-
-
-def is_legal_bin_vector(array: Any) -> bool:
-    if not array or not isinstance(array, bytes) or len(array) == 0:
-        return False
-
-    return True
-
-
-def is_legal_numpy_array(array: Any) -> bool:
-    return not (array is None or array.size == 0)
 
 
 def int_or_str(item: Union[int, str]) -> str:
@@ -149,6 +132,10 @@ def is_legal_max_iterations(max_iterations: Any) -> bool:
     return isinstance(max_iterations, int)
 
 
+def is_legal_drop_ratio(drop_ratio: Any) -> bool:
+    return isinstance(drop_ratio, float) and 0 <= drop_ratio < 1
+
+
 def is_legal_team_size(team_size: Any) -> bool:
     return isinstance(team_size, int)
 
@@ -196,6 +183,9 @@ def is_legal_anns_field(field: Any) -> bool:
 
 def is_legal_search_data(data: Any) -> bool:
     import numpy as np
+
+    if entity_helper.entity_is_sparse_matrix(data):
+        return True
 
     if not isinstance(data, (list, np.ndarray)):
         return False
@@ -331,6 +321,8 @@ class ParamChecker(metaclass=Singleton):
             "team_size": is_legal_team_size,
             "index_name": is_legal_index_name,
             "timeout": is_legal_timeout,
+            "drop_ratio_build": is_legal_drop_ratio,
+            "drop_ratio_search": is_legal_drop_ratio,
         }
 
     def check(self, key: str, value: Callable):
