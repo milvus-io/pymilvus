@@ -366,6 +366,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.DropResourceGroupRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.UpdateResourceGroups = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/UpdateResourceGroups',
+                request_serializer=milvus__pb2.UpdateResourceGroupsRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
         self.TransferNode = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/TransferNode',
                 request_serializer=milvus__pb2.TransferNodeRequest.SerializeToString,
@@ -863,6 +868,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def UpdateResourceGroups(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def TransferNode(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -1292,6 +1303,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'DropResourceGroup': grpc.unary_unary_rpc_method_handler(
                     servicer.DropResourceGroup,
                     request_deserializer=milvus__pb2.DropResourceGroupRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'UpdateResourceGroups': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateResourceGroups,
+                    request_deserializer=milvus__pb2.UpdateResourceGroupsRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
             'TransferNode': grpc.unary_unary_rpc_method_handler(
@@ -2555,6 +2571,23 @@ class MilvusService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DropResourceGroup',
             milvus__pb2.DropResourceGroupRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def UpdateResourceGroups(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/UpdateResourceGroups',
+            milvus__pb2.UpdateResourceGroupsRequest.SerializeToString,
             common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

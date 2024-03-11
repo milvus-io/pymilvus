@@ -96,6 +96,7 @@ class PlaceholderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FloatVector: _ClassVar[PlaceholderType]
     Float16Vector: _ClassVar[PlaceholderType]
     BFloat16Vector: _ClassVar[PlaceholderType]
+    SparseFloatVector: _ClassVar[PlaceholderType]
     Int64: _ClassVar[PlaceholderType]
     VarChar: _ClassVar[PlaceholderType]
 
@@ -199,6 +200,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DescribeResourceGroup: _ClassVar[MsgType]
     TransferNode: _ClassVar[MsgType]
     TransferReplica: _ClassVar[MsgType]
+    UpdateResourceGroups: _ClassVar[MsgType]
     CreateDatabase: _ClassVar[MsgType]
     DropDatabase: _ClassVar[MsgType]
     ListDatabases: _ClassVar[MsgType]
@@ -284,6 +286,11 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeShowPartitions: _ClassVar[ObjectPrivilege]
     PrivilegeHasPartition: _ClassVar[ObjectPrivilege]
     PrivilegeGetFlushState: _ClassVar[ObjectPrivilege]
+    PrivilegeCreateAlias: _ClassVar[ObjectPrivilege]
+    PrivilegeDropAlias: _ClassVar[ObjectPrivilege]
+    PrivilegeDescribeAlias: _ClassVar[ObjectPrivilege]
+    PrivilegeListAliases: _ClassVar[ObjectPrivilege]
+    PrivilegeUpdateResourceGroups: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -377,6 +384,7 @@ BinaryVector: PlaceholderType
 FloatVector: PlaceholderType
 Float16Vector: PlaceholderType
 BFloat16Vector: PlaceholderType
+SparseFloatVector: PlaceholderType
 Int64: PlaceholderType
 VarChar: PlaceholderType
 Undefined: MsgType
@@ -477,6 +485,7 @@ ListResourceGroups: MsgType
 DescribeResourceGroup: MsgType
 TransferNode: MsgType
 TransferReplica: MsgType
+UpdateResourceGroups: MsgType
 CreateDatabase: MsgType
 DropDatabase: MsgType
 ListDatabases: MsgType
@@ -544,6 +553,11 @@ PrivilegeDropPartition: ObjectPrivilege
 PrivilegeShowPartitions: ObjectPrivilege
 PrivilegeHasPartition: ObjectPrivilege
 PrivilegeGetFlushState: ObjectPrivilege
+PrivilegeCreateAlias: ObjectPrivilege
+PrivilegeDropAlias: ObjectPrivilege
+PrivilegeDescribeAlias: ObjectPrivilege
+PrivilegeListAliases: ObjectPrivilege
+PrivilegeUpdateResourceGroups: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -728,3 +742,13 @@ class ServerInfo(_message.Message):
     deploy_mode: str
     reserved: _containers.ScalarMap[str, str]
     def __init__(self, build_tags: _Optional[str] = ..., build_time: _Optional[str] = ..., git_commit: _Optional[str] = ..., go_version: _Optional[str] = ..., deploy_mode: _Optional[str] = ..., reserved: _Optional[_Mapping[str, str]] = ...) -> None: ...
+
+class NodeInfo(_message.Message):
+    __slots__ = ("nodeID", "address", "hostname")
+    NODEID_FIELD_NUMBER: _ClassVar[int]
+    ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
+    nodeID: int
+    address: str
+    hostname: str
+    def __init__(self, nodeID: _Optional[int] = ..., address: _Optional[str] = ..., hostname: _Optional[str] = ...) -> None: ...
