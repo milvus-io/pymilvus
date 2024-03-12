@@ -360,7 +360,7 @@ class MilvusClient:
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
 
         if filter and ids is not None:
-            raise ParamError(message=ExceptionsMessage.AmbiguousDeleteFilterParam)
+            raise ParamError(message=ExceptionsMessage.AmbiguousQueryFilterParam)
 
         if isinstance(ids, (int, str)):
             ids = [ids]
