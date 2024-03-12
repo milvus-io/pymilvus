@@ -37,9 +37,9 @@ class FieldSchema:
         self.is_primary = raw.is_primary_key
         self.description = raw.description
         self.auto_id = raw.autoID
-        self.type = raw.data_type
+        self.type = DataType(raw.data_type)
         self.is_partition_key = raw.is_partition_key
-        self.element_type = raw.element_type
+        self.element_type = DataType(raw.element_type)
         try:
             self.is_dynamic = raw.is_dynamic
         except Exception:
@@ -82,8 +82,10 @@ class FieldSchema:
             "description": self.description,
             "type": self.type,
             "params": self.params or {},
-            "element_type": self.element_type,
         }
+
+        if self.element_type:
+            _dict["element_type"] = self.element_type
 
         if self.is_partition_key:
             _dict["is_partition_key"] = True
