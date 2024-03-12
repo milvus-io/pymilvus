@@ -46,7 +46,7 @@ from .exceptions import (
     MilvusException,
     MilvusUnavailableException,
 )
-from .milvus_client.milvus_client import MilvusClient
+from .milvus_client import MilvusClient
 from .orm import db, utility
 from .orm.collection import Collection
 from .orm.connections import Connections, connections
