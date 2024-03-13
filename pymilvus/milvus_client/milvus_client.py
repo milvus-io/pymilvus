@@ -193,7 +193,7 @@ class MilvusClient:
             MilvusException: General Milvus error on insert.
 
         Returns:
-            Dict: Number of rows that were inserted.
+            Dict: Number of rows that were inserted and the inserted primary key list.
         """
         # If no data provided, we cannot input anything
         if isinstance(data, Dict):
@@ -206,7 +206,7 @@ class MilvusClient:
             raise TypeError(msg)
 
         if len(data) == 0:
-            return {"insert_count": 0}
+            return {"insert_count": 0, "ids": []}
 
         conn = self._get_connection()
         # Insert into the collection.
@@ -226,10 +226,7 @@ class MilvusClient:
         partition_name: Optional[str] = "",
         **kwargs,
     ) -> Dict:
-        """Insert data into the collection.
-
-        If the Milvus Client was initiated without an existing Collection, the first dict passed
-        in will be used to initiate the collection.
+        """Upsert data into the collection.
 
         Args:
             data (List[Dict[str, any]]): A list of dicts to pass in. If list not provided, will
@@ -239,10 +236,10 @@ class MilvusClient:
 
         Raises:
             DataNotMatchException: If the data has missing fields an exception will be thrown.
-            MilvusException: General Milvus error on insert.
+            MilvusException: General Milvus error on upsert.
 
         Returns:
-            List[Union[str, int]]: A list of primary keys that were inserted.
+            Dict: Number of rows that were upserted.
         """
         # If no data provided, we cannot input anything
         if isinstance(data, Dict):
@@ -288,7 +285,7 @@ class MilvusClient:
 
         Args:
             data (Union[List[list], list]): The vector/vectors to search.
-            top_k (int, optional): How many results to return per search. Defaults to 10.
+            limit (int, optional): How many results to return per search. Defaults to 10.
             filter(str, optional): A filter to use for the search. Defaults to None.
             output_fields (List[str], optional): List of which field values to return. If None
                 specified, only primary fields including distances will be returned.
@@ -344,7 +341,7 @@ class MilvusClient:
 
         Args:
             filter (str): The filter to use for the query.
-            return_fields (List[str], optional): List of which field values to return. If None
+            output_fields (List[str], optional): List of which field values to return. If None
                 specified, all fields excluding vector field will be returned.
             partitions (List[str], optional): Which partitions to perform query. Defaults to None.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
@@ -465,11 +462,7 @@ class MilvusClient:
         partition_name: Optional[str] = "",
         **kwargs,
     ) -> Dict:
-        """Delete entries in the collection by their pk.
-
-        Delete all the entries based on the pk. If unsure of pk you can first query the collection
-        to grab the corresponding data. Then you can delete using the pk_field.
-
+        """Delete entries in the collection by their pk or by filter.
 
         Starting from version 2.3.2, Milvus no longer includes the primary keys in the result
         when processing the delete operation on expressions.
