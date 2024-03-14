@@ -7,6 +7,7 @@ from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage, Mi
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
 
+from . import entity_helper
 from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
 from .types import DataType
 
@@ -15,7 +16,6 @@ class FieldSchema:
     def __init__(self, raw: Any):
         self._raw = raw
 
-        #
         self.field_id = 0
         self.name = None
         self.is_primary = False
@@ -29,7 +29,6 @@ class FieldSchema:
         # For array field
         self.element_type = None
         self.is_clustering_key = False
-        ##
         self.__pack(self._raw)
 
     def __pack(self, raw: Any):
@@ -106,7 +105,6 @@ class CollectionSchema:
     def __init__(self, raw: Any):
         self._raw = raw
 
-        #
         self.collection_name = None
         self.description = None
         self.params = {}
@@ -121,7 +119,6 @@ class CollectionSchema:
         self.num_partitions = 0
         self.enable_dynamic_field = False
 
-        #
         if self._raw:
             self.__pack(self._raw)
 
@@ -330,7 +327,7 @@ class WeightedRanker(BaseRanker):
 class AnnSearchRequest:
     def __init__(
         self,
-        data: List,
+        data: Union[List, entity_helper.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
@@ -472,6 +469,13 @@ class SearchResult(list):
                     field_meta,
                 )
                 continue
+            # TODO(SPARSE): do we want to allow the user to specify the return format?
+            if dtype == DataType.SPARSE_FLOAT_VECTOR:
+                field2data[name] = (
+                    entity_helper.sparse_proto_to_rows(vectors.sparse_float_vector, start, end),
+                    field_meta,
+                )
+                continue
 
             if dtype == DataType.BFLOAT16_VECTOR:
                 field2data[name] = (
@@ -527,7 +531,7 @@ class Hits(list):
             for fname, (data, field_meta) in fields.items():
                 if len(data) <= i:
                     curr_field[fname] = None
-                # Get vectors
+                # Get dense vectors
                 if field_meta.type in (
                     DataType.FLOAT_VECTOR,
                     DataType.BINARY_VECTOR,
@@ -552,7 +556,7 @@ class Hits(list):
                         curr_field.update(data[i])
                         continue
 
-                # normal fields
+                # sparse float vector and other fields
                 curr_field[fname] = data[i]
 
             hits.append(Hit(pks[i], distances[i], curr_field))

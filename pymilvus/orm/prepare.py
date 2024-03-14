@@ -16,6 +16,7 @@ from typing import List, Tuple, Union
 import numpy as np
 import pandas as pd
 
+from pymilvus.client import entity_helper
 from pymilvus.exceptions import (
     DataNotMatchException,
     DataTypeNotSupportException,
@@ -46,6 +47,7 @@ class Prepare:
                 and not data[schema.primary_field.name].isnull().all()
             ):
                 raise DataNotMatchException(message=ExceptionsMessage.AutoIDWithData)
+            # TODO(SPARSE): support pd.SparseDtype for sparse float vector field
             for field in fields:
                 if field.is_primary and field.auto_id:
                     continue
@@ -79,7 +81,7 @@ class Prepare:
     @classmethod
     def prepare_upsert_data(
         cls,
-        data: Union[List, Tuple, pd.DataFrame],
+        data: Union[List, Tuple, pd.DataFrame, entity_helper.SparseMatrixInputType],
         schema: CollectionSchema,
     ) -> List:
         if schema.auto_id:

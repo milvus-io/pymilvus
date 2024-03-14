@@ -195,6 +195,8 @@ def len_of(field_data: Any) -> int:
                     message=f"Invalid bfloat16 or float16 vector length: total_len={total_len}, dim={dim}"
                 )
             return int(total_len / (dim * data_wide_in_bytes))
+        if field_data.vectors.HasField("sparse_float_vector"):
+            return len(field_data.vectors.sparse_float_vector.contents)
 
         total_len = len(field_data.vectors.binary_vector)
         return int(total_len / (dim / 8))
@@ -239,7 +241,7 @@ def traverse_rows_info(fields_info: Any, entities: List):
             value = entity.get(field_name, None)
             if value is None:
                 raise ParamError(message=f"Field {field_name} don't match in entities[{j}]")
-
+            # no special check for sparse float vector field
             if field_type in [
                 DataType.FLOAT_VECTOR,
                 DataType.BINARY_VECTOR,

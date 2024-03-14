@@ -1,7 +1,8 @@
 import logging
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar, Union
 
+from pymilvus.client import entity_helper
 from pymilvus.client.abstract import Hits, LoopBase
 from pymilvus.exceptions import (
     MilvusException,
@@ -282,7 +283,7 @@ class SearchIterator:
         self,
         connection: Connections,
         collection_name: str,
-        data: List,
+        data: Union[List, entity_helper.SparseMatrixInputType],
         ann_field: str,
         param: Dict,
         batch_size: Optional[int] = 1000,
@@ -295,11 +296,12 @@ class SearchIterator:
         schema: Optional[CollectionSchema] = None,
         **kwargs,
     ) -> SearchIterator:
-        if len(data) > 1:
+        rows = entity_helper.get_input_num_rows(data)
+        if rows > 1:
             raise ParamError(
                 message="Not support search iteration over multiple vectors at present"
             )
-        if len(data) == 0:
+        if rows == 0:
             raise ParamError(message="vector_data for search cannot be empty")
         self._conn = connection
         self._iterator_params = {
