@@ -40,6 +40,19 @@ dynamic = ["version"]
 [project.urls]
 "repository" = 'https://github.com/milvus-io/pymilvus'
 
+[project.optional-dependencies]
+model = [
+    "openai >= 1.12.0",
+    "sentence-transformers",
+    "FlagEmbedding >= 1.2.2",
+    "nltk",
+    "transformers >= 4.33.0",
+    "jieba",
+    "konlpy",
+    "mecab-python3",
+    "scipy >= 1.10.0",
+]
+
 [tool.setuptools.dynamic]
 version = { attr = "_version_helper.version"}
 
