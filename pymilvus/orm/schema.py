@@ -19,6 +19,7 @@ from pandas.api.types import is_list_like
 from pymilvus.exceptions import (
     AutoIDException,
     CannotInferSchemaException,
+    ClusteringKeyException,
     DataNotMatchException,
     DataTypeNotSupportException,
     ExceptionsMessage,
@@ -62,6 +63,29 @@ def validate_partition_key(
         )
 
 
+def validate_clustering_key(
+    clustering_key_field_name: Any, clustering_key_field: Any, primary_field_name: Any
+):
+    if clustering_key_field is not None:
+        if clustering_key_field.name == primary_field_name:
+            raise ClusteringKeyException(message=ExceptionsMessage.ClusteringKeyNotPrimary)
+        if clustering_key_field.dtype not in [
+            DataType.INT8,
+            DataType.INT16,
+            DataType.INT32,
+            DataType.INT64,
+            DataType.FLOAT,
+            DataType.DOUBLE,
+            DataType.VARCHAR,
+            DataType.FLOAT_VECTOR,
+        ]:
+            raise ClusteringKeyException(message=ExceptionsMessage.ClusteringKeyType)
+    elif clustering_key_field_name is not None:
+        raise ClusteringKeyException(
+            message=ExceptionsMessage.PartitionKeyFieldNotExist % clustering_key_field_name
+        )
+
+
 class CollectionSchema:
     def __init__(self, fields: List, description: str = "", **kwargs):
         self._kwargs = copy.deepcopy(kwargs)
@@ -71,6 +95,7 @@ class CollectionSchema:
         self._enable_dynamic_field = self._kwargs.get("enable_dynamic_field", None)
         self._primary_field = None
         self._partition_key_field = None
+        self._clustering_key_field = None
 
         if not isinstance(fields, list):
             raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
@@ -83,10 +108,13 @@ class CollectionSchema:
     def _check_kwargs(self):
         primary_field_name = self._kwargs.get("primary_field", None)
         partition_key_field_name = self._kwargs.get("partition_key_field", None)
+        clustering_key_field_name = self._kwargs.get("clustering_key_field_name", None)
         if primary_field_name is not None and not isinstance(primary_field_name, str):
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
         if partition_key_field_name is not None and not isinstance(partition_key_field_name, str):
             raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyFieldType)
+        if clustering_key_field_name is not None and not isinstance(clustering_key_field_name, str):
+            raise ClusteringKeyException(message=ExceptionsMessage.ClusteringKeyFieldType)
 
         for field in self._fields:
             if not isinstance(field, FieldSchema):
@@ -98,6 +126,7 @@ class CollectionSchema:
     def _check_fields(self):
         primary_field_name = self._kwargs.get("primary_field", None)
         partition_key_field_name = self._kwargs.get("partition_key_field", None)
+        clustering_key_field_name = self._kwargs.get("clustering_key_field", None)
         for field in self._fields:
             if primary_field_name and primary_field_name == field.name:
                 field.is_primary = True
@@ -122,9 +151,28 @@ class CollectionSchema:
                 self._partition_key_field = field
                 partition_key_field_name = field.name
 
+            if clustering_key_field_name and clustering_key_field_name == field.name:
+                field.is_clustering_key = True
+
+            if field.is_clustering_key:
+                if (
+                    clustering_key_field_name is not None
+                    and clustering_key_field_name != field.name
+                ):
+                    msg = ExceptionsMessage.ClusteringKeyOnlyOne % (
+                        clustering_key_field_name,
+                        field.name,
+                    )
+                    raise ClusteringKeyException(message=msg)
+                self._clustering_key_field = field
+                clustering_key_field_name = field.name
+
         validate_primary_key(self._primary_field)
         validate_partition_key(
             partition_key_field_name, self._partition_key_field, self._primary_field.name
+        )
+        validate_clustering_key(
+            clustering_key_field_name, self._clustering_key_field, self._primary_field.name
         )
 
         auto_id = self._kwargs.get("auto_id", False)
@@ -272,7 +320,10 @@ class FieldSchema:
 
         if not isinstance(kwargs.get("is_partition_key", False), bool):
             raise PartitionKeyException(message=ExceptionsMessage.IsPartitionKeyType)
+        if not isinstance(kwargs.get("is_clustering_key", False), bool):
+            raise ClusteringKeyException(message=ExceptionsMessage.IsClusteringKeyType)
         self.is_partition_key = kwargs.get("is_partition_key", False)
+        self.is_clustering_key = kwargs.get("is_clustering_key", False)
         self.element_type = kwargs.get("element_type", None)
         self._parse_type_params()
 
@@ -313,6 +364,7 @@ class FieldSchema:
         if raw.get("auto_id") is not None:
             kwargs["auto_id"] = raw.get("auto_id")
         kwargs["is_partition_key"] = raw.get("is_partition_key", False)
+        kwargs["is_clustering_key"] = raw.get("is_clustering_key", False)
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
         kwargs["element_type"] = raw.get("element_type")
         return FieldSchema(raw["name"], raw["type"], raw.get("description", ""), **kwargs)
@@ -334,6 +386,8 @@ class FieldSchema:
             _dict["is_dynamic"] = self.is_dynamic
         if self.dtype == DataType.ARRAY and self.element_type:
             _dict["element_type"] = self.element_type
+        if self.is_clustering_key:
+            _dict["is_clustering_key"] = True
         return _dict
 
     def __getattr__(self, item: str):

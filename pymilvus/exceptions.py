@@ -121,6 +121,10 @@ class PartitionKeyException(MilvusException):
     """Raise when partitionkey are invalid"""
 
 
+class ClusteringKeyException(MilvusException):
+    """Raise when clusteringkey are invalid"""
+
+
 class FieldsTypeException(MilvusException):
     """Raise when fields is invalid"""
 
@@ -185,7 +189,7 @@ class ExceptionsMessage:
     PartitionKeyOnlyOne = "Expected only one partition key field, got [%s, %s, ...]."
     PrimaryKeyType = "Primary key type must be DataType.INT64 or DataType.VARCHAR."
     PartitionKeyType = "Partition key field type must be DataType.INT64 or DataType.VARCHAR."
-    PartitionKeyNotPrimary = "Primary key filed should not be primary field"
+    PartitionKeyNotPrimary = "Partition key field should not be primary field"
     IsPrimaryType = "Param is_primary must be bool type."
     PrimaryFieldType = "Param primary_field must be int or str type."
     PartitionKeyFieldType = "Param partition_key_field must be str type."
@@ -219,3 +223,13 @@ class ExceptionsMessage:
         "Ambiguous parameter, either ids or filter should be specified, cannot support both."
     )
     JSONKeyMustBeStr = "JSON key must be str."
+    ClusteringKeyNotPrimary = "Clustering key field should not be primary field"
+    ClusteringKeyType = (
+        "Clustering key field type must be DataType.INT8, DataType.INT16, "
+        "DataType.INT32, DataType.INT64, DataType.FLOAT, DataType.DOUBLE, "
+        "DataType.VARCHAR, DataType.FLOAT_VECTOR."
+    )
+    ClusteringKeyFieldNotExist = "the specified clustering key field {%s} not exist"
+    ClusteringKeyOnlyOne = "Expected only one clustering key field, got [%s, %s, ...]."
+    IsClusteringKeyType = "Param is_clustering_key must be bool type."
+    ClusteringKeyFieldType = "Param clustering_key_field must be str type."

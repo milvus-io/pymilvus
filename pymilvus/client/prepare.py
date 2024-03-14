@@ -122,6 +122,7 @@ class Prepare:
                 is_partition_key=f.is_partition_key,
                 is_dynamic=f.is_dynamic,
                 element_type=f.element_type,
+                is_clustering_key=f.is_clustering_key,
             )
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
@@ -175,6 +176,7 @@ class Prepare:
             is_primary_key=is_primary,
             autoID=auto_id,
             is_partition_key=field.get("is_partition_key", False),
+            is_clustering_key=field.get("is_clustering_key", False),
         )
 
         type_params = field.get("params", {})
