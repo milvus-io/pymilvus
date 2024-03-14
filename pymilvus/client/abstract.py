@@ -28,6 +28,7 @@ class FieldSchema:
         self.is_dynamic = False
         # For array field
         self.element_type = None
+        self.is_clustering_key = False
         ##
         self.__pack(self._raw)
 
@@ -40,6 +41,7 @@ class FieldSchema:
         self.type = DataType(raw.data_type)
         self.is_partition_key = raw.is_partition_key
         self.element_type = DataType(raw.element_type)
+        self.is_clustering_key = raw.is_clustering_key
         try:
             self.is_dynamic = raw.is_dynamic
         except Exception:
@@ -95,6 +97,8 @@ class FieldSchema:
             _dict["auto_id"] = True
         if self.is_primary:
             _dict["is_primary"] = self.is_primary
+        if self.is_clustering_key:
+            _dict["is_clustering_key"] = True
         return _dict
 
 
