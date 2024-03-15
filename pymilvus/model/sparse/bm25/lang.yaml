@@ -1,0 +1,137 @@
+en:
+  tokenizer:
+    class: StandardTokenizer
+    params: {}
+  filters:
+    - class: LowercaseFilter
+      params: {}
+    - class: PunctuationFilter
+      params: {}
+    - class: StopwordFilter
+      params: 
+        language: 'english'
+    - class: StemmingFilter
+      params:
+        language: 'english'
+de: 
+  tokenizer:
+    class: StandardTokenizer
+    params: {}
+  filters:
+    - class: LowercaseFilter
+      params: {}
+    - class: StopwordFilter
+      params:
+        language: 'german'
+    - class: PunctuationFilter
+      params: {}
+    - class: StemmingFilter
+      params:
+        language: 'german'
+fr:
+  tokenizer:
+    class: StandardTokenizer
+    params: {}
+  filters:
+    - class: LowercaseFilter
+      params: {}
+    - class: PunctuationFilter
+      params: {}
+    - class: StopwordFilter
+      params:
+        language: 'french'
+    - class: StemmingFilter
+      params:
+        language: 'french'
+ru:
+  tokenizer:
+    class: StandardTokenizer
+    params: {}
+  filters:
+    - class: LowercaseFilter
+      params: {}
+    - class: PunctuationFilter
+      params: {}
+    - class: StopwordFilter
+      params:
+        language: 'russian'
+    - class: StemmingFilter
+      params:
+        language: 'russian'
+sp:
+  tokenizer:
+    class: StandardTokenizer
+    params: {}
+  filters:
+    - class: LowercaseFilter
+      params: {}
+    - class: PunctuationFilter
+      params:
+        extras: '¡¿'
+    - class: StopwordFilter
+      params:
+        language: 'spanish'
+    - class: StemmingFilter
+      params:
+        language: 'spanish'
+it:
+  tokenizer:
+    class: StandardTokenizer
+    params: {}
+  filters:
+    - class: LowercaseFilter
+      params: {}
+    - class: PunctuationFilter
+      params: {}
+    - class: StopwordFilter
+      params:
+        language: 'italian'
+    - class: StemmingFilter
+      params:
+        language: 'italian'
+pt:
+  tokenizer:
+    class: StandardTokenizer
+    params: {}
+  filters:
+    - class: LowercaseFilter
+      params: {}
+    - class: PunctuationFilter
+      params: {}
+    - class: StopwordFilter
+      params:
+        language: 'portuguese'
+    - class: StemmingFilter
+      params:
+        language: 'portuguese'
+zh:
+  tokenizer:
+    class: JiebaTokenizer
+    params: {}
+  filters:
+    - class: StopwordFilter
+      params:
+        language: 'chinese'
+    - class: PunctuationFilter
+      params:
+        extras: ' 、＂＃＄％＆＇（）＊＋，－／：；＜＝＞＠［＼］＾＿｀｛｜｝～｟｠｢｣､〃〈〉《》「」『』【】〔〕〖〗〘〙〚〛〜〝〞〟〰–—‘’‛“”„‟…‧﹏﹑﹔·．！？｡。'
+jp:
+  tokenizer:
+    class: MecabTokenizer
+    params: {}
+  preprocessors:
+    - class: CharacterfilterPreprocessor
+      params:
+        chars_to_replace: ['、', '。', '「', '」', '『', '』', '【', '】', '（', '）', '｛', '｝', '・', '：', '；', '！', '？', 'ー', '〜', '…', '‥', '[', ']']  
+  filters:
+    - class: StopwordFilter 
+      params: {}
+    - class: PunctuationFilter
+      params: {}
+kr:
+  tokenizer:
+    class: KonlpyTokenizer
+    params: {}
+  filters:
+    - class: StopwordFilter
+      params: {}
