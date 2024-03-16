@@ -31,7 +31,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import torch
-from scipy.sparse import csr_array
+from scipy.sparse import csr_array, vstack
 
 from pymilvus.model.base import BaseEmbeddingFunction
 
@@ -67,27 +67,23 @@ class SpladeEmbeddingFunction(BaseEmbeddingFunction):
         self.query_instruction = query_instruction
         self.doc_instruction = doc_instruction
 
-    def __call__(self, texts: List[str]) -> List[csr_array]:
-        embs = self._encode(texts, None)
-        return list(embs)
+    def __call__(self, texts: List[str]) -> csr_array:
+        return self._encode(texts, None)
 
-    def encode_documents(self, documents: List[str]) -> List[csr_array]:
-        embs = self._encode(
+    def encode_documents(self, documents: List[str]) -> csr_array:
+        return self._encode(
             [self.doc_instruction + document for document in documents],
             self.k_tokens_document,
         )
-        return list(embs)
 
-    def _encode(self, texts: List[str], k_tokens: int) -> List[csr_array]:
-        embs = self.model.forward(texts, k_tokens=k_tokens)
-        return list(embs)
+    def _encode(self, texts: List[str], k_tokens: int) -> csr_array:
+        return self.model.forward(texts, k_tokens=k_tokens)
 
-    def encode_queries(self, queries: List[str]) -> List[csr_array]:
-        embs = self._encode(
+    def encode_queries(self, queries: List[str]) -> csr_array:
+        return self._encode(
             [self.query_instruction + query for query in queries],
             self.k_tokens_query,
         )
-        return list(embs)
 
     @property
     def dim(self) -> int:
@@ -141,7 +137,7 @@ class _SpladeImplementation:
     def _batchify(self, texts: List[str], batch_size: int) -> List[List[str]]:
         return [texts[i : i + batch_size] for i in range(0, len(texts), batch_size)]
 
-    def forward(self, texts: List[str], k_tokens: int):
+    def forward(self, texts: List[str], k_tokens: int) -> csr_array:
         batched_texts = self._batchify(texts, self.batch_size)
         sparse_embs = []
         for batch_texts in batched_texts:
@@ -158,7 +154,7 @@ class _SpladeImplementation:
             batch_csr = self._convert_to_csr_array(activations)
             sparse_embs.extend(batch_csr)
 
-        return sparse_embs
+        return vstack(sparse_embs)
 
     def _get_activation(self, logits: torch.Tensor) -> Dict[str, torch.Tensor]:
         return {"sparse_activations": torch.amax(torch.log1p(self.relu(logits)), dim=1)}

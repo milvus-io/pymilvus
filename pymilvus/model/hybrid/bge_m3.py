@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, List
 
-from scipy.sparse import csr_array
+from scipy.sparse import csr_array, vstack
 
 from pymilvus.model.base import BaseEmbeddingFunction
 
@@ -87,6 +87,7 @@ class BGEM3EmbeddingFunction(BaseEmbeddingFunction):
                 row_indices = [0] * len(indices)
                 csr = csr_array((values, (row_indices, indices)), shape=(1, sparse_dim))
                 results["sparse"].append(csr)
+            results["sparse"] = vstack(results["sparse"])
         if self._encode_config["return_colbert_vecs"] is True:
             results["colbert_vecs"] = output["colbert_vecs"]
         return results

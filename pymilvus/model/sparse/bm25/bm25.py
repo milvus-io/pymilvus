@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import requests
-from scipy.sparse import csr_array
+from scipy.sparse import csr_array, vstack
 
 from pymilvus.model.base import BaseEmbeddingFunction
 from pymilvus.model.sparse.bm25.tokenizers import Analyzer, build_default_analyzer
@@ -158,21 +158,17 @@ class BM25EmbeddingFunction(BaseEmbeddingFunction):
                 values.append(value)
         return csr_array((values, (rows, cols)), shape=(1, len(self.idf)))
 
-    def encode_queries(self, queries: List[str]) -> List[csr_array]:
-        if self.num_workers == 1:
-            return [self._encode_query(query) for query in queries]
-        with Pool(self.num_workers) as pool:
-            return pool.map(self._encode_query, queries)
+    def encode_queries(self, queries: List[str]) -> csr_array:
+        sparse_embs = [self._encode_query(query) for query in queries]
+        return vstack(sparse_embs)
 
-    def __call__(self, texts: List[str]) -> List[csr_array]:
+    def __call__(self, texts: List[str]) -> csr_array:
         error_message = "Unsupported function called, please check the documentation of 'BM25EmbeddingFunction'."
         raise ValueError(error_message)
 
-    def encode_documents(self, documents: List[str]) -> List[csr_array]:
-        if self.num_workers == 1:
-            return [self._encode_document(document) for document in documents]
-        with Pool(self.num_workers) as pool:
-            return pool.map(self._encode_document, documents)
+    def encode_documents(self, documents: List[str]) -> csr_array:
+        sparse_embs = [self._encode_document(document) for document in documents]
+        return vstack(sparse_embs)
 
     def save(self, path: str):
         bm25_params = {}
