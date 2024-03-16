@@ -49,6 +49,7 @@ class BGEM3EmbeddingFunction(BaseEmbeddingFunction):
             **kwargs,
         )
         _encode_config = {
+            "batch_size": batch_size,
             "return_dense": return_dense,
             "return_sparse": return_sparse,
             "return_colbert_vecs": return_colbert_vecs,

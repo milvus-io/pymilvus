@@ -138,19 +138,27 @@ class _SpladeImplementation:
         output = self.model(**encoded_input)
         return output.logits
 
-    def forward(self, texts: List[str], k_tokens: int):
-        logits = self._encode(texts=texts)
-        activations = self._get_activation(logits=logits)
+    def _batchify(self, texts: List[str], batch_size: int) -> List[List[str]]:
+        return [texts[i : i + batch_size] for i in range(0, len(texts), batch_size)]
 
-        if k_tokens is None:
-            nonzero_indices = [
-                torch.nonzero(activations["sparse_activations"][i]).t()[0]
-                for i in range(len(texts))
-            ]
-            activations["activations"] = nonzero_indices
-        else:
-            activations = self._update_activations(**activations, k_tokens=k_tokens)
-        return self._convert_to_csr_array(activations)
+    def forward(self, texts: List[str], k_tokens: int):
+        batched_texts = self._batchify(texts, self.batch_size)
+        sparse_embs = []
+        for batch_texts in batched_texts:
+            logits = self._encode(texts=batch_texts)
+            activations = self._get_activation(logits=logits)
+            if k_tokens is None:
+                nonzero_indices = [
+                    torch.nonzero(activations["sparse_activations"][i]).t()[0]
+                    for i in range(len(batch_texts))
+                ]
+                activations["activations"] = nonzero_indices
+            else:
+                activations = self._update_activations(**activations, k_tokens=k_tokens)
+            batch_csr = self._convert_to_csr_array(activations)
+            sparse_embs.extend(batch_csr)
+
+        return sparse_embs
 
     def _get_activation(self, logits: torch.Tensor) -> Dict[str, torch.Tensor]:
         return {"sparse_activations": torch.amax(torch.log1p(self.relu(logits)), dim=1)}
@@ -201,18 +209,3 @@ class _SpladeImplementation:
                 )
             )
         return csr_array_list
-
-    def _convert_to_csr_array2(self, activations: Dict):
-        values = (
-            torch.gather(activations["sparse_activations"], 1, activations["activations"])
-            .cpu()
-            .detach()
-            .numpy()
-        )
-        rows, cols = activations["activations"].shape
-        row_indices = np.repeat(np.arange(rows), cols)
-        col_indices = activations["activations"].detach().cpu().numpy().flatten()
-        return csr_array(
-            (values.flatten(), (row_indices, col_indices)),
-            shape=(rows, activations["sparse_activations"].shape[1]),
-        )
