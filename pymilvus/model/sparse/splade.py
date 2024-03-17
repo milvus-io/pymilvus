@@ -31,7 +31,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import torch
-from scipy.sparse import csr_array
+from scipy.sparse import csr_array, vstack
 
 from pymilvus.model.base import BaseEmbeddingFunction
 
@@ -67,27 +67,23 @@ class SpladeEmbeddingFunction(BaseEmbeddingFunction):
         self.query_instruction = query_instruction
         self.doc_instruction = doc_instruction
 
-    def __call__(self, texts: List[str]) -> List[csr_array]:
-        embs = self._encode(texts, None)
-        return list(embs)
+    def __call__(self, texts: List[str]) -> csr_array:
+        return self._encode(texts, None)
 
-    def encode_documents(self, documents: List[str]) -> List[csr_array]:
-        embs = self._encode(
+    def encode_documents(self, documents: List[str]) -> csr_array:
+        return self._encode(
             [self.doc_instruction + document for document in documents],
             self.k_tokens_document,
         )
-        return list(embs)
 
-    def _encode(self, texts: List[str], k_tokens: int) -> List[csr_array]:
-        embs = self.model.forward(texts, k_tokens=k_tokens)
-        return list(embs)
+    def _encode(self, texts: List[str], k_tokens: int) -> csr_array:
+        return self.model.forward(texts, k_tokens=k_tokens)
 
-    def encode_queries(self, queries: List[str]) -> List[csr_array]:
-        embs = self._encode(
+    def encode_queries(self, queries: List[str]) -> csr_array:
+        return self._encode(
             [self.query_instruction + query for query in queries],
             self.k_tokens_query,
         )
-        return list(embs)
 
     @property
     def dim(self) -> int:
@@ -138,19 +134,27 @@ class _SpladeImplementation:
         output = self.model(**encoded_input)
         return output.logits
 
-    def forward(self, texts: List[str], k_tokens: int):
-        logits = self._encode(texts=texts)
-        activations = self._get_activation(logits=logits)
+    def _batchify(self, texts: List[str], batch_size: int) -> List[List[str]]:
+        return [texts[i : i + batch_size] for i in range(0, len(texts), batch_size)]
 
-        if k_tokens is None:
-            nonzero_indices = [
-                torch.nonzero(activations["sparse_activations"][i]).t()[0]
-                for i in range(len(texts))
-            ]
-            activations["activations"] = nonzero_indices
-        else:
-            activations = self._update_activations(**activations, k_tokens=k_tokens)
-        return self._convert_to_csr_array(activations)
+    def forward(self, texts: List[str], k_tokens: int) -> csr_array:
+        batched_texts = self._batchify(texts, self.batch_size)
+        sparse_embs = []
+        for batch_texts in batched_texts:
+            logits = self._encode(texts=batch_texts)
+            activations = self._get_activation(logits=logits)
+            if k_tokens is None:
+                nonzero_indices = [
+                    torch.nonzero(activations["sparse_activations"][i]).t()[0]
+                    for i in range(len(batch_texts))
+                ]
+                activations["activations"] = nonzero_indices
+            else:
+                activations = self._update_activations(**activations, k_tokens=k_tokens)
+            batch_csr = self._convert_to_csr_array(activations)
+            sparse_embs.extend(batch_csr)
+
+        return vstack(sparse_embs)
 
     def _get_activation(self, logits: torch.Tensor) -> Dict[str, torch.Tensor]:
         return {"sparse_activations": torch.amax(torch.log1p(self.relu(logits)), dim=1)}
@@ -201,18 +205,3 @@ class _SpladeImplementation:
                 )
             )
         return csr_array_list
-
-    def _convert_to_csr_array2(self, activations: Dict):
-        values = (
-            torch.gather(activations["sparse_activations"], 1, activations["activations"])
-            .cpu()
-            .detach()
-            .numpy()
-        )
-        rows, cols = activations["activations"].shape
-        row_indices = np.repeat(np.arange(rows), cols)
-        col_indices = activations["activations"].detach().cpu().numpy().flatten()
-        return csr_array(
-            (values.flatten(), (row_indices, col_indices)),
-            shape=(rows, activations["sparse_activations"].shape[1]),
-        )
