@@ -45,6 +45,7 @@ def retry_on_rpc_failure(
     initial_back_off: float = 0.01,
     max_back_off: float = 3,
     back_off_multiplier: int = 3,
+    retry_on_inconsistent_requery: bool = False,
 ):
     def wrapper(func: Any):
         @functools.wraps(func)
@@ -106,8 +107,14 @@ def retry_on_rpc_failure(
                         raise MilvusException(
                             code=e.code, message=f"{to_msg}, message={e.message}"
                         ) from e
-                    if _retry_on_rate_limit and (
-                        e.code == ErrorCode.RATE_LIMIT or e.compatible_code == common_pb2.RateLimit
+                    if (
+                        _retry_on_rate_limit
+                        and (
+                            e.code == ErrorCode.RATE_LIMIT
+                            or e.compatible_code == common_pb2.RateLimit
+                        )
+                        or retry_on_inconsistent_requery
+                        and e.code == 2200
                     ):
                         time.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
