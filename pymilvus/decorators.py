@@ -112,7 +112,7 @@ def retry_on_rpc_failure(
                     ):
                         time.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
-                    if retry_on_inconsistent_requery and e.code == 2200:
+                    elif retry_on_inconsistent_requery and e.code == 2200:
                         time.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
                     else:
