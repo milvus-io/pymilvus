@@ -753,7 +753,7 @@ class GrpcHandler:
                 return SearchFuture(None, None, e)
             raise e from e
 
-    @retry_on_rpc_failure()
+    @retry_on_rpc_failure(retry_on_inconsistent_requery=True)
     def search(
         self,
         collection_name: str,
@@ -793,7 +793,7 @@ class GrpcHandler:
         )
         return self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
 
-    @retry_on_rpc_failure()
+    @retry_on_rpc_failure(retry_on_inconsistent_requery=True)
     def hybrid_search(
         self,
         collection_name: str,
