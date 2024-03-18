@@ -96,9 +96,13 @@ def entity_is_sparse_matrix(entity: Any):
             return isinstance(v, (float, np.floating)) or is_type_in_str(v, float)
 
         # must be of multiple rows
+        if len(entity) == 0:
+            return False
         for item in entity:
             pairs = item.items() if isinstance(item, dict) else item
-            # each row must be a list of Tuple[int, float]
+            # each row must be a non-empty list of Tuple[int, float]
+            if len(pairs) == 0:
+                return False
             for pair in pairs:
                 if len(pair) != 2 or not is_int_type(pair[0]) or not is_float_type(pair[1]):
                     return False
@@ -158,6 +162,9 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
             values.extend([float(value) if isinstance(value, str) else value for _, value in row])
         return sparse.csr_array((values, (row_indices, col_indices)))
 
+    if not entity_is_sparse_matrix(data):
+        msg = "input must be a sparse matrix in supported format"
+        raise TypeError(msg)
     csr = unify_sparse_input(data)
     result = schema_types.SparseFloatArray()
     result.dim = csr.shape[1]
