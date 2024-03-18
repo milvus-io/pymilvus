@@ -195,36 +195,36 @@ class GrpcHandler:
                     options=opts,
                 )
             else:
-                if (
+                if self._server_name != "":
+                    opts.append(("grpc.ssl_target_name_override", self._server_name))
+
+                root_cert, private_k, cert_chain = None, None, None
+                if self._server_pem_path != "":
+                    with Path(self._server_pem_path).open("rb") as f:
+                        root_cert = f.read()
+                elif (
                     self._client_pem_path != ""
                     and self._client_key_path != ""
                     and self._ca_pem_path != ""
-                    and self._server_name != ""
                 ):
-                    opts.append(("grpc.ssl_target_name_override", self._server_name))
-                    with Path(self._client_pem_path).open("rb") as f:
-                        certificate_chain = f.read()
-                    with Path(self._client_key_path).open("rb") as f:
-                        private_key = f.read()
                     with Path(self._ca_pem_path).open("rb") as f:
-                        root_certificates = f.read()
-                    creds = grpc.ssl_channel_credentials(
-                        root_certificates, private_key, certificate_chain
-                    )
-                elif self._server_pem_path != "" and self._server_name != "":
-                    opts.append(("grpc.ssl_target_name_override", self._server_name))
-                    with Path(self._server_pem_path).open("rb") as f:
-                        server_pem = f.read()
-                    creds = grpc.ssl_channel_credentials(root_certificates=server_pem)
-                else:
-                    creds = grpc.ssl_channel_credentials(
-                        root_certificates=None, private_key=None, certificate_chain=None
-                    )
+                        root_cert = f.read()
+                    with Path(self._client_key_path).open("rb") as f:
+                        private_k = f.read()
+                    with Path(self._client_pem_path).open("rb") as f:
+                        cert_chain = f.read()
+
+                creds = grpc.ssl_channel_credentials(
+                    root_certificates=root_cert,
+                    private_key=private_k,
+                    certificate_chain=cert_chain,
+                )
                 self._channel = grpc.secure_channel(
                     self._address,
                     creds,
                     options=opts,
                 )
+
         # avoid to add duplicate headers.
         self._final_channel = self._channel
         if self._authorization_interceptor:
