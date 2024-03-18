@@ -734,7 +734,7 @@ class GrpcHandler:
                 return SearchFuture(None, None, e)
             raise e from e
 
-    @retry_on_rpc_failure()
+    @retry_on_rpc_failure(retry_on_inconsistent_requery=True)
     def search(
         self,
         collection_name: str,
