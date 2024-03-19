@@ -42,15 +42,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 model = [
-    "openai >= 1.12.0",
-    "sentence-transformers",
-    "FlagEmbedding >= 1.2.2",
-    "nltk",
-    "transformers >= 4.33.0",
-    "jieba",
-    "konlpy",
-    "mecab-python3",
-    "scipy >= 1.10.0",
+    "milvus-model>=0.1.0",
 ]
 
 [tool.setuptools.dynamic]
