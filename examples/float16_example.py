@@ -33,7 +33,7 @@ def fp16_vector_search():
     fp16_vector = FieldSchema(name=vector_field_name, dtype=DataType.FLOAT16_VECTOR, dim=dim)
     schema = CollectionSchema(fields=[int64_field, fp16_vector])
 
-    has = utility.has_collection("hello_milvus")
+    has = utility.has_collection("hello_milvus_fp16")
     if has:
         hello_milvus = Collection("hello_milvus_fp16")
         hello_milvus.drop()
