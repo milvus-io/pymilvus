@@ -1,3 +1,8 @@
+# WANNING:
+# Running this example code requires the deployment of a Milvus instance
+# that attached with GPU devices.
+# Please refer to this document (https://milvus.io/docs/install_standalone-helm-gpu.md) for deployment instructions
+
 import numpy as np
 import time 
 import random
