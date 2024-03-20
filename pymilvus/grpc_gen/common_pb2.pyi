@@ -571,18 +571,27 @@ PRIVILEGE_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 privilege_ext_obj: _descriptor.FieldDescriptor
 
 class Status(_message.Message):
-    __slots__ = ("error_code", "reason", "code", "retriable", "detail")
+    __slots__ = ("error_code", "reason", "code", "retriable", "detail", "extra_info")
+    class ExtraInfoEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
     RETRIABLE_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
+    EXTRA_INFO_FIELD_NUMBER: _ClassVar[int]
     error_code: ErrorCode
     reason: str
     code: int
     retriable: bool
     detail: str
-    def __init__(self, error_code: _Optional[_Union[ErrorCode, str]] = ..., reason: _Optional[str] = ..., code: _Optional[int] = ..., retriable: bool = ..., detail: _Optional[str] = ...) -> None: ...
+    extra_info: _containers.ScalarMap[str, str]
+    def __init__(self, error_code: _Optional[_Union[ErrorCode, str]] = ..., reason: _Optional[str] = ..., code: _Optional[int] = ..., retriable: bool = ..., detail: _Optional[str] = ..., extra_info: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class KeyValuePair(_message.Message):
     __slots__ = ("key", "value")
