@@ -1,9 +1,18 @@
 # A demo showing hybrid semantic search with dense and sparse vectors using Milvus.
 # You can optionally choose to use the BGE-M3 model to embed the text as dense
-# and sparse vectors, or simply use random generated vectors as the example.
+# and sparse vectors, or simply use random generated vectors as an example.
+# Note that the sparse vector search feature is only available in Milvus 2.4.0 or
+# higher version. Make sure you follow https://milvus.io/docs/install_standalone-docker.md
+# to set up the latest version of Milvus in your local environment.
 
-# To use BGE-M3 model, you need to install the optional `model` module in pymilvus:
+# To connect to Milvus server, you need the python client library called pymilvus.
+# To use BGE-M3 model, you need to install the optional `model` module in pymilvus.
+# You can get them by simply running the following commands:
+# pip install pymilvus
 # pip install pymilvus[model]
+
+# If true, use BGE-M3 model to generate dense and sparse vectors.
+# If false, use random numbers to compose dense and sparse vectors.
 use_bge_m3 = True
 
 # The overall steps are as follows:
