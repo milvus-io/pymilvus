@@ -3,6 +3,7 @@ import os
 
 import pytest
 import pymilvus
+from pymilvus import *
 from unittest import mock
 
 from pymilvus import connections

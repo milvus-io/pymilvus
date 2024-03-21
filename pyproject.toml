@@ -28,6 +28,7 @@ dependencies=[
     "minio>=7.0.0",
     "pyarrow>=12.0.0",
     "azure-storage-blob",
+    "scipy",
 ]
 
 classifiers=[
@@ -45,6 +46,15 @@ model = [
     "milvus-model>=0.1.0",
 ]
 
+test = [
+    "pytest>=5.3.4",
+    "pytest-cov>=2.8.1",
+    "pytest-timeout>=1.3.4",
+    "grpcio-testing",
+    "ruff>=0.3.3",
+    "black",
+]
+
 [tool.setuptools.dynamic]
 version = { attr = "_version_helper.version"}
 
@@ -52,7 +62,7 @@ version = { attr = "_version_helper.version"}
 
 [tool.black]
 line-length = 100
-target-version = ['py37']
+target-version = ['py38']
 include = '\.pyi?$'
 extend-ignore = ["E203", "E501"]
 # 'extend-exclude' excludes files or directories in addition to the defaults

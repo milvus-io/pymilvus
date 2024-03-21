@@ -16,7 +16,6 @@ from pymilvus import (
 )
 
 import random
-from sklearn import preprocessing
 import string
 
 default_dim = 128
@@ -72,18 +71,11 @@ def gen_default_fields(auto_id=True):
     return default_schema
 
 
-def gen_vectors(num, dim, is_normal=True):
-    vectors = [[random.random() for _ in range(dim)] for _ in range(num)]
-    vectors = preprocessing.normalize(vectors, axis=1, norm='l2')
-    return vectors.tolist()
-
-
-def gen_data(nb, is_normal=False):
-    vectors = gen_vectors(nb, default_dim, is_normal)
+def gen_data(nb):
     entities = [
         [i for i in range(nb)],
         [float(i) for i in range(nb)],
-        vectors
+        [[random.random() for _ in range(dim)] for _ in range(num)],
     ]
     return entities
 

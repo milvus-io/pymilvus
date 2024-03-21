@@ -27,6 +27,7 @@ The following collection shows Milvus versions and recommended PyMilvus versions
 | 2.1.\* | 2.1.3 |
 | 2.2.\* | 2.2.15 |
 | 2.3.\* | 2.3.7 |
+| 2.4.\* | 2.4.0 |
 
 
 ## Installation
@@ -35,6 +36,7 @@ You can install PyMilvus via `pip` or `pip3` for Python 3.8+:
 
 ```shell
 $ pip3 install pymilvus
+$ pip3 install pymilvus[model] # for milvus-model
 ```
 
 You can install a specific version of PyMilvus by:
@@ -83,15 +85,22 @@ make lint
 
 Q5. How to fix the coding styles?
 
-Q5
+A5
 ```shell
 make format
 ```
 
+Q6. How to run unittests?
+
+A6
+```shell
+$ pip install ".[test]"
+$ make unittest
+```
 
 ## Documentation
 
-Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.3.x/About.md
+Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.4.x/About.md
 
 ## Developing package releases
 

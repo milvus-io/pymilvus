@@ -1,6 +1,6 @@
 import random
 import pandas
-from sklearn import preprocessing
+import numpy as np
 
 from pymilvus import DataType
 
@@ -69,10 +69,8 @@ def gen_schema():
     return collection_schema
 
 
-def gen_vectors(num, dim, is_normal=True):
-    vectors = [[random.random() for _ in range(dim)] for _ in range(num)]
-    vectors = preprocessing.normalize(vectors, axis=1, norm='l2')
-    return vectors.tolist()
+def gen_vectors(num, dim):
+    return [[random.random() for _ in range(dim)] for _ in range(num)]
 
 
 def gen_int_attr(row_num):
@@ -80,12 +78,11 @@ def gen_int_attr(row_num):
 
 
 # pandas.DataFrame
-def gen_pd_data(nb, is_normal=False):
-    import numpy
-    vectors = gen_vectors(nb, default_dim, is_normal)
+def gen_pd_data(nb):
+    vectors = gen_vectors(nb, default_dim)
     datas = {
         "int64": [i for i in range(nb)],
-        "float": numpy.array([i for i in range(nb)], dtype=numpy.float32),
+        "float": np.array([i for i in range(nb)], dtype=np.float32),
         default_float_vec_field_name: vectors
     }
     data = pandas.DataFrame(datas)
@@ -93,8 +90,8 @@ def gen_pd_data(nb, is_normal=False):
 
 
 # list or tuple data
-def gen_list_data(nb, is_normal=False):
-    vectors = gen_vectors(nb, default_dim, is_normal)
+def gen_list_data(nb):
+    vectors = gen_vectors(nb, default_dim)
     datas = [[i for i in range(nb)], [float(i) for i in range(nb)], vectors]
     return datas
 
