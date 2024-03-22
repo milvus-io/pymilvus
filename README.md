@@ -97,6 +97,12 @@ A6
 $ pip install ".[test]"
 $ make unittest
 ```
+Q7. `zsh: no matches found: pymilvus[model]` in mac, how do I solve this?
+
+A7
+```shell
+$ pip install "pymilvus[model]"
+```
 
 ## Documentation
 
