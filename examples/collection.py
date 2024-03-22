@@ -14,7 +14,8 @@ from pymilvus.client.types import LoadState
 
 import random
 import numpy as np
-from sklearn import preprocessing
+import pandas
+
 import string
 
 from pymilvus.orm import db
@@ -100,30 +101,24 @@ def gen_binary_schema():
     return default_schema
 
 
-def gen_float_vectors(num, dim, is_normal=True):
-    vectors = [[random.random() for _ in range(dim)] for _ in range(num)]
-    vectors = preprocessing.normalize(vectors, axis=1, norm='l2')
-    return vectors.tolist()
+def gen_float_vectors(num, dim):
+    return [[random.random() for _ in range(dim)] for _ in range(num)]
 
 
-def gen_float_data(nb, is_normal=False):
-    vectors = gen_float_vectors(nb, default_dim, is_normal)
+def gen_float_data(nb):
     entities = [
         [i for i in range(nb)],
         [float(i) for i in range(nb)],
-        vectors
+        gen_float_vectors(nb, default_dim),
     ]
     return entities
 
 
-def gen_dataframe(nb, is_normal=False):
-    import pandas
-    import numpy
-
-    vectors = gen_float_vectors(nb, default_dim, is_normal)
+def gen_dataframe(nb):
+    vectors = gen_float_vectors(nb, default_dim)
     data = {
         "int64": [i for i in range(nb)],
-        "float": numpy.array([i for i in range(nb)], dtype=numpy.float32),
+        "float": np.array([i for i in range(nb)], dtype=np.float32),
         "float_vector": vectors
     }
 
