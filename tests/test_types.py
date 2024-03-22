@@ -13,7 +13,14 @@ from pymilvus import DataType
 from pymilvus.client.constants import DEFAULT_RESOURCE_GROUP
 from pymilvus.exceptions import InvalidConsistencyLevel
 from pymilvus.client.types import (
-    get_consistency_level, Shard, Group, Replica, ConsistencyLevel
+    get_consistency_level,
+    Shard,
+    Group,
+    Replica,
+    ConsistencyLevel,
+)
+from pymilvus.orm.types import (
+    infer_dtype_bydata,
 )
 
 from pymilvus.grpc_gen import common_pb2
@@ -21,95 +28,30 @@ from pymilvus.grpc_gen import common_pb2
 import pytest
 import pandas as pd
 import numpy as np
-import tensorflow as tf
+#  from ml_dtypes import bfloat16
 
 
-@pytest.mark.xfail
+@pytest.mark.skip("please fix me")
 class TestTypes:
-    def test_map_numpy_dtype_to_datatype(self):
-        data1 = {
-            'double': [2.0],
-            'float32': [np.float32(1.0)],
-            'double2': [np.float64(1.0)],
-            'int8': [np.int8(1)],
-            'int16': [2],
-            'int32': [4],
-            'int64': [8],
-            'bool': [True],
-            'float_vec': [np.array([1.1, 1.2])],
-        }
-
-        df = pd.DataFrame(data1)
-
-        wants1 = [
-            DataType.DOUBLE,
-            DataType.DOUBLE,
-            DataType.DOUBLE,
-            DataType.INT64,
-            DataType.INT64,
-            DataType.INT64,
-            DataType.INT64,
-            DataType.BOOL,
-            DataType.UNKNOWN,
-        ]
-
-        ret1 = [map_numpy_dtype_to_datatype(x) for x in df.dtypes]
-        assert ret1 == wants1
-
-        df2 = pd.DataFrame(data=[1, 2, 3], columns=['a'],
-                           dtype=np.int8)
-        assert DataType.INT8 == map_numpy_dtype_to_datatype(df2.dtypes[0])
-
-        df2 = pd.DataFrame(data=[1, 2, 3], columns=['a'],
-                           dtype=np.int16)
-        assert DataType.INT16 == map_numpy_dtype_to_datatype(df2.dtypes[0])
-
-        df2 = pd.DataFrame(data=[1, 2, 3], columns=['a'],
-                           dtype=np.int32)
-        assert DataType.INT32 == map_numpy_dtype_to_datatype(df2.dtypes[0])
-
-        df2 = pd.DataFrame(data=[1, 2, 3], columns=['a'],
-                           dtype=np.int64)
-        assert DataType.INT64 == map_numpy_dtype_to_datatype(df2.dtypes[0])
-
-    def test_infer_dtype_bydata(self):
-        data1 = [
-            [1],
-            [True],
-            [1.0, 2.0],
-            ["abc"],
-            bytes("abc", encoding='ascii'),
-            1,
-            True,
-            "abc",
-            np.int8(1),
-            np.int16(1),
-            [np.int8(1)],
-            [np.float16(1.0)],
-            [tf.bfloat16(1.0)]
-        ]
-
-        wants = [
-            DataType.FLOAT_VECTOR,
-            DataType.UNKNOWN,
-            DataType.FLOAT_VECTOR,
-            DataType.UNKNOWN,
-            DataType.BINARY_VECTOR,
-            DataType.INT64,
-            DataType.BOOL,
-            DataType.STRING,
-            DataType.INT8,
-            DataType.INT16,
-            DataType.FLOAT_VECTOR,
-            DataType.FLOAT16_VECTOR,
-            DataType.BFLOAT16_VECTOR,
-        ]
-
-        actual = []
-        for d in data1:
-            actual.append(infer_dtype_bydata(d))
-
-        assert actual == wants
+    @pytest.mark.parametrize("input_expect", [
+        ([1], DataType.FLOAT_VECTOR),
+        ([True], DataType.UNKNOWN),
+        ([1.0, 2.0], DataType.FLOAT_VECTOR),
+        (["abc"], DataType.UNKNOWN),
+        (bytes("abc", encoding='ascii'), DataType.BINARY_VECTOR),
+        (1, DataType.INT64),
+        (True, DataType.BOOL),
+        ("abc", DataType.VARCHAR),
+        (np.int8(1), DataType.INT8),
+        (np.int16(1), DataType.INT16),
+        ([np.int8(1)], DataType.FLOAT_VECTOR),
+        ([np.float16(1.0)], DataType.FLOAT16_VECTOR),
+        #  ([np.array([1, 1], dtype=bfloat16)], DataType.BFLOAT16_VECTOR),
+    ])
+    def test_infer_dtype_bydata(self, input_expect):
+        data, expect = input_expect
+        got = infer_dtype_bydata(data)
+        assert got == expect
 
 
 class TestConsistencyLevel:

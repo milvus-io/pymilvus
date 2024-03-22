@@ -2,7 +2,6 @@ from pymilvus import utility, connections, Collection, CollectionSchema, FieldSc
 from pymilvus.orm.role import Role
 
 import random
-from sklearn import preprocessing
 
 _CONNECTION = "demo"
 _FOO_CONNECTION = "foo_connection"
@@ -79,18 +78,15 @@ default_dim = 128
 default_nb = 1000
 
 
-def gen_float_vectors(num, dim, is_normal=True):
-    vectors = [[random.random() for _ in range(dim)] for _ in range(num)]
-    vectors = preprocessing.normalize(vectors, axis=1, norm='l2')
-    return vectors.tolist()
+def gen_float_vectors(num, dim):
+    return [[random.random() for _ in range(dim)] for _ in range(num)]
 
 
-def gen_float_data(nb, is_normal=False):
-    vectors = gen_float_vectors(nb, default_dim, is_normal)
+def gen_float_data(nb):
     entities = [
         [i for i in range(nb)],
         [float(i) for i in range(nb)],
-        vectors
+        gen_float_vectors(nb, default_dim),
     ]
     return entities
 
