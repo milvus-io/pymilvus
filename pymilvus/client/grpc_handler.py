@@ -64,6 +64,18 @@ from .utils import (
     len_of,
 )
 
+class TimeoutContext:
+    def __init__(self, timeout: Optional[float]):
+        self.timeout = timeout
+        if timeout is not None:
+            self.start = time.time()
+
+    def time_remaining(self) -> Optional[float]:
+        return None if self.timeout is None else self.timeout - (time.time() - self.start)
+
+    def is_timed_out(self) -> bool:
+        return False if self.timeout is None else (time.time() - self.start) > self.timeout
+
 
 class GrpcHandler:
     # pylint: disable=too-many-instance-attributes
@@ -1102,23 +1114,22 @@ class GrpcHandler:
         self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
     ):
         timestamp = self.alloc_timestamp()
-        start = time.time()
+        ctx = TimeoutContext(timeout)
         while True:
-            time.sleep(0.5)
             state, fail_reason = self.get_index_state(
-                collection_name, index_name, timeout=timeout, timestamp=timestamp, **kwargs
+                collection_name, index_name, timeout=ctx.time_remaining(), timestamp=timestamp, **kwargs
             )
             if state == IndexState.Finished:
                 return True, fail_reason
             if state == IndexState.Failed:
                 return False, fail_reason
-            end = time.time()
-            if isinstance(timeout, int) and end - start > timeout:
+            if ctx.is_timed_out():
                 msg = (
                     f"collection {collection_name} create index {index_name} "
                     f"timeout in {timeout}s"
                 )
                 raise MilvusException(message=msg)
+            time.sleep(0.5)
 
     @retry_on_rpc_failure()
     def load_collection(
@@ -1155,14 +1166,10 @@ class GrpcHandler:
     def wait_for_loading_collection(
         self, collection_name: str, timeout: Optional[float] = None, is_refresh: bool = False
     ):
-        start = time.time()
-
-        def can_loop(t: int) -> bool:
-            return True if timeout is None else t <= (start + timeout)
-
-        while can_loop(time.time()):
+        ctx = TimeoutContext(timeout)
+        while not ctx.is_timed_out():
             progress = self.get_loading_progress(
-                collection_name, timeout=timeout, is_refresh=is_refresh
+                collection_name, timeout=ctx.time_remaining(), is_refresh=is_refresh
             )
             if progress >= 100:
                 return
@@ -1234,14 +1241,10 @@ class GrpcHandler:
         timeout: Optional[float] = None,
         is_refresh: bool = False,
     ):
-        start = time.time()
-
-        def can_loop(t: int) -> bool:
-            return True if timeout is None else t <= (start + timeout)
-
-        while can_loop(time.time()):
+        ctx = TimeoutContext(timeout)
+        while not ctx.is_timed_out():
             progress = self.get_loading_progress(
-                collection_name, partition_names, timeout=timeout, is_refresh=is_refresh
+                collection_name, partition_names, timeout=ctx.time_remaining(), is_refresh=is_refresh
             )
             if progress >= 100:
                 return
@@ -1368,13 +1371,12 @@ class GrpcHandler:
         **kwargs,
     ):
         flush_ret = False
-        start = time.time()
+        ctx = TimeoutContext(timeout)
         while not flush_ret:
             flush_ret = self.get_flush_state(
-                segment_ids, collection_name, flush_ts, timeout, **kwargs
+                segment_ids, collection_name, flush_ts, ctx.time_remaining(), **kwargs
             )
-            end = time.time()
-            if timeout is not None and end - start > timeout:
+            if ctx.is_timed_out():
                 raise MilvusException(
                     message=f"wait for flush timeout, collection: {collection_name}"
                 )
@@ -1554,19 +1556,18 @@ class GrpcHandler:
     def wait_for_compaction_completed(
         self, compaction_id: int, timeout: Optional[float] = None, **kwargs
     ):
-        start = time.time()
+        ctx = TimeoutContext(timeout)
         while True:
-            time.sleep(0.5)
-            compaction_state = self.get_compaction_state(compaction_id, timeout, **kwargs)
+            compaction_state = self.get_compaction_state(compaction_id, ctx.time_remaining(), **kwargs)
             if compaction_state.state == State.Completed:
                 return True
             if compaction_state == State.UndefiedState:
                 return False
-            end = time.time()
-            if timeout is not None and end - start > timeout:
+            if ctx.is_timed_out():
                 raise MilvusException(
                     message=f"get compaction state timeout, compaction id: {compaction_id}"
                 )
+            time.sleep(0.5)
 
     @retry_on_rpc_failure()
     def get_compaction_plans(
@@ -1893,11 +1894,10 @@ class GrpcHandler:
 
     def _wait_for_flush_all(self, flush_all_ts: int, timeout: Optional[float] = None, **kwargs):
         flush_ret = False
-        start = time.time()
+        ctx = TimeoutContext(timeout)
         while not flush_ret:
-            flush_ret = self.get_flush_all_state(flush_all_ts, timeout, **kwargs)
-            end = time.time()
-            if timeout is not None and end - start > timeout:
+            flush_ret = self.get_flush_all_state(flush_all_ts, ctx.time_remaining(), **kwargs)
+            if ctx.is_timed_out():
                 raise MilvusException(
                     message=f"wait for flush all timeout, flush_all_ts: {flush_all_ts}"
                 )
