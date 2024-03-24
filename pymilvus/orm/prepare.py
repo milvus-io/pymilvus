@@ -21,7 +21,6 @@ from pymilvus.exceptions import (
     DataNotMatchException,
     DataTypeNotSupportException,
     ExceptionsMessage,
-    UpsertAutoIDTrueException,
 )
 
 from .schema import CollectionSchema
@@ -84,7 +83,34 @@ class Prepare:
         data: Union[List, Tuple, pd.DataFrame, entity_helper.SparseMatrixInputType],
         schema: CollectionSchema,
     ) -> List:
-        if schema.auto_id:
-            raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
+        if not isinstance(data, (list, tuple, pd.DataFrame)):
+            raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
 
-        return cls.prepare_insert_data(data, schema)
+        fields = schema.fields
+        entities = []  # Entities
+
+        if isinstance(data, pd.DataFrame):
+            if schema.primary_field.name in data and data[schema.primary_field.name].isnull().all():
+                raise DataNotMatchException(message=ExceptionsMessage.UpsertPrimaryKeyEmpty)
+            for field in fields:
+                values = []
+                if field.name in list(data.columns):
+                    values = list(data[field.name])
+                entities.append({"name": field.name, "type": field.dtype, "values": values})
+            return entities
+
+        tmp_fields = copy.deepcopy(fields)
+
+        for i, field in enumerate(tmp_fields):
+            try:
+                if isinstance(data[i], np.ndarray):
+                    d = data[i].tolist()
+                else:
+                    d = data[i] if data[i] is not None else []
+
+                entities.append({"name": field.name, "type": field.dtype, "values": d})
+            # the last missing part of data is also completed in order according to the schema
+            except IndexError:
+                entities.append({"name": field.name, "type": field.dtype, "values": []})
+
+        return entities

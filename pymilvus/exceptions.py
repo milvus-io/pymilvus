@@ -141,10 +141,6 @@ class InvalidConsistencyLevel(MilvusException):
     """Raise when consistency level is invalid"""
 
 
-class UpsertAutoIDTrueException(MilvusException):
-    """Raise when upsert autoID is true"""
-
-
 class ExceptionsMessage:
     NoHostPort = "connection configuration must contain 'host' and 'port'."
     HostType = "Type of 'host' must be str."
@@ -215,7 +211,7 @@ class ExceptionsMessage:
     InsertUnexpectedField = (
         "Attempt to insert an unexpected field to collection without enabling dynamic field"
     )
-    UpsertAutoIDTrue = "Upsert don't support autoid == true"
+    UpsertPrimaryKeyEmpty = "Upsert need to assign pk"
     AmbiguousDeleteFilterParam = (
         "Ambiguous filter parameter, only one deletion condition can be specified."
     )
