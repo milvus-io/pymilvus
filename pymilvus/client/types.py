@@ -7,7 +7,7 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     InvalidConsistencyLevel,
 )
-from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import (common_pb2, rg_pb2)
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
 Status = TypeVar("Status")
@@ -761,14 +761,17 @@ class RoleInfo:
         return self._groups
 
 
-class ResourceGroupInfo:
+class ResourceGroupInfo():
     def __init__(self, resource_group: Any) -> None:
+
         self._name = resource_group.name
         self._capacity = resource_group.capacity
         self._num_available_node = resource_group.num_available_node
         self._num_loaded_replica = resource_group.num_loaded_replica
         self._num_outgoing_node = resource_group.num_outgoing_node
         self._num_incoming_node = resource_group.num_incoming_node
+        self._config = resource_group.config
+        self._nodes = [NodeInfo(node) for node in resource_group.nodes]
 
     def __repr__(self) -> str:
         return f"""ResourceGroupInfo:
@@ -777,7 +780,9 @@ class ResourceGroupInfo:
 <num_available_node:{self.num_available_node}>,
 <num_loaded_replica:{self.num_loaded_replica}>,
 <num_outgoing_node:{self.num_outgoing_node}>,
-<num_incoming_node:{self.num_incoming_node}>"""
+<num_incoming_node:{self.num_incoming_node}>,
+<config:{self.config}>,
+<nodes:{self.nodes}>"""
 
     @property
     def name(self):
@@ -802,3 +807,80 @@ class ResourceGroupInfo:
     @property
     def num_incoming_node(self):
         return self._num_incoming_node
+    
+    @property
+    def config(self):
+        return self._config
+
+    @property
+    def nodes(self):
+        return self._nodes
+
+class NodeInfo:
+    """
+    Represents information about a node in the system.
+    Attributes:
+        node_id (int): The ID of the node.
+        address (str): The ip address of the node.
+        hostname (str): The hostname of the node.
+    Example:
+        NodeInfo(
+            node_id=1,
+            address="127.0.0.1",
+            hostname="localhost",
+        )
+    """
+
+    def __init__(self, info: Any) -> None:
+        self._node_id = info.node_id
+        self._address = info.address
+        self._hostname = info.hostname
+
+    def __repr__(self) -> str:
+        return f"""NodeInfo:
+<node_id:{self.node_id}>,
+<address:{self.address}>,
+<hostname:{self.hostname}>"""
+
+    @property
+    def node_id(self) -> int:
+        return self._node_id
+
+    @property
+    def address(self) -> str:
+        return self._address
+
+    @property
+    def hostname(self) -> str:
+        return self._hostname
+
+ResourceGroupConfig = rg_pb2.ResourceGroupConfig
+"""
+Represents the configuration of a resource group.
+Attributes:
+    requests (ResourceGroupLimit): The requests of the resource group.
+    limits (ResourceGroupLimit): The limits of the resource group.
+    transfer_from (List[ResourceGroupTransfer]): The transfer config that resource group can transfer node from the resource group of this field at high priority.
+    transfer_to (List[ResourceGroupTransfer]): The transfer config that resource group can transfer node to the resource group of this field at high priority.
+Example:
+    ResourceGroupConfig(
+        requests={"node_num": 1},
+        limits={"node_num": 5},
+        transfer_from=[{"resource_group": "__default_resource_group"}],
+        transfer_to=[{"resource_group": "resource_group_2"}],
+    )
+"""
+
+ResourceGroupLimit = rg_pb2.ResourceGroupLimit
+"""
+Represents the limit of a resource group.
+Attributes:
+    node_num (int): The number of nodes that the resource group can hold.
+"""
+
+ResourceGroupTransfer = rg_pb2.ResourceGroupTransfer
+"""
+Represents the transfer config of a resource group.
+Attributes:
+    resource_group (str): The name of the resource group that can be transferred to or from.
+"""

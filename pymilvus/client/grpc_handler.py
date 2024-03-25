@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 from urllib import parse
+from collections.abc import Mapping
 
 import grpc
 from grpc._cython import cygrpc
@@ -50,6 +51,7 @@ from .types import (
     Plan,
     Replica,
     ResourceGroupInfo,
+    ResourceGroupConfig,
     RoleInfo,
     Shard,
     State,
@@ -1838,8 +1840,14 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def create_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
-        req = Prepare.create_resource_group(name)
+        req = Prepare.create_resource_group(name, **kwargs)
         resp = self._stub.CreateResourceGroup(req, wait_for_ready=True, timeout=timeout)
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def update_resource_groups(self, configs: Mapping[str, ResourceGroupConfig], timeout: Optional[float] = None, **kwargs):
+        req = Prepare.update_resource_groups(configs)
+        resp = self._stub.UpdateResourceGroups(req, wait_for_ready=True, timeout=timeout)
         check_status(resp)
 
     @retry_on_rpc_failure()
