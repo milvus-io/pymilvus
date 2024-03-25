@@ -753,11 +753,11 @@ class ServerInfo(_message.Message):
     def __init__(self, build_tags: _Optional[str] = ..., build_time: _Optional[str] = ..., git_commit: _Optional[str] = ..., go_version: _Optional[str] = ..., deploy_mode: _Optional[str] = ..., reserved: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class NodeInfo(_message.Message):
-    __slots__ = ("nodeID", "address", "hostname")
-    NODEID_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("node_id", "address", "hostname")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
     ADDRESS_FIELD_NUMBER: _ClassVar[int]
     HOSTNAME_FIELD_NUMBER: _ClassVar[int]
-    nodeID: int
+    node_id: int
     address: str
     hostname: str
-    def __init__(self, nodeID: _Optional[int] = ..., address: _Optional[str] = ..., hostname: _Optional[str] = ...) -> None: ...
+    def __init__(self, node_id: _Optional[int] = ..., address: _Optional[str] = ..., hostname: _Optional[str] = ...) -> None: ...

@@ -12,8 +12,12 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+from collections.abc import Mapping
 
-from pymilvus.client.types import BulkInsertState
+from pymilvus.client.types import (
+    BulkInsertState,
+    ResourceGroupConfig,
+)
 from pymilvus.client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
 from pymilvus.client.utils import mkts_from_datetime as _mkts_from_datetime
 from pymilvus.client.utils import mkts_from_hybridts as _mkts_from_hybridts
@@ -1075,7 +1079,7 @@ def get_server_version(using: str = "default", timeout: Optional[float] = None) 
     return _get_connection(using).get_server_version(timeout=timeout)
 
 
-def create_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
+def create_resource_group(name: str, using: str = "default", timeout: Optional[float] = None, **kwargs):
     """Create a resource group
         It will success whether or not the resource group exists.
 
@@ -1086,8 +1090,39 @@ def create_resource_group(name: str, using: str = "default", timeout: Optional[f
         >>> rgs = utility.list_resource_groups()
         >>> print(f"resource groups in Milvus: {rgs}")
     """
-    return _get_connection(using).create_resource_group(name, timeout)
+    return _get_connection(using).create_resource_group(name, timeout, **kwargs)
 
+def update_resource_groups(configs: Mapping[str, ResourceGroupConfig], using: str = "default", timeout: Optional[float] = None):
+    """Update resource groups.
+        This function updates the resource groups based on the provided configurations.
+
+    :param configs: A mapping of resource group names to their configurations.
+    :type configs: Mapping[str, ResourceGroupConfig]
+    :param using: The name of the connection to use. Defaults to "default".
+    :type using: (str, optional)
+    :param timeout: The timeout value in seconds. Defaults to None.
+    :type timeout: (float, optional)
+
+    :example:
+        >>> from pymilvus import connections, utility
+        >>> connections.connect()
+        >>> configs = {
+        ...     "resource_group_1": ResourceGroupConfig(
+        ...         requests={"node_num": 1},
+        ...         limits={"node_num": 5},
+        ...         transfer_from=[{"resource_group": "resource_group_2"}],
+        ...         transfer_to=[{"resource_group": "resource_group_2"}],
+        ...     ),
+        ...     "resource_group_2": ResourceGroupConfig(
+        ...         requests={"node_num": 4},
+        ...         limits={"node_num": 4},
+        ...         transfer_from=[{"resource_group": "__default_resource_group"}],
+        ...         transfer_to=[{"resource_group": "resource_group_1"}],
+        ...     ),
+        ... }
+        >>> utility.update_resource_groups(configs)
+    """
+    return _get_connection(using).update_resource_groups(configs, timeout)
 
 def drop_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
     """Drop a resource group
