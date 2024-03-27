@@ -77,7 +77,7 @@ col = Collection(col_name, schema, consistency_level="Strong")
 # into memory for efficient search.
 sparse_index = {"index_type": "SPARSE_INVERTED_INDEX", "metric_type": "IP"}
 col.create_index("sparse_vector", sparse_index)
-dense_index = {"index_type": "FLAT", "metric_type": "L2"}
+dense_index = {"index_type": "FLAT", "metric_type": "IP"}
 col.create_index("dense_vector", dense_index)
 col.load()
 
@@ -93,7 +93,7 @@ k = 2 # we want to get the top 2 docs closest to the query
 sparse_search_params = {"metric_type": "IP"}
 sparse_req = AnnSearchRequest(query_embeddings["sparse"],
                               "sparse_vector", sparse_search_params, limit=k)
-dense_search_params = {"metric_type": "L2"}
+dense_search_params = {"metric_type": "IP"}
 dense_req = AnnSearchRequest(query_embeddings["dense"],
                              "dense_vector", dense_search_params, limit=k)
 
