@@ -3,6 +3,7 @@ from urllib import parse
 from pymilvus.decorators import deprecated
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.settings import Config
+from collections.abc import Mapping
 
 from .check import is_legal_host, is_legal_port
 from .grpc_handler import GrpcHandler
@@ -12,6 +13,7 @@ from .types import (
     CompactionState,
     Replica,
     ResourceGroupInfo,
+    ResourceGroupConfig,
 )
 
 
@@ -1380,6 +1382,15 @@ class Milvus:
         """
         with self._connection() as handler:
             handler.create_resource_group(name, timeout=timeout, **kwargs)
+    
+    def update_resource_groups(self, configs: Mapping[str, ResourceGroupConfig], timeout=None, **kwargs):
+        """update resource groups with specific configs
+
+        :param configs: resource group configs
+        :type name: Mapping
+        """
+        with self._connection() as handler:
+            handler.update_resource_groups(configs=configs, timeout=timeout, **kwargs)
 
     def drop_resource_group(self, name, timeout=None, **kwargs):
         """drop resource group with specific name

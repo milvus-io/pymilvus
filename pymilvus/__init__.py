@@ -57,6 +57,7 @@ from .orm.role import Role
 from .orm.schema import CollectionSchema, FieldSchema
 from .orm.utility import (
     create_resource_group,
+    update_resource_groups,
     create_user,
     delete_user,
     describe_resource_group,
@@ -126,6 +127,7 @@ __all__ = [
     "MilvusUnavailableException",
     "BulkInsertState",
     "create_resource_group",
+    "update_resource_groups",
     "drop_resource_group",
     "describe_resource_group",
     "list_resource_groups",
