@@ -332,6 +332,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 to each RPC call.
             * *keep_alive* (``bool``) --
                 Optional. Default is false. If set to true, client will keep an alive connection.
+            * *compression_type* (``str``) --
+                Optional. Default is none. ["none", "deflate", "gzip"]
             * *db_name* (``str``) --
                 Optional. default database name of this connection
             * *client_key_path* (``str``) --
