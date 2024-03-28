@@ -64,6 +64,13 @@ from .utils import (
     len_of,
 )
 
+_DESCRIPTION = "A client capable of compression."
+_COMPRESSION_OPTIONS = {
+    "none": grpc.Compression.NoCompression,
+    "deflate": grpc.Compression.Deflate,
+    "gzip": grpc.Compression.Gzip,
+}
+
 
 class GrpcHandler:
     # pylint: disable=too-many-instance-attributes
@@ -84,6 +91,7 @@ class GrpcHandler:
         self._log_level = None
         self._request_id = None
         self._user = kwargs.get("user", None)
+        self._compression_type = kwargs.get("compression_type", "none")
         self._set_authorization(**kwargs)
         self._setup_db_interceptor(kwargs.get("db_name", None))
         self._setup_grpc_channel()
@@ -193,6 +201,7 @@ class GrpcHandler:
                 self._channel = grpc.insecure_channel(
                     self._address,
                     options=opts,
+                    compression=_COMPRESSION_OPTIONS[self._compression_type],
                 )
             else:
                 if self._server_name != "":
@@ -223,6 +232,7 @@ class GrpcHandler:
                     self._address,
                     creds,
                     options=opts,
+                    compression=_COMPRESSION_OPTIONS[self._compression_type],
                 )
 
         # avoid to add duplicate headers.
