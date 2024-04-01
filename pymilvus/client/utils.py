@@ -2,6 +2,8 @@ import datetime
 from datetime import timedelta
 from typing import Any, List, Optional, Union
 
+import ujson
+
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen.common_pb2 import Status
 
@@ -334,3 +336,7 @@ def traverse_info(fields_info: Any, entities: List):
 
 def get_server_type(host: str):
     return ZILLIZ if (isinstance(host, str) and "zilliz" in host.lower()) else MILVUS
+
+
+def dumps(v: Union[dict, str]) -> str:
+    return ujson.dumps(v) if isinstance(v, dict) else str(v)
