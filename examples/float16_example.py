@@ -19,8 +19,8 @@ def gen_fp16_vectors(num, dim):
     for _ in range(num):
         raw_vector = [random.random() for _ in range(dim)]
         raw_vectors.append(raw_vector)
-        fp16_vector = np.array(raw_vector, dtype=np.float16).view(np.uint8).tolist()
-        fp16_vectors.append(bytes(fp16_vector))
+        fp16_vector = np.array(raw_vector, dtype=np.float16)
+        fp16_vectors.append(fp16_vector)
     return raw_vectors, fp16_vectors
 
 def fp16_vector_search():
@@ -41,16 +41,8 @@ def fp16_vector_search():
         hello_milvus = Collection("hello_milvus_fp16", schema)
 
     _, vectors = gen_fp16_vectors(nb, dim)
-    rows = [
-        {vector_field_name: vectors[0]},
-        {vector_field_name: vectors[1]},
-        {vector_field_name: vectors[2]},
-        {vector_field_name: vectors[3]},
-        {vector_field_name: vectors[4]},
-        {vector_field_name: vectors[5]},
-    ]
-
-    hello_milvus.insert(rows)
+    batches = [[v.tobytes() for v in vectors]]
+    hello_milvus.insert(batches)
     hello_milvus.flush()
 
     for i, index_type in enumerate(fp16_index_types):
