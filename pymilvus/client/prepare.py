@@ -459,9 +459,9 @@ class Prepare:
     ):
         for entity in entities:
             if (
-                not entity.get("name", None)
-                or entity.get("values", None) is None
-                or not entity.get("type", None)
+                entity.get("name") is None
+                or entity.get("values") is None
+                or entity.get("type") is None
             ):
                 raise ParamError(
                     message="Missing param in entities, a field must have type, name and values"
