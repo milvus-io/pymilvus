@@ -2,7 +2,7 @@ import base64
 import datetime
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-import ujson
+import numpy as np
 
 from pymilvus.client import __version__, entity_helper
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
@@ -11,7 +11,7 @@ from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.orm.schema import CollectionSchema
 
-from . import blob, ts_utils
+from . import blob, ts_utils, utils
 from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
     DEFAULT_CONSISTENCY_LEVEL,
@@ -459,9 +459,9 @@ class Prepare:
     ):
         for entity in entities:
             if (
-                not entity.get("name", None)
-                or entity.get("values", None) is None
-                or not entity.get("type", None)
+                entity.get("name") is None
+                or entity.get("values") is None
+                or entity.get("type") is None
             ):
                 raise ParamError(
                     message="Missing param in entities, a field must have type, name and values"
@@ -575,22 +575,41 @@ class Prepare:
         )
 
     @classmethod
-    def _prepare_placeholders(cls, vectors: Any, nq: int, tag: Any, pl_type: Any, is_binary: bool):
-        pl = common_types.PlaceholderValue(tag=tag)
-        pl.type = pl_type
+    def _prepare_placeholder_str(cls, data: Any):
         # sparse vector
-        if pl_type == PlaceholderType.SparseFloatVector:
-            sparse_float_array_proto = entity_helper.sparse_rows_to_proto(vectors)
-            pl.values.extend(sparse_float_array_proto.contents)
-            return pl
+        if entity_helper.entity_is_sparse_matrix(data):
+            pl_type = PlaceholderType.SparseFloatVector
+            pl_values = entity_helper.sparse_rows_to_proto(data).contents
 
-        # dense or binary vector
-        for i in range(nq):
-            if is_binary:
-                pl.values.append(blob.vector_binary_to_bytes(vectors[i]))
+        elif isinstance(data[0], np.ndarray):
+            dtype = data[0].dtype
+            pl_values = (array.tobytes() for array in data)
+
+            if dtype == "bfloat16":
+                pl_type = PlaceholderType.BFLOAT16_VECTOR
+            elif dtype == "float16":
+                pl_type = PlaceholderType.FLOAT16_VECTOR
+            elif dtype == "float32":
+                pl_type = PlaceholderType.FloatVector
+            elif dtype == "byte":
+                pl_type = PlaceholderType.BinaryVector
+
             else:
-                pl.values.append(blob.vector_float_to_bytes(vectors[i]))
-        return pl
+                err_msg = f"unsupported data type: {dtype}"
+                raise ParamError(message=err_msg)
+
+        elif isinstance(data[0], bytes):
+            pl_type = PlaceholderType.BinaryVector
+            pl_values = data  # data is already a list of bytes
+
+        else:
+            pl_type = PlaceholderType.FloatVector
+            pl_values = (blob.vector_float_to_bytes(entity) for entity in data)
+
+        pl = common_types.PlaceholderValue(tag="$0", type=pl_type, values=pl_values)
+        return common_types.PlaceholderGroup.SerializeToString(
+            common_types.PlaceholderGroup(placeholders=[pl])
+        )
 
     @classmethod
     def search_requests_with_expr(
@@ -606,16 +625,6 @@ class Prepare:
         round_decimal: int = -1,
         **kwargs,
     ) -> milvus_types.SearchRequest:
-        if entity_helper.entity_is_sparse_matrix(data):
-            is_binary = False
-            pl_type = PlaceholderType.SparseFloatVector
-        elif isinstance(data[0], bytes):
-            is_binary = True
-            pl_type = PlaceholderType.BinaryVector
-        else:
-            is_binary = False
-            pl_type = PlaceholderType.FloatVector
-
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
 
         ignore_growing = param.get("ignore_growing", False) or kwargs.get("ignore_growing", False)
@@ -654,17 +663,13 @@ class Prepare:
         if anns_field:
             search_params["anns_field"] = anns_field
 
-        def dump(v: Dict):
-            if isinstance(v, dict):
-                return ujson.dumps(v)
-            return str(v)
-
+        req_params = [
+            common_types.KeyValuePair(key=str(key), value=utils.dumps(value))
+            for key, value in search_params.items()
+        ]
         nq = entity_helper.get_input_num_rows(data)
-        tag = "$0"
-        pl = cls._prepare_placeholders(data, nq, tag, pl_type, is_binary)
-        plg = common_types.PlaceholderGroup()
-        plg.placeholders.append(pl)
-        plg_str = common_types.PlaceholderGroup.SerializeToString(plg)
+        plg_str = cls._prepare_placeholder_str(data)
+
         request = milvus_types.SearchRequest(
             collection_name=collection_name,
             partition_names=partition_names,
@@ -673,18 +678,12 @@ class Prepare:
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
             nq=nq,
+            placeholder_group=plg_str,
+            dsl_type=common_types.DslType.BoolExprV1,
+            search_params=req_params,
         )
-        request.placeholder_group = plg_str
-
-        request.dsl_type = common_types.DslType.BoolExprV1
         if expr is not None:
             request.dsl = expr
-        request.search_params.extend(
-            [
-                common_types.KeyValuePair(key=str(key), value=dump(value))
-                for key, value in search_params.items()
-            ]
-        )
 
         return request
 
@@ -704,11 +703,6 @@ class Prepare:
         rerank_param["limit"] = limit
         rerank_param["round_decimal"] = round_decimal
 
-        def dump(v: Dict):
-            if isinstance(v, dict):
-                return ujson.dumps(v)
-            return str(v)
-
         request = milvus_types.HybridSearchRequest(
             collection_name=collection_name,
             partition_names=partition_names,
@@ -721,7 +715,7 @@ class Prepare:
 
         request.rank_params.extend(
             [
-                common_types.KeyValuePair(key=str(key), value=dump(value))
+                common_types.KeyValuePair(key=str(key), value=utils.dumps(value))
                 for key, value in rerank_param.items()
             ]
         )
@@ -756,26 +750,20 @@ class Prepare:
             index_name=kwargs.get("index_name", ""),
         )
 
-        def dump(tv: Dict):
-            return ujson.dumps(tv) if isinstance(tv, dict) else str(tv)
-
         if isinstance(params, dict):
             for tk, tv in params.items():
                 if tk == "dim" and (not tv or not isinstance(tv, int)):
                     raise ParamError(message="dim must be of int!")
-                kv_pair = common_types.KeyValuePair(key=str(tk), value=dump(tv))
+                kv_pair = common_types.KeyValuePair(key=str(tk), value=utils.dumps(tv))
                 index_params.extra_params.append(kv_pair)
 
         return index_params
 
     @classmethod
     def alter_index_request(cls, collection_name: str, index_name: str, extra_params: dict):
-        def dump(tv: Dict):
-            return ujson.dumps(tv) if isinstance(tv, dict) else str(tv)
-
         params = []
         for k, v in extra_params.items():
-            params.append(common_types.KeyValuePair(key=str(k), value=dump(v)))
+            params.append(common_types.KeyValuePair(key=str(k), value=utils.dumps(v)))
         return milvus_types.AlterIndexRequest(
             collection_name=collection_name, index_name=index_name, extra_params=params
         )
