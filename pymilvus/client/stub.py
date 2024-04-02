@@ -1044,7 +1044,7 @@ class Milvus:
                 **kwargs,
             )
 
-    def compact(self, collection_name, timeout=None, **kwargs) -> int:
+    def compact(self, collection_name, timeout=None, is_major=False, **kwargs) -> int:
         """
         Do compaction for the collection.
 
@@ -1054,15 +1054,20 @@ class Milvus:
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
 
+        :param is_major: trigger major compaction
+        :type  is_major: bool
+
         :return: the compaction ID
         :rtype: int
 
         :raises MilvusException: If collection name not exist.
         """
         with self._connection() as handler:
-            return handler.compact(collection_name, timeout=timeout, **kwargs)
+            return handler.compact(collection_name, timeout=timeout, is_major=is_major, **kwargs)
 
-    def get_compaction_state(self, compaction_id: int, timeout=None, **kwargs) -> CompactionState:
+    def get_compaction_state(
+        self, compaction_id: int, timeout=None, is_major=False, **kwargs
+    ) -> CompactionState:
         """
         Get compaction states of a targeted compaction id
 
@@ -1072,6 +1077,9 @@ class Milvus:
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
 
+        :param is_major: get major compaction
+        :type  is_major: bool
+
         :return: the state of the compaction
         :rtype: CompactionState
 
@@ -1079,7 +1087,9 @@ class Milvus:
         """
 
         with self._connection() as handler:
-            return handler.get_compaction_state(compaction_id, timeout=timeout, **kwargs)
+            return handler.get_compaction_state(
+                compaction_id, timeout=timeout, is_major=is_major, **kwargs
+            )
 
     def wait_for_compaction_completed(
         self, compaction_id: int, timeout=None, **kwargs
