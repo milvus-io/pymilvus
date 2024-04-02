@@ -2,6 +2,8 @@ import datetime
 from datetime import timedelta
 from typing import Any, List, Optional, Union
 
+import ujson
+
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen.common_pb2 import Status
 
@@ -220,7 +222,6 @@ def traverse_rows_info(fields_info: Any, entities: List):
 
         field_name = field["name"]
         location[field_name] = i
-        field_type = field["type"]
 
         if field.get("is_dynamic", False):
             is_dynamic = True
@@ -241,24 +242,6 @@ def traverse_rows_info(fields_info: Any, entities: List):
             value = entity.get(field_name, None)
             if value is None:
                 raise ParamError(message=f"Field {field_name} don't match in entities[{j}]")
-            # no special check for sparse float vector field
-            if field_type in [
-                DataType.FLOAT_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-                DataType.FLOAT16_VECTOR,
-            ]:
-                field_dim = field["params"]["dim"]
-                entity_dim = len(value)
-                if field_type in [DataType.BINARY_VECTOR]:
-                    entity_dim = entity_dim * 8
-                elif field_type in [DataType.BFLOAT16_VECTOR, DataType.FLOAT16_VECTOR]:
-                    entity_dim = int(entity_dim // 2)
-                if entity_dim != field_dim:
-                    raise ParamError(
-                        message=f"Collection field dim is {field_dim}"
-                        f", but entities field dim is {entity_dim}"
-                    )
 
     # though impossible from sdk
     if primary_key_loc is None:
@@ -334,3 +317,7 @@ def traverse_info(fields_info: Any, entities: List):
 
 def get_server_type(host: str):
     return ZILLIZ if (isinstance(host, str) and "zilliz" in host.lower()) else MILVUS
+
+
+def dumps(v: Union[dict, str]) -> str:
+    return ujson.dumps(v) if isinstance(v, dict) else str(v)

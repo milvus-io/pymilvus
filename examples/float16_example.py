@@ -19,8 +19,8 @@ def gen_fp16_vectors(num, dim):
     for _ in range(num):
         raw_vector = [random.random() for _ in range(dim)]
         raw_vectors.append(raw_vector)
-        fp16_vector = np.array(raw_vector, dtype=np.float16).view(np.uint8).tolist()
-        fp16_vectors.append(bytes(fp16_vector))
+        fp16_vector = np.array(raw_vector, dtype=np.float16)
+        fp16_vectors.append(fp16_vector)
     return raw_vectors, fp16_vectors
 
 def fp16_vector_search():
@@ -33,23 +33,21 @@ def fp16_vector_search():
     fp16_vector = FieldSchema(name=vector_field_name, dtype=DataType.FLOAT16_VECTOR, dim=dim)
     schema = CollectionSchema(fields=[int64_field, fp16_vector])
 
-    has = utility.has_collection("hello_milvus_fp16")
-    if has:
-        hello_milvus = Collection("hello_milvus_fp16")
-        hello_milvus.drop()
-    else:
-        hello_milvus = Collection("hello_milvus_fp16", schema)
+    if utility.has_collection("hello_milvus_fp16"):
+        utility.drop_collection("hello_milvus_fp16")
+
+    hello_milvus = Collection("hello_milvus_fp16", schema)
 
     _, vectors = gen_fp16_vectors(nb, dim)
+    hello_milvus.insert([vectors[:6]])
     rows = [
-        {vector_field_name: vectors[0]},
-        {vector_field_name: vectors[1]},
-        {vector_field_name: vectors[2]},
-        {vector_field_name: vectors[3]},
-        {vector_field_name: vectors[4]},
-        {vector_field_name: vectors[5]},
+        {vector_field_name: vectors[6]},
+        {vector_field_name: vectors[7]},
+        {vector_field_name: vectors[8]},
+        {vector_field_name: vectors[9]},
+        {vector_field_name: vectors[10]},
+        {vector_field_name: vectors[11]},
     ]
-
     hello_milvus.insert(rows)
     hello_milvus.flush()
 
