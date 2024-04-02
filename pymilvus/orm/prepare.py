@@ -17,13 +17,13 @@ import numpy as np
 import pandas as pd
 
 from pymilvus.client import entity_helper
+from pymilvus.client.types import DataType
 from pymilvus.exceptions import (
     DataNotMatchException,
     DataTypeNotSupportException,
     ExceptionsMessage,
     UpsertAutoIDTrueException,
 )
-from pymilvus.client.types import DataType
 
 from .schema import CollectionSchema
 
@@ -75,9 +75,9 @@ class Prepare:
             if isinstance(f_data, np.ndarray):
                 d = f_data.tolist()
 
-            elif (
-                isinstance(f_data[0], np.ndarray)
-                and field.dtype in (DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR)
+            elif isinstance(f_data[0], np.ndarray) and field.dtype in (
+                DataType.FLOAT16_VECTOR,
+                DataType.BFLOAT16_VECTOR,
             ):
                 d = [bytes(ndarr.view(np.uint8).tolist()) for ndarr in f_data]
 

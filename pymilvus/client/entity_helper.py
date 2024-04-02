@@ -310,12 +310,20 @@ def pack_field_value_to_field_data(field_value: Any, field_data: Any, field_info
         field_data.vectors.dim = len(field_value) * 8
         field_data.vectors.binary_vector += bytes(field_value)
     elif field_type == DataType.FLOAT16_VECTOR:
-        v_bytes = bytes(field_value) if not isinstance(field_value, np.ndarray) else field_value.view(np.uint8).tobytes()
+        v_bytes = (
+            bytes(field_value)
+            if not isinstance(field_value, np.ndarray)
+            else field_value.view(np.uint8).tobytes()
+        )
 
         field_data.vectors.dim = len(v_bytes) // 2
         field_data.vectors.float16_vector += v_bytes
     elif field_type == DataType.BFLOAT16_VECTOR:
-        v_bytes = bytes(field_value) if not isinstance(field_value, np.ndarray) else field_value.view(np.uint8).tobytes()
+        v_bytes = (
+            bytes(field_value)
+            if not isinstance(field_value, np.ndarray)
+            else field_value.view(np.uint8).tobytes()
+        )
 
         field_data.vectors.dim = len(v_bytes) // 2
         field_data.vectors.bfloat16_vector += v_bytes

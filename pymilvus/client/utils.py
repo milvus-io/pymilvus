@@ -222,7 +222,6 @@ def traverse_rows_info(fields_info: Any, entities: List):
 
         field_name = field["name"]
         location[field_name] = i
-        field_type = field["type"]
 
         if field.get("is_dynamic", False):
             is_dynamic = True
