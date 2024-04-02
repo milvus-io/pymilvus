@@ -36,11 +36,19 @@ def bf16_vector_search():
 
     if utility.has_collection("hello_milvus_fp16"):
         utility.drop_collection("hello_milvus_fp16")
-    hello_milvus = Collection("hello_milvus_fp16", schema)
+    hello_milvus = Collection("hello_milvus_fp16", schema, consistency_level="Strong")
 
     _, vectors = gen_bf16_vectors(nb, dim)
-    batches = [[v.tobytes() for v in vectors]]
-    hello_milvus.insert(batches)
+    hello_milvus.insert([vectors[:6]])
+    rows = [
+        {vector_field_name: vectors[6]},
+        {vector_field_name: vectors[7]},
+        {vector_field_name: vectors[8]},
+        {vector_field_name: vectors[9]},
+        {vector_field_name: vectors[10]},
+        {vector_field_name: vectors[11]},
+    ]
+    hello_milvus.insert(rows)
     hello_milvus.flush()
 
     for i, index_type in enumerate(bf16_index_types):

@@ -23,6 +23,7 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     UpsertAutoIDTrueException,
 )
+from pymilvus.client.types import DataType
 
 from .schema import CollectionSchema
 
@@ -66,15 +67,24 @@ class Prepare:
 
         for i, field in enumerate(tmp_fields):
             try:
-                if isinstance(data[i], np.ndarray):
-                    d = data[i].tolist()
-                else:
-                    d = data[i] if data[i] is not None else []
-
-                entities.append({"name": field.name, "type": field.dtype, "values": d})
+                f_data = data[i]
             # the last missing part of data is also completed in order according to the schema
             except IndexError:
                 entities.append({"name": field.name, "type": field.dtype, "values": []})
+
+            if isinstance(f_data, np.ndarray):
+                d = f_data.tolist()
+
+            elif (
+                isinstance(f_data[0], np.ndarray)
+                and field.dtype in (DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR)
+            ):
+                d = [bytes(ndarr.view(np.uint8).tolist()) for ndarr in f_data]
+
+            else:
+                d = f_data if f_data is not None else []
+
+            entities.append({"name": field.name, "type": field.dtype, "values": d})
 
         return entities
 

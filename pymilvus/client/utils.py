@@ -243,24 +243,6 @@ def traverse_rows_info(fields_info: Any, entities: List):
             value = entity.get(field_name, None)
             if value is None:
                 raise ParamError(message=f"Field {field_name} don't match in entities[{j}]")
-            # no special check for sparse float vector field
-            if field_type in [
-                DataType.FLOAT_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-                DataType.FLOAT16_VECTOR,
-            ]:
-                field_dim = field["params"]["dim"]
-                entity_dim = len(value)
-                if field_type in [DataType.BINARY_VECTOR]:
-                    entity_dim = entity_dim * 8
-                elif field_type in [DataType.BFLOAT16_VECTOR, DataType.FLOAT16_VECTOR]:
-                    entity_dim = int(entity_dim // 2)
-                if entity_dim != field_dim:
-                    raise ParamError(
-                        message=f"Collection field dim is {field_dim}"
-                        f", but entities field dim is {entity_dim}"
-                    )
 
     # though impossible from sdk
     if primary_key_loc is None:

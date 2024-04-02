@@ -33,16 +33,22 @@ def fp16_vector_search():
     fp16_vector = FieldSchema(name=vector_field_name, dtype=DataType.FLOAT16_VECTOR, dim=dim)
     schema = CollectionSchema(fields=[int64_field, fp16_vector])
 
-    has = utility.has_collection("hello_milvus_fp16")
-    if has:
-        hello_milvus = Collection("hello_milvus_fp16")
-        hello_milvus.drop()
-    else:
-        hello_milvus = Collection("hello_milvus_fp16", schema)
+    if utility.has_collection("hello_milvus_fp16"):
+        utility.drop_collection("hello_milvus_fp16")
+
+    hello_milvus = Collection("hello_milvus_fp16", schema)
 
     _, vectors = gen_fp16_vectors(nb, dim)
-    batches = [[v.tobytes() for v in vectors]]
-    hello_milvus.insert(batches)
+    hello_milvus.insert([vectors[:6]])
+    rows = [
+        {vector_field_name: vectors[6]},
+        {vector_field_name: vectors[7]},
+        {vector_field_name: vectors[8]},
+        {vector_field_name: vectors[9]},
+        {vector_field_name: vectors[10]},
+        {vector_field_name: vectors[11]},
+    ]
+    hello_milvus.insert(rows)
     hello_milvus.flush()
 
     for i, index_type in enumerate(fp16_index_types):
