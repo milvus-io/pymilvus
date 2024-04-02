@@ -110,6 +110,7 @@ lint.ignore = [
     "ARG005", # [ruff] ARG005 Unused lambda argument: `disable` [E]
     "TRY400",
     "PLR0912", # TODO
+    "PLR0915", # To many statements TODO
     "C901", # TODO
     "PYI041", # TODO
 ]
