@@ -1845,7 +1845,9 @@ class GrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
-    def update_resource_groups(self, configs: Mapping[str, ResourceGroupConfig], timeout: Optional[float] = None, **kwargs):
+    def update_resource_groups(
+        self, configs: Mapping[str, ResourceGroupConfig], timeout: Optional[float] = None, **kwargs
+    ):
         req = Prepare.update_resource_groups(configs)
         resp = self._stub.UpdateResourceGroups(req, wait_for_ready=True, timeout=timeout)
         check_status(resp)

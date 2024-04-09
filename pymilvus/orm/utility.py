@@ -1079,7 +1079,9 @@ def get_server_version(using: str = "default", timeout: Optional[float] = None) 
     return _get_connection(using).get_server_version(timeout=timeout)
 
 
-def create_resource_group(name: str, using: str = "default", timeout: Optional[float] = None, **kwargs):
+def create_resource_group(
+    name: str, using: str = "default", timeout: Optional[float] = None, **kwargs
+):
     """Create a resource group
         It will success whether or not the resource group exists.
 
@@ -1092,7 +1094,12 @@ def create_resource_group(name: str, using: str = "default", timeout: Optional[f
     """
     return _get_connection(using).create_resource_group(name, timeout, **kwargs)
 
-def update_resource_groups(configs: Mapping[str, ResourceGroupConfig], using: str = "default", timeout: Optional[float] = None):
+
+def update_resource_groups(
+    configs: Mapping[str, ResourceGroupConfig],
+    using: str = "default",
+    timeout: Optional[float] = None,
+):
     """Update resource groups.
         This function updates the resource groups based on the provided configurations.
 
@@ -1123,6 +1130,7 @@ def update_resource_groups(configs: Mapping[str, ResourceGroupConfig], using: st
         >>> utility.update_resource_groups(configs)
     """
     return _get_connection(using).update_resource_groups(configs, timeout)
+
 
 def drop_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
     """Drop a resource group

@@ -7,7 +7,7 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     InvalidConsistencyLevel,
 )
-from pymilvus.grpc_gen import (common_pb2, rg_pb2)
+from pymilvus.grpc_gen import common_pb2, rg_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
 Status = TypeVar("Status")
@@ -761,7 +761,7 @@ class RoleInfo:
         return self._groups
 
 
-class ResourceGroupInfo():
+class ResourceGroupInfo:
     def __init__(self, resource_group: Any) -> None:
 
         self._name = resource_group.name
@@ -807,7 +807,7 @@ class ResourceGroupInfo():
     @property
     def num_incoming_node(self):
         return self._num_incoming_node
-    
+
     @property
     def config(self):
         return self._config
@@ -815,6 +815,7 @@ class ResourceGroupInfo():
     @property
     def nodes(self):
         return self._nodes
+
 
 class NodeInfo:
     """
@@ -853,6 +854,7 @@ class NodeInfo:
     @property
     def hostname(self) -> str:
         return self._hostname
+
 
 ResourceGroupConfig = rg_pb2.ResourceGroupConfig
 """

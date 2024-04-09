@@ -1382,8 +1382,10 @@ class Milvus:
         """
         with self._connection() as handler:
             handler.create_resource_group(name, timeout=timeout, **kwargs)
-    
-    def update_resource_groups(self, configs: Mapping[str, ResourceGroupConfig], timeout=None, **kwargs):
+
+    def update_resource_groups(
+        self, configs: Mapping[str, ResourceGroupConfig], timeout=None, **kwargs
+    ):
         """update resource groups with specific configs
 
         :param configs: resource group configs
