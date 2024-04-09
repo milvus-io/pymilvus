@@ -308,11 +308,11 @@ def pack_field_value_to_field_data(
     elif field_type == DataType.FLOAT_VECTOR:
         f_value = field_value
         if isinstance(field_value, np.ndarray):
-            if field_value.dtype != "float32":
+            if field_value.dtype not in ("float32", "float64"):
                 raise ParamError(
                     message="invalid input for float32 vector, expect np.ndarray with dtype=float32"
                 )
-            f_value = field_value.tolist()
+            f_value = field_value.view(np.float32).tolist()
 
         field_data.vectors.dim = len(f_value)
         field_data.vectors.float_vector.data.extend(f_value)
