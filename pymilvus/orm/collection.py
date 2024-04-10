@@ -34,6 +34,7 @@ from pymilvus.exceptions import (
     IndexNotExistException,
     PartitionAlreadyExistException,
     SchemaNotReadyException,
+    UpsertAutoIDTrueException,
 )
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
@@ -50,10 +51,11 @@ from .schema import (
     CollectionSchema,
     FieldSchema,
     check_insert_schema,
-    check_is_row_based,
     check_schema,
     check_upsert_schema,
     construct_fields_from_dataframe,
+    is_row_based,
+    is_valid_insert_data,
 )
 from .types import DataType
 from .utility import _get_connection
@@ -241,7 +243,7 @@ class Collection:
     @property
     def description(self) -> str:
         """str: a text description of the collection."""
-        return self._schema.description
+        return self.schema.description
 
     @property
     def name(self) -> str:
@@ -289,7 +291,7 @@ class Collection:
     @property
     def primary_field(self) -> FieldSchema:
         """FieldSchema: the primary field of the collection."""
-        return self._schema.primary_field
+        return self.schema.primary_field
 
     def flush(self, timeout: Optional[float] = None, **kwargs):
         """Seal all segments in the collection. Inserts after flushing will be written into
@@ -490,25 +492,28 @@ class Collection:
             >>> res.insert_count
             10
         """
-        if data is None:
-            return MutationResult(data)
-        row_based = check_is_row_based(data)
+        if not is_valid_insert_data(data):
+            raise DataTypeNotSupportException(
+                message="The type of data should be List, pd.DataFrame or Dict"
+            )
+
         conn = self._get_connection()
-        if not row_based:
-            check_insert_schema(self._schema, data)
-            entities = Prepare.prepare_insert_data(data, self._schema)
-            return conn.batch_insert(
-                self._name,
-                entities,
-                partition_name,
+        if is_row_based(data):
+            return conn.insert_rows(
+                collection_name=self._name,
+                entities=data,
+                partition_name=partition_name,
                 timeout=timeout,
                 schema=self._schema_dict,
                 **kwargs,
             )
-        return conn.insert_rows(
-            collection_name=self._name,
-            entities=data,
-            partition_name=partition_name,
+
+        check_insert_schema(self.schema, data)
+        entities = Prepare.prepare_insert_data(data, self.schema)
+        return conn.batch_insert(
+            self._name,
+            entities,
+            partition_name,
             timeout=timeout,
             schema=self._schema_dict,
             **kwargs,
@@ -614,27 +619,17 @@ class Collection:
             >>> res.upsert_count
             10
         """
-        if data is None:
-            return MutationResult(data)
 
-        row_based = check_is_row_based(data)
-        conn = self._get_connection()
-        if not row_based:
-            check_upsert_schema(self._schema, data)
-            entities = Prepare.prepare_upsert_data(data, self._schema)
+        if self.schema.auto_id:
+            raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
 
-            res = conn.upsert(
-                self._name,
-                entities,
-                partition_name,
-                timeout=timeout,
-                schema=self._schema_dict,
-                **kwargs,
+        if not is_valid_insert_data(data):
+            raise DataTypeNotSupportException(
+                message="The type of data should be List, pd.DataFrame or Dict"
             )
 
-            if kwargs.get("_async", False):
-                return MutationFuture(res)
-        else:
+        conn = self._get_connection()
+        if is_row_based(data):
             res = conn.upsert_rows(
                 self._name,
                 data,
@@ -643,8 +638,20 @@ class Collection:
                 schema=self._schema_dict,
                 **kwargs,
             )
+            return MutationResult(res)
 
-        return MutationResult(res)
+        check_upsert_schema(self.schema, data)
+        entities = Prepare.prepare_upsert_data(data, self.schema)
+        res = conn.upsert(
+            self._name,
+            entities,
+            partition_name,
+            timeout=timeout,
+            schema=self._schema_dict,
+            **kwargs,
+        )
+
+        return MutationFuture(res) if kwargs.get("_async", False) else MutationResult(res)
 
     def search(
         self,
