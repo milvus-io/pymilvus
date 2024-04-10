@@ -22,6 +22,7 @@ from pymilvus.exceptions import (
     DataNotMatchException,
     DataTypeNotSupportException,
     ExceptionsMessage,
+    ParamError,
     UpsertAutoIDTrueException,
 )
 
@@ -65,6 +66,14 @@ class Prepare:
             if field.is_primary and field.auto_id:
                 tmp_fields.pop(i)
 
+        vec_dtype_checker = {
+            DataType.FLOAT_VECTOR: lambda ndarr: ndarr.dtype in ("float32", "float64"),
+            DataType.FLOAT16_VECTOR: lambda ndarr: ndarr.dtype in ("float16",),
+            DataType.BFLOAT16_VECTOR: lambda ndarr: ndarr.dtype in ("bfloat16",),
+        }
+
+        wrong_field_type = "Wrong type for vector field: {}, expect={}, got={}"
+        wrong_ndarr_type = "Wrong type for np.ndarray for vector field: {}, expect={}, got={}"
         for i, field in enumerate(tmp_fields):
             try:
                 f_data = data[i]
@@ -72,14 +81,70 @@ class Prepare:
             except IndexError:
                 entities.append({"name": field.name, "type": field.dtype, "values": []})
 
-            if isinstance(f_data, np.ndarray):
-                d = f_data.tolist()
+            d = []
+            if field.dtype == DataType.FLOAT_VECTOR:
+                is_valid_ndarray = vec_dtype_checker[field.dtype]
+                if isinstance(f_data, np.ndarray):
+                    if not is_valid_ndarray(f_data):
+                        raise ParamError(
+                            message=wrong_ndarr_type.format(
+                                field.name, "np.float32/np.float64", f_data.dtype
+                            )
+                        )
+                    d = f_data.view(np.float32).tolist()
 
-            elif isinstance(f_data[0], np.ndarray) and field.dtype in (
-                DataType.FLOAT16_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-            ):
-                d = [bytes(ndarr.view(np.uint8).tolist()) for ndarr in f_data]
+                elif isinstance(f_data[0], np.ndarray):
+                    for ndarr in f_data:
+                        if not is_valid_ndarray(ndarr):
+                            raise ParamError(
+                                message=wrong_ndarr_type.format(
+                                    field.name, "np.float32/np.float64", ndarr.dtype
+                                )
+                            )
+                        d.append(ndarr.tolist())
+
+                else:
+                    d = f_data if f_data is not None else []
+
+            elif field.dtype == DataType.FLOAT16_VECTOR:
+                is_valid_ndarray = vec_dtype_checker[field.dtype]
+                if isinstance(f_data[0], np.ndarray):
+                    for ndarr in f_data:
+                        if not is_valid_ndarray(ndarr):
+                            raise ParamError(
+                                message=wrong_ndarr_type.format(
+                                    field.name, "np.float16", ndarr.dtype
+                                )
+                            )
+                        d.append(ndarr.view(np.uint8).tobytes())
+                else:
+                    raise ParamError(
+                        message=wrong_field_type.format(
+                            field.name,
+                            "List<np.ndarray(dtype='float16')>",
+                            f"List{type(f_data[0])})",
+                        )
+                    )
+
+            elif field.dtype == DataType.BFLOAT16_VECTOR:
+                is_valid_ndarray = vec_dtype_checker[field.dtype]
+                if isinstance(f_data[0], np.ndarray):
+                    for ndarr in f_data:
+                        if not is_valid_ndarray(ndarr):
+                            raise ParamError(
+                                message=wrong_ndarr_type.format(
+                                    field.name, "np.bfloat16", ndarr.dtype
+                                )
+                            )
+                        d.append(ndarr.view(np.uint8).tobytes())
+                else:
+                    raise ParamError(
+                        message=wrong_field_type.format(
+                            field.name,
+                            "List<np.ndarray(dtype='bfloat16')>",
+                            f"List{type(f_data[0])})",
+                        )
+                    )
 
             else:
                 d = f_data if f_data is not None else []

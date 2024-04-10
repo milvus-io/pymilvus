@@ -364,12 +364,10 @@ class Prepare:
             field["name"]: field for field in fields_info if not field.get("auto_id", False)
         }
 
-        meta_field = (
-            schema_types.FieldData(is_dynamic=True, type=DataType.JSON) if enable_dynamic else None
-        )
-        if meta_field is not None:
-            field_info_map[meta_field.field_name] = meta_field
-            fields_data[meta_field.field_name] = meta_field
+        if enable_dynamic:
+            d_field = schema_types.FieldData(is_dynamic=True, type=DataType.JSON)
+            fields_data[d_field.field_name] = d_field
+            field_info_map[d_field.field_name] = d_field
 
         try:
             for entity in entities:
@@ -390,7 +388,7 @@ class Prepare:
 
                 if enable_dynamic:
                     json_value = entity_helper.convert_to_json(json_dict)
-                    meta_field.scalars.json_data.data.append(json_value)
+                    d_field.scalars.json_data.data.append(json_value)
 
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
@@ -400,7 +398,7 @@ class Prepare:
         )
 
         if enable_dynamic:
-            request.fields_data.append(meta_field)
+            request.fields_data.append(d_field)
 
         _, _, auto_id_loc = traverse_rows_info(fields_info, entities)
         if auto_id_loc is not None:
@@ -418,16 +416,18 @@ class Prepare:
         collection_name: str,
         entities: List,
         partition_name: str,
-        fields_info: Any,
+        fields_info: Dict,
         enable_dynamic: bool = False,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
         # insert_request.hash_keys won't be filled in client.
-        tag = partition_name if isinstance(partition_name, str) else ""
+        p_name = partition_name if isinstance(partition_name, str) else ""
         request = milvus_types.InsertRequest(
-            collection_name=collection_name, partition_name=tag, num_rows=len(entities)
+            collection_name=collection_name,
+            partition_name=p_name,
+            num_rows=len(entities),
         )
 
         return cls._parse_row_request(request, fields_info, enable_dynamic, entities)
@@ -445,9 +445,11 @@ class Prepare:
             raise ParamError(message="Missing collection meta to validate entities")
 
         # upsert_request.hash_keys won't be filled in client.
-        tag = partition_name if isinstance(partition_name, str) else ""
+        p_name = partition_name if isinstance(partition_name, str) else ""
         request = milvus_types.UpsertRequest(
-            collection_name=collection_name, partition_name=tag, num_rows=len(entities)
+            collection_name=collection_name,
+            partition_name=p_name,
+            num_rows=len(entities),
         )
 
         return cls._parse_row_request(request, fields_info, enable_dynamic, entities)
@@ -469,7 +471,7 @@ class Prepare:
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
-        location, primary_key_loc, auto_id_loc = traverse_info(fields_info, entities)
+        location, primary_key_loc, auto_id_loc = traverse_info(fields_info)
 
         # though impossible from sdk
         if primary_key_loc is None:
@@ -583,16 +585,20 @@ class Prepare:
 
         elif isinstance(data[0], np.ndarray):
             dtype = data[0].dtype
-            pl_values = (array.tobytes() for array in data)
 
             if dtype == "bfloat16":
                 pl_type = PlaceholderType.BFLOAT16_VECTOR
+                pl_values = (array.tobytes() for array in data)
             elif dtype == "float16":
                 pl_type = PlaceholderType.FLOAT16_VECTOR
-            elif dtype == "float32":
+                pl_values = (array.tobytes() for array in data)
+            elif dtype in ("float32", "float64"):
                 pl_type = PlaceholderType.FloatVector
+                pl_values = (blob.vector_float_to_bytes(entity) for entity in data)
+
             elif dtype == "byte":
                 pl_type = PlaceholderType.BinaryVector
+                pl_values = data
 
             else:
                 err_msg = f"unsupported data type: {dtype}"

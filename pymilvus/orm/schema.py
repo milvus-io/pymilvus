@@ -441,6 +441,18 @@ class FieldSchema:
         return self._dtype
 
 
+def is_valid_insert_data(data: Union[pd.DataFrame, list, dict]) -> bool:
+    """DataFrame, list, dict are valid insert data"""
+    return isinstance(data, (pd.DataFrame, list, dict))
+
+
+def is_row_based(data: Union[Dict, List[Dict]]) -> bool:
+    """Dict or List[Dict] are row-based"""
+    return isinstance(data, dict) or (
+        isinstance(data, list) and len(data) > 0 and isinstance(data[0], Dict)
+    )
+
+
 def check_is_row_based(data: Union[List[List], List[Dict], Dict, pd.DataFrame]) -> bool:
     if not isinstance(data, (pd.DataFrame, list, dict)):
         raise DataTypeNotSupportException(
