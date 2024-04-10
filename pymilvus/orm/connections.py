@@ -254,6 +254,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
             return address, None
 
         if uri != "":
+            if isinstance(uri, str) and uri.startswith("unix:"):
+                return uri, None
             address, parsed = self.__parse_address_from_uri(uri)
             return address, parsed
 
