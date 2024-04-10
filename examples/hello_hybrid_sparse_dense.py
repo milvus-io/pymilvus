@@ -14,6 +14,9 @@
 # If true, use BGE-M3 model to generate dense and sparse vectors.
 # If false, use random numbers to compose dense and sparse vectors.
 use_bge_m3 = True
+# If both use_bge_m3 and use_reranker are true, the search result will be reranked
+# using BGE CrossEncoder model.
+use_reranker = True
 
 # The overall steps are as follows:
 # 1. embed the text as dense and sparse vectors
@@ -113,12 +116,32 @@ res = col.hybrid_search([sparse_req, dense_req], rerank=RRFRanker(),
 # Currently Milvus only support 1 query in the same hybrid search request, so
 # we inspect res[0] directly. In future release Milvus will accept batch
 # hybrid search queries in the same call.
-for hit in res[0]:
-    print(f'text: {hit.fields["text"]} distance {hit.distance}')
+res = res[0]
 
-# If you are using BGE-M3 to generate the embedding, you should see the following:
+if use_bge_m3 and use_reranker:
+    result_texts = [hit.fields["text"] for hit in res]
+    from pymilvus.model.reranker import BGERerankFunction
+    bge_rf = BGERerankFunction(device='cpu')
+    # rerank the results using BGE CrossEncoder model
+    results = bge_rf(query, result_texts, top_k=2)
+    for hit in results:
+        print(f'text: {hit.text} distance {hit.score}')
+else:
+    for hit in res:
+        print(f'text: {hit.fields["text"]} distance {hit.distance}')
+
+# If you used both BGE-M3 and the reranker, you should see the following:
+# text: Alan Turing was the first person to conduct substantial research in AI. distance 0.9306981017573297
+# text: Artificial intelligence was founded as an academic discipline in 1956. distance 0.03217001154515051
+#
+# If you used only BGE-M3, you should see the following:
 # text: Alan Turing was the first person to conduct substantial research in AI. distance 0.032786883413791656
 # text: Artificial intelligence was founded as an academic discipline in 1956. distance 0.016129031777381897
+
+# In this simple example the reranker yields the same result as the embedding based hybrid search, but in more complex
+# scenarios the reranker can provide more accurate results.
+
+# If you used random vectors, the result will be different each time you run the script.
 
 # Drop the collection to clean up the data.
 utility.drop_collection(col_name)
