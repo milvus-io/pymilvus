@@ -1,6 +1,10 @@
 # A demo showing hybrid semantic search with dense and sparse vectors using Milvus.
+#
 # You can optionally choose to use the BGE-M3 model to embed the text as dense
 # and sparse vectors, or simply use random generated vectors as an example.
+#
+# You can also use the BGE CrossEncoder model to rerank the search results.
+#
 # Note that the sparse vector search feature is only available in Milvus 2.4.0 or
 # higher version. Make sure you follow https://milvus.io/docs/install_standalone-docker.md
 # to set up the latest version of Milvus in your local environment.
@@ -8,14 +12,14 @@
 # To connect to Milvus server, you need the python client library called pymilvus.
 # To use BGE-M3 model, you need to install the optional `model` module in pymilvus.
 # You can get them by simply running the following commands:
+#
 # pip install pymilvus
 # pip install pymilvus[model]
 
 # If true, use BGE-M3 model to generate dense and sparse vectors.
 # If false, use random numbers to compose dense and sparse vectors.
 use_bge_m3 = True
-# If both use_bge_m3 and use_reranker are true, the search result will be reranked
-# using BGE CrossEncoder model.
+# If true, the search result will be reranked using BGE CrossEncoder model.
 use_reranker = True
 
 # The overall steps are as follows:
@@ -118,7 +122,7 @@ res = col.hybrid_search([sparse_req, dense_req], rerank=RRFRanker(),
 # hybrid search queries in the same call.
 res = res[0]
 
-if use_bge_m3 and use_reranker:
+if use_reranker:
     result_texts = [hit.fields["text"] for hit in res]
     from pymilvus.model.reranker import BGERerankFunction
     bge_rf = BGERerankFunction(device='cpu')
