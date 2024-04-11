@@ -212,6 +212,12 @@ class Buffer:
                 for val in self._buffer[k]:
                     arr.append(np.array(val, dtype=np.dtype("uint8")))
                 data[k] = pd.Series(arr)
+            elif field_schema.dtype == DataType.ARRAY:
+                dt = NUMPY_TYPE_CREATOR[field_schema.element_type.name]
+                arr = []
+                for val in self._buffer[k]:
+                    arr.append(np.array(val, dtype=dt))
+                data[k] = pd.Series(arr)
             elif field_schema.dtype.name in NUMPY_TYPE_CREATOR:
                 dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
                 data[k] = pd.Series(self._buffer[k], dtype=dt)
