@@ -3,7 +3,7 @@ from urllib import parse
 from pymilvus.decorators import deprecated
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.settings import Config
-from collections.abc import Mapping
+from typing import Mapping
 
 from .check import is_legal_host, is_legal_port
 from .grpc_handler import GrpcHandler

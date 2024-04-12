@@ -4,9 +4,8 @@ import json
 import socket
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Union
 from urllib import parse
-from collections.abc import Mapping
 
 import grpc
 from grpc._cython import cygrpc
@@ -50,8 +49,8 @@ from .types import (
     LoadState,
     Plan,
     Replica,
-    ResourceGroupInfo,
     ResourceGroupConfig,
+    ResourceGroupInfo,
     RoleInfo,
     Shard,
     State,

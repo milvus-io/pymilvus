@@ -11,8 +11,7 @@
 # the License.
 
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
-from collections.abc import Mapping
+from typing import List, Mapping, Optional
 
 from pymilvus.client.types import (
     BulkInsertState,

@@ -862,8 +862,10 @@ Represents the configuration of a resource group.
 Attributes:
     requests (ResourceGroupLimit): The requests of the resource group.
     limits (ResourceGroupLimit): The limits of the resource group.
-    transfer_from (List[ResourceGroupTransfer]): The transfer config that resource group can transfer node from the resource group of this field at high priority.
-    transfer_to (List[ResourceGroupTransfer]): The transfer config that resource group can transfer node to the resource group of this field at high priority.
+    transfer_from (List[ResourceGroupTransfer]): The transfer config that resource group
+        can transfer node from the resource group of this field at high priority.
+    transfer_to (List[ResourceGroupTransfer]): The transfer config that resource group
+        can transfer node to the resource group of this field at high priority.
 Example:
     ResourceGroupConfig(
         requests={"node_num": 1},

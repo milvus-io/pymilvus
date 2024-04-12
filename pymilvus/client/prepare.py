@@ -1,7 +1,6 @@
 import base64
 import datetime
-from typing import Any, Dict, Iterable, List, Optional, Union
-from collections.abc import Mapping
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
 
