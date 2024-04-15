@@ -139,15 +139,15 @@ def resource_group_management():
 
 def replica_management():
     # load collection into default.
-    # create_example_collection_and_load(5, [DEFAULT_RESOURCE_GROUP])
+    # create_example_collection_and_load(4, ["rg1", "rg2", "rg2", "rg2"])
     # one replica per node in default resource group.
     list_replica()
-    transfer_replica(DEFAULT_RESOURCE_GROUP, "rg1", 1)
+    transfer_replica("rg1", DEFAULT_RESOURCE_GROUP, 1)
     list_replica()
-    transfer_replica(DEFAULT_RESOURCE_GROUP, "rg2", 1)
+    transfer_replica("rg2", DEFAULT_RESOURCE_GROUP, 1)
     list_replica()
     # DEFAULT_RESOURCE_GROUP: 2 replica on 5 nodes.
-    # rg1: 1 replica on 1 node.
+    # rg1: 0 replica.
     # rg2: 2 replica on 3 nodes.
 
 if __name__ == "__main__":
