@@ -1,4 +1,5 @@
-from pymilvus import utility, connections, DEFAULT_RESOURCE_GROUP
+from pymilvus import utility, connections
+from pymilvus.client.constants import DEFAULT_RESOURCE_GROUP
 from example import *
 
 _HOST = '127.0.0.1'
@@ -52,7 +53,7 @@ def transfer_replica(source, target, collection_name, num_replica):
         f"transfer {num_replica} replicas in {collection_name} from {source} to {target}")
     utility.transfer_replica(
         source, target, collection_name, num_replica, using=_CONNECTION_NAME)
-    
+
 def run(): 
     create_connection("root", "123456")
     coll = create_collection(_COLLECTION_NAME, _ID_FIELD_NAME, _VECTOR_FIELD_NAME)
