@@ -78,6 +78,7 @@ from .orm.utility import (
     transfer_node,
     transfer_replica,
     update_password,
+    update_resource_groups,
     wait_for_index_building_complete,
     wait_for_loading_complete,
 )
@@ -106,6 +107,7 @@ __all__ = [
     "reset_password",
     "create_user",
     "update_password",
+    "update_resource_groups",
     "delete_user",
     "list_usernames",
     "SearchResult",

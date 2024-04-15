@@ -1,6 +1,6 @@
 import base64
 import datetime
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
 
@@ -19,7 +19,12 @@ from .constants import (
     ITERATOR_FIELD,
     REDUCE_STOP_FOR_BEST,
 )
-from .types import DataType, PlaceholderType, get_consistency_level
+from .types import (
+    DataType,
+    PlaceholderType,
+    ResourceGroupConfig,
+    get_consistency_level,
+)
 from .utils import traverse_info, traverse_rows_info
 
 
@@ -1145,9 +1150,18 @@ class Prepare:
         return milvus_types.GetVersionRequest()
 
     @classmethod
-    def create_resource_group(cls, name: str):
+    def create_resource_group(cls, name: str, **kwargs):
         check_pass_param(resource_group_name=name)
-        return milvus_types.CreateResourceGroupRequest(resource_group=name)
+        return milvus_types.CreateResourceGroupRequest(
+            resource_group=name,
+            config=kwargs.get("config"),
+        )
+
+    @classmethod
+    def update_resource_groups(cls, configs: Mapping[str, ResourceGroupConfig]):
+        return milvus_types.UpdateResourceGroupsRequest(
+            resource_groups=configs,
+        )
 
     @classmethod
     def drop_resource_group(cls, name: str):
