@@ -6,7 +6,7 @@ grpcio==1.60.0
 grpcio-testing==1.60.0
 grpcio-tools==1.60.0
 protobuf==4.25.2
-idna==2.10
+idna==3.7
 packaging==20.9
 pep517==0.10.0
 pyparsing==2.4.7
