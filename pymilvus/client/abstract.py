@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import ujson
 
 from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage, MilvusException
-from pymilvus.grpc_gen import schema_pb2
+from pymilvus.grpc_gen import common_pb2, schema_pb2
 from pymilvus.settings import Config
 
 from . import entity_helper
@@ -195,6 +195,7 @@ class MutationResult:
         self._timestamp = 0
         self._succ_index = []
         self._err_index = []
+        self._cost = 0
 
         self._pack(raw)
 
@@ -234,10 +235,16 @@ class MutationResult:
     def err_index(self):
         return self._err_index
 
+    # The unit of this cost is vcu, similar to token
+    @property
+    def cost(self):
+        return self._cost
+
     def __str__(self):
         return (
             f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, "
-            f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count})"
+            f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count}, "
+            f"cost: {self._cost})"
         )
 
     __repr__ = __str__
@@ -262,6 +269,9 @@ class MutationResult:
         self._timestamp = raw.timestamp
         self._succ_index = raw.succ_index
         self._err_index = raw.err_index
+        self._cost = int(
+            raw.status.extra_info["report_value"] if raw.status and raw.status.extra_info else "0"
+        )
 
 
 class SequenceIterator:
@@ -374,9 +384,16 @@ class AnnSearchRequest:
 class SearchResult(list):
     """nq results: List[Hits]"""
 
-    def __init__(self, res: schema_pb2.SearchResultData, round_decimal: Optional[int] = None):
+    def __init__(
+        self,
+        res: schema_pb2.SearchResultData,
+        round_decimal: Optional[int] = None,
+        status: Optional[common_pb2.Status] = None,
+    ):
         self._nq = res.num_queries
         all_topks = res.topks
+
+        self.cost = int(status.extra_info["report_value"] if status and status.extra_info else "0")
 
         output_fields = res.output_fields
         fields_data = res.fields_data
@@ -497,7 +514,7 @@ class SearchResult(list):
 
     def __str__(self) -> str:
         """Only print at most 10 query results"""
-        return str(list(map(str, self[:10])))
+        return f"data: {list(map(str, self[:10]))} {'...' if len(self) > 10 else ''}, cost: {self.cost}"
 
     __repr__ = __str__
 

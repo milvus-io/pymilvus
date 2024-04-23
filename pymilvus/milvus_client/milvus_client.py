@@ -5,7 +5,12 @@ from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
-from pymilvus.client.types import ExceptionsMessage, LoadState
+from pymilvus.client.types import (
+    ExceptionsMessage,
+    ExtraList,
+    LoadState,
+    construct_cost_extra,
+)
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     MilvusException,
@@ -216,7 +221,11 @@ class MilvusClient:
             )
         except Exception as ex:
             raise ex from ex
-        return {"insert_count": res.insert_count, "ids": res.primary_keys}
+        return {
+            "insert_count": res.insert_count,
+            "ids": res.primary_keys,
+            "cost": res.cost,
+        }
 
     def upsert(
         self,
@@ -263,7 +272,10 @@ class MilvusClient:
         except Exception as ex:
             raise ex from ex
 
-        return {"upsert_count": res.upsert_count}
+        return {
+            "upsert_count": res.upsert_count,
+            "cost": res.cost,
+        }
 
     def search(
         self,
@@ -325,7 +337,7 @@ class MilvusClient:
                 query_result.append(hit.to_dict())
             ret.append(query_result)
 
-        return ret
+        return ExtraList(ret, extra=construct_cost_extra(res.cost))
 
     def query(
         self,
@@ -543,7 +555,7 @@ class MilvusClient:
         if ret_pks:
             return ret_pks
 
-        return {"delete_count": res.delete_count}
+        return {"delete_count": res.delete_count, "cost": res.cost}
 
     def get_collection_stats(self, collection_name: str, timeout: Optional[float] = None) -> Dict:
         conn = self._get_connection()
