@@ -78,6 +78,13 @@ entities = [
 
 insert_result = hello_milvus.insert(entities)
 
+row = {
+    "pk": "19530",
+    "random": 0.5,
+    "embeddings": rng.random((1, dim), np.float32)[0]
+}
+hello_milvus.insert(row)
+
 hello_milvus.flush()
 print(f"Number of entities in Milvus: {hello_milvus.num_entities}")  # check the num_entities
 
