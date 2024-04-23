@@ -91,7 +91,7 @@ class Prepare:
                                 field.name, "np.float32/np.float64", f_data.dtype
                             )
                         )
-                    d = f_data.view(np.float32).tolist()
+                    d = f_data.tolist()
 
                 elif isinstance(f_data[0], np.ndarray):
                     for ndarr in f_data:

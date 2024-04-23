@@ -73,10 +73,17 @@ entities = [
     # provide the pk field because `auto_id` is set to False
     [str(i) for i in range(num_entities)],
     rng.random(num_entities).tolist(),  # field random, only supports list
-    rng.random((num_entities, dim)),    # field embeddings, supports numpy.ndarray and list
+    rng.random((num_entities, dim), np.float32),    # field embeddings, supports numpy.ndarray and list
 ]
 
 insert_result = hello_milvus.insert(entities)
+
+row = {
+    "pk": "19530",
+    "random": 0.5,
+    "embeddings": rng.random((1, dim), np.float32)[0]
+}
+hello_milvus.insert(row)
 
 hello_milvus.flush()
 print(f"Number of entities in Milvus: {hello_milvus.num_entities}")  # check the num_entities
