@@ -713,6 +713,7 @@ class Prepare:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
         rerank_param["limit"] = limit
         rerank_param["round_decimal"] = round_decimal
+        rerank_param["offset"] = kwargs.get("offset", 0)
 
         request = milvus_types.HybridSearchRequest(
             collection_name=collection_name,
