@@ -3,7 +3,6 @@ import random
 from pymilvus import (
     MilvusClient,
     FieldSchema, CollectionSchema, DataType,
-    Collection,
     utility
 )
 
@@ -97,13 +96,12 @@ def main():
     milvus_client.load_collection(_COLLECTION_NAME)
     vector = data_dict[1]
     vectors = [vector["float_vector_field"]]
+
     # search
     search_param = {
-        # "data": search_vectors,
         "anns_field": _VECTOR_FIELD_NAME,
         "param": {"metric_type": _METRIC_TYPE, "params": {"nprobe": _NPROBE}},
         "expr": f"{_ID_FIELD_NAME} > 0"}
-    # results = collection.search(**search_param)
     results = milvus_client.search(collection_name=_COLLECTION_NAME,data=vectors,limit= _TOPK,search_params=search_param)
     for i, result in enumerate(results):
         print("\nSearch result for {}th vector: ".format(i))
