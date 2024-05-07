@@ -16,7 +16,7 @@ from typing import List, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from pymilvus.client import entity_helper
+from pymilvus.client import utils
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import (
     DataNotMatchException,
@@ -156,7 +156,7 @@ class Prepare:
     @classmethod
     def prepare_upsert_data(
         cls,
-        data: Union[List, Tuple, pd.DataFrame, entity_helper.SparseMatrixInputType],
+        data: Union[List, Tuple, pd.DataFrame, utils.SparseMatrixInputType],
         schema: CollectionSchema,
     ) -> List:
         if schema.auto_id:

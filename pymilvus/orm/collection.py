@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
-from pymilvus.client import entity_helper
+from pymilvus.client import entity_helper, utils
 from pymilvus.client.abstract import BaseRanker, SearchResult
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
@@ -454,7 +454,7 @@ class Collection:
 
     def insert(
         self,
-        data: Union[List, pd.DataFrame, Dict, entity_helper.SparseMatrixInputType],
+        data: Union[List, pd.DataFrame, Dict, utils.SparseMatrixInputType],
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
@@ -581,7 +581,7 @@ class Collection:
 
     def upsert(
         self,
-        data: Union[List, pd.DataFrame, Dict, entity_helper.SparseMatrixInputType],
+        data: Union[List, pd.DataFrame, Dict, utils.SparseMatrixInputType],
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
@@ -655,7 +655,7 @@ class Collection:
 
     def search(
         self,
-        data: Union[List, entity_helper.SparseMatrixInputType],
+        data: Union[List, utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
@@ -790,7 +790,7 @@ class Collection:
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
 
-        empty_scipy_sparse = entity_helper.sparse_is_scipy_format(data) and (data.shape[0] == 0)
+        empty_scipy_sparse = utils.SciPyHelper.is_scipy_sparse(data) and (data.shape[0] == 0)
         if (isinstance(data, list) and len(data) == 0) or empty_scipy_sparse:
             resp = SearchResult(schema_pb2.SearchResultData())
             return SearchFuture(None) if kwargs.get("_async", False) else resp
@@ -957,7 +957,7 @@ class Collection:
 
     def search_iterator(
         self,
-        data: Union[List, entity_helper.SparseMatrixInputType],
+        data: Union[List, utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         batch_size: Optional[int] = 1000,

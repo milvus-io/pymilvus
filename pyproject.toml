@@ -28,7 +28,6 @@ dependencies=[
     "minio>=7.0.0",
     "pyarrow>=12.0.0",
     "azure-storage-blob",
-    "scipy",
     "milvus_lite>=2.4.0,<2.5.0",
 ]
 

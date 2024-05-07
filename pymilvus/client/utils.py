@@ -1,6 +1,7 @@
 import datetime
+import importlib.util
 from datetime import timedelta
-from typing import Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import ujson
 
@@ -270,3 +271,100 @@ def get_server_type(host: str):
 
 def dumps(v: Union[dict, str]) -> str:
     return ujson.dumps(v) if isinstance(v, dict) else str(v)
+
+
+class SciPyHelper:
+    _checked = False
+
+    # whether scipy.sparse.*_matrix classes exists
+    _matrix_available = False
+    # whether scipy.sparse.*_array classes exists
+    _array_available = False
+
+    @classmethod
+    def _init(cls):
+        if cls._checked:
+            return
+        scipy_spec = importlib.util.find_spec("scipy")
+        if scipy_spec is not None:
+            # when scipy is not installed, find_spec("scipy.sparse") directly
+            # throws exception instead of returning None.
+            sparse_spec = importlib.util.find_spec("scipy.sparse")
+            if sparse_spec is not None:
+                scipy_sparse = importlib.util.module_from_spec(sparse_spec)
+                sparse_spec.loader.exec_module(scipy_sparse)
+                # all scipy.sparse.*_matrix classes are introduced in the same scipy
+                # version, so we only need to check one of them.
+                cls._matrix_available = hasattr(scipy_sparse, "csr_matrix")
+                # all scipy.sparse.*_array classes are introduced in the same scipy
+                # version, so we only need to check one of them.
+                cls._array_available = hasattr(scipy_sparse, "csr_array")
+
+        cls._checked = True
+
+    @classmethod
+    def is_spmatrix(cls, data: Any):
+        cls._init()
+        if not cls._matrix_available:
+            return False
+        from scipy.sparse import isspmatrix
+
+        return isspmatrix(data)
+
+    @classmethod
+    def is_sparray(cls, data: Any):
+        cls._init()
+        if not cls._array_available:
+            return False
+        from scipy.sparse import issparse, isspmatrix
+
+        return issparse(data) and not isspmatrix(data)
+
+    @classmethod
+    def is_scipy_sparse(cls, data: Any):
+        return cls.is_spmatrix(data) or cls.is_sparray(data)
+
+
+# in search results, if output fields includes a sparse float vector field, we
+# will return a SparseRowOutputType for each entity. Using Dict for readability.
+# TODO(SPARSE): to allow the user to specify output format.
+SparseRowOutputType = Dict[int, float]
+
+
+# this import will be called only during static type checking
+if TYPE_CHECKING:
+    from scipy.sparse import (
+        bsr_array,
+        coo_array,
+        csc_array,
+        csr_array,
+        dia_array,
+        dok_array,
+        lil_array,
+        spmatrix,
+    )
+
+# we accept the following types as input for sparse matrix in user facing APIs
+# such as insert, search, etc.:
+# - scipy sparse array/matrix family: csr, csc, coo, bsr, dia, dok, lil
+# - iterable of iterables, each element(iterable) is a sparse vector with index
+#   as key and value as float.
+#   dict example: [{2: 0.33, 98: 0.72, ...}, {4: 0.45, 198: 0.52, ...}, ...]
+#   list of tuple example: [[(2, 0.33), (98, 0.72), ...], [(4, 0.45), ...], ...]
+#   both index/value can be str numbers: {'2': '3.1'}
+SparseMatrixInputType = Union[
+    Iterable[
+        Union[
+            SparseRowOutputType,
+            Iterable[Tuple[int, float]],  # only type hint, we accept int/float like types
+        ]
+    ],
+    "csc_array",
+    "coo_array",
+    "bsr_array",
+    "dia_array",
+    "dok_array",
+    "lil_array",
+    "csr_array",
+    "spmatrix",
+]

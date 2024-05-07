@@ -10,7 +10,7 @@
 import time
 
 import numpy as np
-from scipy.sparse import rand
+import random
 from pymilvus import (
     connections,
     utility,
@@ -20,7 +20,9 @@ from pymilvus import (
 
 fmt = "=== {:30} ==="
 search_latency_fmt = "search latency = {:.4f}s"
-num_entities, dim, density = 1000, 3000, 0.005
+num_entities, dim = 1000, 3000
+# non zero count of randomly generated sparse vectors
+nnz = 30
 
 def log(msg):
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + " " + msg)
@@ -54,11 +56,16 @@ log(f"hello_sparse has {hello_sparse.num_entities} entities({hello_sparse.num_en
 # insert
 log(fmt.format("Start creating entities to insert"))
 rng = np.random.default_rng(seed=19530)
-# this step is so damn slow
-matrix_csr = rand(num_entities, dim, density=density, format='csr')
+
+def generate_sparse_vector(dimension: int, non_zero_count: int) -> dict:
+    indices = random.sample(range(dimension), non_zero_count)
+    values = [random.random() for _ in range(non_zero_count)]
+    sparse_vector = {index: value for index, value in zip(indices, values)}
+    return sparse_vector
+
 entities = [
     rng.random(num_entities).tolist(),
-    matrix_csr,
+    [generate_sparse_vector(dim, nnz) for _ in range(num_entities)],
 ]
 
 log(fmt.format("Start inserting entities"))
