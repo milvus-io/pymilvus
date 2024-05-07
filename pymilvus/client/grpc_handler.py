@@ -1546,13 +1546,19 @@ class GrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
-    def compact(self, collection_name: str, timeout: Optional[float] = None, **kwargs) -> int:
+    def compact(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        is_major: Optional[bool] = False,
+        **kwargs,
+    ) -> int:
         request = Prepare.describe_collection_request(collection_name)
         rf = self._stub.DescribeCollection.future(request, timeout=timeout)
         response = rf.result()
         check_status(response.status)
 
-        req = Prepare.manual_compaction(response.collectionID)
+        req = Prepare.manual_compaction(response.collectionID, is_major)
         future = self._stub.ManualCompaction.future(req, timeout=timeout)
         response = future.result()
         check_status(response.status)
