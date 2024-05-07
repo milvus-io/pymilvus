@@ -234,10 +234,10 @@ class Collection:
         return self._schema
 
     @property
-    def aliases(self, **kwargs) -> list:
+    def aliases(self) -> list:
         """List[str]: all the aliases of the collection."""
         conn = self._get_connection()
-        resp = conn.describe_collection(self._name, **kwargs)
+        resp = conn.describe_collection(self._name)
         return resp["aliases"]
 
     @property
@@ -256,14 +256,14 @@ class Collection:
         return self.num_entities == 0
 
     @property
-    def num_shards(self, **kwargs) -> int:
+    def num_shards(self) -> int:
         """int: number of shards used by the collection."""
         if self._num_shards is None:
-            self._num_shards = self.describe(timeout=kwargs.get("timeout")).get("num_shards")
+            self._num_shards = self.describe().get("num_shards")
         return self._num_shards
 
     @property
-    def num_entities(self, **kwargs) -> int:
+    def num_entities(self) -> int:
         """int: The number of entities in the collection, not real time.
 
         Examples:
@@ -283,7 +283,7 @@ class Collection:
             2
         """
         conn = self._get_connection()
-        stats = conn.get_collection_stats(collection_name=self._name, **kwargs)
+        stats = conn.get_collection_stats(collection_name=self._name)
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
@@ -1111,7 +1111,7 @@ class Collection:
         )
 
     @property
-    def partitions(self, **kwargs) -> List[Partition]:
+    def partitions(self) -> List[Partition]:
         """List[Partition]: List of Partition object.
 
         Raises:
@@ -1128,7 +1128,7 @@ class Collection:
             [{"name": "_default", "description": "", "num_entities": 0}]
         """
         conn = self._get_connection()
-        partition_strs = conn.list_partitions(self._name, **kwargs)
+        partition_strs = conn.list_partitions(self._name)
         partitions = []
         for partition in partition_strs:
             partitions.append(Partition(self, partition, construct_only=True))
@@ -1252,7 +1252,7 @@ class Collection:
         return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
     @property
-    def indexes(self, **kwargs) -> List[Index]:
+    def indexes(self) -> List[Index]:
         """List[Index]: list of indexes of this collection.
 
         Examples:
@@ -1267,7 +1267,7 @@ class Collection:
         """
         conn = self._get_connection()
         indexes = []
-        tmp_index = conn.list_indexes(self._name, **kwargs)
+        tmp_index = conn.list_indexes(self._name)
         for index in tmp_index:
             if index is not None:
                 info_dict = {kv.key: kv.value for kv in index.params}

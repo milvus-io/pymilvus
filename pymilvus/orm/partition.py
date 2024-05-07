@@ -109,7 +109,7 @@ class Partition:
         return self.num_entities == 0
 
     @property
-    def num_entities(self, **kwargs) -> int:
+    def num_entities(self) -> int:
         """int: number of entities in the partition
 
         Examples:
@@ -132,7 +132,7 @@ class Partition:
         """
         conn = self._get_connection()
         stats = conn.get_partition_stats(
-            collection_name=self._collection.name, partition_name=self.name, **kwargs
+            collection_name=self._collection.name, partition_name=self.name
         )
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
