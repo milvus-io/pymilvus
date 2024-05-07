@@ -40,7 +40,7 @@ def main():
     print(f"\nCreate connection...")
     milvus_client = MilvusClient(uri=_URI,
                             secure=True,
-                            server_pem_path="/root/milvus_2.4/milvus/configs/cert/server.pem",
+                            server_pem_path="cert/server.pem",
                             server_name='localhost')
     print(f"\nList connection:")
     print(milvus_client._get_connection())
@@ -69,7 +69,7 @@ def main():
         entity = {
         "id_field": i+1,  # Assuming id_field is the _COLLECTION_NAME of the field corresponding to the ID
         "float_vector_field": [random.random() for _ in range(_DIM)]
-    }
+        }
         data_dict.append(entity)
     insert_result = milvus_client.insert(collection_name=_COLLECTION_NAME,data=data_dict)
 
