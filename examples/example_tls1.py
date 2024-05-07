@@ -1,7 +1,7 @@
 import random
 
 from pymilvus import (
-    connections,
+    MilvusClient,
     FieldSchema, CollectionSchema, DataType,
     Collection,
     utility
@@ -17,6 +17,7 @@ from pymilvus import (
 
 _HOST = '127.0.0.1'
 _PORT = '19530'
+_URI = f"https://{_HOST}:{_PORT}"
 
 # Const names
 _COLLECTION_NAME = 'demo'
@@ -35,129 +36,90 @@ _NPROBE = 16
 _TOPK = 3
 
 
-# Create a Milvus connection
-def create_connection():
+def main():
+    # create a connection
     print(f"\nCreate connection...")
-    connections.connect(host=_HOST, port=_PORT, secure=True, server_pem_path="cert/server.pem", server_name="localhost")
-    print(f"\nList connections:")
-    print(connections.list_connections())
+    milvus_client = MilvusClient(uri=_URI,
+                            secure=True,
+                            server_pem_path="/root/milvus_2.4/milvus/configs/cert/server.pem",
+                            server_name='localhost')
+    print(f"\nList connection:")
+    print(milvus_client._get_connection())
 
+    # drop collection if the collection exists
+    if milvus_client.has_collection(_COLLECTION_NAME):
+        milvus_client.drop_collection(_COLLECTION_NAME)
 
-# Create a collection named 'demo'
-def create_collection(name, id_field, vector_field):
-    field1 = FieldSchema(name=id_field, dtype=DataType.INT64, description="int64", is_primary=True)
-    field2 = FieldSchema(name=vector_field, dtype=DataType.FLOAT_VECTOR, description="float vector", dim=_DIM,
+    # create collection
+    field1 = FieldSchema(name=_ID_FIELD_NAME, dtype=DataType.INT64, description="int64", is_primary=True)
+    field2 = FieldSchema(name=_VECTOR_FIELD_NAME, dtype=DataType.FLOAT_VECTOR, description="float vector", dim=_DIM,
                          is_primary=False)
     schema = CollectionSchema(fields=[field1, field2], description="collection description")
-    collection = Collection(name=name, data=None, schema=schema)
-    print("\ncollection created:", name)
-    return collection
+    milvus_client.create_collection(collection_name=_COLLECTION_NAME,schema=schema)
+    milvus_client.describe_collection(collection_name=_COLLECTION_NAME)
 
+    print("\ncollection created:", _COLLECTION_NAME)
 
-def has_collection(name):
-    return utility.has_collection(name)
-
-
-# Drop a collection in Milvus
-def drop_collection(name):
-    collection = Collection(name)
-    collection.drop()
-    print("\nDrop collection: {}".format(name))
-
-
-# List all collections in Milvus
-def list_collections():
+    # show collections
     print("\nlist collections:")
-    print(utility.list_collections())
+    print(milvus_client.list_collections())
 
+    # insert 10000 vectors with 128 dimension
+    data_dict = []
+    for i in range(10000):
+        entity = {
+        "id_field": i+1,  # Assuming id_field is the _COLLECTION_NAME of the field corresponding to the ID
+        "float_vector_field": [random.random() for _ in range(_DIM)]
+    }
+        data_dict.append(entity)
+    insert_result = milvus_client.insert(collection_name=_COLLECTION_NAME,data=data_dict)
 
-def insert(collection, num, dim):
-    data = [
-        [i for i in range(num)],
-        [[random.random() for _ in range(dim)] for _ in range(num)],
-    ]
-    collection.insert(data)
-    return data[1]
+    # get the number of entities
+    print(f"\nThe number of entity: {insert_result['insert_count']}")
 
+    # create index
+    index_params = milvus_client.prepare_index_params()
 
-def get_entity_num(collection):
-    print("\nThe number of entity:")
-    print(collection.num_entities)
+    index_params.add_index(
+        field_name=_VECTOR_FIELD_NAME, 
+        index_type=_INDEX_TYPE,
+        metric_type=_METRIC_TYPE,
+        params={"nlist": _NLIST}
+    )
 
+    milvus_client.create_index(
+        collection_name=_COLLECTION_NAME,
+        index_params=index_params
+    )
+    print("\nCreated index")
 
-def create_index(collection, filed_name):
-    index_param = {
-        "index_type": _INDEX_TYPE,
-        "params": {"nlist": _NLIST},
-        "metric_type": _METRIC_TYPE}
-    collection.create_index(filed_name, index_param)
-    print("\nCreated index:\n{}".format(collection.index().params))
-
-
-def drop_index(collection):
-    collection.drop_index()
-    print("\nDrop index sucessfully")
-
-
-def load_collection(collection):
-    collection.load()
-
-
-def release_collection(collection):
-    collection.release()
-
-
-def search(collection, vector_field, id_field, search_vectors):
+    # load data to memory
+    milvus_client.load_collection(_COLLECTION_NAME)
+    vector = data_dict[1]
+    vectors = [vector["float_vector_field"]]
+    # search
     search_param = {
-        "data": search_vectors,
-        "anns_field": vector_field,
+        # "data": search_vectors,
+        "anns_field": _VECTOR_FIELD_NAME,
         "param": {"metric_type": _METRIC_TYPE, "params": {"nprobe": _NPROBE}},
-        "limit": _TOPK,
-        "expr": "id_field > 0"}
-    results = collection.search(**search_param)
+        "expr": f"{_ID_FIELD_NAME} > 0"}
+    # results = collection.search(**search_param)
+    results = milvus_client.search(collection_name=_COLLECTION_NAME,data=vectors,limit= _TOPK,search_params=search_param)
     for i, result in enumerate(results):
         print("\nSearch result for {}th vector: ".format(i))
         for j, res in enumerate(result):
             print("Top {}: {}".format(j, res))
 
-
-def main():
-    # create a connection
-    create_connection()
-
-    # drop collection if the collection exists
-    if has_collection(_COLLECTION_NAME):
-        drop_collection(_COLLECTION_NAME)
-
-    # create collection
-    collection = create_collection(_COLLECTION_NAME, _ID_FIELD_NAME, _VECTOR_FIELD_NAME)
-
-    # show collections
-    list_collections()
-
-    # insert 10000 vectors with 128 dimension
-    vectors = insert(collection, 10000, _DIM)
-
-    # get the number of entities
-    get_entity_num(collection)
-
-    # create index
-    create_index(collection, _VECTOR_FIELD_NAME)
-
-    # load data to memory
-    load_collection(collection)
-
-    # search
-    search(collection, _VECTOR_FIELD_NAME, _ID_FIELD_NAME, vectors[:3])
-
     # release memory
-    release_collection(collection)
+    milvus_client.release_collection(_COLLECTION_NAME)
 
     # drop collection index
-    drop_index(collection)
+    milvus_client.drop_index(_COLLECTION_NAME,index_name=_VECTOR_FIELD_NAME)
+    print("\nDrop index sucessfully")
 
     # drop collection
-    drop_collection(_COLLECTION_NAME)
+    milvus_client.drop_collection(_COLLECTION_NAME)
+    print("\nDrop collection: {}".format(_COLLECTION_NAME))
 
 
 if __name__ == '__main__':
