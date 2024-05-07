@@ -4,14 +4,13 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
 
-from pymilvus.client import __version__, entity_helper
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.orm.schema import CollectionSchema
 
-from . import blob, ts_utils, utils
+from . import __version__, blob, entity_helper, ts_utils, utils
 from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
     DEFAULT_CONSISTENCY_LEVEL,
@@ -626,7 +625,7 @@ class Prepare:
     def search_requests_with_expr(
         cls,
         collection_name: str,
-        data: Union[List, entity_helper.SparseMatrixInputType],
+        data: Union[List, utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
