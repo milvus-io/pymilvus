@@ -114,8 +114,7 @@ def entity_is_sparse_matrix(entity: Any):
 # parses plain bytes to a sparse float vector(SparseRowOutputType)
 def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
     if len(data) % 8 != 0:
-        msg = f"The length of data must be a multiple of 8, got {len(data)}"
-        raise ValueError(msg)
+        raise ParamError(message=f"The length of data must be a multiple of 8, got {len(data)}")
 
     return {
         struct.unpack("I", data[i : i + 4])[0]: struct.unpack("f", data[i + 4 : i + 8])[0]
@@ -129,16 +128,17 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
     # milvus interprets/persists the data.
     def sparse_float_row_to_bytes(indices: Iterable[int], values: Iterable[float]):
         if len(indices) != len(values):
-            msg = f"length of indices and values must be the same, got {len(indices)} and {len(values)}"
-            raise ValueError(msg)
+            raise ParamError(
+                message=f"length of indices and values must be the same, got {len(indices)} and {len(values)}"
+            )
         data = b""
         for i, v in sorted(zip(indices, values), key=lambda x: x[0]):
             if not (0 <= i < 2**32 - 1):
-                msg = f"sparse vector index must be positive and less than 2^32-1: {i}"
-                raise ValueError(msg)
+                raise ParamError(
+                    message=f"sparse vector index must be positive and less than 2^32-1: {i}"
+                )
             if math.isnan(v):
-                msg = "sparse vector value must not be NaN"
-                raise ValueError(msg)
+                raise ParamError(message="sparse vector value must not be NaN")
             data += struct.pack("I", i)
             data += struct.pack("f", v)
         return data
@@ -163,8 +163,7 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
         return sparse.csr_array((values, (row_indices, col_indices)))
 
     if not entity_is_sparse_matrix(data):
-        msg = "input must be a sparse matrix in supported format"
-        raise TypeError(msg)
+        raise ParamError(message="input must be a sparse matrix in supported format")
     csr = unify_sparse_input(data)
     result = schema_types.SparseFloatArray()
     result.dim = csr.shape[1]
@@ -180,8 +179,7 @@ def sparse_proto_to_rows(
     sfv: schema_types.SparseFloatArray, start: Optional[int] = None, end: Optional[int] = None
 ) -> Iterable[SparseRowOutputType]:
     if not isinstance(sfv, schema_types.SparseFloatArray):
-        msg = "Vector must be a sparse float vector"
-        raise TypeError(msg)
+        raise ParamError(message="Vector must be a sparse float vector")
     start = start or 0
     end = end or len(sfv.contents)
     return [sparse_parse_single_row(row_bytes) for row_bytes in sfv.contents[start:end]]
