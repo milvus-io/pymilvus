@@ -12,6 +12,7 @@
 
 import copy
 import logging
+import pathlib
 import threading
 import time
 from typing import Callable, Tuple, Union
@@ -356,6 +357,30 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
         """
+
+        if kwargs.get("uri") and parse.urlparse(kwargs["uri"]).scheme.lower() not in [
+            "unix",
+            "http",
+            "https",
+            "tcp",
+        ]:
+            # start and connect milvuslite
+            if kwargs["uri"].endswith("/"):
+                raise ConnectionConfigException(
+                    message=f"Open local milvus failed, {kwargs['uri']} is not a local file path"
+                )
+            parent_path = pathlib.Path(kwargs["uri"]).parent
+            if not parent_path.is_dir():
+                raise ConnectionConfigException(
+                    message=f"Open local milvus failed, dir: {parent_path} is not exists"
+                )
+
+            from milvus_lite.server_manager import server_manager_instance
+
+            local_uri = server_manager_instance.start_and_get_uri(kwargs["uri"])
+            if local_uri is None:
+                raise ConnectionConfigException(message="Open local milvus failed")
+            kwargs["uri"] = local_uri
 
         # kwargs_copy is used for auto reconnect
         kwargs_copy = copy.deepcopy(kwargs)
