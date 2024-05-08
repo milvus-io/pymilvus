@@ -38,3 +38,4 @@ black
 requests
 minio
 azure-storage-blob
+milvus_lite>=2.4.0,<2.5.0
