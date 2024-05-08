@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, TypeVar, Union
 import pandas as pd
 import ujson
 
-from pymilvus.client import entity_helper
+from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker, SearchResult
 from pymilvus.client.types import Replica
 from pymilvus.exceptions import MilvusException
@@ -239,7 +239,7 @@ class Partition:
 
     def insert(
         self,
-        data: Union[List, pd.DataFrame, entity_helper.SparseMatrixInputType],
+        data: Union[List, pd.DataFrame, utils.SparseMatrixInputType],
         timeout: Optional[float] = None,
         **kwargs,
     ) -> MutationResult:
@@ -317,7 +317,7 @@ class Partition:
 
     def upsert(
         self,
-        data: Union[List, pd.DataFrame, entity_helper.SparseMatrixInputType],
+        data: Union[List, pd.DataFrame, utils.SparseMatrixInputType],
         timeout: Optional[float] = None,
         **kwargs,
     ) -> MutationResult:
@@ -357,7 +357,7 @@ class Partition:
 
     def search(
         self,
-        data: Union[List, entity_helper.SparseMatrixInputType],
+        data: Union[List, utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,

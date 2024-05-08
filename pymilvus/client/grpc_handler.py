@@ -23,7 +23,7 @@ from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.settings import Config
 
-from . import entity_helper, interceptor, ts_utils
+from . import entity_helper, interceptor, ts_utils, utils
 from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, MutationResult, SearchResult
 from .asynch import (
     CreateIndexFuture,
@@ -763,7 +763,7 @@ class GrpcHandler:
     def search(
         self,
         collection_name: str,
-        data: Union[List[List[float]], entity_helper.SparseMatrixInputType],
+        data: Union[List[List[float]], utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
