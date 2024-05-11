@@ -1238,3 +1238,14 @@ class Prepare:
     @classmethod
     def list_database_req(cls):
         return milvus_types.ListDatabasesRequest()
+
+    @classmethod
+    def alter_database_req(cls, db_name: str, properties: Dict):
+        check_pass_param(db_name=db_name)
+        kvs = [common_types.KeyValuePair(key=k, value=str(v)) for k, v in properties.items()]
+        return milvus_types.AlterDatabaseRequest(db_name=db_name, properties=kvs)
+
+    @classmethod
+    def describe_database_req(cls, db_name: str):
+        check_pass_param(db_name=db_name)
+        return milvus_types.DescribeDatabaseRequest(db_name=db_name)
