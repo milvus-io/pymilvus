@@ -42,6 +42,7 @@ from .types import (
     BulkInsertState,
     CompactionPlans,
     CompactionState,
+    DatabaseInfo,
     DataType,
     ExtraList,
     GrantInfo,
@@ -1289,6 +1290,21 @@ class GrpcHandler:
         response = self._stub.ListDatabases(request, timeout=timeout)
         check_status(response.status)
         return list(response.db_names)
+
+    @retry_on_rpc_failure()
+    def alter_database(
+        self, db_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
+    ):
+        request = Prepare.alter_database_req(db_name, properties)
+        status = self._stub.AlterDatabase(request, timeout=timeout)
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    def describe_database(self, db_name: str, timeout: Optional[float] = None):
+        request = Prepare.describe_database_req(db_name=db_name)
+        resp = self._stub.DescribeDatabase(request, timeout=timeout)
+        check_status(resp.status)
+        return DatabaseInfo(resp)
 
     @retry_on_rpc_failure()
     def get_load_state(

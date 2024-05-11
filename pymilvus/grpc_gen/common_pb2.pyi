@@ -204,6 +204,8 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CreateDatabase: _ClassVar[MsgType]
     DropDatabase: _ClassVar[MsgType]
     ListDatabases: _ClassVar[MsgType]
+    AlterDatabase: _ClassVar[MsgType]
+    DescribeDatabase: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -292,6 +294,7 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeListAliases: _ClassVar[ObjectPrivilege]
     PrivilegeUpdateResourceGroups: _ClassVar[ObjectPrivilege]
     PrivilegeAlterDatabase: _ClassVar[ObjectPrivilege]
+    PrivilegeDescribeDatabase: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -490,6 +493,8 @@ UpdateResourceGroups: MsgType
 CreateDatabase: MsgType
 DropDatabase: MsgType
 ListDatabases: MsgType
+AlterDatabase: MsgType
+DescribeDatabase: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -560,6 +565,7 @@ PrivilegeDescribeAlias: ObjectPrivilege
 PrivilegeListAliases: ObjectPrivilege
 PrivilegeUpdateResourceGroups: ObjectPrivilege
 PrivilegeAlterDatabase: ObjectPrivilege
+PrivilegeDescribeDatabase: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

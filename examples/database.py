@@ -133,6 +133,14 @@ if __name__ == '__main__':
     # list collections within db1
     print("\nlist collections of database db1:")
     print(utility.list_collections())
+    
+    # set properties of db1
+    print("\nset properties of db1:")
+    db_info = db.describe_database(db_name="db1")
+    print(db_info)
+    db.set_properties(db_name="db1", properties={"key": "value"})
+    db_info = db.describe_database(db_name="db1")
+    print(db_info)
 
     print("\ndrop collection: col1_db2 from db1")
     col2_db1.drop()
