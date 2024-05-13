@@ -2,7 +2,7 @@ import logging
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TypeVar, Union
 
-from pymilvus.client import entity_helper
+from pymilvus.client import entity_helper, utils
 from pymilvus.client.abstract import Hits, LoopBase
 from pymilvus.exceptions import (
     MilvusException,
@@ -283,7 +283,7 @@ class SearchIterator:
         self,
         connection: Connections,
         collection_name: str,
-        data: Union[List, entity_helper.SparseMatrixInputType],
+        data: Union[List, utils.SparseMatrixInputType],
         ann_field: str,
         param: Dict,
         batch_size: Optional[int] = 1000,

@@ -7,7 +7,7 @@ from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage, Mi
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
 
-from . import entity_helper
+from . import entity_helper, utils
 from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
 from .types import DataType
 
@@ -327,7 +327,7 @@ class WeightedRanker(BaseRanker):
 class AnnSearchRequest:
     def __init__(
         self,
-        data: Union[List, entity_helper.SparseMatrixInputType],
+        data: Union[List, utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
