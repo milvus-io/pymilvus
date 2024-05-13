@@ -831,7 +831,7 @@ class FlushRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_names: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FlushResponse(_message.Message):
-    __slots__ = ("status", "db_name", "coll_segIDs", "flush_coll_segIDs", "coll_seal_times", "coll_flush_ts")
+    __slots__ = ("status", "db_name", "coll_segIDs", "flush_coll_segIDs", "coll_seal_times", "coll_flush_ts", "channel_cps")
     class CollSegIDsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -860,19 +860,28 @@ class FlushResponse(_message.Message):
         key: str
         value: int
         def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    class ChannelCpsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _msg_pb2.MsgPosition
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_msg_pb2.MsgPosition, _Mapping]] = ...) -> None: ...
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLL_SEGIDS_FIELD_NUMBER: _ClassVar[int]
     FLUSH_COLL_SEGIDS_FIELD_NUMBER: _ClassVar[int]
     COLL_SEAL_TIMES_FIELD_NUMBER: _ClassVar[int]
     COLL_FLUSH_TS_FIELD_NUMBER: _ClassVar[int]
+    CHANNEL_CPS_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     db_name: str
     coll_segIDs: _containers.MessageMap[str, _schema_pb2.LongArray]
     flush_coll_segIDs: _containers.MessageMap[str, _schema_pb2.LongArray]
     coll_seal_times: _containers.ScalarMap[str, int]
     coll_flush_ts: _containers.ScalarMap[str, int]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_name: _Optional[str] = ..., coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., flush_coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., coll_seal_times: _Optional[_Mapping[str, int]] = ..., coll_flush_ts: _Optional[_Mapping[str, int]] = ...) -> None: ...
+    channel_cps: _containers.MessageMap[str, _msg_pb2.MsgPosition]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_name: _Optional[str] = ..., coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., flush_coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., coll_seal_times: _Optional[_Mapping[str, int]] = ..., coll_flush_ts: _Optional[_Mapping[str, int]] = ..., channel_cps: _Optional[_Mapping[str, _msg_pb2.MsgPosition]] = ...) -> None: ...
 
 class QueryRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "expr", "output_fields", "partition_names", "travel_timestamp", "guarantee_timestamp", "query_params", "not_return_all_meta", "consistency_level", "use_default_consistency")
@@ -1896,6 +1905,28 @@ class AlterDatabaseRequest(_message.Message):
     db_id: str
     properties: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., db_id: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+
+class DescribeDatabaseRequest(_message.Message):
+    __slots__ = ("base", "db_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ...) -> None: ...
+
+class DescribeDatabaseResponse(_message.Message):
+    __slots__ = ("status", "db_name", "dbID", "created_timestamp", "properties")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    DBID_FIELD_NUMBER: _ClassVar[int]
+    CREATED_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    db_name: str
+    dbID: int
+    created_timestamp: int
+    properties: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_name: _Optional[str] = ..., dbID: _Optional[int] = ..., created_timestamp: _Optional[int] = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class ReplicateMessageRequest(_message.Message):
     __slots__ = ("base", "channel_name", "BeginTs", "EndTs", "Msgs", "StartPositions", "EndPositions")

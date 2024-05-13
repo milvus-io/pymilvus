@@ -920,3 +920,32 @@ def get_cost_extra(status: Optional[common_pb2.Status] = None):
 # Construct extra dict, the cost unit is the vcu, similar to tokenlike the
 def construct_cost_extra(cost: int):
     return {"cost": cost}
+
+
+class DatabaseInfo:
+    """
+    Represents the information of a database.
+    Atributes:
+        name (str): The name of the database.
+        properties (dict): The properties of the database.
+    Example:
+        DatabaseInfo(name="test_db", id=1, properties={"key": "value"})
+    """
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def properties(self) -> Dict:
+        return self._properties
+
+    def __init__(self, info: Any) -> None:
+        self._name = info.db_name
+        self._properties = {}
+
+        for p in info.properties:
+            self.properties[p.key] = p.value
+
+    def __str__(self) -> str:
+        return f"DatabaseInfo(name={self.name}, properties={self.properties})"
