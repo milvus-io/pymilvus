@@ -277,14 +277,12 @@ class CollectionSchema:
         self._enable_dynamic_field = bool(value)
 
     def to_dict(self):
-        _dict = {
+        return {
             "auto_id": self.auto_id,
             "description": self._description,
             "fields": [s.to_dict() for s in self._fields],
+            "enable_dynamic_field": self.enable_dynamic_field,
         }
-        if self._enable_dynamic_field is not None:
-            _dict["enable_dynamic_field"] = self._enable_dynamic_field
-        return _dict
 
     def verify(self):
         # final check, detect obvious problems
