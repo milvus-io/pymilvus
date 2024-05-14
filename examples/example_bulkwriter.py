@@ -26,13 +26,16 @@ from pymilvus import (
     FieldSchema, CollectionSchema, DataType,
     Collection,
     utility,
+    BulkInsertState,
+)
+
+from pymilvus.bulk_writer import (
     LocalBulkWriter,
     RemoteBulkWriter,
     BulkFileType,
     bulk_import,
     get_import_progress,
     list_import_jobs,
-    BulkInsertState,
 )
 
 # minio
