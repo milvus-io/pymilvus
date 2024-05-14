@@ -24,10 +24,6 @@ dependencies=[
     "ujson>=2.0.0",
     "pandas>=1.2.4",
     "numpy<1.25.0;python_version<='3.8'",
-    "requests",
-    "minio>=7.0.0",
-    "pyarrow>=12.0.0",
-    "azure-storage-blob",
     "milvus-lite>=2.4.0",
 ]
 
@@ -42,6 +38,13 @@ dynamic = ["version"]
 "repository" = 'https://github.com/milvus-io/pymilvus'
 
 [project.optional-dependencies]
+bulk_writer = [
+    "requests",
+    "minio>=7.0.0",
+    "pyarrow>=12.0.0",
+    "azure-storage-blob",
+]
+
 model = [
     "milvus-model>=0.1.0",
 ]
@@ -51,7 +54,7 @@ test = [
     "pytest-cov>=2.8.1",
     "pytest-timeout>=1.3.4",
     "grpcio-testing",
-    "ruff>=0.3.3",
+    "ruff>0.4.0",
     "black",
 ]
 
@@ -113,6 +116,7 @@ lint.ignore = [
     "PLR0915", # To many statements TODO
     "C901", # TODO
     "PYI041", # TODO
+    "E402",
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
