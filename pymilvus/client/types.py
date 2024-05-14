@@ -888,3 +888,32 @@ Represents the transfer config of a resource group.
 Attributes:
     resource_group (str): The name of the resource group that can be transferred to or from.
 """
+
+
+class DatabaseInfo:
+    """
+    Represents the information of a database.
+    Atributes:
+        name (str): The name of the database.
+        properties (dict): The properties of the database.
+    Example:
+        DatabaseInfo(name="test_db", id=1, properties={"key": "value"})
+    """
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def properties(self) -> Dict:
+        return self._properties
+
+    def __init__(self, info: Any) -> None:
+        self._name = info.db_name
+        self._properties = {}
+
+        for p in info.properties:
+            self.properties[p.key] = p.value
+
+    def __str__(self) -> str:
+        return f"DatabaseInfo(name={self.name}, properties={self.properties})"

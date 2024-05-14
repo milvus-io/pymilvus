@@ -436,6 +436,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.AlterDatabaseRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.DescribeDatabase = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DescribeDatabase',
+                request_serializer=milvus__pb2.DescribeDatabaseRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DescribeDatabaseResponse.FromString,
+                )
         self.ReplicateMessage = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ReplicateMessage',
                 request_serializer=milvus__pb2.ReplicateMessageRequest.SerializeToString,
@@ -957,6 +962,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DescribeDatabase(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def ReplicateMessage(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -1385,6 +1396,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.AlterDatabase,
                     request_deserializer=milvus__pb2.AlterDatabaseRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DescribeDatabase': grpc.unary_unary_rpc_method_handler(
+                    servicer.DescribeDatabase,
+                    request_deserializer=milvus__pb2.DescribeDatabaseRequest.FromString,
+                    response_serializer=milvus__pb2.DescribeDatabaseResponse.SerializeToString,
             ),
             'ReplicateMessage': grpc.unary_unary_rpc_method_handler(
                     servicer.ReplicateMessage,
@@ -2826,6 +2842,23 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AlterDatabase',
             milvus__pb2.AlterDatabaseRequest.SerializeToString,
             common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DescribeDatabase(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DescribeDatabase',
+            milvus__pb2.DescribeDatabaseRequest.SerializeToString,
+            milvus__pb2.DescribeDatabaseResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
