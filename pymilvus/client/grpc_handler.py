@@ -44,6 +44,7 @@ from .types import (
     CompactionState,
     DatabaseInfo,
     DataType,
+    ExtraList,
     GrantInfo,
     Group,
     IndexState,
@@ -57,6 +58,7 @@ from .types import (
     State,
     Status,
     UserInfo,
+    get_cost_extra,
 )
 from .utils import (
     check_invalid_binary_vector,
@@ -732,7 +734,7 @@ class GrpcHandler:
             response = self._stub.Search(request, timeout=timeout)
             check_status(response.status)
             round_decimal = kwargs.get("round_decimal", -1)
-            return SearchResult(response.results, round_decimal)
+            return SearchResult(response.results, round_decimal, status=response.status)
 
         except Exception as e:
             if kwargs.get("_async", False):
@@ -751,7 +753,7 @@ class GrpcHandler:
             response = self._stub.HybridSearch(request, timeout=timeout)
             check_status(response.status)
             round_decimal = kwargs.get("round_decimal", -1)
-            return SearchResult(response.results, round_decimal)
+            return SearchResult(response.results, round_decimal, status=response.status)
 
         except Exception as e:
             if kwargs.get("_async", False):
@@ -1519,7 +1521,7 @@ class GrpcHandler:
                 response.fields_data, index, dynamic_fields
             )
             results.append(entity_row_data)
-        return results
+        return ExtraList(results, extra=get_cost_extra(response.status))
 
     @retry_on_rpc_failure()
     def load_balance(

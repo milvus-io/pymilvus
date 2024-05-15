@@ -164,7 +164,7 @@ class Future(AbstractFuture):
 class SearchFuture(Future):
     def on_response(self, response: milvus_pb2.SearchResults):
         check_status(response.status)
-        return SearchResult(response.results)
+        return SearchResult(response.results, status=response.status)
 
 
 class MutationFuture(Future):
