@@ -53,6 +53,11 @@ class MutationResult:
     def err_index(self):
         return self._mr.err_index if self._mr else []
 
+    # The unit of this cost is vcu, similar to token
+    @property
+    def cost(self):
+        return self._mr.cost if self._mr else 0
+
     def __str__(self) -> str:
         """
         Return the information of mutation result

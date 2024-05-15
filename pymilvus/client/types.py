@@ -1,6 +1,6 @@
 import time
 from enum import IntEnum
-from typing import Any, ClassVar, Dict, List, TypeVar, Union
+from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
 
 from pymilvus.exceptions import (
     AutoIDException,
@@ -763,7 +763,6 @@ class RoleInfo:
 
 class ResourceGroupInfo:
     def __init__(self, resource_group: Any) -> None:
-
         self._name = resource_group.name
         self._capacity = resource_group.capacity
         self._num_available_node = resource_group.num_available_node
@@ -917,3 +916,36 @@ class DatabaseInfo:
 
     def __str__(self) -> str:
         return f"DatabaseInfo(name={self.name}, properties={self.properties})"
+
+
+class ExtraList(list):
+    """
+    A list that can hold extra information.
+    Attributes:
+        extra (dict): The extra information of the list.
+    Example:
+        ExtraList([1, 2, 3], extra={"total": 3})
+    """
+
+    def __init__(self, *args, extra: Optional[Dict] = None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.extra = extra or {}
+
+    def __str__(self) -> str:
+        """Only print at most 10 query results"""
+        return f"data: {list(map(str, self[:10]))} {'...' if len(self) else ''}, extra_info: {self.extra}"
+
+    __repr__ = __str__
+
+
+def get_cost_from_status(status: Optional[common_pb2.Status] = None):
+    return int(status.extra_info["report_value"] if status and status.extra_info else "0")
+
+
+def get_cost_extra(status: Optional[common_pb2.Status] = None):
+    return {"cost": get_cost_from_status(status)}
+
+
+# Construct extra dict, the cost unit is the vcu, similar to tokenlike the
+def construct_cost_extra(cost: int):
+    return {"cost": cost}
