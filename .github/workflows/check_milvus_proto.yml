@@ -31,5 +31,6 @@ jobs:
     - name: Try generate proto
       run: |
         git submodule update --init
+        make gen_proto
         make check_proto_product
 
