@@ -2,12 +2,12 @@ unittest:
 	PYTHONPATH=`pwd` python3 -m pytest tests --cov=pymilvus -v
 
 lint:
-	PYTHONPATH=`pwd` black pymilvus --check
-	PYTHONPATH=`pwd` ruff check pymilvus
+	PYTHONPATH=`pwd` python3 -m black pymilvus --check
+	PYTHONPATH=`pwd` python3 -m ruff check pymilvus
 
 format:
-	PYTHONPATH=`pwd` black pymilvus
-	PYTHONPATH=`pwd` ruff check pymilvus --fix
+	PYTHONPATH=`pwd` python3 -m black pymilvus
+	PYTHONPATH=`pwd` python3 -m ruff check pymilvus --fix
 
 codecov:
 	PYTHONPATH=`pwd` pytest --cov=pymilvus --cov-report=xml tests -x -v -rxXs
@@ -25,6 +25,7 @@ get_proto:
 	git submodule update --init
 
 gen_proto:
+	python3 -m pip install -e ".[dev]"
 	cd pymilvus/grpc_gen && ./python_gen.sh
 
 check_proto_product: gen_proto
