@@ -107,8 +107,8 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
             values = []
             row = row_data.items() if isinstance(row_data, dict) else row_data
             for index, value in row:
-                indices.append(index)
-                values.append(value)
+                indices.append(int(index))
+                values.append(float(value))
             result.contents.append(sparse_float_row_to_bytes(indices, values))
             dim = max(dim, indices[-1] + 1)
         result.dim = dim
