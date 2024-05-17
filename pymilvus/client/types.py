@@ -933,7 +933,7 @@ class ExtraList(list):
 
     def __str__(self) -> str:
         """Only print at most 10 query results"""
-        return f"data: {list(map(str, self[:10]))} {'...' if len(self) else ''}, extra_info: {self.extra}"
+        return f"data: {list(map(str, self[:10]))} {'...' if len(self) > 10 else ''}, extra_info: {self.extra}"
 
     __repr__ = __str__
 
