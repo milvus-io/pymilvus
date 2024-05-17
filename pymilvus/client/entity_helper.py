@@ -228,7 +228,7 @@ def convert_to_array(obj: List[Any], field_info: Any):
         field_data.string_data.data.extend(obj)
         return field_data
     raise ParamError(
-        message=f"UnSupported element type: {element_type} for Array field: {field_info.get('name')}"
+        message=f"Unsupported element type: {element_type} for Array field: {field_info.get('name')}"
     )
 
 
@@ -394,7 +394,7 @@ def pack_field_value_to_field_data(
                 % (field_name, "array", type(field_value))
             ) from e
     else:
-        raise ParamError(message=f"UnSupported data type: {field_type}")
+        raise ParamError(message=f"Unsupported data type: {field_type}")
 
 
 # TODO: refactor here.
@@ -520,7 +520,7 @@ def entity_to_field_data(entity: Any, field_info: Any):
                 % (field_name, "sparse_float_vector", type(entity.get("values")[0]))
             ) from e
     else:
-        raise ParamError(message=f"UnSupported data type: {entity_type}")
+        raise ParamError(message=f"Unsupported data type: {entity_type}")
 
     return field_data
 

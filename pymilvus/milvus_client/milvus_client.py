@@ -33,7 +33,7 @@ logger.setLevel(logging.DEBUG)
 class MilvusClient:
     """The Milvus Client"""
 
-    # pylint: disable=logging-too-many-args, too-many-instance-attributes, import-outside-toplevel
+    # pylint: disable=logging-too-many-args, too-many-instance-attributes
 
     def __init__(
         self,
@@ -951,9 +951,7 @@ class MilvusClient:
         conn = self._get_connection()
         conn.drop_role(role_name, timeout=timeout, **kwargs)
 
-    def describe_role(
-        self, role_name: str, timeout: Optional[float] = None, **kwargs
-    ) -> List[Dict]:
+    def describe_role(self, role_name: str, timeout: Optional[float] = None, **kwargs) -> Dict:
         conn = self._get_connection()
         db_name = kwargs.pop("db_name", "")
         try:
@@ -1047,6 +1045,94 @@ class MilvusClient:
         conn = self._get_connection()
         return conn.list_database(**kwargs)
 
+    def flush(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Seal all segments in the collection. Inserts after flushing will be written into
+            new segments.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            timeout (float): an optional duration of time in seconds to allow for the RPCs.
+                If timeout is not set, the client keeps waiting until the server
+                responds or an error occurs.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        conn.flush([collection_name], timeout=timeout, **kwargs)
+
+    def compact(
+        self,
+        collection_name: str,
+        is_clustering: Optional[bool] = False,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> int:
+        """Compact merge the small segments in a collection
+
+        Args:
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+            is_clustering (``bool``, optional): Option to trigger clustering compaction.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+
+        Returns:
+            int: An integer represents the server's compaction job. You can use this job ID
+            for subsequent state inquiries.
+        """
+        conn = self._get_connection()
+        return conn.compact(collection_name, is_clustering=is_clustering, timeout=timeout, **kwargs)
+
+    def get_compaction_state(
+        self,
+        job_id: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> str:
+        """Get the state of compaction job
+
+        Args:
+            job_id (``int``): The ID of the compaction job.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+        Returns:
+            str: the state of this compaction job. Possible values are "UndefiedState", "Executing"
+            and "Completed".
+        """
+        conn = self._get_connection()
+        result = conn.get_compaction_state(job_id, timeout=timeout, **kwargs)
+        return result.state_name
+
+    def get_server_version(
+        self,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> str:
+        """Get the running server's version
+
+        Args:
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+
+        Returns:
+            str: A string represent the server's version.
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        return conn.get_server_version(timeout=timeout, **kwargs)
+
     def create_privilege_group(
         self,
         group_name: str,
@@ -1060,7 +1146,6 @@ class MilvusClient:
             timeout (``float``, optional): An optional duration of time in seconds to allow
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur.
-
         Raises:
             MilvusException: If anything goes wrong.
         """
@@ -1077,10 +1162,6 @@ class MilvusClient:
 
         Args:
             group_name (``str``): The name of the privilege group.
-            timeout (``float``, optional): An optional duration of time in seconds to allow
-                for the RPC. When timeout is set to None, client waits until server response
-                or error occur.
-
         Raises:
             MilvusException: If anything goes wrong.
         """
