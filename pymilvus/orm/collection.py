@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
-from pymilvus.client import entity_helper, utils
+from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker, SearchResult
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
@@ -969,10 +969,6 @@ class Collection:
         round_decimal: int = -1,
         **kwargs,
     ):
-        if entity_helper.entity_is_sparse_matrix(data):
-            # search iterator is based on range_search, which is not yet supported for sparse.
-            raise DataTypeNotSupportException(message=ExceptionsMessage.DataTypeNotSupport)
-
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         return SearchIterator(
