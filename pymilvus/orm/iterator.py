@@ -203,7 +203,7 @@ class QueryIterator:
             filtered_pk_str = f"{self._pk_field_name} > {self._next_id}"
         if current_expr is None or len(current_expr) == 0:
             return filtered_pk_str
-        return current_expr + " and " + filtered_pk_str
+        return "(" + current_expr + ")" + " and " + filtered_pk_str
 
     def __update_cursor(self, res: List) -> None:
         if len(res) == 0:
@@ -572,7 +572,7 @@ class SearchIterator:
         if len(filtered_ids_str) > 0:
             if expr is not None and len(expr) > 0:
                 filter_expr = f" and {self._pk_field_name} not in [{filtered_ids_str}]"
-                return expr + filter_expr
+                return "(" + expr + ")" + filter_expr
             return f"{self._pk_field_name} not in [{filtered_ids_str}]"
         return expr
 
