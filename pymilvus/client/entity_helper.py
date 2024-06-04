@@ -44,6 +44,8 @@ def entity_is_sparse_matrix(entity: Any):
         if len(entity) == 0:
             return False
         for item in entity:
+            if SciPyHelper.is_scipy_sparse(item):
+                return item.shape[0] == 1
             pairs = item.items() if isinstance(item, dict) else item
             # each row must be a non-empty list of Tuple[int, float]
             if len(pairs) == 0:
@@ -103,14 +105,20 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
     else:
         dim = 0
         for _, row_data in enumerate(data):
-            indices = []
-            values = []
-            row = row_data.items() if isinstance(row_data, dict) else row_data
-            for index, value in row:
-                indices.append(int(index))
-                values.append(float(value))
-            result.contents.append(sparse_float_row_to_bytes(indices, values))
-            dim = max(dim, indices[-1] + 1)
+            if SciPyHelper.is_scipy_sparse(row_data):
+                if row_data.shape[0] != 1:
+                    raise ParamError(message="invalid input for sparse float vector: expect 1 row")
+                dim = max(dim, row_data.shape[1])
+                result.contents.append(sparse_float_row_to_bytes(row_data.indices, row_data.data))
+            else:
+                indices = []
+                values = []
+                row = row_data.items() if isinstance(row_data, dict) else row_data
+                for index, value in row:
+                    indices.append(int(index))
+                    values.append(float(value))
+                result.contents.append(sparse_float_row_to_bytes(indices, values))
+                dim = max(dim, indices[-1] + 1)
         result.dim = dim
     return result
 
