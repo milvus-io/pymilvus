@@ -135,12 +135,11 @@ class Index:
                   The name of index. If no index is specified, the default index name is used.
         """
         copy_kwargs = copy.deepcopy(kwargs)
-        index_name = copy_kwargs.pop("index_name", Config.IndexName)
         conn = self._get_connection()
         conn.drop_index(
             collection_name=self._collection.name,
             field_name=self.field_name,
-            index_name=index_name,
+            index_name=self.index_name,
             timeout=timeout,
             **copy_kwargs,
         )
