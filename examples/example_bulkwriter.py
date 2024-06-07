@@ -376,8 +376,7 @@ def cloud_bulkinsert():
         url=url,
         api_key=api_key,
         cluster_id=cluster_id,
-        page_size=10,
-        current_page=1,
+        collection_name=collection_name,
     )
     print(resp.json())
 
