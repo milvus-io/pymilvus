@@ -29,7 +29,7 @@ class Config:
     DEFAULT_HOST = "localhost"
     DEFAULT_PORT = "19530"
 
-    WaitTimeDurationWhenLoad = 0.5  # in seconds
+    WaitTimeDurationWhenLoad = 0.2  # in seconds
     MaxVarCharLengthKey = "max_length"
     MaxVarCharLength = 65535
     EncodeProtocol = "utf-8"
