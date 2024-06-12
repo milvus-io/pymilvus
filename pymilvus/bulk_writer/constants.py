@@ -18,6 +18,13 @@ from pymilvus.client.types import (
     DataType,
 )
 
+from .validators import (
+    binary_vector_validator,
+    float16_vector_validator,
+    float_vector_validator,
+    sparse_vector_validator,
+)
+
 MB = 1024 * 1024
 GB = 1024 * MB
 
@@ -44,8 +51,11 @@ TYPE_VALIDATOR = {
     DataType.DOUBLE.name: lambda x: isinstance(x, float),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,
     DataType.JSON.name: lambda x: isinstance(x, dict),
-    DataType.FLOAT_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) == dim,
-    DataType.BINARY_VECTOR.name: lambda x, dim: isinstance(x, list) and len(x) * 8 == dim,
+    DataType.FLOAT_VECTOR.name: lambda x, dim: float_vector_validator(x, dim),
+    DataType.BINARY_VECTOR.name: lambda x, dim: binary_vector_validator(x, dim),
+    DataType.FLOAT16_VECTOR.name: lambda x, dim: float16_vector_validator(x, dim, False),
+    DataType.BFLOAT16_VECTOR.name: lambda x, dim: float16_vector_validator(x, dim, True),
+    DataType.SPARSE_FLOAT_VECTOR.name: lambda x: sparse_vector_validator(x),
     DataType.ARRAY.name: lambda x, cap: isinstance(x, list) and len(x) <= cap,
 }
 
@@ -61,6 +71,9 @@ NUMPY_TYPE_CREATOR = {
     DataType.JSON.name: None,
     DataType.FLOAT_VECTOR.name: np.dtype("float32"),
     DataType.BINARY_VECTOR.name: np.dtype("uint8"),
+    DataType.FLOAT16_VECTOR.name: np.dtype("uint8"),
+    DataType.BFLOAT16_VECTOR.name: np.dtype("uint8"),
+    DataType.SPARSE_FLOAT_VECTOR: None,
     DataType.ARRAY.name: None,
 }
 

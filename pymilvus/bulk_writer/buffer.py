@@ -149,7 +149,22 @@ class Buffer:
                         str_arr.append(json.dumps(val))
                     self._buffer[k] = str_arr
 
-                arr = np.array(self._buffer[k], dtype=dt)
+                # currently, milvus server doesn't support numpy for sparse vector
+                if field_schema.dtype == DataType.SPARSE_FLOAT_VECTOR:
+                    self._throw(
+                        f"Failed to persist file {full_file_name},"
+                        f" error: milvus doesn't support parsing sparse vectors from numpy file"
+                    )
+
+                # special process for float16 vector, the self._buffer stores bytes for
+                # float16 vector, convert the bytes to uint8 array
+                if field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
+                    a = []
+                    for b in self._buffer[k]:
+                        a.append(np.frombuffer(b, dtype=dt).tolist())
+                    arr = np.array(a, dtype=dt)
+                else:
+                    arr = np.array(self._buffer[k], dtype=dt)
                 np.save(str(full_file_name), arr)
             except Exception as e:
                 self._throw(f"Failed to persist file {full_file_name}, error: {e}")
@@ -173,7 +188,18 @@ class Buffer:
         while row_index < row_count:
             row = {}
             for k, v in self._buffer.items():
-                row[k] = v[row_index]
+                # special process for float16 vector, the self._buffer stores bytes for
+                # float16 vector, convert the bytes to float list
+                field_schema = self._fields[k]
+                if field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
+                    dt = (
+                        np.dtype("bfloat16")
+                        if (field_schema.dtype == DataType.BFLOAT16_VECTOR)
+                        else np.float16
+                    )
+                    row[k] = np.frombuffer(v[row_index], dtype=dt).tolist()
+                else:
+                    row[k] = v[row_index]
             rows.append(row)
             row_index = row_index + 1
 
@@ -196,21 +222,25 @@ class Buffer:
         data = {}
         for k in self._buffer:
             field_schema = self._fields[k]
-            if field_schema.dtype == DataType.JSON:
-                # for JSON field, store as string array
+            if field_schema.dtype in {DataType.JSON, DataType.SPARSE_FLOAT_VECTOR}:
+                # for JSON and SPARSE_VECTOR field, store as string array
                 str_arr = []
                 for val in self._buffer[k]:
                     str_arr.append(json.dumps(val))
                 data[k] = pd.Series(str_arr, dtype=None)
-            elif field_schema.dtype == DataType.FLOAT_VECTOR:
+            elif field_schema.dtype in {DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR}:
                 arr = []
                 for val in self._buffer[k]:
-                    arr.append(np.array(val, dtype=np.dtype("float32")))
+                    arr.append(np.array(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name]))
                 data[k] = pd.Series(arr)
-            elif field_schema.dtype == DataType.BINARY_VECTOR:
+            elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
+                # special process for float16 vector, the self._buffer stores bytes for
+                # float16 vector, convert the bytes to uint8 array
                 arr = []
                 for val in self._buffer[k]:
-                    arr.append(np.array(val, dtype=np.dtype("uint8")))
+                    arr.append(
+                        np.frombuffer(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name])
+                    )
                 data[k] = pd.Series(arr)
             elif field_schema.dtype == DataType.ARRAY:
                 dt = NUMPY_TYPE_CREATOR[field_schema.element_type.name]

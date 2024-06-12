@@ -123,22 +123,26 @@ class LocalBulkWriter(BulkWriter):
         logger.info(f"Commit done with async={_async}")
 
     def _flush(self, call_back: Optional[Callable] = None):
-        self._flush_count = self._flush_count + 1
-        target_path = Path.joinpath(self._local_path, str(self._flush_count))
+        try:
+            self._flush_count = self._flush_count + 1
+            target_path = Path.joinpath(self._local_path, str(self._flush_count))
 
-        old_buffer = super()._new_buffer()
-        if old_buffer.row_count > 0:
-            file_list = old_buffer.persist(
-                local_path=str(target_path),
-                buffer_size=self.buffer_size,
-                buffer_row_count=self.buffer_row_count,
-            )
-            self._local_files.append(file_list)
-            if call_back:
-                call_back(file_list)
-
-        del self._working_thread[threading.current_thread().name]
-        logger.info(f"Flush thread done, name: {threading.current_thread().name}")
+            old_buffer = super()._new_buffer()
+            if old_buffer.row_count > 0:
+                file_list = old_buffer.persist(
+                    local_path=str(target_path),
+                    buffer_size=self.buffer_size,
+                    buffer_row_count=self.buffer_row_count,
+                )
+                self._local_files.append(file_list)
+                if call_back:
+                    call_back(file_list)
+        except Exception as e:
+            logger.error(f"Failed to fulsh, error: {e}")
+            raise e from e
+        finally:
+            del self._working_thread[threading.current_thread().name]
+            logger.info(f"Flush thread finished, name: {threading.current_thread().name}")
 
     @property
     def data_path(self):
