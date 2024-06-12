@@ -514,7 +514,7 @@ class SearchResult(list):
 
     def __str__(self) -> str:
         """Only print at most 10 query results"""
-        reminder = f' ... and {len(self) - 10} results remaining' if len(self) > 10 else ''
+        reminder = f" ... and {len(self) - 10} results remaining" if len(self) > 10 else ""
         return f"data: {list(map(str, self[:10]))}{reminder}, cost: {self.cost}"
 
     __repr__ = __str__
@@ -586,8 +586,8 @@ class Hits(list):
 
     def __str__(self) -> str:
         """Only print at most 10 query results"""
-        reminder = f' ... and {len(self) - 10} entities remaining' if len(self) > 10 else ''
-        return f"{str(list(map(str, self[:10])))}{reminder}"
+        reminder = f" ... and {len(self) - 10} entities remaining" if len(self) > 10 else ""
+        return f"{list(map(str, self[:10]))!s}{reminder}"
 
     __repr__ = __str__
 
