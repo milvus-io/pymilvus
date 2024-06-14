@@ -89,13 +89,17 @@ def gen_fp16_vector(to_numpy_arr):
     return raw_vector
 
 # optional input for sparse vector:
-# only accepts dict of integer key and float value such as {1: 2.32, 43: 4.56, 65: 35.43}
+# only accepts dict like {2: 13.23, 45: 0.54} or {"indices": [1, 2], "values": [0.1, 0.2]}
 # note: no need to sort the keys
-def gen_sparse_vector():
+def gen_sparse_vector(pair_dict: bool):
     raw_vector = {}
     dim = random.randint(2, 20)
-    while len(raw_vector) < dim:
-        raw_vector[random.randint(0, 10000)] = random.random()
+    if pair_dict:
+        raw_vector["indices"] = [i for i in range(dim)]
+        raw_vector["values"] = [random.random() for _ in range(dim)]
+    else:
+        for i in range(dim):
+            raw_vector[i] = random.random()
     return raw_vector
 
 def create_connection():
@@ -305,33 +309,34 @@ def all_types_writer(schema: CollectionSchema, file_type: BulkFileType)->list:
                 # if file_type is numpy, the below values will be stored into dynamic field
                 "array_str": [f"str_{k}" for k in range(5)],
                 "array_int": [k for k in range(10)],
-                "sparse_vector": gen_sparse_vector(),
+                "sparse_vector": gen_sparse_vector(False),
             }
             remote_writer.append_row(row)
 
         # append rows by numpy type
         for i in range(batch_count):
+            id = i+batch_count
             remote_writer.append_row({
-                "id": np.int64(i+batch_count),
+                "id": np.int64(id),
                 "bool": True if i % 3 == 0 else False,
-                "int8": np.int8(i%128),
-                "int16": np.int16(i%1000),
-                "int32": np.int32(i%100000),
-                "int64": np.int64(i),
-                "float": np.float32(i/3),
-                "double": np.float64(i/7),
-                "varchar": f"varchar_{i}",
-                "json": json.dumps({"dummy": i, "ok": f"name_{i}"}),
+                "int8": np.int8(id%128),
+                "int16": np.int16(id%1000),
+                "int32": np.int32(id%100000),
+                "int64": np.int64(id),
+                "float": np.float32(id/3),
+                "double": np.float64(id/7),
+                "varchar": f"varchar_{id}",
+                "json": json.dumps({"dummy": id, "ok": f"name_{id}"}),
                 # "float_vector": gen_float_vector(True),
                 "binary_vector": gen_binary_vector(True),
                 "float16_vector": gen_fp16_vector(True),
                 "bfloat16_vector": gen_bf16_vector(True),
-                f"dynamic_{i}": i,
+                f"dynamic_{id}": id,
                 # bulkinsert doesn't support import npy with array field and sparse vector,
                 # if file_type is numpy, the below values will be stored into dynamic field
                 "array_str": np.array([f"str_{k}" for k in range(5)], np.dtype("str")),
                 "array_int": np.array([k for k in range(10)], np.dtype("int64")),
-                "sparse_vector": gen_sparse_vector(),
+                "sparse_vector": gen_sparse_vector(True),
             })
 
         print(f"{remote_writer.total_row_count} rows appends")
@@ -395,7 +400,7 @@ def retrieve_imported_data():
                 "params": {"drop_ratio_build": 0.2}
             })
 
-    ids = [100, 5000]
+    ids = [100, 15000]
     print(f"Load collection and query items {ids}")
     collection.load()
     expr = f"id in {ids}"
