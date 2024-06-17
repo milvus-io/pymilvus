@@ -1476,14 +1476,13 @@ class Collection:
         conn = self._get_connection()
         tmp_index = conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs)
         if tmp_index is not None:
-            index = Index(
-                collection=self,
+            conn.drop_index(
+                collection_name=self._name,
                 field_name=tmp_index["field_name"],
-                index_params=tmp_index,
-                construct_only=True,
                 index_name=index_name,
+                timeout=timeout,
+                **copy_kwargs,
             )
-            index.drop(timeout=timeout, **kwargs)
 
     def compact(self, timeout: Optional[float] = None, **kwargs):
         """Compact merge the small segments in a collection
