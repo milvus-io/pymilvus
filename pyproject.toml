@@ -25,6 +25,7 @@ dependencies=[
     "pandas>=1.2.4",
     "numpy<1.25.0;python_version<='3.8'",
     "milvus_lite>=2.4.0,<2.5.0",
+    "milvus-lite>=2.4.0,<2.5.0;sys_platform!='win32'",
 ]
 
 classifiers=[
