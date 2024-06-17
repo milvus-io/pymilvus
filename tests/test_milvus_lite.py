@@ -1,12 +1,14 @@
 import os
+import sys
 from tempfile import TemporaryDirectory
 import numpy as np
+import pytest
 
 from pymilvus.milvus_client import MilvusClient
 
 
+@pytest.mark.skipif(sys.platform.startswith('win'), reason="Milvus Lite is not supported on Windows")
 class TestMilvusLite:
-
     def test_milvus_lite(self):
         with TemporaryDirectory(dir='./') as root:
             db_file = os.path.join(root, 'test.db')
