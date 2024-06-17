@@ -25,7 +25,7 @@ get_proto:
 	git submodule update --init
 
 gen_proto:
-	python3 -m pip install -e ".[dev]"
+	pip install -e ".[dev]"
 	cd pymilvus/grpc_gen && ./python_gen.sh
 
 check_proto_product: gen_proto
