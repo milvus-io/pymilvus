@@ -130,16 +130,12 @@ class Index:
             timeout(float, optional): An optional duration of time in seconds to allow
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur
-            kwargs:
-                * *index_name* (``str``) --
-                  The name of index. If no index is specified, the default index name is used.
         """
-        copy_kwargs = copy.deepcopy(kwargs)
         conn = self._get_connection()
         conn.drop_index(
             collection_name=self._collection.name,
             field_name=self.field_name,
             index_name=self.index_name,
             timeout=timeout,
-            **copy_kwargs,
+            **kwargs,
         )
