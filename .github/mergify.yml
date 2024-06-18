@@ -4,10 +4,12 @@ pull_request_rules:
       - or:
         - base=master
         - base~=2\.\d
-      - "status-success=Run Python Tests (3.8)"
+      - "status-success=Run Python Tests (3.8, windows-latest)"
+      - "status-success=Run Python Tests (3.12, windows-latest)"
+      - "status-success=Run Python Tests (3.8, ubuntu-latest)"
+      - "status-success=Run Python Tests (3.12, ubuntu-latest)"
       - "status-success=Run Check Proto (3.8)"
       - "status-success=Code lint check (3.8)"
-      - "status-success=Run Python Tests (3.12)"
       - "status-success=Run Check Proto (3.12)"
       - "status-success=Code lint check (3.12)"
     actions:
