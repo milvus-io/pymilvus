@@ -123,7 +123,6 @@ def infer_dtype_bydata(data: Any):
             d_type = dtype_str_map.get(type_str, DataType.UNKNOWN)
             return DataType.FLOAT_VECTOR if is_numeric_datatype(d_type) else DataType.ARRAY
 
-
     if d_type == DataType.UNKNOWN:
         try:
             elem = data[0]
