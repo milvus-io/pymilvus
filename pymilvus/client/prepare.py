@@ -15,6 +15,7 @@ from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
     DEFAULT_CONSISTENCY_LEVEL,
     GROUP_BY_FIELD,
+    GROUP_SIZE,
     ITERATOR_FIELD,
     REDUCE_STOP_FOR_BEST,
 )
@@ -666,6 +667,10 @@ class Prepare:
         group_by_field = kwargs.get(GROUP_BY_FIELD)
         if group_by_field is not None:
             search_params[GROUP_BY_FIELD] = group_by_field
+
+        group_size = kwargs.get(GROUP_SIZE)
+        if group_size is not None:
+            search_params[GROUP_SIZE] = group_size
 
         if param.get("metric_type") is not None:
             search_params["metric_type"] = param["metric_type"]
