@@ -265,6 +265,53 @@ def traverse_info(fields_info: Any):
     return location, primary_key_loc, auto_id_loc
 
 
+def traverse_upsert_info(fields_info: Any, entities: List):
+    location, primary_key_loc = {}, None
+    for i, field in enumerate(fields_info):
+        if field.get("is_primary", False):
+            primary_key_loc = i
+
+        match_flag = False
+        field_name = field["name"]
+        field_type = field["type"]
+
+        for entity in entities:
+            entity_name, entity_type = entity["name"], entity["type"]
+
+            if field_name == entity_name:
+                if field_type != entity_type:
+                    raise ParamError(
+                        message=f"Collection field type is {field_type}"
+                        f", but entities field type is {entity_type}"
+                    )
+
+                entity_dim, field_dim = 0, 0
+                if entity_type in [DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR]:
+                    field_dim = field["params"]["dim"]
+                    entity_dim = len(entity["values"][0])
+
+                if entity_type in [DataType.FLOAT_VECTOR] and entity_dim != field_dim:
+                    raise ParamError(
+                        message=f"Collection field dim is {field_dim}"
+                        f", but entities field dim is {entity_dim}"
+                    )
+
+                if entity_type in [DataType.BINARY_VECTOR] and entity_dim * 8 != field_dim:
+                    raise ParamError(
+                        message=f"Collection field dim is {field_dim}"
+                        f", but entities field dim is {entity_dim * 8}"
+                    )
+
+                location[field["name"]] = i
+                match_flag = True
+                break
+
+        if not match_flag:
+            raise ParamError(message=f"Field {field['name']} don't match in entities")
+
+    return location, primary_key_loc
+
+
 def get_server_type(host: str):
     return ZILLIZ if (isinstance(host, str) and "zilliz" in host.lower()) else MILVUS
 

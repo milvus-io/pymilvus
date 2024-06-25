@@ -28,7 +28,6 @@ from pymilvus.exceptions import (
     PartitionKeyException,
     PrimaryKeyException,
     SchemaNotReadyException,
-    UpsertAutoIDTrueException,
 )
 
 from .constants import COMMON_TYPE_PARAMS
@@ -485,7 +484,7 @@ def _check_insert_data(data: Union[List[List], pd.DataFrame]):
             raise DataTypeNotSupportException(message="data should be a list of list")
 
 
-def _check_data_schema_cnt(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
+def _check_insert_data_schema_cnt(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
     tmp_fields = copy.deepcopy(schema.fields)
     for i, field in enumerate(tmp_fields):
         if field.is_primary and field.auto_id:
@@ -524,17 +523,40 @@ def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
         columns.remove(schema.primary_field)
         data = data[[columns]]
 
-    _check_data_schema_cnt(schema, data)
+    _check_insert_data_schema_cnt(schema, data)
     _check_insert_data(data)
+
+
+def _check_upsert_data_schema_cnt(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
+    tmp_fields = copy.deepcopy(schema.fields)
+    # upsert must assign pk even when autoid==true
+    field_cnt = len(tmp_fields)
+    is_dataframe = isinstance(data, pd.DataFrame)
+    data_cnt = len(data.columns) if is_dataframe else len(data)
+    if field_cnt != data_cnt:
+        message = (
+            f"The data don't match with schema fields, expect {field_cnt} list, got {len(data)}"
+        )
+        if is_dataframe:
+            i_name = [f.name for f in tmp_fields]
+            t_name = list(data.columns)
+            message = f"The fields don't match with schema fields, expected: {i_name}, got {t_name}"
+
+        raise DataNotMatchException(message=message)
+
+    if is_dataframe:
+        for x, y in zip(list(data.columns), tmp_fields):
+            if x != y.name:
+                raise DataNotMatchException(
+                    message=f"The name of field don't match, expected: {y.name}, got {x}"
+                )
 
 
 def check_upsert_schema(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
     if schema is None:
         raise SchemaNotReadyException(message="Schema shouldn't be None")
-    if schema.auto_id:
-        raise UpsertAutoIDTrueException(message=ExceptionsMessage.UpsertAutoIDTrue)
 
-    _check_data_schema_cnt(schema, data)
+    _check_upsert_data_schema_cnt(schema, data)
     _check_insert_data(data)
 
 
