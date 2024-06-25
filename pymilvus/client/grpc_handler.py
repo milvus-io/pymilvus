@@ -1051,6 +1051,10 @@ class GrpcHandler:
         check_status(status)
         if len(response.index_descriptions) == 1:
             info_dict = {kv.key: kv.value for kv in response.index_descriptions[0].params}
+            info_dict["total_rows"] = response.index_descriptions[0].total_rows
+            info_dict["indexed_rows"] = response.index_descriptions[0].indexed_rows
+            info_dict["pending_index_rows"] = response.index_descriptions[0].pending_index_rows
+            info_dict["state"] = response.index_descriptions[0].state
             info_dict["field_name"] = response.index_descriptions[0].field_name
             info_dict["index_name"] = response.index_descriptions[0].index_name
             if info_dict.get("params"):
