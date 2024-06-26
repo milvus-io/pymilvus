@@ -708,14 +708,16 @@ class MilvusClient:
     def get_load_state(
         self,
         collection_name: str,
-        partition_name: Optional[str] = "",
+        partition_names: Optional[Union[str, List[str]]] = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> Dict:
         conn = self._get_connection()
-        partition_names = None
-        if partition_name:
-            partition_names = [partition_name]
+        if partition_names:
+            if isinstance(partition_names, str):
+                partition_names = [partition_names]
+        else:
+            partition_names = None
         try:
             state = conn.get_load_state(collection_name, partition_names, timeout=timeout, **kwargs)
         except Exception as ex:
