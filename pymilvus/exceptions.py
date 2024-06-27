@@ -198,6 +198,7 @@ class ExceptionsMessage:
     DataTypeInconsistent = (
         "The Input data type is inconsistent with defined schema, please check it."
     )
+    FieldDataInconsistent = "The Input data type is inconsistent with defined schema, {%s} field should be a %s, but got a {%s} instead."
     DataTypeNotSupport = "Data type is not support."
     DataLengthsInconsistent = "Arrays must all be same length."
     DataFrameInvalid = "Cannot infer schema from empty dataframe."
@@ -213,7 +214,7 @@ class ExceptionsMessage:
     EnvConfigErr = "Environment variable %s has a wrong format, please check it: %s"
     AmbiguousIndexName = "There are multiple indexes, please specify the index_name."
     InsertUnexpectedField = (
-        "Attempt to insert an unexpected field to collection without enabling dynamic field"
+        "Attempt to insert an unexpected field `%s` to collection without enabling dynamic field"
     )
     UpsertAutoIDTrue = "Upsert don't support autoid == true"
     AmbiguousDeleteFilterParam = (
