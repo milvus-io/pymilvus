@@ -70,11 +70,14 @@ def is_float_datatype(data_type: DataType):
 def is_numeric_datatype(data_type: DataType):
     return is_float_datatype(data_type) or is_integer_datatype(data_type)
 
+
 def is_varchar_datatype(data_type: DataType):
     return data_type in (DataType.VARCHAR,)
 
+
 def is_bool_datatype(data_type: DataType):
     return data_type in (DataType.BOOL,)
+
 
 # pylint: disable=too-many-return-statements
 def infer_dtype_by_scalar_data(data: Any):
