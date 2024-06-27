@@ -113,7 +113,7 @@ def infer_dtype_by_scalar_data(data: Any):
     return DataType.UNKNOWN
 
 
-def infer_dtype_bydata(data: Any, **kargs):
+def infer_dtype_bydata(data: Any, **kwargs):
     d_type = DataType.UNKNOWN
     if is_scalar(data):
         return infer_dtype_by_scalar_data(data)
@@ -131,11 +131,11 @@ def infer_dtype_bydata(data: Any, **kargs):
             d_type = dtype_str_map.get(type_str, DataType.UNKNOWN)
             if is_varchar_datatype(d_type) or is_bool_datatype(d_type):
                 return DataType.ARRAY
-            if kargs is None or len(kargs) == 0:
+            if kwargs is None or len(kargs) == 0:
                 return DataType.FLOAT_VECTOR if \
                     is_numeric_datatype(d_type) else DataType.UNKNOWN
             else:
-                if kargs["type"] is not None and kargs["type"] == "vector":
+                if kwargs["type"] is not None and kwargs["type"] == "vector":
                     return DataType.FLOAT_VECTOR \
                         if is_numeric_datatype(d_type) else DataType.UNKNOWN
                 else:
