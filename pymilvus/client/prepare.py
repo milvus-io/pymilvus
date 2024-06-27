@@ -380,7 +380,9 @@ class Prepare:
                     raise TypeError(msg)
                 for k, v in entity.items():
                     if k not in fields_data and not enable_dynamic:
-                        raise DataNotMatchException(message=ExceptionsMessage.InsertUnexpectedField)
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.InsertUnexpectedField % k
+                        )
 
                     if k in fields_data:
                         field_info, field_data = field_info_map[k], fields_data[k]
