@@ -455,9 +455,7 @@ class SearchIterator:
 
     def __is_cache_enough(self, count: int) -> bool:
         cached_page = iterator_cache.fetch_cache(self._cache_id)
-        if cached_page is None or len(cached_page) < count:
-            return False
-        return True
+        return cached_page is not None and len(cached_page) >= count
 
     def __extract_page_from_cache(self, count: int) -> SearchPage:
         cached_page = iterator_cache.fetch_cache(self._cache_id)
