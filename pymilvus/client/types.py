@@ -133,7 +133,6 @@ class MetricType(IntEnum):
     HAMMING = 3
     JACCARD = 4
     TANIMOTO = 5
-    #
     SUBSTRUCTURE = 6
     SUPERSTRUCTURE = 7
 

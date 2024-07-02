@@ -17,17 +17,11 @@ def is_legal_address(addr: Any) -> bool:
     if len(a) != 2:
         return False
 
-    if not is_legal_host(a[0]) or not is_legal_port(a[1]):
-        return False
-
-    return True
+    return is_legal_host(a[0]) and is_legal_port(a[1])
 
 
 def is_legal_host(host: Any) -> bool:
-    if not isinstance(host, str) or len(host) == 0 or (":" in host):
-        return False
-
-    return True
+    return isinstance(host, str) and len(host) > 0 and (":" not in host)
 
 
 def is_legal_port(port: Any) -> bool:
@@ -163,10 +157,8 @@ def parser_range_date(date: Union[str, datetime.date]) -> str:
 def is_legal_date_range(start: str, end: str) -> bool:
     start_date = datetime.datetime.strptime(start, "%Y-%m-%d")
     end_date = datetime.datetime.strptime(end, "%Y-%m-%d")
-    if (end_date - start_date).days < 0:
-        return False
 
-    return True
+    return (end_date - start_date).days >= 0
 
 
 def is_legal_partition_name(tag: Any) -> bool:

@@ -1438,9 +1438,10 @@ class Collection:
         conn = self._get_connection()
         copy_kwargs = copy.deepcopy(kwargs)
         index_name = copy_kwargs.pop("index_name", Config.IndexName)
-        if conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs) is None:
-            return False
-        return True
+
+        return (
+            conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs) is not None
+        )
 
     def drop_index(self, timeout: Optional[float] = None, **kwargs):
         """Drop index and its corresponding index files.
