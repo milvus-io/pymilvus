@@ -970,3 +970,15 @@ class MilvusClient:
     def using_database(self, db_name: str, **kwargs):
         conn = self._get_connection()
         conn.reset_db_name(db_name)
+
+    def create_database(self, db_name: str, **kwargs):
+        conn = self._get_connection()
+        conn.create_database(db_name, **kwargs)
+
+    def drop_database(self, db_name: str, **kwargs):
+        conn = self._get_connection()
+        conn.drop_database(db_name, **kwargs)
+
+    def list_databases(self, **kwargs) -> List[str]:
+        conn = self._get_connection()
+        return conn.list_database(**kwargs)
