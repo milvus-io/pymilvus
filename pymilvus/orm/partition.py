@@ -172,7 +172,7 @@ class Partition:
         conn = self._get_connection()
         return conn.drop_partition(self._collection.name, self.name, timeout=timeout, **kwargs)
 
-    def load(self, replica_number: int = 1, timeout: Optional[float] = None, **kwargs):
+    def load(self, replica_number: int = 0, timeout: Optional[float] = None, **kwargs):
         """Load the partition data into memory.
 
         Args:
