@@ -373,7 +373,7 @@ class Collection:
     def load(
         self,
         partition_names: Optional[list] = None,
-        replica_number: int = 1,
+        replica_number: int = 0,
         timeout: Optional[float] = None,
         **kwargs,
     ):
