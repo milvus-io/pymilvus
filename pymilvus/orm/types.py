@@ -133,13 +133,12 @@ def infer_dtype_bydata(data: Any, **kwargs):
                 return DataType.ARRAY
             if kwargs is None or len(kwargs) == 0:
                 return DataType.FLOAT_VECTOR if is_numeric_datatype(d_type) else DataType.UNKNOWN
+            elif kwargs["type"] is not None and kwargs["type"] == "vector":
+                return (
+                    DataType.FLOAT_VECTOR if is_numeric_datatype(d_type) else DataType.UNKNOWN
+                )
             else:
-                if kwargs["type"] is not None and kwargs["type"] == "vector":
-                    return (
-                        DataType.FLOAT_VECTOR if is_numeric_datatype(d_type) else DataType.UNKNOWN
-                    )
-                else:
-                    return DataType.ARRAY
+                return DataType.ARRAY
 
     if d_type == DataType.UNKNOWN:
         try:
