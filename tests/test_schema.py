@@ -1,4 +1,5 @@
 import numpy
+from pymilvus.exceptions import ExceptionsMessage, PartitionKeyIsolationException
 import pytest
 
 from pymilvus import CollectionSchema, FieldSchema, DataType, MilvusException
@@ -35,6 +36,7 @@ class TestCollectionSchema:
         ]
         _dict["fields"] = fields
         _dict["enable_dynamic_field"] = True
+        _dict["partition_key_isolation"] = False
 
         return _dict
 
@@ -53,7 +55,23 @@ class TestCollectionSchema:
         target.pop("auto_id", None)
         assert target == raw_dict
         assert target is not raw_dict
+    
+    def test_partition_key_isolation(self):
+        fields = [
+            FieldSchema("pk", DataType.INT64, is_primary=True, description="primary_field")
+        ]
+        schema = CollectionSchema(fields=fields, partition_key_isolation=True, partition_key_field="pk")
+        assert(schema.partition_key_isolation == True)
 
+        with pytest.raises(PartitionKeyIsolationException) as exc_info:
+            schema = CollectionSchema(fields=fields, partition_key_isolation=True)
+        assert exc_info.type is PartitionKeyIsolationException
+        assert ExceptionsMessage.PartitionKeyIsolationMissingPartitionKey in str(exc_info.value)
+
+        with pytest.raises(PartitionKeyIsolationException) as exc_info:
+            schema = CollectionSchema(fields=fields, partition_key_isolation=1)
+        assert exc_info.type is PartitionKeyIsolationException
+        assert ExceptionsMessage.PartitionKeyIsolationType in str(exc_info.value)
 
 class TestFieldSchema:
     @pytest.fixture(scope="function")

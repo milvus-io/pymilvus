@@ -116,6 +116,7 @@ class Prepare:
             autoID=fields.auto_id,
             description=coll_description,
             enable_dynamic_field=fields.enable_dynamic_field,
+            partition_key_isolation=fields.partition_key_isolation,
         )
         for f in fields.fields:
             field_schema = schema_types.FieldSchema(
@@ -217,6 +218,7 @@ class Prepare:
             autoID=False,
             description=fields.get("description", ""),
             enable_dynamic_field=enable_dynamic_field,
+            partition_key_isolation=kwargs.get("partition_key_isolation", False),
         )
 
         primary_field, auto_id_field = None, None

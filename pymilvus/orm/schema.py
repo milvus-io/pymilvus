@@ -26,6 +26,7 @@ from pymilvus.exceptions import (
     FieldsTypeException,
     FieldTypeException,
     PartitionKeyException,
+    PartitionKeyIsolationException,
     PrimaryKeyException,
     SchemaNotReadyException,
     UpsertAutoIDTrueException,
@@ -63,6 +64,15 @@ def validate_partition_key(
         )
 
 
+def validate_partition_key_isolation(
+    partition_key_isolation: Optional[str], partition_key_field_name: Optional[str]
+):
+    if partition_key_isolation is True and partition_key_field_name is None:
+        raise PartitionKeyIsolationException(
+            message=ExceptionsMessage.PartitionKeyIsolationMissingPartitionKey
+        )
+
+
 def validate_clustering_key(
     clustering_key_field_name: Any, clustering_key_field: Any, primary_field_name: Any
 ):
@@ -96,6 +106,7 @@ class CollectionSchema:
         self._primary_field = None
         self._partition_key_field = None
         self._clustering_key_field = None
+        self._partition_key_isolation = None
 
         if not isinstance(fields, list):
             raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
@@ -109,12 +120,19 @@ class CollectionSchema:
         primary_field_name = self._kwargs.get("primary_field", None)
         partition_key_field_name = self._kwargs.get("partition_key_field", None)
         clustering_key_field_name = self._kwargs.get("clustering_key_field_name", None)
+        partition_key_isolation_name = self._kwargs.get("partition_key_isolation", None)
         if primary_field_name is not None and not isinstance(primary_field_name, str):
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
         if partition_key_field_name is not None and not isinstance(partition_key_field_name, str):
             raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyFieldType)
         if clustering_key_field_name is not None and not isinstance(clustering_key_field_name, str):
             raise ClusteringKeyException(message=ExceptionsMessage.ClusteringKeyFieldType)
+        if partition_key_isolation_name is not None and not isinstance(
+            partition_key_isolation_name, bool
+        ):
+            raise PartitionKeyIsolationException(
+                message=ExceptionsMessage.PartitionKeyIsolationType
+            )
 
         for field in self._fields:
             if not isinstance(field, FieldSchema):
@@ -127,6 +145,7 @@ class CollectionSchema:
         primary_field_name = self._kwargs.get("primary_field", None)
         partition_key_field_name = self._kwargs.get("partition_key_field", None)
         clustering_key_field_name = self._kwargs.get("clustering_key_field", None)
+        partition_key_isolation_name = self._kwargs.get("partition_key_isolation", None)
         for field in self._fields:
             if primary_field_name and primary_field_name == field.name:
                 field.is_primary = True
@@ -171,6 +190,9 @@ class CollectionSchema:
         validate_partition_key(
             partition_key_field_name, self._partition_key_field, self._primary_field.name
         )
+        validate_partition_key_isolation(partition_key_isolation_name, partition_key_field_name)
+        self._partition_key_isolation = partition_key_isolation_name
+
         validate_clustering_key(
             clustering_key_field_name, self._clustering_key_field, self._primary_field.name
         )
@@ -197,8 +219,12 @@ class CollectionSchema:
     def construct_from_dict(cls, raw: Dict):
         fields = [FieldSchema.construct_from_dict(field_raw) for field_raw in raw["fields"]]
         enable_dynamic_field = raw.get("enable_dynamic_field", False)
+        partition_key_isolation_get = raw.get("partition_key_isolation", False)
         return CollectionSchema(
-            fields, raw.get("description", ""), enable_dynamic_field=enable_dynamic_field
+            fields,
+            raw.get("description", ""),
+            enable_dynamic_field=enable_dynamic_field,
+            partition_key_isolation=partition_key_isolation_get,
         )
 
     @property
@@ -276,12 +302,21 @@ class CollectionSchema:
     def enable_dynamic_field(self, value: bool):
         self._enable_dynamic_field = bool(value)
 
+    @property
+    def partition_key_isolation(self):
+        return bool(self._partition_key_isolation)
+
+    @partition_key_isolation.setter
+    def partition_key_isolation(self, value: bool):
+        self._partition_key_isolation = bool(value)
+
     def to_dict(self):
         return {
             "auto_id": self.auto_id,
             "description": self._description,
             "fields": [s.to_dict() for s in self._fields],
             "enable_dynamic_field": self.enable_dynamic_field,
+            "partition_key_isolation": self._partition_key_isolation,
         }
 
     def verify(self):

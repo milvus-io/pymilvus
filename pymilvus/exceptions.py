@@ -121,6 +121,10 @@ class PartitionKeyException(MilvusException):
     """Raise when partitionkey are invalid"""
 
 
+class PartitionKeyIsolationException(MilvusException):
+    """Raise when partition isolation key is invalid"""
+
+
 class ClusteringKeyException(MilvusException):
     """Raise when clusteringkey are invalid"""
 
@@ -194,6 +198,10 @@ class ExceptionsMessage:
     PrimaryFieldType = "Param primary_field must be int or str type."
     PartitionKeyFieldType = "Param partition_key_field must be str type."
     PartitionKeyFieldNotExist = "the specified partition key field {%s} not exist"
+    PartitionKeyIsolationMissingPartitionKey = (
+        "Param partition_key_isolation is set but partition_key is missing."
+    )
+    PartitionKeyIsolationType = "Param partition_key_isolation must be bool type."
     IsPartitionKeyType = "Param is_partition_key must be bool type."
     DataTypeInconsistent = (
         "The Input data type is inconsistent with defined schema, please check it."

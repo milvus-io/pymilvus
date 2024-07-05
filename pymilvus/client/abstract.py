@@ -118,6 +118,7 @@ class CollectionSchema:
         self.num_shards = 0
         self.num_partitions = 0
         self.enable_dynamic_field = False
+        self.partition_key_isolation = False
 
         if self._raw:
             self.__pack(self._raw)
@@ -140,6 +141,11 @@ class CollectionSchema:
             self.enable_dynamic_field = raw.schema.enable_dynamic_field
         except Exception:
             self.enable_dynamic_field = False
+
+        try:
+            self.partition_key_isolation = raw.schema.partition_key_isolation
+        except Exception:
+            self.partition_key_isolation = False
 
         # TODO: extra_params here
         # for kv in raw.extra_params:
@@ -177,6 +183,7 @@ class CollectionSchema:
             "properties": self.properties,
             "num_partitions": self.num_partitions,
             "enable_dynamic_field": self.enable_dynamic_field,
+            "partition_key_isolation": self.partition_key_isolation,
         }
         self._rewrite_schema_dict(_dict)
         return _dict
