@@ -17,14 +17,17 @@ def using_database(db_name: str, using: str = "default"):
     _get_connection(using).reset_db_name(db_name)
 
 
-def create_database(db_name: str, using: str = "default", timeout: Optional[float] = None):
+def create_database(
+    db_name: str, using: str = "default", timeout: Optional[float] = None, **kwargs
+):
     """Create a database using provided database name
-
-    :param db_name: Database name
-    :type  db_name: str
-
+    Args:
+        db_name (``str``): Database name
+        properties (``dict``): database properties.
+            support database replica number with key `database.replica.number`
+            support database resource groups with key `database.resource_groups`
     """
-    _get_connection(using).create_database(db_name, timeout=timeout)
+    _get_connection(using).create_database(db_name, timeout=timeout, **kwargs)
 
 
 def drop_database(db_name: str, using: str = "default", timeout: Optional[float] = None):
@@ -52,14 +55,12 @@ def set_properties(
     using: str = "default",
     timeout: Optional[float] = None,
 ):
-    """Alter a database using provided database name
-
-    :param db_name: Database name
-    :type  db_name: str
-
-    :param properties: Properties to be set
-    :type  properties: dict
-
+    """Set properties for a database using provided database name
+    Args:
+        db_name (``str``): Database name
+        properties (``dict``): database properties.
+            support database replica number with key `database.replica.number`
+            support database resource groups with key `database.resource_groups`
     """
     _get_connection(using).alter_database(db_name, properties=properties, timeout=timeout)
 
