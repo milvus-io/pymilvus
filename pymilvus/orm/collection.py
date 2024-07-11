@@ -347,7 +347,9 @@ class Collection:
 
         Args:
             properties (``dict``): collection properties.
-                 only support collection TTL with key `collection.ttl.seconds`
+                 support collection TTL with key `collection.ttl.seconds`
+                 support collection replica number with key `collection.replica.number`
+                 support collection resource groups with key `collection.resource_groups`.
             timeout (float, optional): an optional duration of time in seconds to allow
                 for the RPCs. If timeout is not set, the client keeps waiting until the
                 server responds or an error occurs.

@@ -1277,8 +1277,8 @@ class GrpcHandler:
         return response.progress
 
     @retry_on_rpc_failure()
-    def create_database(self, db_name: str, timeout: Optional[float] = None):
-        request = Prepare.create_database_req(db_name)
+    def create_database(self, db_name: str, timeout: Optional[float] = None, **kwargs):
+        request = Prepare.create_database_req(db_name, **kwargs)
         status = self._stub.CreateDatabase(request, timeout=timeout)
         check_status(status)
 
