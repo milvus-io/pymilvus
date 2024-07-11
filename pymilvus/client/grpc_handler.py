@@ -626,7 +626,6 @@ class GrpcHandler:
         entities: List,
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
-        is_insert: bool = True,
         **kwargs,
     ):
         param = kwargs.get("upsert_param")
@@ -661,7 +660,7 @@ class GrpcHandler:
 
         try:
             request = self._prepare_batch_upsert_request(
-                collection_name, entities, partition_name, timeout, False, **kwargs
+                collection_name, entities, partition_name, timeout, **kwargs
             )
             rf = self._stub.Upsert.future(request, timeout=timeout)
             if kwargs.get("_async", False) is True:
