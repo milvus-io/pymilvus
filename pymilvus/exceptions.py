@@ -141,10 +141,6 @@ class InvalidConsistencyLevel(MilvusException):
     """Raise when consistency level is invalid"""
 
 
-class UpsertAutoIDTrueException(MilvusException):
-    """Raise when upsert autoID is true"""
-
-
 class ExceptionsMessage:
     NoHostPort = "connection configuration must contain 'host' and 'port'."
     HostType = "Type of 'host' must be str."
@@ -233,3 +229,4 @@ class ExceptionsMessage:
     ClusteringKeyOnlyOne = "Expected only one clustering key field, got [%s, %s, ...]."
     IsClusteringKeyType = "Param is_clustering_key must be bool type."
     ClusteringKeyFieldType = "Param clustering_key_field must be str type."
+    UpsertPrimaryKeyEmpty = "Upsert need to assign pk"
