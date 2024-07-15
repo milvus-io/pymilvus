@@ -117,35 +117,38 @@ if __name__ == '__main__':
     # create collection within default
     col1_db1 = create_collection("col1_db1", "default")
 
+    db1Name = "db1"
     # create db1
-    if "db1" not in db.list_database():
+    if db1Name not in db.list_database():
         print("\ncreate database: db1")
-        db.create_database(db_name="db1")
+        db.create_database(db_name=db1Name, properties={"key1":"value1"})
+        db_info = db.describe_database(db_name=db1Name)
+        print(db_info)
 
     # use database db1
-    db.using_database(db_name="db1")
+    db.using_database(db_name=db1Name)
     # create collection within default
-    col2_db1 = create_collection("col1_db1", "db1")
+    col2_db1 = create_collection("col1_db1", db1Name)
 
     # verify read and write
-    collection_read_write(col2_db1, "db1")
+    collection_read_write(col2_db1, db1Name)
 
     # list collections within db1
     print("\nlist collections of database db1:")
     print(utility.list_collections())
     
     # set properties of db1
-    print("\nset properties of db1:")
-    db_info = db.describe_database(db_name="db1")
+    db_info = db.describe_database(db_name=db1Name)
     print(db_info)
-    db.set_properties(db_name="db1", properties={"key": "value"})
-    db_info = db.describe_database(db_name="db1")
+    print("\nset properties of db1:")
+    db.set_properties(db_name=db1Name, properties={"key": "value"})
+    db_info = db.describe_database(db_name=db1Name)
     print(db_info)
 
     print("\ndrop collection: col1_db2 from db1")
     col2_db1.drop()
     print("\ndrop database: db1")
-    db.drop_database(db_name="db1")
+    db.drop_database(db_name=db1Name)
 
     # list database
     print("\nlist databases:")
