@@ -8,7 +8,7 @@ on:
 jobs:
   code-lint:
     name: Code lint check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         python-version: [3.8.0, 3.12]

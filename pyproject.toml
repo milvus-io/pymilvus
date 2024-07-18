@@ -17,7 +17,8 @@ requires-python = '>=3.8'
 description = "Python Sdk for Milvus"
 readme = "README.md"
 dependencies=[
-    "setuptools >= 67;python_version>='3.12'", # python3.12 pkg_resources
+    # "setuptools >= 67;python_version>='3.12'", # python3.12 pkg_resources
+    "setuptools == 70.01", # python3.12 pkg_resources
     "grpcio>=1.49.1, <=1.63.0",
     "protobuf>=3.20.0",
     "environs<=9.5.0",
