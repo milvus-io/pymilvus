@@ -17,7 +17,8 @@ requires-python = '>=3.8'
 description = "Python Sdk for Milvus"
 readme = "README.md"
 dependencies=[
-    "setuptools >= 67", # python3.12 pkg_resources
+    "setuptools>69",
+    "setuptools<70.1;python_version<='3.8'",
     "grpcio>=1.49.1, <=1.63.0",
     "protobuf>=3.20.0",
     "environs<=9.5.0",
@@ -29,6 +30,11 @@ dependencies=[
 
 classifiers=[
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: Apache Software License",
 ]
 
