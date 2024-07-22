@@ -92,7 +92,10 @@ class QueryIterator:
         self._kwargs[ITERATOR_FIELD] = "True"
 
     def __check_set_reduce_stop_for_best(self):
-        self._kwargs[REDUCE_STOP_FOR_BEST] = "True"
+        if self._kwargs.get(REDUCE_STOP_FOR_BEST, True):
+            self._kwargs[REDUCE_STOP_FOR_BEST] = "True"
+        else:
+            self._kwargs[REDUCE_STOP_FOR_BEST] = "False"
 
     def __check_set_batch_size(self, batch_size: int):
         if batch_size < 0:
