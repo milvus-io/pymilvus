@@ -1318,6 +1318,10 @@ class Collection:
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
             index_name = tmp_index.pop("index_name", index_name)
+            tmp_index.pop("total_rows")
+            tmp_index.pop("indexed_rows")
+            tmp_index.pop("pending_index_rows")
+            tmp_index.pop("state")
             return Index(self, field_name, tmp_index, construct_only=True, index_name=index_name)
         raise IndexNotExistException(message=ExceptionsMessage.IndexNotExist)
 
