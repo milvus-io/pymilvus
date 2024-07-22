@@ -102,7 +102,7 @@ class QueryIterator:
         self._kwargs[BATCH_SIZE] = batch_size
         self._kwargs[MILVUS_LIMIT] = batch_size
 
-    # rely on pk prop, so this method should be called after __set_up_expr
+    # rely on pk prop, so this method should be called after __setup__pk_prop
     def __set_up_expr(self, expr: str):
         if expr is not None:
             self._expr = expr
