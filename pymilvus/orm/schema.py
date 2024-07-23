@@ -63,12 +63,8 @@ def validate_partition_key(
         )
 
 
-def validate_clustering_key(
-    clustering_key_field_name: Any, clustering_key_field: Any, primary_field_name: Any
-):
+def validate_clustering_key(clustering_key_field_name: Any, clustering_key_field: Any):
     if clustering_key_field is not None:
-        if clustering_key_field.name == primary_field_name:
-            raise ClusteringKeyException(message=ExceptionsMessage.ClusteringKeyNotPrimary)
         if clustering_key_field.dtype not in [
             DataType.INT8,
             DataType.INT16,
@@ -82,7 +78,7 @@ def validate_clustering_key(
             raise ClusteringKeyException(message=ExceptionsMessage.ClusteringKeyType)
     elif clustering_key_field_name is not None:
         raise ClusteringKeyException(
-            message=ExceptionsMessage.PartitionKeyFieldNotExist % clustering_key_field_name
+            message=ExceptionsMessage.ClusteringKeyFieldNotExist % clustering_key_field_name
         )
 
 
@@ -171,9 +167,7 @@ class CollectionSchema:
         validate_partition_key(
             partition_key_field_name, self._partition_key_field, self._primary_field.name
         )
-        validate_clustering_key(
-            clustering_key_field_name, self._clustering_key_field, self._primary_field.name
-        )
+        validate_clustering_key(clustering_key_field_name, self._clustering_key_field)
 
         auto_id = self._kwargs.get("auto_id", False)
         if auto_id:
