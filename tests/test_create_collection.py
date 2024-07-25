@@ -202,3 +202,45 @@ class TestCreateCollection:
         return_value = future.result()
         assert return_value.code == 0
         assert return_value.reason == "success"
+
+    def test_create_clustering_key_collection(self, collection_name):
+        id_field = {
+            "name": "my_id",
+            "type": DataType.INT64,
+            "auto_id": True,
+            "is_primary": True,
+            "is_clustering_key": True,
+        }
+        vector_field = {
+            "name": "embedding",
+            "type": DataType.FLOAT_VECTOR,
+            "metric_type": "L2",
+            "params": {"dim": "4"},
+        }
+        fields = {"fields": [id_field, vector_field]}
+        future = self._milvus.create_collection(
+            collection_name=collection_name, fields=fields, _async=True
+        )
+
+        invocation_metadata, request, rpc = self._real_time_channel.take_unary_unary(
+            self._servicer.methods_by_name["CreateCollection"]
+        )
+        rpc.send_initial_metadata(())
+        rpc.terminate(
+            common_pb2.Status(
+                code=ErrorCode.SUCCESS, error_code=common_pb2.Success, reason="success"
+            ),
+            (),
+            grpc.StatusCode.OK,
+            "",
+        )
+
+        request_schema = schema_pb2.CollectionSchema()
+        request_schema.ParseFromString(request.schema)
+
+        assert request.collection_name == collection_name
+        assert Fields.equal(request_schema.fields, fields["fields"])
+
+        return_value = future.result()
+        assert return_value.code == 0
+        assert return_value.reason == "success"
