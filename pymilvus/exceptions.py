@@ -224,7 +224,6 @@ class ExceptionsMessage:
         "Ambiguous parameter, either ids or filter should be specified, cannot support both."
     )
     JSONKeyMustBeStr = "JSON key must be str."
-    ClusteringKeyNotPrimary = "Clustering key field should not be primary field"
     ClusteringKeyType = (
         "Clustering key field type must be DataType.INT8, DataType.INT16, "
         "DataType.INT32, DataType.INT64, DataType.FLOAT, DataType.DOUBLE, "
