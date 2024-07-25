@@ -1051,14 +1051,14 @@ class GrpcHandler:
         check_status(status)
         if len(response.index_descriptions) == 1:
             info_dict = {kv.key: kv.value for kv in response.index_descriptions[0].params}
-            info_dict["total_rows"] = response.index_descriptions[0].total_rows
-            info_dict["indexed_rows"] = response.index_descriptions[0].indexed_rows
-            info_dict["pending_index_rows"] = response.index_descriptions[0].pending_index_rows
-            info_dict["state"] = response.index_descriptions[0].state
             info_dict["field_name"] = response.index_descriptions[0].field_name
             info_dict["index_name"] = response.index_descriptions[0].index_name
             if info_dict.get("params"):
                 info_dict["params"] = json.loads(info_dict["params"])
+            info_dict["total_rows"] = response.index_descriptions[0].total_rows
+            info_dict["indexed_rows"] = response.index_descriptions[0].indexed_rows
+            info_dict["pending_index_rows"] = response.index_descriptions[0].pending_index_rows
+            info_dict["state"] = common_pb2.IndexState.Name(response.index_descriptions[0].state)
             return info_dict
 
         raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
@@ -1078,6 +1078,7 @@ class GrpcHandler:
                 "total_rows": index_desc.total_rows,
                 "indexed_rows": index_desc.indexed_rows,
                 "pending_index_rows": index_desc.pending_index_rows,
+                "state": common_pb2.IndexState.Name(index_desc.state),
             }
         raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
 
