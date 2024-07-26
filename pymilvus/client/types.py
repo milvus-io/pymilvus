@@ -14,6 +14,20 @@ Status = TypeVar("Status")
 ConsistencyLevel = common_pb2.ConsistencyLevel
 
 
+# OmitZeroDict: ignore the key-value pairs with value as 0 when printing
+class OmitZeroDict(dict):
+    def omit_zero_len(self):
+        return len(dict(filter(lambda x: x[1], self.items())))
+
+    # filter the key-value pairs with value as 0
+    def __str__(self):
+        return str(dict(filter(lambda x: x[1], self.items())))
+
+    # no filter
+    def __repr__(self):
+        return str(dict(self))
+
+
 class Status:
     """
     :attribute code: int (optional) default as ok
@@ -928,11 +942,13 @@ class ExtraList(list):
 
     def __init__(self, *args, extra: Optional[Dict] = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.extra = extra or {}
+        self.extra = OmitZeroDict(extra or {})
 
     def __str__(self) -> str:
         """Only print at most 10 query results"""
-        return f"data: {list(map(str, self[:10]))} {'...' if len(self) > 10 else ''}, extra_info: {self.extra}"
+        if self.extra and self.extra.omit_zero_len() != 0:
+            return f"data: {list(map(str, self[:10]))} {'...' if len(self) > 10 else ''}, extra_info: {self.extra}"
+        return f"data: {list(map(str, self[:10]))} {'...' if len(self) > 10 else ''}"
 
     __repr__ = __str__
 
