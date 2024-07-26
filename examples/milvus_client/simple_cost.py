@@ -7,9 +7,7 @@ from pymilvus import (
 fmt = "\n=== {:30} ===\n"
 dim = 8
 collection_name = "hello_client_cost"
-# milvus_client = MilvusClient("http://localhost:19530")
-milvus_client = MilvusClient(uri="https://in01-20fa6a32462c074.aws-us-west-2.vectordb-uat3.zillizcloud.com:19541",
-                             token="root:j6|y3/g$5Lq,a[TJ^ckphSMs{-F[&Jl)")
+milvus_client = MilvusClient("http://localhost:19530")
 
 has_collection = milvus_client.has_collection(collection_name, timeout=5)
 if has_collection:
