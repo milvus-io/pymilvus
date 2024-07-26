@@ -9,6 +9,7 @@ from pymilvus.client.types import (
     ExceptionsMessage,
     ExtraList,
     LoadState,
+    OmitZeroDict,
     construct_cost_extra,
 )
 from pymilvus.exceptions import (
@@ -221,11 +222,13 @@ class MilvusClient:
             )
         except Exception as ex:
             raise ex from ex
-        return {
-            "insert_count": res.insert_count,
-            "ids": res.primary_keys,
-            "cost": res.cost,
-        }
+        return OmitZeroDict(
+            {
+                "insert_count": res.insert_count,
+                "ids": res.primary_keys,
+                "cost": res.cost,
+            }
+        )
 
     def upsert(
         self,
@@ -272,10 +275,12 @@ class MilvusClient:
         except Exception as ex:
             raise ex from ex
 
-        return {
-            "upsert_count": res.upsert_count,
-            "cost": res.cost,
-        }
+        return OmitZeroDict(
+            {
+                "upsert_count": res.upsert_count,
+                "cost": res.cost,
+            }
+        )
 
     def search(
         self,
@@ -555,7 +560,7 @@ class MilvusClient:
         if ret_pks:
             return ret_pks
 
-        return {"delete_count": res.delete_count, "cost": res.cost}
+        return OmitZeroDict({"delete_count": res.delete_count, "cost": res.cost})
 
     def get_collection_stats(self, collection_name: str, timeout: Optional[float] = None) -> Dict:
         conn = self._get_connection()

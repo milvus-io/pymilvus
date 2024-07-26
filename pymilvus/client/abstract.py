@@ -241,10 +241,15 @@ class MutationResult:
         return self._cost
 
     def __str__(self):
+        if self.cost:
+            return (
+                f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, "
+                f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count}, "
+                f"cost: {self._cost})"
+            )
         return (
             f"(insert count: {self._insert_cnt}, delete count: {self._delete_cnt}, upsert count: {self._upsert_cnt}, "
-            f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count}, "
-            f"cost: {self._cost})"
+            f"timestamp: {self._timestamp}, success count: {self.succ_count}, err count: {self.err_count}"
         )
 
     __repr__ = __str__
@@ -515,7 +520,9 @@ class SearchResult(list):
     def __str__(self) -> str:
         """Only print at most 10 query results"""
         reminder = f" ... and {len(self) - 10} results remaining" if len(self) > 10 else ""
-        return f"data: {list(map(str, self[:10]))}{reminder}, cost: {self.cost}"
+        if self.cost:
+            return f"data: {list(map(str, self[:10]))}{reminder}, cost: {self.cost}"
+        return f"data: {list(map(str, self[:10]))}{reminder}"
 
     __repr__ = __str__
 
