@@ -155,18 +155,7 @@ def get_max_len_of_var_char(field_info: Dict) -> int:
     return field_info.get("params", {}).get(k, v)
 
 
-def check_str_arr(str_arr: Any, max_len: int):
-    for s in str_arr:
-        if not isinstance(s, str):
-            raise ParamError(message=f"expect string input, got: {type(s)}")
-        if len(s) > max_len:
-            raise ParamError(
-                message=f"invalid input, length of string exceeds max length. "
-                f"length: {len(s)}, max length: {max_len}"
-            )
-
-
-def convert_to_str_array(orig_str_arr: Any, field_info: Any, check: bool = True):
+def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True):
     arr = []
     if Config.EncodeProtocol.lower() != "utf-8".lower():
         for s in orig_str_arr:
@@ -175,7 +164,16 @@ def convert_to_str_array(orig_str_arr: Any, field_info: Any, check: bool = True)
         arr = orig_str_arr
     max_len = int(get_max_len_of_var_char(field_info))
     if check:
-        check_str_arr(arr, max_len)
+        for s in arr:
+            if not isinstance(s, str):
+                raise ParamError(
+                    message=f"field ({field_info['name']}) expect string input, got: {type(s)}"
+                )
+            if len(s) > max_len:
+                raise ParamError(
+                    message=f"invalid input of field ({field_info['name']}), "
+                    f"length of string exceeds max length. length: {len(s)}, max length: {max_len}"
+                )
     return arr
 
 
