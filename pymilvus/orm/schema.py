@@ -510,7 +510,7 @@ def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
             raise DataNotMatchException(message=msg)
         columns = list(data.columns)
         columns.remove(schema.primary_field)
-        data = data[[columns]]
+        data = data[columns]
 
     tmp_fields = copy.deepcopy(schema.fields)
     for i, field in enumerate(tmp_fields):
@@ -528,7 +528,7 @@ def check_upsert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
         if schema.primary_field.name not in data or data[schema.primary_field.name].isnull().all():
             raise DataNotMatchException(message=ExceptionsMessage.UpsertPrimaryKeyEmpty)
         columns = list(data.columns)
-        data = data[[columns]]
+        data = data[columns]
 
     _check_data_schema_cnt(copy.deepcopy(schema.fields), data)
     _check_insert_data(data)
