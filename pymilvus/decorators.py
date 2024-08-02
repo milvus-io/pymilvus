@@ -97,7 +97,8 @@ def retry_on_rpc_failure(
                             f"[{func.__name__}] retry:{counter}, cost: {back_off:.2f}s, "
                             f"reason: <{e.__class__.__name__}: {e.code()}, {e.details()}>"
                         )
-                        LOGGER.warning(WARNING_COLOR.format(retry_msg))
+                        # retry msg uses info level
+                        LOGGER.info(retry_msg)
 
                     time.sleep(back_off)
                     back_off = min(back_off * back_off_multiplier, max_back_off)
