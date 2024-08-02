@@ -516,7 +516,7 @@ def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
             raise DataNotMatchException(message=msg)
         columns = list(data.columns)
         columns.remove(schema.primary_field)
-        data = data[[columns]]
+        data = data[columns]
 
     _check_data_schema_cnt(schema, data)
     _check_insert_data(data)
