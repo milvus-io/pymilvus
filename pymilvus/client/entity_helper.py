@@ -201,6 +201,17 @@ def convert_to_json_arr(objs: List[object]):
 def entity_to_json_arr(entity: Dict):
     return convert_to_json_arr(entity.get("values", []))
 
+def convert_to_wkt_bytes(wktstr:str):
+    return ujson.dumps(wktstr,ensure_ascii=False).encode(Config.EncodeProtocol)
+
+def convert_to_wkt_bytes_arr(wktarray:list[str]):
+    arr = []
+    for wkt in wktarray:
+        arr.append(convert_to_wkt_bytes(wkt))
+    return arr
+
+def entity_to_wktbyte_arr(entity: Dict):
+    return convert_to_wkt_bytes_arr(entity.get("values", []))
 
 def convert_to_array_arr(objs: List[Any], field_info: Any):
     return [convert_to_array(obj, field_info) for obj in objs]
@@ -385,6 +396,14 @@ def pack_field_value_to_field_data(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "json", type(field_value))
             ) from e
+    elif field_type == DataType.GEOSPATIAL:
+        try:
+            field_data.scalars.geospatial_data.data.append(convert_to_wkt_bytes(field_value))
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                %(field_name,"geospatial",type(field_value))
+            ) from e
     elif field_type == DataType.ARRAY:
         try:
             field_data.scalars.array_data.data.append(convert_to_array(field_value, field_info))
@@ -512,6 +531,14 @@ def entity_to_field_data(entity: Any, field_info: Any, num_rows: int):
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "json", type(entity.get("values")[0]))
+            ) from e
+    elif entity_type == DataType.GEOSPATIAL:
+        try:
+            field_data.scalars.geospatial_data.data.extend(entity_to_wktbyte_arr(entity))
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                %(field_name,"geospatial",type(entity.get("values")[0]))
             ) from e
     elif entity_type == DataType.ARRAY:
         try:
@@ -670,6 +697,10 @@ def extract_row_data_from_fields_data(
 
             entity_row_data.update({k: v for k, v in json_dict.items() if k in dynamic_fields})
             return
+        if field_data.type == DataType.GEOSPATIAL and len(field_data.scalars.geospatial_data.data)>=index:
+            entity_row_data[field_data.field_name] = field_data.scalars.geospatial_data.data[index].decode(Config.EncodeProtocol)
+            return 
+        
         if field_data.type == DataType.ARRAY and len(field_data.scalars.array_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
                 entity_row_data[field_data.field_name] = None

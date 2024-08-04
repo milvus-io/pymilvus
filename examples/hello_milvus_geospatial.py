@@ -15,6 +15,7 @@ from pymilvus import (
     FieldSchema, CollectionSchema, DataType,
     Collection,
 )
+from genwkt import generate_data
 
 fmt = "\n=== {:30} ===\n"
 search_latency_fmt = "search latency = {:.4f}s"
@@ -50,13 +51,15 @@ print(f"Does collection hello_milvus exist in Milvus: {has}")
 fields = [
     FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=100),
     FieldSchema(name="random", dtype=DataType.DOUBLE),
-    FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=dim)
+    FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=dim),
+    FieldSchema(name="geospatial",dtype=DataType.GEOSPATIAL)
 ]
 
 schema = CollectionSchema(fields, "hello_milvus is the simplest demo to introduce the APIs")
 
 print(fmt.format("Create collection `hello_milvus`"))
 hello_milvus = Collection("hello_milvus", schema, consistency_level="Strong")
+print(f"The milvus describetion: {hello_milvus.describe()}")
 
 ################################################################################
 # 3. insert data
@@ -74,19 +77,39 @@ entities = [
     [str(i) for i in range(num_entities)],
     rng.random(num_entities).tolist(),  # field random, only supports list
     rng.random((num_entities, dim), np.float32),    # field embeddings, supports numpy.ndarray and list
+    generate_data(num_entities) #field geospatial,wkt list 
 ]
 
+# print(entities)
 insert_result = hello_milvus.insert(entities)
 
 row = {
     "pk": "19530",
     "random": 0.5,
-    "embeddings": rng.random((1, dim), np.float32)[0]
+    "embeddings": rng.random((1, dim), np.float32)[0],
+    "geospatial": "POINT (-84.036 39.997)"
+}
+hello_milvus.insert(row)
+row = {
+    "pk": "19531",
+    "random": 0.5,
+    "embeddings": rng.random((1, dim), np.float32)[0],
+    "geospatial": "POLYGON ((0 0, 0 2, 2 2, 2 0, 0 0))"
+}
+hello_milvus.insert(row)
+row = {
+    "pk": "19532",
+    "random": 0.5,
+    "embeddings": rng.random((1, dim), np.float32)[0],
+    "geospatial": "POLYGON ((1 1, 1 3, 3 3, 3 1, 1 1))"
 }
 hello_milvus.insert(row)
 
 hello_milvus.flush()
 print(f"Number of entities in Milvus: {hello_milvus.num_entities}")  # check the num_entities
+
+b=0
+input(b)
 
 ################################################################################
 # 4. create index
@@ -113,17 +136,20 @@ hello_milvus.create_index("embeddings", index)
 print(fmt.format("Start loading"))
 hello_milvus.load()
 
+a=0
+input(a)
+
 # -----------------------------------------------------------------------------
 # search based on vector similarity
 print(fmt.format("Start searching based on vector similarity"))
-vectors_to_search = entities[-1][-2:]
+vectors_to_search = entities[-2][-2:]
 search_params = {
     "metric_type": "L2",
     "params": {"nprobe": 10},
 }
 
 start_time = time.time()
-result = hello_milvus.search(vectors_to_search, "embeddings", search_params, limit=3, output_fields=["random"])
+result = hello_milvus.search(vectors_to_search, "embeddings", search_params, limit=3, output_fields=["geospatial"])
 end_time = time.time()
 
 for hits in result:
@@ -133,13 +159,26 @@ print(search_latency_fmt.format(end_time - start_time))
 
 # -----------------------------------------------------------------------------
 # query based on scalar filtering(boolean, int, etc.)
-print(fmt.format("Start querying with `random > 0.5`"))
+print(fmt.format("Start querying with GIS FUNC"))
 
 start_time = time.time()
-result = hello_milvus.query(expr="random > 0.5", output_fields=["random", "embeddings"])
+result1 = hello_milvus.query(expr="geospatial_equals(geospatial,'POINT (-84.036 39.997)')", output_fields=["random", "geospatial"])
+result2 = hello_milvus.query(expr="geospatial_touches(geospatial,'POLYGON ((0 0, -1 0, -1 -1, 0 -1, 0 0))')", output_fields=["random", "geospatial"])
+result3 = hello_milvus.query(expr="geospatial_overlaps(geospatial,'POLYGON ((6 0, 6 5, 8 5, 8 0, 6 0))')", output_fields=["random", "geospatial"])
+result4 = hello_milvus.query(expr="geospatial_crosses(geospatial,'POLYGON ((6 0, 6 5, 8 5, 8 0, 6 0))')", output_fields=["random", "geospatial"])
+result5 = hello_milvus.query(expr="geospatial_contains(geospatial,'POLYGON ((6 0, 6 5, 8 5, 8 0, 6 0))')", output_fields=["random", "geospatial"])
+result6 = hello_milvus.query(expr="geospatial_intersects(geospatial,'POLYGON ((6 0, 6 5, 8 5, 8 0, 6 0))')", output_fields=["random", "geospatial"])
+# the within realationship operator refers to which data in geo field within the wkt literal
+result7 = hello_milvus.query(expr="geospatial_within(geospatial,'POLYGON ((0 0, 0 4, 4 4, 4 0, 0 0))')", output_fields=["random", "geospatial"])
 end_time = time.time()
 
-print(f"query result:\n-{result[0]}")
+print(f"equals query result1:\n-{result1[0]}")
+print(f"touches query result2:\n-{result2[0]}")
+print(f"overlaps query result3:\n-{result3[0]}")
+print(f"crosses query result4:\n-{result4[0]}")
+print(f"contains query result5:\n-{result5[0]}")
+print(f"intersects query result6:\n-{result6[0]}")
+print(f"within query result7:\n-{result7[0]}")
 print(search_latency_fmt.format(end_time - start_time))
 
 # -----------------------------------------------------------------------------
@@ -171,12 +210,12 @@ ids = insert_result.primary_keys
 expr = f'pk in ["{ids[0]}" , "{ids[1]}"]'
 print(fmt.format(f"Start deleting with expr `{expr}`"))
 
-result = hello_milvus.query(expr=expr, output_fields=["random", "embeddings"])
+result = hello_milvus.query(expr=expr, output_fields=["random", "geospatial"])
 print(f"query before delete by expr=`{expr}` -> result: \n-{result[0]}\n-{result[1]}\n")
 
 hello_milvus.delete(expr)
 
-result = hello_milvus.query(expr=expr, output_fields=["random", "embeddings"])
+result = hello_milvus.query(expr=expr, output_fields=["random", "geospatial"])
 print(f"query after delete by expr=`{expr}` -> result: {result}\n")
 
 

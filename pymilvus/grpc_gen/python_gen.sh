@@ -1,7 +1,7 @@
 #!/bin/bash
 
 OUTDIR=.
-PROTO_DIR="milvus-proto/proto"
+PROTO_DIR="/home/adam/milvus-proto/proto"
 
 python -m grpc_tools.protoc -I ${PROTO_DIR} --python_out=${OUTDIR} --pyi_out=${OUTDIR} ${PROTO_DIR}/common.proto
 python -m grpc_tools.protoc -I ${PROTO_DIR} --python_out=${OUTDIR} --pyi_out=${OUTDIR} ${PROTO_DIR}/schema.proto

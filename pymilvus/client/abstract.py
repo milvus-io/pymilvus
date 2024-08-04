@@ -515,6 +515,10 @@ class SearchResult(list):
                 field2data[name] = json_dict_list, field_meta
                 continue
 
+            if dtype == DataType.GEOSPATIAL:
+                geospatial_data_list = [ data.decode(Config.EncodeProtocol) for data in scalars.geospatial_data.data[start:end] ]
+                field2data[name] = geospatial_data_list, field_meta
+                
             if dtype == DataType.ARRAY:
                 res = apply_valid_data(
                     scalars.array_data.data[start:end], field.valid_data, start, end

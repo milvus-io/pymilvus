@@ -22,6 +22,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VarChar: _ClassVar[DataType]
     Array: _ClassVar[DataType]
     JSON: _ClassVar[DataType]
+    GeoSpatial: _ClassVar[DataType]
     BinaryVector: _ClassVar[DataType]
     FloatVector: _ClassVar[DataType]
     Float16Vector: _ClassVar[DataType]
@@ -46,6 +47,7 @@ String: DataType
 VarChar: DataType
 Array: DataType
 JSON: DataType
+GeoSpatial: DataType
 BinaryVector: DataType
 FloatVector: DataType
 Float16Vector: DataType
@@ -162,6 +164,12 @@ class JSONArray(_message.Message):
     data: _containers.RepeatedScalarFieldContainer[bytes]
     def __init__(self, data: _Optional[_Iterable[bytes]] = ...) -> None: ...
 
+class GeoSpatialArray(_message.Message):
+    __slots__ = ("data",)
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedScalarFieldContainer[bytes]
+    def __init__(self, data: _Optional[_Iterable[bytes]] = ...) -> None: ...
+
 class ValueField(_message.Message):
     __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data")
     BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -181,7 +189,7 @@ class ValueField(_message.Message):
     def __init__(self, bool_data: bool = ..., int_data: _Optional[int] = ..., long_data: _Optional[int] = ..., float_data: _Optional[float] = ..., double_data: _Optional[float] = ..., string_data: _Optional[str] = ..., bytes_data: _Optional[bytes] = ...) -> None: ...
 
 class ScalarField(_message.Message):
-    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "array_data", "json_data")
+    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "array_data", "json_data", "geospatial_data")
     BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
     INT_DATA_FIELD_NUMBER: _ClassVar[int]
     LONG_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -191,6 +199,7 @@ class ScalarField(_message.Message):
     BYTES_DATA_FIELD_NUMBER: _ClassVar[int]
     ARRAY_DATA_FIELD_NUMBER: _ClassVar[int]
     JSON_DATA_FIELD_NUMBER: _ClassVar[int]
+    GEOSPATIAL_DATA_FIELD_NUMBER: _ClassVar[int]
     bool_data: BoolArray
     int_data: IntArray
     long_data: LongArray
@@ -200,7 +209,8 @@ class ScalarField(_message.Message):
     bytes_data: BytesArray
     array_data: ArrayArray
     json_data: JSONArray
-    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ...) -> None: ...
+    geospatial_data: GeoSpatialArray
+    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ..., geospatial_data: _Optional[_Union[GeoSpatialArray, _Mapping]] = ...) -> None: ...
 
 class SparseFloatArray(_message.Message):
     __slots__ = ("contents", "dim")
