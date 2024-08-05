@@ -365,10 +365,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
             "tcp",
         ]:
             # start and connect milvuslite
-            if kwargs["uri"].endswith("/"):
+            if not kwargs["uri"].endswith(".db"):
                 raise ConnectionConfigException(
-                    message=f"Open local milvus failed, {kwargs['uri']} is not a local file path"
+                    message=f"uri: {kwargs['uri']} is illegal, needs start with [unix, http, https, tcp] or a local file endswith [.db]"
                 )
+
             parent_path = pathlib.Path(kwargs["uri"]).parent
             if not parent_path.is_dir():
                 raise ConnectionConfigException(
@@ -377,6 +378,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
             from milvus_lite.server_manager import server_manager_instance
 
+            logger.info(f"Pass in the local path {kwargs['uri']}, and run it using milvus-lite")
             local_uri = server_manager_instance.start_and_get_uri(kwargs["uri"])
             if local_uri is None:
                 raise ConnectionConfigException(message="Open local milvus failed")

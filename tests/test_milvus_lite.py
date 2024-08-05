@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from pymilvus.milvus_client import MilvusClient
+from pymilvus.exceptions import ConnectionConfigException
 
 
 @pytest.mark.skipif(sys.platform.startswith('win'), reason="Milvus Lite is not supported on Windows")
@@ -56,3 +57,10 @@ class TestMilvusLite:
                     filter="subject == 'history'",
                 )
             assert len(res) == 3
+
+    def test_illegal_name(self):
+        try:
+            MilvusClient("localhost")
+            assert False
+        except ConnectionConfigException as e:
+            assert e.message == "uri: localhost is illegal, needs start with [unix, http, https, tcp] or a local file endswith [.db]"
