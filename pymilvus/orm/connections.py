@@ -366,10 +366,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
             "grpc",
         ]:
             # start and connect milvuslite
-            if kwargs["uri"].endswith("/"):
+            if not kwargs["uri"].endswith(".db"):
                 raise ConnectionConfigException(
-                    message=f"Open local milvus failed, {kwargs['uri']} is not a local file path"
+                    message=f"uri: {kwargs['uri']} is illegal, needs start with [unix, http, https, tcp] or a local file endswith [.db]"
                 )
+            logger.info(f"Pass in the local path {kwargs['uri']}, and run it using milvus-lite")
             parent_path = pathlib.Path(kwargs["uri"]).parent
             if not parent_path.is_dir():
                 raise ConnectionConfigException(
