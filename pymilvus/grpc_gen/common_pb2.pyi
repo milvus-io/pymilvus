@@ -89,6 +89,13 @@ class SegmentState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Dropped: _ClassVar[SegmentState]
     Importing: _ClassVar[SegmentState]
 
+class SegmentLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    Legacy: _ClassVar[SegmentLevel]
+    L0: _ClassVar[SegmentLevel]
+    L1: _ClassVar[SegmentLevel]
+    L2: _ClassVar[SegmentLevel]
+
 class PlaceholderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     None: _ClassVar[PlaceholderType]
@@ -383,6 +390,10 @@ Flushed: SegmentState
 Flushing: SegmentState
 Dropped: SegmentState
 Importing: SegmentState
+Legacy: SegmentLevel
+L0: SegmentLevel
+L1: SegmentLevel
+L2: SegmentLevel
 None: PlaceholderType
 BinaryVector: PlaceholderType
 FloatVector: PlaceholderType
