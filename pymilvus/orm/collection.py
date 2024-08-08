@@ -1492,7 +1492,7 @@ class Collection:
             )
 
     def compact(
-        self, timeout: Optional[float] = None, is_clustering: Optional[bool] = False, **kwargs
+        self, is_clustering: Optional[bool] = False, timeout: Optional[float] = None, **kwargs
     ):
         """Compact merge the small segments in a collection
 
@@ -1509,11 +1509,11 @@ class Collection:
         conn = self._get_connection()
         if is_clustering:
             self.clustering_compaction_id = conn.compact(
-                self._name, timeout=timeout, is_clustering=is_clustering, **kwargs
+                self._name, is_clustering=is_clustering, timeout=timeout, **kwargs
             )
         else:
             self.compaction_id = conn.compact(
-                self._name, timeout=timeout, is_clustering=is_clustering, **kwargs
+                self._name, is_clustering=is_clustering, timeout=timeout, **kwargs
             )
 
     def get_compaction_state(
