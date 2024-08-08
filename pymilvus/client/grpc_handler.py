@@ -1548,8 +1548,8 @@ class GrpcHandler:
     def compact(
         self,
         collection_name: str,
-        timeout: Optional[float] = None,
         is_clustering: Optional[bool] = False,
+        timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
         request = Prepare.describe_collection_request(collection_name)

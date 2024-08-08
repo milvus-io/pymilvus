@@ -1044,18 +1044,18 @@ class Milvus:
                 **kwargs,
             )
 
-    def compact(self, collection_name, timeout=None, is_clustering=False, **kwargs) -> int:
+    def compact(self, collection_name, is_clustering=False, timeout=None, **kwargs) -> int:
         """
         Do compaction for the collection.
 
         :param collection_name: The collection name to compact
         :type  collection_name: str
 
-        :param timeout: The timeout for this method, unit: second
-        :type  timeout: int
-
         :param is_clustering: trigger clustering compaction
         :type  is_clustering: bool
+
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
 
         :return: the compaction ID
         :rtype: int
@@ -1064,11 +1064,11 @@ class Milvus:
         """
         with self._connection() as handler:
             return handler.compact(
-                collection_name, timeout=timeout, is_clustering=is_clustering, **kwargs
+                collection_name, is_clustering=is_clustering, timeout=timeout, **kwargs
             )
 
     def get_compaction_state(
-        self, compaction_id: int, timeout=None, is_clustering=False, **kwargs
+        self, compaction_id: int, is_clustering=False, timeout=None, **kwargs
     ) -> CompactionState:
         """
         Get compaction states of a targeted compaction id
@@ -1076,11 +1076,11 @@ class Milvus:
         :param compaction_id: the id returned by compact
         :type  compaction_id: int
 
-        :param timeout: The timeout for this method, unit: second
-        :type  timeout: int
-
         :param is_clustering: get clustering compaction
         :type  is_clustering: bool
+
+        :param timeout: The timeout for this method, unit: second
+        :type  timeout: int
 
         :return: the state of the compaction
         :rtype: CompactionState
@@ -1090,7 +1090,7 @@ class Milvus:
 
         with self._connection() as handler:
             return handler.get_compaction_state(
-                compaction_id, timeout=timeout, is_clustering=is_clustering, **kwargs
+                compaction_id, is_clustering=is_clustering, timeout=timeout, **kwargs
             )
 
     def wait_for_compaction_completed(
