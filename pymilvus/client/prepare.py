@@ -995,13 +995,13 @@ class Prepare:
         )
 
     @classmethod
-    def manual_compaction(cls, collection_id: int, is_major: bool):
+    def manual_compaction(cls, collection_id: int, is_clustering: bool):
         if collection_id is None or not isinstance(collection_id, int):
             raise ParamError(message=f"collection_id value {collection_id} is illegal")
 
         request = milvus_types.ManualCompactionRequest()
         request.collectionID = collection_id
-        request.majorCompaction = is_major
+        request.majorCompaction = is_clustering
 
         return request
 
