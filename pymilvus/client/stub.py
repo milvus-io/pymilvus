@@ -1044,12 +1044,15 @@ class Milvus:
                 **kwargs,
             )
 
-    def compact(self, collection_name, timeout=None, **kwargs) -> int:
+    def compact(self, collection_name, is_clustering=False, timeout=None, **kwargs) -> int:
         """
         Do compaction for the collection.
 
         :param collection_name: The collection name to compact
         :type  collection_name: str
+
+        :param is_clustering: trigger clustering compaction
+        :type  is_clustering: bool
 
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
@@ -1060,14 +1063,21 @@ class Milvus:
         :raises MilvusException: If collection name not exist.
         """
         with self._connection() as handler:
-            return handler.compact(collection_name, timeout=timeout, **kwargs)
+            return handler.compact(
+                collection_name, is_clustering=is_clustering, timeout=timeout, **kwargs
+            )
 
-    def get_compaction_state(self, compaction_id: int, timeout=None, **kwargs) -> CompactionState:
+    def get_compaction_state(
+        self, compaction_id: int, is_clustering=False, timeout=None, **kwargs
+    ) -> CompactionState:
         """
         Get compaction states of a targeted compaction id
 
         :param compaction_id: the id returned by compact
         :type  compaction_id: int
+
+        :param is_clustering: get clustering compaction
+        :type  is_clustering: bool
 
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
@@ -1079,7 +1089,9 @@ class Milvus:
         """
 
         with self._connection() as handler:
-            return handler.get_compaction_state(compaction_id, timeout=timeout, **kwargs)
+            return handler.get_compaction_state(
+                compaction_id, is_clustering=is_clustering, timeout=timeout, **kwargs
+            )
 
     def wait_for_compaction_completed(
         self, compaction_id: int, timeout=None, **kwargs

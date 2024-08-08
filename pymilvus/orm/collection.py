@@ -1491,7 +1491,9 @@ class Collection:
                 **copy_kwargs,
             )
 
-    def compact(self, timeout: Optional[float] = None, **kwargs):
+    def compact(
+        self, is_clustering: Optional[bool] = False, timeout: Optional[float] = None, **kwargs
+    ):
         """Compact merge the small segments in a collection
 
         Args:
@@ -1499,13 +1501,24 @@ class Collection:
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur.
 
+            is_clustering (``bool``, optional): Option to trigger clustering compaction.
+
         Raises:
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        self.compaction_id = conn.compact(self._name, timeout=timeout, **kwargs)
+        if is_clustering:
+            self.clustering_compaction_id = conn.compact(
+                self._name, is_clustering=is_clustering, timeout=timeout, **kwargs
+            )
+        else:
+            self.compaction_id = conn.compact(
+                self._name, is_clustering=is_clustering, timeout=timeout, **kwargs
+            )
 
-    def get_compaction_state(self, timeout: Optional[float] = None, **kwargs) -> CompactionState:
+    def get_compaction_state(
+        self, timeout: Optional[float] = None, is_clustering: Optional[bool] = False, **kwargs
+    ) -> CompactionState:
         """Get the current compaction state
 
         Args:
@@ -1513,15 +1526,22 @@ class Collection:
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur.
 
+            is_clustering (``bool``, optional): Option to get clustering compaction state.
+
         Raises:
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
+        if is_clustering:
+            return conn.get_compaction_state(
+                self.clustering_compaction_id, timeout=timeout, **kwargs
+            )
         return conn.get_compaction_state(self.compaction_id, timeout=timeout, **kwargs)
 
     def wait_for_compaction_completed(
         self,
         timeout: Optional[float] = None,
+        is_clustering: Optional[bool] = False,
         **kwargs,
     ) -> CompactionState:
         """Block until the current collection's compaction completed
@@ -1531,10 +1551,16 @@ class Collection:
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur.
 
+            is_clustering (``bool``, optional): Option to get clustering compaction state.
+
         Raises:
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
+        if is_clustering:
+            return conn.wait_for_compaction_completed(
+                self.clustering_compaction_id, timeout=timeout, **kwargs
+            )
         return conn.wait_for_compaction_completed(self.compaction_id, timeout=timeout, **kwargs)
 
     def get_compaction_plans(self, timeout: Optional[float] = None, **kwargs) -> CompactionPlans:
