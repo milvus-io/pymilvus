@@ -1044,7 +1044,7 @@ class Milvus:
                 **kwargs,
             )
 
-    def compact(self, collection_name, timeout=None, is_major=False, **kwargs) -> int:
+    def compact(self, collection_name, timeout=None, is_clustering=False, **kwargs) -> int:
         """
         Do compaction for the collection.
 
@@ -1054,8 +1054,8 @@ class Milvus:
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
 
-        :param is_major: trigger major compaction
-        :type  is_major: bool
+        :param is_clustering: trigger clustering compaction
+        :type  is_clustering: bool
 
         :return: the compaction ID
         :rtype: int
@@ -1063,10 +1063,12 @@ class Milvus:
         :raises MilvusException: If collection name not exist.
         """
         with self._connection() as handler:
-            return handler.compact(collection_name, timeout=timeout, is_major=is_major, **kwargs)
+            return handler.compact(
+                collection_name, timeout=timeout, is_clustering=is_clustering, **kwargs
+            )
 
     def get_compaction_state(
-        self, compaction_id: int, timeout=None, is_major=False, **kwargs
+        self, compaction_id: int, timeout=None, is_clustering=False, **kwargs
     ) -> CompactionState:
         """
         Get compaction states of a targeted compaction id
@@ -1077,8 +1079,8 @@ class Milvus:
         :param timeout: The timeout for this method, unit: second
         :type  timeout: int
 
-        :param is_major: get major compaction
-        :type  is_major: bool
+        :param is_clustering: get clustering compaction
+        :type  is_clustering: bool
 
         :return: the state of the compaction
         :rtype: CompactionState
@@ -1088,7 +1090,7 @@ class Milvus:
 
         with self._connection() as handler:
             return handler.get_compaction_state(
-                compaction_id, timeout=timeout, is_major=is_major, **kwargs
+                compaction_id, timeout=timeout, is_clustering=is_clustering, **kwargs
             )
 
     def wait_for_compaction_completed(
