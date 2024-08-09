@@ -139,7 +139,7 @@ class LocalBulkWriter(BulkWriter):
                     call_back(file_list)
         except Exception as e:
             logger.error(f"Failed to fulsh, error: {e}")
-            raise e from e
+            raise
         finally:
             del self._working_thread[threading.current_thread().name]
             logger.info(f"Flush thread finished, name: {threading.current_thread().name}")

@@ -87,7 +87,7 @@ def retry_on_rpc_failure(
                 except grpc.RpcError as e:
                     # Do not retry on these codes
                     if e.code() in IGNORE_RETRY_CODES:
-                        raise e from e
+                        raise
                     if timeout(start_time):
                         raise MilvusException(e.code, f"{to_msg}, message={e.details()}") from e
 
@@ -113,9 +113,7 @@ def retry_on_rpc_failure(
                         time.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
                     else:
-                        raise e from e
-                except Exception as e:
-                    raise e from e
+                        raise
                 finally:
                     counter += 1
 
@@ -138,21 +136,21 @@ def error_handler(func_name: str = ""):
             except MilvusException as e:
                 record_dict["RPC error"] = str(datetime.datetime.now())
                 LOGGER.error(f"RPC error: [{inner_name}], {e}, <Time:{record_dict}>")
-                raise e from e
+                raise
             except grpc.FutureTimeoutError as e:
                 record_dict["gRPC timeout"] = str(datetime.datetime.now())
                 LOGGER.error(
                     f"grpc Timeout: [{inner_name}], <{e.__class__.__name__}: "
                     f"{e.code()}, {e.details()}>, <Time:{record_dict}>"
                 )
-                raise e from e
+                raise
             except grpc.RpcError as e:
                 record_dict["gRPC error"] = str(datetime.datetime.now())
                 LOGGER.error(
                     f"grpc RpcError: [{inner_name}], <{e.__class__.__name__}: "
                     f"{e.code()}, {e.details()}>, <Time:{record_dict}>"
                 )
-                raise e from e
+                raise
             except Exception as e:
                 record_dict["Exception"] = str(datetime.datetime.now())
                 LOGGER.error(f"Unexpected error: [{inner_name}], {e}, <Time: {record_dict}>")
@@ -190,9 +188,7 @@ def ignore_unimplemented(default_return_value: Any):
                 if e.code() == grpc.StatusCode.UNIMPLEMENTED:
                     LOGGER.debug(f"{func.__name__} unimplemented, ignore it")
                     return default_return_value
-                raise e from e
-            except Exception as e:
-                raise e from e
+                raise
 
         return handler
 
@@ -211,8 +207,6 @@ def upgrade_reminder(func: Callable):
                     "please downgrade your sdk or upgrade your server"
                 )
                 raise MilvusException(message=msg) from e
-            raise e from e
-        except Exception as e:
-            raise e from e
+            raise
 
     return handler
