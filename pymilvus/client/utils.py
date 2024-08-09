@@ -265,6 +265,17 @@ def traverse_info(fields_info: Any):
     return location, primary_key_loc, auto_id_loc
 
 
+def traverse_upsert_info(fields_info: Any):
+    location, primary_key_loc = {}, None
+    for i, field in enumerate(fields_info):
+        if field.get("is_primary", False):
+            primary_key_loc = i
+
+        location[field["name"]] = i
+
+    return location, primary_key_loc
+
+
 def get_server_type(host: str):
     return ZILLIZ if (isinstance(host, str) and "zilliz" in host.lower()) else MILVUS
 
