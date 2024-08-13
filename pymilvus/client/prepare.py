@@ -842,6 +842,8 @@ class Prepare:
         replica_number: int,
         refresh: bool,
         resource_groups: List[str],
+        load_fields: List[str],
+        skip_load_dynamic_field: bool,
     ):
         return milvus_types.LoadCollectionRequest(
             db_name=db_name,
@@ -849,6 +851,8 @@ class Prepare:
             replica_number=replica_number,
             refresh=refresh,
             resource_groups=resource_groups,
+            load_fields=load_fields,
+            skip_load_dynamic_field=skip_load_dynamic_field,
         )
 
     @classmethod
@@ -866,6 +870,8 @@ class Prepare:
         replica_number: int,
         refresh: bool,
         resource_groups: List[str],
+        load_fields: List[str],
+        skip_load_dynamic_field: bool,
     ):
         return milvus_types.LoadPartitionsRequest(
             db_name=db_name,
@@ -874,6 +880,8 @@ class Prepare:
             replica_number=replica_number,
             refresh=refresh,
             resource_groups=resource_groups,
+            load_fields=load_fields,
+            skip_load_dynamic_field=skip_load_dynamic_field,
         )
 
     @classmethod
