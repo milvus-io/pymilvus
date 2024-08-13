@@ -1144,8 +1144,10 @@ class GrpcHandler:
         )
         _refresh = kwargs.get("_refresh", False)
         _resource_groups = kwargs.get("_resource_groups")
+        _load_fields = kwargs.get("_load_fields")
+        _skip_load_dynamic_field = kwargs.get("_skip_load_dynamic_field", False)
         request = Prepare.load_collection(
-            "", collection_name, replica_number, _refresh, _resource_groups
+            "", collection_name, replica_number, _refresh, _resource_groups, _load_fields, _skip_load_dynamic_field
         )
         rf = self._stub.LoadCollection.future(request, timeout=timeout)
         response = rf.result()
@@ -1207,8 +1209,10 @@ class GrpcHandler:
         )
         _refresh = kwargs.get("_refresh", False)
         _resource_groups = kwargs.get("_resource_groups")
+        _load_fields = kwargs.get("_load_fields")
+        _skip_load_dynamic_field = kwargs.get("_skip_load_dynamic_field", False)
         request = Prepare.load_partitions(
-            "", collection_name, partition_names, replica_number, _refresh, _resource_groups
+            "", collection_name, partition_names, replica_number, _refresh, _resource_groups, _load_fields, _skip_load_dynamic_field
         )
         future = self._stub.LoadPartitions.future(request, timeout=timeout)
 
