@@ -24,17 +24,23 @@ class TestPrepare:
         search_params = {
             "metric_type": "L2",
             "offset": 10,
+            "page_retain_order": True,
         }
 
         ret = Prepare.search_requests_with_expr("name", data, "v", search_params, 100)
 
         offset_exists = False
+        page_retain_order_exists = False
         for p in ret.search_params:
             if p.key == "offset":
                 offset_exists = True
                 assert p.value == "10"
+            elif p.key == "page_retain_order":
+                page_retain_order_exists = True
+                assert p.value == "True" # it was dumped as string
 
         assert offset_exists is True
+        assert page_retain_order_exists is True
 
 
 class TestCreateCollectionRequest:

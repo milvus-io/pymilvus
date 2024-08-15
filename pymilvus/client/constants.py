@@ -12,6 +12,7 @@ REDUCE_STOP_FOR_BEST = "reduce_stop_for_best"
 GROUP_BY_FIELD = "group_by_field"
 GROUP_SIZE = "group_size"
 ITERATOR_FIELD = "iterator"
+PAGE_RETAIN_ORDER_FIELD = "page_retain_order"
 
 RANKER_TYPE_RRF = "rrf"
 RANKER_TYPE_WEIGHTED = "weighted"
