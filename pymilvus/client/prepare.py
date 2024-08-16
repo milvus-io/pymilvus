@@ -16,6 +16,7 @@ from .constants import (
     DEFAULT_CONSISTENCY_LEVEL,
     GROUP_BY_FIELD,
     ITERATOR_FIELD,
+    PAGE_RETAIN_ORDER_FIELD,
     REDUCE_STOP_FOR_BEST,
 )
 from .types import (
@@ -688,6 +689,20 @@ class Prepare:
             if not isinstance(offset, int):
                 raise ParamError(message=f"wrong type for offset, expect int, got {type(offset)}")
             search_params["offset"] = offset
+
+        if PAGE_RETAIN_ORDER_FIELD in kwargs and PAGE_RETAIN_ORDER_FIELD in param:
+            raise ParamError(
+                message="Provide page_retain_order both in kwargs and param, expect just one"
+            )
+        page_retain_order = kwargs.get(PAGE_RETAIN_ORDER_FIELD) or param.get(
+            PAGE_RETAIN_ORDER_FIELD
+        )
+        if page_retain_order is not None:
+            if not isinstance(page_retain_order, bool):
+                raise ParamError(
+                    message=f"wrong type for page_retain_order, expect bool, got {type(page_retain_order)}"
+                )
+            search_params[PAGE_RETAIN_ORDER_FIELD] = page_retain_order
 
         is_iterator = kwargs.get(ITERATOR_FIELD)
         if is_iterator is not None:
