@@ -249,20 +249,24 @@ class DescribeCollectionResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., schema: _Optional[_Union[_schema_pb2.CollectionSchema, _Mapping]] = ..., collectionID: _Optional[int] = ..., virtual_channel_names: _Optional[_Iterable[str]] = ..., physical_channel_names: _Optional[_Iterable[str]] = ..., created_timestamp: _Optional[int] = ..., created_utc_timestamp: _Optional[int] = ..., shards_num: _Optional[int] = ..., aliases: _Optional[_Iterable[str]] = ..., start_positions: _Optional[_Iterable[_Union[_common_pb2.KeyDataPair, _Mapping]]] = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., collection_name: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., db_name: _Optional[str] = ..., num_partitions: _Optional[int] = ..., db_id: _Optional[int] = ...) -> None: ...
 
 class LoadCollectionRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "replica_number", "resource_groups", "refresh")
+    __slots__ = ("base", "db_name", "collection_name", "replica_number", "resource_groups", "refresh", "load_fields", "skip_load_dynamic_field")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     REPLICA_NUMBER_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_GROUPS_FIELD_NUMBER: _ClassVar[int]
     REFRESH_FIELD_NUMBER: _ClassVar[int]
+    LOAD_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SKIP_LOAD_DYNAMIC_FIELD_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
     replica_number: int
     resource_groups: _containers.RepeatedScalarFieldContainer[str]
     refresh: bool
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., replica_number: _Optional[int] = ..., resource_groups: _Optional[_Iterable[str]] = ..., refresh: bool = ...) -> None: ...
+    load_fields: _containers.RepeatedScalarFieldContainer[str]
+    skip_load_dynamic_field: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., replica_number: _Optional[int] = ..., resource_groups: _Optional[_Iterable[str]] = ..., refresh: bool = ..., load_fields: _Optional[_Iterable[str]] = ..., skip_load_dynamic_field: bool = ...) -> None: ...
 
 class ReleaseCollectionRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name")
@@ -383,7 +387,7 @@ class HasPartitionRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ...) -> None: ...
 
 class LoadPartitionsRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "partition_names", "replica_number", "resource_groups", "refresh")
+    __slots__ = ("base", "db_name", "collection_name", "partition_names", "replica_number", "resource_groups", "refresh", "load_fields", "skip_load_dynamic_field")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -391,6 +395,8 @@ class LoadPartitionsRequest(_message.Message):
     REPLICA_NUMBER_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_GROUPS_FIELD_NUMBER: _ClassVar[int]
     REFRESH_FIELD_NUMBER: _ClassVar[int]
+    LOAD_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SKIP_LOAD_DYNAMIC_FIELD_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -398,7 +404,9 @@ class LoadPartitionsRequest(_message.Message):
     replica_number: int
     resource_groups: _containers.RepeatedScalarFieldContainer[str]
     refresh: bool
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., replica_number: _Optional[int] = ..., resource_groups: _Optional[_Iterable[str]] = ..., refresh: bool = ...) -> None: ...
+    load_fields: _containers.RepeatedScalarFieldContainer[str]
+    skip_load_dynamic_field: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., replica_number: _Optional[int] = ..., resource_groups: _Optional[_Iterable[str]] = ..., refresh: bool = ..., load_fields: _Optional[_Iterable[str]] = ..., skip_load_dynamic_field: bool = ...) -> None: ...
 
 class ReleasePartitionsRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "partition_names")
@@ -982,18 +990,20 @@ class FlushAllResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., flush_all_ts: _Optional[int] = ...) -> None: ...
 
 class PersistentSegmentInfo(_message.Message):
-    __slots__ = ("segmentID", "collectionID", "partitionID", "num_rows", "state")
+    __slots__ = ("segmentID", "collectionID", "partitionID", "num_rows", "state", "level")
     SEGMENTID_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
     PARTITIONID_FIELD_NUMBER: _ClassVar[int]
     NUM_ROWS_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
+    LEVEL_FIELD_NUMBER: _ClassVar[int]
     segmentID: int
     collectionID: int
     partitionID: int
     num_rows: int
     state: _common_pb2.SegmentState
-    def __init__(self, segmentID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., num_rows: _Optional[int] = ..., state: _Optional[_Union[_common_pb2.SegmentState, str]] = ...) -> None: ...
+    level: _common_pb2.SegmentLevel
+    def __init__(self, segmentID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., num_rows: _Optional[int] = ..., state: _Optional[_Union[_common_pb2.SegmentState, str]] = ..., level: _Optional[_Union[_common_pb2.SegmentLevel, str]] = ...) -> None: ...
 
 class GetPersistentSegmentInfoRequest(_message.Message):
     __slots__ = ("base", "dbName", "collectionName")
@@ -1014,7 +1024,7 @@ class GetPersistentSegmentInfoResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., infos: _Optional[_Iterable[_Union[PersistentSegmentInfo, _Mapping]]] = ...) -> None: ...
 
 class QuerySegmentInfo(_message.Message):
-    __slots__ = ("segmentID", "collectionID", "partitionID", "mem_size", "num_rows", "index_name", "indexID", "nodeID", "state", "nodeIds")
+    __slots__ = ("segmentID", "collectionID", "partitionID", "mem_size", "num_rows", "index_name", "indexID", "nodeID", "state", "nodeIds", "level")
     SEGMENTID_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
     PARTITIONID_FIELD_NUMBER: _ClassVar[int]
@@ -1025,6 +1035,7 @@ class QuerySegmentInfo(_message.Message):
     NODEID_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     NODEIDS_FIELD_NUMBER: _ClassVar[int]
+    LEVEL_FIELD_NUMBER: _ClassVar[int]
     segmentID: int
     collectionID: int
     partitionID: int
@@ -1035,7 +1046,8 @@ class QuerySegmentInfo(_message.Message):
     nodeID: int
     state: _common_pb2.SegmentState
     nodeIds: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, segmentID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., mem_size: _Optional[int] = ..., num_rows: _Optional[int] = ..., index_name: _Optional[str] = ..., indexID: _Optional[int] = ..., nodeID: _Optional[int] = ..., state: _Optional[_Union[_common_pb2.SegmentState, str]] = ..., nodeIds: _Optional[_Iterable[int]] = ...) -> None: ...
+    level: _common_pb2.SegmentLevel
+    def __init__(self, segmentID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., mem_size: _Optional[int] = ..., num_rows: _Optional[int] = ..., index_name: _Optional[str] = ..., indexID: _Optional[int] = ..., nodeID: _Optional[int] = ..., state: _Optional[_Union[_common_pb2.SegmentState, str]] = ..., nodeIds: _Optional[_Iterable[int]] = ..., level: _Optional[_Union[_common_pb2.SegmentLevel, str]] = ...) -> None: ...
 
 class GetQuerySegmentInfoRequest(_message.Message):
     __slots__ = ("base", "dbName", "collectionName")
