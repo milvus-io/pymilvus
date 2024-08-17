@@ -1,17 +1,18 @@
 import logging.config
+import os
 
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 
-env_dict = dotenv_values(".env")
+load_dotenv()
 
 
 class Config:
     # legacy env MILVUS_DEFAULT_CONNECTION, not recommended
-    LEGACY_URI = str(env_dict.get("MILVUS_DEFAULT_CONNECTION", ""))
-    MILVUS_URI = str(env_dict.get("MILVUS_URI", LEGACY_URI))
+    LEGACY_URI = str(os.getenv("MILVUS_DEFAULT_CONNECTION", ""))
+    MILVUS_URI = str(os.getenv("MILVUS_URI", LEGACY_URI))
 
-    MILVUS_CONN_ALIAS = str(env_dict.get("MILVUS_CONN_ALIAS", "default"))
-    MILVUS_CONN_TIMEOUT = float(env_dict.get("MILVUS_CONN_TIMEOUT", 10.0))
+    MILVUS_CONN_ALIAS = str(os.getenv("MILVUS_CONN_ALIAS", "default"))
+    MILVUS_CONN_TIMEOUT = float(os.getenv("MILVUS_CONN_TIMEOUT", "10.0"))
 
     # legacy configs:
     DEFAULT_USING = MILVUS_CONN_ALIAS
