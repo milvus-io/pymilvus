@@ -1548,8 +1548,8 @@ class GrpcHandler:
     def compact(
         self,
         collection_name: str,
+        is_clustering: Optional[bool] = False,
         timeout: Optional[float] = None,
-        is_major: Optional[bool] = False,
         **kwargs,
     ) -> int:
         request = Prepare.describe_collection_request(collection_name)
@@ -1557,7 +1557,7 @@ class GrpcHandler:
         response = rf.result()
         check_status(response.status)
 
-        req = Prepare.manual_compaction(response.collectionID, is_major)
+        req = Prepare.manual_compaction(response.collectionID, is_clustering)
         future = self._stub.ManualCompaction.future(req, timeout=timeout)
         response = future.result()
         check_status(response.status)
