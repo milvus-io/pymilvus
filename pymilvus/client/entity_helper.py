@@ -398,13 +398,25 @@ def pack_field_value_to_field_data(
 
 
 # TODO: refactor here.
-def entity_to_field_data(entity: Any, field_info: Any):
+def entity_to_field_data(entity: Any, field_info: Any, num_rows: int):
     field_data = schema_types.FieldData()
 
     entity_type = entity.get("type")
     field_name = entity.get("name")
     field_data.field_name = field_name
     field_data.type = entity_type_to_dtype(entity_type)
+    entity_value = entity.get("values")
+    valid_data = []
+
+    if field_info.get("nullable", False) or field_info.get("default_value", None):
+        if len(entity_value) == 0:
+            valid_data = [False] * num_rows
+        else:
+            valid_data = [value is not None for value in entity_value]
+            entity_value = [value for value in entity_value if value is not None]
+
+    field_data.valid_data.extend(valid_data)
+    entity["values"] = entity_value
 
     if entity_type == DataType.BOOL:
         try:
@@ -593,6 +605,9 @@ def extract_row_data_from_fields_data(
             raise MilvusException(message="Not support string yet")
 
         if field_data.type == DataType.BOOL and len(field_data.scalars.bool_data.data) >= index:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
             entity_row_data[field_data.field_name] = field_data.scalars.bool_data.data[index]
             return
 
@@ -600,20 +615,32 @@ def extract_row_data_from_fields_data(
             field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32)
             and len(field_data.scalars.int_data.data) >= index
         ):
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
             entity_row_data[field_data.field_name] = field_data.scalars.int_data.data[index]
             return
 
         if field_data.type == DataType.INT64 and len(field_data.scalars.long_data.data) >= index:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
             entity_row_data[field_data.field_name] = field_data.scalars.long_data.data[index]
             return
 
         if field_data.type == DataType.FLOAT and len(field_data.scalars.float_data.data) >= index:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
             entity_row_data[field_data.field_name] = np.single(
                 field_data.scalars.float_data.data[index]
             )
             return
 
         if field_data.type == DataType.DOUBLE and len(field_data.scalars.double_data.data) >= index:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
             entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[index]
             return
 
@@ -621,10 +648,16 @@ def extract_row_data_from_fields_data(
             field_data.type == DataType.VARCHAR
             and len(field_data.scalars.string_data.data) >= index
         ):
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
             entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
             return
 
         if field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
             json_dict = ujson.loads(field_data.scalars.json_data.data[index])
 
             if not field_data.is_dynamic:
@@ -638,6 +671,9 @@ def extract_row_data_from_fields_data(
             entity_row_data.update({k: v for k, v in json_dict.items() if k in dynamic_fields})
             return
         if field_data.type == DataType.ARRAY and len(field_data.scalars.array_data.data) >= index:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
             entity_row_data[field_data.field_name] = extract_array_row_data(field_data, index)
 
         if field_data.type == DataType.FLOAT_VECTOR:

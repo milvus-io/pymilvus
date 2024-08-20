@@ -240,10 +240,6 @@ def traverse_rows_info(fields_info: Any, entities: List):
                     message=f"dynamic field enabled, {field_name} shouldn't in entities[{j}]"
                 )
 
-            value = entity.get(field_name, None)
-            if value is None:
-                raise ParamError(message=f"Field {field_name} don't match in entities[{j}]")
-
     # though impossible from sdk
     if primary_key_loc is None:
         raise ParamError(message="primary key not found")

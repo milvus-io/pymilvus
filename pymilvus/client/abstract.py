@@ -26,6 +26,8 @@ class FieldSchema:
         self.params = {}
         self.is_partition_key = False
         self.is_dynamic = False
+        self.nullable = False
+        self.default_value = None
         # For array field
         self.element_type = None
         self.is_clustering_key = False
@@ -41,10 +43,11 @@ class FieldSchema:
         self.is_partition_key = raw.is_partition_key
         self.element_type = DataType(raw.element_type)
         self.is_clustering_key = raw.is_clustering_key
-        try:
-            self.is_dynamic = raw.is_dynamic
-        except Exception:
-            self.is_dynamic = False
+        self.default_value = raw.default_value
+        if raw.default_value is not None and raw.default_value.WhichOneof("data") is None:
+            self.default_value = None
+        self.is_dynamic = raw.is_dynamic
+        self.nullable = raw.nullable
 
         for type_param in raw.type_params:
             if type_param.key == "params":
@@ -77,6 +80,8 @@ class FieldSchema:
         self.indexes.extend([index_dict])
 
     def dict(self):
+        if self.default_value is not None and self.default_value.WhichOneof("data") is None:
+            self.default_value = None
         _dict = {
             "field_id": self.field_id,
             "name": self.name,
@@ -94,6 +99,8 @@ class FieldSchema:
             _dict["is_dynamic"] = True
         if self.auto_id:
             _dict["auto_id"] = True
+        if self.nullable:
+            _dict["nullable"] = True
         if self.is_primary:
             _dict["is_primary"] = self.is_primary
         if self.is_clustering_key:
@@ -442,38 +449,73 @@ class SearchResult(list):
                 is_dynamic=field.is_dynamic,
             )
             if dtype == DataType.BOOL:
-                field2data[name] = scalars.bool_data.data[start:end], field_meta
+                field2data[name] = (
+                    apply_valid_data(
+                        scalars.bool_data.data[start:end], field.valid_data, start, end
+                    ),
+                    field_meta,
+                )
                 continue
 
             if dtype in (DataType.INT8, DataType.INT16, DataType.INT32):
-                field2data[name] = scalars.int_data.data[start:end], field_meta
+                field2data[name] = (
+                    apply_valid_data(
+                        scalars.int_data.data[start:end], field.valid_data, start, end
+                    ),
+                    field_meta,
+                )
                 continue
 
             if dtype == DataType.INT64:
-                field2data[name] = scalars.long_data.data[start:end], field_meta
+                field2data[name] = (
+                    apply_valid_data(
+                        scalars.long_data.data[start:end], field.valid_data, start, end
+                    ),
+                    field_meta,
+                )
                 continue
 
             if dtype == DataType.FLOAT:
-                field2data[name] = scalars.float_data.data[start:end], field_meta
+                field2data[name] = (
+                    apply_valid_data(
+                        scalars.float_data.data[start:end], field.valid_data, start, end
+                    ),
+                    field_meta,
+                )
                 continue
 
             if dtype == DataType.DOUBLE:
-                field2data[name] = scalars.double_data.data[start:end], field_meta
+                field2data[name] = (
+                    apply_valid_data(
+                        scalars.double_data.data[start:end], field.valid_data, start, end
+                    ),
+                    field_meta,
+                )
                 continue
 
             if dtype == DataType.VARCHAR:
-                field2data[name] = scalars.string_data.data[start:end], field_meta
+                field2data[name] = (
+                    apply_valid_data(
+                        scalars.string_data.data[start:end], field.valid_data, start, end
+                    ),
+                    field_meta,
+                )
                 continue
 
             if dtype == DataType.JSON:
-                json_dict_list = list(map(ujson.loads, scalars.json_data.data[start:end]))
+                res = apply_valid_data(
+                    scalars.json_data.data[start:end], field.valid_data, start, end
+                )
+                json_dict_list = list(map(ujson.loads, res))
                 field2data[name] = json_dict_list, field_meta
                 continue
 
             if dtype == DataType.ARRAY:
-                topk_array_fields = scalars.array_data.data[start:end]
+                res = apply_valid_data(
+                    scalars.array_data.data[start:end], field.valid_data, start, end
+                )
                 field2data[name] = (
-                    extract_array_row_data(topk_array_fields, scalars.array_data.element_type),
+                    extract_array_row_data(res, scalars.array_data.element_type),
                     field_meta,
                 )
                 continue
@@ -647,6 +689,10 @@ def extract_array_row_data(
 ) -> List[List[Any]]:
     row = []
     for ith_array in scalars:
+        if ith_array is None:
+            row.append(None)
+            continue
+
         if element_type == DataType.INT64:
             row.append(ith_array.long_data.data)
             continue
@@ -671,6 +717,16 @@ def extract_array_row_data(
             row.append(ith_array.string_data.data)
             continue
     return row
+
+
+def apply_valid_data(
+    data: List[Any], valid_data: Union[None, List[bool]], start: int, end: int
+) -> List[Any]:
+    if valid_data:
+        for i, valid in enumerate(valid_data[start:end]):
+            if not valid:
+                data[i] = None
+    return data
 
 
 class LoopBase:

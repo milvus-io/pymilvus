@@ -14,7 +14,7 @@ import copy
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
-from pandas.api.types import is_list_like
+from pandas.api.types import is_list_like, is_scalar
 
 from pymilvus.exceptions import (
     AutoIDException,
@@ -25,14 +25,17 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     FieldsTypeException,
     FieldTypeException,
+    ParamError,
     PartitionKeyException,
     PrimaryKeyException,
     SchemaNotReadyException,
 )
+from pymilvus.grpc_gen import schema_pb2 as schema_types
 
 from .constants import COMMON_TYPE_PARAMS
 from .types import (
     DataType,
+    infer_dtype_by_scalar_data,
     infer_dtype_bydata,
     map_numpy_dtype_to_datatype,
 )
@@ -304,6 +307,7 @@ class FieldSchema:
             raise PrimaryKeyException(message=ExceptionsMessage.IsPrimaryType)
         self.is_primary = kwargs.get("is_primary", False)
         self.is_dynamic = kwargs.get("is_dynamic", False)
+        self.nullable = kwargs.get("nullable", False)
         self.auto_id = kwargs.get("auto_id", False)
         if "auto_id" in kwargs:
             if not isinstance(self.auto_id, bool):
@@ -317,6 +321,12 @@ class FieldSchema:
             raise ClusteringKeyException(message=ExceptionsMessage.IsClusteringKeyType)
         self.is_partition_key = kwargs.get("is_partition_key", False)
         self.is_clustering_key = kwargs.get("is_clustering_key", False)
+        self.default_value = kwargs.get("default_value", None)
+        if isinstance(self.default_value, schema_types.ValueField):
+            if self.default_value.WhichOneof("data") is None:
+                self.default_value = None
+        else:
+            self.default_value = infer_default_value_bydata(kwargs.get("default_value", None))
         self.element_type = kwargs.get("element_type", None)
         self._parse_type_params()
 
@@ -359,7 +369,9 @@ class FieldSchema:
             kwargs["auto_id"] = raw.get("auto_id")
         kwargs["is_partition_key"] = raw.get("is_partition_key", False)
         kwargs["is_clustering_key"] = raw.get("is_clustering_key", False)
+        kwargs["default_value"] = raw.get("default_value")
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
+        kwargs["nullable"] = raw.get("nullable", False)
         kwargs["element_type"] = raw.get("element_type")
         return FieldSchema(raw["name"], raw["type"], raw.get("description", ""), **kwargs)
 
@@ -376,8 +388,14 @@ class FieldSchema:
             _dict["auto_id"] = self.auto_id
         if self.is_partition_key:
             _dict["is_partition_key"] = True
+        if self.default_value is not None:
+            if self.default_value.WhichOneof("data") is None:
+                self.default_value = None
+            _dict["default_value"] = self.default_value
         if self.is_dynamic:
             _dict["is_dynamic"] = self.is_dynamic
+        if self.nullable:
+            _dict["nullable"] = self.nullable
         if self.dtype == DataType.ARRAY and self.element_type:
             _dict["element_type"] = self.element_type
         if self.is_clustering_key:
@@ -599,3 +617,27 @@ def check_schema(schema: CollectionSchema):
             vector_fields.append(field.name)
     if len(vector_fields) < 1:
         raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
+
+
+def infer_default_value_bydata(data: Any):
+    if data is None:
+        return None
+    default_data = schema_types.ValueField()
+    d_type = DataType.UNKNOWN
+    if is_scalar(data):
+        d_type = infer_dtype_by_scalar_data(data)
+    if d_type is DataType.BOOL:
+        default_data.bool_data = data
+    elif d_type in (DataType.INT8, DataType.INT16, DataType.INT32):
+        default_data.int_data = data
+    elif d_type is DataType.INT64:
+        default_data.long_data = data
+    elif d_type is DataType.FLOAT:
+        default_data.float_data = data
+    elif d_type is DataType.DOUBLE:
+        default_data.double_data = data
+    elif d_type is DataType.VARCHAR:
+        default_data.string_data = data
+    else:
+        raise ParamError(message=f"Default value unsupported data type: {d_type}")
+    return default_data
