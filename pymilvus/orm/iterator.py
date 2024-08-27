@@ -51,8 +51,7 @@ def extend_batch_size(batch_size: int, next_param: dict, to_extend_batch_size: b
         extend_rate = DEFAULT_SEARCH_EXTENSION_RATE
     if EF in next_param[PARAMS]:
         real_batch = min(MAX_BATCH_SIZE, batch_size * extend_rate, next_param[PARAMS][EF])
-        if next_param[PARAMS][EF] > real_batch:
-            next_param[PARAMS][EF] = real_batch
+        next_param[PARAMS][EF] = min(real_batch, next_param[PARAMS][EF])
         return real_batch
     return min(MAX_BATCH_SIZE, batch_size * extend_rate)
 

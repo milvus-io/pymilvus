@@ -52,6 +52,11 @@ class FieldSchema:
 
                 self.params[type_param.key] = json.loads(type_param.value)
             else:
+                if type_param.key in ["mmap.enabled"]:
+                    self.params["mmap_enabled"] = (
+                        bool(type_param.value) if type_param.value.lower() != "false" else False
+                    )
+                    continue
                 self.params[type_param.key] = type_param.value
                 if type_param.key in ["dim"]:
                     self.params[type_param.key] = int(type_param.value)
