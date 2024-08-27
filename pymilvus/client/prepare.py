@@ -124,6 +124,8 @@ class Prepare:
                 data_type=f.dtype,
                 description=f.description,
                 is_primary_key=f.is_primary,
+                default_value=f.default_value,
+                nullable=f.nullable,
                 autoID=f.auto_id,
                 is_partition_key=f.is_partition_key,
                 is_dynamic=f.is_dynamic,
@@ -163,6 +165,10 @@ class Prepare:
                 msg = "int64 and varChar are the only supported types of primary key"
                 raise ParamError(message=msg)
             primary_field = field_name
+
+        nullable = field.get("nullable", False)
+        if not isinstance(nullable, bool):
+            raise ParamError(message="nullable must be boolean")
 
         auto_id = field.get("auto_id", False)
         if not isinstance(auto_id, bool):
@@ -388,8 +394,12 @@ class Prepare:
 
                     if k in fields_data:
                         field_info, field_data = field_info_map[k], fields_data[k]
-                        entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
-
+                        if field_info.get("nullable", False) or field_info.get(
+                            "default_value", None
+                        ):
+                            field_data.valid_data.append(v is not None)
+                        if v is not None:
+                            entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
                 json_dict = {
                     k: v for k, v in entity.items() if k not in fields_data and enable_dynamic
                 }
@@ -533,17 +543,22 @@ class Prepare:
         try:
             for entity in entities:
                 latest_field_size = entity_helper.get_input_num_rows(entity.get("values"))
-                if pre_field_size not in (0, latest_field_size):
-                    raise ParamError(
-                        message=(
-                            f"Field data size misaligned for field [{entity.get('name')}] ",
-                            f"got size=[{latest_field_size}] ",
-                            f"alignment size=[{pre_field_size}]",
+                if latest_field_size != 0:
+                    if pre_field_size not in (0, latest_field_size):
+                        raise ParamError(
+                            message=(
+                                f"Field data size misaligned for field [{entity.get('name')}] ",
+                                f"got size=[{latest_field_size}] ",
+                                f"alignment size=[{pre_field_size}]",
+                            )
                         )
-                    )
-                pre_field_size = latest_field_size
+                    pre_field_size = latest_field_size
+            if pre_field_size == 0:
+                raise ParamError(message=ExceptionsMessage.NumberRowsInvalid)
+            request.num_rows = pre_field_size
+            for entity in entities:
                 field_data = entity_helper.entity_to_field_data(
-                    entity, fields_info[location[entity.get("name")]]
+                    entity, fields_info[location[entity.get("name")]], request.num_rows
                 )
                 request.fields_data.append(field_data)
         except (TypeError, ValueError) as e:
