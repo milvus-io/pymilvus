@@ -131,7 +131,9 @@ class Prepare:
                 is_clustering_key=f.is_clustering_key,
             )
             for k, v in f.params.items():
-                kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
+                kv_pair = common_types.KeyValuePair(
+                    key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=str(v)
+                )
                 field_schema.type_params.append(kv_pair)
 
             schema.fields.append(field_schema)
@@ -188,7 +190,12 @@ class Prepare:
         type_params = field.get("params", {})
         if not isinstance(type_params, dict):
             raise ParamError(message="params should be dictionary type")
-        kvs = [common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in type_params.items()]
+        kvs = [
+            common_types.KeyValuePair(
+                key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=str(v)
+            )
+            for k, v in type_params.items()
+        ]
         field_schema.type_params.extend(kvs)
 
         return field_schema, primary_field, auto_id_field
