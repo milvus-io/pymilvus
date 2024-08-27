@@ -318,6 +318,8 @@ class FieldSchema:
         self.is_partition_key = kwargs.get("is_partition_key", False)
         self.is_clustering_key = kwargs.get("is_clustering_key", False)
         self.element_type = kwargs.get("element_type", None)
+        if "mmap_enabled" in kwargs:
+            self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
         self._parse_type_params()
 
     def __repr__(self) -> str:

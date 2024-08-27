@@ -267,10 +267,8 @@ class Buffer:
             buffer_row_count = kwargs.get("buffer_row_count", 1)
             size_per_row = int(buffer_size / buffer_row_count) + 1
             row_group_size = int(row_group_bytes / size_per_row)
-            if row_group_size < row_group_size_min:
-                row_group_size = row_group_size_min
-            if row_group_size > row_group_size_max:
-                row_group_size = row_group_size_max
+            row_group_size = max(row_group_size, row_group_size_min)
+            row_group_size = min(row_group_size, row_group_size_max)
 
         # write to Parquet file
         data_frame = pd.DataFrame(data=data)
