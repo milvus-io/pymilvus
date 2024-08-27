@@ -328,6 +328,8 @@ class FieldSchema:
         else:
             self.default_value = infer_default_value_bydata(kwargs.get("default_value", None))
         self.element_type = kwargs.get("element_type", None)
+        if "mmap_enabled" in kwargs:
+            self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
         self._parse_type_params()
 
     def __repr__(self) -> str:
