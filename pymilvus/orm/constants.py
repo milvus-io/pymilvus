@@ -10,7 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-COMMON_TYPE_PARAMS = ("dim", "max_length", "max_capacity")
+COMMON_TYPE_PARAMS = ("dim", "max_length", "max_capacity", "enable_match")
 
 CALC_DIST_IDS = "ids"
 CALC_DIST_FLOAT_VEC = "float_vectors"
