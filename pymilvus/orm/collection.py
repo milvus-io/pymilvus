@@ -397,7 +397,7 @@ class Collection:
                     Specify resource groups which can be used during loading.
                 * *load_fields(``List[str]``)
                     Specify load fields list needed during this load
-                * *_skip_load_dynamic_field(``bool``)
+                * *skip_load_dynamic_field(``bool``)
                     Specify whether this load shall skip dynamic schmea field
 
         Raises:
