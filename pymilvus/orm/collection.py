@@ -391,10 +391,14 @@ class Collection:
                 * *_async*(``bool``)
                     Indicate if invoke asynchronously.
 
-                * *_refresh*(``bool``)
+                * *refresh*(``bool``)
                     Whether to renew the segment list of this collection before loading
-                * *_resource_groups(``List[str]``)
+                * *resource_groups(``List[str]``)
                     Specify resource groups which can be used during loading.
+                * *load_fields(``List[str]``)
+                    Specify load fields list needed during this load
+                * *_skip_load_dynamic_field(``bool``)
+                    Specify whether this load shall skip dynamic schmea field
 
         Raises:
             MilvusException: If anything goes wrong.
