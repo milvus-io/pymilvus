@@ -1142,25 +1142,31 @@ class GrpcHandler:
         check_pass_param(
             collection_name=collection_name, replica_number=replica_number, timeout=timeout
         )
-        _refresh = kwargs.get("_refresh", False)
-        _resource_groups = kwargs.get("_resource_groups")
-        _load_fields = kwargs.get("_load_fields")
-        _skip_load_dynamic_field = kwargs.get("_skip_load_dynamic_field", False)
+        # leading _ is misused for keywork escape for `async`
+        # other params now support prefix _ or not
+        # params without leading "_" have higher priority
+        refresh = kwargs.get("refresh", kwargs.get("_refresh", False))
+        resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
+        load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
+        skip_load_dynamic_field = kwargs.get(
+            "skip_load_dynamic_field", kwargs.get("_skip_load_dynamic_field", False)
+        )
+
         request = Prepare.load_collection(
             "",
             collection_name,
             replica_number,
-            _refresh,
-            _resource_groups,
-            _load_fields,
-            _skip_load_dynamic_field,
+            refresh,
+            resource_groups,
+            load_fields,
+            skip_load_dynamic_field,
         )
         rf = self._stub.LoadCollection.future(request, timeout=timeout)
         response = rf.result()
         check_status(response)
         _async = kwargs.get("_async", False)
         if not _async:
-            self.wait_for_loading_collection(collection_name, timeout, is_refresh=_refresh)
+            self.wait_for_loading_collection(collection_name, timeout, is_refresh=refresh)
 
     @retry_on_rpc_failure()
     def load_collection_progress(self, collection_name: str, timeout: Optional[float] = None):
@@ -1213,19 +1219,25 @@ class GrpcHandler:
             replica_number=replica_number,
             timeout=timeout,
         )
-        _refresh = kwargs.get("_refresh", False)
-        _resource_groups = kwargs.get("_resource_groups")
-        _load_fields = kwargs.get("_load_fields")
-        _skip_load_dynamic_field = kwargs.get("_skip_load_dynamic_field", False)
+        # leading _ is misused for keywork escape for `async`
+        # other params now support prefix _ or not
+        # params without leading "_" have higher priority
+        refresh = kwargs.get("refresh", kwargs.get("_refresh", False))
+        resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
+        load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
+        skip_load_dynamic_field = kwargs.get(
+            "skip_load_dynamic_field", kwargs.get("_skip_load_dynamic_field", False)
+        )
+
         request = Prepare.load_partitions(
             "",
             collection_name,
             partition_names,
             replica_number,
-            _refresh,
-            _resource_groups,
-            _load_fields,
-            _skip_load_dynamic_field,
+            refresh,
+            resource_groups,
+            load_fields,
+            skip_load_dynamic_field,
         )
         future = self._stub.LoadPartitions.future(request, timeout=timeout)
 
@@ -1234,7 +1246,7 @@ class GrpcHandler:
             def _check():
                 if kwargs.get("sync", True):
                     self.wait_for_loading_partitions(
-                        collection_name, partition_names, is_refresh=_refresh
+                        collection_name, partition_names, is_refresh=refresh
                     )
 
             load_partitions_future = LoadPartitionsFuture(future)
@@ -1250,7 +1262,7 @@ class GrpcHandler:
         check_status(response)
         sync = kwargs.get("sync", True)
         if sync:
-            self.wait_for_loading_partitions(collection_name, partition_names, is_refresh=_refresh)
+            self.wait_for_loading_partitions(collection_name, partition_names, is_refresh=refresh)
             return None
         return None
 
