@@ -34,9 +34,9 @@ from pymilvus.bulk_writer import (
     LocalBulkWriter,
     RemoteBulkWriter,
     BulkFileType,
+    list_import_jobs,
     bulk_import,
     get_import_progress,
-    list_import_jobs,
 )
 
 # minio
@@ -411,10 +411,15 @@ def retrieve_imported_data():
         print(item)
 
 def cloud_bulkinsert():
-    url = "https://_your_cloud_server_url_"
-    api_key = "_api_key_for_the_url_"
-    cluster_id = "_your_cloud_instance_id_"
-    collection_name = "_collection_name_on_the_cloud_"
+    # The value of the URL is fixed.
+    # For overseas regions, it is: https://api.cloud.zilliz.com
+    # For regions in China, it is: https://api.cloud.zilliz.com.cn
+    url = "https://api.cloud.zilliz.com"
+    api_key = "_api_key_for_cluster_org_"
+    cluster_id = "_your_cloud_cluster_id_"
+    collection_name = "_collection_name_on_the_cluster_id_"
+    # If partition_name is not specified, use ""
+    partition_name = "_partition_name_on_the_collection_"
 
     print(f"\n===================== import files to cloud vectordb ====================")
     object_url = "_your_object_storage_service_url_"
@@ -428,6 +433,7 @@ def cloud_bulkinsert():
         secret_key=object_url_secret_key,
         cluster_id=cluster_id,
         collection_name=collection_name,
+        partition_name=partition_name,
     )
     print(resp.json())
 
