@@ -10,6 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+import csv
 import json
 import logging
 from pathlib import Path
@@ -42,10 +43,12 @@ class Buffer:
         self,
         schema: CollectionSchema,
         file_type: BulkFileType = BulkFileType.NUMPY,
+        config: dict = {},
     ):
         self._buffer = {}
         self._fields = {}
         self._file_type = file_type
+        self._config = config
         for field in schema.fields:
             if field.is_primary and field.auto_id:
                 continue
@@ -120,6 +123,8 @@ class Buffer:
             return self._persist_json_rows(local_path, **kwargs)
         if self._file_type == BulkFileType.PARQUET:
             return self._persist_parquet(local_path, **kwargs)
+        if self._file_type == BulkFileType.CSV:
+            return self._persist_csv(local_path, **kwargs)
 
         self._throw(f"Unsupported file tpye: {self._file_type}")
         return []
@@ -280,4 +285,69 @@ class Buffer:
             f"Successfully persist file {file_path}, total size: {buffer_size},"
             f" row count: {buffer_row_count}, row group size: {row_group_size}"
         )
+        return [str(file_path)]
+
+    def _persist_csv(self, local_path: str, **kwargs):
+        sep = self._config.get("sep", ",")
+        # nullkey = ""
+
+        header = list(self._buffer.keys())
+        data = []
+        data_count = len(next(iter(self._buffer.values())))
+        for i in range(data_count):
+            row = []
+            for name in header:
+                field_schema = self._fields[name]
+
+                # null is not supported yet
+                # if field_schema.nullable:
+                #     if field_schema.dtype in {
+                #         DataType.SPARSE_FLOAT_VECTOR,
+                #         DataType.BINARY_VECTOR,
+                #         DataType.FLOAT_VECTOR,
+                #         DataType.FLOAT16_VECTOR,
+                #         DataType.BFLOAT16_VECTOR,
+                #     }:
+                #         self._throw(f"vector field should not be nullable")
+                #     else:
+                #         row.append(
+                #             nullkey if self._buffer[name][i] is None else self._buffer[name][i]
+                #         )
+                #         continue
+
+                # convert to string
+                if field_schema.dtype in {
+                    DataType.JSON,
+                    DataType.ARRAY,
+                    DataType.SPARSE_FLOAT_VECTOR,
+                    DataType.BINARY_VECTOR,
+                    DataType.FLOAT_VECTOR,
+                }:
+                    row.append(json.dumps(self._buffer[name][i]))
+                elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
+                    row.append(
+                        json.dumps(
+                            np.frombuffer(
+                                self._buffer[name][i],
+                                dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name],
+                            )
+                        )
+                    )
+                elif field_schema.dtype in {DataType.BOOL}:
+                    row.append("true" if self._buffer[name][i] else "false")
+                else:
+                    row.append(str(self._buffer[name][i]))
+            data.append(row)
+
+        rows = [header] + data
+
+        file_path = Path(local_path + ".csv")
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                writer = csv.writer(f, delimiter=sep)
+                writer.writerows(rows)
+        except Exception as e:
+            self._throw(f"Failed to persist file {file_path}, error: {e}")
+
+        logger.info(f"Successfully persist file {file_path}, row count: {len(rows)}")
         return [str(file_path)]

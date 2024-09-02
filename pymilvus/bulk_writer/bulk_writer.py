@@ -13,6 +13,7 @@
 import json
 import logging
 from threading import Lock
+from typing import Optional
 
 import numpy as np
 
@@ -39,6 +40,7 @@ class BulkWriter:
         schema: CollectionSchema,
         chunk_size: int,
         file_type: BulkFileType,
+        config: Optional[dict] = None,
         **kwargs,
     ):
         self._schema = schema
@@ -47,6 +49,7 @@ class BulkWriter:
         self._total_row_count = 0
         self._file_type = file_type
         self._buffer_lock = Lock()
+        self._config = config or {}
 
         # the old parameter segment_size is changed to chunk_size, compatible with the legacy code
         self._chunk_size = chunk_size
@@ -82,7 +85,7 @@ class BulkWriter:
     def _new_buffer(self):
         old_buffer = self._buffer
         with self._buffer_lock:
-            self._buffer = Buffer(self._schema, self._file_type)
+            self._buffer = Buffer(self._schema, self._file_type, self._config)
         return old_buffer
 
     def append_row(self, row: dict, **kwargs):
