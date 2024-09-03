@@ -1,5 +1,7 @@
 import pytest
+import json
 
+from pymilvus.client.constants import PAGE_RETAIN_ORDER_FIELD
 from pymilvus.client.prepare import Prepare
 from pymilvus import DataType, MilvusException, CollectionSchema, FieldSchema
 from pymilvus import DefaultConfig
@@ -24,20 +26,23 @@ class TestPrepare:
         search_params = {
             "metric_type": "L2",
             "offset": 10,
-            "page_retain_order": True,
+            "params": {"page_retain_order": True}
         }
 
         ret = Prepare.search_requests_with_expr("name", data, "v", search_params, 100)
 
         offset_exists = False
         page_retain_order_exists = False
+        print(ret.search_params)
         for p in ret.search_params:
             if p.key == "offset":
                 offset_exists = True
                 assert p.value == "10"
-            elif p.key == "page_retain_order":
-                page_retain_order_exists = True
-                assert p.value == "True" # it was dumped as string
+            elif p.key == "params":
+                params = json.loads(p.value)
+                if PAGE_RETAIN_ORDER_FIELD in params:
+                    page_retain_order_exists = True
+                    assert  params[PAGE_RETAIN_ORDER_FIELD] == True
 
         assert offset_exists is True
         assert page_retain_order_exists is True
