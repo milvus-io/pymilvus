@@ -16,6 +16,8 @@ connections.connect("default", host="localhost", port="19530")
 
 has = utility.has_collection("hello_milvus")
 print(f"Does collection hello_milvus exist in Milvus: {has}")
+if has:
+    utility.drop_collection("hello_milvus")
 
 fields = [
     FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=100),
