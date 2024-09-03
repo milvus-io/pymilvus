@@ -681,8 +681,6 @@ class Collection:
                     similar metricy types, the value must be of type str.
                 * *offset* (``int``, optional)
                     offset for pagination.
-                * *page_retain_order* (``bool``, optional)
-                    Whether to retain the order of the search result when offset is provided.
                 * *params of index: *nprobe*, *ef*, *search_k*, etc
                     Corresponding search params for a certain index.
                 example for param::
@@ -690,7 +688,6 @@ class Collection:
                     {
                         "metric_type": "L2",
                         "offset": 10,
-                        "page_retain_order": True,
                         "params": {"nprobe": 12},
                     }
 
@@ -722,9 +719,6 @@ class Collection:
 
                 * *offset* (``int``, optinal)
                     offset for pagination.
-
-                * *page_retain_order* (``bool``, optional)
-                    Whether to retain the order of the search result when offset is provided.
 
                 * *consistency_level* (``str/int``, optional)
                     Which consistency level to use when searching in the collection.
