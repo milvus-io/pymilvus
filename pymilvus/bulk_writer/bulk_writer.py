@@ -49,7 +49,7 @@ class BulkWriter:
         self._total_row_count = 0
         self._file_type = file_type
         self._buffer_lock = Lock()
-        self._config = config or {}
+        self._config = config
 
         # the old parameter segment_size is changed to chunk_size, compatible with the legacy code
         self._chunk_size = chunk_size

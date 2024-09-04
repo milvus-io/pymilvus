@@ -14,6 +14,7 @@ import csv
 import json
 import logging
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -43,12 +44,12 @@ class Buffer:
         self,
         schema: CollectionSchema,
         file_type: BulkFileType = BulkFileType.NUMPY,
-        config: dict = {},
+        config: Optional[dict] = None,
     ):
         self._buffer = {}
         self._fields = {}
         self._file_type = file_type
-        self._config = config
+        self._config = config or {}
         for field in schema.fields:
             if field.is_primary and field.auto_id:
                 continue
@@ -289,7 +290,6 @@ class Buffer:
 
     def _persist_csv(self, local_path: str, **kwargs):
         sep = self._config.get("sep", ",")
-        # nullkey = ""
 
         header = list(self._buffer.keys())
         data = []
@@ -300,21 +300,6 @@ class Buffer:
                 field_schema = self._fields[name]
 
                 # null is not supported yet
-                # if field_schema.nullable:
-                #     if field_schema.dtype in {
-                #         DataType.SPARSE_FLOAT_VECTOR,
-                #         DataType.BINARY_VECTOR,
-                #         DataType.FLOAT_VECTOR,
-                #         DataType.FLOAT16_VECTOR,
-                #         DataType.BFLOAT16_VECTOR,
-                #     }:
-                #         self._throw(f"vector field should not be nullable")
-                #     else:
-                #         row.append(
-                #             nullkey if self._buffer[name][i] is None else self._buffer[name][i]
-                #         )
-                #         continue
-
                 # convert to string
                 if field_schema.dtype in {
                     DataType.JSON,
@@ -339,11 +324,11 @@ class Buffer:
                     row.append(str(self._buffer[name][i]))
             data.append(row)
 
-        rows = [header] + data
+        rows = [header, *data]
 
         file_path = Path(local_path + ".csv")
         try:
-            with open(file_path, "w", encoding="utf-8") as f:
+            with file_path.open("w", encoding="utf-8") as f:
                 writer = csv.writer(f, delimiter=sep)
                 writer.writerows(rows)
         except Exception as e:
