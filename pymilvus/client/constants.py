@@ -11,6 +11,8 @@ DEFAULT_RESOURCE_GROUP = "__default_resource_group"
 REDUCE_STOP_FOR_BEST = "reduce_stop_for_best"
 GROUP_BY_FIELD = "group_by_field"
 GROUP_SIZE = "group_size"
+RANK_GROUP_SCORER = "rank_group_scorer"
+GROUP_STRICT_SIZE = "group_strict_size"
 ITERATOR_FIELD = "iterator"
 PAGE_RETAIN_ORDER_FIELD = "page_retain_order"
 
