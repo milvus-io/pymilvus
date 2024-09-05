@@ -1461,12 +1461,14 @@ class CreateRoleRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., entity: _Optional[_Union[RoleEntity, _Mapping]] = ...) -> None: ...
 
 class DropRoleRequest(_message.Message):
-    __slots__ = ("base", "role_name")
+    __slots__ = ("base", "role_name", "force_drop")
     BASE_FIELD_NUMBER: _ClassVar[int]
     ROLE_NAME_FIELD_NUMBER: _ClassVar[int]
+    FORCE_DROP_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     role_name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., role_name: _Optional[str] = ...) -> None: ...
+    force_drop: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., role_name: _Optional[str] = ..., force_drop: bool = ...) -> None: ...
 
 class OperateUserRoleRequest(_message.Message):
     __slots__ = ("base", "username", "role_name", "type")
@@ -1597,6 +1599,48 @@ class OperatePrivilegeRequest(_message.Message):
     entity: GrantEntity
     type: OperatePrivilegeType
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., entity: _Optional[_Union[GrantEntity, _Mapping]] = ..., type: _Optional[_Union[OperatePrivilegeType, str]] = ...) -> None: ...
+
+class UserInfo(_message.Message):
+    __slots__ = ("user", "password", "roles")
+    USER_FIELD_NUMBER: _ClassVar[int]
+    PASSWORD_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
+    user: str
+    password: str
+    roles: _containers.RepeatedCompositeFieldContainer[RoleEntity]
+    def __init__(self, user: _Optional[str] = ..., password: _Optional[str] = ..., roles: _Optional[_Iterable[_Union[RoleEntity, _Mapping]]] = ...) -> None: ...
+
+class RBACMeta(_message.Message):
+    __slots__ = ("users", "roles", "grants")
+    USERS_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
+    GRANTS_FIELD_NUMBER: _ClassVar[int]
+    users: _containers.RepeatedCompositeFieldContainer[UserInfo]
+    roles: _containers.RepeatedCompositeFieldContainer[RoleEntity]
+    grants: _containers.RepeatedCompositeFieldContainer[GrantEntity]
+    def __init__(self, users: _Optional[_Iterable[_Union[UserInfo, _Mapping]]] = ..., roles: _Optional[_Iterable[_Union[RoleEntity, _Mapping]]] = ..., grants: _Optional[_Iterable[_Union[GrantEntity, _Mapping]]] = ...) -> None: ...
+
+class BackupRBACMetaRequest(_message.Message):
+    __slots__ = ("base",)
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ...) -> None: ...
+
+class BackupRBACMetaResponse(_message.Message):
+    __slots__ = ("status", "RBAC_meta")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RBAC_META_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    RBAC_meta: RBACMeta
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., RBAC_meta: _Optional[_Union[RBACMeta, _Mapping]] = ...) -> None: ...
+
+class RestoreRBACMetaRequest(_message.Message):
+    __slots__ = ("base", "RBAC_meta")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    RBAC_META_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    RBAC_meta: RBACMeta
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., RBAC_meta: _Optional[_Union[RBACMeta, _Mapping]] = ...) -> None: ...
 
 class GetLoadingProgressRequest(_message.Message):
     __slots__ = ("base", "collection_name", "partition_names", "db_name")

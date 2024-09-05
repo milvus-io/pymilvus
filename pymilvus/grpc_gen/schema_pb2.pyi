@@ -29,6 +29,11 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BFloat16Vector: _ClassVar[DataType]
     SparseFloatVector: _ClassVar[DataType]
 
+class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    Unknown: _ClassVar[FunctionType]
+    BM25: _ClassVar[FunctionType]
+
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     FieldCreated: _ClassVar[FieldState]
@@ -53,6 +58,8 @@ FloatVector: DataType
 Float16Vector: DataType
 BFloat16Vector: DataType
 SparseFloatVector: DataType
+Unknown: FunctionType
+BM25: FunctionType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
@@ -92,21 +99,43 @@ class FieldSchema(_message.Message):
     nullable: bool
     def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ..., element_type: _Optional[_Union[DataType, str]] = ..., default_value: _Optional[_Union[ValueField, _Mapping]] = ..., is_dynamic: bool = ..., is_partition_key: bool = ..., is_clustering_key: bool = ..., nullable: bool = ...) -> None: ...
 
+class FunctionSchema(_message.Message):
+    __slots__ = ("name", "id", "type", "input_field_names", "input_field_ids", "output_field_names", "output_field_ids", "params")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NAMES_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_IDS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELD_NAMES_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELD_IDS_FIELD_NUMBER: _ClassVar[int]
+    PARAMS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    id: int
+    type: FunctionType
+    input_field_names: _containers.RepeatedScalarFieldContainer[str]
+    input_field_ids: _containers.RepeatedScalarFieldContainer[int]
+    output_field_names: _containers.RepeatedScalarFieldContainer[str]
+    output_field_ids: _containers.RepeatedScalarFieldContainer[int]
+    params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    def __init__(self, name: _Optional[str] = ..., id: _Optional[int] = ..., type: _Optional[_Union[FunctionType, str]] = ..., input_field_names: _Optional[_Iterable[str]] = ..., input_field_ids: _Optional[_Iterable[int]] = ..., output_field_names: _Optional[_Iterable[str]] = ..., output_field_ids: _Optional[_Iterable[int]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     ENABLE_DYNAMIC_FIELD_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    FUNCTIONS_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     autoID: bool
     fields: _containers.RepeatedCompositeFieldContainer[FieldSchema]
     enable_dynamic_field: bool
     properties: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+    functions: _containers.RepeatedCompositeFieldContainer[FunctionSchema]
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ...) -> None: ...
 
 class BoolArray(_message.Message):
     __slots__ = ("data",)
