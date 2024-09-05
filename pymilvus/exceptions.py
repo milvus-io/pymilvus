@@ -229,4 +229,7 @@ class ExceptionsMessage:
     ClusteringKeyOnlyOne = "Expected only one clustering key field, got [%s, %s, ...]."
     IsClusteringKeyType = "Param is_clustering_key must be bool type."
     ClusteringKeyFieldType = "Param clustering_key_field must be str type."
-    UpsertPrimaryKeyEmpty = "Upsert need to assign pk"
+    UpsertPrimaryKeyEmpty = "Upsert need to assign pk."
+    DefaultValueInvalid = (
+        "Default value cannot be None for a field that is defined as nullable == false."
+    )

@@ -322,6 +322,8 @@ class FieldSchema:
         self.is_partition_key = kwargs.get("is_partition_key", False)
         self.is_clustering_key = kwargs.get("is_clustering_key", False)
         self.default_value = kwargs.get("default_value", None)
+        if "default_value" in kwargs and self.default_value is None and not self.nullable:
+            raise ParamError(message=ExceptionsMessage.DefaultValueInvalid)
         if isinstance(self.default_value, schema_types.ValueField):
             if self.default_value.WhichOneof("data") is None:
                 self.default_value = None
@@ -371,7 +373,8 @@ class FieldSchema:
             kwargs["auto_id"] = raw.get("auto_id")
         kwargs["is_partition_key"] = raw.get("is_partition_key", False)
         kwargs["is_clustering_key"] = raw.get("is_clustering_key", False)
-        kwargs["default_value"] = raw.get("default_value")
+        if raw.get("default_value") is not None:
+            kwargs["default_value"] = raw.get("default_value")
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
         kwargs["nullable"] = raw.get("nullable", False)
         kwargs["element_type"] = raw.get("element_type")
