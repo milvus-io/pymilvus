@@ -16,8 +16,10 @@ from .constants import (
     DEFAULT_CONSISTENCY_LEVEL,
     GROUP_BY_FIELD,
     GROUP_SIZE,
+    GROUP_STRICT_SIZE,
     ITERATOR_FIELD,
     PAGE_RETAIN_ORDER_FIELD,
+    RANK_GROUP_SCORER,
     REDUCE_STOP_FOR_BEST,
 )
 from .types import (
@@ -739,6 +741,10 @@ class Prepare:
         if group_size is not None:
             search_params[GROUP_SIZE] = group_size
 
+        group_strict_size = kwargs.get(GROUP_STRICT_SIZE)
+        if group_strict_size is not None:
+            search_params[GROUP_STRICT_SIZE] = group_strict_size
+
         if param.get("metric_type") is not None:
             search_params["metric_type"] = param["metric_type"]
 
@@ -803,6 +809,10 @@ class Prepare:
             ]
         )
 
+        group_scorer = kwargs.get(RANK_GROUP_SCORER, "max")
+        request.rank_params.extend(
+            [common_types.KeyValuePair(key=RANK_GROUP_SCORER, value=group_scorer)]
+        )
         return request
 
     @classmethod
