@@ -84,3 +84,4 @@ class BulkFileType(IntEnum):
     JSON = 2
     JSON_RB = 2  # deprecated
     PARQUET = 3
+    CSV = 4

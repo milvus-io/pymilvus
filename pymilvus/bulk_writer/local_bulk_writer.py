@@ -37,9 +37,10 @@ class LocalBulkWriter(BulkWriter):
         local_path: str,
         chunk_size: int = 128 * MB,
         file_type: BulkFileType = BulkFileType.PARQUET,
+        config: Optional[dict] = None,
         **kwargs,
     ):
-        super().__init__(schema, chunk_size, file_type, **kwargs)
+        super().__init__(schema, chunk_size, file_type, config, **kwargs)
         self._local_path = local_path
         self._uuid = str(uuid.uuid4())
         self._flush_count = 0

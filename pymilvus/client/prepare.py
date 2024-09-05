@@ -1103,7 +1103,7 @@ class Prepare:
             req.channel_names.extend(channel_names)
 
         for k, v in kwargs.items():
-            if k in ("bucket", "backup"):
+            if k in ("bucket", "backup", "sep", "nullkey"):
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
                 req.options.append(kv_pair)
 

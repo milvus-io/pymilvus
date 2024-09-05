@@ -110,10 +110,11 @@ class RemoteBulkWriter(LocalBulkWriter):
         connect_param: Optional[Union[S3ConnectParam, AzureConnectParam]],
         chunk_size: int = 1024 * MB,
         file_type: BulkFileType = BulkFileType.PARQUET,
+        config: Optional[dict] = None,
         **kwargs,
     ):
         local_path = Path(sys.argv[0]).resolve().parent.joinpath("bulk_writer")
-        super().__init__(schema, str(local_path), chunk_size, file_type, **kwargs)
+        super().__init__(schema, str(local_path), chunk_size, file_type, config, **kwargs)
         self._remote_path = Path("/").joinpath(remote_path).joinpath(super().uuid)
         self._connect_param = connect_param
         self._client = None
@@ -279,7 +280,7 @@ class RemoteBulkWriter(LocalBulkWriter):
 
             for file_path in file_list:
                 ext = Path(file_path).suffix
-                if ext not in [".json", ".npy", ".parquet"]:
+                if ext not in [".json", ".npy", ".parquet", ".csv"]:
                     continue
 
                 relative_file_path = str(file_path).replace(str(super().data_path), "")
