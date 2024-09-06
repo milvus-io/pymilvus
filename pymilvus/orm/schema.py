@@ -354,7 +354,6 @@ class FieldSchema:
             return
         if not self._kwargs:
             return
-        # currently only support "dim", "max_length", "max_capacity"
         if self._kwargs:
             for k in COMMON_TYPE_PARAMS:
                 if k in self._kwargs:
