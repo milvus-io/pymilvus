@@ -4,6 +4,7 @@ import logging
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
+from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
     ExceptionsMessage,
@@ -281,6 +282,77 @@ class MilvusClient:
                 "cost": res.cost,
             }
         )
+
+    def hybrid_search(
+        self,
+        collection_name: str,
+        reqs: List[AnnSearchRequest],
+        ranker: BaseRanker,
+        limit: int = 10,
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        partition_names: Optional[List[str]] = None,
+        **kwargs,
+    ) -> List[List[dict]]:
+        """Conducts multi vector similarity search with a rerank for rearrangement.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            reqs (``List[AnnSearchRequest]``): The vector search requests.
+            ranker (``BaseRanker``): The ranker for rearrange nummer of limit results.
+            limit (``int``): The max number of returned record, also known as `topk`.
+
+            partition_names (``List[str]``, optional): The names of partitions to search on.
+            output_fields (``List[str]``, optional):
+                The name of fields to return in the search result.  Can only get scalar fields.
+            round_decimal (``int``, optional):
+                The specified number of decimal places of returned distance.
+                Defaults to -1 means no round to returned distance.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional search params
+
+                * *offset* (``int``, optinal)
+                    offset for pagination.
+
+                * *consistency_level* (``str/int``, optional)
+                    Which consistency level to use when searching in the collection.
+
+                    Options of consistency level: Strong, Bounded, Eventually, Session, Customized.
+
+                    Note: this parameter overwrites the same one specified when creating collection,
+                    if no consistency level was specified, search will use the
+                    consistency level when you create the collection.
+
+        Returns:
+            List[List[dict]]: A nested list of dicts containing the result data.
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+
+        conn = self._get_connection()
+        try:
+            res = conn.hybrid_search(
+                collection_name,
+                reqs,
+                ranker,
+                limit=limit,
+                partition_names=partition_names,
+                output_fields=output_fields,
+                timeout=timeout,
+                **kwargs,
+            )
+        except Exception as ex:
+            logger.error("Failed to hybrid search collection: %s", collection_name)
+            raise ex from ex
+
+        ret = []
+        for hits in res:
+            ret.append([hit.to_dict() for hit in hits])
+
+        return ExtraList(ret, extra=construct_cost_extra(res.cost))
 
     def search(
         self,
