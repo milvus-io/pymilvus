@@ -6,6 +6,7 @@ from pymilvus import (
     FieldSchema, CollectionSchema, DataType,
     Collection,
 )
+import logging
 
 HOST = "localhost"
 PORT = "19530"
@@ -20,6 +21,28 @@ LIMIT = 5
 NUM_ENTITIES = 1000
 DIM = 8
 CLEAR_EXIST = False
+
+# Create a logger for the main script
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)  # Set the log level to INFO
+
+# Create a console handler and set its level to INFO
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+# Create a formatter for the console output
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Add the formatter to the handler
+console_handler.setFormatter(formatter)
+
+# Add the handler to the logger (this will apply globally)
+log.addHandler(console_handler)
+
+# Now, configure the root logger to apply to the entire app (including your package)
+logging.getLogger().setLevel(logging.INFO)  # Set the root logger level to INFO
+logging.getLogger().addHandler(console_handler)  # Attach the handler to the root logger
+
 
 
 def re_create_collection(skip_data_period: bool):
@@ -95,7 +118,7 @@ def query_iterate_collection_no_offset(collection):
 
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
                                                offset=0, batch_size=5, consistency_level=CONSISTENCY_LEVEL,
-                                               reduce_stop_for_best="false")
+                                               reduce_stop_for_best="false", print_iterator_cursor=True)
     no_best_ids: set = set({})
     page_idx = 0
     while True:
@@ -113,7 +136,7 @@ def query_iterate_collection_no_offset(collection):
     print("best---------------------------")
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
                                                offset=0, batch_size=5, consistency_level=CONSISTENCY_LEVEL,
-                                                   reduce_stop_for_best="true")
+                                                   reduce_stop_for_best="true", print_iterator_cursor=True)
     best_ids: set = set({})
     page_idx = 0
     while True:
@@ -136,7 +159,7 @@ def query_iterate_collection_no_offset(collection):
 def query_iterate_collection_with_offset(collection):
     expr = f"10 <= {AGE} <= 14"
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
-                                               offset=10, batch_size=50, consistency_level=CONSISTENCY_LEVEL)
+                                               offset=10, batch_size=50, consistency_level=CONSISTENCY_LEVEL, print_iterator_cursor=True)
     page_idx = 0
     while True:
         res = query_iterator.next()
@@ -153,7 +176,7 @@ def query_iterate_collection_with_offset(collection):
 def query_iterate_collection_with_limit(collection):
     expr = f"10 <= {AGE} <= 44"
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
-                                               batch_size=80, limit=530, consistency_level=CONSISTENCY_LEVEL)
+                                               batch_size=80, limit=530, consistency_level=CONSISTENCY_LEVEL, print_iterator_cursor=True)
     page_idx = 0
     while True:
         res = query_iterator.next()
@@ -177,7 +200,7 @@ def search_iterator_collection(collection):
         "params": {"nprobe": 10, "radius": 1.0},
     }
     search_iterator = collection.search_iterator(vectors_to_search, PICTURE, search_params, batch_size=500,
-                                                 output_fields=[USER_ID])
+                                                 output_fields=[USER_ID], print_iterator_cursor=True)
     page_idx = 0
     while True:
         res = search_iterator.next()
@@ -201,7 +224,7 @@ def search_iterator_collection_with_limit(collection):
         "params": {"nprobe": 10, "radius": 1.0},
     }
     search_iterator = collection.search_iterator(vectors_to_search, PICTURE, search_params, batch_size=200, limit=755,
-                                                 output_fields=[USER_ID])
+                                                 output_fields=[USER_ID], print_iterator_cursor=True)
     page_idx = 0
     while True:
         res = search_iterator.next()
@@ -216,7 +239,7 @@ def search_iterator_collection_with_limit(collection):
 
 
 def main():
-    skip_data_period = False
+    skip_data_period = True
     connections.connect("default", host=HOST, port=PORT)
     collection = re_create_collection(skip_data_period)
     if not skip_data_period:

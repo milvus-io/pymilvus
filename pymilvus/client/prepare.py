@@ -810,10 +810,42 @@ class Prepare:
             ]
         )
 
-        group_scorer = kwargs.get(RANK_GROUP_SCORER, "max")
-        request.rank_params.extend(
-            [common_types.KeyValuePair(key=RANK_GROUP_SCORER, value=group_scorer)]
-        )
+        if kwargs.get(RANK_GROUP_SCORER, None) is not None:
+            request.rank_params.extend(
+                [
+                    common_types.KeyValuePair(
+                        key=RANK_GROUP_SCORER, value=kwargs.get(RANK_GROUP_SCORER)
+                    )
+                ]
+            )
+
+        if kwargs.get(GROUP_BY_FIELD, None) is not None:
+            request.rank_params.extend(
+                [
+                    common_types.KeyValuePair(
+                        key=GROUP_BY_FIELD, value=utils.dumps(kwargs.get(GROUP_BY_FIELD))
+                    )
+                ]
+            )
+
+        if kwargs.get(GROUP_SIZE, None) is not None:
+            request.rank_params.extend(
+                [
+                    common_types.KeyValuePair(
+                        key=GROUP_SIZE, value=utils.dumps(kwargs.get(GROUP_SIZE))
+                    )
+                ]
+            )
+
+        if kwargs.get(GROUP_STRICT_SIZE, None) is not None:
+            request.rank_params.extend(
+                [
+                    common_types.KeyValuePair(
+                        key=GROUP_STRICT_SIZE, value=utils.dumps(kwargs.get(GROUP_STRICT_SIZE))
+                    )
+                ]
+            )
+
         return request
 
     @classmethod
@@ -1027,6 +1059,12 @@ class Prepare:
 
         ignore_growing = kwargs.get("ignore_growing", False)
         stop_reduce_for_best = kwargs.get(REDUCE_STOP_FOR_BEST, False)
+        is_iterator = kwargs.get(ITERATOR_FIELD)
+        if is_iterator is not None:
+            req.query_params.append(
+                common_types.KeyValuePair(key=ITERATOR_FIELD, value=is_iterator)
+            )
+
         req.query_params.append(
             common_types.KeyValuePair(key="ignore_growing", value=str(ignore_growing))
         )
