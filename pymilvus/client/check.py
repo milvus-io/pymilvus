@@ -187,7 +187,7 @@ def is_legal_search_data(data: Any) -> bool:
     if not isinstance(data, (list, np.ndarray)):
         return False
 
-    return all(isinstance(vector, (list, bytes, np.ndarray)) for vector in data)
+    return all(isinstance(vector, (list, bytes, np.ndarray, str)) for vector in data)
 
 
 def is_legal_output_fields(output_fields: Any) -> bool:

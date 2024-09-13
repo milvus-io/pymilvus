@@ -9,7 +9,7 @@ from pymilvus.settings import Config
 
 from . import entity_helper, utils
 from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
-from .types import DataType
+from .types import DataType, FunctionType
 
 
 class FieldSchema:
@@ -28,6 +28,7 @@ class FieldSchema:
         self.is_dynamic = False
         self.nullable = False
         self.default_value = None
+        self.is_function_output = False
         # For array field
         self.element_type = None
         self.is_clustering_key = False
@@ -48,6 +49,7 @@ class FieldSchema:
             self.default_value = None
         self.is_dynamic = raw.is_dynamic
         self.nullable = raw.nullable
+        self.is_function_output = raw.is_function_output
 
         for type_param in raw.type_params:
             if type_param.key == "params":
@@ -114,7 +116,52 @@ class FieldSchema:
             _dict["is_primary"] = self.is_primary
         if self.is_clustering_key:
             _dict["is_clustering_key"] = True
+        if self.is_function_output:
+            _dict["is_function_output"] = True
         return _dict
+
+
+class FunctionSchema:
+    def __init__(self, raw: Any):
+        self._raw = raw
+
+        self.name = None
+        self.description = None
+        self.type = None
+        self.params = {}
+        self.input_field_names = []
+        self.input_field_ids = []
+        self.output_field_names = []
+        self.output_field_ids = []
+        self.id = 0
+
+        self.__pack(self._raw)
+
+    def __pack(self, raw: Any):
+        self.name = raw.name
+        self.description = raw.description
+        self.id = raw.id
+        self.type = FunctionType(raw.type)
+        self.params = {}
+        for param in raw.params:
+            self.params[param.key] = param.value
+        self.input_field_names = raw.input_field_names
+        self.input_field_ids = raw.input_field_ids
+        self.output_field_names = raw.output_field_names
+        self.output_field_ids = raw.output_field_ids
+
+    def dict(self):
+        return {
+            "name": self.name,
+            "id": self.id,
+            "description": self.description,
+            "type": self.type,
+            "params": self.params,
+            "input_field_names": self.input_field_names,
+            "input_field_ids": self.input_field_ids,
+            "output_field_names": self.output_field_names,
+            "output_field_ids": self.output_field_ids,
+        }
 
 
 class CollectionSchema:
@@ -125,6 +172,7 @@ class CollectionSchema:
         self.description = None
         self.params = {}
         self.fields = []
+        self.functions = []
         self.statistics = {}
         self.auto_id = False  # auto_id is not in collection level any more later
         self.aliases = []
@@ -162,6 +210,11 @@ class CollectionSchema:
 
         self.fields = [FieldSchema(f) for f in raw.schema.fields]
 
+        self.functions = [FunctionSchema(f) for f in raw.schema.functions]
+        function_output_field_names = [f for fn in self.functions for f in fn.output_field_names]
+        for field in self.fields:
+            if field.name in function_output_field_names:
+                field.is_function_output = True
         # for s in raw.statistics:
 
         for p in raw.properties:
@@ -187,6 +240,7 @@ class CollectionSchema:
             "num_shards": self.num_shards,
             "description": self.description,
             "fields": [f.dict() for f in self.fields],
+            "functions": [f.dict() for f in self.functions],
             "aliases": self.aliases,
             "collection_id": self.collection_id,
             "consistency_level": self.consistency_level,

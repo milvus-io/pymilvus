@@ -129,6 +129,10 @@ class FieldsTypeException(MilvusException):
     """Raise when fields is invalid"""
 
 
+class FunctionsTypeException(MilvusException):
+    """Raise when functions are invalid"""
+
+
 class FieldTypeException(MilvusException):
     """Raise when one field is invalid"""
 
@@ -204,8 +208,26 @@ class ExceptionsMessage:
     IndexNotExist = "Index doesn't exist."
     CollectionType = "The type of collection must be pymilvus.Collection."
     FieldsType = "The fields of schema must be type list."
+    FunctionsType = "The functions of collection must be type list."
+    FunctionIncorrectInputOutputType = "The type of function input and output must be str."
+    FunctionInvalidOutputField = (
+        "The output field must not be primary key, partition key, clustering key."
+    )
+    FunctionDuplicateInputs = "Duplicate input field names are not allowed in function."
+    FunctionDuplicateOutputs = "Duplicate output field names are not allowed in function."
+    FunctionCommonInputOutput = "Input and output field names must be different."
+    BM25FunctionIncorrectInputOutputCount = (
+        "BM25 function must have exact 1 input and 1 output field."
+    )
+    BM25FunctionIncorrectInputFieldType = "BM25 function input field must be VARCHAR."
+    BM25FunctionIncorrectOutputFieldType = "BM25 function output field must be SPARSE_FLOAT_VECTOR."
+    FunctionMissingInputField = "Function input field not found in collection schema."
+    FunctionMissingOutputField = "Function output field not found in collection schema."
+    UnknownFunctionType = "Unknown function type."
+    FunctionIncorrectType = "The function of schema type must be Function."
     FieldType = "The field of schema type must be FieldSchema."
     FieldDtype = "Field dtype must be of DataType"
+    FieldNamesDuplicate = "Duplicate field names are not allowed."
     ExprType = "The type of expr must be string ,but %r is given."
     EnvConfigErr = "Environment variable %s has a wrong format, please check it: %s"
     AmbiguousIndexName = "There are multiple indexes, please specify the index_name."
