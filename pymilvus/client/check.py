@@ -52,7 +52,12 @@ def is_correct_date_str(param: str) -> bool:
 
 
 def is_legal_dimension(dim: Any) -> bool:
-    return isinstance(dim, int)
+    try:
+        _ = int(dim)
+    except ValueError:
+        return False
+
+    return True
 
 
 def is_legal_index_size(index_size: Any) -> bool:
