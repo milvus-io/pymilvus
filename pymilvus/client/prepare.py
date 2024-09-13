@@ -3,6 +3,7 @@ import datetime
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
+import ujson
 
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
 from pymilvus.grpc_gen import common_pb2 as common_types
@@ -136,7 +137,7 @@ class Prepare:
             )
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(
-                    key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=str(v)
+                    key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=ujson.dumps(v)
                 )
                 field_schema.type_params.append(kv_pair)
 
