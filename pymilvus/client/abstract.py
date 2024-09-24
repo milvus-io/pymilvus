@@ -85,8 +85,6 @@ class FieldSchema:
         self.indexes.extend([index_dict])
 
     def dict(self):
-        if self.default_value is not None and self.default_value.WhichOneof("data") is None:
-            self.default_value = None
         _dict = {
             "field_id": self.field_id,
             "name": self.name,
@@ -94,6 +92,12 @@ class FieldSchema:
             "type": self.type,
             "params": self.params or {},
         }
+        if self.default_value is not None:
+            # default_value is nil match this situation
+            if self.default_value.WhichOneof("data") is None:
+                self.default_value = None
+            else:
+                _dict["default_value"] = self.default_value
 
         if self.element_type:
             _dict["element_type"] = self.element_type
