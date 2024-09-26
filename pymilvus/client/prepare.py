@@ -405,8 +405,20 @@ class Prepare:
                             "default_value", None
                         ):
                             field_data.valid_data.append(v is not None)
-                        if v is not None:
-                            entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+                        entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+                for field in fields_info:
+                    key = field["name"]
+                    if key in entity or field.get("auto_id", False):
+                        continue
+
+                    field_info, field_data = field_info_map[key], fields_data[key]
+                    if field_info.get("nullable", False) or field_info.get("default_value", None):
+                        field_data.valid_data.append(False)
+                        entity_helper.pack_field_value_to_field_data(None, field_data, field_info)
+                    else:
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.InsertMissedField % key
+                        )
                 json_dict = {
                     k: v for k, v in entity.items() if k not in fields_data and enable_dynamic
                 }

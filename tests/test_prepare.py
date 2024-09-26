@@ -190,6 +190,24 @@ class TestCreateCollectionRequest:
         ]
 
         Prepare.row_insert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
+        
+    def test_row_insert_param_with_none(self):
+        import numpy as np
+        rng = np.random.default_rng(seed=19530)
+        dim = 8
+        schema = CollectionSchema([
+            FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema("nullable_field", DataType.INT64, nullable=True),
+            FieldSchema("default_field", DataType.FLOAT, default_value=10),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("float", DataType.DOUBLE),
+        ])
+        rows = [
+            {"float": 1.0,"nullable_field": None, "default_field": None,"float_vector": rng.random((1, dim))[0], "a": 1},
+            {"float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
+        ]
+
+        Prepare.row_insert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
 
 
 class TestAlterCollectionRequest:

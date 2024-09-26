@@ -191,15 +191,17 @@ def convert_to_json(obj: object):
     return ujson.dumps(obj, ensure_ascii=False).encode(Config.EncodeProtocol)
 
 
-def convert_to_json_arr(objs: List[object]):
+def convert_to_json_arr(objs: List[object], field_info: Any):
     arr = []
     for obj in objs:
+        if obj is None:
+            raise ParamError(message=f"field ({field_info['name']}) expect not None input")
         arr.append(convert_to_json(obj))
     return arr
 
 
-def entity_to_json_arr(entity: Dict):
-    return convert_to_json_arr(entity.get("values", []))
+def entity_to_json_arr(entity: Dict, field_info: Any):
+    return convert_to_json_arr(entity.get("values", []), field_info)
 
 
 def convert_to_array_arr(objs: List[Any], field_info: Any):
@@ -243,7 +245,10 @@ def pack_field_value_to_field_data(
     field_name = field_info["name"]
     if field_type == DataType.BOOL:
         try:
-            field_data.scalars.bool_data.data.append(field_value)
+            if field_value is None:
+                field_data.scalars.bool_data.data.extend([])
+            else:
+                field_data.scalars.bool_data.data.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -251,7 +256,11 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type in (DataType.INT8, DataType.INT16, DataType.INT32):
         try:
-            field_data.scalars.int_data.data.append(field_value)
+            # need to extend it, or cannot correctly identify field_data.scalars.int_data.data
+            if field_value is None:
+                field_data.scalars.int_data.data.extend([])
+            else:
+                field_data.scalars.int_data.data.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -259,7 +268,10 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.INT64:
         try:
-            field_data.scalars.long_data.data.append(field_value)
+            if field_value is None:
+                field_data.scalars.long_data.data.extend([])
+            else:
+                field_data.scalars.long_data.data.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -267,7 +279,10 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.FLOAT:
         try:
-            field_data.scalars.float_data.data.append(field_value)
+            if field_value is None:
+                field_data.scalars.float_data.data.extend([])
+            else:
+                field_data.scalars.float_data.data.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -275,7 +290,10 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.DOUBLE:
         try:
-            field_data.scalars.double_data.data.append(field_value)
+            if field_value is None:
+                field_data.scalars.double_data.data.extend([])
+            else:
+                field_data.scalars.double_data.data.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -369,9 +387,12 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.VARCHAR:
         try:
-            field_data.scalars.string_data.data.append(
-                convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
-            )
+            if field_value is None:
+                field_data.scalars.string_data.data.extend([])
+            else:
+                field_data.scalars.string_data.data.append(
+                    convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
+                )
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -379,7 +400,10 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.JSON:
         try:
-            field_data.scalars.json_data.data.append(convert_to_json(field_value))
+            if field_value is None:
+                field_data.scalars.json_data.data.extend([])
+            else:
+                field_data.scalars.json_data.data.append(convert_to_json(field_value))
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -387,7 +411,10 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.ARRAY:
         try:
-            field_data.scalars.array_data.data.append(convert_to_array(field_value, field_info))
+            if field_value is None:
+                field_data.scalars.array_data.data.extend([])
+            else:
+                field_data.scalars.array_data.data.append(convert_to_array(field_value, field_info))
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -507,7 +534,7 @@ def entity_to_field_data(entity: Any, field_info: Any, num_rows: int):
             ) from e
     elif entity_type == DataType.JSON:
         try:
-            field_data.scalars.json_data.data.extend(entity_to_json_arr(entity))
+            field_data.scalars.json_data.data.extend(entity_to_json_arr(entity, field_info))
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
