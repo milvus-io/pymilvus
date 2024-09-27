@@ -22,11 +22,17 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VarChar: _ClassVar[DataType]
     Array: _ClassVar[DataType]
     JSON: _ClassVar[DataType]
+    GeoSpatial: _ClassVar[DataType]
     BinaryVector: _ClassVar[DataType]
     FloatVector: _ClassVar[DataType]
     Float16Vector: _ClassVar[DataType]
     BFloat16Vector: _ClassVar[DataType]
     SparseFloatVector: _ClassVar[DataType]
+
+class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    Unknown: _ClassVar[FunctionType]
+    BM25: _ClassVar[FunctionType]
 
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -46,11 +52,14 @@ String: DataType
 VarChar: DataType
 Array: DataType
 JSON: DataType
+GeoSpatial: DataType
 BinaryVector: DataType
 FloatVector: DataType
 Float16Vector: DataType
 BFloat16Vector: DataType
 SparseFloatVector: DataType
+Unknown: FunctionType
+BM25: FunctionType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
@@ -90,21 +99,43 @@ class FieldSchema(_message.Message):
     nullable: bool
     def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ..., element_type: _Optional[_Union[DataType, str]] = ..., default_value: _Optional[_Union[ValueField, _Mapping]] = ..., is_dynamic: bool = ..., is_partition_key: bool = ..., is_clustering_key: bool = ..., nullable: bool = ...) -> None: ...
 
+class FunctionSchema(_message.Message):
+    __slots__ = ("name", "id", "type", "input_field_names", "input_field_ids", "output_field_names", "output_field_ids", "params")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NAMES_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_IDS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELD_NAMES_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FIELD_IDS_FIELD_NUMBER: _ClassVar[int]
+    PARAMS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    id: int
+    type: FunctionType
+    input_field_names: _containers.RepeatedScalarFieldContainer[str]
+    input_field_ids: _containers.RepeatedScalarFieldContainer[int]
+    output_field_names: _containers.RepeatedScalarFieldContainer[str]
+    output_field_ids: _containers.RepeatedScalarFieldContainer[int]
+    params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    def __init__(self, name: _Optional[str] = ..., id: _Optional[int] = ..., type: _Optional[_Union[FunctionType, str]] = ..., input_field_names: _Optional[_Iterable[str]] = ..., input_field_ids: _Optional[_Iterable[int]] = ..., output_field_names: _Optional[_Iterable[str]] = ..., output_field_ids: _Optional[_Iterable[int]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     ENABLE_DYNAMIC_FIELD_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    FUNCTIONS_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     autoID: bool
     fields: _containers.RepeatedCompositeFieldContainer[FieldSchema]
     enable_dynamic_field: bool
     properties: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+    functions: _containers.RepeatedCompositeFieldContainer[FunctionSchema]
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ...) -> None: ...
 
 class BoolArray(_message.Message):
     __slots__ = ("data",)
@@ -162,6 +193,12 @@ class JSONArray(_message.Message):
     data: _containers.RepeatedScalarFieldContainer[bytes]
     def __init__(self, data: _Optional[_Iterable[bytes]] = ...) -> None: ...
 
+class GeoSpatialArray(_message.Message):
+    __slots__ = ("data",)
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedScalarFieldContainer[bytes]
+    def __init__(self, data: _Optional[_Iterable[bytes]] = ...) -> None: ...
+
 class ValueField(_message.Message):
     __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data")
     BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -181,7 +218,7 @@ class ValueField(_message.Message):
     def __init__(self, bool_data: bool = ..., int_data: _Optional[int] = ..., long_data: _Optional[int] = ..., float_data: _Optional[float] = ..., double_data: _Optional[float] = ..., string_data: _Optional[str] = ..., bytes_data: _Optional[bytes] = ...) -> None: ...
 
 class ScalarField(_message.Message):
-    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "array_data", "json_data")
+    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "array_data", "json_data", "geospatial_data")
     BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
     INT_DATA_FIELD_NUMBER: _ClassVar[int]
     LONG_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -191,6 +228,7 @@ class ScalarField(_message.Message):
     BYTES_DATA_FIELD_NUMBER: _ClassVar[int]
     ARRAY_DATA_FIELD_NUMBER: _ClassVar[int]
     JSON_DATA_FIELD_NUMBER: _ClassVar[int]
+    GEOSPATIAL_DATA_FIELD_NUMBER: _ClassVar[int]
     bool_data: BoolArray
     int_data: IntArray
     long_data: LongArray
@@ -200,7 +238,8 @@ class ScalarField(_message.Message):
     bytes_data: BytesArray
     array_data: ArrayArray
     json_data: JSONArray
-    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ...) -> None: ...
+    geospatial_data: GeoSpatialArray
+    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ..., geospatial_data: _Optional[_Union[GeoSpatialArray, _Mapping]] = ...) -> None: ...
 
 class SparseFloatArray(_message.Message):
     __slots__ = ("contents", "dim")

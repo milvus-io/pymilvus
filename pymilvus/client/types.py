@@ -98,6 +98,7 @@ class DataType(IntEnum):
     VARCHAR = 21
     ARRAY = 22
     JSON = 23
+    GEOSPATIAL = 24
 
     BINARY_VECTOR = 100
     FLOAT_VECTOR = 101

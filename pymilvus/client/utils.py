@@ -170,6 +170,9 @@ def len_of(field_data: Any) -> int:
         if field_data.scalars.HasField("json_data"):
             return len(field_data.scalars.json_data.data)
 
+        if field_data.scalars.HasField("geospatial_data"):
+            return len(field_data.scalars.geospatial_data.data)
+        
         if field_data.scalars.HasField("array_data"):
             return len(field_data.scalars.array_data.data)
 
