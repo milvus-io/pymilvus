@@ -14,7 +14,10 @@ GROUP_SIZE = "group_size"
 RANK_GROUP_SCORER = "rank_group_scorer"
 GROUP_STRICT_SIZE = "group_strict_size"
 ITERATOR_FIELD = "iterator"
+ITERATOR_SESSION_TS_FIELD = "iterator_session_ts"
 PAGE_RETAIN_ORDER_FIELD = "page_retain_order"
 
 RANKER_TYPE_RRF = "rrf"
 RANKER_TYPE_WEIGHTED = "weighted"
+
+GUARANTEE_TIMESTAMP = "guarantee_timestamp"

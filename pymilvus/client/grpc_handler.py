@@ -37,6 +37,7 @@ from .check import (
     is_legal_host,
     is_legal_port,
 )
+from .constants import ITERATOR_SESSION_TS_FIELD
 from .prepare import Prepare
 from .types import (
     BulkInsertState,
@@ -733,8 +734,12 @@ class GrpcHandler:
             response = self._stub.Search(request, timeout=timeout)
             check_status(response.status)
             round_decimal = kwargs.get("round_decimal", -1)
-            return SearchResult(response.results, round_decimal, status=response.status)
-
+            return SearchResult(
+                response.results,
+                round_decimal,
+                status=response.status,
+                session_ts=response.session_ts,
+            )
         except Exception as e:
             if kwargs.get("_async", False):
                 return SearchFuture(None, None, e)
@@ -1554,7 +1559,10 @@ class GrpcHandler:
                 response.fields_data, index, dynamic_fields
             )
             results.append(entity_row_data)
-        return ExtraList(results, extra=get_cost_extra(response.status))
+
+        extra_dict = get_cost_extra(response.status)
+        extra_dict[ITERATOR_SESSION_TS_FIELD] = response.session_ts
+        return ExtraList(results, extra=extra_dict)
 
     @retry_on_rpc_failure()
     def load_balance(

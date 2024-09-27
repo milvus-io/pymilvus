@@ -44,9 +44,8 @@ logging.getLogger().setLevel(logging.INFO)  # Set the root logger level to INFO
 logging.getLogger().addHandler(console_handler)  # Attach the handler to the root logger
 
 
-
-def re_create_collection(skip_data_period: bool):
-    if not skip_data_period:
+def re_create_collection(prepare_new_data: bool):
+    if prepare_new_data:
         if utility.has_collection(COLLECTION_NAME) and CLEAR_EXIST:
             utility.drop_collection(COLLECTION_NAME)
             print(f"dropped existed collection{COLLECTION_NAME}")
@@ -118,7 +117,8 @@ def query_iterate_collection_no_offset(collection):
 
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
                                                offset=0, batch_size=5, consistency_level=CONSISTENCY_LEVEL,
-                                               reduce_stop_for_best="false", print_iterator_cursor=True)
+                                               reduce_stop_for_best="false", print_iterator_cursor=False,
+                                               iterator_cp_file="/tmp/it_cp")
     no_best_ids: set = set({})
     page_idx = 0
     while True:
@@ -136,7 +136,8 @@ def query_iterate_collection_no_offset(collection):
     print("best---------------------------")
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
                                                offset=0, batch_size=5, consistency_level=CONSISTENCY_LEVEL,
-                                                   reduce_stop_for_best="true", print_iterator_cursor=True)
+                                                   reduce_stop_for_best="true", print_iterator_cursor=False, iterator_cp_file="/tmp/it_cp")
+    
     best_ids: set = set({})
     page_idx = 0
     while True:
@@ -239,10 +240,10 @@ def search_iterator_collection_with_limit(collection):
 
 
 def main():
-    skip_data_period = True
+    prepare_new_data = True
     connections.connect("default", host=HOST, port=PORT)
-    collection = re_create_collection(skip_data_period)
-    if not skip_data_period:
+    collection = re_create_collection(prepare_new_data)
+    if prepare_new_data:
         collection = prepare_data(collection)
     query_iterate_collection_no_offset(collection)
     query_iterate_collection_with_offset(collection)

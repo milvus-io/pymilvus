@@ -410,6 +410,7 @@ class SearchResult(list):
         res: schema_pb2.SearchResultData,
         round_decimal: Optional[int] = None,
         status: Optional[common_pb2.Status] = None,
+        session_ts: Optional[int] = 0,
     ):
         self._nq = res.num_queries
         all_topks = res.topks
@@ -441,8 +442,11 @@ class SearchResult(list):
                 Hits(topk, all_pks[start:end], all_scores[start:end], nq_th_fields, output_fields)
             )
             nq_thres += topk
-
+        self._session_ts = session_ts
         super().__init__(data)
+
+    def get_session_ts(self):
+        return self._session_ts
 
     def get_fields_by_range(
         self, start: int, end: int, all_fields_data: List[schema_pb2.FieldData]
