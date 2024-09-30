@@ -459,6 +459,7 @@ if __name__ == '__main__':
         BulkFileType.JSON,
         BulkFileType.NUMPY,
         BulkFileType.PARQUET,
+        BulkFileType.CSV,
     ]
 
     schema = build_simple_collection()

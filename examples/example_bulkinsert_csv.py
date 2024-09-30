@@ -99,15 +99,15 @@ def create_partition(collection, partition_name):
 
 def gen_csv_rowbased(num, path, partition_name, sep=","):
     global id_start
-    header = [_ID_FIELD_NAME, _JSON_FIELD_NAME, _VECTOR_FIELD_NAME, _VARCHAR_FIELD_NAME, "dynamic_field"]
+    header = [_ID_FIELD_NAME, _JSON_FIELD_NAME, _VECTOR_FIELD_NAME, _VARCHAR_FIELD_NAME, _DYNAMIC_FIELD_NAME]
     rows = []
     for i in range(num):
         rows.append([
             id_start, # id field
             json.dumps({"Number": id_start, "Name": "book_"+str(id_start)}), # json field
-            json.dumps([round(random.random(), 6) for _ in range(_DIM)]), # vector field
+            [round(random.random(), 6) for _ in range(_DIM)], # vector field
             "{}_{}".format(partition_name, id_start) if partition_name is not None else "description_{}".format(id_start), # varchar field
-            id_start, # no field matches this value, this value will be put into dynamic field
+            json.dumps({"dynamic_field": id_start}), # no field matches this value, this value will be put into dynamic field
         ])
         id_start = id_start + 1
     data = [header] + rows
