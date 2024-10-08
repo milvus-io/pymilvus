@@ -185,7 +185,7 @@ class Collection:
                 pk_index = i
         if pk_index == -1:
             raise SchemaNotReadyException(message=ExceptionsMessage.PrimaryKeyNotExist)
-        if "auto_id" in kwargs and not isinstance(kwargs.get("auto_id", None), bool):
+        if "auto_id" in kwargs and not isinstance(kwargs.get("auto_id"), bool):
             raise AutoIDException(message=ExceptionsMessage.AutoIDType)
         auto_id = kwargs.pop("auto_id", False)
         if auto_id:

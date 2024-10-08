@@ -89,7 +89,7 @@ class Prepare:
                 raise ParamError(message=msg)
             req.shards_num = num_shards
 
-        num_partitions = kwargs.get("num_partitions", None)
+        num_partitions = kwargs.get("num_partitions")
         if num_partitions is not None:
             if not isinstance(num_partitions, int) or isinstance(num_partitions, bool):
                 msg = f"invalid num_partitions type, got {type(num_partitions)}, expected int"
@@ -822,7 +822,7 @@ class Prepare:
             ]
         )
 
-        if kwargs.get(RANK_GROUP_SCORER, None) is not None:
+        if kwargs.get(RANK_GROUP_SCORER) is not None:
             request.rank_params.extend(
                 [
                     common_types.KeyValuePair(
@@ -831,7 +831,7 @@ class Prepare:
                 ]
             )
 
-        if kwargs.get(GROUP_BY_FIELD, None) is not None:
+        if kwargs.get(GROUP_BY_FIELD) is not None:
             request.rank_params.extend(
                 [
                     common_types.KeyValuePair(
@@ -840,7 +840,7 @@ class Prepare:
                 ]
             )
 
-        if kwargs.get(GROUP_SIZE, None) is not None:
+        if kwargs.get(GROUP_SIZE) is not None:
             request.rank_params.extend(
                 [
                     common_types.KeyValuePair(
@@ -849,7 +849,7 @@ class Prepare:
                 ]
             )
 
-        if kwargs.get(GROUP_STRICT_SIZE, None) is not None:
+        if kwargs.get(GROUP_STRICT_SIZE) is not None:
             request.rank_params.extend(
                 [
                     common_types.KeyValuePair(
@@ -1061,11 +1061,11 @@ class Prepare:
             consistency_level=kwargs.get("consistency_level", 0),
         )
 
-        limit = kwargs.get("limit", None)
+        limit = kwargs.get("limit")
         if limit is not None:
             req.query_params.append(common_types.KeyValuePair(key="limit", value=str(limit)))
 
-        offset = kwargs.get("offset", None)
+        offset = kwargs.get("offset")
         if offset is not None:
             req.query_params.append(common_types.KeyValuePair(key="offset", value=str(offset)))
 
@@ -1144,7 +1144,7 @@ class Prepare:
 
     @classmethod
     def do_bulk_insert(cls, collection_name: str, partition_name: str, files: list, **kwargs):
-        channel_names = kwargs.get("channel_names", None)
+        channel_names = kwargs.get("channel_names")
         req = milvus_types.ImportRequest(
             collection_name=collection_name,
             partition_name=partition_name,
