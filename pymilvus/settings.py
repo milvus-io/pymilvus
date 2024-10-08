@@ -1,21 +1,18 @@
-import contextlib
 import logging.config
+import os
 
-import environs
+from dotenv import load_dotenv
 
-env = environs.Env()
-
-with contextlib.suppress(Exception):
-    env.read_env(".env")
+load_dotenv()
 
 
 class Config:
     # legacy env MILVUS_DEFAULT_CONNECTION, not recommended
-    LEGACY_URI = env.str("MILVUS_DEFAULT_CONNECTION", "")
-    MILVUS_URI = env.str("MILVUS_URI", LEGACY_URI)
+    LEGACY_URI = str(os.getenv("MILVUS_DEFAULT_CONNECTION", ""))
+    MILVUS_URI = str(os.getenv("MILVUS_URI", LEGACY_URI))
 
-    MILVUS_CONN_ALIAS = env.str("MILVUS_CONN_ALIAS", "default")
-    MILVUS_CONN_TIMEOUT = env.float("MILVUS_CONN_TIMEOUT", 10)
+    MILVUS_CONN_ALIAS = str(os.getenv("MILVUS_CONN_ALIAS", "default"))
+    MILVUS_CONN_TIMEOUT = float(os.getenv("MILVUS_CONN_TIMEOUT", "10.0"))
 
     # legacy configs:
     DEFAULT_USING = MILVUS_CONN_ALIAS
