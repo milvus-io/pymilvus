@@ -321,15 +321,15 @@ class FieldSchema:
             raise ClusteringKeyException(message=ExceptionsMessage.IsClusteringKeyType)
         self.is_partition_key = kwargs.get("is_partition_key", False)
         self.is_clustering_key = kwargs.get("is_clustering_key", False)
-        self.default_value = kwargs.get("default_value", None)
+        self.default_value = kwargs.get("default_value")
         if "default_value" in kwargs and self.default_value is None and not self.nullable:
             raise ParamError(message=ExceptionsMessage.DefaultValueInvalid)
         if isinstance(self.default_value, schema_types.ValueField):
             if self.default_value.WhichOneof("data") is None:
                 self.default_value = None
         else:
-            self.default_value = infer_default_value_bydata(kwargs.get("default_value", None))
-        self.element_type = kwargs.get("element_type", None)
+            self.default_value = infer_default_value_bydata(kwargs.get("default_value"))
+        self.element_type = kwargs.get("element_type")
         if "mmap_enabled" in kwargs:
             self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
         self._parse_type_params()

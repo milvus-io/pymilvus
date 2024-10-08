@@ -110,7 +110,7 @@ class LocalBulkWriter(BulkWriter):
             f"Prepare to flush buffer, row_count: {super().buffer_row_count}, size: {super().buffer_size}"
         )
         _async = kwargs.get("_async", False)
-        call_back = kwargs.get("call_back", None)
+        call_back = kwargs.get("call_back")
 
         x = Thread(target=self._flush, args=(call_back,))
         logger.info(f"Flush thread begin, name: {x.name}")
