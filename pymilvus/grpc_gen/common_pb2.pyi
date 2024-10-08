@@ -151,6 +151,8 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Flush: _ClassVar[MsgType]
     ResendSegmentStats: _ClassVar[MsgType]
     Upsert: _ClassVar[MsgType]
+    ManualFlush: _ClassVar[MsgType]
+    FlushSegment: _ClassVar[MsgType]
     Search: _ClassVar[MsgType]
     SearchResult: _ClassVar[MsgType]
     GetIndexState: _ClassVar[MsgType]
@@ -302,6 +304,11 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeUpdateResourceGroups: _ClassVar[ObjectPrivilege]
     PrivilegeAlterDatabase: _ClassVar[ObjectPrivilege]
     PrivilegeDescribeDatabase: _ClassVar[ObjectPrivilege]
+    PrivilegeBackupRBAC: _ClassVar[ObjectPrivilege]
+    PrivilegeRestoreRBAC: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupReadOnly: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupReadWrite: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupAdmin: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -444,6 +451,8 @@ Delete: MsgType
 Flush: MsgType
 ResendSegmentStats: MsgType
 Upsert: MsgType
+ManualFlush: MsgType
+FlushSegment: MsgType
 Search: MsgType
 SearchResult: MsgType
 GetIndexState: MsgType
@@ -577,6 +586,11 @@ PrivilegeListAliases: ObjectPrivilege
 PrivilegeUpdateResourceGroups: ObjectPrivilege
 PrivilegeAlterDatabase: ObjectPrivilege
 PrivilegeDescribeDatabase: ObjectPrivilege
+PrivilegeBackupRBAC: ObjectPrivilege
+PrivilegeRestoreRBAC: ObjectPrivilege
+PrivilegeGroupReadOnly: ObjectPrivilege
+PrivilegeGroupReadWrite: ObjectPrivilege
+PrivilegeGroupAdmin: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

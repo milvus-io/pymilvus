@@ -1299,7 +1299,7 @@ def list_indexes(
     :rtype: str list
     """
     indexes = _get_connection(using).list_indexes(collection_name, timeout, **kwargs)
-    field_name = kwargs.get("field_name", None)
+    field_name = kwargs.get("field_name")
     index_name_list = []
     for index in indexes:
         if index is not None:

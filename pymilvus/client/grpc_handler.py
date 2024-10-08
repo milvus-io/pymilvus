@@ -87,9 +87,9 @@ class GrpcHandler:
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
         self._log_level = None
         self._request_id = None
-        self._user = kwargs.get("user", None)
+        self._user = kwargs.get("user")
         self._set_authorization(**kwargs)
-        self._setup_db_interceptor(kwargs.get("db_name", None))
+        self._setup_db_interceptor(kwargs.get("db_name"))
         self._setup_grpc_channel()
         self.callbacks = []
 
@@ -125,9 +125,9 @@ class GrpcHandler:
 
         self._authorization_interceptor = None
         self._setup_authorization_interceptor(
-            kwargs.get("user", None),
-            kwargs.get("password", None),
-            kwargs.get("token", None),
+            kwargs.get("user"),
+            kwargs.get("password"),
+            kwargs.get("token"),
         )
 
     def __enter__(self):
@@ -470,7 +470,7 @@ class GrpcHandler:
         return response.stats
 
     def _get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        schema = kwargs.get("schema", None)
+        schema = kwargs.get("schema")
         if not schema:
             schema = self.describe_collection(collection_name, timeout=timeout)
 
@@ -567,7 +567,7 @@ class GrpcHandler:
             )
             rf = self._stub.Insert.future(request, timeout=timeout)
             if kwargs.get("_async", False):
-                cb = kwargs.get("_callback", None)
+                cb = kwargs.get("_callback")
                 f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
                 f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
                 return f
@@ -599,12 +599,12 @@ class GrpcHandler:
                 partition_name,
                 expression,
                 consistency_level=kwargs.get("consistency_level", 0),
-                param_name=kwargs.get("param_name", None),
+                param_name=kwargs.get("param_name"),
             )
             future = self._stub.Delete.future(req, timeout=timeout)
 
             if kwargs.get("_async", False):
-                cb = kwargs.get("_callback", None)
+                cb = kwargs.get("_callback")
                 f = MutationFuture(future, cb, timeout=timeout, **kwargs)
                 f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
                 return f
@@ -664,7 +664,7 @@ class GrpcHandler:
             )
             rf = self._stub.Upsert.future(request, timeout=timeout)
             if kwargs.get("_async", False) is True:
-                cb = kwargs.get("_callback", None)
+                cb = kwargs.get("_callback")
                 f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
                 f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
                 return f
@@ -727,7 +727,7 @@ class GrpcHandler:
         try:
             if kwargs.get("_async", False):
                 future = self._stub.Search.future(request, timeout=timeout)
-                func = kwargs.get("_callback", None)
+                func = kwargs.get("_callback")
                 return SearchFuture(future, func)
 
             response = self._stub.Search(request, timeout=timeout)
@@ -746,7 +746,7 @@ class GrpcHandler:
         try:
             if kwargs.get("_async", False):
                 future = self._stub.HybridSearch.future(request, timeout=timeout)
-                func = kwargs.get("_callback", None)
+                func = kwargs.get("_callback")
                 return SearchFuture(future, func)
 
             response = self._stub.HybridSearch(request, timeout=timeout)
@@ -781,7 +781,7 @@ class GrpcHandler:
             search_data=data,
             partition_name_array=partition_names,
             output_fields=output_fields,
-            guarantee_timestamp=kwargs.get("guarantee_timestamp", None),
+            guarantee_timestamp=kwargs.get("guarantee_timestamp"),
             timeout=timeout,
         )
 
@@ -817,7 +817,7 @@ class GrpcHandler:
             round_decimal=round_decimal,
             partition_name_array=partition_names,
             output_fields=output_fields,
-            guarantee_timestamp=kwargs.get("guarantee_timestamp", None),
+            guarantee_timestamp=kwargs.get("guarantee_timestamp"),
             timeout=timeout,
         )
 
@@ -977,7 +977,7 @@ class GrpcHandler:
 
             index_future = CreateIndexFuture(future)
             index_future.add_callback(_check)
-            user_cb = kwargs.get("_callback", None)
+            user_cb = kwargs.get("_callback")
             if user_cb:
                 index_future.add_callback(user_cb)
             return index_future
@@ -1252,7 +1252,7 @@ class GrpcHandler:
             load_partitions_future = LoadPartitionsFuture(future)
             load_partitions_future.add_callback(_check)
 
-            user_cb = kwargs.get("_callback", None)
+            user_cb = kwargs.get("_callback")
             if user_cb:
                 load_partitions_future.add_callback(user_cb)
 
@@ -1461,7 +1461,7 @@ class GrpcHandler:
             flush_future = FlushFuture(future)
             flush_future.add_callback(_check)
 
-            user_cb = kwargs.get("_callback", None)
+            user_cb = kwargs.get("_callback")
             if user_cb:
                 flush_future.add_callback(user_cb)
 
@@ -1988,7 +1988,7 @@ class GrpcHandler:
             flush_future = FlushFuture(future)
             flush_future.add_callback(_check)
 
-            user_cb = kwargs.get("_callback", None)
+            user_cb = kwargs.get("_callback")
             if user_cb:
                 flush_future.add_callback(user_cb)
 
