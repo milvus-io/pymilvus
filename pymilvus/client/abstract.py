@@ -515,7 +515,7 @@ class SearchResult(list):
                 res = apply_valid_data(
                     scalars.json_data.data[start:end], field.valid_data, start, end
                 )
-                json_dict_list = list(map(ujson.loads, res))
+                json_dict_list = [ujson.loads(item) if item is not None else item for item in res]
                 field2data[name] = json_dict_list, field_meta
                 continue
 

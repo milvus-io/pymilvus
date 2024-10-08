@@ -212,6 +212,9 @@ class ExceptionsMessage:
     InsertUnexpectedField = (
         "Attempt to insert an unexpected field `%s` to collection without enabling dynamic field"
     )
+    InsertMissedField = (
+        "Insert missed an field `%s` to collection without set nullable==true or set default_value"
+    )
     UpsertAutoIDTrue = "Upsert don't support autoid == true"
     AmbiguousDeleteFilterParam = (
         "Ambiguous filter parameter, only one deletion condition can be specified."
