@@ -1,5 +1,6 @@
 import logging
 from copy import deepcopy
+from pathlib import Path
 from typing import Any, Dict, List, Optional, TypeVar, Union
 
 from pymilvus.client import entity_helper, utils
@@ -21,9 +22,12 @@ from .constants import (
     DEFAULT_SEARCH_EXTENSION_RATE,
     EF,
     FIELDS,
+    GUARANTEE_TIMESTAMP,
     INT64_MAX,
     IS_PRIMARY,
     ITERATOR_FIELD,
+    ITERATOR_SESSION_CP_FILE,
+    ITERATOR_SESSION_TS_FIELD,
     MAX_BATCH_SIZE,
     MAX_FILTERED_IDS_COUNT_ITERATION,
     MAX_TRY_TIME,
@@ -83,6 +87,7 @@ class QueryIterator:
         self._partition_names = partition_names
         self._schema = schema
         self._timeout = timeout
+        self._session_ts = 0
         self._kwargs = kwargs
         self._kwargs[ITERATOR_FIELD] = "True"
         self.__check_set_batch_size(batch_size)
@@ -92,8 +97,48 @@ class QueryIterator:
         self._returned_count = 0
         self.__setup__pk_prop()
         self.__set_up_expr(expr)
-        self.__seek()
+        self._next_id = None
         self._cache_id_in_use = NO_CACHE_ID
+        self._cp_file_handler = None
+        self.__set_up_ts_cp()
+        self.__seek_to_offset()
+
+    def __seek_to_offset(self):
+        offset = self._kwargs.get(OFFSET, 0)
+        if offset > 0:
+            seek_params = self._kwargs.copy()
+            seek_params[OFFSET] = 0
+            seek_params[MILVUS_LIMIT] = offset
+            res = self._conn.query(
+                collection_name=self._collection_name,
+                expr=self._expr,
+                output_field=self._output_fields,
+                partition_name=self._partition_names,
+                timeout=self._timeout,
+                **seek_params,
+            )
+            self.__update_cursor(res)
+
+    def __init_cp_file_handler(self) -> bool:
+        mode = "w"
+        if Path(self._cp_file_path).exists():
+            mode = "r+"
+        try:
+            self._cp_file_handler = Path(self._cp_file_path).open(mode)  # noqa: SIM115
+        except OSError as ose:
+            raise MilvusException(
+                message=f"Failed to open cp file for iterator:{self._cp_file_path}"
+            ) from ose
+        return mode == "r+"
+
+    def __save_cp(self):
+        if self._need_save_cp:
+            self._cp_file_handler.seek(0)
+            self._cp_file_handler.truncate()
+            self._cp_file_handler.writelines(str(self._session_ts) + "\n")
+            if self._next_id is not None:
+                self._cp_file_handler.writelines(self._next_id)
+            self._cp_file_handler.flush()
 
     def __check_set_reduce_stop_for_best(self):
         if self._kwargs.get(REDUCE_STOP_FOR_BEST, True):
@@ -118,27 +163,59 @@ class QueryIterator:
         else:
             self._expr = self._pk_field_name + " < " + str(INT64_MAX)
 
-    def __seek(self):
-        self._cache_id_in_use = NO_CACHE_ID
-        if self._kwargs.get(OFFSET, 0) == 0:
-            self._next_id = None
-            return
-
-        first_cursor_kwargs = self._kwargs.copy()
-        first_cursor_kwargs[OFFSET] = 0
-        # offset may be too large, needed to seek in multiple times
-        first_cursor_kwargs[MILVUS_LIMIT] = self._kwargs[OFFSET]
-
+    def __setup_ts_by_request(self):
+        init_ts_kwargs = self._kwargs.copy()
+        init_ts_kwargs[OFFSET] = 0
+        init_ts_kwargs[MILVUS_LIMIT] = 1
+        # just to set up mvccTs for iterator, no need correct limit
         res = self._conn.query(
             collection_name=self._collection_name,
             expr=self._expr,
             output_field=self._output_fields,
             partition_name=self._partition_names,
             timeout=self._timeout,
-            **first_cursor_kwargs,
+            **init_ts_kwargs,
         )
-        self.__update_cursor(res)
-        self._kwargs[OFFSET] = 0
+        if res is not None and res.extra is not None:
+            self._session_ts = res.extra.get(ITERATOR_SESSION_TS_FIELD, 0)
+            self._kwargs[GUARANTEE_TIMESTAMP] = self._session_ts
+        else:
+            raise MilvusException(message="failed to set up mvccTs for query iterator")
+
+    def __set_up_ts_cp(self):
+        self._cp_file_path = self._kwargs.get(ITERATOR_SESSION_CP_FILE, None)
+        # no input cp_file, set up mvccTs by query request
+        if self._cp_file_path is None:
+            self._need_save_cp = False
+            self.__setup_ts_by_request()
+        else:
+            self._need_save_cp = True
+            if not self.__init_cp_file_handler():
+                # input cp file is empty, set up mvccTs by query request
+                self.__setup_ts_by_request()
+                self.__save_cp()
+            else:
+                # input cp file is not emtpy, init mvccTs by reading cp file
+                file_size = Path(self._cp_file_path).stat().st_size
+                if file_size > 1024:
+                    raise ParamError(
+                        message="input cp file is too large, exceeding 1kb, "
+                        "this may be a incorrect configuration"
+                    )
+                lines = self._cp_file_handler.readlines()
+                line_count = len(lines)
+                if line_count > 2 or line_count < 1:
+                    raise ParamError(
+                        message=f"line number:{len(lines)} of input cp file is wrong, "
+                        f"which should be one or two"
+                    )
+                try:
+                    self._session_ts = int(lines[0])
+                    self._kwargs[GUARANTEE_TIMESTAMP] = self._session_ts
+                except ValueError as e:
+                    raise ParamError(message=f"cannot parse input cp session_ts:{lines[0]}") from e
+                if line_count == 2:
+                    self._next_id = lines[1].strip()
 
     def __maybe_cache(self, result: List):
         if len(result) < 2 * self._kwargs[BATCH_SIZE]:
@@ -176,6 +253,7 @@ class QueryIterator:
 
         ret = self.__check_reached_limit(ret)
         self.__update_cursor(ret)
+        self.__save_cp()
         self._returned_count += len(ret)
         return ret
 
@@ -222,6 +300,8 @@ class QueryIterator:
     def close(self) -> None:
         # release cache in use
         iterator_cache.release_cache(self._cache_id_in_use)
+        if self._cp_file_handler is not None:
+            self._cp_file_handler.close()
 
 
 def metrics_positive_related(metrics: str) -> bool:
@@ -236,11 +316,15 @@ class SearchPage(LoopBase):
     """Since we only support nq=1 in search iteration, so search iteration response
     should be different from raw response of search operation"""
 
-    def __init__(self, res: Hits):
+    def __init__(self, res: Hits, session_ts: Optional[int] = 0):
         super().__init__()
+        self._session_ts = session_ts
         self._results = []
         if res is not None:
             self._results.append(res)
+
+    def get_session_ts(self):
+        return self._session_ts
 
     def get_res(self):
         return self._results
@@ -342,6 +426,10 @@ class SearchIterator:
 
     def __init_search_iterator(self):
         init_page = self.__execute_next_search(self._param, self._expr, False)
+        self._session_ts = init_page.get_session_ts()
+        if self._session_ts <= 0:
+            raise MilvusException(message="failed to set up mvccTs for search iterator")
+        self._kwargs[GUARANTEE_TIMESTAMP] = self._session_ts
         if len(init_page) == 0:
             message = (
                 "Cannot init search iterator because init page contains no matched rows, "
@@ -559,8 +647,7 @@ class SearchIterator:
             schema=self._schema,
             **self._kwargs,
         )
-
-        return SearchPage(res[0])
+        return SearchPage(res[0], res.get_session_ts())
 
     # at present, the range_filter parameter means 'larger/less and equal',
     # so there would be vectors with same distances returned multiple times in different pages

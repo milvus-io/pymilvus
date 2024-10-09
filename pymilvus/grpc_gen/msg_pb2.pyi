@@ -50,7 +50,7 @@ class InsertRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., shardName: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., segmentID: _Optional[int] = ..., timestamps: _Optional[_Iterable[int]] = ..., rowIDs: _Optional[_Iterable[int]] = ..., row_data: _Optional[_Iterable[_Union[_common_pb2.Blob, _Mapping]]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., num_rows: _Optional[int] = ..., version: _Optional[_Union[InsertDataVersion, str]] = ...) -> None: ...
 
 class DeleteRequest(_message.Message):
-    __slots__ = ("base", "shardName", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID", "int64_primary_keys", "timestamps", "num_rows", "primary_keys")
+    __slots__ = ("base", "shardName", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID", "int64_primary_keys", "timestamps", "num_rows", "primary_keys", "segment_id")
     BASE_FIELD_NUMBER: _ClassVar[int]
     SHARDNAME_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -63,6 +63,7 @@ class DeleteRequest(_message.Message):
     TIMESTAMPS_FIELD_NUMBER: _ClassVar[int]
     NUM_ROWS_FIELD_NUMBER: _ClassVar[int]
     PRIMARY_KEYS_FIELD_NUMBER: _ClassVar[int]
+    SEGMENT_ID_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     shardName: str
     db_name: str
@@ -75,7 +76,8 @@ class DeleteRequest(_message.Message):
     timestamps: _containers.RepeatedScalarFieldContainer[int]
     num_rows: int
     primary_keys: _schema_pb2.IDs
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., shardName: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., int64_primary_keys: _Optional[_Iterable[int]] = ..., timestamps: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., primary_keys: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ...) -> None: ...
+    segment_id: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., shardName: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., int64_primary_keys: _Optional[_Iterable[int]] = ..., timestamps: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., primary_keys: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., segment_id: _Optional[int] = ...) -> None: ...
 
 class MsgPosition(_message.Message):
     __slots__ = ("channel_name", "msgID", "msgGroup", "timestamp")

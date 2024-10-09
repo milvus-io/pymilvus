@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 from pymilvus.grpc_gen import common_pb2
 
-from .constants import BOUNDED_TS, EVENTUALLY_TS
+from .constants import BOUNDED_TS, EVENTUALLY_TS, GUARANTEE_TIMESTAMP, ITERATOR_FIELD
 from .singleton_utils import Singleton
 from .types import get_consistency_level
 from .utils import hybridts_to_unixtime
@@ -75,26 +75,29 @@ def get_bounded_ts():
 
 
 def construct_guarantee_ts(collection_name: str, kwargs: Dict):
+    if kwargs.get(ITERATOR_FIELD) is not None:
+        return True
+
     consistency_level = kwargs.get("consistency_level")
     use_default = consistency_level is None
     if use_default:
         # in case of the default consistency is Customized or Session,
         # we set guarantee_timestamp to the cached mutation ts or 1
-        kwargs["guarantee_timestamp"] = get_collection_ts(collection_name) or get_eventually_ts()
+        kwargs[GUARANTEE_TIMESTAMP] = get_collection_ts(collection_name) or get_eventually_ts()
         return True
     consistency_level = get_consistency_level(consistency_level)
     kwargs["consistency_level"] = consistency_level
     if consistency_level == ConsistencyLevel.Strong:
         # Milvus will assign a newest ts.
-        kwargs["guarantee_timestamp"] = 0
+        kwargs[GUARANTEE_TIMESTAMP] = 0
     elif consistency_level == ConsistencyLevel.Session:
         # Using the last write ts of the collection.
         # TODO: get a timestamp from server?
-        kwargs["guarantee_timestamp"] = get_collection_ts(collection_name) or get_eventually_ts()
+        kwargs[GUARANTEE_TIMESTAMP] = get_collection_ts(collection_name) or get_eventually_ts()
     elif consistency_level == ConsistencyLevel.Bounded:
         # Milvus will assign ts according to the server timestamp and a configured time interval
-        kwargs["guarantee_timestamp"] = get_bounded_ts()
+        kwargs[GUARANTEE_TIMESTAMP] = get_bounded_ts()
     else:
         # Users customize the consistency level, no modification on `guarantee_timestamp`.
-        kwargs.setdefault("guarantee_timestamp", get_eventually_ts())
+        kwargs.setdefault(GUARANTEE_TIMESTAMP, get_eventually_ts())
     return use_default
