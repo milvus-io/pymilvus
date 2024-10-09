@@ -450,6 +450,89 @@ class Prepare:
             raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
         return request
 
+    @staticmethod
+    def _parse_upsert_row_request(
+        request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
+        fields_info: dict,
+        enable_dynamic: bool,
+        entities: List,
+    ):
+        fields_data = {
+            field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
+            for field in fields_info
+        }
+        field_info_map = {field["name"]: field for field in fields_info}
+
+        if enable_dynamic:
+            d_field = schema_types.FieldData(is_dynamic=True, type=DataType.JSON)
+            fields_data[d_field.field_name] = d_field
+            field_info_map[d_field.field_name] = d_field
+
+        try:
+            for entity in entities:
+                if not isinstance(entity, Dict):
+                    msg = f"expected Dict, got '{type(entity).__name__}'"
+                    raise TypeError(msg)
+                for k, v in entity.items():
+                    if k not in fields_data and not enable_dynamic:
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.InsertUnexpectedField % k
+                        )
+
+                    if k in fields_data:
+                        field_info, field_data = field_info_map[k], fields_data[k]
+                        if field_info.get("nullable", False) or field_info.get(
+                            "default_value", None
+                        ):
+                            field_data.valid_data.append(v is not None)
+                        entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+                for field in fields_info:
+                    key = field["name"]
+                    if key in entity:
+                        continue
+
+                    field_info, field_data = field_info_map[key], fields_data[key]
+                    if field_info.get("nullable", False) or field_info.get("default_value", None):
+                        field_data.valid_data.append(False)
+                        entity_helper.pack_field_value_to_field_data(None, field_data, field_info)
+                    else:
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.InsertMissedField % key
+                        )
+                json_dict = {
+                    k: v for k, v in entity.items() if k not in fields_data and enable_dynamic
+                }
+
+                if enable_dynamic:
+                    json_value = entity_helper.convert_to_json(json_dict)
+                    d_field.scalars.json_data.data.append(json_value)
+
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
+
+        request.fields_data.extend([fields_data[field["name"]] for field in fields_info])
+
+        if enable_dynamic:
+            request.fields_data.append(d_field)
+
+        for _, field in enumerate(fields_info):
+            is_dynamic = False
+            field_name = field["name"]
+
+            if field.get("is_dynamic", False):
+                is_dynamic = True
+
+            for j, entity in enumerate(entities):
+                if is_dynamic and field_name in entity:
+                    raise ParamError(
+                        message=f"dynamic field enabled, {field_name} shouldn't in entities[{j}]"
+                    )
+        if (enable_dynamic and len(fields_data) != len(fields_info) + 1) or (
+            not enable_dynamic and len(fields_data) != len(fields_info)
+        ):
+            raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
+        return request
+
     @classmethod
     def row_insert_param(
         cls,
@@ -492,7 +575,7 @@ class Prepare:
             num_rows=len(entities),
         )
 
-        return cls._parse_row_request(request, fields_info, enable_dynamic, entities)
+        return cls._parse_upsert_row_request(request, fields_info, enable_dynamic, entities)
 
     @staticmethod
     def _pre_insert_batch_check(
