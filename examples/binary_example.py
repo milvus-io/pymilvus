@@ -60,6 +60,7 @@ def binary_vector_search():
         print("index_type = ", index_type)
         res = hello_milvus.search(vectors[:1], vector_field_name, {"metric_type": "HAMMING"}, limit=1)
         print("res = ", res)
+        print("just test")
         hello_milvus.release()
         hello_milvus.drop_index()
     hello_milvus.drop()
