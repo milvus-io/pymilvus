@@ -85,7 +85,7 @@ class Prepare:
                 raise ParamError(message=msg)
             req.shards_num = num_shards
 
-        num_partitions = kwargs.get("num_partitions", None)
+        num_partitions = kwargs.get("num_partitions")
         if num_partitions is not None:
             if not isinstance(num_partitions, int) or isinstance(num_partitions, bool):
                 msg = f"invalid num_partitions type, got {type(num_partitions)}, expected int"
@@ -424,6 +424,73 @@ class Prepare:
             raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
         return request
 
+    @staticmethod
+    def _parse_upsert_row_request(
+        request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
+        fields_info: dict,
+        enable_dynamic: bool,
+        entities: List,
+    ):
+        fields_data = {
+            field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
+            for field in fields_info
+        }
+        field_info_map = {field["name"]: field for field in fields_info}
+
+        if enable_dynamic:
+            d_field = schema_types.FieldData(is_dynamic=True, type=DataType.JSON)
+            fields_data[d_field.field_name] = d_field
+            field_info_map[d_field.field_name] = d_field
+
+        try:
+            for entity in entities:
+                if not isinstance(entity, Dict):
+                    msg = f"expected Dict, got '{type(entity).__name__}'"
+                    raise TypeError(msg)
+                for k, v in entity.items():
+                    if k not in fields_data and not enable_dynamic:
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.InsertUnexpectedField % k
+                        )
+
+                    if k in fields_data:
+                        field_info, field_data = field_info_map[k], fields_data[k]
+                        entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+
+                json_dict = {
+                    k: v for k, v in entity.items() if k not in fields_data and enable_dynamic
+                }
+
+                if enable_dynamic:
+                    json_value = entity_helper.convert_to_json(json_dict)
+                    d_field.scalars.json_data.data.append(json_value)
+
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
+
+        request.fields_data.extend([fields_data[field["name"]] for field in fields_info])
+
+        if enable_dynamic:
+            request.fields_data.append(d_field)
+
+        for _, field in enumerate(fields_info):
+            is_dynamic = False
+            field_name = field["name"]
+
+            if field.get("is_dynamic", False):
+                is_dynamic = True
+
+            for j, entity in enumerate(entities):
+                if is_dynamic and field_name in entity:
+                    raise ParamError(
+                        message=f"dynamic field enabled, {field_name} shouldn't in entities[{j}]"
+                    )
+        if (enable_dynamic and len(fields_data) != len(fields_info) + 1) or (
+            not enable_dynamic and len(fields_data) != len(fields_info)
+        ):
+            raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
+        return request
+
     @classmethod
     def row_insert_param(
         cls,
@@ -466,7 +533,7 @@ class Prepare:
             num_rows=len(entities),
         )
 
-        return cls._parse_row_request(request, fields_info, enable_dynamic, entities)
+        return cls._parse_upsert_row_request(request, fields_info, enable_dynamic, entities)
 
     @staticmethod
     def _pre_insert_batch_check(
@@ -986,11 +1053,11 @@ class Prepare:
             consistency_level=kwargs.get("consistency_level", 0),
         )
 
-        limit = kwargs.get("limit", None)
+        limit = kwargs.get("limit")
         if limit is not None:
             req.query_params.append(common_types.KeyValuePair(key="limit", value=str(limit)))
 
-        offset = kwargs.get("offset", None)
+        offset = kwargs.get("offset")
         if offset is not None:
             req.query_params.append(common_types.KeyValuePair(key="offset", value=str(offset)))
 
@@ -1063,7 +1130,7 @@ class Prepare:
 
     @classmethod
     def do_bulk_insert(cls, collection_name: str, partition_name: str, files: list, **kwargs):
-        channel_names = kwargs.get("channel_names", None)
+        channel_names = kwargs.get("channel_names")
         req = milvus_types.ImportRequest(
             collection_name=collection_name,
             partition_name=partition_name,

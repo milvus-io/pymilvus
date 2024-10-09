@@ -191,6 +191,21 @@ class TestCreateCollectionRequest:
 
         Prepare.row_insert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
 
+    def test_row_upsert_param_with_auto_id(self):
+        import numpy as np
+        rng = np.random.default_rng(seed=19530)
+        dim = 8
+        schema = CollectionSchema([
+            FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("float", DataType.DOUBLE)
+        ])
+        rows = [
+            {"pk_field":1, "float": 1.0, "float_vector": rng.random((1, dim))[0], "a": 1},
+            {"pk_field":2, "float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
+        ]
+
+        Prepare.row_upsert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
 
 class TestAlterCollectionRequest:
     def test_alter_collection_request(self):
