@@ -54,8 +54,8 @@ def retry_on_rpc_failure(
         def handler(*args, **kwargs):
             # This has to make sure every timeout parameter is passing
             # throught kwargs form as `timeout=10`
-            _timeout = kwargs.get("timeout", None)
-            _retry_times = kwargs.get("retry_times", None)
+            _timeout = kwargs.get("timeout")
+            _retry_times = kwargs.get("retry_times")
             _retry_on_rate_limit = kwargs.get("retry_on_rate_limit", True)
 
             retry_timeout = _timeout if _timeout is not None and isinstance(_timeout, int) else None
@@ -174,8 +174,8 @@ def tracing_request():
     def wrapper(func: Callable):
         @functools.wraps(func)
         def handler(self: Callable, *args, **kwargs):
-            level = kwargs.get("log_level", None)
-            req_id = kwargs.get("client_request_id", None)
+            level = kwargs.get("log_level")
+            req_id = kwargs.get("client_request_id")
             if level:
                 self.set_onetime_loglevel(level)
             if req_id:

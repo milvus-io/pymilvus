@@ -105,7 +105,7 @@ class Future(AbstractFuture):
         self.exception()
         with self._condition:
             # future not finished. wait callback being called.
-            to = kwargs.get("timeout", None)
+            to = kwargs.get("timeout")
             if to is None:
                 to = self._kwargs.get("timeout", None)
 

@@ -317,7 +317,7 @@ class FieldSchema:
             raise ClusteringKeyException(message=ExceptionsMessage.IsClusteringKeyType)
         self.is_partition_key = kwargs.get("is_partition_key", False)
         self.is_clustering_key = kwargs.get("is_clustering_key", False)
-        self.element_type = kwargs.get("element_type", None)
+        self.element_type = kwargs.get("element_type")
         if "mmap_enabled" in kwargs:
             self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
         self._parse_type_params()
