@@ -47,9 +47,7 @@ def entity_is_sparse_matrix(entity: Any):
             if SciPyHelper.is_scipy_sparse(item):
                 return item.shape[0] == 1
             pairs = item.items() if isinstance(item, dict) else item
-            # each row must be a non-empty list of Tuple[int, float]
-            if len(pairs) == 0:
-                return False
+            # each row must be a list of Tuple[int, float]. we allow empty sparse row
             for pair in pairs:
                 if len(pair) != 2 or not is_int_type(pair[0]) or not is_float_type(pair[1]):
                     return False
@@ -118,7 +116,10 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
                     indices.append(int(index))
                     values.append(float(value))
                 result.contents.append(sparse_float_row_to_bytes(indices, values))
-                dim = max(dim, indices[-1] + 1)
+                row_dim = 0
+                if len(indices) > 0:
+                    row_dim = indices[-1] + 1
+                dim = max(dim, row_dim)
         result.dim = dim
     return result
 
