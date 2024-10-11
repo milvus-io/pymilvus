@@ -134,6 +134,7 @@ class Prepare:
                 is_dynamic=f.is_dynamic,
                 element_type=f.element_type,
                 is_clustering_key=f.is_clustering_key,
+                is_function_output=f.is_function_output,
             )
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(
@@ -142,6 +143,20 @@ class Prepare:
                 field_schema.type_params.append(kv_pair)
 
             schema.fields.append(field_schema)
+
+        for f in fields.functions:
+            function_schema = schema_types.FunctionSchema(
+                name=f.name,
+                description=f.description,
+                type=f.type,
+                input_field_names=f.input_field_names,
+                output_field_names=f.output_field_names,
+            )
+            for k, v in f.params.items():
+                kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
+                function_schema.params.append(kv_pair)
+            schema.functions.append(function_schema)
+
         return schema
 
     @staticmethod
@@ -371,6 +386,12 @@ class Prepare:
         return milvus_types.PartitionName(collection_name=collection_name, tag=partition_name)
 
     @staticmethod
+    def _num_input_fields(fields_info: List[Dict]):
+        return len(fields_info) - len(
+            [field for field in fields_info if field.get("is_function_output", False)]
+        )
+
+    @staticmethod
     def _parse_row_request(
         request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
         fields_info: dict,
@@ -434,19 +455,25 @@ class Prepare:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
 
         request.fields_data.extend(
-            [fields_data[field["name"]] for field in fields_info if not field.get("auto_id", False)]
+            [
+                fields_data[field["name"]]
+                for field in fields_info
+                if not field.get("is_function_output", False) and not field.get("auto_id", False)
+            ]
         )
 
         if enable_dynamic:
             request.fields_data.append(d_field)
 
+        num_input_fields = Prepare._num_input_fields(fields_info)
+
         _, _, auto_id_loc = traverse_rows_info(fields_info, entities)
         if auto_id_loc is not None:
-            if (enable_dynamic and len(fields_data) != len(fields_info)) or (
-                not enable_dynamic and len(fields_data) + 1 != len(fields_info)
+            if (enable_dynamic and len(fields_data) != num_input_fields) or (
+                not enable_dynamic and len(fields_data) + 1 != num_input_fields
             ):
                 raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
-        elif enable_dynamic and len(fields_data) != len(fields_info) + 1:
+        elif enable_dynamic and len(fields_data) != num_input_fields + 1:
             raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
         return request
 
@@ -600,12 +627,14 @@ class Prepare:
         if primary_key_loc is None:
             raise ParamError(message="primary key not found")
 
-        if auto_id_loc is None and len(entities) != len(fields_info):
-            msg = f"number of fields: {len(fields_info)}, number of entities: {len(entities)}"
+        num_input_fields = Prepare._num_input_fields(fields_info)
+
+        if auto_id_loc is None and len(entities) != num_input_fields:
+            msg = f"number of fields: {num_input_fields}, number of entities: {len(entities)}"
             raise ParamError(msg)
 
-        if auto_id_loc is not None and len(entities) + 1 != len(fields_info):
-            msg = f"number of fields: {len(fields_info)}, number of entities: {len(entities)}"
+        if auto_id_loc is not None and len(entities) + 1 != num_input_fields:
+            msg = f"number of fields: {num_input_fields}, number of entities: {len(entities)}"
             raise ParamError(msg)
         return location
 
@@ -632,8 +661,10 @@ class Prepare:
         if primary_key_loc is None:
             raise ParamError(message="primary key not found")
 
-        if len(entities) != len(fields_info):
-            msg = f"number of fields: {len(fields_info)}, number of entities: {len(entities)}"
+        num_input_fields = Prepare._num_input_fields(fields_info)
+
+        if len(entities) != num_input_fields:
+            msg = f"number of fields: {num_input_fields}, number of entities: {len(entities)}"
             raise ParamError(msg)
         return location
 
@@ -763,6 +794,10 @@ class Prepare:
         elif isinstance(data[0], bytes):
             pl_type = PlaceholderType.BinaryVector
             pl_values = data  # data is already a list of bytes
+
+        elif isinstance(data[0], str):
+            pl_type = PlaceholderType.VARCHAR
+            pl_values = (value.encode("utf-8") for value in data)
 
         else:
             pl_type = PlaceholderType.FloatVector

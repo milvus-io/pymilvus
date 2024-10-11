@@ -10,7 +10,6 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-import copy
 from typing import List, Tuple, Union
 
 import numpy as np
@@ -53,18 +52,21 @@ class Prepare:
             for field in fields:
                 if field.is_primary and field.auto_id and is_insert:
                     continue
+                if field.is_function_output:
+                    continue
                 values = []
                 if field.name in list(data.columns):
                     values = list(data[field.name])
                 entities.append({"name": field.name, "type": field.dtype, "values": values})
             return entities
 
-        tmp_fields = copy.deepcopy(fields)
-        for i, field in enumerate(tmp_fields):
-            #  TODO Goose: Checking auto_id and is_primary only, maybe different than
-            #  schema.is_primary, schema.auto_id, need to check why and how schema is built.
-            if field.is_primary and field.auto_id and is_insert:
-                tmp_fields.pop(i)
+        tmp_fields = list(
+            filter(
+                lambda field: not (field.is_primary and field.auto_id and is_insert)
+                and not field.is_function_output,
+                fields,
+            )
+        )
 
         vec_dtype_checker = {
             DataType.FLOAT_VECTOR: lambda ndarr: ndarr.dtype in ("float32", "float64"),

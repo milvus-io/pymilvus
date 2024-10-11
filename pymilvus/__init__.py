@@ -18,6 +18,7 @@ from .client.stub import Milvus
 from .client.types import (
     BulkInsertState,
     DataType,
+    FunctionType,
     Group,
     IndexType,
     Replica,
@@ -38,7 +39,7 @@ from .orm.future import MutationFuture
 from .orm.index import Index
 from .orm.partition import Partition
 from .orm.role import Role
-from .orm.schema import CollectionSchema, FieldSchema
+from .orm.schema import CollectionSchema, FieldSchema, Function
 from .orm.utility import (
     create_resource_group,
     create_user,
@@ -101,6 +102,7 @@ __all__ = [
     "Group",
     "Shard",
     "FieldSchema",
+    "Function",
     "CollectionSchema",
     "SearchFuture",
     "MutationFuture",
@@ -121,6 +123,7 @@ __all__ = [
     "Prepare",
     "Status",
     "DataType",
+    "FunctionType",
     "MilvusException",
     "__version__",
     "MilvusClient",

@@ -108,6 +108,11 @@ class DataType(IntEnum):
     UNKNOWN = 999
 
 
+class FunctionType(IntEnum):
+    UNKNOWN = 0
+    BM25 = 1
+
+
 class RangeType(IntEnum):
     LT = 0  # less than
     LTE = 1  # less than or equal
@@ -173,6 +178,7 @@ class PlaceholderType(IntEnum):
     FLOAT16_VECTOR = 102
     BFLOAT16_VECTOR = 103
     SparseFloatVector = 104
+    VARCHAR = 21
 
 
 class State(IntEnum):

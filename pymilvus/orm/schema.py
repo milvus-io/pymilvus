@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from pandas.api.types import is_list_like, is_scalar
 
+from pymilvus.client.types import FunctionType
 from pymilvus.exceptions import (
     AutoIDException,
     CannotInferSchemaException,
@@ -25,6 +26,7 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     FieldsTypeException,
     FieldTypeException,
+    FunctionsTypeException,
     ParamError,
     PartitionKeyException,
     PrimaryKeyException,
@@ -85,7 +87,9 @@ def validate_clustering_key(clustering_key_field_name: Any, clustering_key_field
 
 
 class CollectionSchema:
-    def __init__(self, fields: List, description: str = "", **kwargs):
+    def __init__(
+        self, fields: List, description: str = "", functions: Optional[List] = None, **kwargs
+    ):
         self._kwargs = copy.deepcopy(kwargs)
         self._fields = []
         self._description = description
@@ -95,9 +99,24 @@ class CollectionSchema:
         self._partition_key_field = None
         self._clustering_key_field = None
 
+        if functions is None:
+            functions = []
+
+        if not isinstance(functions, list):
+            raise FunctionsTypeException(message=ExceptionsMessage.FunctionsType)
+        for function in functions:
+            if not isinstance(function, Function):
+                raise SchemaNotReadyException(message=ExceptionsMessage.FunctionIncorrectType)
+        self._functions = [copy.deepcopy(function) for function in functions]
+
         if not isinstance(fields, list):
             raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
+        for field in fields:
+            if not isinstance(field, FieldSchema):
+                raise FieldTypeException(message=ExceptionsMessage.FieldType)
         self._fields = [copy.deepcopy(field) for field in fields]
+
+        self._mark_output_fields()
 
         self._check_kwargs()
         if kwargs.get("check_fields", True):
@@ -114,10 +133,6 @@ class CollectionSchema:
         if clustering_key_field_name is not None and not isinstance(clustering_key_field_name, str):
             raise ClusteringKeyException(message=ExceptionsMessage.ClusteringKeyFieldType)
 
-        for field in self._fields:
-            if not isinstance(field, FieldSchema):
-                raise FieldTypeException(message=ExceptionsMessage.FieldType)
-
         if "auto_id" in self._kwargs and not isinstance(self._kwargs["auto_id"], bool):
             raise AutoIDException(0, ExceptionsMessage.AutoIDType)
 
@@ -125,6 +140,9 @@ class CollectionSchema:
         primary_field_name = self._kwargs.get("primary_field", None)
         partition_key_field_name = self._kwargs.get("partition_key_field", None)
         clustering_key_field_name = self._kwargs.get("clustering_key_field", None)
+        field_names = [field.name for field in self._fields]
+        if len(field_names) != len(set(field_names)):
+            raise ParamError(message=ExceptionsMessage.FieldNamesDuplicate)
         for field in self._fields:
             if primary_field_name and primary_field_name == field.name:
                 field.is_primary = True
@@ -175,9 +193,48 @@ class CollectionSchema:
         if auto_id:
             self._primary_field.auto_id = auto_id
 
+    def _check_functions(self):
+        for function in self._functions:
+            for output_field_name in function.output_field_names:
+                output_field = next(
+                    (field for field in self._fields if field.name == output_field_name), None
+                )
+                if output_field is None:
+                    raise ParamError(
+                        message=f"{ExceptionsMessage.FunctionMissingOutputField}: {output_field_name}"
+                    )
+
+                if output_field is not None and (
+                    output_field.is_primary
+                    or output_field.is_partition_key
+                    or output_field.is_clustering_key
+                ):
+                    raise ParamError(message=ExceptionsMessage.FunctionInvalidOutputField)
+
+            for input_field_name in function.input_field_names:
+                input_field = next(
+                    (field for field in self._fields if field.name == input_field_name), None
+                )
+                if input_field is None:
+                    raise ParamError(
+                        message=f"{ExceptionsMessage.FunctionMissingInputField}: {input_field_name}"
+                    )
+
+            function.verify(self)
+
+    def _mark_output_fields(self):
+        for function in self._functions:
+            for output_field_name in function.output_field_names:
+                output_field = next(
+                    (field for field in self._fields if field.name == output_field_name), None
+                )
+                if output_field is not None:
+                    output_field.is_function_output = True
+
     def _check(self):
         self._check_kwargs()
         self._check_fields()
+        self._check_functions()
 
     def __repr__(self) -> str:
         return str(self.to_dict())
@@ -192,9 +249,15 @@ class CollectionSchema:
     @classmethod
     def construct_from_dict(cls, raw: Dict):
         fields = [FieldSchema.construct_from_dict(field_raw) for field_raw in raw["fields"]]
+        if "functions" in raw:
+            functions = [
+                Function.construct_from_dict(function_raw) for function_raw in raw["functions"]
+            ]
+        else:
+            functions = []
         enable_dynamic_field = raw.get("enable_dynamic_field", False)
         return CollectionSchema(
-            fields, raw.get("description", ""), enable_dynamic_field=enable_dynamic_field
+            fields, raw.get("description", ""), functions, enable_dynamic_field=enable_dynamic_field
         )
 
     @property
@@ -221,6 +284,16 @@ class CollectionSchema:
             [<pymilvus.schema.FieldSchema object at 0x7fd3716ffc50>]
         """
         return self._fields
+
+    @property
+    def functions(self):
+        """
+        Returns the functions of the CollectionSchema.
+
+        :return list:
+            List of Function, return when operation is successful.
+        """
+        return self._functions
 
     @property
     def description(self):
@@ -273,12 +346,15 @@ class CollectionSchema:
         self._enable_dynamic_field = bool(value)
 
     def to_dict(self):
-        return {
+        res = {
             "auto_id": self.auto_id,
             "description": self._description,
             "fields": [s.to_dict() for s in self._fields],
             "enable_dynamic_field": self.enable_dynamic_field,
         }
+        if self._functions is not None and len(self._functions) > 0:
+            res["functions"] = [s.to_dict() for s in self._functions]
+        return res
 
     def verify(self):
         # final check, detect obvious problems
@@ -287,6 +363,14 @@ class CollectionSchema:
     def add_field(self, field_name: str, datatype: DataType, **kwargs):
         field = FieldSchema(field_name, datatype, **kwargs)
         self._fields.append(field)
+        self._mark_output_fields()
+        return self
+
+    def add_function(self, function: "Function"):
+        if not isinstance(function, Function):
+            raise ParamError(message=ExceptionsMessage.FunctionIncorrectType)
+        self._functions.append(function)
+        self._mark_output_fields()
         return self
 
 
@@ -333,6 +417,7 @@ class FieldSchema:
         if "mmap_enabled" in kwargs:
             self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
         self._parse_type_params()
+        self.is_function_output = False
 
     def __repr__(self) -> str:
         return str(self.to_dict())
@@ -361,6 +446,13 @@ class FieldSchema:
                 if k in self._kwargs:
                     if self._type_params is None:
                         self._type_params = {}
+                    if isinstance(self._kwargs[k], str):
+                        if self._kwargs[k].lower() == "true":
+                            self._type_params[k] = True
+                            continue
+                        if self._kwargs[k].lower() == "false":
+                            self._type_params[k] = False
+                            continue
                     self._type_params[k] = self._kwargs[k]
 
     @classmethod
@@ -377,7 +469,10 @@ class FieldSchema:
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
         kwargs["nullable"] = raw.get("nullable", False)
         kwargs["element_type"] = raw.get("element_type")
-        return FieldSchema(raw["name"], raw["type"], raw.get("description", ""), **kwargs)
+        is_function_output = raw.get("is_function_output", False)
+        fs = FieldSchema(raw["name"], raw["type"], raw.get("description", ""), **kwargs)
+        fs.is_function_output = is_function_output
+        return fs
 
     def to_dict(self):
         _dict = {
@@ -404,6 +499,8 @@ class FieldSchema:
             _dict["element_type"] = self.element_type
         if self.is_clustering_key:
             _dict["is_clustering_key"] = True
+        if self.is_function_output:
+            _dict["is_function_output"] = True
         return _dict
 
     def __getattr__(self, item: str):
@@ -456,6 +553,115 @@ class FieldSchema:
         return self._dtype
 
 
+class Function:
+    def __init__(
+        self,
+        name: str,
+        function_type: FunctionType,
+        input_field_names: Union[str, List[str]],
+        output_field_names: Union[str, List[str]],
+        description: str = "",
+        params: Optional[Dict] = None,
+    ):
+        self._name = name
+        self._description = description
+        input_field_names = (
+            [input_field_names] if isinstance(input_field_names, str) else input_field_names
+        )
+        output_field_names = (
+            [output_field_names] if isinstance(output_field_names, str) else output_field_names
+        )
+        try:
+            self._type = FunctionType(function_type)
+        except ValueError as err:
+            raise ParamError(message=ExceptionsMessage.UnknownFunctionType) from err
+
+        for field_name in list(input_field_names) + list(output_field_names):
+            if not isinstance(field_name, str):
+                raise ParamError(message=ExceptionsMessage.FunctionIncorrectInputOutputType)
+        if len(input_field_names) != len(set(input_field_names)):
+            raise ParamError(message=ExceptionsMessage.FunctionDuplicateInputs)
+        if len(output_field_names) != len(set(output_field_names)):
+            raise ParamError(message=ExceptionsMessage.FunctionDuplicateOutputs)
+
+        if set(input_field_names) & set(output_field_names):
+            raise ParamError(message=ExceptionsMessage.FunctionCommonInputOutput)
+
+        self._input_field_names = input_field_names
+        self._output_field_names = output_field_names
+        self._params = params if params is not None else {}
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def description(self):
+        return self._description
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def input_field_names(self):
+        return self._input_field_names
+
+    @property
+    def output_field_names(self):
+        return self._output_field_names
+
+    @property
+    def params(self):
+        return self._params
+
+    def verify(self, schema: CollectionSchema):
+        if self._type == FunctionType.BM25:
+            if len(self._input_field_names) != 1 or len(self._output_field_names) != 1:
+                raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectInputOutputCount)
+
+            for field in schema.fields:
+                if field.name == self._input_field_names[0] and field.dtype != DataType.VARCHAR:
+                    raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectInputFieldType)
+                if (
+                    field.name == self._output_field_names[0]
+                    and field.dtype != DataType.SPARSE_FLOAT_VECTOR
+                ):
+                    raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectOutputFieldType)
+
+        elif self._type == FunctionType.UNKNOWN:
+            raise ParamError(message=ExceptionsMessage.UnknownFunctionType)
+
+    @classmethod
+    def construct_from_dict(cls, raw: Dict):
+        return Function(
+            raw["name"],
+            raw["type"],
+            raw["input_field_names"],
+            raw["output_field_names"],
+            raw["description"],
+            raw["params"],
+        )
+
+    def __repr__(self) -> str:
+        return str(self.to_dict())
+
+    def to_dict(self):
+        return {
+            "name": self._name,
+            "description": self._description,
+            "type": self._type,
+            "input_field_names": self._input_field_names,
+            "output_field_names": self._output_field_names,
+            "params": self._params,
+        }
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, Function):
+            return False
+        return self.to_dict() == value.to_dict()
+
+
 def is_valid_insert_data(data: Union[pd.DataFrame, list, dict]) -> bool:
     """DataFrame, list, dict are valid insert data"""
     return isinstance(data, (pd.DataFrame, list, dict))
@@ -501,7 +707,7 @@ def _check_insert_data(data: Union[List[List], pd.DataFrame]):
 
 
 def _check_data_schema_cnt(fields: List, data: Union[List[List], pd.DataFrame]):
-    field_cnt = len(fields)
+    field_cnt = len([f for f in fields if not f.is_function_output])
     is_dataframe = isinstance(data, pd.DataFrame)
     data_cnt = len(data.columns) if is_dataframe else len(data)
     if field_cnt != data_cnt:
@@ -534,10 +740,12 @@ def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
         columns.remove(schema.primary_field)
         data = data[columns]
 
-    tmp_fields = copy.deepcopy(schema.fields)
-    for i, field in enumerate(tmp_fields):
-        if field.is_primary and field.auto_id:
-            tmp_fields.pop(i)
+    tmp_fields = list(
+        filter(
+            lambda field: not (field.is_primary and field.auto_id) and not field.is_function_output,
+            schema.fields,
+        )
+    )
 
     _check_data_schema_cnt(tmp_fields, data)
     _check_insert_data(data)
