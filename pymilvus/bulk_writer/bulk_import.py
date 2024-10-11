@@ -12,7 +12,6 @@
 
 import json
 import logging
-from urllib.parse import urlparse
 
 import requests
 
@@ -26,7 +25,7 @@ def _http_headers(api_key: str):
     return {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_0) AppleWebKit/535.11 (KHTML, like Gecko) "
         "Chrome/17.0.963.56 Safari/535.11",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept": "application/json",
         "Accept-Encodin": "gzip,deflate,sdch",
         "Accept-Languag": "en-US,en;q=0.5",
         "Authorization": f"Bearer {api_key}",
@@ -40,7 +39,7 @@ def _throw(msg: str):
 
 def _handle_response(url: str, res: json):
     inner_code = res["code"]
-    if inner_code != 200:
+    if inner_code != 0:
         inner_message = res["message"]
         _throw(f"Failed to request url: {url}, code: {inner_code}, message: {inner_message}")
 
@@ -95,26 +94,25 @@ def bulk_import(
         secret_key (str): secret key to access the object storage
         cluster_id (str): id of a milvus instance(for cloud)
         collection_name (str): name of the target collection
+        partition_name (str): name of the target partition
 
     Returns:
         json: response of the restful interface
     """
-    up = urlparse(url)
-    if up.scheme.startswith("http"):
-        request_url = f"{url}/v1/vector/collections/import"
-    else:
-        request_url = f"https://{url}/v1/vector/collections/import"
+    request_url = url + "/v2/vectordb/jobs/import/create"
 
+    partition_name = kwargs.pop("partition_name", "")
     params = {
+        "clusterId": cluster_id,
+        "collectionName": collection_name,
+        "partitionName": partition_name,
         "objectUrl": object_url,
         "accessKey": access_key,
         "secretKey": secret_key,
-        "clusterId": cluster_id,
-        "collectionName": collection_name,
     }
 
     resp = _post_request(url=request_url, api_key=api_key, params=params, **kwargs)
-    _handle_response(url, resp.json())
+    _handle_response(request_url, resp.json())
     return resp
 
 
@@ -131,19 +129,15 @@ def get_import_progress(
     Returns:
         json: response of the restful interface
     """
-    up = urlparse(url)
-    if up.scheme.startswith("http"):
-        request_url = f"{url}/v1/vector/collections/import/get"
-    else:
-        request_url = f"https://{url}/v1/vector/collections/import/get"
+    request_url = url + "/v2/vectordb/jobs/import/describe"
 
     params = {
         "jobId": job_id,
         "clusterId": cluster_id,
     }
 
-    resp = _get_request(url=request_url, api_key=api_key, params=params, **kwargs)
-    _handle_response(url, resp.json())
+    resp = _post_request(url=request_url, api_key=api_key, params=params, **kwargs)
+    _handle_response(request_url, resp.json())
     return resp
 
 
@@ -161,11 +155,7 @@ def list_import_jobs(
     Returns:
         json: response of the restful interface
     """
-    up = urlparse(url)
-    if up.scheme.startswith("http"):
-        request_url = f"{url}/v1/vector/collections/import/list"
-    else:
-        request_url = f"https://{url}/v1/vector/collections/import/list"
+    request_url = url + "/v2/vectordb/jobs/import/list"
 
     params = {
         "clusterId": cluster_id,
@@ -173,6 +163,6 @@ def list_import_jobs(
         "currentPage": current_page,
     }
 
-    resp = _get_request(url=request_url, api_key=api_key, params=params, **kwargs)
-    _handle_response(url, resp.json())
+    resp = _post_request(url=request_url, api_key=api_key, params=params, **kwargs)
+    _handle_response(request_url, resp.json())
     return resp
