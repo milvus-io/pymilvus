@@ -118,6 +118,7 @@ class QueryIterator:
                 **seek_params,
             )
             self.__update_cursor(res)
+            self._kwargs[OFFSET] = 0
 
     def __init_cp_file_handler(self) -> bool:
         mode = "w"
