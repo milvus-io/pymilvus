@@ -12,7 +12,7 @@
 
 import json
 import logging
-from typing import List
+from typing import List, Optional
 
 import requests
 
@@ -79,7 +79,7 @@ def _get_request(
 def bulk_import(
     url: str,
     collection_name: str,
-    files: List[List[str]] = None,
+    files: Optional[List[List[str]]] = None,
     object_url: str = "",
     cluster_id: str = "",
     api_key: str = "",
