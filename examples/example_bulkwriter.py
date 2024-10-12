@@ -20,6 +20,9 @@ import numpy as np
 import tensorflow as tf
 
 import logging
+
+from typing import List
+
 logging.basicConfig(level=logging.INFO)
 
 from pymilvus import (
@@ -273,7 +276,7 @@ def parallel_append(schema: CollectionSchema):
     print("Data is correct")
 
 
-def all_types_writer(schema: CollectionSchema, file_type: BulkFileType)->list:
+def all_types_writer(schema: CollectionSchema, file_type: BulkFileType)-> List[List[str]]:
     print(f"\n===================== all field types ({file_type.name}) ====================")
     with RemoteBulkWriter(
             schema=schema,
@@ -347,31 +350,47 @@ def all_types_writer(schema: CollectionSchema, file_type: BulkFileType)->list:
         return remote_writer.batch_files
 
 
-def call_bulkinsert(schema: CollectionSchema, batch_files: list):
-    print(f"\n===================== call bulkinsert ====================")
+def call_bulkinsert(schema: CollectionSchema, batch_files: List[List[str]]):
     if utility.has_collection(ALL_TYPES_COLLECTION_NAME):
         utility.drop_collection(ALL_TYPES_COLLECTION_NAME)
 
     collection = Collection(name=ALL_TYPES_COLLECTION_NAME, schema=schema)
     print(f"Collection '{collection.name}' created")
 
-    task_ids = []
-    for files in batch_files:
-        task_id = utility.do_bulk_insert(collection_name=ALL_TYPES_COLLECTION_NAME, files=files)
-        task_ids.append(task_id)
-        print(f"Create a bulkinert task, task id: {task_id}")
+    url = f"http://{HOST}:{PORT}"
 
-    while len(task_ids) > 0:
-        print("Wait 1 second to check bulkinsert tasks state...")
+    print(f"\n===================== import files to milvus ====================")
+    resp = bulk_import(
+        url=url,
+        collection_name=ALL_TYPES_COLLECTION_NAME,
+        files=batch_files,
+    )
+    print(resp.json())
+    job_id = resp.json()['data']['jobId']
+    print(f"Create a bulkinsert job, job id: {job_id}")
+
+    while True:
+        print("Wait 1 second to check bulkinsert job state...")
         time.sleep(1)
-        for id in task_ids:
-            state = utility.get_bulk_insert_state(task_id=id)
-            if state.state == BulkInsertState.ImportFailed or state.state == BulkInsertState.ImportFailedAndCleaned:
-                print(f"The task {state.task_id} failed, reason: {state.failed_reason}")
-                task_ids.remove(id)
-            elif state.state == BulkInsertState.ImportCompleted:
-                print(f"The task {state.task_id} completed")
-                task_ids.remove(id)
+
+        print(f"\n===================== get import job progress ====================")
+        resp = get_import_progress(
+            url=url,
+            job_id=job_id,
+        )
+
+        state = resp.json()['data']['state']
+        progress = resp.json()['data']['progress']
+        if state == "Importing":
+            print(f"The job {job_id} is importing... {progress}%")
+            continue
+        if state == "Failed":
+            reason = resp.json()['data']['reason']
+            print(f"The job {job_id} failed, reason: {reason}")
+            break
+        if state == "Completed" and progress == 100:
+            print(f"The job {job_id} completed")
+            break
 
     print(f"Collection row number: {collection.num_entities}")
 
@@ -427,13 +446,13 @@ def cloud_bulkinsert():
     object_url_secret_key = "_your_object_storage_service_secret_key_"
     resp = bulk_import(
         url=url,
-        api_key=api_key,
-        object_url=object_url,
-        access_key=object_url_access_key,
-        secret_key=object_url_secret_key,
-        cluster_id=cluster_id,
         collection_name=collection_name,
         partition_name=partition_name,
+        object_url=object_url,
+        cluster_id=cluster_id,
+        api_key=api_key,
+        access_key=object_url_access_key,
+        secret_key=object_url_secret_key,
     )
     print(resp.json())
 
@@ -441,17 +460,17 @@ def cloud_bulkinsert():
     job_id = resp.json()['data']['jobId']
     resp = get_import_progress(
         url=url,
-        api_key=api_key,
         job_id=job_id,
         cluster_id=cluster_id,
+        api_key=api_key,
     )
     print(resp.json())
 
     print(f"\n===================== list import jobs ====================")
     resp = list_import_jobs(
         url=url,
-        api_key=api_key,
         cluster_id=cluster_id,
+        api_key=api_key,
         page_size=10,
         current_page=1,
     )
