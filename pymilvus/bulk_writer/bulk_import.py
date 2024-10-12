@@ -12,10 +12,9 @@
 
 import json
 import logging
-import requests
-
 from typing import List
-from urllib.parse import urlparse
+
+import requests
 
 from pymilvus.exceptions import MilvusException
 
@@ -126,11 +125,7 @@ def bulk_import(
 
 
 def get_import_progress(
-    url: str,
-    job_id: str,
-    cluster_id: str = "",
-    api_key: str = "",
-    **kwargs
+    url: str, job_id: str, cluster_id: str = "", api_key: str = "", **kwargs
 ) -> requests.Response:
     """get job progress
 
@@ -162,7 +157,7 @@ def list_import_jobs(
     api_key: str = "",
     page_size: int = 10,
     current_page: int = 1,
-    **kwargs
+    **kwargs,
 ) -> requests.Response:
     """list jobs in a cluster
 
