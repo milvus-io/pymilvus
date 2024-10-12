@@ -140,9 +140,6 @@ class CollectionSchema:
         primary_field_name = self._kwargs.get("primary_field", None)
         partition_key_field_name = self._kwargs.get("partition_key_field", None)
         clustering_key_field_name = self._kwargs.get("clustering_key_field", None)
-        field_names = [field.name for field in self._fields]
-        if len(field_names) != len(set(field_names)):
-            raise ParamError(message=ExceptionsMessage.FieldNamesDuplicate)
         for field in self._fields:
             if primary_field_name and primary_field_name == field.name:
                 field.is_primary = True
