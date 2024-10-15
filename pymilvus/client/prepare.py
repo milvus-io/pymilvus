@@ -432,7 +432,11 @@ class Prepare:
                         entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
                 for field in fields_info:
                     key = field["name"]
-                    if key in entity or field.get("auto_id", False):
+                    if (
+                        key in entity
+                        or field.get("auto_id", False)
+                        or field.get("is_function_output", False)
+                    ):
                         continue
 
                     field_info, field_data = field_info_map[key], fields_data[key]
@@ -515,7 +519,7 @@ class Prepare:
                         entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
                 for field in fields_info:
                     key = field["name"]
-                    if key in entity:
+                    if key in entity or field.get("is_function_output", False):
                         continue
 
                     field_info, field_data = field_info_map[key], fields_data[key]
