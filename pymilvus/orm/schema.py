@@ -11,6 +11,7 @@
 # the License.
 
 import copy
+import json
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
@@ -449,6 +450,12 @@ class FieldSchema:
                             continue
                         if self._kwargs[k].lower() == "false":
                             self._type_params[k] = False
+                            continue
+                        if k == "tokenizer_params":
+                            # TODO: a more complicate json may be reordered which
+                            # can still cause server_schema == schema to be False.
+                            # need a better approach.
+                            self._type_params[k] = json.loads(self._kwargs[k])
                             continue
                     self._type_params[k] = self._kwargs[k]
 
