@@ -708,9 +708,13 @@ def extract_row_data_from_fields_data(
             dim = field_data.vectors.dim
             if len(field_data.vectors.float_vector.data) >= index * dim:
                 start_pos, end_pos = index * dim, (index + 1) * dim
-                entity_row_data[field_data.field_name] = [
-                    np.single(x) for x in field_data.vectors.float_vector.data[start_pos:end_pos]
-                ]
+                # Here we use numpy.array to convert the float64 values to numpy.float32 values,
+                # and return a list of numpy.float32 to users
+                # By using numpy.array, performance improved by 60% for topk=16384 dim=1536 case.
+                arr = np.array(
+                    field_data.vectors.float_vector.data[start_pos:end_pos], dtype=np.float32
+                )
+                entity_row_data[field_data.field_name] = list(arr)
         elif field_data.type == DataType.BINARY_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.binary_vector) >= index * (dim // 8):
