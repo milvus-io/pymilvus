@@ -289,7 +289,7 @@ class Buffer:
 
     def _persist_csv(self, local_path: str, **kwargs):
         sep = self._config.get("sep", ",")
-        # nullkey is not supported in csv now
+        nullkey = self._config.get("nullkey", "")
 
         header = list(self._buffer.keys())
         data = pd.DataFrame(columns=header)
@@ -307,17 +307,14 @@ class Buffer:
             #    2. or convert arr into a string using json.dumps(arr) first and then add it to df
             # I choose method 2 here
             if field_schema.dtype in {
-                DataType.JSON,
-                DataType.ARRAY,
                 DataType.SPARSE_FLOAT_VECTOR,
                 DataType.BINARY_VECTOR,
                 DataType.FLOAT_VECTOR,
             }:
-                dt = np.dtype("str")
                 arr = []
                 for val in v:
                     arr.append(json.dumps(val))
-                data[k] = pd.Series(arr, dtype=dt)
+                data[k] = pd.Series(arr, dtype=np.dtype("str"))
             elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
                 # special process for float16 vector, the self._buffer stores bytes for
                 # float16 vector, convert the bytes to float list
@@ -330,19 +327,31 @@ class Buffer:
                 for val in v:
                     arr.append(json.dumps(np.frombuffer(val, dtype=dt).tolist()))
                 data[k] = pd.Series(arr, dtype=np.dtype("str"))
+            elif field_schema.dtype in {
+                DataType.JSON,
+                DataType.ARRAY,
+            }:
+                arr = []
+                for val in v:
+                    if val is None:
+                        arr.append(nullkey)
+                    else:
+                        arr.append(json.dumps(val))
+                data[k] = pd.Series(arr, dtype=np.dtype("str"))
             elif field_schema.dtype in {DataType.BOOL}:
-                dt = np.dtype("str")
-                arr = ["true" if x else "false" for x in v]
-                data[k] = pd.Series(arr, dtype=dt)
-            elif field_schema.dtype.name in NUMPY_TYPE_CREATOR:
-                dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
-                data[k] = pd.Series(v, dtype=dt)
+                arr = []
+                for val in v:
+                    if val is not None:
+                        arr.append("true" if val else "false")
+                data[k] = pd.Series(arr, dtype=np.dtype("str"))
             else:
-                data[k] = pd.Series(v)
+                data[k] = pd.Series(v, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name])
 
         file_path = Path(local_path + ".csv")
         try:
-            data.to_csv(file_path, sep=sep, index=False)
+            # pd.Series will convert None to np.nan,
+            # so we can use 'na_rep=nullkey' to replace NaN with nullkey
+            data.to_csv(file_path, sep=sep, na_rep=nullkey, index=False)
         except Exception as e:
             self._throw(f"Failed to persist file {file_path}, error: {e}")
 

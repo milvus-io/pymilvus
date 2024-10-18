@@ -199,6 +199,20 @@ class BulkWriter:
                 self._throw(f"The field '{field.name}' is missed in the row")
 
             dtype = DataType(field.dtype)
+
+            # deal with null (None)
+            if field.nullable and row[field.name] is None:
+                if (
+                    field.default_value is not None
+                    and field.default_value.WhichOneof("data") is not None
+                ):
+                    # set default value
+                    data_type = field.default_value.WhichOneof("data")
+                    row[field.name] = getattr(field.default_value, data_type)
+                else:
+                    # skip field check if the field is null
+                    continue
+
             if dtype in {
                 DataType.BINARY_VECTOR,
                 DataType.FLOAT_VECTOR,
