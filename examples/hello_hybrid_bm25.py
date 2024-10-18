@@ -114,7 +114,7 @@ col = Collection(col_name, schema, consistency_level="Strong")
 
 # We need to create indices for the vector fields. The indices will be loaded
 # into memory for efficient search.
-sparse_index = {"index_type": "SPARSE_INVERTED_INDEX", "metric_type": "IP"}
+sparse_index = {"index_type": "SPARSE_INVERTED_INDEX", "metric_type": "BM25"}
 col.create_index("sparse_vector", sparse_index)
 dense_index = {"index_type": "FLAT", "metric_type": "IP"}
 col.create_index("dense_vector", dense_index)

@@ -14,6 +14,7 @@ from pymilvus.exceptions import (
 from .connections import Connections
 from .constants import (
     BATCH_SIZE,
+    CALC_DIST_BM25,
     CALC_DIST_COSINE,
     CALC_DIST_HAMMING,
     CALC_DIST_IP,
@@ -321,7 +322,7 @@ class QueryIterator:
 def metrics_positive_related(metrics: str) -> bool:
     if metrics in [CALC_DIST_L2, CALC_DIST_JACCARD, CALC_DIST_HAMMING, CALC_DIST_TANIMOTO]:
         return True
-    if metrics in [CALC_DIST_IP, CALC_DIST_COSINE]:
+    if metrics in [CALC_DIST_IP, CALC_DIST_COSINE, CALC_DIST_BM25]:
         return False
     raise MilvusException(message=f"unsupported metrics type for search iteration: {metrics}")
 
