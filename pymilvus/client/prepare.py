@@ -341,7 +341,7 @@ class Prepare:
         if partition_names:
             if not isinstance(partition_names, (list,)):
                 msg = f"partition_names must be a list of strings, but got: {partition_names}"
-                raise ParamError(msg)
+                raise ParamError(message=msg)
             for partition_name in partition_names:
                 check_pass_param(partition_name=partition_name)
             req.partition_names.extend(partition_names)
@@ -466,7 +466,8 @@ class Prepare:
         expected_num_input_fields = len(input_fields_info) + (1 if enable_dynamic else 0)
 
         if len(fields_data) != expected_num_input_fields:
-            raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
+            msg = f"{ExceptionsMessage.FieldsNumInconsistent}, expected {expected_num_input_fields} fields, got {len(fields_data)}"
+            raise ParamError(message=msg)
 
         return request
 
@@ -553,7 +554,8 @@ class Prepare:
         expected_num_input_fields = len(input_fields_info) + (1 if enable_dynamic else 0)
 
         if len(fields_data) != expected_num_input_fields:
-            raise ParamError(ExceptionsMessage.FieldsNumInconsistent)
+            msg = f"{ExceptionsMessage.FieldsNumInconsistent}, expected {expected_num_input_fields} fields, got {len(fields_data)}"
+            raise ParamError(message=msg)
 
         return request
 
@@ -628,7 +630,7 @@ class Prepare:
 
         if len(entities) != expected_num_input_fields:
             msg = f"expected number of fields: {expected_num_input_fields}, actual number of fields in entities: {len(entities)}"
-            raise ParamError(msg)
+            raise ParamError(message=msg)
 
         return location
 
@@ -659,7 +661,7 @@ class Prepare:
 
         if len(entities) != expected_num_input_fields:
             msg = f"expected number of fields: {expected_num_input_fields}, actual number of fields in entities: {len(entities)}"
-            raise ParamError(msg)
+            raise ParamError(message=msg)
         return location
 
     @staticmethod
@@ -1276,7 +1278,7 @@ class Prepare:
     def get_bulk_insert_state(cls, task_id: int):
         if task_id is None or not isinstance(task_id, int):
             msg = f"task_id value {task_id} is not an integer"
-            raise ParamError(msg)
+            raise ParamError(message=msg)
 
         return milvus_types.GetImportStateRequest(task=task_id)
 
@@ -1284,7 +1286,7 @@ class Prepare:
     def list_bulk_insert_tasks(cls, limit: int, collection_name: str):
         if limit is None or not isinstance(limit, int):
             msg = f"limit value {limit} is not an integer"
-            raise ParamError(msg)
+            raise ParamError(message=msg)
 
         return milvus_types.ListImportTasksRequest(
             collection_name=collection_name,
