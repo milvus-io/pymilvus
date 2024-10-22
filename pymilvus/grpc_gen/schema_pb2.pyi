@@ -32,6 +32,7 @@ class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     Unknown: _ClassVar[FunctionType]
     BM25: _ClassVar[FunctionType]
+    OpenAIEmbedding: _ClassVar[FunctionType]
 
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -58,6 +59,7 @@ BFloat16Vector: DataType
 SparseFloatVector: DataType
 Unknown: FunctionType
 BM25: FunctionType
+OpenAIEmbedding: FunctionType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
@@ -330,3 +332,29 @@ class ClusteringInfo(_message.Message):
     vector_clustering_infos: _containers.RepeatedCompositeFieldContainer[VectorClusteringInfo]
     scalar_clustering_infos: _containers.RepeatedCompositeFieldContainer[ScalarClusteringInfo]
     def __init__(self, vector_clustering_infos: _Optional[_Iterable[_Union[VectorClusteringInfo, _Mapping]]] = ..., scalar_clustering_infos: _Optional[_Iterable[_Union[ScalarClusteringInfo, _Mapping]]] = ...) -> None: ...
+
+class TemplateValue(_message.Message):
+    __slots__ = ("type", "bool_val", "int64_val", "float_val", "string_val", "array_val")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    BOOL_VAL_FIELD_NUMBER: _ClassVar[int]
+    INT64_VAL_FIELD_NUMBER: _ClassVar[int]
+    FLOAT_VAL_FIELD_NUMBER: _ClassVar[int]
+    STRING_VAL_FIELD_NUMBER: _ClassVar[int]
+    ARRAY_VAL_FIELD_NUMBER: _ClassVar[int]
+    type: DataType
+    bool_val: bool
+    int64_val: int
+    float_val: float
+    string_val: str
+    array_val: TemplateArrayValue
+    def __init__(self, type: _Optional[_Union[DataType, str]] = ..., bool_val: bool = ..., int64_val: _Optional[int] = ..., float_val: _Optional[float] = ..., string_val: _Optional[str] = ..., array_val: _Optional[_Union[TemplateArrayValue, _Mapping]] = ...) -> None: ...
+
+class TemplateArrayValue(_message.Message):
+    __slots__ = ("array", "same_type", "element_type")
+    ARRAY_FIELD_NUMBER: _ClassVar[int]
+    SAME_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    array: _containers.RepeatedCompositeFieldContainer[TemplateValue]
+    same_type: bool
+    element_type: DataType
+    def __init__(self, array: _Optional[_Iterable[_Union[TemplateValue, _Mapping]]] = ..., same_type: bool = ..., element_type: _Optional[_Union[DataType, str]] = ...) -> None: ...
