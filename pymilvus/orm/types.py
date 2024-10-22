@@ -73,6 +73,8 @@ def is_numeric_datatype(data_type: DataType):
 
 # pylint: disable=too-many-return-statements
 def infer_dtype_by_scalar_data(data: Any):
+    if isinstance(data, list):
+        return DataType.ARRAY
     if isinstance(data, float):
         return DataType.DOUBLE
     if isinstance(data, bool):

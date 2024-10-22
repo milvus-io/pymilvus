@@ -302,6 +302,11 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeUpdateResourceGroups: _ClassVar[ObjectPrivilege]
     PrivilegeAlterDatabase: _ClassVar[ObjectPrivilege]
     PrivilegeDescribeDatabase: _ClassVar[ObjectPrivilege]
+    PrivilegeBackupRBAC: _ClassVar[ObjectPrivilege]
+    PrivilegeRestoreRBAC: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupReadOnly: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupReadWrite: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupAdmin: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -577,6 +582,11 @@ PrivilegeListAliases: ObjectPrivilege
 PrivilegeUpdateResourceGroups: ObjectPrivilege
 PrivilegeAlterDatabase: ObjectPrivilege
 PrivilegeDescribeDatabase: ObjectPrivilege
+PrivilegeBackupRBAC: ObjectPrivilege
+PrivilegeRestoreRBAC: ObjectPrivilege
+PrivilegeGroupReadOnly: ObjectPrivilege
+PrivilegeGroupReadWrite: ObjectPrivilege
+PrivilegeGroupAdmin: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

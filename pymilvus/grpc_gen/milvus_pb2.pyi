@@ -711,7 +711,14 @@ class MutationResult(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., IDs: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., succ_index: _Optional[_Iterable[int]] = ..., err_index: _Optional[_Iterable[int]] = ..., acknowledged: bool = ..., insert_cnt: _Optional[int] = ..., delete_cnt: _Optional[int] = ..., upsert_cnt: _Optional[int] = ..., timestamp: _Optional[int] = ...) -> None: ...
 
 class DeleteRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "partition_name", "expr", "hash_keys", "consistency_level")
+    __slots__ = ("base", "db_name", "collection_name", "partition_name", "expr", "hash_keys", "consistency_level", "expr_template_values")
+    class ExprTemplateValuesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _schema_pb2.TemplateValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_schema_pb2.TemplateValue, _Mapping]] = ...) -> None: ...
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -719,6 +726,7 @@ class DeleteRequest(_message.Message):
     EXPR_FIELD_NUMBER: _ClassVar[int]
     HASH_KEYS_FIELD_NUMBER: _ClassVar[int]
     CONSISTENCY_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    EXPR_TEMPLATE_VALUES_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -726,24 +734,41 @@ class DeleteRequest(_message.Message):
     expr: str
     hash_keys: _containers.RepeatedScalarFieldContainer[int]
     consistency_level: _common_pb2.ConsistencyLevel
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., expr: _Optional[str] = ..., hash_keys: _Optional[_Iterable[int]] = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ...) -> None: ...
+    expr_template_values: _containers.MessageMap[str, _schema_pb2.TemplateValue]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., expr: _Optional[str] = ..., hash_keys: _Optional[_Iterable[int]] = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ...) -> None: ...
 
 class SubSearchRequest(_message.Message):
-    __slots__ = ("dsl", "placeholder_group", "dsl_type", "search_params", "nq")
+    __slots__ = ("dsl", "placeholder_group", "dsl_type", "search_params", "nq", "expr_template_values")
+    class ExprTemplateValuesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _schema_pb2.TemplateValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_schema_pb2.TemplateValue, _Mapping]] = ...) -> None: ...
     DSL_FIELD_NUMBER: _ClassVar[int]
     PLACEHOLDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     DSL_TYPE_FIELD_NUMBER: _ClassVar[int]
     SEARCH_PARAMS_FIELD_NUMBER: _ClassVar[int]
     NQ_FIELD_NUMBER: _ClassVar[int]
+    EXPR_TEMPLATE_VALUES_FIELD_NUMBER: _ClassVar[int]
     dsl: str
     placeholder_group: bytes
     dsl_type: _common_pb2.DslType
     search_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     nq: int
-    def __init__(self, dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., nq: _Optional[int] = ...) -> None: ...
+    expr_template_values: _containers.MessageMap[str, _schema_pb2.TemplateValue]
+    def __init__(self, dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., nq: _Optional[int] = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ...) -> None: ...
 
 class SearchRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "partition_names", "dsl", "placeholder_group", "dsl_type", "output_fields", "search_params", "travel_timestamp", "guarantee_timestamp", "nq", "not_return_all_meta", "consistency_level", "use_default_consistency", "search_by_primary_keys", "sub_reqs")
+    __slots__ = ("base", "db_name", "collection_name", "partition_names", "dsl", "placeholder_group", "dsl_type", "output_fields", "search_params", "travel_timestamp", "guarantee_timestamp", "nq", "not_return_all_meta", "consistency_level", "use_default_consistency", "search_by_primary_keys", "sub_reqs", "expr_template_values")
+    class ExprTemplateValuesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _schema_pb2.TemplateValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_schema_pb2.TemplateValue, _Mapping]] = ...) -> None: ...
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -761,6 +786,7 @@ class SearchRequest(_message.Message):
     USE_DEFAULT_CONSISTENCY_FIELD_NUMBER: _ClassVar[int]
     SEARCH_BY_PRIMARY_KEYS_FIELD_NUMBER: _ClassVar[int]
     SUB_REQS_FIELD_NUMBER: _ClassVar[int]
+    EXPR_TEMPLATE_VALUES_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -778,7 +804,8 @@ class SearchRequest(_message.Message):
     use_default_consistency: bool
     search_by_primary_keys: bool
     sub_reqs: _containers.RepeatedCompositeFieldContainer[SubSearchRequest]
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., output_fields: _Optional[_Iterable[str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., nq: _Optional[int] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., search_by_primary_keys: bool = ..., sub_reqs: _Optional[_Iterable[_Union[SubSearchRequest, _Mapping]]] = ...) -> None: ...
+    expr_template_values: _containers.MessageMap[str, _schema_pb2.TemplateValue]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., output_fields: _Optional[_Iterable[str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., nq: _Optional[int] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., search_by_primary_keys: bool = ..., sub_reqs: _Optional[_Iterable[_Union[SubSearchRequest, _Mapping]]] = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ...) -> None: ...
 
 class Hits(_message.Message):
     __slots__ = ("IDs", "row_data", "scores")
@@ -892,7 +919,14 @@ class FlushResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_name: _Optional[str] = ..., coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., flush_coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., coll_seal_times: _Optional[_Mapping[str, int]] = ..., coll_flush_ts: _Optional[_Mapping[str, int]] = ..., channel_cps: _Optional[_Mapping[str, _msg_pb2.MsgPosition]] = ...) -> None: ...
 
 class QueryRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "expr", "output_fields", "partition_names", "travel_timestamp", "guarantee_timestamp", "query_params", "not_return_all_meta", "consistency_level", "use_default_consistency")
+    __slots__ = ("base", "db_name", "collection_name", "expr", "output_fields", "partition_names", "travel_timestamp", "guarantee_timestamp", "query_params", "not_return_all_meta", "consistency_level", "use_default_consistency", "expr_template_values")
+    class ExprTemplateValuesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _schema_pb2.TemplateValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_schema_pb2.TemplateValue, _Mapping]] = ...) -> None: ...
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -905,6 +939,7 @@ class QueryRequest(_message.Message):
     NOT_RETURN_ALL_META_FIELD_NUMBER: _ClassVar[int]
     CONSISTENCY_LEVEL_FIELD_NUMBER: _ClassVar[int]
     USE_DEFAULT_CONSISTENCY_FIELD_NUMBER: _ClassVar[int]
+    EXPR_TEMPLATE_VALUES_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -917,7 +952,8 @@ class QueryRequest(_message.Message):
     not_return_all_meta: bool
     consistency_level: _common_pb2.ConsistencyLevel
     use_default_consistency: bool
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., expr: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., partition_names: _Optional[_Iterable[str]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., query_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ...) -> None: ...
+    expr_template_values: _containers.MessageMap[str, _schema_pb2.TemplateValue]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., expr: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., partition_names: _Optional[_Iterable[str]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., query_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ...) -> None: ...
 
 class QueryResults(_message.Message):
     __slots__ = ("status", "fields_data", "collection_name", "output_fields")
@@ -1461,12 +1497,14 @@ class CreateRoleRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., entity: _Optional[_Union[RoleEntity, _Mapping]] = ...) -> None: ...
 
 class DropRoleRequest(_message.Message):
-    __slots__ = ("base", "role_name")
+    __slots__ = ("base", "role_name", "force_drop")
     BASE_FIELD_NUMBER: _ClassVar[int]
     ROLE_NAME_FIELD_NUMBER: _ClassVar[int]
+    FORCE_DROP_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     role_name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., role_name: _Optional[str] = ...) -> None: ...
+    force_drop: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., role_name: _Optional[str] = ..., force_drop: bool = ...) -> None: ...
 
 class OperateUserRoleRequest(_message.Message):
     __slots__ = ("base", "username", "role_name", "type")
@@ -1597,6 +1635,48 @@ class OperatePrivilegeRequest(_message.Message):
     entity: GrantEntity
     type: OperatePrivilegeType
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., entity: _Optional[_Union[GrantEntity, _Mapping]] = ..., type: _Optional[_Union[OperatePrivilegeType, str]] = ...) -> None: ...
+
+class UserInfo(_message.Message):
+    __slots__ = ("user", "password", "roles")
+    USER_FIELD_NUMBER: _ClassVar[int]
+    PASSWORD_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
+    user: str
+    password: str
+    roles: _containers.RepeatedCompositeFieldContainer[RoleEntity]
+    def __init__(self, user: _Optional[str] = ..., password: _Optional[str] = ..., roles: _Optional[_Iterable[_Union[RoleEntity, _Mapping]]] = ...) -> None: ...
+
+class RBACMeta(_message.Message):
+    __slots__ = ("users", "roles", "grants")
+    USERS_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
+    GRANTS_FIELD_NUMBER: _ClassVar[int]
+    users: _containers.RepeatedCompositeFieldContainer[UserInfo]
+    roles: _containers.RepeatedCompositeFieldContainer[RoleEntity]
+    grants: _containers.RepeatedCompositeFieldContainer[GrantEntity]
+    def __init__(self, users: _Optional[_Iterable[_Union[UserInfo, _Mapping]]] = ..., roles: _Optional[_Iterable[_Union[RoleEntity, _Mapping]]] = ..., grants: _Optional[_Iterable[_Union[GrantEntity, _Mapping]]] = ...) -> None: ...
+
+class BackupRBACMetaRequest(_message.Message):
+    __slots__ = ("base",)
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ...) -> None: ...
+
+class BackupRBACMetaResponse(_message.Message):
+    __slots__ = ("status", "RBAC_meta")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RBAC_META_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    RBAC_meta: RBACMeta
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., RBAC_meta: _Optional[_Union[RBACMeta, _Mapping]] = ...) -> None: ...
+
+class RestoreRBACMetaRequest(_message.Message):
+    __slots__ = ("base", "RBAC_meta")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    RBAC_META_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    RBAC_meta: RBACMeta
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., RBAC_meta: _Optional[_Union[RBACMeta, _Mapping]] = ...) -> None: ...
 
 class GetLoadingProgressRequest(_message.Message):
     __slots__ = ("base", "collection_name", "partition_names", "db_name")
