@@ -20,7 +20,7 @@ CONSISTENCY_LEVEL = "Eventually"
 LIMIT = 5
 NUM_ENTITIES = 1000
 DIM = 8
-CLEAR_EXIST = False
+CLEAR_EXIST = True
 
 # Create a logger for the main script
 log = logging.getLogger(__name__)
