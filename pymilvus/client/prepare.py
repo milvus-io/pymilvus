@@ -512,7 +512,7 @@ class Prepare:
                         ):
                             field_data.valid_data.append(v is not None)
                         entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
-                for field in fields_info:
+                for field in input_fields_info:
                     key = field["name"]
                     if key in entity:
                         continue
@@ -538,7 +538,7 @@ class Prepare:
 
         request.fields_data.extend(fields_data.values())
 
-        for _, field in enumerate(fields_info):
+        for _, field in enumerate(input_fields_info):
             is_dynamic = False
             field_name = field["name"]
 

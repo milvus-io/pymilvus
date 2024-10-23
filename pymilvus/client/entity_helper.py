@@ -46,6 +46,8 @@ def entity_is_sparse_matrix(entity: Any):
         for item in entity:
             if SciPyHelper.is_scipy_sparse(item):
                 return item.shape[0] == 1
+            if not isinstance(item, dict) and not isinstance(item, list):
+                return False
             pairs = item.items() if isinstance(item, dict) else item
             # each row must be a list of Tuple[int, float]. we allow empty sparse row
             for pair in pairs:
