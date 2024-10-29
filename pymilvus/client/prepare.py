@@ -9,6 +9,7 @@ from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.orm.schema import CollectionSchema
+from pymilvus.orm.types import infer_dtype_by_scalar_data
 
 from . import __version__, blob, entity_helper, ts_utils, utils
 from .check import check_pass_param, is_legal_collection_properties
@@ -683,6 +684,7 @@ class Prepare:
             partition_name=partition_name,
             expr=expr,
             consistency_level=get_consistency_level(consistency_level),
+            expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
         )
 
     @classmethod
@@ -725,6 +727,56 @@ class Prepare:
         return common_types.PlaceholderGroup.SerializeToString(
             common_types.PlaceholderGroup(placeholders=[pl])
         )
+
+    @classmethod
+    def prepare_expression_template(cls, values: Dict) -> Any:
+        def add_data(v: Any) -> schema_types.TemplateValue:
+            dtype = infer_dtype_by_scalar_data(v)
+            data = schema_types.TemplateValue()
+            if dtype in (schema_types.Bool,):
+                data.bool_val = v
+                data.type = schema_types.Bool
+                return data
+            if dtype in (
+                schema_types.Int8,
+                schema_types.Int16,
+                schema_types.Int32,
+                schema_types.Int64,
+            ):
+                data.int64_val = v
+                data.type = schema_types.Int64
+                return data
+            if dtype in (schema_types.Float, schema_types.Double):
+                data.float_val = v
+                data.type = schema_types.Double
+                return data
+            if dtype in (schema_types.VarChar, schema_types.String):
+                data.string_val = v
+                data.type = schema_types.VarChar
+                return data
+            if dtype in (schema_types.Array,):
+                element_datas = schema_types.TemplateArrayValue()
+                same_type = True
+                element_type = None
+                for element in v:
+                    rdata = add_data(element)
+                    element_datas.array.append(rdata)
+                    if element_type is None:
+                        element_type = rdata.type
+                    elif element_type != rdata.type:
+                        same_type = False
+                element_datas.element_type = element_type if same_type else schema_types.JSON
+                element_datas.same_type = same_type
+                data.array_val.CopyFrom(element_datas)
+                data.type = schema_types.Array
+                return data
+            raise ParamError(message=f"Unsupported element type: {dtype}")
+
+        expression_template_values = {}
+        for k, v in values.items():
+            expression_template_values[k] = add_data(v)
+
+        return expression_template_values
 
     @classmethod
     def search_requests_with_expr(
@@ -810,6 +862,7 @@ class Prepare:
             placeholder_group=plg_str,
             dsl_type=common_types.DslType.BoolExprV1,
             search_params=req_params,
+            expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
         )
         if expr is not None:
             request.dsl = expr
@@ -1051,6 +1104,7 @@ class Prepare:
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
+            expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
         )
 
         limit = kwargs.get("limit")
