@@ -23,7 +23,7 @@ num_entities, dim = 3000, 8
 #################################################################################
 # 1. connect to Milvus
 # Add a new connection alias `default` for Milvus server in `localhost:19530`
-# Actually the "default" alias is a buildin in PyMilvus.
+# Actually the "default" alias is built-in to PyMilvus.
 # If the address of Milvus is the same as `localhost:19530`, you can omit all
 # parameters and call the method as: `connections.connect()`.
 #
