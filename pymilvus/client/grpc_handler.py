@@ -152,8 +152,6 @@ class GrpcHandler:
                 code=Status.CONNECT_FAILED,
                 message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",
             ) from e
-        except Exception as e:
-            raise e from e
 
     def close(self):
         self.deregister_state_change_callbacks()
@@ -580,7 +578,7 @@ class GrpcHandler:
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
-            raise err from err
+            raise
         else:
             return m
 
@@ -618,7 +616,7 @@ class GrpcHandler:
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
-            raise err from err
+            raise
         else:
             return m
 
@@ -678,7 +676,7 @@ class GrpcHandler:
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
-            raise err from err
+            raise
         else:
             return m
 
@@ -744,7 +742,7 @@ class GrpcHandler:
         except Exception as e:
             if kwargs.get("_async", False):
                 return SearchFuture(None, None, e)
-            raise e from e
+            raise
 
     def _execute_hybrid_search(
         self, request: milvus_types.HybridSearchRequest, timeout: Optional[float] = None, **kwargs
@@ -763,7 +761,7 @@ class GrpcHandler:
         except Exception as e:
             if kwargs.get("_async", False):
                 return SearchFuture(None, None, e)
-            raise e from e
+            raise
 
     @retry_on_rpc_failure()
     def search(

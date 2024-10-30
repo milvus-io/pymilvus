@@ -137,7 +137,7 @@ class MilvusClient:
             logger.debug("Successfully created collection: %s", collection_name)
         except Exception as ex:
             logger.error("Failed to create collection: %s", collection_name)
-            raise ex from ex
+            raise
 
         index_params = IndexParams()
         index_params.add_index(vector_field_name, "", "", metric_type=metric_type)
@@ -174,7 +174,7 @@ class MilvusClient:
             logger.debug("Successfully created an index on collection: %s", collection_name)
         except Exception as ex:
             logger.error("Failed to create an index on collection: %s", collection_name)
-            raise ex from ex
+            raise
 
     def insert(
         self,
@@ -217,12 +217,9 @@ class MilvusClient:
 
         conn = self._get_connection()
         # Insert into the collection.
-        try:
-            res = conn.insert_rows(
-                collection_name, data, partition_name=partition_name, timeout=timeout
-            )
-        except Exception as ex:
-            raise ex from ex
+        res = conn.insert_rows(
+            collection_name, data, partition_name=partition_name, timeout=timeout
+        )
         return OmitZeroDict(
             {
                 "insert_count": res.insert_count,
@@ -269,13 +266,9 @@ class MilvusClient:
 
         conn = self._get_connection()
         # Upsert into the collection.
-        try:
-            res = conn.upsert_rows(
-                collection_name, data, partition_name=partition_name, timeout=timeout, **kwargs
-            )
-        except Exception as ex:
-            raise ex from ex
-
+        res = conn.upsert_rows(
+            collection_name, data, partition_name=partition_name, timeout=timeout, **kwargs
+        )
         return OmitZeroDict(
             {
                 "upsert_count": res.upsert_count,
@@ -405,7 +398,7 @@ class MilvusClient:
             )
         except Exception as ex:
             logger.error("Failed to search collection: %s", collection_name)
-            raise ex from ex
+            raise
 
         ret = []
         for hits in res:
@@ -456,7 +449,7 @@ class MilvusClient:
             schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
         except Exception as ex:
             logger.error("Failed to describe collection: %s", collection_name)
-            raise ex from ex
+            raise
 
         if ids:
             filter = self._pack_pks_expr(schema_dict, ids)
@@ -478,7 +471,7 @@ class MilvusClient:
             )
         except Exception as ex:
             logger.error("Failed to query collection: %s", collection_name)
-            raise ex from ex
+            raise
 
         return res
 
@@ -518,7 +511,7 @@ class MilvusClient:
             schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
         except Exception as ex:
             logger.error("Failed to describe collection: %s", collection_name)
-            raise ex from ex
+            raise
 
         if not output_fields:
             output_fields = ["*"]
@@ -538,7 +531,7 @@ class MilvusClient:
             )
         except Exception as ex:
             logger.error("Failed to get collection: %s", collection_name)
-            raise ex from ex
+            raise
 
         return res
 
@@ -600,7 +593,7 @@ class MilvusClient:
                 schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
             except Exception as ex:
                 logger.error("Failed to describe collection: %s", collection_name)
-                raise ex from ex
+                raise
 
             expr = self._pack_pks_expr(schema_dict, pks)
 
@@ -627,7 +620,7 @@ class MilvusClient:
                 ret_pks.extend(res.primary_keys)
         except Exception as ex:
             logger.error("Failed to delete primary keys in collection: %s", collection_name)
-            raise ex from ex
+            raise
 
         if ret_pks:
             return ret_pks
@@ -697,7 +690,7 @@ class MilvusClient:
             logger.debug("Successfully created collection: %s", collection_name)
         except Exception as ex:
             logger.error("Failed to create collection: %s", collection_name)
-            raise ex from ex
+            raise
 
         if index_params:
             self.create_index(collection_name, index_params, timeout=timeout)
@@ -725,7 +718,7 @@ class MilvusClient:
             connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
         except Exception as ex:
             logger.error("Failed to create new connection using: %s", using)
-            raise ex from ex
+            raise
         else:
             logger.debug("Created new connection using: %s", using)
             return using
@@ -772,7 +765,7 @@ class MilvusClient:
             conn.load_collection(collection_name, timeout=timeout, **kwargs)
         except MilvusException as ex:
             logger.error("Failed to load collection: %s", collection_name)
-            raise ex from ex
+            raise
 
     def release_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
@@ -780,7 +773,7 @@ class MilvusClient:
             conn.release_collection(collection_name, timeout=timeout, **kwargs)
         except MilvusException as ex:
             logger.error("Failed to load collection: %s", collection_name)
-            raise ex from ex
+            raise
 
     def get_load_state(
         self,
@@ -793,10 +786,7 @@ class MilvusClient:
         partition_names = None
         if partition_name:
             partition_names = [partition_name]
-        try:
-            state = conn.get_load_state(collection_name, partition_names, timeout=timeout, **kwargs)
-        except Exception as ex:
-            raise ex from ex
+        state = conn.get_load_state(collection_name, partition_names, timeout=timeout, **kwargs)
 
         ret = {"state": state}
         if state == LoadState.Loading:
@@ -937,10 +927,7 @@ class MilvusClient:
 
     def describe_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        try:
-            res = conn.select_one_user(user_name, True, timeout=timeout, **kwargs)
-        except Exception as ex:
-            raise ex from ex
+        res = conn.select_one_user(user_name, True, timeout=timeout, **kwargs)
         if res.groups:
             item = res.groups[0]
             return {"user_name": user_name, "roles": item.roles}
@@ -969,10 +956,7 @@ class MilvusClient:
     ) -> List[Dict]:
         conn = self._get_connection()
         db_name = kwargs.pop("db_name", "")
-        try:
-            res = conn.select_grant_for_one_role(role_name, db_name, timeout=timeout, **kwargs)
-        except Exception as ex:
-            raise ex from ex
+        res = conn.select_grant_for_one_role(role_name, db_name, timeout=timeout, **kwargs)
         ret = {}
         ret["role"] = role_name
         ret["privileges"] = [dict(i) for i in res.groups]
@@ -980,10 +964,7 @@ class MilvusClient:
 
     def list_roles(self, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        try:
-            res = conn.select_all_role(False, timeout=timeout, **kwargs)
-        except Exception as ex:
-            raise ex from ex
+        res = conn.select_all_role(False, timeout=timeout, **kwargs)
 
         groups = res.groups
         return [g.role_name for g in groups]
