@@ -707,7 +707,7 @@ def _check_insert_data(data: Union[List[List], pd.DataFrame]):
     is_dataframe = isinstance(data, pd.DataFrame)
     for col in data:
         if not is_dataframe and not is_list_like(col):
-            raise DataTypeNotSupportException(message="data should be a list of list")
+            raise DataTypeNotSupportException(message="The data should be a list of list")
 
 
 def _check_data_schema_cnt(fields: List, data: Union[List[List], pd.DataFrame]):
@@ -716,7 +716,7 @@ def _check_data_schema_cnt(fields: List, data: Union[List[List], pd.DataFrame]):
     data_cnt = len(data.columns) if is_dataframe else len(data)
     if field_cnt != data_cnt:
         message = (
-            f"The data don't match with schema fields, expect {field_cnt} list, got {len(data)}"
+            f"The data doesn't match with schema fields, expect {field_cnt} list, got {len(data)}"
         )
         if is_dataframe:
             i_name = [f.name for f in fields]
@@ -729,7 +729,7 @@ def _check_data_schema_cnt(fields: List, data: Union[List[List], pd.DataFrame]):
         for x, y in zip(list(data.columns), fields):
             if x != y.name:
                 raise DataNotMatchException(
-                    message=f"The name of field don't match, expected: {y.name}, got {x}"
+                    message=f"The name of field doesn't match, expected: {y.name}, got {x}"
                 )
 
 
