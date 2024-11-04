@@ -194,6 +194,11 @@ class BulkWriter:
                     )
                 else:
                     continue
+            if field.is_function_output:
+                if field.name in row:
+                    self._throw(f"Field '{field.name}' is function output, no need to provide")
+                else:
+                    continue
 
             if field.name not in row:
                 self._throw(f"The field '{field.name}' is missed in the row")

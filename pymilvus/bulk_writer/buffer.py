@@ -52,6 +52,8 @@ class Buffer:
         for field in schema.fields:
             if field.is_primary and field.auto_id:
                 continue
+            if field.is_function_output:
+                continue
             self._buffer[field.name] = []
             self._fields[field.name] = field
 
