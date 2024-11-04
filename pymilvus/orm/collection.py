@@ -34,6 +34,7 @@ from pymilvus.exceptions import (
     IndexNotExistException,
     PartitionAlreadyExistException,
     SchemaNotReadyException,
+    MilvusException,
 )
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
@@ -155,6 +156,30 @@ class Collection:
 
         self._schema_dict = self._schema.to_dict()
         self._schema_dict["consistency_level"] = self._consistency_level
+
+        self._normalization_fields = kwargs.get("normalization_fields", None)
+        if self._normalization_fields:
+            self._vector_fields = self._get_vector_fields()
+            if self._normalization_fields == "all":
+                self._normalization_fields = self._vector_fields
+            elif isinstance(self._normalization_fields, list):
+                for field in self._normalization_fields:
+                    if field not in self._vector_fields:
+                        raise MilvusException(
+                            ExceptionsMessage.InvalidVectorFields
+                            % (field, ", ".join(self._vector_fields))
+                        )
+            else:
+                raise MilvusException(
+                    ExceptionsMessage.InvalidNormalizationParam % (self._normalization_fields)
+                )
+
+    def _get_vector_fields(self):
+        vector_fields = []
+        for field in self._schema_dict.get("fields", []):
+            if field.get("params", {}).get("dim", None):
+                vector_fields.append(field.get("name"))
+        return vector_fields
 
     def __repr__(self) -> str:
         _dict = {
@@ -504,6 +529,9 @@ class Collection:
 
         conn = self._get_connection()
         if is_row_based(data):
+            if self._normalization_fields:
+                for norm_fld in self._normalization_fields:
+                    data[norm_fld] = utils.convert_to_standard_form(data[norm_fld])
             return conn.insert_rows(
                 collection_name=self._name,
                 entities=data,
@@ -513,6 +541,9 @@ class Collection:
                 **kwargs,
             )
 
+        for idx, fld in enumerate(self._schema_dict["fields"]):
+            if fld["name"] in self._normalization_fields:
+                data[idx] = utils.convert_to_standard_form(data[idx])
         check_insert_schema(self.schema, data)
         entities = Prepare.prepare_data(data, self.schema)
         return conn.batch_insert(
