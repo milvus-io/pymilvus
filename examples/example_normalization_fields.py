@@ -52,6 +52,22 @@ try:
     hello_milvus = Collection("hello_milvus", schema, consistency_level="Strong", normalization_fields=['embddings'])
 except BaseException as e:
     print(e)
+
+print(fmt.format("Insert data, without conversion to standard form"))
+
+hello_milvus = Collection("hello_milvus", schema, consistency_level="Strong")
+
+print(fmt.format("Start inserting a row"))
+rng = np.random.default_rng(seed=19530)
+
+row = {
+    "pk": "19530",
+    "random": 0.5,
+    "embeddings1": rng.random((1, dim), np.float32)[0],
+    "embeddings2": rng.random((1, dim), np.float32)[0]
+}
+hello_milvus.insert(row)
+utility.drop_collection("hello_milvus")
     
 print(fmt.format("Insert data, with conversion to standard form"))
 

@@ -32,9 +32,9 @@ from pymilvus.exceptions import (
     DataTypeNotSupportException,
     ExceptionsMessage,
     IndexNotExistException,
+    MilvusException,
     PartitionAlreadyExistException,
     SchemaNotReadyException,
-    MilvusException,
 )
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
@@ -114,6 +114,7 @@ class Collection:
         self._using = using
         self._kwargs = kwargs
         self._num_shards = None
+        self._normalization_fields = None
         conn = self._get_connection()
 
         has = conn.has_collection(self._name, **kwargs)
@@ -157,7 +158,7 @@ class Collection:
         self._schema_dict = self._schema.to_dict()
         self._schema_dict["consistency_level"] = self._consistency_level
 
-        self._normalization_fields = kwargs.get("normalization_fields", None)
+        self._normalization_fields = kwargs.get("normalization_fields")
         if self._normalization_fields:
             self._vector_fields = self._get_vector_fields()
             if self._normalization_fields == "all":
@@ -540,10 +541,10 @@ class Collection:
                 schema=self._schema_dict,
                 **kwargs,
             )
-
-        for idx, fld in enumerate(self._schema_dict["fields"]):
-            if fld["name"] in self._normalization_fields:
-                data[idx] = utils.convert_to_standard_form(data[idx])
+        if self._normalization_fields:
+            for idx, fld in enumerate(self._schema_dict["fields"]):
+                if fld["name"] in self._normalization_fields:
+                    data[idx] = utils.convert_to_standard_form(data[idx])
         check_insert_schema(self.schema, data)
         entities = Prepare.prepare_data(data, self.schema)
         return conn.batch_insert(

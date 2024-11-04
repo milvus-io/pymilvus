@@ -3,6 +3,7 @@ import importlib.util
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
+import numpy as np
 import ujson
 
 from pymilvus.exceptions import MilvusException, ParamError
@@ -10,7 +11,6 @@ from pymilvus.grpc_gen.common_pb2 import Status
 
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from .types import DataType
-import numpy as np
 
 MILVUS = "milvus"
 ZILLIZ = "zilliz"
@@ -378,23 +378,18 @@ SparseMatrixInputType = Union[
 ]
 
 
-def convert_to_standard_form(vector_data):
+def convert_to_standard_form(vector_data: Any) -> Any:
     if len(vector_data.shape) == 1:
         # Calculate the mean and standard deviation of the vector
         mean = np.mean(vector_data)
         std_dev = np.std(vector_data)
 
         # Standardize the vector
-        standardized_vector = (vector_data - mean) / std_dev if std_dev != 0 else vector_data
-        return standardized_vector
+        return (vector_data - mean) / std_dev if std_dev != 0 else vector_data
 
-    else:
-        # Calculate mean and standard deviation for each row
-        row_means = np.mean(vector_data, axis=1, keepdims=True)
-        row_stds = np.std(vector_data, axis=1, keepdims=True)
+    # Calculate mean and standard deviation for each row
+    row_means = np.mean(vector_data, axis=1, keepdims=True)
+    row_stds = np.std(vector_data, axis=1, keepdims=True)
 
-        # Standardize each row independently
-        standardized_matrix = np.where(
-            row_stds != 0, (vector_data - row_means) / row_stds, vector_data
-        )
-        return standardized_matrix
+    # Standardize each row independently
+    return np.where(row_stds != 0, (vector_data - row_means) / row_stds, vector_data)
