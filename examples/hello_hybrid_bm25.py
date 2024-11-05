@@ -93,7 +93,7 @@ fields = [
     # Use auto generated id as primary key
     FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=True, max_length=100),
     # Store the original text to retrieve based on semantically distance
-    FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=512, enable_tokenizer=True),
+    FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=512, enable_analyzer=True),
     # We need a sparse vector field to perform full text search with BM25,
     # but you don't need to provide data for it when inserting data.
     FieldSchema(name="sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR),

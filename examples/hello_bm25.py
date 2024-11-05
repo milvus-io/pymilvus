@@ -51,7 +51,7 @@ print(f"Does collection hello_bm25 exist in Milvus: {has}")
 fields = [
     FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
     FieldSchema(name="sparse", dtype=DataType.SPARSE_FLOAT_VECTOR),
-    FieldSchema(name="document", dtype=DataType.VARCHAR, max_length=1000, enable_tokenizer=True),
+    FieldSchema(name="document", dtype=DataType.VARCHAR, max_length=1000, enable_analyzer=True),
 ]
 
 bm25_function = Function(

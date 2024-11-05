@@ -15,7 +15,7 @@ if has_collection:
 
 schema = milvus_client.create_schema()
 schema.add_field("id", DataType.INT64, is_primary=True, auto_id=False)
-schema.add_field("document_content", DataType.VARCHAR, max_length=9000, enable_tokenizer=True)
+schema.add_field("document_content", DataType.VARCHAR, max_length=9000, enable_analyzer=True)
 schema.add_field("sparse_vector", DataType.SPARSE_FLOAT_VECTOR)
 
 bm25_function = Function(
