@@ -249,6 +249,10 @@ class CompactionState:
         self.in_timeout = in_timeout
         self.completed = completed
 
+    @property
+    def state_name(self):
+        return self.state.name
+
     def __repr__(self) -> str:
         return f"""
 CompactionState
