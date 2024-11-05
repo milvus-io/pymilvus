@@ -1012,12 +1012,22 @@ class Prepare:
         return index_params
 
     @classmethod
-    def alter_index_request(cls, collection_name: str, index_name: str, extra_params: dict):
+    def alter_index_properties_request(
+        cls, collection_name: str, index_name: str, extra_params: dict
+    ):
         params = []
         for k, v in extra_params.items():
             params.append(common_types.KeyValuePair(key=str(k), value=utils.dumps(v)))
         return milvus_types.AlterIndexRequest(
             collection_name=collection_name, index_name=index_name, extra_params=params
+        )
+
+    @classmethod
+    def drop_index_properties_request(
+        cls, collection_name: str, index_name: str, delete_keys: List[str]
+    ):
+        return milvus_types.AlterIndexRequest(
+            collection_name=collection_name, index_name=index_name, delete_keys=delete_keys
         )
 
     @classmethod

@@ -1003,7 +1003,7 @@ class GrpcHandler:
         return Status(status.code, status.reason)
 
     @retry_on_rpc_failure()
-    def alter_index(
+    def alter_index_properties(
         self,
         collection_name: str,
         index_name: str,
@@ -1012,10 +1012,27 @@ class GrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
-        if extra_params is None:
-            raise ParamError(message="extra_params should not be None")
+        request = Prepare.alter_index_properties_request(
+            collection_name, index_name, extra_params=extra_params
+        )
 
-        request = Prepare.alter_index_request(collection_name, index_name, extra_params)
+        rf = self._stub.AlterIndex.future(request, timeout=timeout)
+        response = rf.result()
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    def drop_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        delete_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
+        request = Prepare.drop_index_properties_request(
+            collection_name, index_name, delete_keys=delete_keys
+        )
 
         rf = self._stub.AlterIndex.future(request, timeout=timeout)
         response = rf.result()

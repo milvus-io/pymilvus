@@ -1372,7 +1372,7 @@ class Collection:
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params, timeout=timeout, **kwargs)
 
-    def alter_index(
+    def alter_index_properties(
         self,
         index_name: str,
         extra_params: dict,
@@ -1412,7 +1412,20 @@ class Collection:
             >>> collection.alter_index("idx", {"mmap.enabled": True})
         """
         conn = self._get_connection()
-        return conn.alter_index(self._name, index_name, extra_params, timeout=timeout)
+        return conn.alter_index_properties(
+            self._name, index_name, extra_params=extra_params, timeout=timeout
+        )
+
+    def drop_index_properties(
+        self,
+        index_name: str,
+        delete_keys: List[str],
+        timeout: Optional[float] = None,
+    ):
+        conn = self._get_connection()
+        return conn.drop_index_properties(
+            self._name, index_name, delete_keys=delete_keys, timeout=timeout
+        )
 
     def has_index(self, timeout: Optional[float] = None, **kwargs) -> bool:
         """Check whether a specified index exists.

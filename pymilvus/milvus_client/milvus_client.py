@@ -846,6 +846,32 @@ class MilvusClient:
         conn = self._get_connection()
         return conn.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
 
+    def alter_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        extra_params: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.alter_index_properties(
+            collection_name, index_name, extra_params=extra_params, timeout=timeout, **kwargs
+        )
+
+    def drop_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        delete_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.alter_index_properties(
+            collection_name, index_name, delete_keys=delete_keys, timeout=timeout, **kwargs
+        )
+
     def create_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
