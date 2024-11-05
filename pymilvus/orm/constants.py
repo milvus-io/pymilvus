@@ -15,8 +15,8 @@ COMMON_TYPE_PARAMS = (
     "max_length",
     "max_capacity",
     "enable_match",
-    "enable_tokenizer",
-    "tokenizer_params",
+    "enable_analyzer",
+    "analyzer_params",
 )
 
 CALC_DIST_IDS = "ids"
