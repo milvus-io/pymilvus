@@ -33,7 +33,7 @@ logger.setLevel(logging.DEBUG)
 class MilvusClient:
     """The Milvus Client"""
 
-    # pylint: disable=logging-too-many-args, too-many-instance-attributes, import-outside-toplevel
+    # pylint: disable=logging-too-many-args, too-many-instance-attributes
 
     def __init__(
         self,
