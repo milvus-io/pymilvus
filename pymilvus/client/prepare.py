@@ -730,12 +730,48 @@ class Prepare:
 
     @classmethod
     def prepare_expression_template(cls, values: Dict) -> Any:
+        def all_elements_same_type(lst: List):
+            return all(isinstance(item, type(lst[0])) for item in lst)
+
+        def add_array_data(v: List) -> schema_types.TemplateArrayValue:
+            data = schema_types.TemplateArrayValue()
+            if len(v) == 0:
+                return data
+            element_type = (
+                infer_dtype_by_scalar_data(v[0]) if all_elements_same_type(v) else schema_types.JSON
+            )
+            if element_type in (schema_types.Bool,):
+                data.bool_data.data.extend(v)
+                return data
+            if element_type in (
+                schema_types.Int8,
+                schema_types.Int16,
+                schema_types.Int32,
+                schema_types.Int64,
+            ):
+                data.long_data.data.extend(v)
+                return data
+            if element_type in (schema_types.Float, schema_types.Double):
+                data.double_data.data.extend(v)
+                return data
+            if element_type in (schema_types.VarChar, schema_types.String):
+                data.string_data.data.extend(v)
+                return data
+            if element_type in (schema_types.Array,):
+                for e in v:
+                    data.array_data.data.append(add_array_data(e))
+                return data
+            if element_type in (schema_types.JSON,):
+                for e in v:
+                    data.json_data.data.append(entity_helper.convert_to_json(e))
+                return data
+            raise ParamError(message=f"Unsupported element type: {element_type}")
+
         def add_data(v: Any) -> schema_types.TemplateValue:
             dtype = infer_dtype_by_scalar_data(v)
             data = schema_types.TemplateValue()
             if dtype in (schema_types.Bool,):
                 data.bool_val = v
-                data.type = schema_types.Bool
                 return data
             if dtype in (
                 schema_types.Int8,
@@ -744,38 +780,21 @@ class Prepare:
                 schema_types.Int64,
             ):
                 data.int64_val = v
-                data.type = schema_types.Int64
                 return data
             if dtype in (schema_types.Float, schema_types.Double):
                 data.float_val = v
-                data.type = schema_types.Double
                 return data
             if dtype in (schema_types.VarChar, schema_types.String):
                 data.string_val = v
-                data.type = schema_types.VarChar
                 return data
             if dtype in (schema_types.Array,):
-                element_datas = schema_types.TemplateArrayValue()
-                same_type = True
-                element_type = None
-                for element in v:
-                    rdata = add_data(element)
-                    element_datas.array.append(rdata)
-                    if element_type is None:
-                        element_type = rdata.type
-                    elif element_type != rdata.type:
-                        same_type = False
-                element_datas.element_type = element_type if same_type else schema_types.JSON
-                element_datas.same_type = same_type
-                data.array_val.CopyFrom(element_datas)
-                data.type = schema_types.Array
+                data.array_val.CopyFrom(add_array_data(v))
                 return data
             raise ParamError(message=f"Unsupported element type: {dtype}")
 
         expression_template_values = {}
         for k, v in values.items():
             expression_template_values[k] = add_data(v)
-
         return expression_template_values
 
     @classmethod

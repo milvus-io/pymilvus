@@ -151,6 +151,9 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Flush: _ClassVar[MsgType]
     ResendSegmentStats: _ClassVar[MsgType]
     Upsert: _ClassVar[MsgType]
+    ManualFlush: _ClassVar[MsgType]
+    FlushSegment: _ClassVar[MsgType]
+    CreateSegment: _ClassVar[MsgType]
     Search: _ClassVar[MsgType]
     SearchResult: _ClassVar[MsgType]
     GetIndexState: _ClassVar[MsgType]
@@ -449,6 +452,9 @@ Delete: MsgType
 Flush: MsgType
 ResendSegmentStats: MsgType
 Upsert: MsgType
+ManualFlush: MsgType
+FlushSegment: MsgType
+CreateSegment: MsgType
 Search: MsgType
 SearchResult: MsgType
 GetIndexState: MsgType
