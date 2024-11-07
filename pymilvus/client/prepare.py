@@ -19,11 +19,11 @@ from .constants import (
     DYNAMIC_FIELD_NAME,
     GROUP_BY_FIELD,
     GROUP_SIZE,
-    GROUP_STRICT_SIZE,
     ITERATOR_FIELD,
     PAGE_RETAIN_ORDER_FIELD,
     RANK_GROUP_SCORER,
     REDUCE_STOP_FOR_BEST,
+    STRICT_GROUP_SIZE,
 )
 from .types import (
     DataType,
@@ -920,9 +920,9 @@ class Prepare:
         if group_size is not None:
             search_params[GROUP_SIZE] = group_size
 
-        group_strict_size = kwargs.get(GROUP_STRICT_SIZE)
-        if group_strict_size is not None:
-            search_params[GROUP_STRICT_SIZE] = group_strict_size
+        strict_group_size = kwargs.get(STRICT_GROUP_SIZE)
+        if strict_group_size is not None:
+            search_params[STRICT_GROUP_SIZE] = strict_group_size
 
         if param.get("metric_type") is not None:
             search_params["metric_type"] = param["metric_type"]
@@ -1016,11 +1016,11 @@ class Prepare:
                 ]
             )
 
-        if kwargs.get(GROUP_STRICT_SIZE) is not None:
+        if kwargs.get(STRICT_GROUP_SIZE) is not None:
             request.rank_params.extend(
                 [
                     common_types.KeyValuePair(
-                        key=GROUP_STRICT_SIZE, value=utils.dumps(kwargs.get(GROUP_STRICT_SIZE))
+                        key=STRICT_GROUP_SIZE, value=utils.dumps(kwargs.get(STRICT_GROUP_SIZE))
                     )
                 ]
             )
