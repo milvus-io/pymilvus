@@ -140,7 +140,8 @@ class QueryIterator:
                 timeout=self._timeout,
                 **seek_params,
             )
-            self.__update_cursor(res)
+            result_index = min(len(res), offset)
+            self.__update_cursor(res[:result_index])
             self._kwargs[OFFSET] = 0
 
     def __init_cp_file_handler(self) -> bool:
