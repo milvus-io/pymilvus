@@ -966,7 +966,7 @@ class MilvusClient:
 
     def describe_role(
         self, role_name: str, timeout: Optional[float] = None, **kwargs
-    ) -> List[Dict]:
+    ) -> Dict:
         conn = self._get_connection()
         db_name = kwargs.pop("db_name", "")
         try:
