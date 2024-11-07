@@ -536,7 +536,7 @@ class GrpcHandler:
         if param and not isinstance(param, milvus_types.InsertRequest):
             raise ParamError(message="The value of key 'insert_param' is invalid")
         if not isinstance(entities, list):
-            raise ParamError(message="None entities, please provide valid entities.")
+            raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
         schema = kwargs.get("schema")
         if not schema:
@@ -634,7 +634,7 @@ class GrpcHandler:
         if param and not isinstance(param, milvus_types.UpsertRequest):
             raise ParamError(message="The value of key 'upsert_param' is invalid")
         if not isinstance(entities, list):
-            raise ParamError(message="None entities, please provide valid entities.")
+            raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
         schema = kwargs.get("schema")
         if not schema:
@@ -691,7 +691,7 @@ class GrpcHandler:
         **kwargs,
     ):
         if not isinstance(rows, list):
-            raise ParamError(message="None rows, please provide valid row data.")
+            raise ParamError(message="'rows' must be a list, please provide valid row data.")
 
         fields_info, enable_dynamic = self._get_info(collection_name, timeout, **kwargs)
         return Prepare.row_upsert_param(
