@@ -114,7 +114,6 @@ class Collection:
         self._using = using
         self._kwargs = kwargs
         self._num_shards = None
-        self._normalization_fields = None
         conn = self._get_connection()
 
         has = conn.has_collection(self._name, **kwargs)
@@ -158,7 +157,7 @@ class Collection:
         self._schema_dict = self._schema.to_dict()
         self._schema_dict["consistency_level"] = self._consistency_level
 
-        self._normalization_fields = kwargs.get("normalization_fields")
+        self._normalization_fields = self._kwargs.get("normalization_fields", None)
         if self._normalization_fields:
             self._vector_fields = self._get_vector_fields()
             if self._normalization_fields == "all":
