@@ -619,20 +619,40 @@ class Function:
     def params(self):
         return self._params
 
+    def _check_bm25_function(self, schema: CollectionSchema):
+        if len(self._input_field_names) != 1 or len(self._output_field_names) != 1:
+            raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectInputOutputCount)
+
+        for field in schema.fields:
+            if field.name == self._input_field_names[0] and field.dtype != DataType.VARCHAR:
+                raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectInputFieldType)
+            if (
+                field.name == self._output_field_names[0]
+                and field.dtype != DataType.SPARSE_FLOAT_VECTOR
+            ):
+                raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectOutputFieldType)
+
+    def _check_text_embedding_function(self, schema: CollectionSchema):
+        if len(self._input_field_names) != 1 or len(self._output_field_names) != 1:
+            raise ParamError(
+                message=ExceptionsMessage.TextEmbeddingFunctionIncorrectInputOutputCount
+            )
+
+        for field in schema.fields:
+            if field.name == self._input_field_names[0] and field.dtype != DataType.VARCHAR:
+                raise ParamError(
+                    message=ExceptionsMessage.TextEmbeddingFunctionIncorrectInputFieldType
+                )
+            if field.name == self._output_field_names[0] and field.dtype != DataType.FLOAT_VECTOR:
+                raise ParamError(
+                    message=ExceptionsMessage.TextEmbeddingFunctionIncorrectOutputFieldType
+                )
+
     def verify(self, schema: CollectionSchema):
         if self._type == FunctionType.BM25:
-            if len(self._input_field_names) != 1 or len(self._output_field_names) != 1:
-                raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectInputOutputCount)
-
-            for field in schema.fields:
-                if field.name == self._input_field_names[0] and field.dtype != DataType.VARCHAR:
-                    raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectInputFieldType)
-                if (
-                    field.name == self._output_field_names[0]
-                    and field.dtype != DataType.SPARSE_FLOAT_VECTOR
-                ):
-                    raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectOutputFieldType)
-
+            self._check_bm25_function(schema)
+        elif self._type == FunctionType.TEXTEMBEDDING:
+            self._check_text_embedding_function(schema)
         elif self._type == FunctionType.UNKNOWN:
             raise ParamError(message=ExceptionsMessage.UnknownFunctionType)
 
