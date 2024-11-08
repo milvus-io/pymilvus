@@ -295,27 +295,37 @@ class ClusteringInfo(_message.Message):
     def __init__(self, vector_clustering_infos: _Optional[_Iterable[_Union[VectorClusteringInfo, _Mapping]]] = ..., scalar_clustering_infos: _Optional[_Iterable[_Union[ScalarClusteringInfo, _Mapping]]] = ...) -> None: ...
 
 class TemplateValue(_message.Message):
-    __slots__ = ("type", "bool_val", "int64_val", "float_val", "string_val", "array_val")
-    TYPE_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("bool_val", "int64_val", "float_val", "string_val", "array_val")
     BOOL_VAL_FIELD_NUMBER: _ClassVar[int]
     INT64_VAL_FIELD_NUMBER: _ClassVar[int]
     FLOAT_VAL_FIELD_NUMBER: _ClassVar[int]
     STRING_VAL_FIELD_NUMBER: _ClassVar[int]
     ARRAY_VAL_FIELD_NUMBER: _ClassVar[int]
-    type: DataType
     bool_val: bool
     int64_val: int
     float_val: float
     string_val: str
     array_val: TemplateArrayValue
-    def __init__(self, type: _Optional[_Union[DataType, str]] = ..., bool_val: bool = ..., int64_val: _Optional[int] = ..., float_val: _Optional[float] = ..., string_val: _Optional[str] = ..., array_val: _Optional[_Union[TemplateArrayValue, _Mapping]] = ...) -> None: ...
+    def __init__(self, bool_val: bool = ..., int64_val: _Optional[int] = ..., float_val: _Optional[float] = ..., string_val: _Optional[str] = ..., array_val: _Optional[_Union[TemplateArrayValue, _Mapping]] = ...) -> None: ...
 
 class TemplateArrayValue(_message.Message):
-    __slots__ = ("array", "same_type", "element_type")
-    ARRAY_FIELD_NUMBER: _ClassVar[int]
-    SAME_TYPE_FIELD_NUMBER: _ClassVar[int]
-    ELEMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
-    array: _containers.RepeatedCompositeFieldContainer[TemplateValue]
-    same_type: bool
-    element_type: DataType
-    def __init__(self, array: _Optional[_Iterable[_Union[TemplateValue, _Mapping]]] = ..., same_type: bool = ..., element_type: _Optional[_Union[DataType, str]] = ...) -> None: ...
+    __slots__ = ("bool_data", "long_data", "double_data", "string_data", "array_data", "json_data")
+    BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
+    LONG_DATA_FIELD_NUMBER: _ClassVar[int]
+    DOUBLE_DATA_FIELD_NUMBER: _ClassVar[int]
+    STRING_DATA_FIELD_NUMBER: _ClassVar[int]
+    ARRAY_DATA_FIELD_NUMBER: _ClassVar[int]
+    JSON_DATA_FIELD_NUMBER: _ClassVar[int]
+    bool_data: BoolArray
+    long_data: LongArray
+    double_data: DoubleArray
+    string_data: StringArray
+    array_data: TemplateArrayValueArray
+    json_data: JSONArray
+    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., array_data: _Optional[_Union[TemplateArrayValueArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ...) -> None: ...
+
+class TemplateArrayValueArray(_message.Message):
+    __slots__ = ("data",)
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedCompositeFieldContainer[TemplateArrayValue]
+    def __init__(self, data: _Optional[_Iterable[_Union[TemplateArrayValue, _Mapping]]] = ...) -> None: ...
