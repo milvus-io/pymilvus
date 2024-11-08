@@ -401,6 +401,7 @@ class MilvusClient:
                 output_fields=output_fields,
                 partition_names=partition_names,
                 timeout=timeout,
+                expr_params=kwargs.pop("filter_params", {}),
                 **kwargs,
             )
         except Exception as ex:
@@ -474,6 +475,7 @@ class MilvusClient:
                 output_fields=output_fields,
                 partition_names=partition_names,
                 timeout=timeout,
+                expr_params=kwargs.pop("filter_params", {}),
                 **kwargs,
             )
         except Exception as ex:
@@ -621,6 +623,7 @@ class MilvusClient:
                 partition_name,
                 timeout=timeout,
                 param_name="filter or ids",
+                expr_params=kwargs.pop("filter_params", {}),
                 **kwargs,
             )
             if res.primary_keys:
