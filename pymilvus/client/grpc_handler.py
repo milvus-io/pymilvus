@@ -2021,3 +2021,34 @@ class GrpcHandler:
         response = self._stub.AllocTimestamp(request, timeout=timeout)
         check_status(response.status)
         return response.timestamp
+    
+    @retry_on_rpc_failure()
+    def create_privilege_group(self, group_name: str, timeout: Optional[float] = None, **kwargs):
+        req = Prepare.create_privilege_group_req(group_name)
+        resp = self._stub.CreatePrivilegeGroup(req, wait_for_ready=True, timeout=timeout)
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def drop_privilege_group(self, group_name: str, timeout: Optional[float] = None, **kwargs):
+        req = Prepare.drop_privilege_group_req(group_name)    
+        resp = self._stub.DropPrivilegeGroup(req, wait_for_ready=True, timeout=timeout)
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def list_privilege_groups(self, timeout: Optional[float] = None, **kwargs):
+        req = Prepare.list_privilege_groups_req()
+        resp = self._stub.ListPrivilegeGroups(req, wait_for_ready=True, timeout=timeout)
+        check_status(resp.status)
+        return resp.privilege_groups
+    
+    @retry_on_rpc_failure()
+    def add_privileges_to_group(self, group_name: str, privileges: List[str], timeout: Optional[float] = None, **kwargs):
+        req = Prepare.operate_privilege_group_req(group_name, privileges, milvus_types.OperatePrivilegeGroupType.AddPrivilegesToGroup)
+        resp = self._stub.OperatePrivilegeGroup(req, wait_for_ready=True, timeout=timeout)
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def remove_privileges_from_group(self, group_name: str, privileges: List[str], timeout: Optional[float] = None, **kwargs):
+        req = Prepare.operate_privilege_group_req(group_name, privileges, milvus_types.OperatePrivilegeGroupType.RemovePrivilegesFromGroup)
+        resp = self._stub.OperatePrivilegeGroup(req, wait_for_ready=True, timeout=timeout)
+        check_status(resp)

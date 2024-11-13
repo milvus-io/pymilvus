@@ -17,6 +17,11 @@ class ShowType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     All: _ClassVar[ShowType]
     InMemory: _ClassVar[ShowType]
 
+class OperatePrivilegeGroupType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    AddPrivilegesToGroup: _ClassVar[OperatePrivilegeGroupType]
+    RemovePrivilegesFromGroup: _ClassVar[OperatePrivilegeGroupType]
+
 class OperateUserRoleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     AddUserToRole: _ClassVar[OperateUserRoleType]
@@ -36,6 +41,8 @@ class QuotaState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DenyToWrite: _ClassVar[QuotaState]
 All: ShowType
 InMemory: ShowType
+AddPrivilegesToGroup: OperatePrivilegeGroupType
+RemovePrivilegesFromGroup: OperatePrivilegeGroupType
 AddUserToRole: OperateUserRoleType
 RemoveUserFromRole: OperateUserRoleType
 Grant: OperatePrivilegeType
@@ -1532,6 +1539,48 @@ class DropRoleRequest(_message.Message):
     force_drop: bool
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., role_name: _Optional[str] = ..., force_drop: bool = ...) -> None: ...
 
+class CreatePrivilegeGroupRequest(_message.Message):
+    __slots__ = ("base", "group_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    GROUP_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    group_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., group_name: _Optional[str] = ...) -> None: ...
+
+class DropPrivilegeGroupRequest(_message.Message):
+    __slots__ = ("base", "group_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    GROUP_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    group_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., group_name: _Optional[str] = ...) -> None: ...
+
+class ListPrivilegeGroupsRequest(_message.Message):
+    __slots__ = ("base",)
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ...) -> None: ...
+
+class ListPrivilegeGroupsResponse(_message.Message):
+    __slots__ = ("status", "privilege_groups")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PRIVILEGE_GROUPS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    privilege_groups: _containers.RepeatedCompositeFieldContainer[PrivilegeGroupInfo]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., privilege_groups: _Optional[_Iterable[_Union[PrivilegeGroupInfo, _Mapping]]] = ...) -> None: ...
+
+class OperatePrivilegeGroupRequest(_message.Message):
+    __slots__ = ("base", "group_name", "privileges", "type")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    GROUP_NAME_FIELD_NUMBER: _ClassVar[int]
+    PRIVILEGES_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    group_name: str
+    privileges: _containers.RepeatedCompositeFieldContainer[PrivilegeEntity]
+    type: OperatePrivilegeGroupType
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., group_name: _Optional[str] = ..., privileges: _Optional[_Iterable[_Union[PrivilegeEntity, _Mapping]]] = ..., type: _Optional[_Union[OperatePrivilegeGroupType, str]] = ...) -> None: ...
+
 class OperateUserRoleRequest(_message.Message):
     __slots__ = ("base", "username", "role_name", "type")
     BASE_FIELD_NUMBER: _ClassVar[int]
@@ -1543,6 +1592,14 @@ class OperateUserRoleRequest(_message.Message):
     role_name: str
     type: OperateUserRoleType
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., username: _Optional[str] = ..., role_name: _Optional[str] = ..., type: _Optional[_Union[OperateUserRoleType, str]] = ...) -> None: ...
+
+class PrivilegeGroupInfo(_message.Message):
+    __slots__ = ("group_name", "privileges")
+    GROUP_NAME_FIELD_NUMBER: _ClassVar[int]
+    PRIVILEGES_FIELD_NUMBER: _ClassVar[int]
+    group_name: str
+    privileges: _containers.RepeatedCompositeFieldContainer[PrivilegeEntity]
+    def __init__(self, group_name: _Optional[str] = ..., privileges: _Optional[_Iterable[_Union[PrivilegeEntity, _Mapping]]] = ...) -> None: ...
 
 class SelectRoleRequest(_message.Message):
     __slots__ = ("base", "role", "include_user_info")
@@ -1673,14 +1730,16 @@ class UserInfo(_message.Message):
     def __init__(self, user: _Optional[str] = ..., password: _Optional[str] = ..., roles: _Optional[_Iterable[_Union[RoleEntity, _Mapping]]] = ...) -> None: ...
 
 class RBACMeta(_message.Message):
-    __slots__ = ("users", "roles", "grants")
+    __slots__ = ("users", "roles", "grants", "privilege_groups")
     USERS_FIELD_NUMBER: _ClassVar[int]
     ROLES_FIELD_NUMBER: _ClassVar[int]
     GRANTS_FIELD_NUMBER: _ClassVar[int]
+    PRIVILEGE_GROUPS_FIELD_NUMBER: _ClassVar[int]
     users: _containers.RepeatedCompositeFieldContainer[UserInfo]
     roles: _containers.RepeatedCompositeFieldContainer[RoleEntity]
     grants: _containers.RepeatedCompositeFieldContainer[GrantEntity]
-    def __init__(self, users: _Optional[_Iterable[_Union[UserInfo, _Mapping]]] = ..., roles: _Optional[_Iterable[_Union[RoleEntity, _Mapping]]] = ..., grants: _Optional[_Iterable[_Union[GrantEntity, _Mapping]]] = ...) -> None: ...
+    privilege_groups: _containers.RepeatedCompositeFieldContainer[PrivilegeGroupInfo]
+    def __init__(self, users: _Optional[_Iterable[_Union[UserInfo, _Mapping]]] = ..., roles: _Optional[_Iterable[_Union[RoleEntity, _Mapping]]] = ..., grants: _Optional[_Iterable[_Union[GrantEntity, _Mapping]]] = ..., privilege_groups: _Optional[_Iterable[_Union[PrivilegeGroupInfo, _Mapping]]] = ...) -> None: ...
 
 class BackupRBACMetaRequest(_message.Message):
     __slots__ = ("base",)
@@ -2005,14 +2064,16 @@ class ListDatabasesRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ...) -> None: ...
 
 class ListDatabasesResponse(_message.Message):
-    __slots__ = ("status", "db_names", "created_timestamp")
+    __slots__ = ("status", "db_names", "created_timestamp", "db_ids")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DB_NAMES_FIELD_NUMBER: _ClassVar[int]
     CREATED_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    DB_IDS_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     db_names: _containers.RepeatedScalarFieldContainer[str]
     created_timestamp: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_names: _Optional[_Iterable[str]] = ..., created_timestamp: _Optional[_Iterable[int]] = ...) -> None: ...
+    db_ids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_names: _Optional[_Iterable[str]] = ..., created_timestamp: _Optional[_Iterable[int]] = ..., db_ids: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class AlterDatabaseRequest(_message.Message):
     __slots__ = ("base", "db_name", "db_id", "properties")

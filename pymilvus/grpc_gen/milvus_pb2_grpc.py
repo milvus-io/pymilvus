@@ -61,6 +61,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.AlterCollectionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.AlterCollectionField = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AlterCollectionField',
+                request_serializer=milvus__pb2.AlterCollectionFieldRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
         self.CreatePartition = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreatePartition',
                 request_serializer=milvus__pb2.CreatePartitionRequest.SerializeToString,
@@ -456,6 +461,26 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.RestoreRBACMetaRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.CreatePrivilegeGroup = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CreatePrivilegeGroup',
+                request_serializer=milvus__pb2.CreatePrivilegeGroupRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.DropPrivilegeGroup = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DropPrivilegeGroup',
+                request_serializer=milvus__pb2.DropPrivilegeGroupRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.ListPrivilegeGroups = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListPrivilegeGroups',
+                request_serializer=milvus__pb2.ListPrivilegeGroupsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListPrivilegeGroupsResponse.FromString,
+                )
+        self.OperatePrivilegeGroup = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/OperatePrivilegeGroup',
+                request_serializer=milvus__pb2.OperatePrivilegeGroupRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
 
 
 class MilvusServiceServicer(object):
@@ -510,6 +535,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def AlterCollection(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AlterCollectionField(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -996,6 +1027,30 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreatePrivilegeGroup(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropPrivilegeGroup(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListPrivilegeGroups(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def OperatePrivilegeGroup(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -1042,6 +1097,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'AlterCollection': grpc.unary_unary_rpc_method_handler(
                     servicer.AlterCollection,
                     request_deserializer=milvus__pb2.AlterCollectionRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'AlterCollectionField': grpc.unary_unary_rpc_method_handler(
+                    servicer.AlterCollectionField,
+                    request_deserializer=milvus__pb2.AlterCollectionFieldRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
             'CreatePartition': grpc.unary_unary_rpc_method_handler(
@@ -1439,6 +1499,26 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.RestoreRBACMetaRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
+            'CreatePrivilegeGroup': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreatePrivilegeGroup,
+                    request_deserializer=milvus__pb2.CreatePrivilegeGroupRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DropPrivilegeGroup': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropPrivilegeGroup,
+                    request_deserializer=milvus__pb2.DropPrivilegeGroupRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'ListPrivilegeGroups': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListPrivilegeGroups,
+                    request_deserializer=milvus__pb2.ListPrivilegeGroupsRequest.FromString,
+                    response_serializer=milvus__pb2.ListPrivilegeGroupsResponse.SerializeToString,
+            ),
+            'OperatePrivilegeGroup': grpc.unary_unary_rpc_method_handler(
+                    servicer.OperatePrivilegeGroup,
+                    request_deserializer=milvus__pb2.OperatePrivilegeGroupRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'milvus.proto.milvus.MilvusService', rpc_method_handlers)
@@ -1598,6 +1678,23 @@ class MilvusService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AlterCollection',
             milvus__pb2.AlterCollectionRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def AlterCollectionField(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AlterCollectionField',
+            milvus__pb2.AlterCollectionFieldRequest.SerializeToString,
             common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -2941,6 +3038,74 @@ class MilvusService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/RestoreRBAC',
             milvus__pb2.RestoreRBACMetaRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def CreatePrivilegeGroup(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CreatePrivilegeGroup',
+            milvus__pb2.CreatePrivilegeGroupRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DropPrivilegeGroup(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DropPrivilegeGroup',
+            milvus__pb2.DropPrivilegeGroupRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListPrivilegeGroups(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListPrivilegeGroups',
+            milvus__pb2.ListPrivilegeGroupsRequest.SerializeToString,
+            milvus__pb2.ListPrivilegeGroupsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def OperatePrivilegeGroup(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/OperatePrivilegeGroup',
+            milvus__pb2.OperatePrivilegeGroupRequest.SerializeToString,
             common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
