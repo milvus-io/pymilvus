@@ -1171,4 +1171,3 @@ class MilvusClient:
         """
         conn = self._get_connection()
         conn.remove_privileges_from_group(group_name, privileges, timeout=timeout, **kwargs)
-
