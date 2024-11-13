@@ -1215,7 +1215,7 @@ class MilvusClient:
         pgs = conn.list_privilege_groups(timeout=timeout, **kwargs)
         ret = {}
         for pg in pgs:
-            ret[pg.group_name] = [p.privilege_type for p in pg.privileges]
+            ret[pg.group_name] = [p.name for p in pg.privileges]
         return ret
 
 
