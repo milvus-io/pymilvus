@@ -1062,3 +1062,113 @@ class MilvusClient:
     def list_databases(self, **kwargs) -> List[str]:
         conn = self._get_connection()
         return conn.list_database(**kwargs)
+
+    def create_privilege_group(
+        self,
+        group_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Create a new privilege group.
+
+        Args:
+            group_name (``str``): The name of the privilege group.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        conn.create_privilege_group(group_name, timeout=timeout, **kwargs)
+
+    def drop_privilege_group(
+        self,
+        group_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Drop a privilege group.
+
+        Args:
+            group_name (``str``): The name of the privilege group.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        conn.drop_privilege_group(group_name, timeout=timeout, **kwargs)
+
+    def list_privilege_groups(
+        self,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Dict[str, List[str]]:
+        """List all privilege groups.
+
+        Args:
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Returns:
+            Dict[str, List[str]]: A dictionary of privilege groups and their privileges.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        pgs = conn.list_privilege_groups(timeout=timeout, **kwargs)
+        ret = {}
+        for pg in pgs:
+            ret[pg.group_name] = [p.name for p in pg.privileges]
+        return ret
+
+    def add_privileges_to_group(
+        self,
+        group_name: str,
+        privileges: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Add privileges to a privilege group.
+
+        Args:
+            group_name (``str``): The name of the privilege group.
+            privileges (``List[str]``): A list of privileges to be added to the group.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        conn.add_privileges_to_group(group_name, privileges, timeout=timeout, **kwargs)
+
+    def remove_privileges_from_group(
+        self,
+        group_name: str,
+        privileges: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Remove privileges from a privilege group.
+
+        Args:
+            group_name (``str``): The name of the privilege group.
+            privileges (``List[str]``): A list of privileges to be removed from the group.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        conn.remove_privileges_from_group(group_name, privileges, timeout=timeout, **kwargs)
+

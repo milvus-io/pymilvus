@@ -66,6 +66,10 @@ class ErrorCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TimeTickLongDelay: _ClassVar[ErrorCode]
     NotReadyServe: _ClassVar[ErrorCode]
     NotReadyCoordActivating: _ClassVar[ErrorCode]
+    CreatePrivilegeGroupFailure: _ClassVar[ErrorCode]
+    DropPrivilegeGroupFailure: _ClassVar[ErrorCode]
+    ListPrivilegeGroupsFailure: _ClassVar[ErrorCode]
+    OperatePrivilegeGroupFailure: _ClassVar[ErrorCode]
     DataCoordNA: _ClassVar[ErrorCode]
     DDRequestRace: _ClassVar[ErrorCode]
 
@@ -204,6 +208,10 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SelectGrant: _ClassVar[MsgType]
     RefreshPolicyInfoCache: _ClassVar[MsgType]
     ListPolicy: _ClassVar[MsgType]
+    CreatePrivilegeGroup: _ClassVar[MsgType]
+    DropPrivilegeGroup: _ClassVar[MsgType]
+    ListPrivilegeGroups: _ClassVar[MsgType]
+    OperatePrivilegeGroup: _ClassVar[MsgType]
     CreateResourceGroup: _ClassVar[MsgType]
     DropResourceGroup: _ClassVar[MsgType]
     ListResourceGroups: _ClassVar[MsgType]
@@ -310,6 +318,10 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeGroupReadOnly: _ClassVar[ObjectPrivilege]
     PrivilegeGroupReadWrite: _ClassVar[ObjectPrivilege]
     PrivilegeGroupAdmin: _ClassVar[ObjectPrivilege]
+    PrivilegeCreatePrivilegeGroup: _ClassVar[ObjectPrivilege]
+    PrivilegeDropPrivilegeGroup: _ClassVar[ObjectPrivilege]
+    PrivilegeListPrivilegeGroups: _ClassVar[ObjectPrivilege]
+    PrivilegeOperatePrivilegeGroup: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -382,6 +394,10 @@ DiskQuotaExhausted: ErrorCode
 TimeTickLongDelay: ErrorCode
 NotReadyServe: ErrorCode
 NotReadyCoordActivating: ErrorCode
+CreatePrivilegeGroupFailure: ErrorCode
+DropPrivilegeGroupFailure: ErrorCode
+ListPrivilegeGroupsFailure: ErrorCode
+OperatePrivilegeGroupFailure: ErrorCode
 DataCoordNA: ErrorCode
 DDRequestRace: ErrorCode
 IndexStateNone: IndexState
@@ -505,6 +521,10 @@ OperatePrivilege: MsgType
 SelectGrant: MsgType
 RefreshPolicyInfoCache: MsgType
 ListPolicy: MsgType
+CreatePrivilegeGroup: MsgType
+DropPrivilegeGroup: MsgType
+ListPrivilegeGroups: MsgType
+OperatePrivilegeGroup: MsgType
 CreateResourceGroup: MsgType
 DropResourceGroup: MsgType
 ListResourceGroups: MsgType
@@ -593,6 +613,10 @@ PrivilegeRestoreRBAC: ObjectPrivilege
 PrivilegeGroupReadOnly: ObjectPrivilege
 PrivilegeGroupReadWrite: ObjectPrivilege
 PrivilegeGroupAdmin: ObjectPrivilege
+PrivilegeCreatePrivilegeGroup: ObjectPrivilege
+PrivilegeDropPrivilegeGroup: ObjectPrivilege
+PrivilegeListPrivilegeGroups: ObjectPrivilege
+PrivilegeOperatePrivilegeGroup: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
