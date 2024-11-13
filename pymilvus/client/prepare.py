@@ -1588,7 +1588,7 @@ class Prepare:
     def describe_database_req(cls, db_name: str):
         check_pass_param(db_name=db_name)
         return milvus_types.DescribeDatabaseRequest(db_name=db_name)
-    
+
     @classmethod
     def create_privilege_group_req(cls, group_name: str):
         check_pass_param(group_name=group_name)
@@ -1607,7 +1607,10 @@ class Prepare:
     def operate_privilege_group_req(cls, group_name: str, privileges: List[str], operate_type: Any):
         check_pass_param(group_name=group_name)
         check_pass_param(operate_type=operate_type)
-        if not isinstance(privileges, (list),):
+        if not isinstance(
+            privileges,
+            (list),
+        ):
             msg = f"Privileges {privileges} is not a list"
             raise ParamError(message=msg)
         for p in privileges:
@@ -1615,5 +1618,5 @@ class Prepare:
         return milvus_types.OperatePrivilegeGroupRequest(
             group_name=group_name,
             privileges=[milvus_types.PrivilegeEntity(name=p) for p in privileges],
-            type=operate_type
+            type=operate_type,
         )

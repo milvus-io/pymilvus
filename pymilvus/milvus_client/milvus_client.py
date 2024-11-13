@@ -1152,7 +1152,7 @@ class MilvusClient:
         """
         conn = self._get_connection()
         return conn.get_server_version(timeout=timeout, **kwargs)
-    
+
     def create_privilege_group(
         self,
         group_name: str,
@@ -1207,7 +1207,7 @@ class MilvusClient:
 
         Returns:
             Dict[str, List[str]]: A dictionary of privilege groups and their privileges.
-        
+
         Raises:
             MilvusException: If anything goes wrong.
         """
@@ -1217,7 +1217,6 @@ class MilvusClient:
         for pg in pgs:
             ret[pg.group_name] = [p.name for p in pg.privileges]
         return ret
-
 
     def add_privileges_to_group(
         self,
@@ -1249,7 +1248,7 @@ class MilvusClient:
         **kwargs,
     ):
         """Remove privileges from a privilege group.
-        
+
         Args:
             group_name (``str``): The name of the privilege group.
             privileges (``List[str]``): A list of privileges to be removed from the group.
