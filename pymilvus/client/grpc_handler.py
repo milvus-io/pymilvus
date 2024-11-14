@@ -491,7 +491,7 @@ class GrpcHandler:
         **kwargs,
     ):
         request = self._prepare_row_insert_request(
-            collection_name, entities, partition_name, timeout, **kwargs
+            collection_name, entities, partition_name, schema, timeout, **kwargs
         )
         resp = self._stub.Insert(request=request, timeout=timeout)
         check_status(resp.status)
