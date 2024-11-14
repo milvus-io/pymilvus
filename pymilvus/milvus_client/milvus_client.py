@@ -453,20 +453,17 @@ class MilvusClient:
             ids = [ids]
 
         conn = self._get_connection()
-        try:
-            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
-        except Exception as ex:
-            logger.error("Failed to describe collection: %s", collection_name)
-            raise ex from ex
 
         if ids:
+            try:
+                schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+            except Exception as ex:
+                logger.error("Failed to describe collection: %s", collection_name)
+                raise ex from ex
             filter = self._pack_pks_expr(schema_dict, ids)
 
         if not output_fields:
             output_fields = ["*"]
-            vec_field_name = self._get_vector_field_name(schema_dict)
-            if vec_field_name:
-                output_fields.append(vec_field_name)
 
         try:
             res = conn.query(
@@ -524,9 +521,6 @@ class MilvusClient:
 
         if not output_fields:
             output_fields = ["*"]
-            vec_field_name = self._get_vector_field_name(schema_dict)
-            if vec_field_name:
-                output_fields.append(vec_field_name)
 
         expr = self._pack_pks_expr(schema_dict, ids)
         try:
@@ -743,16 +737,6 @@ class MilvusClient:
                 return field_dict
 
         return {}
-
-    def _get_vector_field_name(self, schema_dict: Dict):
-        fields = schema_dict.get("fields", [])
-        if not fields:
-            return {}
-
-        for field_dict in fields:
-            if field_dict.get("type", None) == DataType.FLOAT_VECTOR:
-                return field_dict.get("name", "")
-        return ""
 
     def _pack_pks_expr(self, schema_dict: Dict, pks: List) -> str:
         primary_field = self._extract_primary_field(schema_dict)
