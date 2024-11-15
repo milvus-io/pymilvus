@@ -734,29 +734,31 @@ class Prepare:
     def delete_request(
         cls,
         collection_name: str,
+        expression: str,
         partition_name: str,
-        expr: str,
-        consistency_level: Optional[Union[int, str]],
+        consistency_level: Optional[Union[int, str]] = None,
         **kwargs,
     ):
-        def check_str(instr: str, prefix: str):
-            if instr is None:
-                raise ParamError(message=f"{prefix} cannot be None")
-            if not isinstance(instr, str):
-                raise ParamError(message=f"{prefix} value {instr} is illegal")
-            if len(instr) == 0:
-                raise ParamError(message=f"{prefix} cannot be empty")
+        def valid_str(var: Any) -> True:
+            return isinstance(var, str) and len(var) > 0
 
-        check_str(collection_name, "collection_name")
-        if partition_name is not None and partition_name != "":
-            check_str(partition_name, "partition_name")
-        param_name = kwargs.get("param_name", "expr")
-        check_str(expr, param_name)
+        if not valid_str(collection_name):
+            raise ParamError(
+                message=f"collection_name {collection_name} is illegal, expect none empty str"
+            )
+
+        if not valid_str(expression):
+            raise ParamError(message=f"expression {expression} is illegal, expect none empty str")
+
+        if partition_name is not None and not valid_str(partition_name):
+            raise ParamError(
+                message=f"partition_name {partition_name} is illegal, expect none empty str"
+            )
 
         return milvus_types.DeleteRequest(
             collection_name=collection_name,
             partition_name=partition_name,
-            expr=expr,
+            expr=expression,
             consistency_level=get_consistency_level(consistency_level),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
         )

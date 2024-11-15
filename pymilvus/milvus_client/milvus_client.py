@@ -543,8 +543,8 @@ class MilvusClient:
         collection_name: str,
         ids: Optional[Union[list, str, int]] = None,
         timeout: Optional[float] = None,
-        filter: Optional[str] = "",
-        partition_name: Optional[str] = "",
+        filter: Optional[str] = None,
+        partition_name: Optional[str] = None,
         **kwargs,
     ) -> Dict:
         """Delete entries in the collection by their pk or by filter.
@@ -616,7 +616,6 @@ class MilvusClient:
                 expr,
                 partition_name,
                 timeout=timeout,
-                param_name="filter or ids",
                 expr_params=kwargs.pop("filter_params", {}),
                 **kwargs,
             )
