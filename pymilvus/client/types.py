@@ -111,6 +111,7 @@ class DataType(IntEnum):
 class FunctionType(IntEnum):
     UNKNOWN = 0
     BM25 = 1
+    TEXTEMBEDDING = 2
 
 
 class RangeType(IntEnum):

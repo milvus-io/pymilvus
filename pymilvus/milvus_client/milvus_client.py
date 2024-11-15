@@ -33,7 +33,7 @@ logger.setLevel(logging.DEBUG)
 class MilvusClient:
     """The Milvus Client"""
 
-    # pylint: disable=logging-too-many-args, too-many-instance-attributes, import-outside-toplevel
+    # pylint: disable=logging-too-many-args, too-many-instance-attributes
 
     def __init__(
         self,
@@ -401,6 +401,7 @@ class MilvusClient:
                 output_fields=output_fields,
                 partition_names=partition_names,
                 timeout=timeout,
+                expr_params=kwargs.pop("filter_params", {}),
                 **kwargs,
             )
         except Exception as ex:
@@ -452,20 +453,17 @@ class MilvusClient:
             ids = [ids]
 
         conn = self._get_connection()
-        try:
-            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
-        except Exception as ex:
-            logger.error("Failed to describe collection: %s", collection_name)
-            raise ex from ex
 
         if ids:
+            try:
+                schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+            except Exception as ex:
+                logger.error("Failed to describe collection: %s", collection_name)
+                raise ex from ex
             filter = self._pack_pks_expr(schema_dict, ids)
 
         if not output_fields:
             output_fields = ["*"]
-            vec_field_name = self._get_vector_field_name(schema_dict)
-            if vec_field_name:
-                output_fields.append(vec_field_name)
 
         try:
             res = conn.query(
@@ -474,6 +472,7 @@ class MilvusClient:
                 output_fields=output_fields,
                 partition_names=partition_names,
                 timeout=timeout,
+                expr_params=kwargs.pop("filter_params", {}),
                 **kwargs,
             )
         except Exception as ex:
@@ -522,9 +521,6 @@ class MilvusClient:
 
         if not output_fields:
             output_fields = ["*"]
-            vec_field_name = self._get_vector_field_name(schema_dict)
-            if vec_field_name:
-                output_fields.append(vec_field_name)
 
         expr = self._pack_pks_expr(schema_dict, ids)
         try:
@@ -621,6 +617,7 @@ class MilvusClient:
                 partition_name,
                 timeout=timeout,
                 param_name="filter or ids",
+                expr_params=kwargs.pop("filter_params", {}),
                 **kwargs,
             )
             if res.primary_keys:
@@ -740,16 +737,6 @@ class MilvusClient:
                 return field_dict
 
         return {}
-
-    def _get_vector_field_name(self, schema_dict: Dict):
-        fields = schema_dict.get("fields", [])
-        if not fields:
-            return {}
-
-        for field_dict in fields:
-            if field_dict.get("type", None) == DataType.FLOAT_VECTOR:
-                return field_dict.get("name", "")
-        return ""
 
     def _pack_pks_expr(self, schema_dict: Dict, pks: List) -> str:
         primary_field = self._extract_primary_field(schema_dict)
@@ -1149,3 +1136,112 @@ class MilvusClient:
         """
         conn = self._get_connection()
         return conn.get_server_version(timeout=timeout, **kwargs)
+
+    def create_privilege_group(
+        self,
+        group_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Create a new privilege group.
+
+        Args:
+            group_name (``str``): The name of the privilege group.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        conn.create_privilege_group(group_name, timeout=timeout, **kwargs)
+
+    def drop_privilege_group(
+        self,
+        group_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Drop a privilege group.
+
+        Args:
+            group_name (``str``): The name of the privilege group.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        conn.drop_privilege_group(group_name, timeout=timeout, **kwargs)
+
+    def list_privilege_groups(
+        self,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Dict[str, List[str]]:
+        """List all privilege groups.
+
+        Args:
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Returns:
+            Dict[str, List[str]]: A dictionary of privilege groups and their privileges.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        pgs = conn.list_privilege_groups(timeout=timeout, **kwargs)
+        ret = {}
+        for pg in pgs:
+            ret[pg.group_name] = [p.name for p in pg.privileges]
+        return ret
+
+    def add_privileges_to_group(
+        self,
+        group_name: str,
+        privileges: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Add privileges to a privilege group.
+
+        Args:
+            group_name (``str``): The name of the privilege group.
+            privileges (``List[str]``): A list of privileges to be added to the group.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        conn.add_privileges_to_group(group_name, privileges, timeout=timeout, **kwargs)
+
+    def remove_privileges_from_group(
+        self,
+        group_name: str,
+        privileges: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Remove privileges from a privilege group.
+
+        Args:
+            group_name (``str``): The name of the privilege group.
+            privileges (``List[str]``): A list of privileges to be removed from the group.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        conn.remove_privileges_from_group(group_name, privileges, timeout=timeout, **kwargs)

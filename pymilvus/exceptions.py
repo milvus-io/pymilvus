@@ -219,6 +219,15 @@ class ExceptionsMessage:
     BM25FunctionIncorrectInputOutputCount = (
         "BM25 function must have exact 1 input and 1 output field."
     )
+    TextEmbeddingFunctionIncorrectInputOutputCount = (
+        "TextEmbedding function must have exact 1 input and 1 output field."
+    )
+    TextEmbeddingFunctionIncorrectInputFieldType = (
+        "TextEmbedding function input field must be VARCHAR."
+    )
+    TextEmbeddingFunctionIncorrectOutputFieldType = (
+        "TextEmbedding function output field must be FLOAT_VECTOR."
+    )
     BM25FunctionIncorrectInputFieldType = "BM25 function input field must be VARCHAR."
     BM25FunctionIncorrectOutputFieldType = "BM25 function output field must be SPARSE_FLOAT_VECTOR."
     FunctionMissingInputField = "Function input field not found in collection schema."

@@ -1,9 +1,7 @@
 import numpy as np
 from pymilvus import (
-    connections,
-    utility,
-    FieldSchema, CollectionSchema, DataType,
-    Collection,
+    MilvusClient,
+    DataType,
     AnnSearchRequest, RRFRanker, WeightedRanker,
 )
 
@@ -11,25 +9,26 @@ fmt = "\n=== {:30} ===\n"
 search_latency_fmt = "search latency = {:.4f}s"
 num_entities, dim = 3000, 8
 
-print(fmt.format("start connecting to Milvus"))
-connections.connect("default", host="localhost", port="19530")
+collection_name = "hello_milvus"
+milvus_client = MilvusClient("http://localhost:19530")
 
-has = utility.has_collection("hello_milvus")
-print(f"Does collection hello_milvus exist in Milvus: {has}")
-if has:
-    utility.drop_collection("hello_milvus")
+has_collection = milvus_client.has_collection(collection_name, timeout=5)
+if has_collection:
+    milvus_client.drop_collection(collection_name)
 
-fields = [
-    FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=100),
-    FieldSchema(name="random", dtype=DataType.DOUBLE),
-    FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=dim),
-    FieldSchema(name="embeddings2", dtype=DataType.FLOAT_VECTOR, dim=dim)
-]
+schema = milvus_client.create_schema(auto_id=False, description="hello_milvus is the simplest demo to introduce the APIs")
+schema.add_field("pk", DataType.VARCHAR, is_primary=True, max_length=100)
+schema.add_field("random", DataType.DOUBLE)
+schema.add_field("embeddings", DataType.FLOAT_VECTOR, dim=dim)
+schema.add_field("embeddings2", DataType.FLOAT_VECTOR, dim=dim)
 
-schema = CollectionSchema(fields, "hello_milvus is the simplest demo to introduce the APIs")
+index_params = milvus_client.prepare_index_params()
+index_params.add_index(field_name = "embeddings", index_type = "IVF_FLAT", metric_type="L2", nlist=128)
+index_params.add_index(field_name = "embeddings2",index_type = "IVF_FLAT", metric_type="L2", nlist=128)
 
 print(fmt.format("Create collection `hello_milvus`"))
-hello_milvus = Collection("hello_milvus", schema, consistency_level="Strong", num_shards = 4)
+
+milvus_client.create_collection(collection_name, schema=schema, index_params=index_params, consistency_level="Strong")
 
 print(fmt.format("Start inserting entities"))
 rng = np.random.default_rng(seed=19530)
@@ -41,29 +40,19 @@ entities = [
     rng.random((num_entities, dim)),    # field embeddings2, supports numpy.ndarray and list
 ]
 
-insert_result = hello_milvus.insert(entities)
+rows = [ {"pk": entities[0][i], "random": entities[1][i], "embeddings": entities[2][i], "embeddings2": entities[3][i]} for i in range (num_entities)]
 
-hello_milvus.flush()
-print(f"Number of entities in Milvus: {hello_milvus.num_entities}")  # check the num_entities
+insert_result = milvus_client.insert(collection_name, rows)
 
-print(fmt.format("Start Creating index IVF_FLAT"))
-index = {
-    "index_type": "IVF_FLAT",
-    "metric_type": "L2",
-    "params": {"nlist": 128},
-}
-
-hello_milvus.create_index("embeddings", index)
-hello_milvus.create_index("embeddings2", index)
 
 print(fmt.format("Start loading"))
-hello_milvus.load()
+milvus_client.load_collection(collection_name)
 
 field_names = ["embeddings", "embeddings2"]
+field_names = ["embeddings"]
 
 req_list = []
 nq = 1
-weights = [0.2, 0.3]
 default_limit = 5
 vectors_to_search = []
 
@@ -79,15 +68,8 @@ for i in range(len(field_names)):
     req = AnnSearchRequest(**search_param)
     req_list.append(req)
 
-hybrid_res = hello_milvus.hybrid_search(req_list, WeightedRanker(*weights), default_limit, output_fields=["random"])
-
-print("rank by WightedRanker")
-for hits in hybrid_res:
-    for hit in hits:
-        print(f" hybrid search hit: {hit}")
-
 print("rank by RRFRanker")
-hybrid_res = hello_milvus.hybrid_search(req_list, RRFRanker(), default_limit, output_fields=["random"])
+hybrid_res = milvus_client.hybrid_search(collection_name, req_list, RRFRanker(), default_limit, output_fields=["random"])
 for hits in hybrid_res:
     for hit in hits:
         print(f" hybrid search hit: {hit}")

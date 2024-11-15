@@ -297,8 +297,16 @@ class IDs(_message.Message):
     str_id: StringArray
     def __init__(self, int_id: _Optional[_Union[LongArray, _Mapping]] = ..., str_id: _Optional[_Union[StringArray, _Mapping]] = ...) -> None: ...
 
+class SearchIteratorV2Results(_message.Message):
+    __slots__ = ("token", "last_bound")
+    TOKEN_FIELD_NUMBER: _ClassVar[int]
+    LAST_BOUND_FIELD_NUMBER: _ClassVar[int]
+    token: str
+    last_bound: float
+    def __init__(self, token: _Optional[str] = ..., last_bound: _Optional[float] = ...) -> None: ...
+
 class SearchResultData(_message.Message):
-    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances")
+    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results")
     NUM_QUERIES_FIELD_NUMBER: _ClassVar[int]
     TOP_K_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -309,6 +317,7 @@ class SearchResultData(_message.Message):
     GROUP_BY_FIELD_VALUE_FIELD_NUMBER: _ClassVar[int]
     ALL_SEARCH_COUNT_FIELD_NUMBER: _ClassVar[int]
     DISTANCES_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_ITERATOR_V2_RESULTS_FIELD_NUMBER: _ClassVar[int]
     num_queries: int
     top_k: int
     fields_data: _containers.RepeatedCompositeFieldContainer[FieldData]
@@ -319,7 +328,8 @@ class SearchResultData(_message.Message):
     group_by_field_value: FieldData
     all_search_count: int
     distances: _containers.RepeatedScalarFieldContainer[float]
-    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ...) -> None: ...
+    search_iterator_v2_results: SearchIteratorV2Results
+    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ...) -> None: ...
 
 class VectorClusteringInfo(_message.Message):
     __slots__ = ("field", "centroid")
