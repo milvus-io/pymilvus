@@ -94,6 +94,9 @@ class Collection:
                     If timeout is not set, the client keeps waiting until the server
                     responds or an error occurs.
 
+                * *normalization_fields* (``str/list``, optional)
+                    Fields are selected to apply standard normalization.
+
 
         Raises:
             SchemaNotReadyException: if the schema is wrong.
