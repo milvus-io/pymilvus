@@ -9,11 +9,12 @@ from pymilvus import DefaultConfig
 
 class TestPrepare:
     @pytest.mark.parametrize("coll_name", [None, "", -1, 1.1, []])
-    def test_delete_request_wrong_coll_name(self, coll_name: str):
+    @pytest.mark.parametrize("expr", [None, "", -1, 1.1, []])
+    def test_delete_request_wrong_coll_name(self, coll_name: str, expr: str):
         with pytest.raises(MilvusException):
-            Prepare.delete_request(coll_name, "id>1", None, 0)
+            Prepare.delete_request(coll_name, expr, None, 0)
 
-    @pytest.mark.parametrize("part_name", ["", -1, 1.1, []])
+    @pytest.mark.parametrize("part_name", [])
     def test_delete_request_wrong_part_name(self, part_name):
         with pytest.raises(MilvusException):
             Prepare.delete_request("coll", "id>1", part_name, 0)

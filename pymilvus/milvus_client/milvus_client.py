@@ -400,8 +400,8 @@ class MilvusClient:
                 limit=limit,
                 output_fields=output_fields,
                 partition_names=partition_names,
-                timeout=timeout,
                 expr_params=kwargs.pop("filter_params", {}),
+                timeout=timeout,
                 **kwargs,
             )
         except Exception as ex:
@@ -546,7 +546,7 @@ class MilvusClient:
         filter: Optional[str] = None,
         partition_name: Optional[str] = None,
         **kwargs,
-    ) -> Dict:
+    ) -> Dict[str, int]:
         """Delete entries in the collection by their pk or by filter.
 
         Starting from version 2.3.2, Milvus no longer includes the primary keys in the result
@@ -558,14 +558,17 @@ class MilvusClient:
         Milvus(previous 2.3.2) is not empty, the list of primary keys is still returned.
 
         Args:
-            ids (list, str, int): The pk's to delete. Depending on pk_field type it can be int
-                or str or alist of either. Default to None.
-            filter(str, optional): A filter to use for the deletion. Defaults to empty.
+            ids (list, str, int, optional): The pk's to delete.
+                Depending on pk_field type it can be int or str or a list of either.
+                Default to None.
+            filter(str, optional): A filter to use for the deletion. Defaults to none.
             timeout (int, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
 
+            Note: You need to passin either ids or filter, and they cannot be used at the same time.
+
         Returns:
-            Dict: Number of rows that were deleted.
+            Dict: with key 'deleted_count' and value number of rows that were deleted.
         """
         pks = kwargs.get("pks", [])
         if isinstance(pks, (int, str)):
@@ -589,34 +592,32 @@ class MilvusClient:
                 msg = f"wrong type of argument ids, expect list, int or str, got '{type(ids).__name__}'"
                 raise TypeError(msg)
 
+        # validate ambiguous delete filter param before describe collection rpc
+        if filter and len(pks) > 0:
+            raise ParamError(message=ExceptionsMessage.AmbiguousDeleteFilterParam)
+
         expr = ""
         conn = self._get_connection()
-        if pks:
+        if len(pks) > 0:
             try:
                 schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
             except Exception as ex:
                 logger.error("Failed to describe collection: %s", collection_name)
                 raise ex from ex
-
             expr = self._pack_pks_expr(schema_dict, pks)
-
-        if filter:
-            if expr:
-                raise ParamError(message=ExceptionsMessage.AmbiguousDeleteFilterParam)
-
+        else:
             if not isinstance(filter, str):
                 raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
-
             expr = filter
 
         ret_pks = []
         try:
             res = conn.delete(
-                collection_name,
-                expr,
-                partition_name,
-                timeout=timeout,
+                collection_name=collection_name,
+                expression=expr,
+                partition_name=partition_name,
                 expr_params=kwargs.pop("filter_params", {}),
+                timeout=timeout,
                 **kwargs,
             )
             if res.primary_keys:
@@ -625,6 +626,7 @@ class MilvusClient:
             logger.error("Failed to delete primary keys in collection: %s", collection_name)
             raise ex from ex
 
+        # compatible with deletions that returns primary keys
         if ret_pks:
             return ret_pks
 
