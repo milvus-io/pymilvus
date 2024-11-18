@@ -297,5 +297,6 @@ class Role:
             >>> role = Role(role_name)
             >>> role.remove_privileges_from_group(group_name, ["Insert", "Select"])
         """
-        return self._get_connection().remove_privileges_from_group(self._name, group_name, privileges)
-
+        return self._get_connection().remove_privileges_from_group(
+            self._name, group_name, privileges
+        )
