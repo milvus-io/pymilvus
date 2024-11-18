@@ -596,7 +596,7 @@ class GrpcHandler:
         try:
             req = Prepare.delete_request(
                 collection_name=collection_name,
-                expression=expression,
+                filter=expression,
                 partition_name=partition_name,
                 consistency_level=kwargs.pop("consistency_level", 0),
                 **kwargs,

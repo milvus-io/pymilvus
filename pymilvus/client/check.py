@@ -9,6 +9,27 @@ from . import entity_helper
 from .singleton_utils import Singleton
 
 
+def validate_strs(**kwargs):
+    """ validate if all values are legal non-emtpy str """
+    invalid_pair = {k: v for k, v in kwargs.items() if not validate_str(v)}
+    if invalid_pair:
+        msg = f"Illegal str variables: {invalid_pair}, expect non-empty str"
+        raise ParamError(message=msg)
+
+
+def validate_nullable_strs(**kwargs):
+    """ validate if all values are either None or legal non-empty str """
+    invalid_pair = {k: v for k, v in kwargs.items() if v is not None and not validate_str(v)}
+    if invalid_pair:
+        msg = f"Illegal nullable str variables: {invalid_pair}, expect None or non-empty str"
+        raise ParamError(message=msg)
+
+
+def validate_str(var: Any) -> bool:
+    """ check if a variable is legal non-empty str """
+    return var and isinstance(var, str)
+
+
 def is_legal_address(addr: Any) -> bool:
     if not isinstance(addr, str):
         return False
@@ -60,7 +81,7 @@ def is_legal_index_size(index_size: Any) -> bool:
 
 
 def is_legal_table_name(table_name: Any) -> bool:
-    return table_name and isinstance(table_name, str)
+    return validate_str(table_name)
 
 
 def is_legal_db_name(db_name: Any) -> bool:

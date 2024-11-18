@@ -11,7 +11,7 @@ from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.orm.schema import CollectionSchema
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 
-from . import __version__, blob, entity_helper, ts_utils, utils
+from . import __version__, blob, check, entity_helper, ts_utils, utils
 from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
     DEFAULT_CONSISTENCY_LEVEL,
@@ -660,31 +660,21 @@ class Prepare:
     def delete_request(
         cls,
         collection_name: str,
-        expression: str,
-        partition_name: str,
+        filter: str,
+        partition_name: Optional[str] = None,
         consistency_level: Optional[Union[int, str]] = None,
         **kwargs,
     ):
-        def valid_str(var: Any) -> True:
-            return isinstance(var, str) and len(var) > 0
-
-        if not valid_str(collection_name):
-            raise ParamError(
-                message=f"collection_name {collection_name} is illegal, expect none empty str"
-            )
-
-        if not valid_str(expression):
-            raise ParamError(message=f"expression {expression} is illegal, expect none empty str")
-
-        if partition_name is not None and not valid_str(partition_name):
-            raise ParamError(
-                message=f"partition_name {partition_name} is illegal, expect none empty str"
-            )
+        check.validate_strs(
+            collection_name=collection_name,
+            filter=filter,
+        )
+        check.validate_nullable_strs(partition_name=partition_name)
 
         return milvus_types.DeleteRequest(
             collection_name=collection_name,
             partition_name=partition_name,
-            expr=expression,
+            expr=filter,
             consistency_level=get_consistency_level(consistency_level),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
         )
