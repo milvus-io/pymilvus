@@ -222,33 +222,33 @@ class Role:
         """
         return self._get_connection().select_grant_for_one_role(self._name, db_name)
 
-    def create_privilege_group(self, group_name: str):
+    def create_privilege_group(self, privilege_group: str):
         """Create a privilege group for the role
-            :param group_name: privilege group name.
-            :type  group_name: str
+            :param privilege_group: privilege group name.
+            :type  privilege_group: str
 
         :example:
             >>> from pymilvus import connections
             >>> from pymilvus.orm.role import Role
             >>> connections.connect()
             >>> role = Role(role_name)
-            >>> role.create_privilege_group(group_name)
+            >>> role.create_privilege_group(privilege_group)
         """
-        return self._get_connection().create_privilege_group(self._name, group_name)
+        return self._get_connection().create_privilege_group(self._name, privilege_group)
 
-    def drop_privilege_group(self, group_name: str):
+    def drop_privilege_group(self, privilege_group: str):
         """Drop a privilege group for the role
-            :param group_name: privilege group name.
-            :type  group_name: str
+            :param privilege_group: privilege group name.
+            :type  privilege_group: str
 
         :example:
             >>> from pymilvus import connections
             >>> from pymilvus.orm.role import Role
             >>> connections.connect()
             >>> role = Role(role_name)
-            >>> role.drop_privilege_group(group_name)
+            >>> role.drop_privilege_group(privilege_group)
         """
-        return self._get_connection().drop_privilege_group(self._name, group_name)
+        return self._get_connection().drop_privilege_group(self._name, privilege_group)
 
     def list_privilege_groups(self):
         """List all privilege groups for the role
@@ -267,10 +267,10 @@ class Role:
         """
         return self._get_connection().list_privilege_groups(self._name)
 
-    def add_privileges_to_group(self, group_name: str, privileges: list):
+    def add_privileges_to_group(self, privilege_group: str, privileges: list):
         """Add privileges to a privilege group for the role
-            :param group_name: privilege group name.
-            :type  group_name: str
+            :param privilege_group: privilege group name.
+            :type  privilege_group: str
             :param privileges: a list of privilege names.
             :type  privileges: list
 
@@ -279,14 +279,16 @@ class Role:
             >>> from pymilvus.orm.role import Role
             >>> connections.connect()
             >>> role = Role(role_name)
-            >>> role.add_privileges_to_group(group_name, ["Insert", "Select"])
+            >>> role.add_privileges_to_group(privilege_group, ["Insert", "Select"])
         """
-        return self._get_connection().add_privileges_to_group(self._name, group_name, privileges)
+        return self._get_connection().add_privileges_to_group(
+            self._name, privilege_group, privileges
+        )
 
-    def remove_privileges_from_group(self, group_name: str, privileges: list):
+    def remove_privileges_from_group(self, privilege_group: str, privileges: list):
         """Remove privileges from a privilege group for the role
-            :param group_name: privilege group name.
-            :type  group_name: str
+            :param privilege_group: privilege group name.
+            :type  privilege_group: str
             :param privileges: a list of privilege names.
             :type  privileges: list
 
@@ -295,8 +297,8 @@ class Role:
             >>> from pymilvus.orm.role import Role
             >>> connections.connect()
             >>> role = Role(role_name)
-            >>> role.remove_privileges_from_group(group_name, ["Insert", "Select"])
+            >>> role.remove_privileges_from_group(privilege_group, ["Insert", "Select"])
         """
         return self._get_connection().remove_privileges_from_group(
-            self._name, group_name, privileges
+            self._name, privilege_group, privileges
         )

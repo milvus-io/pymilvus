@@ -288,6 +288,13 @@ def is_legal_privileges(privileges: Any) -> bool:
     )
 
 
+def is_legal_operate_privilege_group_type(operate_privilege_group_type: Any) -> bool:
+    return operate_privilege_group_type in (
+        milvus_types.OperatePrivilegeGroupType.AddPrivilegesToGroup,
+        milvus_types.OperatePrivilegeGroupType.RemovePrivilegesFromGroup,
+    )
+
+
 class ParamChecker(metaclass=Singleton):
     def __init__(self) -> None:
         self.check_dict = {
@@ -334,6 +341,7 @@ class ParamChecker(metaclass=Singleton):
             "drop_ratio_search": is_legal_drop_ratio,
             "privilege_group": is_legal_privilege_group,
             "privileges": is_legal_privileges,
+            "operate_privilege_group_type": is_legal_operate_privilege_group_type,
         }
 
     def check(self, key: str, value: Callable):
