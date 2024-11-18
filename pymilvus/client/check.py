@@ -10,7 +10,7 @@ from .singleton_utils import Singleton
 
 
 def validate_strs(**kwargs):
-    """ validate if all values are legal non-emtpy str """
+    """validate if all values are legal non-emtpy str"""
     invalid_pair = {k: v for k, v in kwargs.items() if not validate_str(v)}
     if invalid_pair:
         msg = f"Illegal str variables: {invalid_pair}, expect non-empty str"
@@ -18,7 +18,7 @@ def validate_strs(**kwargs):
 
 
 def validate_nullable_strs(**kwargs):
-    """ validate if all values are either None or legal non-empty str """
+    """validate if all values are either None or legal non-empty str"""
     invalid_pair = {k: v for k, v in kwargs.items() if v is not None and not validate_str(v)}
     if invalid_pair:
         msg = f"Illegal nullable str variables: {invalid_pair}, expect None or non-empty str"
@@ -26,7 +26,7 @@ def validate_nullable_strs(**kwargs):
 
 
 def validate_str(var: Any) -> bool:
-    """ check if a variable is legal non-empty str """
+    """check if a variable is legal non-empty str"""
     return var and isinstance(var, str)
 
 
