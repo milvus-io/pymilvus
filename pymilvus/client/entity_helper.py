@@ -170,7 +170,7 @@ def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True
         for s in arr:
             if not isinstance(s, str):
                 raise ParamError(
-                    message=f"field ({field_info['name']}) expect string input, got: {type(s)}"
+                    message=f"field ({field_info['name']}) expects string input, got: {type(s)}"
                 )
             if len(s) > max_len:
                 raise ParamError(
@@ -198,7 +198,7 @@ def convert_to_json_arr(objs: List[object], field_info: Any):
     arr = []
     for obj in objs:
         if obj is None:
-            raise ParamError(message=f"field ({field_info['name']}) expect not None input")
+            raise ParamError(message=f"field ({field_info['name']}) expects a non-None input")
         arr.append(convert_to_json(obj))
     return arr
 
@@ -308,7 +308,7 @@ def pack_field_value_to_field_data(
             if isinstance(field_value, np.ndarray):
                 if field_value.dtype not in ("float32", "float64"):
                     raise ParamError(
-                        message="invalid input for float32 vector, expect np.ndarray with dtype=float32"
+                        message="invalid input for float32 vector. Expected an np.ndarray with dtype=float32"
                     )
                 f_value = field_value.tolist()
 
@@ -335,12 +335,12 @@ def pack_field_value_to_field_data(
             elif isinstance(field_value, np.ndarray):
                 if field_value.dtype != "float16":
                     raise ParamError(
-                        message="invalid input for float16 vector, expect np.ndarray with dtype=float16"
+                        message="invalid input for float16 vector. Expected an np.ndarray with dtype=float16"
                     )
                 v_bytes = field_value.view(np.uint8).tobytes()
             else:
                 raise ParamError(
-                    message="invalid input type for float16 vector, expect np.ndarray with dtype=float16"
+                    message="invalid input type for float16 vector. Expected an np.ndarray with dtype=float16"
                 )
 
             field_data.vectors.dim = len(v_bytes) // 2
@@ -357,12 +357,12 @@ def pack_field_value_to_field_data(
             elif isinstance(field_value, np.ndarray):
                 if field_value.dtype != "bfloat16":
                     raise ParamError(
-                        message="invalid input for bfloat16 vector, expect np.ndarray with dtype=bfloat16"
+                        message="invalid input for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
                     )
                 v_bytes = field_value.view(np.uint8).tobytes()
             else:
                 raise ParamError(
-                    message="invalid input type for bfloat16 vector, expect np.ndarray with dtype=bfloat16"
+                    message="invalid input type for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
                 )
 
             field_data.vectors.dim = len(v_bytes) // 2
