@@ -1590,33 +1590,28 @@ class Prepare:
         return milvus_types.DescribeDatabaseRequest(db_name=db_name)
 
     @classmethod
-    def create_privilege_group_req(cls, group_name: str):
-        check_pass_param(group_name=group_name)
-        return milvus_types.CreatePrivilegeGroupRequest(group_name=group_name)
+    def create_privilege_group_req(cls, privilege_group: str):
+        check_pass_param(privilege_group=privilege_group)
+        return milvus_types.CreatePrivilegeGroupRequest(group_name=privilege_group)
 
     @classmethod
-    def drop_privilege_group_req(cls, group_name: str):
-        check_pass_param(group_name=group_name)
-        return milvus_types.DropPrivilegeGroupRequest(group_name=group_name)
+    def drop_privilege_group_req(cls, privilege_group: str):
+        check_pass_param(privilege_group=privilege_group)
+        return milvus_types.DropPrivilegeGroupRequest(group_name=privilege_group)
 
     @classmethod
     def list_privilege_groups_req(cls):
         return milvus_types.ListPrivilegeGroupsRequest()
 
     @classmethod
-    def operate_privilege_group_req(cls, group_name: str, privileges: List[str], operate_type: Any):
-        check_pass_param(group_name=group_name)
-        check_pass_param(operate_type=operate_type)
-        if not isinstance(
-            privileges,
-            (list),
-        ):
-            msg = f"Privileges {privileges} is not a list"
-            raise ParamError(message=msg)
-        for p in privileges:
-            check_pass_param(privilege=p)
+    def operate_privilege_group_req(
+        cls, privilege_group: str, privileges: List[str], operate_privilege_group_type: Any
+    ):
+        check_pass_param(privilege_group=privilege_group)
+        check_pass_param(privileges=privileges)
+        check_pass_param(operate_privilege_group_type=operate_privilege_group_type)
         return milvus_types.OperatePrivilegeGroupRequest(
-            group_name=group_name,
+            group_name=privilege_group,
             privileges=[milvus_types.PrivilegeEntity(name=p) for p in privileges],
-            type=operate_type,
+            type=operate_privilege_group_type,
         )
