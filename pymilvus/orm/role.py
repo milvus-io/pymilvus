@@ -176,6 +176,46 @@ class Role:
             self._name, object, object_name, privilege, db_name
         )
 
+    def grant_v2(self, privilege: str, db_name: str, collection_name: str):
+        """Grant a privilege for the role
+            :param privilege: privilege name.
+            :type  privilege: str
+            :param db_name: db name.
+            :type  db_name: str
+            :param collection_name: collection name.
+            :type  collection_name: str
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(role_name)
+            >>> role.grant_v2("Insert", db_name, collection_name)
+        """
+        return self._get_connection().grant_privilege_v2(
+            self._name, privilege, db_name, collection_name
+        )
+
+    def revoke_v2(self, privilege: str, db_name: str, collection_name: str):
+        """Revoke a privilege for the role
+            :param privilege: privilege name.
+            :type  privilege: str
+            :param db_name: db name.
+            :type  db_name: str
+            :param collection_name: collection name.
+            :type  collection_name: str
+
+        :example:
+            >>> from pymilvus import connections
+            >>> from pymilvus.orm.role import Role
+            >>> connections.connect()
+            >>> role = Role(role_name)
+            >>> role.revoke_v2("Insert", db_name, collection_name)
+        """
+        return self._get_connection().revoke_privilege_v2(
+            self._name, privilege, db_name, collection_name
+        )
+
     def list_grant(self, object: str, object_name: str, db_name: str = ""):
         """List a grant info for the role and the specific object
             :param object: object type.

@@ -1865,6 +1865,46 @@ class GrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
+    def grant_privilege_v2(
+        self,
+        role_name: str,
+        privilege: str,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        req = Prepare.operate_privilege_v2_request(
+            role_name,
+            privilege,
+            milvus_types.OperatePrivilegeType.Grant,
+            db_name,
+            collection_name,
+        )
+        resp = self._stub.OperatePrivilegeV2(req, wait_for_ready=True, timeout=timeout)
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def revoke_privilege_v2(
+        self,
+        role_name: str,
+        privilege: str,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        req = Prepare.operate_privilege_v2_request(
+            role_name,
+            privilege,
+            milvus_types.OperatePrivilegeType.Revoke,
+            db_name,
+            collection_name,
+        )
+        resp = self._stub.OperatePrivilegeV2(req, wait_for_ready=True, timeout=timeout)
+        check_status(resp)
+
+    @retry_on_rpc_failure()
     def select_grant_for_one_role(
         self, role_name: str, db_name: str, timeout: Optional[float] = None, **kwargs
     ):
