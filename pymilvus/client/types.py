@@ -932,6 +932,11 @@ class ExtraList(list):
             return f"data: {list(map(str, self[:10]))} {'...' if len(self) > 10 else ''}, extra_info: {self.extra}"
         return f"data: {list(map(str, self[:10]))} {'...' if len(self) > 10 else ''}"
 
+    @property
+    def data(self):
+        """Return the list data as is."""
+        return list(self)
+
     __repr__ = __str__
 
 
