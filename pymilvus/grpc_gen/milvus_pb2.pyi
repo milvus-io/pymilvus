@@ -27,6 +27,12 @@ class OperateUserRoleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AddUserToRole: _ClassVar[OperateUserRoleType]
     RemoveUserFromRole: _ClassVar[OperateUserRoleType]
 
+class PrivilegeLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    Cluster: _ClassVar[PrivilegeLevel]
+    Database: _ClassVar[PrivilegeLevel]
+    Collection: _ClassVar[PrivilegeLevel]
+
 class OperatePrivilegeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     Grant: _ClassVar[OperatePrivilegeType]
@@ -45,6 +51,9 @@ AddPrivilegesToGroup: OperatePrivilegeGroupType
 RemovePrivilegesFromGroup: OperatePrivilegeGroupType
 AddUserToRole: OperateUserRoleType
 RemoveUserFromRole: OperateUserRoleType
+Cluster: PrivilegeLevel
+Database: PrivilegeLevel
+Collection: PrivilegeLevel
 Grant: OperatePrivilegeType
 Revoke: OperatePrivilegeType
 Unknown: QuotaState
@@ -1710,14 +1719,32 @@ class SelectGrantResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., entities: _Optional[_Iterable[_Union[GrantEntity, _Mapping]]] = ...) -> None: ...
 
 class OperatePrivilegeRequest(_message.Message):
-    __slots__ = ("base", "entity", "type")
+    __slots__ = ("base", "entity", "type", "version")
     BASE_FIELD_NUMBER: _ClassVar[int]
     ENTITY_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     entity: GrantEntity
     type: OperatePrivilegeType
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., entity: _Optional[_Union[GrantEntity, _Mapping]] = ..., type: _Optional[_Union[OperatePrivilegeType, str]] = ...) -> None: ...
+    version: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., entity: _Optional[_Union[GrantEntity, _Mapping]] = ..., type: _Optional[_Union[OperatePrivilegeType, str]] = ..., version: _Optional[str] = ...) -> None: ...
+
+class OperatePrivilegeV2Request(_message.Message):
+    __slots__ = ("base", "role", "grantor", "type", "db_name", "collection_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    GRANTOR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    role: RoleEntity
+    grantor: GrantorEntity
+    type: OperatePrivilegeType
+    db_name: str
+    collection_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., role: _Optional[_Union[RoleEntity, _Mapping]] = ..., grantor: _Optional[_Union[GrantorEntity, _Mapping]] = ..., type: _Optional[_Union[OperatePrivilegeType, str]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
 
 class UserInfo(_message.Message):
     __slots__ = ("user", "password", "roles")

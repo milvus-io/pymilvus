@@ -322,6 +322,15 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeDropPrivilegeGroup: _ClassVar[ObjectPrivilege]
     PrivilegeListPrivilegeGroups: _ClassVar[ObjectPrivilege]
     PrivilegeOperatePrivilegeGroup: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupClusterReadOnly: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupClusterReadWrite: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupClusterAdmin: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupDatabaseReadOnly: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupDatabaseReadWrite: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupDatabaseAdmin: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupCollectionReadOnly: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupCollectionReadWrite: _ClassVar[ObjectPrivilege]
+    PrivilegeGroupCollectionAdmin: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -617,6 +626,15 @@ PrivilegeCreatePrivilegeGroup: ObjectPrivilege
 PrivilegeDropPrivilegeGroup: ObjectPrivilege
 PrivilegeListPrivilegeGroups: ObjectPrivilege
 PrivilegeOperatePrivilegeGroup: ObjectPrivilege
+PrivilegeGroupClusterReadOnly: ObjectPrivilege
+PrivilegeGroupClusterReadWrite: ObjectPrivilege
+PrivilegeGroupClusterAdmin: ObjectPrivilege
+PrivilegeGroupDatabaseReadOnly: ObjectPrivilege
+PrivilegeGroupDatabaseReadWrite: ObjectPrivilege
+PrivilegeGroupDatabaseAdmin: ObjectPrivilege
+PrivilegeGroupCollectionReadOnly: ObjectPrivilege
+PrivilegeGroupCollectionReadWrite: ObjectPrivilege
+PrivilegeGroupCollectionAdmin: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

@@ -1462,6 +1462,32 @@ class Prepare:
         )
 
     @classmethod
+    def operate_privilege_v2_request(
+        cls,
+        role_name: str,
+        privilege: str,
+        operate_privilege_type: Any,
+        db_name: str,
+        collection_name: str,
+    ):
+        check_pass_param(
+            role_name=role_name,
+            privilege=privilege,
+            operate_privilege_type=operate_privilege_type,
+            db_name=db_name,
+            collection_name=collection_name,
+        )
+        return milvus_types.OperatePrivilegeV2Request(
+            role=milvus_types.RoleEntity(name=role_name),
+            grantor=milvus_types.GrantorEntity(
+                privilege=milvus_types.PrivilegeEntity(name=privilege)
+            ),
+            type=operate_privilege_type,
+            db_name=db_name,
+            collection_name=collection_name,
+        )
+
+    @classmethod
     def select_grant_request(cls, role_name: str, object: str, object_name: str, db_name: str):
         check_pass_param(role_name=role_name)
         if object:

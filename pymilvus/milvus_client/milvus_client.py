@@ -1003,6 +1003,34 @@ class MilvusClient:
             role_name, object_type, object_name, privilege, db_name, timeout=timeout, **kwargs
         )
 
+    def grant_privilege_v2(
+        self,
+        role_name: str,
+        privilege: str,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.grant_privilege_v2(
+            role_name, privilege, db_name, collection_name, timeout=timeout, **kwargs
+        )
+
+    def revoke_privilege_v2(
+        self,
+        role_name: str,
+        privilege: str,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.revoke_privilege_v2(
+            role_name, privilege, db_name, collection_name, timeout=timeout, **kwargs
+        )
+
     def create_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
     ):
