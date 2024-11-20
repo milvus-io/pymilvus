@@ -346,6 +346,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.OperatePrivilegeRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.OperatePrivilegeV2 = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/OperatePrivilegeV2',
+                request_serializer=milvus__pb2.OperatePrivilegeV2Request.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
         self.SelectGrant = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/SelectGrant',
                 request_serializer=milvus__pb2.SelectGrantRequest.SerializeToString,
@@ -889,6 +894,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def OperatePrivilegeV2(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def SelectGrant(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -1382,6 +1393,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'OperatePrivilege': grpc.unary_unary_rpc_method_handler(
                     servicer.OperatePrivilege,
                     request_deserializer=milvus__pb2.OperatePrivilegeRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'OperatePrivilegeV2': grpc.unary_unary_rpc_method_handler(
+                    servicer.OperatePrivilegeV2,
+                    request_deserializer=milvus__pb2.OperatePrivilegeV2Request.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
             'SelectGrant': grpc.unary_unary_rpc_method_handler(
@@ -2647,6 +2663,23 @@ class MilvusService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/OperatePrivilege',
             milvus__pb2.OperatePrivilegeRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def OperatePrivilegeV2(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/OperatePrivilegeV2',
+            milvus__pb2.OperatePrivilegeV2Request.SerializeToString,
             common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
