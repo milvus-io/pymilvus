@@ -22,6 +22,7 @@ from pymilvus.exceptions import (
 from pymilvus.orm import utility
 from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
+from pymilvus.orm.future import SearchFuture
 from pymilvus.orm.types import DataType
 
 from .index import IndexParams
@@ -366,7 +367,7 @@ class MilvusClient:
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         **kwargs,
-    ) -> List[List[dict]]:
+    ) -> List[List[dict]] | SearchFuture:
         """Search for a query vector/vectors.
 
         In order for the search to process, a collection needs to have been either provided
@@ -388,6 +389,7 @@ class MilvusClient:
         Returns:
             List[List[dict]]: A nested list of dicts containing the result data. Embeddings are
                 not included in the result data.
+            SearchFuture: If _async is True, return a SearchFuture object.
         """
         conn = self._get_connection()
         try:
@@ -407,6 +409,9 @@ class MilvusClient:
         except Exception as ex:
             logger.error("Failed to search collection: %s", collection_name)
             raise ex from ex
+
+        if kwargs.get("_async", False):
+            return res
 
         ret = []
         for hits in res:
