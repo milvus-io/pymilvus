@@ -693,6 +693,51 @@ class GrantInfo:
         return self._groups
 
 
+class PrivilegeGroupItem:
+    def __init__(self, privilege_group: str, privileges: List[milvus_types.PrivilegeEntity]):
+        self._privilege_group = privilege_group
+        privielges = []
+        for privilege in privileges:
+            if isinstance(privilege, milvus_types.PrivilegeEntity):
+                privielges.append(privilege.name)
+        self._privileges = tuple(privielges)
+
+    def __repr__(self) -> str:
+        return f"PrivilegeGroupItem: <privilege_group:{self.privilege_group}>, <privileges:{self.privileges}>"
+
+    @property
+    def privilege_group(self):
+        return self._privilege_group
+
+    @property
+    def privileges(self):
+        return self._privileges
+
+
+class PrivilegeGroupInfo:
+    """
+    PrivilegeGroupInfo groups:
+    - PrivilegeGroupItem: <privilge_group:group>, <privileges:('Load', 'CreateCollection')>
+    """
+
+    def __init__(self, results: List[milvus_types.PrivilegeGroupInfo]) -> None:
+        groups = []
+        for result in results:
+            if isinstance(result, milvus_types.PrivilegeGroupInfo):
+                groups.append(PrivilegeGroupItem(result.group_name, result.privileges))
+        self._groups = groups
+
+    def __repr__(self) -> str:
+        s = "PrivilegeGroupInfo groups:"
+        for g in self.groups:
+            s += f"\n- {g}"
+        return s
+
+    @property
+    def groups(self):
+        return self._groups
+
+
 class UserItem:
     def __init__(self, username: str, entities: List[milvus_types.RoleEntity]) -> None:
         self._username = username

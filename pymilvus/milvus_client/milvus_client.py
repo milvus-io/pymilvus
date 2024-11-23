@@ -1210,7 +1210,7 @@ class MilvusClient:
         self,
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> Dict[str, List[str]]:
+    ) -> List[Dict[str, str]]:
         """List all privilege groups.
 
         Args:
@@ -1219,16 +1219,20 @@ class MilvusClient:
                 or error occur.
 
         Returns:
-            Dict[str, List[str]]: A dictionary of privilege groups and their privileges.
+            List[Dict[str, str]]: A list of privilege groups.
 
         Raises:
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        pgs = conn.list_privilege_groups(timeout=timeout, **kwargs)
-        ret = {}
-        for pg in pgs:
-            ret[pg.group_name] = [p.name for p in pg.privileges]
+        try:
+            res = conn.list_privilege_groups(timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.exception("Failed to list privilege groups.")
+            raise ex from ex
+        ret = []
+        for g in res.groups:
+            ret.append({"privilge_group": g.privilege_group, "privileges": g.privileges})
         return ret
 
     def add_privileges_to_group(
@@ -1243,6 +1247,7 @@ class MilvusClient:
         Args:
             group_name (``str``): The name of the privilege group.
             privileges (``List[str]``): A list of privileges to be added to the group.
+                Privilges should be the same type in a group otherwise it will raise an exception.
             timeout (``float``, optional): An optional duration of time in seconds to allow
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur.
