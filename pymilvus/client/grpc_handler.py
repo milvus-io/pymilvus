@@ -596,17 +596,15 @@ class GrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         try:
             req = Prepare.delete_request(
-                collection_name,
-                partition_name,
-                expression,
-                consistency_level=kwargs.get("consistency_level", 0),
-                param_name=kwargs.pop("param_name", None),
+                collection_name=collection_name,
+                filter=expression,
+                partition_name=partition_name,
+                consistency_level=kwargs.pop("consistency_level", 0),
                 **kwargs,
             )
             future = self._stub.Delete.future(req, timeout=timeout)
-
             if kwargs.get("_async", False):
-                cb = kwargs.get("_callback")
+                cb = kwargs.pop("_callback")
                 f = MutationFuture(future, cb, timeout=timeout, **kwargs)
                 f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
                 return f

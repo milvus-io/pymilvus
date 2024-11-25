@@ -12,7 +12,7 @@ from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.orm.schema import CollectionSchema
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 
-from . import __version__, blob, entity_helper, ts_utils, utils
+from . import __version__, blob, check, entity_helper, ts_utils, utils
 from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
     DEFAULT_CONSISTENCY_LEVEL,
@@ -734,29 +734,21 @@ class Prepare:
     def delete_request(
         cls,
         collection_name: str,
-        partition_name: str,
-        expr: str,
-        consistency_level: Optional[Union[int, str]],
+        filter: str,
+        partition_name: Optional[str] = None,
+        consistency_level: Optional[Union[int, str]] = None,
         **kwargs,
     ):
-        def check_str(instr: str, prefix: str):
-            if instr is None:
-                raise ParamError(message=f"{prefix} cannot be None")
-            if not isinstance(instr, str):
-                raise ParamError(message=f"{prefix} value {instr} is illegal")
-            if len(instr) == 0:
-                raise ParamError(message=f"{prefix} cannot be empty")
-
-        check_str(collection_name, "collection_name")
-        if partition_name is not None and partition_name != "":
-            check_str(partition_name, "partition_name")
-        param_name = kwargs.get("param_name", "expr")
-        check_str(expr, param_name)
+        check.validate_strs(
+            collection_name=collection_name,
+            filter=filter,
+        )
+        check.validate_nullable_strs(partition_name=partition_name)
 
         return milvus_types.DeleteRequest(
             collection_name=collection_name,
             partition_name=partition_name,
-            expr=expr,
+            expr=filter,
             consistency_level=get_consistency_level(consistency_level),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
         )
