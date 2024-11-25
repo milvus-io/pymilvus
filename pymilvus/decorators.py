@@ -114,9 +114,7 @@ def retry_on_rpc_failure(
                             e.code == ErrorCode.RATE_LIMIT
                             or e.compatible_code == common_pb2.RateLimit
                         )
-                        or retry_on_inconsistent_requery
-                        and e.code == 2200
-                    ):
+                    ) or (retry_on_inconsistent_requery and e.code == 2200):
                         time.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
                     else:
