@@ -1,148 +1,85 @@
-# Copyright (C) 2019-2020 Zilliz. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License. You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software distributed under the License
-# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing permissions and limitations under the License.
-
+import time
+import numpy as np
 from pymilvus import (
-    connections, list_collections, has_partition,
-    FieldSchema, CollectionSchema, DataType,
-    Collection, Partition
+    MilvusClient,
 )
 
-import random
-import string
+fmt = "\n=== {:30} ===\n"
+dim = 8
+collection_name = "hello_milvus"
+milvus_client = MilvusClient("http://localhost:19530")
 
-default_dim = 128
-default_nb = 3000
-default_float_vec_field_name = "float_vector"
-default_segment_row_limit = 1000
+has_collection = milvus_client.has_collection(collection_name, timeout=5)
+if has_collection:
+    milvus_client.drop_collection(collection_name)
+milvus_client.create_collection(collection_name, dim, consistency_level="Strong", metric_type="L2")
 
+print(fmt.format("    all collections    "))
+print(milvus_client.list_collections())
 
-all_index_types = [
-    "FLAT",
-    "IVF_FLAT",
-    "IVF_SQ8",
-    # "IVF_SQ8_HYBRID",
-    "IVF_PQ",
-    "HNSW",
-    # "NSG",
-    "ANNOY",
-    "RHNSW_FLAT",
-    "RHNSW_PQ",
-    "RHNSW_SQ",
-    "BIN_FLAT",
-    "BIN_IVF_FLAT"
-]
+print(fmt.format(f"schema of collection {collection_name}"))
+print(milvus_client.describe_collection(collection_name))
 
-default_index_params = [
-    {"nlist": 128},
-    {"nlist": 128},
-    {"nlist": 128},
-    # {"nlist": 128},
-    {"nlist": 128, "m": 16, "nbits": 8},
-    {"M": 48, "efConstruction": 500},
-    # {"search_length": 50, "out_degree": 40, "candidate_pool_size": 100, "knng": 50},
-    {"n_trees": 50},
-    {"M": 48, "efConstruction": 500},
-    {"M": 48, "efConstruction": 500, "PQM": 64},
-    {"M": 48, "efConstruction": 500},
-    {"nlist": 128},
-    {"nlist": 128}
-]
+rng = np.random.default_rng(seed=19530)
 
+milvus_client.create_partition(collection_name, partition_name = "p1")
+milvus_client.insert(collection_name, {"id": 1, "vector": rng.random((1, dim))[0], "a": 100}, partition_name = "p1")
+milvus_client.insert(collection_name, {"id": 2, "vector": rng.random((1, dim))[0], "b": 200}, partition_name = "p1")
+milvus_client.insert(collection_name, {"id": 3, "vector": rng.random((1, dim))[0], "c": 300}, partition_name = "p1")
 
-default_index = {"index_type": "IVF_FLAT", "params": {"nlist": 128}, "metric_type": "L2"}
+milvus_client.create_partition(collection_name, partition_name = "p2")
+milvus_client.insert(collection_name, {"id": 4, "vector": rng.random((1, dim))[0], "e": 400}, partition_name = "p2")
+milvus_client.insert(collection_name, {"id": 5, "vector": rng.random((1, dim))[0], "f": 500}, partition_name = "p2")
+milvus_client.insert(collection_name, {"id": 6, "vector": rng.random((1, dim))[0], "g": 600}, partition_name = "p2")
 
+has_p1 = milvus_client.has_partition(collection_name, "p1")
+print("has partition p1", has_p1)
 
-def gen_default_fields(auto_id=True):
-    default_fields = [
-        FieldSchema(name="count", dtype=DataType.INT64, is_primary=True),
-        FieldSchema(name="float", dtype=DataType.FLOAT),
-        FieldSchema(name=default_float_vec_field_name, dtype=DataType.FLOAT_VECTOR, dim=default_dim)
-    ]
-    default_schema = CollectionSchema(fields=default_fields, description="test collection",
-                                      segment_row_limit=default_segment_row_limit, auto_id=False)
-    return default_schema
+has_p3 = milvus_client.has_partition(collection_name, "p3")
+print("has partition p3", has_p3)
 
+partitions = milvus_client.list_partitions(collection_name)
+print("partitions:", partitions)
 
-def gen_data(nb):
-    entities = [
-        [i for i in range(nb)],
-        [float(i) for i in range(nb)],
-        [[random.random() for _ in range(dim)] for _ in range(num)],
-    ]
-    return entities
+milvus_client.release_collection(collection_name)
+milvus_client.load_partitions(collection_name, partition_names =["p1", "p2"])
 
+print(fmt.format("Start search in partiton p1"))
+vectors_to_search = rng.random((1, dim))
+result = milvus_client.search(collection_name, vectors_to_search, limit=3, output_fields=["pk", "a", "b"], partition_names = ["p1"])
+for hits in result:
+    for hit in hits:
+        print(f"hit: {hit}")
 
-def gen_unique_str(str_value=None):
-    prefix = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(8))
-    return "collection_" + prefix if str_value is None else str_value + "_" + prefix
+milvus_client.release_partitions(collection_name, partition_names = ["p1"])
+milvus_client.drop_partition(collection_name, partition_name = "p1", timeout = 2.0)
+print("successfully drop partition p1")
 
+try:
+    milvus_client.drop_partition(collection_name, partition_name = "p2", timeout = 2.0)
+except Exception as e:
+    print(f"cacthed {e}")
 
-def binary_support():
-    return ["BIN_FLAT", "BIN_IVF_FLAT"]
+has_p1 = milvus_client.has_partition(collection_name, "p1")
+print("has partition of p1:", has_p1)
 
+print(fmt.format("Start query by specifying primary keys"))
+query_results = milvus_client.query(collection_name, ids=[2])
+assert len(query_results) == 0
 
-def gen_simple_index():
-    index_params = []
-    for i in range(len(all_index_types)):
-        if all_index_types[i] in binary_support():
-            continue
-        dic = {"index_type": all_index_types[i], "metric_type": "L2"}
-        dic.update({"params": default_index_params[i]})
-        index_params.append(dic)
-    return index_params
+print(fmt.format("Start query by specifying primary keys"))
+query_results = milvus_client.query(collection_name, ids=[4])
+print(query_results[0])
 
+print(fmt.format("Start query by specifying filtering expression"))
+query_results = milvus_client.query(collection_name, filter= "f == 500")
+for ret in query_results: 
+    print(ret)
 
-def test_partition():
-    connections.connect(alias="default")
-    print("create collection")
-    collection = Collection(name=gen_unique_str(), schema=gen_default_fields())
-    print("create partition")
-    partition = Partition(collection, name=gen_unique_str())
-    print(list_collections())
-    assert has_partition(collection.name, partition.name) is True
+print(fmt.format(f"Start search with retrieve serveral fields."))
+result = milvus_client.search(collection_name, vectors_to_search, limit=3, output_fields=["pk", "a", "b"])
+for hits in result:
+    for hit in hits:
+        print(f"hit: {hit}")
 
-    data = gen_data(default_nb)
-    print("insert data to partition")
-    res = partition.insert(data)
-    collection.flush()
-    print(res.insert_count)
-    assert partition.is_empty is False
-    assert partition.num_entities == default_nb
-
-    print("start to create index")
-    index = {
-        "index_type": "IVF_FLAT",
-        "metric_type": "L2",
-        "params": {"nlist": 128},
-    }
-    collection.create_index(default_float_vec_field_name, index)
-
-    print("load partition")
-    partition.load()
-    topK = 5
-    round_decimal = 3
-    search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
-    print("search partition")
-    res = partition.search(data[2][-2:], "float_vector", search_params, topK, "count > 100", round_decimal=round_decimal)
-    for hits in res:
-        for hit in hits:
-            print(hit)
-
-    print("release partition")
-    partition.release()
-    print("drop partition")
-    partition.drop()
-    print("drop collection")
-    collection.drop()
-
-
-if __name__ == "__main__":
-    test_partition()
+milvus_client.drop_collection(collection_name)

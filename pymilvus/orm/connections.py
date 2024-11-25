@@ -363,6 +363,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             "http",
             "https",
             "tcp",
+            "grpc",
         ]:
             # start and connect milvuslite
             if not kwargs["uri"].endswith(".db"):
