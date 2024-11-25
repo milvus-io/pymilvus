@@ -604,7 +604,7 @@ class GrpcHandler:
             )
             future = self._stub.Delete.future(req, timeout=timeout)
             if kwargs.get("_async", False):
-                cb = kwargs.pop("_callback")
+                cb = kwargs.pop("_callback", None)
                 f = MutationFuture(future, cb, timeout=timeout, **kwargs)
                 f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
                 return f
