@@ -244,7 +244,7 @@ def is_legal_round_decimal(round_decimal: Any) -> bool:
 
 
 def is_legal_guarantee_timestamp(ts: Any) -> bool:
-    return ts is None or isinstance(ts, int) and ts >= 0
+    return (ts is None) or (isinstance(ts, int) and ts >= 0)
 
 
 def is_legal_user(user: Any) -> bool:
