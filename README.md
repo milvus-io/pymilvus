@@ -27,7 +27,7 @@ The following collection shows Milvus versions and recommended PyMilvus versions
 | 2.1.\* | 2.1.3 |
 | 2.2.\* | 2.2.15 |
 | 2.3.\* | 2.3.7 |
-| 2.4.\* | 2.4.9 |
+| 2.4.\* | 2.4.10 |
 
 
 ## Installation
