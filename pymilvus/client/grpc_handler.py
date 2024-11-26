@@ -50,6 +50,7 @@ from .types import (
     IndexState,
     LoadState,
     Plan,
+    PrivilegeGroupInfo,
     Replica,
     ResourceGroupConfig,
     ResourceGroupInfo,
@@ -2071,7 +2072,7 @@ class GrpcHandler:
         req = Prepare.list_privilege_groups_req()
         resp = self._stub.ListPrivilegeGroups(req, wait_for_ready=True, timeout=timeout)
         check_status(resp.status)
-        return resp.privilege_groups
+        return PrivilegeGroupInfo(resp.privilege_groups)
 
     @retry_on_rpc_failure()
     def add_privileges_to_group(
