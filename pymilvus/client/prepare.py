@@ -394,6 +394,10 @@ class Prepare:
         )
 
     @staticmethod
+    def _function_output_field_names(fields_info: List[Dict]):
+        return [field["name"] for field in fields_info if field.get("is_function_output", False)]
+
+    @staticmethod
     def _num_input_fields(fields_info: List[Dict], is_upsert: bool):
         return len([field for field in fields_info if Prepare._is_input_field(field, is_upsert)])
 
@@ -407,6 +411,7 @@ class Prepare:
         input_fields_info = [
             field for field in fields_info if Prepare._is_input_field(field, is_upsert=False)
         ]
+        function_output_field_names = Prepare._function_output_field_names(fields_info)
         fields_data = {
             field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
             for field in input_fields_info
@@ -426,10 +431,16 @@ class Prepare:
                     msg = f"expected Dict, got '{type(entity).__name__}'"
                     raise TypeError(msg)
                 for k, v in entity.items():
-                    if k not in fields_data and not enable_dynamic:
-                        raise DataNotMatchException(
-                            message=ExceptionsMessage.InsertUnexpectedField % k
-                        )
+                    if k not in fields_data:
+                        if k in function_output_field_names:
+                            raise DataNotMatchException(
+                                message=ExceptionsMessage.InsertUnexpectedFunctionOutputField % k
+                            )
+
+                        if not enable_dynamic:
+                            raise DataNotMatchException(
+                                message=ExceptionsMessage.InsertUnexpectedField % k
+                            )
 
                     if k in fields_data:
                         field_info, field_data = field_info_map[k], fields_data[k]
@@ -482,6 +493,7 @@ class Prepare:
         input_fields_info = [
             field for field in fields_info if Prepare._is_input_field(field, is_upsert=True)
         ]
+        function_output_field_names = Prepare._function_output_field_names(fields_info)
         fields_data = {
             field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
             for field in input_fields_info
@@ -501,10 +513,16 @@ class Prepare:
                     msg = f"expected Dict, got '{type(entity).__name__}'"
                     raise TypeError(msg)
                 for k, v in entity.items():
-                    if k not in fields_data and not enable_dynamic:
-                        raise DataNotMatchException(
-                            message=ExceptionsMessage.InsertUnexpectedField % k
-                        )
+                    if k not in fields_data:
+                        if k in function_output_field_names:
+                            raise DataNotMatchException(
+                                message=ExceptionsMessage.InsertUnexpectedFunctionOutputField % k
+                            )
+
+                        if not enable_dynamic:
+                            raise DataNotMatchException(
+                                message=ExceptionsMessage.InsertUnexpectedField % k
+                            )
 
                     if k in fields_data:
                         field_info, field_data = field_info_map[k], fields_data[k]

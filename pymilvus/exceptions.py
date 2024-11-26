@@ -242,6 +242,9 @@ class ExceptionsMessage:
     InsertUnexpectedField = (
         "Attempt to insert an unexpected field `%s` to collection without enabling dynamic field"
     )
+    InsertUnexpectedFunctionOutputField = (
+        "Attempt to insert an unexpected function output field `%s` to collection"
+    )
     InsertMissedField = (
         "Insert missed an field `%s` to collection without set nullable==true or set default_value"
     )
