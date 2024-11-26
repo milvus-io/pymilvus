@@ -296,7 +296,7 @@ class Role:
             :rtype PrivilegeGroupInfo
 
             PrivilegeGroupInfo groups:
-            - PrivilegeGroupItem: <group_name:group1>, <privileges:['Insert', 'Select']>
+            - PrivilegeGroupItem: <group_name:group1>, <privileges:['Insert', 'Release']>
 
         :example:
             >>> from pymilvus import connections
@@ -320,7 +320,7 @@ class Role:
             >>> connections.connect()
             >>> role = Role(role_name)
             >>> role.add_privileges_to_group(privilege_group="privilege_group",
-            >>>     privileges=["Insert","Select"])
+            >>>     privileges=["Insert","Release"])
         """
         return self._get_connection().add_privileges_to_group(privilege_group, privileges)
 
@@ -337,6 +337,6 @@ class Role:
             >>> connections.connect()
             >>> role = Role(role_name)
             >>> role.remove_privileges_from_group(privilege_group="privilege_group",
-            >>>     privileges=["Insert","Select"])
+            >>>     privileges=["Insert","Release"])
         """
         return self._get_connection().remove_privileges_from_group(privilege_group, privileges)
