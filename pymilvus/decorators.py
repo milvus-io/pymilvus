@@ -207,8 +207,8 @@ def upgrade_reminder(func: Callable):
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.UNIMPLEMENTED:
                 msg = (
-                    "this version of sdk is incompatible with server, "
-                    "please downgrade your sdk or upgrade your server"
+                    "Incorrect port or sdk is incompatible with server, "
+                    "please check your port or downgrade your sdk or upgrade your server"
                 )
                 raise MilvusException(message=msg) from e
             raise e from e
