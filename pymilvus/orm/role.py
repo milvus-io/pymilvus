@@ -10,6 +10,8 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+from typing import Optional
+
 from .connections import connections
 
 INCLUDE_USER_INFO, NOT_INCLUDE_USER_INFO = True, False
@@ -176,13 +178,15 @@ class Role:
             self._name, object, object_name, privilege, db_name
         )
 
-    def grant_v2(self, privilege: str, db_name: str, collection_name: str):
+    def grant_v2(
+        self, privilege: str, db_name: Optional[str] = None, collection_name: Optional[str] = None
+    ):
         """Grant a privilege for the role
             :param privilege: privilege name.
             :type  privilege: str
-            :param db_name: db name.
+            :param db_name: db name. Optional
             :type  db_name: str
-            :param collection_name: collection name.
+            :param collection_name: collection name. Optional
             :type  collection_name: str
 
         :example:
@@ -193,16 +197,18 @@ class Role:
             >>> role.grant_v2("Insert", db_name, collection_name)
         """
         return self._get_connection().grant_privilege_v2(
-            self._name, privilege, db_name, collection_name
+            self._name, privilege, db_name=db_name, collection_name=collection_name
         )
 
-    def revoke_v2(self, privilege: str, db_name: str, collection_name: str):
+    def revoke_v2(
+        self, privilege: str, db_name: Optional[str] = None, collection_name: Optional[str] = None
+    ):
         """Revoke a privilege for the role
             :param privilege: privilege name.
             :type  privilege: str
-            :param db_name: db name.
+            :param db_name: db name. Optional
             :type  db_name: str
-            :param collection_name: collection name.
+            :param collection_name: collection name. Optional
             :type  collection_name: str
 
         :example:
@@ -213,7 +219,7 @@ class Role:
             >>> role.revoke_v2("Insert", db_name, collection_name)
         """
         return self._get_connection().revoke_privilege_v2(
-            self._name, privilege, db_name, collection_name
+            self._name, privilege, db_name=db_name, collection_name=collection_name
         )
 
     def list_grant(self, object: str, object_name: str, db_name: str = ""):
