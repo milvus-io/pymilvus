@@ -126,7 +126,7 @@ class FunctionSchema(_message.Message):
     def __init__(self, name: _Optional[str] = ..., id: _Optional[int] = ..., description: _Optional[str] = ..., type: _Optional[_Union[FunctionType, str]] = ..., input_field_names: _Optional[_Iterable[str]] = ..., input_field_ids: _Optional[_Iterable[int]] = ..., output_field_names: _Optional[_Iterable[str]] = ..., output_field_ids: _Optional[_Iterable[int]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
@@ -134,6 +134,7 @@ class CollectionSchema(_message.Message):
     ENABLE_DYNAMIC_FIELD_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     FUNCTIONS_FIELD_NUMBER: _ClassVar[int]
+    DBNAME_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     autoID: bool
@@ -141,7 +142,8 @@ class CollectionSchema(_message.Message):
     enable_dynamic_field: bool
     properties: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     functions: _containers.RepeatedCompositeFieldContainer[FunctionSchema]
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ...) -> None: ...
+    dbName: str
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ...) -> None: ...
 
 class BoolArray(_message.Message):
     __slots__ = ("data",)
@@ -306,7 +308,7 @@ class SearchIteratorV2Results(_message.Message):
     def __init__(self, token: _Optional[str] = ..., last_bound: _Optional[float] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
-    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results")
+    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls")
     NUM_QUERIES_FIELD_NUMBER: _ClassVar[int]
     TOP_K_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -318,6 +320,7 @@ class SearchResultData(_message.Message):
     ALL_SEARCH_COUNT_FIELD_NUMBER: _ClassVar[int]
     DISTANCES_FIELD_NUMBER: _ClassVar[int]
     SEARCH_ITERATOR_V2_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    RECALLS_FIELD_NUMBER: _ClassVar[int]
     num_queries: int
     top_k: int
     fields_data: _containers.RepeatedCompositeFieldContainer[FieldData]
@@ -329,7 +332,8 @@ class SearchResultData(_message.Message):
     all_search_count: int
     distances: _containers.RepeatedScalarFieldContainer[float]
     search_iterator_v2_results: SearchIteratorV2Results
-    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ...) -> None: ...
+    recalls: _containers.RepeatedScalarFieldContainer[float]
+    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ...) -> None: ...
 
 class VectorClusteringInfo(_message.Message):
     __slots__ = ("field", "centroid")

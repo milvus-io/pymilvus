@@ -193,6 +193,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Connect: _ClassVar[MsgType]
     ListClientInfos: _ClassVar[MsgType]
     AllocTimestamp: _ClassVar[MsgType]
+    Replicate: _ClassVar[MsgType]
     CreateCredential: _ClassVar[MsgType]
     GetCredential: _ClassVar[MsgType]
     DeleteCredential: _ClassVar[MsgType]
@@ -515,6 +516,7 @@ DataNodeTt: MsgType
 Connect: MsgType
 ListClientInfos: MsgType
 AllocTimestamp: MsgType
+Replicate: MsgType
 CreateCredential: MsgType
 GetCredential: MsgType
 DeleteCredential: MsgType
@@ -742,12 +744,14 @@ class MsgBase(_message.Message):
     def __init__(self, msg_type: _Optional[_Union[MsgType, str]] = ..., msgID: _Optional[int] = ..., timestamp: _Optional[int] = ..., sourceID: _Optional[int] = ..., targetID: _Optional[int] = ..., properties: _Optional[_Mapping[str, str]] = ..., replicateInfo: _Optional[_Union[ReplicateInfo, _Mapping]] = ...) -> None: ...
 
 class ReplicateInfo(_message.Message):
-    __slots__ = ("isReplicate", "msgTimestamp")
+    __slots__ = ("isReplicate", "msgTimestamp", "replicateID")
     ISREPLICATE_FIELD_NUMBER: _ClassVar[int]
     MSGTIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    REPLICATEID_FIELD_NUMBER: _ClassVar[int]
     isReplicate: bool
     msgTimestamp: int
-    def __init__(self, isReplicate: bool = ..., msgTimestamp: _Optional[int] = ...) -> None: ...
+    replicateID: str
+    def __init__(self, isReplicate: bool = ..., msgTimestamp: _Optional[int] = ..., replicateID: _Optional[str] = ...) -> None: ...
 
 class MsgHeader(_message.Message):
     __slots__ = ("base",)
