@@ -184,3 +184,17 @@ class DataNodeTtMsg(_message.Message):
     timestamp: int
     segments_stats: _containers.RepeatedCompositeFieldContainer[_common_pb2.SegmentStats]
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., channel_name: _Optional[str] = ..., timestamp: _Optional[int] = ..., segments_stats: _Optional[_Iterable[_Union[_common_pb2.SegmentStats, _Mapping]]] = ...) -> None: ...
+
+class ReplicateMsg(_message.Message):
+    __slots__ = ("base", "is_end", "is_cluster", "database", "collection")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    IS_END_FIELD_NUMBER: _ClassVar[int]
+    IS_CLUSTER_FIELD_NUMBER: _ClassVar[int]
+    DATABASE_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    is_end: bool
+    is_cluster: bool
+    database: str
+    collection: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., is_end: bool = ..., is_cluster: bool = ..., database: _Optional[str] = ..., collection: _Optional[str] = ...) -> None: ...
