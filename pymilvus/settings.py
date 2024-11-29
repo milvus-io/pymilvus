@@ -33,7 +33,6 @@ class Config:
     IndexName = ""
 
 
-
 # logging
 COLORS = {
     "HEADER": "\033[95m",
@@ -59,42 +58,40 @@ class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
 
         return self.format_col(message_str, level_name=record.levelname)
 
+
 def init_log(log_level: str):
     logging_config = {
         "version": 1,
         "disable_existing_loggers": False,
-        'formatters': {
-            'default': {
-                'format': '%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)',
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)",
             },
-            'colorful_console': {
-                'format': '%(asctime)s | %(levelname)s: %(message)s (%(filename)s:%(lineno)s) (%(process)s)',
-                '()': ColorfulFormatter,
-            },
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'colorful_console',
-            },
-            'no_color_console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'default',
+            "colorful_console": {
+                "format": "%(asctime)s | %(levelname)s: %(message)s (%(filename)s:%(lineno)s) (%(process)s)",
+                "()": ColorfulFormatter,
             },
         },
-        'loggers': {
-            'pymilvus': {
-                'handlers': ['no_color_console'],
-                'level': log_level,
-                'propagate': False
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "colorful_console",
             },
-            'pymilvus.milvus_client':{
-                'handlers': ['no_color_console'],
-                'level': "INFO",
-                'propagate': False
+            "no_color_console": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+            },
+        },
+        "loggers": {
+            "pymilvus": {"handlers": ["no_color_console"], "level": log_level, "propagate": False},
+            "pymilvus.milvus_client": {
+                "handlers": ["no_color_console"],
+                "level": "INFO",
+                "propagate": False,
             },
         },
     }
     logging.config.dictConfig(logging_config)
+
 
 init_log("WARNING")
