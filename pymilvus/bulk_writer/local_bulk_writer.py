@@ -26,8 +26,7 @@ from .constants import (
     BulkFileType,
 )
 
-logger = logging.getLogger("local_bulk_writer")
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class LocalBulkWriter(BulkWriter):
