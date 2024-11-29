@@ -1589,12 +1589,13 @@ class GrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
+        # should be removed, but to be compatible with old milvus server, keep it for now.
         request = Prepare.describe_collection_request(collection_name)
         rf = self._stub.DescribeCollection.future(request, timeout=timeout)
         response = rf.result()
         check_status(response.status)
 
-        req = Prepare.manual_compaction(response.collectionID, is_clustering)
+        req = Prepare.manual_compaction(response.collectionID, collection_name, is_clustering)
         future = self._stub.ManualCompaction.future(req, timeout=timeout)
         response = future.result()
         check_status(response.status)
