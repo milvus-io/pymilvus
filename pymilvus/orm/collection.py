@@ -700,7 +700,7 @@ class Collection:
 
             partition_names (``List[str]``, optional): The names of partitions to search on.
             output_fields (``List[str]``, optional):
-                The name of fields to return in the search result.  Can only get scalar fields.
+                The name of fields to return in the search result.
             round_decimal (``int``, optional):
                 The specified number of decimal places of returned distance.
                 Defaults to -1 means no round to returned distance.
@@ -835,7 +835,7 @@ class Collection:
 
             partition_names (``List[str]``, optional): The names of partitions to search on.
             output_fields (``List[str]``, optional):
-                The name of fields to return in the search result.  Can only get scalar fields.
+                The name of fields to return in the search result.
             round_decimal (``int``, optional):
                 The specified number of decimal places of returned distance.
                 Defaults to -1 means no round to returned distance.
