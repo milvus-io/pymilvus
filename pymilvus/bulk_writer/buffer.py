@@ -34,8 +34,7 @@ from .constants import (
     BulkFileType,
 )
 
-logger = logging.getLogger("bulk_buffer")
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class Buffer:
