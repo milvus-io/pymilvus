@@ -468,6 +468,7 @@ class SearchResult(list):
     ):
         self._nq = res.num_queries
         all_topks = res.topks
+        self.recalls = res.recalls
 
         self.cost = int(status.extra_info["report_value"] if status and status.extra_info else "0")
 
@@ -638,9 +639,9 @@ class SearchResult(list):
     def __str__(self) -> str:
         """Only print at most 10 query results"""
         reminder = f" ... and {len(self) - 10} results remaining" if len(self) > 10 else ""
-        if self.cost:
-            return f"data: {list(map(str, self[:10]))}{reminder}, cost: {self.cost}"
-        return f"data: {list(map(str, self[:10]))}{reminder}"
+        recall_msg = f", recalls: {list(map(str, self.recalls))}" if len(self.recalls) > 0 else ""
+        cost_msg = f", cost: {self.cost}" if self.cost else ""
+        return f"data: {list(map(str, self[:10]))}{reminder}{recall_msg}{cost_msg}"
 
     __repr__ = __str__
 
