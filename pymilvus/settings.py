@@ -59,44 +59,39 @@ class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
         return self.format_col(message_str, level_name=record.levelname)
 
 
-LOG_LEVEL = "WARNING"
-
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "level": LOG_LEVEL,
+def init_log(log_level: str):
+    logging_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)",
+            },
+            "colorful_console": {
+                "format": "%(asctime)s | %(levelname)s: %(message)s (%(filename)s:%(lineno)s) (%(process)s)",
+                "()": ColorfulFormatter,
+            },
         },
-    },
-    "loggers": {
-        "milvus": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "colorful_console",
+            },
+            "no_color_console": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+            },
         },
-    },
-}
-
-if LOG_LEVEL == "DEBUG":
-    LOGGING["formatters"] = {
-        "colorful_console": {
-            "format": "[%(asctime)s-%(levelname)s-%(name)s]: %(message)s (%(filename)s:%(lineno)s)",
-            "()": ColorfulFormatter,
+        "loggers": {
+            "pymilvus": {"handlers": ["no_color_console"], "level": log_level, "propagate": False},
+            "pymilvus.milvus_client": {
+                "handlers": ["no_color_console"],
+                "level": "INFO",
+                "propagate": False,
+            },
         },
     }
-    LOGGING["handlers"]["milvus_console"] = {
-        "class": "logging.StreamHandler",
-        "formatter": "colorful_console",
-    }
-    LOGGING["loggers"]["milvus"] = {
-        "handlers": ["milvus_console"],
-        "level": LOG_LEVEL,
-    }
+    logging.config.dictConfig(logging_config)
 
-logging.config.dictConfig(LOGGING)
 
-DEBUG_LOG_LEVEL = "debug"
-INFO_LOG_LEVEL = "info"
-WARN_LOG_LEVEL = "warn"
-ERROR_LOG_LEVEL = "error"
+init_log("WARNING")
