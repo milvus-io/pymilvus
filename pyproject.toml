@@ -52,7 +52,7 @@ bulk_writer = [
 ]
 
 model = [
-    "milvus-model>=0.1.0",
+    "pymilvus.model>=0.3.0",
 ]
 
 dev = [
