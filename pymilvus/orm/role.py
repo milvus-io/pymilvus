@@ -178,48 +178,50 @@ class Role:
             self._name, object, object_name, privilege, db_name
         )
 
-    def grant_v2(
-        self, privilege: str, db_name: Optional[str] = None, collection_name: Optional[str] = None
-    ):
+    def grant_v2(self, privilege: str, collection_name: str, db_name: Optional[str] = None):
         """Grant a privilege for the role
             :param privilege: privilege name.
             :type  privilege: str
-            :param db_name: db name. Optional
-            :type  db_name: str
-            :param collection_name: collection name. Optional
+            :param collection_name: collection name.
             :type  collection_name: str
+            :param db_name: db name. Optional. If None, use the default db.
+            :type  db_name: str
 
         :example:
             >>> from pymilvus import connections
             >>> from pymilvus.orm.role import Role
             >>> connections.connect()
             >>> role = Role(role_name)
-            >>> role.grant_v2("Insert", db_name, collection_name)
+            >>> role.grant_v2("Insert", collection_name, db_name=db_name)
         """
         return self._get_connection().grant_privilege_v2(
-            self._name, privilege, db_name=db_name, collection_name=collection_name
+            self._name,
+            privilege,
+            collection_name,
+            db_name=db_name,
         )
 
-    def revoke_v2(
-        self, privilege: str, db_name: Optional[str] = None, collection_name: Optional[str] = None
-    ):
+    def revoke_v2(self, privilege: str, collection_name: str, db_name: Optional[str] = None):
         """Revoke a privilege for the role
             :param privilege: privilege name.
             :type  privilege: str
-            :param db_name: db name. Optional
-            :type  db_name: str
-            :param collection_name: collection name. Optional
+            :param collection_name: collection name.
             :type  collection_name: str
+            :param db_name: db name. Optional. If None, use the default db.
+            :type  db_name: str
 
         :example:
             >>> from pymilvus import connections
             >>> from pymilvus.orm.role import Role
             >>> connections.connect()
             >>> role = Role(role_name)
-            >>> role.revoke_v2("Insert", db_name, collection_name)
+            >>> role.revoke_v2("Insert", collection_name, db_name=db_name)
         """
         return self._get_connection().revoke_privilege_v2(
-            self._name, privilege, db_name=db_name, collection_name=collection_name
+            self._name,
+            privilege,
+            collection_name,
+            db_name=db_name,
         )
 
     def list_grant(self, object: str, object_name: str, db_name: str = ""):
