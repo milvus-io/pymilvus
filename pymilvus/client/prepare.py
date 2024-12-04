@@ -20,6 +20,10 @@ from .constants import (
     GROUP_BY_FIELD,
     GROUP_SIZE,
     HINTS,
+    ITER_SEARCH_BATCH_SIZE_KEY,
+    ITER_SEARCH_ID_KEY,
+    ITER_SEARCH_LAST_BOUND_KEY,
+    ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
     PAGE_RETAIN_ORDER_FIELD,
     RANK_GROUP_SCORER,
@@ -957,6 +961,22 @@ class Prepare:
         is_iterator = kwargs.get(ITERATOR_FIELD)
         if is_iterator is not None:
             search_params[ITERATOR_FIELD] = is_iterator
+
+        is_search_iter_v2 = kwargs.get(ITER_SEARCH_V2_KEY)
+        if is_search_iter_v2 is not None:
+            search_params[ITER_SEARCH_V2_KEY] = is_search_iter_v2
+
+        search_iter_batch_size = kwargs.get(ITER_SEARCH_BATCH_SIZE_KEY)
+        if search_iter_batch_size is not None:
+            search_params[ITER_SEARCH_BATCH_SIZE_KEY] = search_iter_batch_size
+
+        search_iter_last_bound = kwargs.get(ITER_SEARCH_LAST_BOUND_KEY)
+        if search_iter_last_bound is not None:
+            search_params[ITER_SEARCH_LAST_BOUND_KEY] = search_iter_last_bound
+
+        search_iter_id = kwargs.get(ITER_SEARCH_ID_KEY)
+        if search_iter_id is not None:
+            search_params[ITER_SEARCH_ID_KEY] = search_iter_id
 
         group_by_field = kwargs.get(GROUP_BY_FIELD)
         if group_by_field is not None:
