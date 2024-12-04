@@ -774,7 +774,7 @@ def list_aliases(collection_name: str, timeout: Optional[float] = None, using: s
         ['tom']
     """
     conn = _get_connection(using)
-    resp = conn.describe_collection(collection_name, timeout=timeout)
+    resp = conn.list_aliases(collection_name, timeout=timeout)
     return resp["aliases"]
 
 
