@@ -319,15 +319,35 @@ class GrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
-    def alter_collection(
+    def alter_collection_properties(
         self, collection_name: str, properties: List, timeout: Optional[float] = None, **kwargs
     ):
         check_pass_param(collection_name=collection_name, properties=properties, timeout=timeout)
-        request = Prepare.alter_collection_request(collection_name, properties)
+        request = Prepare.alter_collection_request(collection_name, properties=properties)
         rf = self._stub.AlterCollection.future(request, timeout=timeout)
         status = rf.result()
         check_status(status)
+    
+    @retry_on_rpc_failure()
+    def alter_collection_field_properties(
+        self, collection_name: str, field_name: str,field_param: List, timeout: Optional[float] = None, **kwargs
+    ):
+        check_pass_param(collection_name=collection_name, properties=field_param, timeout=timeout)
+        request = Prepare.alter_collection_field_request(self, collection_name = collection_name, field_name=field_name, field_param=field_param)
+        rf = self._stub.AlterCollectionField.future(request, timeout=timeout)
+        status = rf.result()
+        check_status(status)
 
+    @retry_on_rpc_failure()
+    def drop_collection_properties(
+        self, collection_name: str, delete_keys: List[str], timeout: Optional[float] = None, **kwargs
+    ):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_collection_request(collection_name, delete_keys=delete_keys)
+        rf = self._stub.AlterCollection.future(request, timeout=timeout)
+        status = rf.result()
+        check_status(status)
+    
     @retry_on_rpc_failure()
     def has_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         check_pass_param(collection_name=collection_name, timeout=timeout)
@@ -998,7 +1018,7 @@ class GrpcHandler:
         return Status(status.code, status.reason)
 
     @retry_on_rpc_failure()
-    def alter_index(
+    def alter_index_properties(
         self,
         collection_name: str,
         index_name: str,
@@ -1010,11 +1030,25 @@ class GrpcHandler:
         if extra_params is None:
             raise ParamError(message="extra_params should not be None")
 
-        request = Prepare.alter_index_request(collection_name, index_name, extra_params)
+        request = Prepare.alter_index_properties_request(collection_name, index_name, extra_params)
 
         rf = self._stub.AlterIndex.future(request, timeout=timeout)
         response = rf.result()
         check_status(response)
+        
+    @retry_on_rpc_failure()
+    def drop_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        delete_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
+        request = Prepare.drop_index_properties_request(
+            collection_name, index_name, delete_keys=delete_keys
+        )
 
     @retry_on_rpc_failure()
     def list_indexes(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
