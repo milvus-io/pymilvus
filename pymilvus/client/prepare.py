@@ -1484,12 +1484,11 @@ class Prepare:
         check_pass_param(
             role_name=role_name,
             privilege=privilege,
+            collection_name=collection_name,
             operate_privilege_type=operate_privilege_type,
         )
         if db_name:
             check_pass_param(db_name=db_name)
-        if collection_name:
-            check_pass_param(collection_name=collection_name)
         return milvus_types.OperatePrivilegeV2Request(
             role=milvus_types.RoleEntity(name=role_name),
             grantor=milvus_types.GrantorEntity(

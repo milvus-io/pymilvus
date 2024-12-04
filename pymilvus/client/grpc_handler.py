@@ -1877,8 +1877,8 @@ class GrpcHandler:
         self,
         role_name: str,
         privilege: str,
+        collection_name: str,
         db_name: Optional[str] = None,
-        collection_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -1897,8 +1897,8 @@ class GrpcHandler:
         self,
         role_name: str,
         privilege: str,
+        collection_name: str,
         db_name: Optional[str] = None,
-        collection_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
