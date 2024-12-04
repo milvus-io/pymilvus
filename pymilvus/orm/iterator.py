@@ -27,6 +27,11 @@ from .constants import (
     GUARANTEE_TIMESTAMP,
     INT64_MAX,
     IS_PRIMARY,
+    ITER_SEARCH_BATCH_SIZE_KEY,
+    ITER_SEARCH_ID_KEY,
+    ITER_SEARCH_LAST_BOUND_KEY,
+    ITER_SEARCH_TTL_KEY,
+    ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
     ITERATOR_SESSION_CP_FILE,
     ITERATOR_SESSION_TS_FIELD,
@@ -51,7 +56,7 @@ LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
 QueryIterator = TypeVar("QueryIterator")
 SearchIterator = TypeVar("SearchIterator")
-
+SearchIteratorV2 = TypeVar("SearchIteratorV2")
 log = logging.getLogger(__name__)
 
 
@@ -85,6 +90,13 @@ def extend_batch_size(batch_size: int, next_param: dict, to_extend_batch_size: b
 
 def check_set_flag(obj: Any, flag_name: str, kwargs: Dict[str, Any], key: str):
     setattr(obj, flag_name, kwargs.get(key, False))
+
+
+def check_batch_size(batch_size: int):
+    if batch_size < 0:
+        raise ParamError(message="batch size cannot be less than zero")
+    if batch_size > MAX_BATCH_SIZE:
+        raise ParamError(message=f"batch size cannot be larger than {MAX_BATCH_SIZE}")
 
 
 class QueryIterator:
@@ -192,10 +204,7 @@ class QueryIterator:
             self._kwargs[REDUCE_STOP_FOR_BEST] = "False"
 
     def __check_set_batch_size(self, batch_size: int):
-        if batch_size < 0:
-            raise ParamError(message="batch size cannot be less than zero")
-        if batch_size > MAX_BATCH_SIZE:
-            raise ParamError(message=f"batch size cannot be larger than {MAX_BATCH_SIZE}")
+        check_batch_size(batch_size)
         self._kwargs[BATCH_SIZE] = batch_size
         self._kwargs[MILVUS_LIMIT] = batch_size
 
@@ -432,13 +441,31 @@ class SearchPage(LoopBase):
         return distances
 
 
+def check_num_queries(data: Union[List, utils.SparseMatrixInputType]):
+    rows = entity_helper.get_input_num_rows(data)
+    if rows > 1:
+        raise ParamError(message="Not support search iteration over multiple vectors at present")
+    if rows == 0:
+        raise ParamError(message="vector_data for search cannot be empty")
+
+
+def check_metrics(param: Dict):
+    if param[METRIC_TYPE] is None or param[METRIC_TYPE] == "":
+        raise ParamError(message="must specify metrics type for search iterator")
+
+
+def check_offset(kwargs: Dict):
+    if kwargs.get(OFFSET, 0) != 0:
+        raise ParamError(message="Not support offset when searching iteration")
+
+
 class SearchIterator:
     def __init__(
         self,
         connection: Connections,
         collection_name: str,
         data: Union[List, utils.SparseMatrixInputType],
-        ann_field: str,
+        anns_field: str,
         param: Dict,
         batch_size: Optional[int] = 1000,
         limit: Optional[int] = UNLIMITED,
@@ -450,18 +477,14 @@ class SearchIterator:
         schema: Optional[CollectionSchema] = None,
         **kwargs,
     ) -> SearchIterator:
-        rows = entity_helper.get_input_num_rows(data)
-        if rows > 1:
-            raise ParamError(
-                message="Not support search iteration over multiple vectors at present"
-            )
-        if rows == 0:
-            raise ParamError(message="vector_data for search cannot be empty")
+        check_num_queries(data)
+        check_metrics(param)
+        check_offset(kwargs)
         self._conn = connection
         self._iterator_params = {
             "collection_name": collection_name,
             "data": data,
-            "ann_field": ann_field,
+            "anns_field": anns_field,
             BATCH_SIZE: batch_size,
             "output_fields": output_fields,
             "partition_names": partition_names,
@@ -478,8 +501,6 @@ class SearchIterator:
         self._schema = schema
         self._limit = limit
         self._returned_count = 0
-        self.__check_metrics()
-        self.__check_offset()
         self.__check_rm_range_search_parameters()
         self.__setup__pk_prop()
         check_set_flag(self, "_print_iterator_cursor", self._kwargs, PRINT_ITERATOR_CURSOR)
@@ -561,10 +582,6 @@ class SearchIterator:
         if self._pk_field_name is None or self._pk_field_name == "":
             raise ParamError(message="schema must contain pk field, broke")
 
-    def __check_metrics(self):
-        if self._param[METRIC_TYPE] is None or self._param[METRIC_TYPE] == "":
-            raise ParamError(message="must specify metrics type for search iterator")
-
     """we use search && range search to implement search iterator,
     so range search parameters are disabled to clients"""
 
@@ -586,10 +603,6 @@ class SearchIterator:
                     message=f"for metrics:{self._param[METRIC_TYPE]}, radius must be "
                     f"smalled than range_filter, please adjust your parameter"
                 )
-
-    def __check_offset(self):
-        if self._kwargs.get(OFFSET, 0) != 0:
-            raise ParamError(message="Not support offset when searching iteration")
 
     def __update_filtered_ids(self, res: SearchPage):
         if len(res) == 0:
@@ -698,7 +711,7 @@ class SearchIterator:
         res = self._conn.search(
             self._iterator_params["collection_name"],
             self._iterator_params["data"],
-            self._iterator_params["ann_field"],
+            self._iterator_params["anns_field"],
             next_params,
             extend_batch_size(self._iterator_params[BATCH_SIZE], next_params, to_extend_batch),
             next_expr,
@@ -784,3 +797,80 @@ class IteratorCache:
 NO_CACHE_ID = -1
 # Singleton Mode in Python
 iterator_cache = IteratorCache()
+
+
+class SearchIteratorV2:
+    def __init__(
+        self,
+        connection: Connections,
+        collection_name: str,
+        data: Union[List, utils.SparseMatrixInputType],
+        anns_field: str,
+        param: Dict,
+        batch_size: int = 1000,
+        expr: Optional[str] = None,
+        partition_names: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        ttl: Optional[int] = None,
+        round_decimal: int = -1,
+        **kwargs,
+    ) -> SearchIteratorV2:
+        check_num_queries(data)
+        check_metrics(param)
+        check_offset(kwargs)
+        check_batch_size(batch_size)
+
+        # delete limit from incoming for compatibility
+        if MILVUS_LIMIT in kwargs:
+            del kwargs[MILVUS_LIMIT]
+
+        self._conn = connection
+        self._params = {
+            "collection_name": collection_name,
+            "data": data,
+            "anns_field": anns_field,
+            "param": deepcopy(param),
+            "limit": batch_size,
+            "expression": expr,
+            "partition_names": partition_names,
+            "output_fields": output_fields,
+            "round_decimal": round_decimal,
+            "timeout": timeout,
+            ITERATOR_FIELD: True,
+            ITER_SEARCH_V2_KEY: True,
+            ITER_SEARCH_BATCH_SIZE_KEY: batch_size,
+            ITER_SEARCH_TTL_KEY: ttl,
+            GUARANTEE_TIMESTAMP: 0,
+            **kwargs,
+        }
+
+    def next(self):
+        res = self._conn.search(**self._params)
+        iter_info = res.get_search_iterator_v2_results_info()
+        self._params[ITER_SEARCH_LAST_BOUND_KEY] = iter_info.last_bound
+
+        # patch token and guarantee timestamp for the first next() call
+        if ITER_SEARCH_ID_KEY not in self._params:
+            if iter_info.token is not None and iter_info.token != "":
+                self._params[ITER_SEARCH_ID_KEY] = iter_info.token
+            else:
+                raise MilvusException(
+                    message="The server does not support Search Iterator V2. Please upgrade your Milvus server, or create a search_iterator with use_v1=True instead"
+                )
+        if self._params[GUARANTEE_TIMESTAMP] <= 0:
+            if res.get_session_ts() > 0:
+                self._params[GUARANTEE_TIMESTAMP] = res.get_session_ts()
+            else:
+                log.warning(
+                    "failed to set up mvccTs from milvus server, use client-side ts instead"
+                )
+                self._params[GUARANTEE_TIMESTAMP] = fall_back_to_latest_session_ts()
+
+        # return SearchPage for compability
+        if len(res) > 0:
+            return SearchPage(res[0])
+        return SearchPage(None)
+
+    def close(self):
+        pass
