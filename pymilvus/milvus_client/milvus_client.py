@@ -1007,8 +1007,8 @@ class MilvusClient:
         self,
         role_name: str,
         privilege: str,
+        collection_name: str,
         db_name: Optional[str] = None,
-        collection_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -1016,8 +1016,8 @@ class MilvusClient:
         conn.grant_privilege_v2(
             role_name,
             privilege,
+            collection_name,
             db_name=db_name,
-            collection_name=collection_name,
             timeout=timeout,
             **kwargs,
         )
@@ -1026,8 +1026,8 @@ class MilvusClient:
         self,
         role_name: str,
         privilege: str,
+        collection_name: str,
         db_name: Optional[str] = None,
-        collection_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -1035,8 +1035,8 @@ class MilvusClient:
         conn.revoke_privilege_v2(
             role_name,
             privilege,
+            collection_name,
             db_name=db_name,
-            collection_name=collection_name,
             timeout=timeout,
             **kwargs,
         )
