@@ -42,7 +42,7 @@ from .connections import connections
 from .constants import UNLIMITED
 from .future import MutationFuture, SearchFuture
 from .index import Index
-from .iterator import QueryIterator, SearchIterator
+from .iterator import QueryIterator, SearchIterator, SearchIteratorV2
 from .mutation import MutationResult
 from .partition import Partition
 from .prepare import Prepare
@@ -977,10 +977,39 @@ class Collection:
             connection=self._get_connection(),
             collection_name=self._name,
             data=data,
-            ann_field=anns_field,
+            anns_field=anns_field,
             param=param,
             batch_size=batch_size,
             limit=limit,
+            expr=expr,
+            partition_names=partition_names,
+            output_fields=output_fields,
+            timeout=timeout,
+            round_decimal=round_decimal,
+            schema=self._schema_dict,
+            **kwargs,
+        )
+
+    def search_iterator_v2(
+        self,
+        data: Union[List, utils.SparseMatrixInputType],
+        anns_field: str,
+        param: Dict,
+        batch_size: Optional[int] = 1000,
+        expr: Optional[str] = None,
+        partition_names: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        round_decimal: int = -1,
+        **kwargs,
+    ):
+        return SearchIteratorV2(
+            connection=self._get_connection(),
+            collection_name=self._name,
+            data=data,
+            anns_field=anns_field,
+            param=param,
+            batch_size=batch_size,
             expr=expr,
             partition_names=partition_names,
             output_fields=output_fields,
