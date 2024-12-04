@@ -269,3 +269,5 @@ class ExceptionsMessage:
     DefaultValueInvalid = (
         "Default value cannot be None for a field that is defined as nullable == false."
     )
+    InvalidVectorFields = "%s is not a valid vector field; expected %s"
+    InvalidNormalizationParam = "Unexpected normalization_fields parameters. Expected 'all' or a list of fields (e.g., [field1, field2, ...]), but got %s."

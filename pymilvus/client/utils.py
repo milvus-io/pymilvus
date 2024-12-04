@@ -3,6 +3,7 @@ import importlib.util
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
+import numpy as np
 import ujson
 
 from pymilvus.exceptions import MilvusException, ParamError
@@ -375,3 +376,20 @@ SparseMatrixInputType = Union[
     "csr_array",
     "spmatrix",
 ]
+
+
+def convert_to_standard_form(vector_data: Any) -> Any:
+    if len(vector_data.shape) == 1:
+        # Calculate the mean and standard deviation of the vector
+        mean = np.mean(vector_data)
+        std_dev = np.std(vector_data)
+
+        # Standardize the vector
+        return (vector_data - mean) / std_dev if std_dev != 0 else vector_data
+
+    # Calculate mean and standard deviation for each row
+    row_means = np.mean(vector_data, axis=1, keepdims=True)
+    row_stds = np.std(vector_data, axis=1, keepdims=True)
+
+    # Standardize each row independently
+    return np.where(row_stds != 0, (vector_data - row_means) / row_stds, vector_data)
