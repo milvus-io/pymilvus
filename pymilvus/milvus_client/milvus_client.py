@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
     ExceptionsMessage,
     ExtraList,
@@ -25,7 +26,7 @@ from pymilvus.exceptions import (
 from pymilvus.orm import utility
 from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
-from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
+from pymilvus.orm.constants import FIELDS, METRIC_TYPE, MILVUS_LIMIT, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
@@ -534,11 +535,78 @@ class MilvusClient:
         anns_field: Optional[str] = None,
         round_decimal: int = -1,
         **kwargs,
-    ):
+    ) -> Union[SearchIteratorV2, SearchIterator]:
+        """Creates an iterator for searching vectors in batches.
+
+        This method returns an iterator that performs vector similarity search in batches,
+        which is useful when dealing with large result sets. It automatically attempts to use
+        Search Iterator V2 if supported by the server, otherwise falls back to V1.
+
+        Args:
+            collection_name (str): Name of the collection to search in.
+            data (Union[List[list], list]): Vector data to search with. For V2, only single vector
+                search is supported.
+            batch_size (int, optional): Number of results to fetch per batch. Defaults to 1000.
+                Must be between 1 and MAX_BATCH_SIZE.
+            filter (str, optional): Filtering expression to filter the results. Defaults to None.
+            limit (int, optional): Total number of results to return. Defaults to UNLIMITED.
+                (Deprecated) This parameter is deprecated and will be removed in a future release.
+            output_fields (List[str], optional): Fields to return in the results.
+            search_params (dict, optional): Parameters for the search operation.
+            timeout (float, optional): Timeout in seconds for each RPC call.
+            partition_names (List[str], optional): Names of partitions to search in.
+            anns_field (str, optional): Name of the vector field to search. Can be empty when
+                there is only one vector field in the collection.
+            round_decimal (int, optional): Number of decimal places for distance values.
+                Defaults to -1 (no rounding).
+            **kwargs: Additional arguments to pass to the search operation.
+
+        Returns:
+            SearchIterator: An iterator object that yields search results in batches.
+
+        Raises:
+            MilvusException: If the search operation fails.
+            ParamError: If the input parameters are invalid (e.g., invalid batch_size or multiple
+                vectors in data when using V2).
+
+        Examples:
+            >>> # Search with iterator
+            >>> iterator = client.search_iterator(
+            ...     collection_name="my_collection",
+            ...     data=[[0.1, 0.2]],
+            ...     batch_size=100
+            ... )
+        """
+
+        conn = self._get_connection()
+
+        # compatibility logic, change this when support get version from server
+        try:
+            # compatibility logic, deprecate limit in the future
+            if limit is not None and limit != UNLIMITED:
+                kwargs[MILVUS_LIMIT] = limit
+            return SearchIteratorV2(
+                connection=conn,
+                collection_name=collection_name,
+                data=data,
+                batch_size=batch_size,
+                filter=filter,
+                output_fields=output_fields,
+                search_params=search_params or {},
+                timeout=timeout,
+                partition_names=partition_names,
+                anns_field=anns_field or "",
+                round_decimal=round_decimal,
+                **kwargs,
+            )
+        except MilvusException as ex:
+            if ex.message != SearchIteratorV2._NOT_SUPPORT_V2_MSG:
+                raise ex from ex
+
+        # following is the old code for search_iterator V1
         if filter is not None and not isinstance(filter, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
 
-        conn = self._get_connection()
         # set up schema for iterator
         try:
             schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
