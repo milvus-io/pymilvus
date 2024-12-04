@@ -277,11 +277,25 @@ class Prepare:
     def alter_collection_request(
         cls,
         collection_name: str,
-        properties: Dict,
+        properties: Dict = None,
+        delete_keys: list[str] = None
     ) -> milvus_types.AlterCollectionRequest:
-        kvs = [common_types.KeyValuePair(key=k, value=str(v)) for k, v in properties.items()]
+        kvs = []
+        if properties:
+            kvs = [common_types.KeyValuePair(key=k, value=str(v)) for k, v in properties.items()]
 
-        return milvus_types.AlterCollectionRequest(collection_name=collection_name, properties=kvs)
+        return milvus_types.AlterCollectionRequest(collection_name=collection_name, properties=kvs, delete_keys=delete_keys)
+
+    def alter_collection_field_request(
+        cls,
+        collection_name: str,
+        field_name: str,
+        field_param: Dict
+    ) -> milvus_types.AlterCollectionFieldRequest:
+        kvs = []
+        if field_param:
+            kvs = [common_types.KeyValuePair(key=k, value=str(v)) for k, v in field_param.items()]
+        return milvus_types.AlterCollectionFieldRequest(collection_name=collection_name, field_name= field_name, properties=kvs)
 
     @classmethod
     def collection_stats_request(cls, collection_name: str):
@@ -1094,12 +1108,20 @@ class Prepare:
         return index_params
 
     @classmethod
-    def alter_index_request(cls, collection_name: str, index_name: str, extra_params: dict):
+    def alter_index_properties_request(cls, collection_name: str, index_name: str, extra_params: dict):
         params = []
         for k, v in extra_params.items():
             params.append(common_types.KeyValuePair(key=str(k), value=utils.dumps(v)))
         return milvus_types.AlterIndexRequest(
             collection_name=collection_name, index_name=index_name, extra_params=params
+        )
+        
+    @classmethod
+    def drop_index_properties_request(
+        cls, collection_name: str, index_name: str, delete_keys: List[str]
+    ):
+        return milvus_types.AlterIndexRequest(
+            collection_name=collection_name, index_name=index_name, delete_keys=delete_keys
         )
 
     @classmethod

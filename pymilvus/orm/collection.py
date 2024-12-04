@@ -341,7 +341,7 @@ class Collection:
         conn = self._get_connection()
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
-    def set_properties(self, properties: dict, timeout: Optional[float] = None, **kwargs):
+    def alter_collection_properties(self, properties: dict, timeout: Optional[float] = None, **kwargs):
         """Set properties for the collection
 
         Args:
@@ -361,12 +361,31 @@ class Collection:
             ... ]
             >>> schema = CollectionSchema(fields=fields)
             >>> collection = Collection("test_set_properties", schema)
-            >>> collection.set_properties({"collection.ttl.seconds": 60})
+            >>> collection.alter_collection_properties({"collection.ttl.seconds": 60})
         """
         conn = self._get_connection()
-        conn.alter_collection(
+        conn.alter_collection_properties(
             self.name,
             properties=properties,
+            timeout=timeout,
+            **kwargs,
+        )
+        
+    def drop_collection_properties(self, delete_keys: list[str], timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        conn.drop_collection_properties(
+            self.name,
+            delete_keys=delete_keys,
+            timeout=timeout,
+            **kwargs,
+        )
+        
+    def alter_collection_field_properties(self, field_name, field_param: dict, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        conn.alter_collection_field_properties(
+            self.name,
+            field_name=field_name,
+            field_param=field_param,
             timeout=timeout,
             **kwargs,
         )
@@ -1372,7 +1391,7 @@ class Collection:
         conn = self._get_connection()
         return conn.create_index(self._name, field_name, index_params, timeout=timeout, **kwargs)
 
-    def alter_index(
+    def alter_index_properties(
         self,
         index_name: str,
         extra_params: dict,
@@ -1412,8 +1431,19 @@ class Collection:
             >>> collection.alter_index("idx", {"mmap.enabled": True})
         """
         conn = self._get_connection()
-        return conn.alter_index(self._name, index_name, extra_params, timeout=timeout)
+        return conn.alter_index_properties(self._name, index_name, extra_params, timeout=timeout)
 
+    def drop_index_properties(
+        self,
+        index_name: str,
+        delete_keys: List[str],
+        timeout: Optional[float] = None,
+    ):
+        conn = self._get_connection()
+        return conn.drop_index_properties(
+            self._name, index_name, delete_keys=delete_keys, timeout=timeout
+        )
+        
     def has_index(self, timeout: Optional[float] = None, **kwargs) -> bool:
         """Check whether a specified index exists.
 
