@@ -30,8 +30,7 @@ from .constants import (
 )
 from .local_bulk_writer import LocalBulkWriter
 
-logger = logging.getLogger("remote_bulk_writer")
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class RemoteBulkWriter(LocalBulkWriter):

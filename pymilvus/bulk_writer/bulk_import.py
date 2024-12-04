@@ -18,8 +18,7 @@ import requests
 
 from pymilvus.exceptions import MilvusException
 
-logger = logging.getLogger("bulk_import")
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 def _http_headers(api_key: str):

@@ -27,7 +27,6 @@ from pymilvus.orm.types import DataType
 from .index import IndexParams
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class MilvusClient:
