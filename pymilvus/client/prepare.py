@@ -19,6 +19,7 @@ from .constants import (
     DYNAMIC_FIELD_NAME,
     GROUP_BY_FIELD,
     GROUP_SIZE,
+    HINTS,
     ITERATOR_FIELD,
     PAGE_RETAIN_ORDER_FIELD,
     RANK_GROUP_SCORER,
@@ -958,6 +959,9 @@ class Prepare:
 
         if anns_field:
             search_params["anns_field"] = anns_field
+
+        if param.get(HINTS) is not None:
+            search_params[HINTS] = param[HINTS]
 
         req_params = [
             common_types.KeyValuePair(key=str(key), value=utils.dumps(value))
