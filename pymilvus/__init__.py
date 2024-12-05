@@ -31,7 +31,7 @@ from .exceptions import (
     MilvusException,
     MilvusUnavailableException,
 )
-from .milvus_client import MilvusClient
+from .milvus_client import AsyncMilvusClient, MilvusClient
 from .orm import db, utility
 from .orm.collection import Collection
 from .orm.connections import Connections, connections
@@ -73,6 +73,7 @@ from .settings import Config as DefaultConfig
 
 __all__ = [
     "AnnSearchRequest",
+    "AsyncMilvusClient",
     "BulkInsertState",
     "Collection",
     "CollectionSchema",
