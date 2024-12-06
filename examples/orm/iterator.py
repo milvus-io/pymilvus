@@ -118,7 +118,7 @@ def query_iterate_collection_no_offset(collection):
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
                                                offset=0, batch_size=5, consistency_level=CONSISTENCY_LEVEL,
                                                    reduce_stop_for_best="true", iterator_cp_file="/tmp/it_cp")
-    
+
     best_ids: set = set({})
     page_idx = 0
     while True:
@@ -127,6 +127,8 @@ def query_iterate_collection_no_offset(collection):
             print("query iteration finished, close")
             query_iterator.close()
             break
+        cursor = query_iterator.get_cursor()
+        print(f"got pk_cursor:{cursor.str_pk}")
         for i in range(len(res)):
             print(res[i])
             best_ids.add(res[i]['id'])
