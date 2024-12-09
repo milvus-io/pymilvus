@@ -1,4 +1,5 @@
 import logging
+import time
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, TypeVar, Union
 
@@ -39,8 +40,7 @@ from .constants import (
 from .schema import CollectionSchema
 from .types import DataType
 
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.ERROR)
+log = logging.getLogger(__name__)
 QueryIterator = TypeVar("QueryIterator")
 SearchIterator = TypeVar("SearchIterator")
 
@@ -77,18 +77,15 @@ class QueryIterator:
         self._schema = schema
         self._timeout = timeout
         self._kwargs = kwargs
-        self.__set_up_iteration_states()
         self.__check_set_batch_size(batch_size)
         self._limit = limit
         self.__check_set_reduce_stop_for_best()
         self._returned_count = 0
         self.__setup__pk_prop()
         self.__set_up_expr(expr)
+        self._next_id = None
         self.__seek()
         self._cache_id_in_use = NO_CACHE_ID
-
-    def __set_up_iteration_states(self):
-        self._kwargs[ITERATOR_FIELD] = "True"
 
     def __check_set_reduce_stop_for_best(self):
         if self._kwargs.get(REDUCE_STOP_FOR_BEST, True):
@@ -115,25 +112,47 @@ class QueryIterator:
 
     def __seek(self):
         self._cache_id_in_use = NO_CACHE_ID
-        if self._kwargs.get(OFFSET, 0) == 0:
-            self._next_id = None
-            return
+        offset = self._kwargs.get(OFFSET, 0)
+        if offset > 0:
+            seek_params = self._kwargs.copy()
+            seek_params[OFFSET] = 0
+            # offset may be too large, needed to seek in multiple times
+            seek_params[ITERATOR_FIELD] = "False"
+            seek_params[REDUCE_STOP_FOR_BEST] = "False"
+            start_time = time.time()
 
-        first_cursor_kwargs = self._kwargs.copy()
-        first_cursor_kwargs[OFFSET] = 0
-        # offset may be too large, needed to seek in multiple times
-        first_cursor_kwargs[MILVUS_LIMIT] = self._kwargs[OFFSET]
+            def seek_offset_by_batch(batch: int, expr: str) -> int:
+                seek_params[MILVUS_LIMIT] = batch
+                res = self._conn.query(
+                    collection_name=self._collection_name,
+                    expr=expr,
+                    output_field=[],
+                    partition_name=self._partition_names,
+                    timeout=self._timeout,
+                    **seek_params,
+                )
+                self.__update_cursor(res)
+                return len(res)
 
-        res = self._conn.query(
-            collection_name=self._collection_name,
-            expr=self._expr,
-            output_field=self._output_fields,
-            partition_name=self._partition_names,
-            timeout=self._timeout,
-            **first_cursor_kwargs,
-        )
-        self.__update_cursor(res)
-        self._kwargs[OFFSET] = 0
+            while offset > 0:
+                batch_size = min(MAX_BATCH_SIZE, offset)
+                next_expr = self.__setup_next_expr()
+                seeked_count = seek_offset_by_batch(batch_size, next_expr)
+                log.debug(
+                    f"seeked offset, seek_expr:{next_expr} batch_size:{batch_size} seeked_count:{seeked_count}"
+                )
+                if seeked_count == 0:
+                    log.info(
+                        "seek offset has drained all matched results for query iterator, break"
+                    )
+                    break
+                offset -= seeked_count
+            self._kwargs[OFFSET] = 0
+            seek_offset_duration = time.time() - start_time
+            log.info(
+                f"Finish seek offset for query iterator, offset:{offset}, current_pk_cursor:{self._next_id}, "
+                f"duration:{seek_offset_duration}"
+            )
 
     def __maybe_cache(self, result: List):
         if len(result) < 2 * self._kwargs[BATCH_SIZE]:
@@ -156,6 +175,7 @@ class QueryIterator:
         else:
             iterator_cache.release_cache(self._cache_id_in_use)
             current_expr = self.__setup_next_expr()
+            log.debug(f"query_iterator_next_expr:{current_expr}")
             res = self._conn.query(
                 collection_name=self._collection_name,
                 expr=current_expr,
@@ -194,7 +214,7 @@ class QueryIterator:
         if self._pk_field_name is None or self._pk_field_name == "":
             raise MilvusException(message="schema must contain pk field, broke")
 
-    def __setup_next_expr(self) -> None:
+    def __setup_next_expr(self) -> str:
         current_expr = self._expr
         if self._next_id is None:
             return current_expr
@@ -339,7 +359,7 @@ class SearchIterator:
                 "Cannot init search iterator because init page contains no matched rows, "
                 "please check the radius and range_filter set up by searchParams"
             )
-            LOGGER.error(message)
+            log.error(message)
             self._cache_id = NO_CACHE_ID
             self._init_success = False
             return
@@ -364,14 +384,14 @@ class SearchIterator:
     def __set_up_range_parameters(self, page: SearchPage):
         self.__update_width(page)
         self._tail_band = page[-1].distance
-        LOGGER.debug(
+        log.debug(
             f"set up init parameter for searchIterator width:{self._width} tail_band:{self._tail_band}"
         )
 
     def __check_reached_limit(self) -> bool:
         if self._limit == UNLIMITED or self._returned_count < self._limit:
             return False
-        LOGGER.debug(
+        log.debug(
             f"reached search limit:{self._limit}, returned_count:{self._returned_count}, directly return"
         )
         return True
@@ -528,7 +548,7 @@ class SearchIterator:
             if len(final_page) >= self._iterator_params[BATCH_SIZE]:
                 break
             if try_time > MAX_TRY_TIME:
-                LOGGER.warning(f"Search probe exceed max try times:{MAX_TRY_TIME} directly break")
+                log.warning(f"Search probe exceed max try times:{MAX_TRY_TIME} directly break")
                 break
             # if there's a ring containing no vectors matched, then we need to extend
             # the ring continually to avoid empty ring problem
@@ -538,6 +558,7 @@ class SearchIterator:
     def __execute_next_search(
         self, next_params: dict, next_expr: str, to_extend_batch: bool
     ) -> SearchPage:
+        log.debug(f"search_iterator_next_expr:{next_expr}, next_params:{next_params}")
         res = self._conn.search(
             self._iterator_params["collection_name"],
             self._iterator_params["data"],
@@ -592,7 +613,7 @@ class SearchIterator:
             else:
                 next_params[PARAMS][RADIUS] = next_radius
         next_params[PARAMS][RANGE_FILTER] = self._tail_band
-        LOGGER.debug(
+        log.debug(
             f"next round search iteration radius:{next_params[PARAMS][RADIUS]},"
             f"range_filter:{next_params[PARAMS][RANGE_FILTER]},"
             f"coefficient:{coefficient}"
