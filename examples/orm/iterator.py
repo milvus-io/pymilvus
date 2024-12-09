@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import logging
 from pymilvus import (
     connections,
     utility,
@@ -17,9 +18,13 @@ DEPOSIT = "deposit"
 PICTURE = "picture"
 CONSISTENCY_LEVEL = "Eventually"
 LIMIT = 5
-NUM_ENTITIES = 1000
+NUM_ENTITIES = 10000
 DIM = 8
-CLEAR_EXIST = False
+CLEAR_EXIST = True
+
+# Create a logger for the main script
+log = logging.getLogger("pymilvus")
+log.setLevel(logging.INFO)
 
 
 def re_create_collection(skip_data_period: bool):
@@ -29,8 +34,7 @@ def re_create_collection(skip_data_period: bool):
             print(f"dropped existed collection{COLLECTION_NAME}")
 
         fields = [
-            FieldSchema(name=USER_ID, dtype=DataType.VARCHAR, is_primary=True,
-                        auto_id=False, max_length=MAX_LENGTH),
+            FieldSchema(name=USER_ID, dtype=DataType.INT64, is_primary=True, auto_id=False),
             FieldSchema(name=AGE, dtype=DataType.INT64),
             FieldSchema(name=DEPOSIT, dtype=DataType.DOUBLE),
             FieldSchema(name=PICTURE, dtype=DataType.FLOAT_VECTOR, dim=DIM)
@@ -58,10 +62,9 @@ def random_pk(filter_set: set, lower_bound: int, upper_bound: int) -> str:
 def insert_data(collection):
     rng = np.random.default_rng(seed=19530)
     batch_count = 5
-    filter_set: set = {}
     for i in range(batch_count):
         entities = [
-            [random_pk(filter_set, 0, batch_count * NUM_ENTITIES) for _ in range(NUM_ENTITIES)],
+            [i for i in range(NUM_ENTITIES*i, NUM_ENTITIES*(i + 1))],
             [int(ni % 100) for ni in range(NUM_ENTITIES)],
             [float(ni) for ni in range(NUM_ENTITIES)],
             rng.random((NUM_ENTITIES, DIM)),
@@ -150,6 +153,22 @@ def query_iterate_collection_with_offset(collection):
         print(f"page{page_idx}-------------------------")
 
 
+def query_iterate_collection_with_large_offset(collection):
+    query_iterator = collection.query_iterator(output_fields=[USER_ID, AGE],
+                                               offset=48000, batch_size=50, consistency_level=CONSISTENCY_LEVEL)
+    page_idx = 0
+    while True:
+        res = query_iterator.next()
+        if len(res) == 0:
+            print("query iteration finished, close")
+            query_iterator.close()
+            break
+        for i in range(len(res)):
+            print(res[i])
+        page_idx += 1
+        print(f"page{page_idx}-------------------------")
+
+
 def query_iterate_collection_with_limit(collection):
     expr = f"10 <= {AGE} <= 44"
     query_iterator = collection.query_iterator(expr=expr, output_fields=[USER_ID, AGE],
@@ -165,6 +184,8 @@ def query_iterate_collection_with_limit(collection):
             print(res[i])
         page_idx += 1
         print(f"page{page_idx}-------------------------")
+
+
 
 
 def search_iterator_collection(collection):
@@ -216,11 +237,12 @@ def search_iterator_collection_with_limit(collection):
 
 
 def main():
-    skip_data_period = False
+    skip_data_period = True
     connections.connect("default", host=HOST, port=PORT)
     collection = re_create_collection(skip_data_period)
     if not skip_data_period:
         collection = prepare_data(collection)
+    query_iterate_collection_with_large_offset(collection)
     query_iterate_collection_no_offset(collection)
     query_iterate_collection_with_offset(collection)
     query_iterate_collection_with_limit(collection)
