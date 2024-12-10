@@ -985,6 +985,16 @@ class QueryResults(_message.Message):
     output_fields: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class QueryCursor(_message.Message):
+    __slots__ = ("session_ts", "str_pk", "int_pk")
+    SESSION_TS_FIELD_NUMBER: _ClassVar[int]
+    STR_PK_FIELD_NUMBER: _ClassVar[int]
+    INT_PK_FIELD_NUMBER: _ClassVar[int]
+    session_ts: int
+    str_pk: str
+    int_pk: int
+    def __init__(self, session_ts: _Optional[int] = ..., str_pk: _Optional[str] = ..., int_pk: _Optional[int] = ...) -> None: ...
+
 class VectorIDs(_message.Message):
     __slots__ = ("collection_name", "field_name", "id_array", "partition_names")
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
