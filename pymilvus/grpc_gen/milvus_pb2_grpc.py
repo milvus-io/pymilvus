@@ -61,6 +61,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.AlterCollectionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.AlterCollectionField = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AlterCollectionField',
+                request_serializer=milvus__pb2.AlterCollectionFieldRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
         self.CreatePartition = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreatePartition',
                 request_serializer=milvus__pb2.CreatePartitionRequest.SerializeToString,
@@ -535,6 +540,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def AlterCollection(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AlterCollectionField(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1097,6 +1108,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'AlterCollection': grpc.unary_unary_rpc_method_handler(
                     servicer.AlterCollection,
                     request_deserializer=milvus__pb2.AlterCollectionRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'AlterCollectionField': grpc.unary_unary_rpc_method_handler(
+                    servicer.AlterCollectionField,
+                    request_deserializer=milvus__pb2.AlterCollectionFieldRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
             'CreatePartition': grpc.unary_unary_rpc_method_handler(
@@ -1678,6 +1694,23 @@ class MilvusService(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AlterCollection',
             milvus__pb2.AlterCollectionRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def AlterCollectionField(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AlterCollectionField',
+            milvus__pb2.AlterCollectionFieldRequest.SerializeToString,
             common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
