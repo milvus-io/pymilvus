@@ -245,7 +245,7 @@ class DescribeCollectionRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., time_stamp: _Optional[int] = ...) -> None: ...
 
 class DescribeCollectionResponse(_message.Message):
-    __slots__ = ("status", "schema", "collectionID", "virtual_channel_names", "physical_channel_names", "created_timestamp", "created_utc_timestamp", "shards_num", "aliases", "start_positions", "consistency_level", "collection_name", "properties", "db_name", "num_partitions", "db_id")
+    __slots__ = ("status", "schema", "collectionID", "virtual_channel_names", "physical_channel_names", "created_timestamp", "created_utc_timestamp", "shards_num", "aliases", "start_positions", "consistency_level", "collection_name", "properties", "db_name", "num_partitions", "db_id", "request_time")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
@@ -262,6 +262,7 @@ class DescribeCollectionResponse(_message.Message):
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     NUM_PARTITIONS_FIELD_NUMBER: _ClassVar[int]
     DB_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_TIME_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     schema: _schema_pb2.CollectionSchema
     collectionID: int
@@ -278,7 +279,8 @@ class DescribeCollectionResponse(_message.Message):
     db_name: str
     num_partitions: int
     db_id: int
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., schema: _Optional[_Union[_schema_pb2.CollectionSchema, _Mapping]] = ..., collectionID: _Optional[int] = ..., virtual_channel_names: _Optional[_Iterable[str]] = ..., physical_channel_names: _Optional[_Iterable[str]] = ..., created_timestamp: _Optional[int] = ..., created_utc_timestamp: _Optional[int] = ..., shards_num: _Optional[int] = ..., aliases: _Optional[_Iterable[str]] = ..., start_positions: _Optional[_Iterable[_Union[_common_pb2.KeyDataPair, _Mapping]]] = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., collection_name: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., db_name: _Optional[str] = ..., num_partitions: _Optional[int] = ..., db_id: _Optional[int] = ...) -> None: ...
+    request_time: int
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., schema: _Optional[_Union[_schema_pb2.CollectionSchema, _Mapping]] = ..., collectionID: _Optional[int] = ..., virtual_channel_names: _Optional[_Iterable[str]] = ..., physical_channel_names: _Optional[_Iterable[str]] = ..., created_timestamp: _Optional[int] = ..., created_utc_timestamp: _Optional[int] = ..., shards_num: _Optional[int] = ..., aliases: _Optional[_Iterable[str]] = ..., start_positions: _Optional[_Iterable[_Union[_common_pb2.KeyDataPair, _Mapping]]] = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., collection_name: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., db_name: _Optional[str] = ..., num_partitions: _Optional[int] = ..., db_id: _Optional[int] = ..., request_time: _Optional[int] = ...) -> None: ...
 
 class LoadCollectionRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "replica_number", "resource_groups", "refresh", "load_fields", "skip_load_dynamic_field")
@@ -1004,6 +1006,16 @@ class QueryResults(_message.Message):
     output_fields: _containers.RepeatedScalarFieldContainer[str]
     session_ts: int
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., session_ts: _Optional[int] = ...) -> None: ...
+
+class QueryCursor(_message.Message):
+    __slots__ = ("session_ts", "str_pk", "int_pk")
+    SESSION_TS_FIELD_NUMBER: _ClassVar[int]
+    STR_PK_FIELD_NUMBER: _ClassVar[int]
+    INT_PK_FIELD_NUMBER: _ClassVar[int]
+    session_ts: int
+    str_pk: str
+    int_pk: int
+    def __init__(self, session_ts: _Optional[int] = ..., str_pk: _Optional[str] = ..., int_pk: _Optional[int] = ...) -> None: ...
 
 class VectorIDs(_message.Message):
     __slots__ = ("collection_name", "field_name", "id_array", "partition_names")

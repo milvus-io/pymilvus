@@ -833,6 +833,72 @@ class MilvusClient:
         conn = self._get_connection()
         return conn.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
 
+    def alter_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        properties: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.alter_index_properties(
+            collection_name, index_name, properties=properties, timeout=timeout, **kwargs
+        )
+
+    def drop_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.drop_index_properties(
+            collection_name, index_name, property_keys=property_keys, timeout=timeout, **kwargs
+        )
+
+    def alter_collection_properties(
+        self, collection_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        conn.alter_collection_properties(
+            collection_name,
+            properties=properties,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def drop_collection_properties(
+        self,
+        collection_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.drop_collection_properties(
+            collection_name, property_keys=property_keys, timeout=timeout, **kwargs
+        )
+
+    def alter_collection_field(
+        self,
+        collection_name: str,
+        field_name: str,
+        field_param: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.alter_collection_field_properties(
+            collection_name,
+            field_name=field_name,
+            field_param=field_param,
+            timeout=timeout,
+            **kwargs,
+        )
+
     def create_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
