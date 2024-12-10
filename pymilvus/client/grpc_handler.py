@@ -1060,6 +1060,9 @@ class GrpcHandler:
         request = Prepare.drop_index_properties_request(
             collection_name, index_name, delete_keys=property_keys
         )
+        rf = self._stub.AlterIndex.future(request, timeout=timeout)
+        response = rf.result()
+        check_status(response)
 
     @retry_on_rpc_failure()
     def list_indexes(self, collection_name: str, timeout: Optional[float] = None, **kwargs):

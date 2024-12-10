@@ -249,7 +249,10 @@ class Prepare:
 
     @classmethod
     def alter_collection_request(
-        cls, collection_name: str, properties: Dict = None, delete_keys: list[str] = None
+        cls,
+        collection_name: str,
+        properties: Optional[Dict] = None,
+        delete_keys: Optional[List[str]] = None,
     ) -> milvus_types.AlterCollectionRequest:
         kvs = []
         if properties:
@@ -259,6 +262,7 @@ class Prepare:
             collection_name=collection_name, properties=kvs, delete_keys=delete_keys
         )
 
+    @classmethod
     def alter_collection_field_request(
         cls, collection_name: str, field_name: str, field_param: Dict
     ) -> milvus_types.AlterCollectionFieldRequest:
