@@ -873,7 +873,7 @@ class MilvusClient:
     def drop_collection_properties(
         self,
         collection_name: str,
-        property_keys: list[str],
+        property_keys: List[str],
         timeout: Optional[float] = None,
         **kwargs,
     ):
