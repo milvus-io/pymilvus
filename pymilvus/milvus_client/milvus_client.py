@@ -838,26 +838,26 @@ class MilvusClient:
         self,
         collection_name: str,
         index_name: str,
-        extra_params: dict,
+        properties: dict,
         timeout: Optional[float] = None,
         **kwargs,
     ):
         conn = self._get_connection()
         conn.alter_index_properties(
-            collection_name, index_name, extra_params=extra_params, timeout=timeout, **kwargs
+            collection_name, index_name, properties=properties, timeout=timeout, **kwargs
         )
 
     def drop_index_properties(
         self,
         collection_name: str,
         index_name: str,
-        delete_keys: List[str],
+        property_keys: List[str],
         timeout: Optional[float] = None,
         **kwargs,
     ):
         conn = self._get_connection()
-        conn.alter_index_properties(
-            collection_name, index_name, delete_keys=delete_keys, timeout=timeout, **kwargs
+        conn.drop_index_properties(
+            collection_name, index_name, property_keys=property_keys, timeout=timeout, **kwargs
         )
 
     def alter_collection_properties(
@@ -874,13 +874,13 @@ class MilvusClient:
     def drop_collection_properties(
         self,
         collection_name: str,
-        delete_keys: list[str],
+        property_keys: list[str],
         timeout: Optional[float] = None,
         **kwargs,
     ):
         conn = self._get_connection()
         conn.drop_collection_properties(
-            collection_name, delete_keys=delete_keys, timeout=timeout, **kwargs
+            collection_name, property_keys=property_keys, timeout=timeout, **kwargs
         )
 
     def alter_collection_field_properties(
