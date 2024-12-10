@@ -369,61 +369,6 @@ class Collection:
             **kwargs,
         )
 
-    def alter_collection_properties(
-        self, properties: dict, timeout: Optional[float] = None, **kwargs
-    ):
-        """Set properties for the collection
-
-        Args:
-            properties (``dict``): collection properties.
-                 support collection TTL with key `collection.ttl.seconds`
-                 support collection replica number with key `collection.replica.number`
-                 support collection resource groups with key `collection.resource_groups`.
-            timeout (float, optional): an optional duration of time in seconds to allow
-                for the RPCs. If timeout is not set, the client keeps waiting until the
-                server responds or an error occurs.
-
-        Examples:
-            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
-            >>> fields = [
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=128)
-            ... ]
-            >>> schema = CollectionSchema(fields=fields)
-            >>> collection = Collection("test_set_properties", schema)
-            >>> collection.alter_collection_properties({"collection.ttl.seconds": 60})
-        """
-        conn = self._get_connection()
-        conn.alter_collection_properties(
-            self.name,
-            properties=properties,
-            timeout=timeout,
-            **kwargs,
-        )
-
-    def drop_collection_properties(
-        self, delete_keys: list[str], timeout: Optional[float] = None, **kwargs
-    ):
-        conn = self._get_connection()
-        conn.drop_collection_properties(
-            self.name,
-            delete_keys=delete_keys,
-            timeout=timeout,
-            **kwargs,
-        )
-
-    def alter_collection_field_properties(
-        self, field_name: str, field_param: dict, timeout: Optional[float] = None, **kwargs
-    ):
-        conn = self._get_connection()
-        conn.alter_collection_field_properties(
-            self.name,
-            field_name=field_name,
-            field_param=field_param,
-            timeout=timeout,
-            **kwargs,
-        )
-
     def load(
         self,
         partition_names: Optional[list] = None,
@@ -1462,59 +1407,6 @@ class Collection:
         """
         conn = self._get_connection()
         return conn.alter_index_properties(self._name, index_name, extra_params, timeout=timeout)
-
-    def alter_index_properties(
-        self,
-        index_name: str,
-        extra_params: dict,
-        timeout: Optional[float] = None,
-    ):
-        """Alter index for a specified field, with a index name.
-
-        Args:
-            index_name (``str``): The name of the index to alter
-            extra_params (``dict``): The parameters to index
-                * *mmap.enabled* (``str``)
-                    "mmap.enabled" as the key, example values: True or False.
-
-            timeout (``float``, optional): An optional duration of time in seconds to allow
-                for the RPC. When timeout is set to None, client waits until server
-                response or error occur.
-
-        Raises:
-            MilvusException: If anything goes wrong.
-
-        Examples:
-            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
-            >>> from pymilvus import IndexType, MetricType
-            >>> schema = CollectionSchema([
-            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
-            ...     FieldSchema("title", DataType.STRING),
-            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
-            ... ])
-            >>> collection = Collection("test_collection_alter_index", schema)
-            >>> index_params = {
-            ...     "index_type": IndexType.IVF_FLAT,
-            ...     "metric_type": MetricType.L2,
-            ...     "params": {"nlist": 128}
-            ... }
-            >>> collection.create_index("films", index_params, index_name="idx")
-            Status(code=0, message='')
-            >>> collection.alter_index_properties("idx", {"mmap.enabled": True})
-        """
-        conn = self._get_connection()
-        return conn.alter_index_properties(self._name, index_name, extra_params, timeout=timeout)
-
-    def drop_index_properties(
-        self,
-        index_name: str,
-        delete_keys: List[str],
-        timeout: Optional[float] = None,
-    ):
-        conn = self._get_connection()
-        return conn.drop_index_properties(
-            self._name, index_name, delete_keys=delete_keys, timeout=timeout
-        )
 
     def has_index(self, timeout: Optional[float] = None, **kwargs) -> bool:
         """Check whether a specified index exists.

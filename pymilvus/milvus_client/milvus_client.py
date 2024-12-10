@@ -883,7 +883,7 @@ class MilvusClient:
             collection_name, property_keys=property_keys, timeout=timeout, **kwargs
         )
 
-    def alter_collection_field_properties(
+    def alter_collection_field(
         self,
         collection_name: str,
         field_name: str,
