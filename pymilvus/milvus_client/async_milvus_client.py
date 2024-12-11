@@ -61,7 +61,7 @@ class AsyncMilvusClient:
             uri, user, password, db_name, token, timeout=timeout, **kwargs
         )
         self.is_self_hosted = bool(async_utility.get_server_type(using=self._using) == "milvus")
-        self.is_self_hosted = True
+        # self.is_self_hosted = True
 
     def create_collection(
         self,
