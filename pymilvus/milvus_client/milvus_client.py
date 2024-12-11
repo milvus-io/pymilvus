@@ -886,7 +886,7 @@ class MilvusClient:
         self,
         collection_name: str,
         field_name: str,
-        field_param: dict,
+        field_params: dict,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -894,7 +894,7 @@ class MilvusClient:
         conn.alter_collection_field_properties(
             collection_name,
             field_name=field_name,
-            field_param=field_param,
+            field_params=field_params,
             timeout=timeout,
             **kwargs,
         )
@@ -1179,13 +1179,17 @@ class MilvusClient:
         conn = self._get_connection()
         return conn.list_database(**kwargs)
 
-    def describe_database(self, db_name: str, **kwargs):
+    def describe_database(self, db_name: str, **kwargs) -> dict:
         conn = self._get_connection()
-        conn.describe_database(db_name, **kwargs)
+        return conn.describe_database(db_name, **kwargs)
 
-    def alter_database(self, db_name: str, properties: dict, **kwargs):
+    def alter_database_properties(self, db_name: str, properties: dict, **kwargs):
         conn = self._get_connection()
         conn.alter_database(db_name, properties, **kwargs)
+
+    def drop_database_properties(self, db_name: str, property_keys: List[str], **kwargs):
+        conn = self._get_connection()
+        conn.drop_database_properties(db_name, property_keys, **kwargs)
 
     def flush(
         self,
