@@ -1563,17 +1563,26 @@ class Collection:
             )
         return conn.wait_for_compaction_completed(self.compaction_id, timeout=timeout, **kwargs)
 
-    def get_compaction_plans(self, timeout: Optional[float] = None, **kwargs) -> CompactionPlans:
+    def get_compaction_plans(
+        self, timeout: Optional[float] = None, is_clustering: Optional[bool] = False, **kwargs
+    ) -> CompactionPlans:
         """Get the current compaction plans
 
         Args:
             timeout (``float``, optional): An optional duration of time in seconds to allow
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur.
+
+            is_clustering (``bool``, optional): Option to get clustering compaction plan.
+
         Returns:
             CompactionPlans: All the plans' states of this compaction.
         """
         conn = self._get_connection()
+        if is_clustering:
+            return conn.get_compaction_plans(
+                self.clustering_compaction_id, timeout=timeout, **kwargs
+            )
         return conn.get_compaction_plans(self.compaction_id, timeout=timeout, **kwargs)
 
     def get_replicas(self, timeout: Optional[float] = None, **kwargs) -> Replica:
