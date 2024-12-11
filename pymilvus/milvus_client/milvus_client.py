@@ -1013,6 +1013,21 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        """Grant a privilege or a privilege group to a role.
+
+        Args:
+            role_name (``str``): The name of the role.
+            privilege (``str``): The privilege or privilege group to grant.
+            collection_name (``str``): The name of the collection.
+            db_name (``str``, optional): The name of the database. It will use default database
+                if not specified.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
         conn = self._get_connection()
         conn.grant_privilege_v2(
             role_name,
@@ -1032,6 +1047,21 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        """Revoke a privilege or a privilege group from a role.
+
+        Args:
+            role_name (``str``): The name of the role.
+            privilege (``str``): The privilege or privilege group to revoke.
+            collection_name (``str``): The name of the collection.
+            db_name (``str``, optional): The name of the database. It will use default database
+                if not specified.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
         conn = self._get_connection()
         conn.revoke_privilege_v2(
             role_name,
