@@ -340,7 +340,7 @@ class GrpcHandler:
     ):
         check_pass_param(collection_name=collection_name, properties=field_params, timeout=timeout)
         request = Prepare.alter_collection_field_request(
-            self, collection_name=collection_name, field_name=field_name, field_param=field_params
+            collection_name=collection_name, field_name=field_name, field_param=field_params
         )
         rf = self._stub.AlterCollectionField.future(request, timeout=timeout)
         status = rf.result()
