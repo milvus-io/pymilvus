@@ -334,13 +334,13 @@ class GrpcHandler:
         self,
         collection_name: str,
         field_name: str,
-        field_param: List,
+        field_params: List,
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_pass_param(collection_name=collection_name, properties=field_param, timeout=timeout)
+        check_pass_param(collection_name=collection_name, properties=field_params, timeout=timeout)
         request = Prepare.alter_collection_field_request(
-            self, collection_name=collection_name, field_name=field_name, field_param=field_param
+            collection_name=collection_name, field_name=field_name, field_param=field_params
         )
         rf = self._stub.AlterCollectionField.future(request, timeout=timeout)
         status = rf.result()
@@ -1381,7 +1381,15 @@ class GrpcHandler:
     def alter_database(
         self, db_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
     ):
-        request = Prepare.alter_database_req(db_name, properties)
+        request = Prepare.alter_database_properties_req(db_name, properties)
+        status = self._stub.AlterDatabase(request, timeout=timeout)
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    def drop_database_properties(
+        self, db_name: str, property_keys: List[str], timeout: Optional[float] = None, **kwargs
+    ):
+        request = Prepare.drop_database_properties_req(db_name, property_keys)
         status = self._stub.AlterDatabase(request, timeout=timeout)
         check_status(status)
 
