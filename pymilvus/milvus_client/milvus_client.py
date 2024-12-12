@@ -1074,6 +1074,14 @@ class MilvusClient:
         conn = self._get_connection()
         return conn.list_database(**kwargs)
 
+    def describe_database(self, db_name: str, **kwargs):
+        conn = self._get_connection()
+        conn.describe_database(db_name, **kwargs)
+
+    def alter_database(self, db_name: str, properties: dict, **kwargs):
+        conn = self._get_connection()
+        conn.alter_database(db_name, properties, **kwargs)
+
     def flush(
         self,
         collection_name: str,
