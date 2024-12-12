@@ -1005,6 +1005,16 @@ class QueryResults(_message.Message):
     session_ts: int
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., session_ts: _Optional[int] = ...) -> None: ...
 
+class QueryCursor(_message.Message):
+    __slots__ = ("session_ts", "str_pk", "int_pk")
+    SESSION_TS_FIELD_NUMBER: _ClassVar[int]
+    STR_PK_FIELD_NUMBER: _ClassVar[int]
+    INT_PK_FIELD_NUMBER: _ClassVar[int]
+    session_ts: int
+    str_pk: str
+    int_pk: int
+    def __init__(self, session_ts: _Optional[int] = ..., str_pk: _Optional[str] = ..., int_pk: _Optional[int] = ...) -> None: ...
+
 class VectorIDs(_message.Message):
     __slots__ = ("collection_name", "field_name", "id_array", "partition_names")
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -1230,14 +1240,18 @@ class LoadBalanceRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., src_nodeID: _Optional[int] = ..., dst_nodeIDs: _Optional[_Iterable[int]] = ..., sealed_segmentIDs: _Optional[_Iterable[int]] = ..., collectionName: _Optional[str] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class ManualCompactionRequest(_message.Message):
-    __slots__ = ("collectionID", "timetravel", "majorCompaction")
+    __slots__ = ("collectionID", "timetravel", "majorCompaction", "collection_name", "db_name")
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
     TIMETRAVEL_FIELD_NUMBER: _ClassVar[int]
     MAJORCOMPACTION_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
     collectionID: int
     timetravel: int
     majorCompaction: bool
-    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ..., majorCompaction: bool = ...) -> None: ...
+    collection_name: str
+    db_name: str
+    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ..., majorCompaction: bool = ..., collection_name: _Optional[str] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class ManualCompactionResponse(_message.Message):
     __slots__ = ("status", "compactionID", "compactionPlanCount")
