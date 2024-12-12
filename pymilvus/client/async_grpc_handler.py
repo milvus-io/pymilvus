@@ -40,7 +40,6 @@ from .check import (
     is_legal_port,
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
-from .grpc_handler import GrpcHandler
 from .prepare import Prepare
 from .types import (
     BulkInsertState,
@@ -73,18 +72,64 @@ from .utils import (
     len_of,
 )
 
-class AsyncGrpcHandler(GrpcHandler):
+class AsyncGrpcHandler:
     def __init__(
         self,
         uri: str = Config.GRPC_URI,
         host: str = "",
         port: str = "",
-        channel: Optional[grpc.Channel] = None,
+        channel: Optional[grpc.aio.Channel] = None,
         **kwargs,
     ) -> None:
         self._async_stub = None
-        self._async_channel = None
-        super().__init__(uri, host, port, channel, **kwargs)
+        self._async_channel = channel
+
+        addr = kwargs.get("address")
+        self._address = addr if addr is not None else self.__get_address(uri, host, port)
+        self._log_level = None
+        self._request_id = None
+        self._user = kwargs.get("user")
+        self._set_authorization(**kwargs)
+        self._setup_db_interceptor(kwargs.get("db_name"))
+        self._setup_grpc_channel()  # init channel and stub
+        self.callbacks = []
+
+    def register_state_change_callback(self, callback: Callable):
+        self.callbacks.append(callback)
+        self._async_channel.subscribe(callback, try_to_connect=True)
+
+    def deregister_state_change_callbacks(self):
+        for callback in self.callbacks:
+            self._async_channel.unsubscribe(callback)
+        self.callbacks = []
+
+    def __get_address(self, uri: str, host: str, port: str) -> str:
+        if host != "" and port != "" and is_legal_host(host) and is_legal_port(port):
+            return f"{host}:{port}"
+
+        try:
+            parsed_uri = parse.urlparse(uri)
+        except Exception as e:
+            raise ParamError(message=f"Illegal uri: [{uri}], {e}") from e
+        return parsed_uri.netloc
+
+    def _set_authorization(self, **kwargs):
+        secure = kwargs.get("secure", False)
+        if not isinstance(secure, bool):
+            raise ParamError(message="secure must be bool type")
+        self._secure = secure
+        self._client_pem_path = kwargs.get("client_pem_path", "")
+        self._client_key_path = kwargs.get("client_key_path", "")
+        self._ca_pem_path = kwargs.get("ca_pem_path", "")
+        self._server_pem_path = kwargs.get("server_pem_path", "")
+        self._server_name = kwargs.get("server_name", "")
+
+        self._authorization_interceptor = None
+        self._setup_authorization_interceptor(
+            kwargs.get("user"),
+            kwargs.get("password"),
+            kwargs.get("token"),
+        )
 
     def __enter__(self):
         return self
@@ -93,18 +138,11 @@ class AsyncGrpcHandler(GrpcHandler):
         pass
 
     def _wait_for_channel_ready(self, timeout: Union[float] = 10, retry_interval: float = 1):
-        if self._channel is None:
-            raise MilvusException(
-                code=Status.CONNECT_FAILED,
-                message="No channel in handler, please setup grpc channel first",
-            )
         try:
             async def wait_for_async_channel_ready():
                 await self._async_channel.channel_ready()
             loop = asyncio.get_event_loop()
             loop.run_until_complete(wait_for_async_channel_ready())
-
-            grpc.channel_ready_future(self._channel).result(timeout=timeout)
 
             self._setup_identifier_interceptor(self._user, timeout=timeout)
         except grpc.FutureTimeoutError as e:
@@ -115,8 +153,38 @@ class AsyncGrpcHandler(GrpcHandler):
         except Exception as e:
             raise e from e
 
+    def close(self):
+        self.deregister_state_change_callbacks()
+        self._async_channel.close()
+
+    def reset_db_name(self, db_name: str):
+        self._setup_db_interceptor(db_name)
+        self._setup_grpc_channel()
+        self._setup_identifier_interceptor(self._user)
+
+    def _setup_authorization_interceptor(self, user: str, password: str, token: str):
+        keys = []
+        values = []
+        if token:
+            authorization = base64.b64encode(f"{token}".encode())
+            keys.append("authorization")
+            values.append(authorization)
+        elif user and password:
+            authorization = base64.b64encode(f"{user}:{password}".encode())
+            keys.append("authorization")
+            values.append(authorization)
+        if len(keys) > 0 and len(values) > 0:
+            self._authorization_interceptor = interceptor.header_adder_interceptor(keys, values)
+
+    def _setup_db_interceptor(self, db_name: str):
+        if db_name is None:
+            self._db_interceptor = None
+        else:
+            check_pass_param(db_name=db_name)
+            self._db_interceptor = interceptor.header_adder_interceptor(["dbname"], [db_name])
+
     def _setup_grpc_channel(self):
-        if self._channel is None:
+        if self._async_channel is None:
             opts = [
                 (cygrpc.ChannelArgKey.max_send_message_length, -1),
                 (cygrpc.ChannelArgKey.max_receive_message_length, -1),
@@ -124,10 +192,6 @@ class AsyncGrpcHandler(GrpcHandler):
                 ("grpc.keepalive_time_ms", 55000),
             ]
             if not self._secure:
-                self._channel = grpc.insecure_channel(
-                    self._address,
-                    options=opts,
-                )
                 self._async_channel = grpc.aio.insecure_channel(
                     self._address,
                     options=opts,
@@ -157,11 +221,6 @@ class AsyncGrpcHandler(GrpcHandler):
                     private_key=private_k,
                     certificate_chain=cert_chain,
                 )
-                self._channel = grpc.secure_channel(
-                    self._address,
-                    creds,
-                    options=opts,
-                )
                 self._async_channel = grpc.aio.secure_channel(
                     self._address,
                     creds,
@@ -169,58 +228,40 @@ class AsyncGrpcHandler(GrpcHandler):
                 )
 
         # avoid to add duplicate headers.
-        self._final_channel = self._channel
-        if self._authorization_interceptor:
-            self._final_channel = grpc.intercept_channel(
-                self._final_channel, self._authorization_interceptor
-            )
-        if self._db_interceptor:
-            self._final_channel = grpc.intercept_channel(self._final_channel, self._db_interceptor)
+        self._final_channel = self._async_channel
         if self._log_level:
-            log_level_interceptor = interceptor.header_adder_interceptor(
-                ["log_level"], [self._log_level]
-            )
-            self._final_channel = grpc.intercept_channel(self._final_channel, log_level_interceptor)
 
             async_log_level_interceptor = async_header_adder_interceptor(
                 ["log_level"], [self._log_level]
             )
-            self._async_channel._unary_unary_interceptors.append(async_log_level_interceptor)
+            self._final_channel._unary_unary_interceptors.append(async_log_level_interceptor)
 
             self._log_level = None
         if self._request_id:
-            request_id_interceptor = interceptor.header_adder_interceptor(
-                ["client_request_id"], [self._request_id]
-            )
-            self._final_channel = grpc.intercept_channel(
-                self._final_channel, request_id_interceptor
-            )
 
             async_request_id_interceptor = async_header_adder_interceptor(
                 ["client_request_id"], [self._request_id]
             )
-            self._async_channel._unary_unary_interceptors.append(async_request_id_interceptor)
+            self._final_channel._unary_unary_interceptors.append(async_request_id_interceptor)
 
             self._request_id = None
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
-        self._async_stub = milvus_pb2_grpc.MilvusServiceStub(self._async_channel)
+        self._async_stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
 
     def _setup_identifier_interceptor(self, user: str, timeout: int = 10):
         host = socket.gethostname()
-        self._identifier = self.__internal_register(user, host, timeout=timeout)
-        self._identifier_interceptor = interceptor.header_adder_interceptor(
-            ["identifier"], [str(self._identifier)]
-        )
-        self._final_channel = grpc.intercept_channel(
-            self._final_channel, self._identifier_interceptor
-        )
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
-
+        self._identifier = self.__async_internal_register(user, host, timeout=timeout)
         _async_identifier_interceptor = async_header_adder_interceptor(
             ["identifier"], [str(self._identifier)]
         )
         self._async_channel._unary_unary_interceptors.append(_async_identifier_interceptor)
         self._async_stub = milvus_pb2_grpc.MilvusServiceStub(self._async_channel)
+
+    @property
+    def server_address(self):
+        return self._address
+
+    def get_server_type(self):
+        return get_server_type(self.server_address.split(":")[0])
 
     @retry_on_rpc_failure()
     async def async_create_collection(
@@ -239,6 +280,36 @@ class AsyncGrpcHandler(GrpcHandler):
         check_status(response)
 
     @retry_on_rpc_failure()
+    async def async_load_collection(
+        self,
+        collection_name: str,
+        replica_number: int = 1,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(
+            collection_name=collection_name, replica_number=replica_number, timeout=timeout
+        )
+        refresh = kwargs.get("refresh", kwargs.get("_refresh", False))
+        resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
+        load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
+        skip_load_dynamic_field = kwargs.get(
+            "skip_load_dynamic_field", kwargs.get("_skip_load_dynamic_field", False)
+        )
+
+        request = Prepare.load_collection(
+            "",
+            collection_name,
+            replica_number,
+            refresh,
+            resource_groups,
+            load_fields,
+            skip_load_dynamic_field,
+        )
+        response = await self._async_stub.LoadCollection(request, timeout=timeout)
+        check_status(response)
+
+    @retry_on_rpc_failure()
     async def async_describe_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ):
@@ -252,6 +323,16 @@ class AsyncGrpcHandler(GrpcHandler):
 
         raise DescribeCollectionException(status.code, status.reason, status.error_code)
 
+    async def _async_get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        schema = kwargs.get("schema")
+        if not schema:
+            schema = await self.async_describe_collection(collection_name, timeout=timeout)
+
+        fields_info = schema.get("fields")
+        enable_dynamic = schema.get("enable_dynamic_field", False)
+
+        return fields_info, enable_dynamic
+
     @retry_on_rpc_failure()
     async def async_insert_rows(
         self,
@@ -262,13 +343,39 @@ class AsyncGrpcHandler(GrpcHandler):
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        request = self._prepare_row_insert_request(
+        request = await self._async_prepare_row_insert_request(
             collection_name, entities, partition_name, schema, timeout, **kwargs
         )
         resp = await self._async_stub.Insert(request=request, timeout=timeout)
         check_status(resp.status)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
         return MutationResult(resp)
+
+    async def _async_prepare_row_insert_request(
+        self,
+        collection_name: str,
+        entity_rows: Union[List[Dict], Dict],
+        partition_name: Optional[str] = None,
+        schema: Optional[dict] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        if isinstance(entity_rows, dict):
+            entity_rows = [entity_rows]
+
+        if not isinstance(schema, dict):
+            schema = await self.async_describe_collection(collection_name, timeout=timeout)
+
+        fields_info = schema.get("fields")
+        enable_dynamic = schema.get("enable_dynamic_field", False)
+
+        return Prepare.row_insert_param(
+            collection_name,
+            entity_rows,
+            partition_name,
+            fields_info,
+            enable_dynamic=enable_dynamic,
+        )
 
     async def async_delete(
         self,
@@ -297,6 +404,32 @@ class AsyncGrpcHandler(GrpcHandler):
         else:
             return m
 
+    async def _async_prepare_batch_upsert_request(
+        self,
+        collection_name: str,
+        entities: List,
+        partition_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        param = kwargs.get("upsert_param")
+        if param and not isinstance(param, milvus_types.UpsertRequest):
+            raise ParamError(message="The value of key 'upsert_param' is invalid")
+        if not isinstance(entities, list):
+            raise ParamError(message="'entities' must be a list, please provide valid entity data.")
+
+        schema = kwargs.get("schema")
+        if not schema:
+            schema = await self.async_describe_collection(collection_name, timeout=timeout, **kwargs)
+
+        fields_info = schema["fields"]
+
+        return (
+            param
+            if param
+            else Prepare.batch_upsert_param(collection_name, entities, partition_name, fields_info)
+        )
+
     @retry_on_rpc_failure()
     async def async_upsert(
         self,
@@ -310,7 +443,7 @@ class AsyncGrpcHandler(GrpcHandler):
             raise ParamError(message="Invalid binary vector data exists")
 
         try:
-            request = self._prepare_batch_upsert_request(
+            request = await self._async_prepare_batch_upsert_request(
                 collection_name, entities, partition_name, timeout, **kwargs
             )
             response = await self._async_stub.Upsert(request, timeout=timeout)
@@ -321,6 +454,26 @@ class AsyncGrpcHandler(GrpcHandler):
             raise err from err
         else:
             return m
+
+    async def _async_prepare_row_upsert_request(
+        self,
+        collection_name: str,
+        rows: List,
+        partition_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        if not isinstance(rows, list):
+            raise ParamError(message="'rows' must be a list, please provide valid row data.")
+
+        fields_info, enable_dynamic = await self._async_get_info(collection_name, timeout, **kwargs)
+        return Prepare.row_upsert_param(
+            collection_name,
+            rows,
+            partition_name,
+            fields_info,
+            enable_dynamic=enable_dynamic,
+        )
 
     @retry_on_rpc_failure()
     async def async_upsert_rows(
@@ -333,7 +486,7 @@ class AsyncGrpcHandler(GrpcHandler):
     ):
         if isinstance(entities, dict):
             entities = [entities]
-        request = self._prepare_row_upsert_request(
+        request = await self._async_prepare_row_upsert_request(
             collection_name, entities, partition_name, timeout, **kwargs
         )
         response = await self._async_stub.Upsert(request, timeout=timeout)
@@ -463,6 +616,46 @@ class AsyncGrpcHandler(GrpcHandler):
         )
 
     @retry_on_rpc_failure()
+    async def async_create_index(
+        self,
+        collection_name: str,
+        field_name: str,
+        params: Dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        index_name = kwargs.pop("index_name", Config.IndexName)
+        copy_kwargs = copy.deepcopy(kwargs)
+
+        collection_desc = await self.async_describe_collection(collection_name, timeout=timeout, **copy_kwargs)
+
+        valid_field = False
+        for fields in collection_desc["fields"]:
+            if field_name != fields["name"]:
+                continue
+            valid_field = True
+            if fields["type"] not in {
+                DataType.FLOAT_VECTOR,
+                DataType.BINARY_VECTOR,
+                DataType.FLOAT16_VECTOR,
+                DataType.BFLOAT16_VECTOR,
+                DataType.SPARSE_FLOAT_VECTOR,
+            }:
+                break
+
+        if not valid_field:
+            raise MilvusException(message=f"cannot create index on non-existed field: {field_name}")
+
+        index_param = Prepare.create_index_request(
+            collection_name, field_name, params, index_name=index_name
+        )
+
+        status = await self._async_stub.CreateIndex(index_param, timeout=timeout)
+        check_status(status)
+
+        return Status(status.code, status.reason)
+
+    @retry_on_rpc_failure()
     async def async_get(
         self,
         collection_name: str,
@@ -519,8 +712,13 @@ class AsyncGrpcHandler(GrpcHandler):
 
     @retry_on_rpc_failure()
     @upgrade_reminder
-    def __internal_register(self, user: str, host: str, **kwargs) -> int:
+    def __async_internal_register(self, user: str, host: str, **kwargs) -> int:
         req = Prepare.register_request(user, host)
-        response = self._stub.Connect(request=req)
+        async def wait_for_connect_response():
+            return await self._async_stub.Connect(request=req)
+
+        loop = asyncio.get_event_loop()
+        response = loop.run_until_complete(wait_for_connect_response())
+
         check_status(response.status)
         return response.identifier
