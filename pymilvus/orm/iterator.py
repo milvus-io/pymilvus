@@ -11,6 +11,7 @@ from pymilvus.exceptions import (
     MilvusException,
     ParamError,
 )
+from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
 from .connections import Connections
 from .constants import (
@@ -300,6 +301,15 @@ class QueryIterator:
 
     def __is_res_sufficient(self, res: List):
         return res is not None and len(res) >= self._kwargs[BATCH_SIZE]
+
+    def get_cursor(self) -> milvus_types.QueryCursor:
+        cursor = milvus_types.QueryCursor
+        cursor.session_ts = self._session_ts
+        if self._pk_str:
+            cursor.str_pk = str(self._next_id)
+        else:
+            cursor.int_pk = self._next_id
+        return cursor
 
     def next(self):
         cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
