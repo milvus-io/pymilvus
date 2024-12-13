@@ -17,6 +17,7 @@ STRICT_GROUP_SIZE = "strict_group_size"
 ITERATOR_FIELD = "iterator"
 ITERATOR_SESSION_TS_FIELD = "iterator_session_ts"
 PAGE_RETAIN_ORDER_FIELD = "page_retain_order"
+HINTS = "hints"
 
 RANKER_TYPE_RRF = "rrf"
 RANKER_TYPE_WEIGHTED = "weighted"
