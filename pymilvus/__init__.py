@@ -32,6 +32,7 @@ from .exceptions import (
     MilvusUnavailableException,
 )
 from .milvus_client import MilvusClient
+from .milvus_client import AsyncMilvusClient
 from .orm import db, utility
 from .orm.collection import Collection
 from .orm.connections import Connections, connections
@@ -90,6 +91,7 @@ __all__ = [
     "IndexType",
     "Milvus",
     "MilvusClient",
+    "AsyncMilvusClient",
     "MilvusException",
     "MilvusUnavailableException",
     "MutationFuture",

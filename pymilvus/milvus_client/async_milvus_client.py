@@ -126,11 +126,36 @@ class AsyncMilvusClient:
         await self.create_index(collection_name, index_params, timeout=timeout)
         await self.load_collection(collection_name, timeout=timeout)
 
+    async def _async_create_collection_with_schema(
+        self,
+        collection_name: str,
+        schema: CollectionSchema,
+        index_params: IndexParams,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        schema.verify()
+
+        conn = self._get_connection()
+        if "consistency_level" not in kwargs:
+            kwargs["consistency_level"] = DEFAULT_CONSISTENCY_LEVEL
+        try:
+            await conn.async_create_collection(collection_name, schema, timeout=timeout, **kwargs)
+            logger.debug("Successfully created collection: %s", collection_name)
+        except Exception as ex:
+            logger.error("Failed to create collection: %s", collection_name)
+            raise ex from ex
+
+        if index_params:
+            await self.create_index(collection_name, index_params, timeout=timeout)
+            await self.load_collection(collection_name, timeout=timeout)
+
     async def drop_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
         await conn.async_drop_collection(collection_name, timeout=timeout, **kwargs)
+        logger.debug("Successfully dropped collection: %s", collection_name)
 
     async def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
