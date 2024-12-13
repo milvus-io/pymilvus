@@ -1167,9 +1167,9 @@ class MilvusClient:
         conn = self._get_connection()
         conn.reset_db_name(db_name)
 
-    def create_database(self, db_name: str, **kwargs):
+    def create_database(self, db_name: str, properties: Optional[dict] = None, **kwargs):
         conn = self._get_connection()
-        conn.create_database(db_name, **kwargs)
+        conn.create_database(db_name, properties, **kwargs)
 
     def drop_database(self, db_name: str, **kwargs):
         conn = self._get_connection()
