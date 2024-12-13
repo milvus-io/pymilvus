@@ -7,7 +7,6 @@ from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
     ExceptionsMessage,
     ExtraList,
-    LoadState,
     OmitZeroDict,
     construct_cost_extra,
 )
@@ -157,7 +156,9 @@ class AsyncMilvusClient:
         await conn.async_drop_collection(collection_name, timeout=timeout, **kwargs)
         logger.debug("Successfully dropped collection: %s", collection_name)
 
-    async def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+    async def load_collection(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ):
         conn = self._get_connection()
         try:
             await conn.async_load_collection(collection_name, timeout=timeout, **kwargs)

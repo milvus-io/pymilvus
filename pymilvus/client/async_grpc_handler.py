@@ -1,39 +1,27 @@
 import asyncio
 import base64
 import copy
-import json
 import socket
-import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 from urllib import parse
 
 import grpc
 from grpc._cython import cygrpc
 
-from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure, upgrade_reminder
+from pymilvus.decorators import retry_on_rpc_failure, upgrade_reminder
 from pymilvus.exceptions import (
-    AmbiguousIndexName,
     DescribeCollectionException,
-    ErrorCode,
-    ExceptionsMessage,
     MilvusException,
     ParamError,
 )
-from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
+from pymilvus.grpc_gen import milvus_pb2_grpc
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils, utils
 from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, MutationResult, SearchResult
 from .async_interceptor import async_header_adder_interceptor
-from .asynch import (
-    CreateIndexFuture,
-    FlushFuture,
-    LoadPartitionsFuture,
-    MutationFuture,
-    SearchFuture,
-)
 from .check import (
     check_pass_param,
     is_legal_host,
@@ -42,26 +30,9 @@ from .check import (
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .prepare import Prepare
 from .types import (
-    BulkInsertState,
-    CompactionPlans,
-    CompactionState,
-    DatabaseInfo,
     DataType,
     ExtraList,
-    GrantInfo,
-    Group,
-    IndexState,
-    LoadState,
-    Plan,
-    PrivilegeGroupInfo,
-    Replica,
-    ResourceGroupConfig,
-    ResourceGroupInfo,
-    RoleInfo,
-    Shard,
-    State,
     Status,
-    UserInfo,
     get_cost_extra,
 )
 from .utils import (
@@ -71,6 +42,7 @@ from .utils import (
     is_successful,
     len_of,
 )
+
 
 class AsyncGrpcHandler:
     def __init__(
@@ -139,8 +111,10 @@ class AsyncGrpcHandler:
 
     def _wait_for_channel_ready(self, timeout: Union[float] = 10, retry_interval: float = 1):
         try:
+
             async def wait_for_async_channel_ready():
                 await self._async_channel.channel_ready()
+
             loop = asyncio.get_event_loop()
             loop.run_until_complete(wait_for_async_channel_ready())
 
@@ -323,7 +297,9 @@ class AsyncGrpcHandler:
 
         raise DescribeCollectionException(status.code, status.reason, status.error_code)
 
-    async def _async_get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+    async def _async_get_info(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ):
         schema = kwargs.get("schema")
         if not schema:
             schema = await self.async_describe_collection(collection_name, timeout=timeout)
@@ -420,7 +396,9 @@ class AsyncGrpcHandler:
 
         schema = kwargs.get("schema")
         if not schema:
-            schema = await self.async_describe_collection(collection_name, timeout=timeout, **kwargs)
+            schema = await self.async_describe_collection(
+                collection_name, timeout=timeout, **kwargs
+            )
 
         fields_info = schema["fields"]
 
@@ -627,7 +605,9 @@ class AsyncGrpcHandler:
         index_name = kwargs.pop("index_name", Config.IndexName)
         copy_kwargs = copy.deepcopy(kwargs)
 
-        collection_desc = await self.async_describe_collection(collection_name, timeout=timeout, **copy_kwargs)
+        collection_desc = await self.async_describe_collection(
+            collection_name, timeout=timeout, **copy_kwargs
+        )
 
         valid_field = False
         for fields in collection_desc["fields"]:
@@ -714,6 +694,7 @@ class AsyncGrpcHandler:
     @upgrade_reminder
     def __async_internal_register(self, user: str, host: str, **kwargs) -> int:
         req = Prepare.register_request(user, host)
+
         async def wait_for_connect_response():
             return await self._async_stub.Connect(request=req)
 
