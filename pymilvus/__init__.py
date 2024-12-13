@@ -73,6 +73,7 @@ from .settings import Config as DefaultConfig
 
 __all__ = [
     "AnnSearchRequest",
+    "AsyncMilvusClient",
     "BulkInsertState",
     "Collection",
     "CollectionSchema",
@@ -90,7 +91,6 @@ __all__ = [
     "IndexType",
     "Milvus",
     "MilvusClient",
-    "AsyncMilvusClient",
     "MilvusException",
     "MilvusUnavailableException",
     "MutationFuture",

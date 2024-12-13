@@ -16,9 +16,9 @@ from pymilvus.exceptions import (
     ParamError,
     PrimaryKeyException,
 )
-from pymilvus.orm import async_utility
-from pymilvus.orm.async_connections import connections
+from pymilvus.orm import utility
 from pymilvus.orm.collection import CollectionSchema
+from pymilvus.orm.connections import connections
 from pymilvus.orm.types import DataType
 
 from .index import IndexParams
@@ -41,7 +41,7 @@ class AsyncMilvusClient:
         self._using = self._create_connection(
             uri, user, password, db_name, token, timeout=timeout, **kwargs
         )
-        self.is_self_hosted = bool(async_utility.get_server_type(using=self._using) == "milvus")
+        self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
 
     async def create_collection(
         self,
@@ -535,7 +535,9 @@ class AsyncMilvusClient:
         # TODO: Implement reuse with new uri style
         using = uuid4().hex
         try:
-            connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
+            connections.connect(
+                using, user, password, db_name, token, uri=uri, _async=True, **kwargs
+            )
         except Exception as ex:
             logger.error("Failed to create new connection using: %s", using)
             raise ex from ex
