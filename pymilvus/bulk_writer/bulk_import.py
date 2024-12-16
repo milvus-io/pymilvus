@@ -78,6 +78,7 @@ def _get_request(
 def bulk_import(
     url: str,
     collection_name: str,
+    db_name: str = "default",
     files: Optional[List[List[str]]] = None,
     object_url: str = "",
     cluster_id: str = "",
@@ -91,6 +92,7 @@ def bulk_import(
     Args:
         url (str): url of the server
         collection_name (str): name of the target collection
+        db_name (str): name of target database
         partition_name (str): name of the target partition
         files (list of list of str): The files that contain the data to import.
              A sub-list contains a single JSON or Parquet file, or a set of Numpy files.
@@ -110,6 +112,7 @@ def bulk_import(
     partition_name = kwargs.pop("partition_name", "")
     params = {
         "collectionName": collection_name,
+        "dbName": db_name,
         "partitionName": partition_name,
         "files": files,
         "objectUrl": object_url,
