@@ -28,6 +28,9 @@ logger.setLevel(logging.DEBUG)
 
 
 class AsyncMilvusClient:
+    """AsyncMilvusClient is an EXPERIMENTAL class
+    which only provides part of MilvusClient's methods"""
+
     def __init__(
         self,
         uri: str = "http://localhost:19530",
@@ -58,7 +61,7 @@ class AsyncMilvusClient:
         **kwargs,
     ):
         if schema is None:
-            return await self._async_fast_create_collection(
+            return await self._fast_create_collection(
                 collection_name,
                 dimension,
                 primary_field_name=primary_field_name,
@@ -70,11 +73,11 @@ class AsyncMilvusClient:
                 **kwargs,
             )
 
-        return await self._async_create_collection_with_schema(
+        return await self._create_collection_with_schema(
             collection_name, schema, index_params, timeout=timeout, **kwargs
         )
 
-    async def _async_fast_create_collection(
+    async def _fast_create_collection(
         self,
         collection_name: str,
         dimension: int,
@@ -125,7 +128,7 @@ class AsyncMilvusClient:
         await self.create_index(collection_name, index_params, timeout=timeout)
         await self.load_collection(collection_name, timeout=timeout)
 
-    async def _async_create_collection_with_schema(
+    async def _create_collection_with_schema(
         self,
         collection_name: str,
         schema: CollectionSchema,
@@ -139,7 +142,7 @@ class AsyncMilvusClient:
         if "consistency_level" not in kwargs:
             kwargs["consistency_level"] = DEFAULT_CONSISTENCY_LEVEL
         try:
-            await conn.async_create_collection(collection_name, schema, timeout=timeout, **kwargs)
+            await conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
             logger.debug("Successfully created collection: %s", collection_name)
         except Exception as ex:
             logger.error("Failed to create collection: %s", collection_name)
@@ -153,7 +156,7 @@ class AsyncMilvusClient:
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
-        await conn.async_drop_collection(collection_name, timeout=timeout, **kwargs)
+        await conn.drop_collection(collection_name, timeout=timeout, **kwargs)
         logger.debug("Successfully dropped collection: %s", collection_name)
 
     async def load_collection(
@@ -161,7 +164,7 @@ class AsyncMilvusClient:
     ):
         conn = self._get_connection()
         try:
-            await conn.async_load_collection(collection_name, timeout=timeout, **kwargs)
+            await conn.load_collection(collection_name, timeout=timeout, **kwargs)
         except MilvusException as ex:
             logger.error("Failed to load collection: %s", collection_name)
             raise ex from ex
@@ -174,9 +177,9 @@ class AsyncMilvusClient:
         **kwargs,
     ):
         for index_param in index_params:
-            await self._async_create_index(collection_name, index_param, timeout=timeout, **kwargs)
+            await self._create_index(collection_name, index_param, timeout=timeout, **kwargs)
 
-    async def _async_create_index(
+    async def _create_index(
         self, collection_name: str, index_param: Dict, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
@@ -185,7 +188,7 @@ class AsyncMilvusClient:
             field_name = index_param.pop("field_name", "")
             index_name = index_param.pop("index_name", "")
             params.update(index_param)
-            await conn.async_create_index(
+            await conn.create_index(
                 collection_name,
                 field_name,
                 params,
@@ -222,7 +225,7 @@ class AsyncMilvusClient:
         conn = self._get_connection()
         # Insert into the collection.
         try:
-            res = await conn.async_insert_rows(
+            res = await conn.insert_rows(
                 collection_name, data, partition_name=partition_name, timeout=timeout
             )
         except Exception as ex:
@@ -259,7 +262,7 @@ class AsyncMilvusClient:
         conn = self._get_connection()
         # Upsert into the collection.
         try:
-            res = await conn.async_upsert_rows(
+            res = await conn.upsert_rows(
                 collection_name, data, partition_name=partition_name, timeout=timeout, **kwargs
             )
         except Exception as ex:
@@ -286,7 +289,7 @@ class AsyncMilvusClient:
 
         conn = self._get_connection()
         try:
-            res = await conn.async_hybrid_search(
+            res = await conn.hybrid_search(
                 collection_name,
                 reqs,
                 ranker,
@@ -321,7 +324,7 @@ class AsyncMilvusClient:
     ) -> List[List[dict]]:
         conn = self._get_connection()
         try:
-            res = await conn.async_search(
+            res = await conn.search(
                 collection_name,
                 data,
                 anns_field or "",
@@ -380,7 +383,7 @@ class AsyncMilvusClient:
             output_fields = ["*"]
 
         try:
-            res = await conn.async_query(
+            res = await conn.query(
                 collection_name,
                 expr=filter,
                 output_fields=output_fields,
@@ -412,9 +415,7 @@ class AsyncMilvusClient:
 
         conn = self._get_connection()
         try:
-            schema_dict = await conn.async_describe_collection(
-                collection_name, timeout=timeout, **kwargs
-            )
+            schema_dict = await conn.describe_collection(collection_name, timeout=timeout, **kwargs)
         except Exception as ex:
             logger.error("Failed to describe collection: %s", collection_name)
             raise ex from ex
@@ -424,7 +425,7 @@ class AsyncMilvusClient:
 
         expr = self._pack_pks_expr(schema_dict, ids)
         try:
-            res = await conn.async_query(
+            res = await conn.query(
                 collection_name,
                 expr=expr,
                 output_fields=output_fields,
@@ -477,7 +478,7 @@ class AsyncMilvusClient:
         conn = self._get_connection()
         if len(pks) > 0:
             try:
-                schema_dict = await conn.async_describe_collection(
+                schema_dict = await conn.describe_collection(
                     collection_name, timeout=timeout, **kwargs
                 )
             except Exception as ex:
@@ -491,7 +492,7 @@ class AsyncMilvusClient:
 
         ret_pks = []
         try:
-            res = await conn.async_delete(
+            res = await conn.delete(
                 collection_name=collection_name,
                 expression=expr,
                 partition_name=partition_name,

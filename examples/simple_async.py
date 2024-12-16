@@ -16,8 +16,6 @@ default_limit = 3
 collection_name = "hello_milvus"
 rng = np.random.default_rng(seed=19530)
 
-# milvus_client = MilvusClient("http://localhost:19530")
-# async_milvus_client = AsyncMilvusClient("http://localhost:19530")
 milvus_client = MilvusClient("example.db")
 async_milvus_client = AsyncMilvusClient("example.db")
 

@@ -223,7 +223,7 @@ class AsyncGrpcHandler:
 
     def _setup_identifier_interceptor(self, user: str, timeout: int = 10):
         host = socket.gethostname()
-        self._identifier = self.__async_internal_register(user, host, timeout=timeout)
+        self._identifier = self.__internal_register(user, host, timeout=timeout)
         _async_identifier_interceptor = async_header_adder_interceptor(
             ["identifier"], [str(self._identifier)]
         )
@@ -238,7 +238,7 @@ class AsyncGrpcHandler:
         return get_server_type(self.server_address.split(":")[0])
 
     @retry_on_rpc_failure()
-    async def async_create_collection(
+    async def create_collection(
         self, collection_name: str, fields: List, timeout: Optional[float] = None, **kwargs
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
@@ -247,14 +247,14 @@ class AsyncGrpcHandler:
         check_status(response)
 
     @retry_on_rpc_failure()
-    async def async_drop_collection(self, collection_name: str, timeout: Optional[float] = None):
+    async def drop_collection(self, collection_name: str, timeout: Optional[float] = None):
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_collection_request(collection_name)
         response = await self._async_stub.DropCollection(request, timeout=timeout)
         check_status(response)
 
     @retry_on_rpc_failure()
-    async def async_load_collection(
+    async def load_collection(
         self,
         collection_name: str,
         replica_number: int = 1,
@@ -284,7 +284,7 @@ class AsyncGrpcHandler:
         check_status(response)
 
     @retry_on_rpc_failure()
-    async def async_describe_collection(
+    async def describe_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
@@ -297,12 +297,10 @@ class AsyncGrpcHandler:
 
         raise DescribeCollectionException(status.code, status.reason, status.error_code)
 
-    async def _async_get_info(
-        self, collection_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    async def _get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         schema = kwargs.get("schema")
         if not schema:
-            schema = await self.async_describe_collection(collection_name, timeout=timeout)
+            schema = await self.describe_collection(collection_name, timeout=timeout)
 
         fields_info = schema.get("fields")
         enable_dynamic = schema.get("enable_dynamic_field", False)
@@ -310,7 +308,7 @@ class AsyncGrpcHandler:
         return fields_info, enable_dynamic
 
     @retry_on_rpc_failure()
-    async def async_insert_rows(
+    async def insert_rows(
         self,
         collection_name: str,
         entities: Union[Dict, List[Dict]],
@@ -319,7 +317,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        request = await self._async_prepare_row_insert_request(
+        request = await self._prepare_row_insert_request(
             collection_name, entities, partition_name, schema, timeout, **kwargs
         )
         resp = await self._async_stub.Insert(request=request, timeout=timeout)
@@ -327,7 +325,7 @@ class AsyncGrpcHandler:
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
         return MutationResult(resp)
 
-    async def _async_prepare_row_insert_request(
+    async def _prepare_row_insert_request(
         self,
         collection_name: str,
         entity_rows: Union[List[Dict], Dict],
@@ -340,7 +338,7 @@ class AsyncGrpcHandler:
             entity_rows = [entity_rows]
 
         if not isinstance(schema, dict):
-            schema = await self.async_describe_collection(collection_name, timeout=timeout)
+            schema = await self.describe_collection(collection_name, timeout=timeout)
 
         fields_info = schema.get("fields")
         enable_dynamic = schema.get("enable_dynamic_field", False)
@@ -353,7 +351,7 @@ class AsyncGrpcHandler:
             enable_dynamic=enable_dynamic,
         )
 
-    async def async_delete(
+    async def delete(
         self,
         collection_name: str,
         expression: str,
@@ -380,7 +378,7 @@ class AsyncGrpcHandler:
         else:
             return m
 
-    async def _async_prepare_batch_upsert_request(
+    async def _prepare_batch_upsert_request(
         self,
         collection_name: str,
         entities: List,
@@ -396,9 +394,7 @@ class AsyncGrpcHandler:
 
         schema = kwargs.get("schema")
         if not schema:
-            schema = await self.async_describe_collection(
-                collection_name, timeout=timeout, **kwargs
-            )
+            schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
         fields_info = schema["fields"]
 
@@ -409,7 +405,7 @@ class AsyncGrpcHandler:
         )
 
     @retry_on_rpc_failure()
-    async def async_upsert(
+    async def upsert(
         self,
         collection_name: str,
         entities: List,
@@ -421,7 +417,7 @@ class AsyncGrpcHandler:
             raise ParamError(message="Invalid binary vector data exists")
 
         try:
-            request = await self._async_prepare_batch_upsert_request(
+            request = await self._prepare_batch_upsert_request(
                 collection_name, entities, partition_name, timeout, **kwargs
             )
             response = await self._async_stub.Upsert(request, timeout=timeout)
@@ -433,7 +429,7 @@ class AsyncGrpcHandler:
         else:
             return m
 
-    async def _async_prepare_row_upsert_request(
+    async def _prepare_row_upsert_request(
         self,
         collection_name: str,
         rows: List,
@@ -444,7 +440,7 @@ class AsyncGrpcHandler:
         if not isinstance(rows, list):
             raise ParamError(message="'rows' must be a list, please provide valid row data.")
 
-        fields_info, enable_dynamic = await self._async_get_info(collection_name, timeout, **kwargs)
+        fields_info, enable_dynamic = await self._get_info(collection_name, timeout, **kwargs)
         return Prepare.row_upsert_param(
             collection_name,
             rows,
@@ -454,7 +450,7 @@ class AsyncGrpcHandler:
         )
 
     @retry_on_rpc_failure()
-    async def async_upsert_rows(
+    async def upsert_rows(
         self,
         collection_name: str,
         entities: List,
@@ -464,7 +460,7 @@ class AsyncGrpcHandler:
     ):
         if isinstance(entities, dict):
             entities = [entities]
-        request = await self._async_prepare_row_upsert_request(
+        request = await self._prepare_row_upsert_request(
             collection_name, entities, partition_name, timeout, **kwargs
         )
         response = await self._async_stub.Upsert(request, timeout=timeout)
@@ -473,7 +469,7 @@ class AsyncGrpcHandler:
         ts_utils.update_collection_ts(collection_name, m.timestamp)
         return m
 
-    async def _async_execute_search(
+    async def _execute_search(
         self, request: milvus_types.SearchRequest, timeout: Optional[float] = None, **kwargs
     ):
         try:
@@ -489,7 +485,7 @@ class AsyncGrpcHandler:
         except Exception as e:
             raise e from e
 
-    async def _async_execute_hybrid_search(
+    async def _execute_hybrid_search(
         self, request: milvus_types.HybridSearchRequest, timeout: Optional[float] = None, **kwargs
     ):
         try:
@@ -502,7 +498,7 @@ class AsyncGrpcHandler:
             raise e from e
 
     @retry_on_rpc_failure()
-    async def async_search(
+    async def search(
         self,
         collection_name: str,
         data: Union[List[List[float]], utils.SparseMatrixInputType],
@@ -538,12 +534,10 @@ class AsyncGrpcHandler:
             round_decimal,
             **kwargs,
         )
-        return await self._async_execute_search(
-            request, timeout, round_decimal=round_decimal, **kwargs
-        )
+        return await self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
 
     @retry_on_rpc_failure()
-    async def async_hybrid_search(
+    async def hybrid_search(
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
@@ -589,12 +583,12 @@ class AsyncGrpcHandler:
             round_decimal,
             **kwargs,
         )
-        return await self._async_execute_hybrid_search(
+        return await self._execute_hybrid_search(
             hybrid_search_request, timeout, round_decimal=round_decimal, **kwargs
         )
 
     @retry_on_rpc_failure()
-    async def async_create_index(
+    async def create_index(
         self,
         collection_name: str,
         field_name: str,
@@ -605,7 +599,7 @@ class AsyncGrpcHandler:
         index_name = kwargs.pop("index_name", Config.IndexName)
         copy_kwargs = copy.deepcopy(kwargs)
 
-        collection_desc = await self.async_describe_collection(
+        collection_desc = await self.describe_collection(
             collection_name, timeout=timeout, **copy_kwargs
         )
 
@@ -636,7 +630,7 @@ class AsyncGrpcHandler:
         return Status(status.code, status.reason)
 
     @retry_on_rpc_failure()
-    async def async_get(
+    async def get(
         self,
         collection_name: str,
         ids: List[int],
@@ -646,10 +640,10 @@ class AsyncGrpcHandler:
     ):
         # TODO: some check
         request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
-        return await self._async_stub.Retrieve.async_get(request, timeout=timeout)
+        return await self._async_stub.Retrieve.get(request, timeout=timeout)
 
     @retry_on_rpc_failure()
-    async def async_query(
+    async def query(
         self,
         collection_name: str,
         expr: str,
@@ -692,7 +686,7 @@ class AsyncGrpcHandler:
 
     @retry_on_rpc_failure()
     @upgrade_reminder
-    def __async_internal_register(self, user: str, host: str, **kwargs) -> int:
+    def __internal_register(self, user: str, host: str, **kwargs) -> int:
         req = Prepare.register_request(user, host)
 
         async def wait_for_connect_response():
