@@ -13,8 +13,10 @@ from pymilvus.client.types import (
     OmitZeroDict,
     construct_cost_extra,
 )
+from pymilvus.client.utils import is_vector_type
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
+    ErrorCode,
     MilvusException,
     ParamError,
     PrimaryKeyException,
@@ -22,6 +24,8 @@ from pymilvus.exceptions import (
 from pymilvus.orm import utility
 from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
+from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
+from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
 from .index import IndexParams
@@ -479,6 +483,126 @@ class MilvusClient:
             raise ex from ex
 
         return res
+
+    def query_iterator(
+        self,
+        collection_name: str,
+        batch_size: Optional[int] = 1000,
+        limit: Optional[int] = UNLIMITED,
+        filter: Optional[str] = "",
+        output_fields: Optional[List[str]] = None,
+        partition_names: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        if filter is not None and not isinstance(filter, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+
+        conn = self._get_connection()
+        # set up schema for iterator
+        try:
+            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to describe collection: %s", collection_name)
+            raise ex from ex
+
+        return QueryIterator(
+            connection=conn,
+            collection_name=collection_name,
+            batch_size=batch_size,
+            limit=limit,
+            expr=filter,
+            output_fields=output_fields,
+            partition_names=partition_names,
+            schema=schema_dict,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def search_iterator(
+        self,
+        collection_name: str,
+        data: Union[List[list], list],
+        batch_size: Optional[int] = 1000,
+        filter: Optional[str] = None,
+        limit: Optional[int] = UNLIMITED,
+        output_fields: Optional[List[str]] = None,
+        search_params: Optional[dict] = None,
+        timeout: Optional[float] = None,
+        partition_names: Optional[List[str]] = None,
+        anns_field: Optional[str] = None,
+        round_decimal: int = -1,
+        **kwargs,
+    ):
+        if filter is not None and not isinstance(filter, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+
+        conn = self._get_connection()
+        # set up schema for iterator
+        try:
+            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to describe collection: %s", collection_name)
+            raise ex from ex
+        # if anns_field is not provided
+        # if only one vector field, use to search
+        # if multiple vector fields, raise exception and abort
+        if anns_field is None or anns_field == "":
+            vec_field = None
+            fields = schema_dict[FIELDS]
+            vec_field_count = 0
+            for field in fields:
+                if is_vector_type(field[TYPE]):
+                    vec_field_count += 1
+                    vec_field = field
+            if vec_field is None:
+                raise MilvusException(
+                    code=ErrorCode.UNEXPECTED_ERROR,
+                    message="there should be at least one vector field in milvus collection",
+                )
+            if vec_field_count > 1:
+                raise MilvusException(
+                    code=ErrorCode.UNEXPECTED_ERROR,
+                    message="must specify anns_field when there are more than one vector field",
+                )
+            anns_field = vec_field["name"]
+            if anns_field is None or anns_field == "":
+                raise MilvusException(
+                    code=ErrorCode.UNEXPECTED_ERROR,
+                    message=f"cannot get anns_field name for search iterator, got:{anns_field}",
+                )
+        # set up metrics type for search_iterator which is mandatory
+        if search_params is None:
+            search_params = {}
+        if METRIC_TYPE not in search_params:
+            indexes = conn.list_indexes(collection_name)
+            for index in indexes:
+                if anns_field == index.index_name:
+                    params = index.params
+                    for param in params:
+                        if param.key == METRIC_TYPE:
+                            search_params[METRIC_TYPE] = param.value
+        if METRIC_TYPE not in search_params:
+            raise MilvusException(
+                ParamError, f"Cannot set up metrics type for anns_field:{anns_field}"
+            )
+
+        return SearchIterator(
+            connection=self._get_connection(),
+            collection_name=collection_name,
+            data=data,
+            ann_field=anns_field,
+            param=search_params,
+            batch_size=batch_size,
+            limit=limit,
+            expr=filter,
+            partition_names=partition_names,
+            output_fields=output_fields,
+            timeout=timeout,
+            round_decimal=round_decimal,
+            schema=schema_dict,
+            **kwargs,
+        )
 
     def get(
         self,
