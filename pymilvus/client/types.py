@@ -979,6 +979,12 @@ class DatabaseInfo:
     def __str__(self) -> str:
         return f"DatabaseInfo(name={self.name}, properties={self.properties})"
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts the DatabaseInfo instance to a dictionary."""
+        result = {"name": self.name}
+        result.update(self.properties)
+        return result
+
 
 class ExtraList(list):
     """

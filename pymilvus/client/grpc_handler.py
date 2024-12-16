@@ -1399,7 +1399,7 @@ class GrpcHandler:
         request = Prepare.describe_database_req(db_name=db_name)
         resp = self._stub.DescribeDatabase(request, timeout=timeout)
         check_status(resp.status)
-        return DatabaseInfo(resp)
+        return DatabaseInfo(resp).to_dict()
 
     @retry_on_rpc_failure()
     def get_load_state(
