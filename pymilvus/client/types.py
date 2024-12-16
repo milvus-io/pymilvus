@@ -1023,4 +1023,6 @@ class DatabaseInfo:
 
     def to_dict(self) -> Dict[str, Any]:
         """Converts the DatabaseInfo instance to a dictionary."""
-        return {"name": self.name, "properties": self.properties}
+        result = {"name": self.name}
+        result.update(self.properties)
+        return result
