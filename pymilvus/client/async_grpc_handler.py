@@ -27,7 +27,6 @@ from .check import (
     is_legal_host,
     is_legal_port,
 )
-from .constants import ITERATOR_SESSION_TS_FIELD
 from .prepare import Prepare
 from .types import (
     DataType,
@@ -480,7 +479,6 @@ class AsyncGrpcHandler:
                 response.results,
                 round_decimal,
                 status=response.status,
-                session_ts=response.session_ts,
             )
         except Exception as e:
             raise e from e
@@ -681,7 +679,6 @@ class AsyncGrpcHandler:
             results.append(entity_row_data)
 
         extra_dict = get_cost_extra(response.status)
-        extra_dict[ITERATOR_SESSION_TS_FIELD] = response.session_ts
         return ExtraList(results, extra=extra_dict)
 
     @retry_on_rpc_failure()
