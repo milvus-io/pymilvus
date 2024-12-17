@@ -18,6 +18,7 @@ import time
 from typing import Callable, Tuple, Union
 from urllib import parse
 
+from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
 from pymilvus.client.grpc_handler import GrpcHandler
 from pymilvus.exceptions import (
@@ -303,6 +304,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         password: str = "",
         db_name: str = "default",
         token: str = "",
+        _async: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -357,7 +359,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
         """
-
         if kwargs.get("uri") and parse.urlparse(kwargs["uri"]).scheme.lower() not in [
             "unix",
             "http",
@@ -394,7 +395,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         kwargs_copy["token"] = token
 
         def connect_milvus(**kwargs):
-            gh = GrpcHandler(**kwargs)
+            gh = GrpcHandler(**kwargs) if not _async else AsyncGrpcHandler(**kwargs)
 
             t = kwargs.get("timeout")
             timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
@@ -532,7 +533,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
         return alias in self._connected_alias
 
-    def _fetch_handler(self, alias: str = Config.MILVUS_CONN_ALIAS) -> GrpcHandler:
+    def _fetch_handler(
+        self, alias: str = Config.MILVUS_CONN_ALIAS
+    ) -> Union[GrpcHandler, AsyncGrpcHandler]:
         """Retrieves a GrpcHandler by alias."""
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
