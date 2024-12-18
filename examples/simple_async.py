@@ -31,6 +31,7 @@ index_params = milvus_client.prepare_index_params()
 index_params.add_index(field_name = "embeddings", index_type = "HNSW", metric_type="L2", nlist=128)
 index_params.add_index(field_name = "embeddings2",index_type = "HNSW", metric_type="L2", nlist=128)
 
+# Always use `await` when you want to guarantee the execution order of tasks.
 async def recreate_collection():
     print(fmt.format("Start dropping collection"))
     await async_milvus_client.drop_collection(collection_name)
