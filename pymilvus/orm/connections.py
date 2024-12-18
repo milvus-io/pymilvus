@@ -18,6 +18,7 @@ import time
 from typing import Callable, Tuple, Union
 from urllib import parse
 
+from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
 from pymilvus.client.grpc_handler import GrpcHandler
 from pymilvus.exceptions import (
@@ -303,6 +304,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         password: str = "",
         db_name: str = "default",
         token: str = "",
+        _async: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -357,7 +359,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
             >>> from pymilvus import connections
             >>> connections.connect("test", host="localhost", port="19530")
         """
-
         if kwargs.get("uri") and parse.urlparse(kwargs["uri"]).scheme.lower() not in [
             "unix",
             "http",
@@ -370,16 +371,17 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 raise ConnectionConfigException(
                     message=f"uri: {kwargs['uri']} is illegal, needs start with [unix, http, https, tcp] or a local file endswith [.db]"
                 )
-
+            logger.info(f"Pass in the local path {kwargs['uri']}, and run it using milvus-lite")
             parent_path = pathlib.Path(kwargs["uri"]).parent
             if not parent_path.is_dir():
                 raise ConnectionConfigException(
-                    message=f"Open local milvus failed, dir: {parent_path} is not exists"
+                    message=f"Open local milvus failed, dir: {parent_path} not exists"
                 )
 
-            from milvus_lite.server_manager import server_manager_instance
+            from milvus_lite.server_manager import (
+                server_manager_instance,
+            )
 
-            logger.info(f"Pass in the local path {kwargs['uri']}, and run it using milvus-lite")
             local_uri = server_manager_instance.start_and_get_uri(kwargs["uri"])
             if local_uri is None:
                 raise ConnectionConfigException(message="Open local milvus failed")
@@ -393,7 +395,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         kwargs_copy["token"] = token
 
         def connect_milvus(**kwargs):
-            gh = GrpcHandler(**kwargs)
+            gh = GrpcHandler(**kwargs) if not _async else AsyncGrpcHandler(**kwargs)
 
             t = kwargs.get("timeout")
             timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
@@ -531,7 +533,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
         return alias in self._connected_alias
 
-    def _fetch_handler(self, alias: str = Config.MILVUS_CONN_ALIAS) -> GrpcHandler:
+    def _fetch_handler(
+        self, alias: str = Config.MILVUS_CONN_ALIAS
+    ) -> Union[GrpcHandler, AsyncGrpcHandler]:
         """Retrieves a GrpcHandler by alias."""
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
