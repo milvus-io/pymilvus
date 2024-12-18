@@ -379,3 +379,26 @@ SparseMatrixInputType = Union[
     "csr_array",
     "spmatrix",
 ]
+
+
+def is_sparse_vector_type(data_type: DataType) -> bool:
+    return data_type == data_type.SPARSE_FLOAT_VECTOR
+
+
+dense_vector_type_set = {DataType.FLOAT_VECTOR, DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}
+
+
+def is_dense_vector_type(data_type: DataType) -> bool:
+    return data_type in dense_vector_type_set
+
+
+def is_float_vector_type(data_type: DataType):
+    return is_sparse_vector_type(data_type) or is_dense_vector_type(data_type)
+
+
+def is_binary_vector_type(data_type: DataType):
+    return data_type == DataType.BINARY_VECTOR
+
+
+def is_vector_type(data_type: DataType):
+    return is_float_vector_type(data_type) or is_binary_vector_type(data_type)
