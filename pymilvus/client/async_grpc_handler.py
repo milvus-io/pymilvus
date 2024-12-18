@@ -19,7 +19,7 @@ from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import milvus_pb2_grpc
 from pymilvus.settings import Config
 
-from . import entity_helper, interceptor, ts_utils, utils
+from . import entity_helper, ts_utils, utils
 from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, MutationResult, SearchResult
 from .async_interceptor import async_header_adder_interceptor
 from .check import (
@@ -62,8 +62,8 @@ class AsyncGrpcHandler:
         self._request_id = None
         self._user = kwargs.get("user")
         self._set_authorization(**kwargs)
-        self._setup_db_interceptor(kwargs.get("db_name"))
-        self._setup_grpc_channel()  # init channel and stub
+        self._setup_db_name(kwargs.get("db_name"))
+        self._setup_grpc_channel(**kwargs)
         self.callbacks = []
 
     def register_state_change_callback(self, callback: Callable):
@@ -96,12 +96,7 @@ class AsyncGrpcHandler:
         self._server_pem_path = kwargs.get("server_pem_path", "")
         self._server_name = kwargs.get("server_name", "")
 
-        self._authorization_interceptor = None
-        self._setup_authorization_interceptor(
-            kwargs.get("user"),
-            kwargs.get("password"),
-            kwargs.get("token"),
-        )
+        self._async_authorization_interceptor = None
 
     def __enter__(self):
         return self
@@ -132,7 +127,7 @@ class AsyncGrpcHandler:
         self._async_channel.close()
 
     def reset_db_name(self, db_name: str):
-        self._setup_db_interceptor(db_name)
+        self._setup_db_name(db_name)
         self._setup_grpc_channel()
         self._setup_identifier_interceptor(self._user)
 
@@ -148,16 +143,19 @@ class AsyncGrpcHandler:
             keys.append("authorization")
             values.append(authorization)
         if len(keys) > 0 and len(values) > 0:
-            self._authorization_interceptor = interceptor.header_adder_interceptor(keys, values)
+            self._async_authorization_interceptor = async_header_adder_interceptor(keys, values)
+            self._final_channel._unary_unary_interceptors.append(
+                self._async_authorization_interceptor
+            )
 
-    def _setup_db_interceptor(self, db_name: str):
+    def _setup_db_name(self, db_name: str):
         if db_name is None:
-            self._db_interceptor = None
+            self._db_name = None
         else:
             check_pass_param(db_name=db_name)
-            self._db_interceptor = interceptor.header_adder_interceptor(["dbname"], [db_name])
+            self._db_name = db_name
 
-    def _setup_grpc_channel(self):
+    def _setup_grpc_channel(self, **kwargs):
         if self._async_channel is None:
             opts = [
                 (cygrpc.ChannelArgKey.max_send_message_length, -1),
@@ -203,21 +201,31 @@ class AsyncGrpcHandler:
 
         # avoid to add duplicate headers.
         self._final_channel = self._async_channel
-        if self._log_level:
 
+        if self._async_authorization_interceptor:
+            self._final_channel._unary_unary_interceptors.append(
+                self._async_authorization_interceptor
+            )
+        else:
+            self._setup_authorization_interceptor(
+                kwargs.get("user"),
+                kwargs.get("password"),
+                kwargs.get("token"),
+            )
+        if self._db_name:
+            async_db_interceptor = async_header_adder_interceptor(["dbname"], [self._db_name])
+            self._final_channel._unary_unary_interceptors.append(async_db_interceptor)
+        if self._log_level:
             async_log_level_interceptor = async_header_adder_interceptor(
                 ["log_level"], [self._log_level]
             )
             self._final_channel._unary_unary_interceptors.append(async_log_level_interceptor)
-
             self._log_level = None
         if self._request_id:
-
             async_request_id_interceptor = async_header_adder_interceptor(
                 ["client_request_id"], [self._request_id]
             )
             self._final_channel._unary_unary_interceptors.append(async_request_id_interceptor)
-
             self._request_id = None
         self._async_stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
 
