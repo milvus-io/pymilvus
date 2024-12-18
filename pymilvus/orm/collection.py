@@ -343,7 +343,6 @@ class Collection:
 
     def set_properties(self, properties: dict, timeout: Optional[float] = None, **kwargs):
         """Set properties for the collection
-
         Args:
             properties (``dict``): collection properties.
                  support collection TTL with key `collection.ttl.seconds`
@@ -352,7 +351,6 @@ class Collection:
             timeout (float, optional): an optional duration of time in seconds to allow
                 for the RPCs. If timeout is not set, the client keeps waiting until the
                 server responds or an error occurs.
-
         Examples:
             >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> fields = [
@@ -364,7 +362,7 @@ class Collection:
             >>> collection.set_properties({"collection.ttl.seconds": 60})
         """
         conn = self._get_connection()
-        conn.alter_collection(
+        conn.alter_collection_properties(
             self.name,
             properties=properties,
             timeout=timeout,
@@ -1379,20 +1377,16 @@ class Collection:
         timeout: Optional[float] = None,
     ):
         """Alter index for a specified field, with a index name.
-
         Args:
             index_name (``str``): The name of the index to alter
             extra_params (``dict``): The parameters to index
                 * *mmap.enabled* (``str``)
                     "mmap.enabled" as the key, example values: True or False.
-
             timeout (``float``, optional): An optional duration of time in seconds to allow
                 for the RPC. When timeout is set to None, client waits until server
                 response or error occur.
-
         Raises:
             MilvusException: If anything goes wrong.
-
         Examples:
             >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
             >>> from pymilvus import IndexType, MetricType
@@ -1409,10 +1403,10 @@ class Collection:
             ... }
             >>> collection.create_index("films", index_params, index_name="idx")
             Status(code=0, message='')
-            >>> collection.alter_index("idx", {"mmap.enabled": True})
+            >>> collection.alter_index_properties("idx", {"mmap.enabled": True})
         """
         conn = self._get_connection()
-        return conn.alter_index(self._name, index_name, extra_params, timeout=timeout)
+        return conn.alter_index_properties(self._name, index_name, extra_params, timeout=timeout)
 
     def has_index(self, timeout: Optional[float] = None, **kwargs) -> bool:
         """Check whether a specified index exists.
@@ -1563,17 +1557,26 @@ class Collection:
             )
         return conn.wait_for_compaction_completed(self.compaction_id, timeout=timeout, **kwargs)
 
-    def get_compaction_plans(self, timeout: Optional[float] = None, **kwargs) -> CompactionPlans:
+    def get_compaction_plans(
+        self, timeout: Optional[float] = None, is_clustering: Optional[bool] = False, **kwargs
+    ) -> CompactionPlans:
         """Get the current compaction plans
 
         Args:
             timeout (``float``, optional): An optional duration of time in seconds to allow
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur.
+
+            is_clustering (``bool``, optional): Option to get clustering compaction plan.
+
         Returns:
             CompactionPlans: All the plans' states of this compaction.
         """
         conn = self._get_connection()
+        if is_clustering:
+            return conn.get_compaction_plans(
+                self.clustering_compaction_id, timeout=timeout, **kwargs
+            )
         return conn.get_compaction_plans(self.compaction_id, timeout=timeout, **kwargs)
 
     def get_replicas(self, timeout: Optional[float] = None, **kwargs) -> Replica:

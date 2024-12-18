@@ -833,6 +833,72 @@ class MilvusClient:
         conn = self._get_connection()
         return conn.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
 
+    def alter_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        properties: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.alter_index_properties(
+            collection_name, index_name, properties=properties, timeout=timeout, **kwargs
+        )
+
+    def drop_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.drop_index_properties(
+            collection_name, index_name, property_keys=property_keys, timeout=timeout, **kwargs
+        )
+
+    def alter_collection_properties(
+        self, collection_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        conn.alter_collection_properties(
+            collection_name,
+            properties=properties,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def drop_collection_properties(
+        self,
+        collection_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.drop_collection_properties(
+            collection_name, property_keys=property_keys, timeout=timeout, **kwargs
+        )
+
+    def alter_collection_field(
+        self,
+        collection_name: str,
+        field_name: str,
+        field_params: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.alter_collection_field_properties(
+            collection_name,
+            field_name=field_name,
+            field_params=field_params,
+            timeout=timeout,
+            **kwargs,
+        )
+
     def create_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
@@ -1012,6 +1078,21 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        """Grant a privilege or a privilege group to a role.
+
+        Args:
+            role_name (``str``): The name of the role.
+            privilege (``str``): The privilege or privilege group to grant.
+            collection_name (``str``): The name of the collection.
+            db_name (``str``, optional): The name of the database. It will use default database
+                if not specified.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
         conn = self._get_connection()
         conn.grant_privilege_v2(
             role_name,
@@ -1031,6 +1112,21 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        """Revoke a privilege or a privilege group from a role.
+
+        Args:
+            role_name (``str``): The name of the role.
+            privilege (``str``): The privilege or privilege group to revoke.
+            collection_name (``str``): The name of the collection.
+            db_name (``str``, optional): The name of the database. It will use default database
+                if not specified.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
         conn = self._get_connection()
         conn.revoke_privilege_v2(
             role_name,
@@ -1071,9 +1167,9 @@ class MilvusClient:
         conn = self._get_connection()
         conn.reset_db_name(db_name)
 
-    def create_database(self, db_name: str, **kwargs):
+    def create_database(self, db_name: str, properties: Optional[dict] = None, **kwargs):
         conn = self._get_connection()
-        conn.create_database(db_name, **kwargs)
+        conn.create_database(db_name, properties, **kwargs)
 
     def drop_database(self, db_name: str, **kwargs):
         conn = self._get_connection()
@@ -1082,6 +1178,18 @@ class MilvusClient:
     def list_databases(self, **kwargs) -> List[str]:
         conn = self._get_connection()
         return conn.list_database(**kwargs)
+
+    def describe_database(self, db_name: str, **kwargs) -> dict:
+        conn = self._get_connection()
+        return conn.describe_database(db_name, **kwargs)
+
+    def alter_database_properties(self, db_name: str, properties: dict, **kwargs):
+        conn = self._get_connection()
+        conn.alter_database(db_name, properties, **kwargs)
+
+    def drop_database_properties(self, db_name: str, property_keys: List[str], **kwargs):
+        conn = self._get_connection()
+        conn.drop_database_properties(db_name, property_keys, **kwargs)
 
     def flush(
         self,

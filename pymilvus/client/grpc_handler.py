@@ -320,11 +320,42 @@ class GrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
-    def alter_collection(
+    def alter_collection_properties(
         self, collection_name: str, properties: List, timeout: Optional[float] = None, **kwargs
     ):
         check_pass_param(collection_name=collection_name, properties=properties, timeout=timeout)
-        request = Prepare.alter_collection_request(collection_name, properties)
+        request = Prepare.alter_collection_request(collection_name, properties=properties)
+        rf = self._stub.AlterCollection.future(request, timeout=timeout)
+        status = rf.result()
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    def alter_collection_field_properties(
+        self,
+        collection_name: str,
+        field_name: str,
+        field_params: List,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, properties=field_params, timeout=timeout)
+        request = Prepare.alter_collection_field_request(
+            collection_name=collection_name, field_name=field_name, field_param=field_params
+        )
+        rf = self._stub.AlterCollectionField.future(request, timeout=timeout)
+        status = rf.result()
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    def drop_collection_properties(
+        self,
+        collection_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_collection_request(collection_name, delete_keys=property_keys)
         rf = self._stub.AlterCollection.future(request, timeout=timeout)
         status = rf.result()
         check_status(status)
@@ -1003,20 +1034,37 @@ class GrpcHandler:
         return Status(status.code, status.reason)
 
     @retry_on_rpc_failure()
-    def alter_index(
+    def alter_index_properties(
         self,
         collection_name: str,
         index_name: str,
-        extra_params: dict,
+        properties: dict,
         timeout: Optional[float] = None,
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
-        if extra_params is None:
-            raise ParamError(message="extra_params should not be None")
+        if properties is None:
+            raise ParamError(message="properties should not be None")
 
-        request = Prepare.alter_index_request(collection_name, index_name, extra_params)
+        request = Prepare.alter_index_properties_request(collection_name, index_name, properties)
 
+        rf = self._stub.AlterIndex.future(request, timeout=timeout)
+        response = rf.result()
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    def drop_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
+        request = Prepare.drop_index_properties_request(
+            collection_name, index_name, delete_keys=property_keys
+        )
         rf = self._stub.AlterIndex.future(request, timeout=timeout)
         response = rf.result()
         check_status(response)
@@ -1311,8 +1359,14 @@ class GrpcHandler:
         return response.progress
 
     @retry_on_rpc_failure()
-    def create_database(self, db_name: str, timeout: Optional[float] = None, **kwargs):
-        request = Prepare.create_database_req(db_name, **kwargs)
+    def create_database(
+        self,
+        db_name: str,
+        properties: Optional[dict] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        request = Prepare.create_database_req(db_name, properties=properties, **kwargs)
         status = self._stub.CreateDatabase(request, timeout=timeout)
         check_status(status)
 
@@ -1333,7 +1387,15 @@ class GrpcHandler:
     def alter_database(
         self, db_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
     ):
-        request = Prepare.alter_database_req(db_name, properties)
+        request = Prepare.alter_database_properties_req(db_name, properties)
+        status = self._stub.AlterDatabase(request, timeout=timeout)
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    def drop_database_properties(
+        self, db_name: str, property_keys: List[str], timeout: Optional[float] = None, **kwargs
+    ):
+        request = Prepare.drop_database_properties_req(db_name, property_keys)
         status = self._stub.AlterDatabase(request, timeout=timeout)
         check_status(status)
 
@@ -1342,7 +1404,7 @@ class GrpcHandler:
         request = Prepare.describe_database_req(db_name=db_name)
         resp = self._stub.DescribeDatabase(request, timeout=timeout)
         check_status(resp.status)
-        return DatabaseInfo(resp)
+        return DatabaseInfo(resp).to_dict()
 
     @retry_on_rpc_failure()
     def get_load_state(
