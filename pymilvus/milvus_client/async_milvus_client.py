@@ -117,7 +117,7 @@ class AsyncMilvusClient:
         if "consistency_level" not in kwargs:
             kwargs["consistency_level"] = DEFAULT_CONSISTENCY_LEVEL
         try:
-            await conn.async_create_collection(collection_name, schema, timeout=timeout, **kwargs)
+            await conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
             logger.debug("Successfully created collection: %s", collection_name)
         except Exception as ex:
             logger.error("Failed to create collection: %s", collection_name)
