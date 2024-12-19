@@ -67,19 +67,8 @@ def print_res(result: List[List[dict]]):
 
 
 vector_to_search = rng.random((nq, DIM), np.float32)
-# just search_group_by, no group_size, only 1 entities per group
+# only 1 entity per group of AGE
 res = milvus_client.search(collection_name, data=vector_to_search, limit=10, anns_field=PICTURE,
                      output_fields=[USER_ID, AGE], group_by_field=AGE)
-print_res(res)
-
-# search_group_by, with group_size=3, but not strict_group_size, entity number in per group may be 1~3
-res = milvus_client.search(collection_name, data=vector_to_search, limit=10, anns_field=PICTURE,
-                     output_fields=[USER_ID, AGE], group_by_field=AGE, group_size=3)
-print_res(res)
-
-# search_group_by, with group_size=3, and strict_group_size=true, entity number
-# in per group will be exactly 3 if data's sufficient
-res = milvus_client.search(collection_name, data=vector_to_search, limit=10, anns_field=PICTURE,
-                     output_fields=[USER_ID, AGE], group_by_field=AGE, group_size=3, strict_group_size=True)
 print_res(res)
 
