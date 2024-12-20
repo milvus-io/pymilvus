@@ -1287,7 +1287,12 @@ class MilvusClient:
         conn = self._get_connection()
         return conn.list_aliases(collection_name, timeout=timeout, **kwargs)
 
+    # deprecated same to use_database
     def using_database(self, db_name: str, **kwargs):
+        conn = self._get_connection()
+        conn.reset_db_name(db_name)
+
+    def use_database(self, db_name: str, **kwargs):
         conn = self._get_connection()
         conn.reset_db_name(db_name)
 
