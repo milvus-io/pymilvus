@@ -997,7 +997,9 @@ class Prepare:
             placeholder_group=plg_str,
             dsl_type=common_types.DslType.BoolExprV1,
             search_params=req_params,
-            expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
+            expr_template_values=cls.prepare_expression_template(
+                {} if kwargs.get("expr_params") is None else kwargs.get("expr_params")
+            ),
         )
         if expr is not None:
             request.dsl = expr

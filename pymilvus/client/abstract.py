@@ -417,6 +417,7 @@ class AnnSearchRequest:
         param: Dict,
         limit: int,
         expr: Optional[str] = None,
+        expr_params: Optional[dict] = None,
     ):
         self._data = data
         self._anns_field = anns_field
@@ -426,6 +427,7 @@ class AnnSearchRequest:
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         self._expr = expr
+        self._expr_params = expr_params
 
     @property
     def data(self):
@@ -446,6 +448,10 @@ class AnnSearchRequest:
     @property
     def expr(self):
         return self._expr
+
+    @property
+    def expr_params(self):
+        return self._expr_params
 
     def __str__(self):
         return {

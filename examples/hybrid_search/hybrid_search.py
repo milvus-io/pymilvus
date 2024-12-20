@@ -79,14 +79,39 @@ for i in range(len(field_names)):
     req = AnnSearchRequest(**search_param)
     req_list.append(req)
 
+print(fmt.format("rank by WightedRanker"))
 hybrid_res = hello_milvus.hybrid_search(req_list, WeightedRanker(*weights), default_limit, output_fields=["random"])
-
-print("rank by WightedRanker")
 for hits in hybrid_res:
     for hit in hits:
         print(f" hybrid search hit: {hit}")
 
-print("rank by RRFRanker")
+print(fmt.format("rank by RRFRanker"))
+hybrid_res = hello_milvus.hybrid_search(req_list, RRFRanker(), default_limit, output_fields=["random"])
+for hits in hybrid_res:
+    for hit in hits:
+        print(f" hybrid search hit: {hit}")
+
+req_list = []
+for i in range(len(field_names)):
+    # 4. generate search data
+    vectors_to_search = rng.random((nq, dim))
+    search_param = {
+        "data": vectors_to_search,
+        "anns_field": field_names[i],
+        "param": {"metric_type": "L2"},
+        "limit": default_limit,
+        "expr": "random > {radius}",
+        "expr_params": {"radius": 0.5}}
+    req = AnnSearchRequest(**search_param)
+    req_list.append(req)
+
+print(fmt.format("rank by WightedRanker with expression template"))
+hybrid_res = hello_milvus.hybrid_search(req_list, WeightedRanker(*weights), default_limit, output_fields=["random"])
+for hits in hybrid_res:
+    for hit in hits:
+        print(f" hybrid search hit: {hit}")
+
+print(fmt.format("rank by RRFRanker with expression template"))
 hybrid_res = hello_milvus.hybrid_search(req_list, RRFRanker(), default_limit, output_fields=["random"])
 for hits in hybrid_res:
     for hit in hits:
