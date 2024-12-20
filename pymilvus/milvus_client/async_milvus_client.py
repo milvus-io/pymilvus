@@ -286,7 +286,6 @@ class AsyncMilvusClient:
         partition_names: Optional[List[str]] = None,
         **kwargs,
     ) -> List[List[dict]]:
-
         conn = self._get_connection()
         try:
             res = await conn.hybrid_search(
