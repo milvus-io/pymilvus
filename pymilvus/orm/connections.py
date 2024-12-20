@@ -400,7 +400,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
             t = kwargs.get("timeout")
             timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
 
-            gh._wait_for_channel_ready(timeout=timeout)
+            if not _async:
+                gh._wait_for_channel_ready(timeout=timeout)
+
             if kwargs.get("keep_alive", False):
                 gh.register_state_change_callback(
                     ReconnectHandler(self, alias, kwargs_copy).reconnect_on_idle
