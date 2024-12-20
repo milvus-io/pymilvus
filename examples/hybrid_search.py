@@ -68,7 +68,27 @@ for i in range(len(field_names)):
     req = AnnSearchRequest(**search_param)
     req_list.append(req)
 
-print("rank by RRFRanker")
+print(fmt.format("rank by RRFRanker"))
+hybrid_res = milvus_client.hybrid_search(collection_name, req_list, RRFRanker(), default_limit, output_fields=["random"])
+for hits in hybrid_res:
+    for hit in hits:
+        print(f" hybrid search hit: {hit}")
+
+req_list = []
+for i in range(len(field_names)):
+    # 4. generate search data
+    vectors_to_search = rng.random((nq, dim))
+    search_param = {
+        "data": vectors_to_search,
+        "anns_field": field_names[i],
+        "param": {"metric_type": "L2"},
+        "limit": default_limit,
+        "expr": "random > {radius}",
+        "expr_params": {"radius": 0.5}}
+    req = AnnSearchRequest(**search_param)
+    req_list.append(req)
+
+print(fmt.format("rank by RRFRanker with expression template"))
 hybrid_res = milvus_client.hybrid_search(collection_name, req_list, RRFRanker(), default_limit, output_fields=["random"])
 for hits in hybrid_res:
     for hit in hits:
