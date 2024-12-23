@@ -285,6 +285,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if alias in self._connected_alias:
             self._connected_alias.pop(alias).close()
 
+    async def async_disconnect(self, alias: str):
+        if not isinstance(alias, str):
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
+
+        if alias in self._connected_alias:
+            await self._connected_alias.pop(alias).close()
+
     def remove_connection(self, alias: str):
         """Removes connection from the registry.
 
