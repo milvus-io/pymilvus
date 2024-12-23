@@ -372,7 +372,9 @@ class AsyncMilvusClient:
 
         if ids:
             try:
-                schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+                schema_dict = await conn.describe_collection(
+                    collection_name, timeout=timeout, **kwargs
+                )
             except Exception as ex:
                 logger.error("Failed to describe collection: %s", collection_name)
                 raise ex from ex
