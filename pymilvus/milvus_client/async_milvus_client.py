@@ -516,8 +516,8 @@ class AsyncMilvusClient:
         kwargs["check_fields"] = False  # do not check fields for now
         return CollectionSchema([], **kwargs)
 
-    def close(self):
-        connections.disconnect(self._using)
+    async def close(self):
+        await connections.async_disconnect(self._using)
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
