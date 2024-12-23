@@ -109,9 +109,9 @@ class AsyncGrpcHandler:
     def __exit__(self: object, exc_type: object, exc_val: object, exc_tb: object):
         pass
 
-    def close(self):
+    async def close(self):
         self.deregister_state_change_callbacks()
-        self._async_channel.close()
+        await self._async_channel.close()
 
     def _setup_authorization_interceptor(self, user: str, password: str, token: str):
         keys = []
