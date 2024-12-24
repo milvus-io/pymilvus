@@ -710,7 +710,7 @@ class PrivilegeGroupItem:
 class PrivilegeGroupInfo:
     """
     PrivilegeGroupInfo groups:
-    - PrivilegeGroupItem: <privilge_group:group>, <privileges:('Load', 'CreateCollection')>
+    - PrivilegeGroupItem: <privilege_group:group>, <privileges:('Load', 'CreateCollection')>
     """
 
     def __init__(self, results: List[milvus_types.PrivilegeGroupInfo]) -> None:
