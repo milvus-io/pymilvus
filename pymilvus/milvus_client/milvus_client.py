@@ -1478,7 +1478,7 @@ class MilvusClient:
             raise ex from ex
         ret = []
         for g in res.groups:
-            ret.append({"privilge_group": g.privilege_group, "privileges": g.privileges})
+            ret.append({"privilege_group": g.privilege_group, "privileges": g.privileges})
         return ret
 
     def add_privileges_to_group(
@@ -1493,7 +1493,7 @@ class MilvusClient:
         Args:
             group_name (``str``): The name of the privilege group.
             privileges (``List[str]``): A list of privileges to be added to the group.
-                Privilges should be the same type in a group otherwise it will raise an exception.
+                Privileges should be the same type in a group otherwise it will raise an exception.
             timeout (``float``, optional): An optional duration of time in seconds to allow
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur.
