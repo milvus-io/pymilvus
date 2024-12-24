@@ -943,7 +943,6 @@ class Prepare:
 
         search_params = {
             "topk": limit,
-            "params": params,
             "round_decimal": round_decimal,
             "ignore_growing": ignore_growing,
         }
@@ -998,6 +997,20 @@ class Prepare:
 
         if param.get(HINTS) is not None:
             search_params[HINTS] = param[HINTS]
+
+        # after 2.5.1, all parameters of search_params can be written into one layer
+        # no more parameters will be written searchParams.params
+        # to ensure compatibility and milvus can still get a json format parameter
+        # try to write all the parameters under searchParams into searchParams.Params
+        for key, value in search_params.items():
+            if key in params:
+                if params[key] != value:
+                    raise ParamError(
+                        message=f"ambiguous parameter: {key}, in search_param: {value}, in search_param.params: {params[key]}"
+                    )
+            else:
+                params[key] = value
+        search_params["params"] = params
 
         req_params = [
             common_types.KeyValuePair(key=str(key), value=utils.dumps(value))
