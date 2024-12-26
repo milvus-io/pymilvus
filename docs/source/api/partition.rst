@@ -50,7 +50,7 @@ Methods
 +--------------------------------------------+--------------------------------------------------------------------------+
 | `delete() <#pymilvus.Partition.delete>`_   | Delete entities with an expression condition.                            |
 +--------------------------------------------+--------------------------------------------------------------------------+
-| `upsert() <#pymilvus.Collection.upsert>`_  |Upsert data of collection.                                               |
+| `upsert() <#pymilvus.Collection.upsert>`_  | Upsert data of collection.                                               |
 +--------------------------------------------+--------------------------------------------------------------------------+
 | `search() <#pymilvus.Partition.search>`_   | Vector similarity search with an optional boolean expression as filters. |
 +--------------------------------------------+--------------------------------------------------------------------------+
