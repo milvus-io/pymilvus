@@ -11,6 +11,7 @@ from pymilvus.client.types import (
     ExtraList,
     LoadState,
     OmitZeroDict,
+    ResourceGroupConfig,
     construct_cost_extra,
 )
 from pymilvus.client.utils import is_vector_type
@@ -1525,3 +1526,102 @@ class MilvusClient:
         """
         conn = self._get_connection()
         conn.remove_privileges_from_group(group_name, privileges, timeout=timeout, **kwargs)
+
+    def create_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
+        """Create a resource group
+            It will success whether or not the resource group exists.
+
+        Args:
+            name: The name of the resource group.
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        return conn.create_resource_group(name, timeout, **kwargs)
+
+    def update_resource_groups(
+        self,
+        configs: Dict[str, ResourceGroupConfig],
+        timeout: Optional[float] = None,
+    ):
+        """Update resource groups.
+            This function updates the resource groups based on the provided configurations.
+
+        Args:
+            configs: A mapping of resource group names to their configurations.
+            timeout: The timeout value in seconds. Defaults to None.
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        return conn.update_resource_groups(configs, timeout)
+
+    def drop_resource_group(
+        self,
+        name: str,
+        timeout: Optional[float] = None,
+    ):
+        """Drop a resource group
+            It will success if the resource group is existed and empty, otherwise fail.
+
+        Args:
+            name: The name of the resource group.
+            timeout: The timeout value in seconds. Defaults to None.
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        return conn.drop_resource_group(name, timeout)
+
+    def describe_resource_group(self, name: str, timeout: Optional[float] = None):
+        """Drop a resource group
+            It will success if the resource group is existed and empty, otherwise fail.
+
+        Args:
+            name: The name of the resource group.
+            timeout: The timeout value in seconds. Defaults to None.
+        Returns:
+            ResourceGroupInfo: The detail info of the resource group.
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        return conn.describe_resource_group(name, timeout)
+
+    def list_resource_groups(self, timeout: Optional[float] = None):
+        """list all resource group names
+
+        Args:
+            timeout: The timeout value in seconds. Defaults to None.
+        Returns:
+            list[str]: all resource group names
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        return conn.list_resource_groups(timeout)
+
+    def transfer_replica(
+        self,
+        source_group: str,
+        target_group: str,
+        collection_name: str,
+        num_replicas: int,
+        timeout: Optional[float] = None,
+    ):
+        """transfer num_replica from source resource group to target resource group
+
+        Args:
+            source_group: source resource group name
+            target_group: target resource group name
+            collection_name: collection name which replica belong to
+            num_replicas: transfer replica num
+            timeout: The timeout value in seconds. Defaults to None.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        return conn.transfer_replica(
+            source_group, target_group, collection_name, num_replicas, timeout
+        )
