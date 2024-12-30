@@ -12,7 +12,7 @@ from pymilvus.client.constants import (
     ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
 )
-from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.exceptions import ExceptionsMessage, ParamError, ServerVersionIncompatibleException
 from pymilvus.orm.connections import Connections
 from pymilvus.orm.constants import MAX_BATCH_SIZE, MILVUS_LIMIT, OFFSET
 from pymilvus.orm.iterator import SearchPage, fall_back_to_latest_session_ts
@@ -21,11 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 class SearchIteratorV2:
-    _NOT_SUPPORT_V2_MSG = """
-    The server does not support Search Iterator V2.
-    Please upgrade your Milvus server, or create a search_iterator (v1) instead.
-    """
-
     # for compatibility, save the first result during init
     _saved_first_res = None
     _is_saved = False
@@ -94,7 +89,9 @@ class SearchIteratorV2:
             if iter_info.token is not None and iter_info.token != "":
                 self._params[ITER_SEARCH_ID_KEY] = iter_info.token
             else:
-                raise MilvusException(message=self.NOT_SUPPORT_V2_MSG)
+                raise ServerVersionIncompatibleException(
+                    message=ExceptionsMessage.SearchIteratorV2FallbackWarning
+                )
         if self._params[GUARANTEE_TIMESTAMP] <= 0:
             if res.get_session_ts() > 0:
                 self._params[GUARANTEE_TIMESTAMP] = res.get_session_ts()
