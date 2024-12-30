@@ -22,6 +22,7 @@ from pymilvus.exceptions import (
     MilvusException,
     ParamError,
     PrimaryKeyException,
+    ServerVersionIncompatibleException,
 )
 from pymilvus.orm import utility
 from pymilvus.orm.collection import CollectionSchema
@@ -599,9 +600,11 @@ class MilvusClient:
                 round_decimal=round_decimal,
                 **kwargs,
             )
-        except MilvusException as ex:
-            if ex.message != SearchIteratorV2._NOT_SUPPORT_V2_MSG:
-                raise ex from ex
+        except ServerVersionIncompatibleException:
+            # for compatibility, return search_iterator V1
+            logger.warning(ExceptionsMessage.SearchIteratorV2FallbackWarning)
+        except Exception as ex:
+            raise ex from ex
 
         # following is the old code for search_iterator V1
         if filter is not None and not isinstance(filter, str):
