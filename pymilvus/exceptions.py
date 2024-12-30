@@ -145,6 +145,10 @@ class InvalidConsistencyLevel(MilvusException):
     """Raise when consistency level is invalid"""
 
 
+class ServerVersionIncompatibleException(MilvusException):
+    """Raise when server version is incompatible"""
+
+
 class ExceptionsMessage:
     NoHostPort = "connection configuration must contain 'host' and 'port'."
     HostType = "Type of 'host' must be str."
@@ -269,3 +273,7 @@ class ExceptionsMessage:
     DefaultValueInvalid = (
         "Default value cannot be None for a field that is defined as nullable == false."
     )
+    SearchIteratorV2FallbackWarning = """
+    The server does not support Search Iterator V2. The search_iterator (v1) is used instead.
+    Please upgrade your Milvus server or use an SDK version before 2.5.2 (excluded) to avoid this issue.
+    """
