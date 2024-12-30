@@ -275,5 +275,6 @@ class ExceptionsMessage:
     )
     SearchIteratorV2FallbackWarning = """
     The server does not support Search Iterator V2. The search_iterator (v1) is used instead.
-    Please upgrade your Milvus server or use an SDK version before 2.5.2 (excluded) to avoid this issue.
+    Please upgrade your Milvus server version to 2.5.2 and later,
+    or use a pymilvus version before 2.5.3 (excluded) to avoid this issue.
     """
