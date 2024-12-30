@@ -27,7 +27,7 @@ from pymilvus.exceptions import (
 from pymilvus.orm import utility
 from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
-from pymilvus.orm.constants import FIELDS, METRIC_TYPE, MILVUS_LIMIT, TYPE, UNLIMITED
+from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
@@ -583,14 +583,12 @@ class MilvusClient:
 
         # compatibility logic, change this when support get version from server
         try:
-            # compatibility logic, deprecate limit in the future
-            if limit is not None and limit != UNLIMITED:
-                kwargs[MILVUS_LIMIT] = limit
             return SearchIteratorV2(
                 connection=conn,
                 collection_name=collection_name,
                 data=data,
                 batch_size=batch_size,
+                limit=limit,
                 filter=filter,
                 output_fields=output_fields,
                 search_params=search_params or {},
