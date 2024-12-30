@@ -355,6 +355,16 @@ class AsyncGrpcHandler:
         return fields_info, enable_dynamic
 
     @retry_on_rpc_failure()
+    async def release_collection(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.release_collection("", collection_name)
+        response = await self._async_stub.ReleaseCollection(request, timeout=timeout)
+        check_status(response)
+
+    @retry_on_rpc_failure()
     async def insert_rows(
         self,
         collection_name: str,
@@ -741,6 +751,124 @@ class AsyncGrpcHandler:
                     return index_desc.state, index_desc.index_state_fail_reason
 
         raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
+
+    @retry_on_rpc_failure()
+    async def drop_index(
+        self,
+        collection_name: str,
+        field_name: str,
+        index_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.drop_index_request(collection_name, field_name, index_name)
+        response = await self._async_stub.DropIndex(request, timeout=timeout)
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    async def create_partition(
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(
+            collection_name=collection_name, partition_name=partition_name, timeout=timeout
+        )
+        request = Prepare.create_partition_request(collection_name, partition_name)
+        response = await self._async_stub.CreatePartition(request, timeout=timeout)
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    async def drop_partition(
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(
+            collection_name=collection_name, partition_name=partition_name, timeout=timeout
+        )
+        request = Prepare.drop_partition_request(collection_name, partition_name)
+
+        response = await self._async_stub.DropPartition(request, timeout=timeout)
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    async def load_partitions(
+        self,
+        collection_name: str,
+        partition_names: List[str],
+        replica_number: int = 1,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(
+            collection_name=collection_name,
+            partition_name_array=partition_names,
+            replica_number=replica_number,
+            timeout=timeout,
+        )
+        await self.ensure_channel_ready()
+        refresh = kwargs.get("refresh", kwargs.get("_refresh", False))
+        resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
+        load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
+        skip_load_dynamic_field = kwargs.get(
+            "skip_load_dynamic_field", kwargs.get("_skip_load_dynamic_field", False)
+        )
+
+        request = Prepare.load_partitions(
+            "",
+            collection_name,
+            partition_names,
+            replica_number,
+            refresh,
+            resource_groups,
+            load_fields,
+            skip_load_dynamic_field,
+        )
+        response = await self._async_stub.LoadPartitions(request, timeout=timeout)
+        check_status(response)
+
+        await self.wait_for_loading_partitions(collection_name, partition_names, is_refresh=refresh)
+
+    @retry_on_rpc_failure()
+    async def wait_for_loading_partitions(
+        self,
+        collection_name: str,
+        partition_names: List[str],
+        timeout: Optional[float] = None,
+        is_refresh: bool = False,
+    ):
+        start = time.time()
+
+        def can_loop(t: int) -> bool:
+            return True if timeout is None else t <= (start + timeout)
+
+        while can_loop(time.time()):
+            progress = await self.get_loading_progress(
+                collection_name, partition_names, timeout=timeout, is_refresh=is_refresh
+            )
+            if progress >= 100:
+                return
+            await asyncio.sleep(Config.WaitTimeDurationWhenLoad)
+        raise MilvusException(
+            message=f"wait for loading partition timeout, collection: {collection_name}, partitions: {partition_names}"
+        )
+
+    @retry_on_rpc_failure()
+    async def release_partitions(
+        self,
+        collection_name: str,
+        partition_names: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(
+            collection_name=collection_name, partition_name_array=partition_names, timeout=timeout
+        )
+        request = Prepare.release_partitions("", collection_name, partition_names)
+        response = await self._async_stub.ReleasePartitions(request, timeout=timeout)
+        check_status(response)
 
     @retry_on_rpc_failure()
     async def get(

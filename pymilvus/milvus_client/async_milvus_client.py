@@ -169,6 +169,16 @@ class AsyncMilvusClient:
             logger.error("Failed to load collection: %s", collection_name)
             raise ex from ex
 
+    async def release_collection(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        try:
+            await conn.release_collection(collection_name, timeout=timeout, **kwargs)
+        except MilvusException as ex:
+            logger.error("Failed to load collection: %s", collection_name)
+            raise ex from ex
+
     async def create_index(
         self,
         collection_name: str,
@@ -200,6 +210,49 @@ class AsyncMilvusClient:
         except Exception as ex:
             logger.error("Failed to create an index on collection: %s", collection_name)
             raise ex from ex
+
+    async def drop_index(
+        self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.drop_index(collection_name, "", index_name, timeout=timeout, **kwargs)
+
+    async def create_partition(
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.create_partition(collection_name, partition_name, timeout=timeout, **kwargs)
+
+    async def drop_partition(
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.drop_partition(collection_name, partition_name, timeout=timeout, **kwargs)
+
+    async def load_partitions(
+        self,
+        collection_name: str,
+        partition_names: Union[str, List[str]],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        if isinstance(partition_names, str):
+            partition_names = [partition_names]
+
+        conn = self._get_connection()
+        await conn.load_partitions(collection_name, partition_names, timeout=timeout, **kwargs)
+
+    async def release_partitions(
+        self,
+        collection_name: str,
+        partition_names: Union[str, List[str]],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        if isinstance(partition_names, str):
+            partition_names = [partition_names]
+        conn = self._get_connection()
+        await conn.release_partitions(collection_name, partition_names, timeout=timeout, **kwargs)
 
     async def insert(
         self,
