@@ -504,10 +504,14 @@ class SearchResult(list):
             )
             nq_thres += topk
         self._session_ts = session_ts
+        self._search_iterator_v2_results = res.search_iterator_v2_results
         super().__init__(data)
 
     def get_session_ts(self):
         return self._session_ts
+
+    def get_search_iterator_v2_results_info(self):
+        return self._search_iterator_v2_results
 
     def get_fields_by_range(
         self, start: int, end: int, all_fields_data: List[schema_pb2.FieldData]
