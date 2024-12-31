@@ -14,7 +14,7 @@ from pymilvus.client.constants import (
 )
 from pymilvus.exceptions import ExceptionsMessage, ParamError, ServerVersionIncompatibleException
 from pymilvus.orm.connections import Connections
-from pymilvus.orm.constants import MAX_BATCH_SIZE, MILVUS_LIMIT, OFFSET
+from pymilvus.orm.constants import MAX_BATCH_SIZE, OFFSET, UNLIMITED
 from pymilvus.orm.iterator import SearchPage, fall_back_to_latest_session_ts
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ class SearchIteratorV2:
         collection_name: str,
         data: Union[List, utils.SparseMatrixInputType],
         batch_size: int = 1000,
+        limit: Optional[int] = UNLIMITED,
         filter: Optional[str] = None,
         output_fields: Optional[List[str]] = None,
         search_params: Optional[Dict] = None,
@@ -44,10 +45,9 @@ class SearchIteratorV2:
     ):
         self._check_params(batch_size, data, kwargs)
 
-        # for compatibility, delete limit from incoming
-        if MILVUS_LIMIT in kwargs:
-            self._left_res_cnt = kwargs[MILVUS_LIMIT]
-            del kwargs[MILVUS_LIMIT]
+        # for compatibility, support limit, deprecate in future
+        if limit != UNLIMITED:
+            self._left_res_cnt = limit
 
         self._conn = connection
         self._params = {
