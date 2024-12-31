@@ -801,13 +801,13 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        await self.ensure_channel_ready()
         check_pass_param(
             collection_name=collection_name,
             partition_name_array=partition_names,
             replica_number=replica_number,
             timeout=timeout,
         )
-        await self.ensure_channel_ready()
         refresh = kwargs.get("refresh", kwargs.get("_refresh", False))
         resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
         load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
