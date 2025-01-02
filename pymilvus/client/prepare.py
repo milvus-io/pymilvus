@@ -36,7 +36,7 @@ from .types import (
     ResourceGroupConfig,
     get_consistency_level,
 )
-from .utils import traverse_info, traverse_upsert_info
+from .utils import get_params, traverse_info, traverse_upsert_info
 
 
 class Prepare:
@@ -998,19 +998,7 @@ class Prepare:
         if param.get(HINTS) is not None:
             search_params[HINTS] = param[HINTS]
 
-        # after 2.5.1, all parameters of search_params can be written into one layer
-        # no more parameters will be written searchParams.params
-        # to ensure compatibility and milvus can still get a json format parameter
-        # try to write all the parameters under searchParams into searchParams.Params
-        for key, value in param.items():
-            if key in params:
-                if params[key] != value:
-                    raise ParamError(
-                        message=f"ambiguous parameter: {key}, in search_param: {value}, in search_param.params: {params[key]}"
-                    )
-            elif key != "params":
-                params[key] = value
-        search_params["params"] = params
+        search_params["params"] = get_params(param)
 
         req_params = [
             common_types.KeyValuePair(key=str(key), value=utils.dumps(value))

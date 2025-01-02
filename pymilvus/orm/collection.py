@@ -971,6 +971,7 @@ class Collection:
     ):
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
+        param["params"] = utils.get_params(param)
         return SearchIterator(
             connection=self._get_connection(),
             collection_name=self._name,

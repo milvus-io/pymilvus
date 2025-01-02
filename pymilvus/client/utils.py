@@ -272,6 +272,24 @@ def traverse_upsert_info(fields_info: Any):
     return location, primary_key_loc
 
 
+def get_params(search_params: Dict):
+    # after 2.5.2, all parameters of search_params can be written into one layer
+    # no more parameters will be written searchParams.params
+    # to ensure compatibility and milvus can still get a json format parameter
+    # try to write all the parameters under searchParams into searchParams.Params
+    params = search_params.get("params", {})
+    for key, value in search_params.items():
+        if key in params:
+            if params[key] != value:
+                raise ParamError(
+                    message=f"ambiguous parameter: {key}, in search_param: {value}, in search_param.params: {params[key]}"
+                )
+        elif key != "params":
+            params[key] = value
+
+    return params
+
+
 def get_server_type(host: str):
     return ZILLIZ if (isinstance(host, str) and "zilliz" in host.lower()) else MILVUS
 

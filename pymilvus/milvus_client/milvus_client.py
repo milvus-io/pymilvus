@@ -15,7 +15,7 @@ from pymilvus.client.types import (
     ResourceGroupConfig,
     construct_cost_extra,
 )
-from pymilvus.client.utils import is_vector_type
+from pymilvus.client.utils import get_params, is_vector_type
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     ErrorCode,
@@ -656,6 +656,8 @@ class MilvusClient:
             raise MilvusException(
                 ParamError, f"Cannot set up metrics type for anns_field:{anns_field}"
             )
+
+        search_params["params"] = get_params(search_params)
 
         return SearchIterator(
             connection=self._get_connection(),
