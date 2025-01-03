@@ -93,6 +93,15 @@ class TestFieldSchema:
         return _dict
 
     @pytest.fixture(scope="function")
+    def raw_dict_int8_vector(self):
+        _dict = dict()
+        _dict["name"] = "TestFieldSchema_name_int8_vector"
+        _dict["description"] = "TestFieldSchema_description_int8_vector"
+        _dict["type"] = DataType.INT8_VECTOR
+        _dict["params"] = {"dim": 128}
+        return _dict
+
+    @pytest.fixture(scope="function")
     def raw_dict_norm(self):
         _dict = dict()
         _dict["name"] = "TestFieldSchema_name_norm"
@@ -142,6 +151,14 @@ class TestFieldSchema:
         assert field.is_primary is False
         assert field.name == raw_dict_bfloat16_vector['name']
         assert field.dim == raw_dict_bfloat16_vector['params']['dim']
+
+    def test_constructor_from_int8_dict(self, raw_dict_int8_vector):
+        field = FieldSchema.construct_from_dict(raw_dict_int8_vector)
+        assert field.dtype == DataType.INT8_VECTOR
+        assert field.description == raw_dict_int8_vector['description']
+        assert field.is_primary is False
+        assert field.name == raw_dict_int8_vector['name']
+        assert field.dim == raw_dict_int8_vector['params']['dim']
 
     def test_constructor_from_norm_dict(self, raw_dict_norm):
         field = FieldSchema.construct_from_dict(raw_dict_norm)

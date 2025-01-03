@@ -816,6 +816,9 @@ class Prepare:
             elif dtype in ("float32", "float64"):
                 pl_type = PlaceholderType.FloatVector
                 pl_values = (blob.vector_float_to_bytes(entity) for entity in data)
+            elif dtype == "int8":
+                pl_type = PlaceholderType.Int8Vector
+                pl_values = (array.tobytes() for array in data)
 
             elif dtype == "byte":
                 pl_type = PlaceholderType.BinaryVector

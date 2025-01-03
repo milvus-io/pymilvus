@@ -104,6 +104,7 @@ class DataType(IntEnum):
     FLOAT16_VECTOR = 102
     BFLOAT16_VECTOR = 103
     SPARSE_FLOAT_VECTOR = 104
+    INT8_VECTOR = 105
 
     UNKNOWN = 999
 
@@ -179,6 +180,7 @@ class PlaceholderType(IntEnum):
     FLOAT16_VECTOR = 102
     BFLOAT16_VECTOR = 103
     SparseFloatVector = 104
+    Int8Vector = 105
     VARCHAR = 21
 
 
