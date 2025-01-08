@@ -335,6 +335,8 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeGroupCollectionReadOnly: _ClassVar[ObjectPrivilege]
     PrivilegeGroupCollectionReadWrite: _ClassVar[ObjectPrivilege]
     PrivilegeGroupCollectionAdmin: _ClassVar[ObjectPrivilege]
+    PrivilegeGetImportProgress: _ClassVar[ObjectPrivilege]
+    PrivilegeListImport: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -643,6 +645,8 @@ PrivilegeGroupDatabaseAdmin: ObjectPrivilege
 PrivilegeGroupCollectionReadOnly: ObjectPrivilege
 PrivilegeGroupCollectionReadWrite: ObjectPrivilege
 PrivilegeGroupCollectionAdmin: ObjectPrivilege
+PrivilegeGetImportProgress: ObjectPrivilege
+PrivilegeListImport: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
