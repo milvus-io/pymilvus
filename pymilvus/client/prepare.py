@@ -36,7 +36,7 @@ from .types import (
     ResourceGroupConfig,
     get_consistency_level,
 )
-from .utils import traverse_info, traverse_upsert_info
+from .utils import get_params, traverse_info, traverse_upsert_info
 
 
 class Prepare:
@@ -943,7 +943,6 @@ class Prepare:
 
         search_params = {
             "topk": limit,
-            "params": params,
             "round_decimal": round_decimal,
             "ignore_growing": ignore_growing,
         }
@@ -998,6 +997,8 @@ class Prepare:
 
         if param.get(HINTS) is not None:
             search_params[HINTS] = param[HINTS]
+
+        search_params["params"] = get_params(param)
 
         req_params = [
             common_types.KeyValuePair(key=str(key), value=utils.dumps(value))
