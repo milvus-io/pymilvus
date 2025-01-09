@@ -419,7 +419,7 @@ class MilvusClient:
                 query_result.append(hit.to_dict())
             ret.append(query_result)
 
-        return ExtraList(ret, extra=construct_cost_extra(res.cost))
+        return ExtraList(ret, extra=construct_cost_extra(res.cost), recalls=res.recalls)
 
     def query(
         self,
