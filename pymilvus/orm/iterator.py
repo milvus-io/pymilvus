@@ -101,6 +101,7 @@ class QueryIterator:
     ) -> QueryIterator:
         self._conn = connection
         self._collection_name = collection_name
+        self.__set_up_collection_id()
         self._output_fields = output_fields
         self._partition_names = partition_names
         self._schema = schema
@@ -119,6 +120,10 @@ class QueryIterator:
         self._cp_file_handler = None
         self.__set_up_ts_cp()
         self.__seek_to_offset()
+
+    def __set_up_collection_id(self):
+        col_desc = self._conn.describe_collection(self._collection_name, timeout=60.0)
+        self._collection_id = col_desc.get("collection_id")
 
     def __seek_to_offset(self):
         # read pk cursor from cp file, no need to seek offset
@@ -142,6 +147,7 @@ class QueryIterator:
                     timeout=self._timeout,
                     **seek_params,
                 )
+                self.__check_collection_match(res)
                 self.__update_cursor(res)
                 return len(res)
 
@@ -334,6 +340,7 @@ class QueryIterator:
             ret = res[0 : min(self._kwargs[BATCH_SIZE], len(res))]
 
         ret = self.__check_reached_limit(ret)
+        self.__check_collection_match(res)
         self.__update_cursor(ret)
         io_operation(self.__save_pk_cursor, "failed to save pk cursor")
         self._returned_count += len(ret)
@@ -373,6 +380,19 @@ class QueryIterator:
         if current_expr is None or len(current_expr) == 0:
             return filtered_pk_str
         return "(" + current_expr + ")" + " and " + filtered_pk_str
+
+    def __check_collection_match(self, res: List):
+        res_collection_id = res[-1]["collection_id"]
+        if (
+            res_collection_id is not None
+            and res_collection_id > 0
+            and res_collection_id != self._collection_id
+        ):
+            raise MilvusException(
+                message="collection_id in the result is not the "
+                "same as the inited collection id, the alias may be changed, cut off"
+                "iterator connection"
+            )
 
     def __update_cursor(self, res: List) -> None:
         if len(res) == 0:
