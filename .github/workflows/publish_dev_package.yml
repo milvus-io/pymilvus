@@ -9,6 +9,9 @@ jobs:
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 to TestPyPI
     runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
 
     steps:
     - name: Check out from Git
@@ -38,6 +41,5 @@ jobs:
     - name: Publish distribution 📦 to Test PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        password: ${{ secrets.TOKEN_TEST_PYPI }}
         repository-url: https://test.pypi.org/legacy/
 
