@@ -14,7 +14,6 @@ from .client import __version__
 from .client.abstract import AnnSearchRequest, Hit, Hits, RRFRanker, SearchResult, WeightedRanker
 from .client.asynch import SearchFuture
 from .client.prepare import Prepare
-from .client.stub import Milvus
 from .client.types import (
     BulkInsertState,
     DataType,
@@ -89,7 +88,6 @@ __all__ = [
     "Hits",
     "Index",
     "IndexType",
-    "Milvus",
     "MilvusClient",
     "MilvusException",
     "MilvusUnavailableException",
