@@ -409,6 +409,7 @@ class SearchResult(list):
         self._nq = res.num_queries
         all_topks = res.topks
         self.recalls = res.recalls
+        self._pk_name = res.primary_field_name or "id"
 
         self.cost = int(status.extra_info["report_value"] if status and status.extra_info else "0")
 
@@ -434,7 +435,14 @@ class SearchResult(list):
             start, end = nq_thres, nq_thres + topk
             nq_th_fields = self.get_fields_by_range(start, end, fields_data)
             data.append(
-                Hits(topk, all_pks[start:end], all_scores[start:end], nq_th_fields, output_fields)
+                Hits(
+                    topk,
+                    all_pks[start:end],
+                    all_scores[start:end],
+                    nq_th_fields,
+                    output_fields,
+                    self._pk_name,
+                )
             )
             nq_thres += topk
 
@@ -565,6 +573,7 @@ class Hits(list):
         distances: List[float],
         fields: Dict[str, Tuple[List[Any], schema_pb2.FieldData]],
         output_fields: List[str],
+        pk_name: str,
     ):
         """
         Args:
@@ -573,6 +582,7 @@ class Hits(list):
         """
         self.ids = pks
         self.distances = distances
+        self._pk_name = pk_name
 
         all_fields = list(fields.keys())
         dynamic_fields = list(set(output_fields) - set(all_fields))
@@ -611,7 +621,7 @@ class Hits(list):
                 # sparse float vector and other fields
                 curr_field[fname] = data[i]
 
-            hits.append(Hit(pks[i], distances[i], curr_field))
+            hits.append(Hit(pks[i], distances[i], curr_field, self._pk_name))
 
         super().__init__(hits)
 
@@ -631,10 +641,11 @@ class Hit:
     distance: float
     fields: Dict[str, Any]
 
-    def __init__(self, pk: Union[int, str], distance: float, fields: Dict[str, Any]):
+    def __init__(self, pk: Union[int, str], distance: float, fields: Dict[str, Any], pk_name: str):
         self.id = pk
         self.distance = distance
         self.fields = fields
+        self._pk_name = pk_name
 
     def __getattr__(self, item: str):
         if item not in self.fields:
@@ -657,13 +668,13 @@ class Hit:
         return self.fields.get(field_name)
 
     def __str__(self) -> str:
-        return f"id: {self.id}, distance: {self.distance}, entity: {self.fields}"
+        return f"{self._pk_name}: {self.id}, distance: {self.distance}, entity: {self.fields}"
 
     __repr__ = __str__
 
     def to_dict(self):
         return {
-            "id": self.id,
+            self._pk_name: self.id,
             "distance": self.distance,
             "entity": self.fields,
         }
