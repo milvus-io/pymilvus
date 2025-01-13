@@ -49,6 +49,8 @@ IS_PRIMARY = "is_primary"
 REDUCE_STOP_FOR_BEST = "reduce_stop_for_best"
 ITERATOR_FIELD = "iterator"
 ITERATOR_SESSION_TS_FIELD = "iterator_session_ts"
+COLLECTION_ID = "collection_id"
+DB_NAME = "db_name"
 DEFAULT_MAX_L2_DISTANCE = 99999999.0
 DEFAULT_MIN_IP_DISTANCE = -99999999.0
 DEFAULT_MAX_HAMMING_DISTANCE = 99999999.0
@@ -65,3 +67,4 @@ GUARANTEE_TIMESTAMP = "guarantee_timestamp"
 ITERATOR_SESSION_CP_FILE = "iterator_cp_file"
 BM25_k1 = "bm25_k1"
 BM25_b = "bm25_b"
+

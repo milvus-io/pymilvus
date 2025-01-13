@@ -25,6 +25,7 @@ from .constants import (
     ITER_SEARCH_LAST_BOUND_KEY,
     ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
+    ITERATOR_COLLECTION_ID,
     PAGE_RETAIN_ORDER_FIELD,
     RANK_GROUP_SCORER,
     REDUCE_STOP_FOR_BEST,
@@ -1325,6 +1326,12 @@ class Prepare:
         if is_iterator is not None:
             req.query_params.append(
                 common_types.KeyValuePair(key=ITERATOR_FIELD, value=is_iterator)
+            )
+
+        iterator_collection_id = kwargs.get(ITERATOR_COLLECTION_ID)
+        if is_iterator is not None:
+            req.query_params.append(
+                common_types.KeyValuePair(key=ITERATOR_COLLECTION_ID, value=str(iterator_collection_id))
             )
 
         req.query_params.append(

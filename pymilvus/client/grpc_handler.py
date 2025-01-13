@@ -37,7 +37,7 @@ from .check import (
     is_legal_host,
     is_legal_port,
 )
-from .constants import ITERATOR_SESSION_TS_FIELD
+from .constants import ITERATOR_SESSION_TS_FIELD, COLLECTION_ID, DB_NAME
 from .prepare import Prepare
 from .types import (
     BulkInsertState,
@@ -1625,6 +1625,8 @@ class GrpcHandler:
 
         extra_dict = get_cost_extra(response.status)
         extra_dict[ITERATOR_SESSION_TS_FIELD] = response.session_ts
+        extra_dict[COLLECTION_ID] = response.collection_id
+        extra_dict[DB_NAME] = response.db_name
         return ExtraList(results, extra=extra_dict)
 
     @retry_on_rpc_failure()
