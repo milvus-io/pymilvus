@@ -649,7 +649,13 @@ class SearchResult(list):
     def __str__(self) -> str:
         """Only print at most 10 query results"""
         reminder = f" ... and {len(self) - 10} results remaining" if len(self) > 10 else ""
-        recall_msg = f", recalls: {list(map(str, self.recalls))}" if len(self.recalls) > 0 else ""
+        recall_msg = (
+            f", recalls: {list(map(str, self.recalls[:10]))}" if len(self.recalls) > 0 else ""
+        ) + (
+            f" ... and {len(self.recalls) - 10} recall results remaining"
+            if len(self.recalls) > 10
+            else ""
+        )
         cost_msg = f", cost: {self.cost}" if self.cost else ""
         return f"data: {list(map(str, self[:10]))}{reminder}{recall_msg}{cost_msg}"
 
