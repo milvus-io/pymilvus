@@ -199,4 +199,4 @@ builtins-ignorelist = [
     "dict", # TODO
     "filter",
 ]
-
+builtins-allowed-modules = ["types"]

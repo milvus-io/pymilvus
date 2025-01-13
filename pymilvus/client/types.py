@@ -995,15 +995,27 @@ class ExtraList(list):
         ExtraList([1, 2, 3], extra={"total": 3})
     """
 
-    def __init__(self, *args, extra: Optional[Dict] = None, **kwargs) -> None:
+    def __init__(
+        self, *args, extra: Optional[Dict] = None, recalls: Optional[List[float]] = None, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.extra = OmitZeroDict(extra or {})
+        self.recalls = recalls
 
     def __str__(self) -> str:
         """Only print at most 10 query results"""
+        recall_msg = (
+            f", recalls: {list(map(str, self.recalls[:10]))}"
+            if self.recalls is not None and len(self.recalls) > 0
+            else ""
+        ) + (
+            f" ... and {len(self.recalls) - 10} recall results remaining"
+            if self.recalls is not None and len(self.recalls) > 10
+            else ""
+        )
         if self.extra and self.extra.omit_zero_len() != 0:
-            return f"data: {list(map(str, self[:10]))} {'...' if len(self) > 10 else ''}, extra_info: {self.extra}"
-        return f"data: {list(map(str, self[:10]))} {'...' if len(self) > 10 else ''}"
+            return f"data: {list(map(str, self[:10]))}{' ...' if len(self) > 10 else ''}{recall_msg}, extra_info: {self.extra}"
+        return f"data: {list(map(str, self[:10]))}{' ...' if len(self) > 10 else ''}{recall_msg}"
 
     __repr__ = __str__
 
