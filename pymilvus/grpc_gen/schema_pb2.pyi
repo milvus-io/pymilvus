@@ -28,6 +28,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Float16Vector: _ClassVar[DataType]
     BFloat16Vector: _ClassVar[DataType]
     SparseFloatVector: _ClassVar[DataType]
+    Int8Vector: _ClassVar[DataType]
 
 class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -59,6 +60,7 @@ FloatVector: DataType
 Float16Vector: DataType
 BFloat16Vector: DataType
 SparseFloatVector: DataType
+Int8Vector: DataType
 Unknown: FunctionType
 BM25: FunctionType
 TextEmbedding: FunctionType
@@ -258,20 +260,22 @@ class SparseFloatArray(_message.Message):
     def __init__(self, contents: _Optional[_Iterable[bytes]] = ..., dim: _Optional[int] = ...) -> None: ...
 
 class VectorField(_message.Message):
-    __slots__ = ("dim", "float_vector", "binary_vector", "float16_vector", "bfloat16_vector", "sparse_float_vector")
+    __slots__ = ("dim", "float_vector", "binary_vector", "float16_vector", "bfloat16_vector", "sparse_float_vector", "int8_vector")
     DIM_FIELD_NUMBER: _ClassVar[int]
     FLOAT_VECTOR_FIELD_NUMBER: _ClassVar[int]
     BINARY_VECTOR_FIELD_NUMBER: _ClassVar[int]
     FLOAT16_VECTOR_FIELD_NUMBER: _ClassVar[int]
     BFLOAT16_VECTOR_FIELD_NUMBER: _ClassVar[int]
     SPARSE_FLOAT_VECTOR_FIELD_NUMBER: _ClassVar[int]
+    INT8_VECTOR_FIELD_NUMBER: _ClassVar[int]
     dim: int
     float_vector: FloatArray
     binary_vector: bytes
     float16_vector: bytes
     bfloat16_vector: bytes
     sparse_float_vector: SparseFloatArray
-    def __init__(self, dim: _Optional[int] = ..., float_vector: _Optional[_Union[FloatArray, _Mapping]] = ..., binary_vector: _Optional[bytes] = ..., float16_vector: _Optional[bytes] = ..., bfloat16_vector: _Optional[bytes] = ..., sparse_float_vector: _Optional[_Union[SparseFloatArray, _Mapping]] = ...) -> None: ...
+    int8_vector: bytes
+    def __init__(self, dim: _Optional[int] = ..., float_vector: _Optional[_Union[FloatArray, _Mapping]] = ..., binary_vector: _Optional[bytes] = ..., float16_vector: _Optional[bytes] = ..., bfloat16_vector: _Optional[bytes] = ..., sparse_float_vector: _Optional[_Union[SparseFloatArray, _Mapping]] = ..., int8_vector: _Optional[bytes] = ...) -> None: ...
 
 class FieldData(_message.Message):
     __slots__ = ("type", "field_name", "scalars", "vectors", "field_id", "is_dynamic", "valid_data")
@@ -308,7 +312,7 @@ class SearchIteratorV2Results(_message.Message):
     def __init__(self, token: _Optional[str] = ..., last_bound: _Optional[float] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
-    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls")
+    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name")
     NUM_QUERIES_FIELD_NUMBER: _ClassVar[int]
     TOP_K_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -321,6 +325,7 @@ class SearchResultData(_message.Message):
     DISTANCES_FIELD_NUMBER: _ClassVar[int]
     SEARCH_ITERATOR_V2_RESULTS_FIELD_NUMBER: _ClassVar[int]
     RECALLS_FIELD_NUMBER: _ClassVar[int]
+    PRIMARY_FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     num_queries: int
     top_k: int
     fields_data: _containers.RepeatedCompositeFieldContainer[FieldData]
@@ -333,7 +338,8 @@ class SearchResultData(_message.Message):
     distances: _containers.RepeatedScalarFieldContainer[float]
     search_iterator_v2_results: SearchIteratorV2Results
     recalls: _containers.RepeatedScalarFieldContainer[float]
-    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ...) -> None: ...
+    primary_field_name: str
+    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ..., primary_field_name: _Optional[str] = ...) -> None: ...
 
 class VectorClusteringInfo(_message.Message):
     __slots__ = ("field", "centroid")

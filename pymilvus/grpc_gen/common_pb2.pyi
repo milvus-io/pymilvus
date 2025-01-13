@@ -70,6 +70,7 @@ class ErrorCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DropPrivilegeGroupFailure: _ClassVar[ErrorCode]
     ListPrivilegeGroupsFailure: _ClassVar[ErrorCode]
     OperatePrivilegeGroupFailure: _ClassVar[ErrorCode]
+    SchemaMismatch: _ClassVar[ErrorCode]
     DataCoordNA: _ClassVar[ErrorCode]
     DDRequestRace: _ClassVar[ErrorCode]
 
@@ -108,6 +109,7 @@ class PlaceholderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Float16Vector: _ClassVar[PlaceholderType]
     BFloat16Vector: _ClassVar[PlaceholderType]
     SparseFloatVector: _ClassVar[PlaceholderType]
+    Int8Vector: _ClassVar[PlaceholderType]
     Int64: _ClassVar[PlaceholderType]
     VarChar: _ClassVar[PlaceholderType]
 
@@ -409,6 +411,7 @@ CreatePrivilegeGroupFailure: ErrorCode
 DropPrivilegeGroupFailure: ErrorCode
 ListPrivilegeGroupsFailure: ErrorCode
 OperatePrivilegeGroupFailure: ErrorCode
+SchemaMismatch: ErrorCode
 DataCoordNA: ErrorCode
 DDRequestRace: ErrorCode
 IndexStateNone: IndexState
@@ -435,6 +438,7 @@ FloatVector: PlaceholderType
 Float16Vector: PlaceholderType
 BFloat16Vector: PlaceholderType
 SparseFloatVector: PlaceholderType
+Int8Vector: PlaceholderType
 Int64: PlaceholderType
 VarChar: PlaceholderType
 Undefined: MsgType
