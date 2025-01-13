@@ -990,16 +990,20 @@ class QueryRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., expr: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., partition_names: _Optional[_Iterable[str]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., query_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ...) -> None: ...
 
 class QueryResults(_message.Message):
-    __slots__ = ("status", "fields_data", "collection_name", "output_fields")
+    __slots__ = ("status", "fields_data", "collection_name", "output_fields", "session_ts", "primary_field_name")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SESSION_TS_FIELD_NUMBER: _ClassVar[int]
+    PRIMARY_FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     fields_data: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FieldData]
     collection_name: str
     output_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    session_ts: int
+    primary_field_name: str
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., session_ts: _Optional[int] = ..., primary_field_name: _Optional[str] = ...) -> None: ...
 
 class VectorIDs(_message.Message):
     __slots__ = ("collection_name", "field_name", "id_array", "partition_names")
