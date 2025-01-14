@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Union
 from pymilvus.client import entity_helper, utils
 from pymilvus.client.abstract import Hits
 from pymilvus.client.constants import (
+    COLLECTION_ID,
     GUARANTEE_TIMESTAMP,
     ITER_SEARCH_BATCH_SIZE_KEY,
     ITER_SEARCH_ID_KEY,
@@ -50,6 +51,8 @@ class SearchIteratorV2:
             self._left_res_cnt = limit
 
         self._conn = connection
+        self.__set_up_collection_id(collection_name)
+        kwargs[COLLECTION_ID] = self._collection_id
         self._params = {
             "collection_name": collection_name,
             "data": data,
@@ -70,6 +73,10 @@ class SearchIteratorV2:
         # this raises MilvusException if the server does not support V2
         self._saved_first_res = self.next()
         self._is_saved = True
+
+    def __set_up_collection_id(self, collection_name: str):
+        res = self._conn.describe_collection(collection_name)
+        self._collection_id = res[COLLECTION_ID]
 
     def next(self):
         # for compatibility

@@ -47,6 +47,7 @@ FIELDS = "fields"
 EF = "ef"
 IS_PRIMARY = "is_primary"
 REDUCE_STOP_FOR_BEST = "reduce_stop_for_best"
+COLLECTION_ID = "collection_id"
 ITERATOR_FIELD = "iterator"
 ITERATOR_SESSION_TS_FIELD = "iterator_session_ts"
 DEFAULT_MAX_L2_DISTANCE = 99999999.0

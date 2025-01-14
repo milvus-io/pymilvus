@@ -15,6 +15,7 @@ from pymilvus.orm.types import infer_dtype_by_scalar_data
 from . import __version__, blob, check, entity_helper, ts_utils, utils
 from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
+    COLLECTION_ID,
     DEFAULT_CONSISTENCY_LEVEL,
     DYNAMIC_FIELD_NAME,
     GROUP_BY_FIELD,
@@ -961,6 +962,10 @@ class Prepare:
         if is_iterator is not None:
             search_params[ITERATOR_FIELD] = is_iterator
 
+        collection_id = kwargs.get(COLLECTION_ID)
+        if collection_id is not None:
+            search_params[COLLECTION_ID] = str(collection_id)
+
         is_search_iter_v2 = kwargs.get(ITER_SEARCH_V2_KEY)
         if is_search_iter_v2 is not None:
             search_params[ITER_SEARCH_V2_KEY] = is_search_iter_v2
@@ -1310,6 +1315,11 @@ class Prepare:
             consistency_level=kwargs.get("consistency_level", 0),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
         )
+        collection_id = kwargs.get(COLLECTION_ID)
+        if collection_id is not None:
+            req.query_params.append(
+                common_types.KeyValuePair(key=COLLECTION_ID, value=str(collection_id))
+            )
 
         limit = kwargs.get("limit")
         if limit is not None:
