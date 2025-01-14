@@ -10,6 +10,7 @@ DEFAULT_CONSISTENCY_LEVEL = ConsistencyLevel.Bounded
 DEFAULT_RESOURCE_GROUP = "__default_resource_group"
 DYNAMIC_FIELD_NAME = "$meta"
 REDUCE_STOP_FOR_BEST = "reduce_stop_for_best"
+COLLECTION_ID = "collection_id"
 GROUP_BY_FIELD = "group_by_field"
 GROUP_SIZE = "group_size"
 RANK_GROUP_SCORER = "rank_group_scorer"
