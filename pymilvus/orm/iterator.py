@@ -612,7 +612,7 @@ class SearchIterator:
             if not metrics_positive_related(self._param[METRIC_TYPE]) and radius >= range_filter:
                 raise MilvusException(
                     message=f"for metrics:{self._param[METRIC_TYPE]}, radius must be "
-                    f"smalled than range_filter, please adjust your parameter"
+                    f"smaller than range_filter, please adjust your parameter"
                 )
 
     def __check_offset(self):
