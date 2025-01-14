@@ -9,6 +9,7 @@ BOUNDED_TS = 2
 DEFAULT_CONSISTENCY_LEVEL = ConsistencyLevel.Bounded
 DEFAULT_RESOURCE_GROUP = "__default_resource_group"
 REDUCE_STOP_FOR_BEST = "reduce_stop_for_best"
+COLLECTION_ID = "collection_id"
 GROUP_BY_FIELD = "group_by_field"
 ITERATOR_FIELD = "iterator"
 PAGE_RETAIN_ORDER_FIELD = "page_retain_order"
