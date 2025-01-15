@@ -19,6 +19,7 @@ from .constants import (
     CALC_DIST_JACCARD,
     CALC_DIST_L2,
     CALC_DIST_TANIMOTO,
+    COLLECTION_ID,
     DEFAULT_SEARCH_EXTENSION_RATE,
     EF,
     FIELDS,
@@ -72,11 +73,14 @@ class QueryIterator:
     ) -> QueryIterator:
         self._conn = connection
         self._collection_name = collection_name
+        self.__set_up_collection_id()
         self._output_fields = output_fields
         self._partition_names = partition_names
         self._schema = schema
         self._timeout = timeout
         self._kwargs = kwargs
+        self._kwargs[ITERATOR_FIELD] = "True"
+        self._kwargs[COLLECTION_ID] = self._collection_id
         self.__check_set_batch_size(batch_size)
         self._limit = limit
         self.__check_set_reduce_stop_for_best()
@@ -86,6 +90,10 @@ class QueryIterator:
         self._next_id = None
         self.__seek()
         self._cache_id_in_use = NO_CACHE_ID
+
+    def __set_up_collection_id(self):
+        res = self._conn.describe_collection(self._collection_name)
+        self._collection_id = res[COLLECTION_ID]
 
     def __check_set_reduce_stop_for_best(self):
         if self._kwargs.get(REDUCE_STOP_FOR_BEST, True):
@@ -336,11 +344,14 @@ class SearchIterator:
             "timeout": timeout,
             "round_decimal": round_decimal,
         }
+        self._collection_name = collection_name
         self._expr = expr
         self.__check_set_params(param)
         self.__check_for_special_index_param()
         self._kwargs = kwargs
         self.__set_up_iteration_states()
+        self.__set_up_collection_id()
+        self._kwargs[COLLECTION_ID] = self._collection_id
         self._filtered_ids = []
         self._filtered_distance = None
         self._schema = schema
@@ -351,6 +362,10 @@ class SearchIterator:
         self.__check_rm_range_search_parameters()
         self.__setup__pk_prop()
         self.__init_search_iterator()
+
+    def __set_up_collection_id(self):
+        res = self._conn.describe_collection(self._collection_name)
+        self._collection_id = res[COLLECTION_ID]
 
     def __init_search_iterator(self):
         init_page = self.__execute_next_search(self._param, self._expr, False)
