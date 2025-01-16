@@ -504,6 +504,7 @@ class SearchIterator:
             "timeout": timeout,
             "round_decimal": round_decimal,
         }
+        self._collection_name = collection_name
         self._expr = expr
         self.__check_set_params(param)
         self.__check_for_special_index_param()
