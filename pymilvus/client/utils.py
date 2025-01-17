@@ -1,5 +1,6 @@
 import datetime
 import importlib.util
+from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -277,7 +278,7 @@ def get_params(search_params: Dict):
     # no more parameters will be written searchParams.params
     # to ensure compatibility and milvus can still get a json format parameter
     # try to write all the parameters under searchParams into searchParams.Params
-    params = search_params.get("params", {})
+    params = deepcopy(search_params.get("params", {}))
     for key, value in search_params.items():
         if key in params:
             if params[key] != value:
