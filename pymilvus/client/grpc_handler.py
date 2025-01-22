@@ -321,7 +321,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def alter_collection_properties(
-        self, collection_name: str, properties: List, timeout: Optional[float] = None, **kwargs
+        self, collection_name: str, properties: Dict, timeout: Optional[float] = None, **kwargs
     ):
         check_pass_param(collection_name=collection_name, properties=properties, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, properties=properties)
