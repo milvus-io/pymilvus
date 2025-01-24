@@ -607,6 +607,7 @@ class Prepare:
         entities: List,
         partition_name: str,
         fields_info: Dict,
+        schema_timestamp: int = 0,
         enable_dynamic: bool = False,
     ):
         if not fields_info:
@@ -618,6 +619,7 @@ class Prepare:
             collection_name=collection_name,
             partition_name=p_name,
             num_rows=len(entities),
+            schema_timestamp=schema_timestamp,
         )
 
         return cls._parse_row_request(request, fields_info, enable_dynamic, entities)
@@ -630,6 +632,7 @@ class Prepare:
         partition_name: str,
         fields_info: Any,
         enable_dynamic: bool = False,
+        schema_timestamp: int = 0,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -640,6 +643,7 @@ class Prepare:
             collection_name=collection_name,
             partition_name=p_name,
             num_rows=len(entities),
+            schema_timestamp=schema_timestamp,
         )
 
         return cls._parse_upsert_row_request(request, fields_info, enable_dynamic, entities)

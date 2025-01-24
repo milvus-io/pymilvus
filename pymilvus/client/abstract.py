@@ -182,7 +182,7 @@ class CollectionSchema:
         self.num_shards = 0
         self.num_partitions = 0
         self.enable_dynamic_field = False
-
+        self.update_timestamp = 0
         if self._raw:
             self.__pack(self._raw)
 
@@ -209,7 +209,6 @@ class CollectionSchema:
         # for kv in raw.extra_params:
 
         self.fields = [FieldSchema(f) for f in raw.schema.fields]
-
         self.functions = [FunctionSchema(f) for f in raw.schema.functions]
         function_output_field_names = [f for fn in self.functions for f in fn.output_field_names]
         for field in self.fields:
