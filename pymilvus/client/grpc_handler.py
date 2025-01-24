@@ -53,6 +53,7 @@ from .types import (
     Plan,
     PrivilegeGroupInfo,
     Replica,
+    ReplicaInfo,
     ResourceGroupConfig,
     ResourceGroupInfo,
     RoleInfo,
@@ -1802,6 +1803,36 @@ class GrpcHandler:
             )
 
         return Replica(groups)
+
+    @retry_on_rpc_failure()
+    def describe_replica(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[ReplicaInfo]:
+        collection_id = self.describe_collection(collection_name, timeout, **kwargs)[
+            "collection_id"
+        ]
+
+        req = Prepare.get_replicas(collection_id)
+        future = self._stub.GetReplicas.future(req, timeout=timeout)
+        response = future.result()
+        check_status(response.status)
+
+        groups = []
+        for replica in response.replicas:
+            shards = [
+                Shard(s.dm_channel_name, s.node_ids, s.leaderID) for s in replica.shard_replicas
+            ]
+            groups.append(
+                ReplicaInfo(
+                    replica.replicaID,
+                    shards,
+                    replica.node_ids,
+                    replica.resource_group_name,
+                    replica.num_outbound_node,
+                )
+            )
+
+        return groups
 
     @retry_on_rpc_failure()
     def do_bulk_insert(

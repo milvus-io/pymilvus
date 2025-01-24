@@ -44,6 +44,9 @@ print("partitions:", partitions)
 milvus_client.release_collection(collection_name)
 milvus_client.load_partitions(collection_name, partition_names =["p1", "p2"])
 
+replicas=milvus_client.describe_replica(collection_name)
+print("replicas:", replicas)
+
 print(fmt.format("Start search in partiton p1"))
 vectors_to_search = rng.random((1, dim))
 result = milvus_client.search(collection_name, vectors_to_search, limit=3, output_fields=["pk", "a", "b"], partition_names = ["p1"])
