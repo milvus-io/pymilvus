@@ -799,10 +799,10 @@ class GrpcHandler:
         response = rf.result()
         if response.status.error_code == common_pb2.SchemaMismatch:
             schema = self.update_schema(collection_name, timeout)
-            request = self._prepare_row_insert_request(
+            request = self._prepare_row_upsert_request(
                 collection_name, entities, partition_name, schema, timeout, **kwargs
             )
-            response = self._stub.Insert(request=request, timeout=timeout)
+            response = self._stub.Upsert(request=request, timeout=timeout)
         check_status(response.status)
         m = MutationResult(response)
         ts_utils.update_collection_ts(collection_name, m.timestamp)
