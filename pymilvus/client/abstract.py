@@ -209,7 +209,6 @@ class CollectionSchema:
         # for kv in raw.extra_params:
 
         self.fields = [FieldSchema(f) for f in raw.schema.fields]
-        self.update_timestamp = raw.update_timestamp
         self.functions = [FunctionSchema(f) for f in raw.schema.functions]
         function_output_field_names = [f for fn in self.functions for f in fn.output_field_names]
         for field in self.fields:
@@ -247,7 +246,6 @@ class CollectionSchema:
             "properties": self.properties,
             "num_partitions": self.num_partitions,
             "enable_dynamic_field": self.enable_dynamic_field,
-            "update_timestamp": self.update_timestamp,
         }
         self._rewrite_schema_dict(_dict)
         return _dict
