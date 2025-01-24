@@ -349,6 +349,11 @@ class Shard:
 
 
 class Group:
+    """
+    This class represents replica info in orm format api, which is deprecated in milvus client api.
+    use `ReplicaInfo` instead.
+    """
+
     def __init__(
         self,
         group_id: int,
@@ -393,6 +398,10 @@ class Group:
 
 class Replica:
     """
+    This class represents replica info list in orm format api,
+    which is deprecated in milvus client api.
+    use `List[ReplicaInfo]` instead.
+
     Replica groups:
         - Group: <group_id:2>, <group_nodes:(1, 2, 3)>,
             <shards:[Shard: <shard_id:10>,
@@ -419,6 +428,49 @@ class Replica:
     @property
     def groups(self):
         return self._groups
+
+
+class ReplicaInfo:
+    def __init__(
+        self,
+        replica_id: int,
+        shards: List[str],
+        nodes: List[tuple],
+        resource_group: str,
+        num_outbound_node: dict,
+    ) -> None:
+        self._id = replica_id
+        self._shards = shards
+        self._nodes = tuple(nodes)
+        self._resource_group = resource_group
+        self._num_outbound_node = num_outbound_node
+
+    def __repr__(self) -> str:
+        return (
+            f"ReplicaInfo: <id:{self.id}>, <nodes:{self.group_nodes}>, "
+            f"<shards:{self.shards}>, <resource_group: {self.resource_group}>, "
+            f"<num_outbound_node: {self.num_outbound_node}>"
+        )
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def group_nodes(self):
+        return self._nodes
+
+    @property
+    def shards(self):
+        return self._shards
+
+    @property
+    def resource_group(self):
+        return self._resource_group
+
+    @property
+    def num_outbound_node(self):
+        return self._num_outbound_node
 
 
 class BulkInsertState:
