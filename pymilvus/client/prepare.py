@@ -460,14 +460,14 @@ class Prepare:
                             )
 
                         if not enable_dynamic:
-                            raise DataNotMatchException(
-                                message=ExceptionsMessage.InsertUnexpectedField % k
-                            )
+                            raise DataNotMatchException(message=ExceptionsMessage.InsertUnexpectedField % k)
 
                     if k in fields_data:
                         field_info, field_data = field_info_map[k], fields_data[k]
-                        if field_info.get("nullable", False) or field_info.get(
-                            "default_value", None
+                        if (
+                            field_info.get("nullable", False)
+                            or field_info.get("default_value", None)
+                            or field_info.get("auto_id", False)
                         ):
                             field_data.valid_data.append(v is not None)
                         entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
@@ -542,14 +542,14 @@ class Prepare:
                             )
 
                         if not enable_dynamic:
-                            raise DataNotMatchException(
-                                message=ExceptionsMessage.InsertUnexpectedField % k
-                            )
+                            raise DataNotMatchException(message=ExceptionsMessage.InsertUnexpectedField % k)
 
                     if k in fields_data:
                         field_info, field_data = field_info_map[k], fields_data[k]
-                        if field_info.get("nullable", False) or field_info.get(
-                            "default_value", None
+                        if (
+                            field_info.get("nullable", False)
+                            or field_info.get("default_value", None)
+                            or field_info.get("auto_id", False)
                         ):
                             field_data.valid_data.append(v is not None)
                         entity_helper.pack_field_value_to_field_data(v, field_data, field_info)

@@ -438,7 +438,7 @@ def entity_to_field_data(entity: Any, field_info: Any, num_rows: int):
     entity_value = entity.get("values")
     valid_data = []
 
-    if field_info.get("nullable", False) or field_info.get("default_value", None):
+    if field_info.get("nullable", False) or field_info.get("default_value", None) or field_info.get("auto_id", False):
         if len(entity_value) == 0:
             valid_data = [False] * num_rows
         else:
