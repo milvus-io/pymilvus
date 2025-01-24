@@ -11,6 +11,7 @@ from pymilvus.client.types import (
     ExtraList,
     LoadState,
     OmitZeroDict,
+    ReplicaInfo,
     ResourceGroupConfig,
     construct_cost_extra,
 )
@@ -1616,3 +1617,19 @@ class MilvusClient:
         return conn.transfer_replica(
             source_group, target_group, collection_name, num_replicas, timeout
         )
+
+    def describe_replica(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[ReplicaInfo]:
+        """Get the current loaded replica information
+
+        Args:
+            collection_name (``str``): The name of the given collection.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+        Returns:
+            List[ReplicaInfo]: All the replica information.
+        """
+        conn = self._get_connection()
+        return conn.describe_replica(collection_name, timeout=timeout, **kwargs)
