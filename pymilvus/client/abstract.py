@@ -246,7 +246,6 @@ class CollectionSchema:
             "properties": self.properties,
             "num_partitions": self.num_partitions,
             "enable_dynamic_field": self.enable_dynamic_field,
-            "update_timestamp": self.update_timestamp,
         }
         self._rewrite_schema_dict(_dict)
         return _dict
