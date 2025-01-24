@@ -70,6 +70,7 @@ class ErrorCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DropPrivilegeGroupFailure: _ClassVar[ErrorCode]
     ListPrivilegeGroupsFailure: _ClassVar[ErrorCode]
     OperatePrivilegeGroupFailure: _ClassVar[ErrorCode]
+    SchemaMismatch: _ClassVar[ErrorCode]
     DataCoordNA: _ClassVar[ErrorCode]
     DDRequestRace: _ClassVar[ErrorCode]
 
@@ -409,6 +410,7 @@ CreatePrivilegeGroupFailure: ErrorCode
 DropPrivilegeGroupFailure: ErrorCode
 ListPrivilegeGroupsFailure: ErrorCode
 OperatePrivilegeGroupFailure: ErrorCode
+SchemaMismatch: ErrorCode
 DataCoordNA: ErrorCode
 DDRequestRace: ErrorCode
 IndexStateNone: IndexState
