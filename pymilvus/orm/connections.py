@@ -385,9 +385,14 @@ class Connections(metaclass=SingleInstanceMetaClass):
                     message=f"Open local milvus failed, dir: {parent_path} not exists"
                 )
 
-            from milvus_lite.server_manager import (
-                server_manager_instance,
-            )
+            try:
+                from milvus_lite.server_manager import (
+                    server_manager_instance,
+                )
+            except ImportError:
+                raise ConnectionConfigException(
+                    message="milvus-lite is not installed. Please install it using 'pip install pymilvus[milvus_lite]' or pip install milvus-lite"
+                )
 
             local_uri = server_manager_instance.start_and_get_uri(kwargs["uri"])
             if local_uri is None:
