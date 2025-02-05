@@ -710,7 +710,7 @@ class MilvusClient:
 
         conn = self._get_connection()
         try:
-            schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
+            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
         except Exception as ex:
             logger.error("Failed to describe collection: %s", collection_name)
             raise ex from ex
@@ -796,7 +796,7 @@ class MilvusClient:
         conn = self._get_connection()
         if len(pks) > 0:
             try:
-                schema_dict , _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
+                schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
             except Exception as ex:
                 logger.error("Failed to describe collection: %s", collection_name)
                 raise ex from ex
