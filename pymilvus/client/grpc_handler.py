@@ -578,6 +578,11 @@ class GrpcHandler:
             schema_timestamp=schema_timestamp,
         )
 
+    def get_schema_from_cache_or_remote(
+        self, collection_name: str, schema: Optional[dict] = None, timeout: Optional[float] = None
+    ):
+        return self._get_schema_from_cache_or_remote(collection_name, schema, timeout)
+
     def _get_schema_from_cache_or_remote(
         self, collection_name: str, schema: Optional[dict] = None, timeout: Optional[float] = None
     ):
