@@ -182,7 +182,7 @@ class CollectionSchema:
         self.num_shards = 0
         self.num_partitions = 0
         self.enable_dynamic_field = False
-        self.update_timestamp = 0
+        self.created_timestamp = 0
         if self._raw:
             self.__pack(self._raw)
 
@@ -193,7 +193,7 @@ class CollectionSchema:
         self.collection_id = raw.collectionID
         self.num_shards = raw.shards_num
         self.num_partitions = raw.num_partitions
-
+        self.created_timestamp = raw.created_timestamp
         # keep compatible with older Milvus
         try:
             self.consistency_level = raw.consistency_level
@@ -247,6 +247,9 @@ class CollectionSchema:
             "num_partitions": self.num_partitions,
             "enable_dynamic_field": self.enable_dynamic_field,
         }
+
+        if self.created_timestamp != 0:
+            _dict["created_timestamp"] = self.created_timestamp
         self._rewrite_schema_dict(_dict)
         return _dict
 
