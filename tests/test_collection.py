@@ -28,8 +28,10 @@ class TestCollections:
             FieldSchema("int64", DataType.INT64),
             FieldSchema("float", DataType.FLOAT),
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=128),
+            FieldSchema("binary_vector", DataType.BINARY_VECTOR, dim=128),
             FieldSchema("float16_vector", DataType.FLOAT16_VECTOR, dim=128),
-            FieldSchema("bfloat16_vector", DataType.BFLOAT16_VECTOR, dim=128)
+            FieldSchema("bfloat16_vector", DataType.BFLOAT16_VECTOR, dim=128),
+            FieldSchema("int8_vector", DataType.INT8_VECTOR, dim=128),
         ]
 
         prefix = "pymilvus.client.grpc_handler.GrpcHandler"

@@ -1041,6 +1041,7 @@ class GrpcHandler:
                 DataType.FLOAT16_VECTOR,
                 DataType.BFLOAT16_VECTOR,
                 DataType.SPARSE_FLOAT_VECTOR,
+                DataType.INT8_VECTOR,
             }:
                 break
 

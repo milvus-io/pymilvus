@@ -47,6 +47,7 @@ class TestTypes:
         ([np.int8(1)], DataType.FLOAT_VECTOR),
         ([np.float16(1.0)], DataType.FLOAT16_VECTOR),
         #  ([np.array([1, 1], dtype=bfloat16)], DataType.BFLOAT16_VECTOR),
+        ([np.int8(1)], DataType.INT8_VECTOR),
     ])
     def test_infer_dtype_bydata(self, input_expect):
         data, expect = input_expect

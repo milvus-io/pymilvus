@@ -180,6 +180,12 @@ class TestSearchResult:
                     bfloat16_vector=os.urandom(32),
                 ),
             ),
+            schema_pb2.FieldData(type=DataType.INT8_VECTOR, field_name="int8_vector_field", field_id=117,
+                vectors=schema_pb2.VectorField(
+                    dim=16,
+                    int8_vector=os.urandom(32),
+                ),
+            ),
         ]
         result = schema_pb2.SearchResultData(
             fields_data=fields_data,
@@ -204,3 +210,4 @@ class TestSearchResult:
         assert [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] == r[0][1].int64_array_field
         assert 32 == len(r[0][0].entity.bfloat16_vector_field)
         assert 32 == len(r[0][0].entity.float16_vector_field)
+        assert 16 == len(r[0][0].entity.int8_vector_field)

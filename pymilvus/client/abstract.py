@@ -610,7 +610,7 @@ class SearchResult(list):
             field_meta.vectors.dim = dim
             if dtype == DataType.FLOAT_VECTOR:
                 if start == 0 and (end - start) * dim >= len(vectors.float_vector.data):
-                    # If the range equals to the lenth of ectors.float_vector.data, direct return
+                    # If the range equals to the length of vectors.float_vector.data, direct return
                     # it to avoid a copy. This logic improves performance by 25% for the case
                     # retrival 1536 dim embeddings with topk=16384.
                     field2data[name] = vectors.float_vector.data, field_meta
@@ -645,6 +645,13 @@ class SearchResult(list):
             if dtype == DataType.FLOAT16_VECTOR:
                 field2data[name] = (
                     vectors.float16_vector[start * (dim * 2) : end * (dim * 2)],
+                    field_meta,
+                )
+                continue
+
+            if dtype == DataType.INT8_VECTOR:
+                field2data[name] = (
+                    vectors.int8_vector[start * dim : end * dim],
                     field_meta,
                 )
                 continue
@@ -706,6 +713,7 @@ class Hits(list):
                     DataType.BINARY_VECTOR,
                     DataType.BFLOAT16_VECTOR,
                     DataType.FLOAT16_VECTOR,
+                    DataType.INT8_VECTOR,
                 ):
                     dim = field_meta.vectors.dim
                     if field_meta.type in [DataType.BINARY_VECTOR]:

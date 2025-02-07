@@ -388,6 +388,23 @@ def pack_field_value_to_field_data(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "sparse_float_vector", type(field_value))
             ) from e
+    elif field_type == DataType.INT8_VECTOR:
+        try:
+            i_value = field_value
+            if isinstance(field_value, np.ndarray):
+                if field_value.dtype != "int8":
+                    raise ParamError(
+                        message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8"
+                    )
+                v_bytes = field_value.view(np.int8).tobytes()
+
+            field_data.vectors.dim = len(i_value)
+            field_data.vectors.int8_vector += v_bytes
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                % (field_name, "int8_vector", type(field_value))
+            ) from e
     elif field_type == DataType.VARCHAR:
         try:
             if field_value is None:
@@ -560,6 +577,15 @@ def entity_to_field_data(entity: Any, field_info: Any, num_rows: int):
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "sparse_float_vector", type(entity.get("values")[0]))
+            ) from e
+    elif entity_type == DataType.INT8_VECTOR:
+        try:
+            field_data.vectors.dim = len(entity.get("values")[0])
+            field_data.vectors.int8_vector = b"".join(entity.get("values"))
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                % (field_name, "int8_vector", type(entity.get("values")[0]))
             ) from e
     else:
         raise ParamError(message=f"Unsupported data type: {entity_type}")
