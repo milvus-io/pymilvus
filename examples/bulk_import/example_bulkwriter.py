@@ -179,7 +179,7 @@ def local_writer_simple(schema: CollectionSchema, file_type: BulkFileType):
             file_type=file_type,
     ) as local_writer:
         # read data from csv
-        read_sample_data("./data/train_embeddings.csv", local_writer)
+        read_sample_data("./train_embeddings.csv", local_writer)
 
         # append rows
         for i in range(100000):
@@ -208,7 +208,7 @@ def remote_writer_simple(schema: CollectionSchema, file_type: BulkFileType):
             file_type=file_type,
     ) as remote_writer:
         # read data from csv
-        read_sample_data("./data/train_embeddings.csv", remote_writer)
+        read_sample_data("./train_embeddings.csv", remote_writer)
 
         # append rows
         for i in range(10000):

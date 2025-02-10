@@ -67,8 +67,8 @@ NUMPY_TYPE_CREATOR = {
     DataType.INT64.name: np.dtype("int64"),
     DataType.FLOAT.name: np.dtype("float32"),
     DataType.DOUBLE.name: np.dtype("float64"),
-    DataType.VARCHAR.name: None,
-    DataType.JSON.name: None,
+    DataType.VARCHAR.name: np.dtype("str"),
+    DataType.JSON.name: np.dtype("str"),  # in numpy/parquet file, json object are stored as string
     DataType.FLOAT_VECTOR.name: np.dtype("float32"),
     DataType.BINARY_VECTOR.name: np.dtype("uint8"),
     DataType.FLOAT16_VECTOR.name: np.dtype("uint8"),
