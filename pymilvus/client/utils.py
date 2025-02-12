@@ -201,6 +201,9 @@ def len_of(field_data: Any) -> int:
             return int(total_len / (dim * data_wide_in_bytes))
         if field_data.vectors.HasField("sparse_float_vector"):
             return len(field_data.vectors.sparse_float_vector.contents)
+        if field_data.vectors.HasField("int8_vector"):
+            total_len = len(field_data.vectors.int8_vector)
+            return int(total_len / dim)
 
         total_len = len(field_data.vectors.binary_vector)
         return int(total_len / (dim / 8))
