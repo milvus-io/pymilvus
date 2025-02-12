@@ -60,7 +60,7 @@ def int8_vector_search():
         hello_milvus.load()
         print("index_type = ", index_type)
         res = hello_milvus.search(vectors[0:10], vector_field_name, {"metric_type": "L2"}, limit=1, output_fields=["int8_vector"])
-        print("raw bytes: ", res[0][0].get("float16_vector"))
+        print("raw bytes: ", res[0][0].get("int8_vector"))
         print("numpy ndarray: ", np.frombuffer(res[0][0].get("int8_vector"), dtype=np.int8))
         hello_milvus.release()
         hello_milvus.drop_index()
