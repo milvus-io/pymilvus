@@ -768,6 +768,13 @@ def extract_row_data_from_fields_data(
             entity_row_data[field_data.field_name] = sparse_parse_single_row(
                 field_data.vectors.sparse_float_vector.contents[index]
             )
+        elif field_data.type == DataType.INT8_VECTOR:
+            dim = field_data.vectors.dim
+            if len(field_data.vectors.int8_vector) >= index * dim:
+                start_pos, end_pos = index * dim, (index + 1) * dim
+                entity_row_data[field_data.field_name] = [
+                    field_data.vectors.int8_vector[start_pos:end_pos]
+                ]
 
     for field_data in fields_data:
         check_append(field_data)

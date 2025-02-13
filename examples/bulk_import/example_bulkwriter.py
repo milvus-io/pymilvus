@@ -91,6 +91,15 @@ def gen_fp16_vector(to_numpy_arr):
         return np.array(raw_vector, dtype=np.float16)
     return raw_vector
 
+# optional input for int8 vector:
+# 1. list of int8 such as [-6, 18, 65, -94]
+# 2. numpy array of int8
+def gen_int8_vector(to_numpy_arr):
+    raw_vector = [random.randint(-128, 127) for _ in range(DIM)]
+    if to_numpy_arr:
+        return np.array(raw_vector, dtype=np.int8)
+    return raw_vector
+
 # optional input for sparse vector:
 # only accepts dict like {2: 13.23, 45: 0.54} or {"indices": [1, 2], "values": [0.1, 0.2]}
 # note: no need to sort the keys
@@ -144,7 +153,8 @@ def build_all_type_schema(is_numpy: bool):
         # FieldSchema(name="float_vector", dtype=DataType.FLOAT_VECTOR, dim=DIM),
         FieldSchema(name="binary_vector", dtype=DataType.BINARY_VECTOR, dim=DIM),
         FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=DIM),
-        FieldSchema(name="bfloat16_vector", dtype=DataType.BFLOAT16_VECTOR, dim=DIM),
+        # FieldSchema(name="bfloat16_vector", dtype=DataType.BFLOAT16_VECTOR, dim=DIM),
+        FieldSchema(name="int8_vector", dtype=DataType.INT8_VECTOR, dim=DIM),
     ]
 
     # milvus doesn't support parsing array/sparse_vector from numpy file
@@ -306,7 +316,8 @@ def all_types_writer(schema: CollectionSchema, file_type: BulkFileType)-> List[L
                 # "float_vector": gen_float_vector(False),
                 "binary_vector": gen_binary_vector(False),
                 "float16_vector": gen_fp16_vector(False),
-                "bfloat16_vector": gen_bf16_vector(False),
+                # "bfloat16_vector": gen_bf16_vector(False),
+                "int8_vector": gen_int8_vector(False),
                 f"dynamic_{i}": i,
                 # bulkinsert doesn't support import npy with array field and sparse vector,
                 # if file_type is numpy, the below values will be stored into dynamic field
@@ -333,7 +344,8 @@ def all_types_writer(schema: CollectionSchema, file_type: BulkFileType)-> List[L
                 # "float_vector": gen_float_vector(True),
                 "binary_vector": gen_binary_vector(True),
                 "float16_vector": gen_fp16_vector(True),
-                "bfloat16_vector": gen_bf16_vector(True),
+                # "bfloat16_vector": gen_bf16_vector(True),
+                "int8_vector": gen_int8_vector(True),
                 f"dynamic_{id}": id,
                 # bulkinsert doesn't support import npy with array field and sparse vector,
                 # if file_type is numpy, the below values will be stored into dynamic field
@@ -418,6 +430,12 @@ def retrieve_imported_data():
                 "metric_type": "IP",
                 "params": {"drop_ratio_build": 0.2}
             })
+        elif field.dtype == DataType.INT8_VECTOR:
+            collection.create_index(field_name=field.name, index_params={
+                "index_type": "HNSW",
+                "params": {},
+                "metric_type": "L2"
+            })
 
     ids = [100, 15000]
     print(f"Load collection and query items {ids}")
@@ -499,7 +517,7 @@ if __name__ == '__main__':
     # all vector types + all scalar types
     for file_type in file_types:
         # Note: bulkinsert doesn't support import npy with array field and sparse vector field
-        schema = build_all_type_schema(is_numpy= file_type==BulkFileType.NUMPY)
+        schema = build_all_type_schema(is_numpy=(file_type == BulkFileType.NUMPY))
         batch_files = all_types_writer(schema=schema, file_type=file_type)
         call_bulkinsert(schema, batch_files)
         retrieve_imported_data()
