@@ -133,44 +133,51 @@ class Buffer:
     def _persist_npy(self, local_path: str, **kwargs):
         file_list = []
         row_count = len(next(iter(self._buffer.values())))
-        for k in self._buffer:
+        for k, v in self._buffer.items():
             full_file_name = Path(local_path).joinpath(k + ".npy")
             file_list.append(str(full_file_name))
             try:
                 Path(local_path).mkdir(exist_ok=True)
 
                 # numpy data type specify
-                dt = None
                 field_schema = self._fields[k]
+                dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
                 if field_schema.dtype == DataType.ARRAY:
-                    element_type = field_schema.element_type
-                    dt = NUMPY_TYPE_CREATOR[element_type.name]
-                elif field_schema.dtype.name in NUMPY_TYPE_CREATOR:
-                    dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
-
-                # for JSON field, convert to string array
-                if field_schema.dtype == DataType.JSON:
-                    str_arr = []
-                    for val in self._buffer[k]:
-                        str_arr.append(json.dumps(val))
-                    self._buffer[k] = str_arr
-
-                # currently, milvus server doesn't support numpy for sparse vector
-                if field_schema.dtype == DataType.SPARSE_FLOAT_VECTOR:
+                    # currently, milvus server doesn't support numpy for array field
+                    self._throw(
+                        f"Failed to persist file {full_file_name},"
+                        f" error: milvus doesn't support parsing array type values from numpy file"
+                    )
+                elif field_schema.dtype == DataType.JSON:
+                    # for JSON field, convert to string array
+                    a = []
+                    for val in v:
+                        a.append(json.dumps(val))
+                    arr = np.array(a, dtype=dt)
+                elif field_schema.dtype in {DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR}:
+                    a = []
+                    for val in v:
+                        a.append(np.array(val, dtype=dt))
+                    arr = np.array(a)
+                elif field_schema.dtype == DataType.SPARSE_FLOAT_VECTOR:
+                    # currently, milvus server doesn't support numpy for sparse vector
                     self._throw(
                         f"Failed to persist file {full_file_name},"
                         f" error: milvus doesn't support parsing sparse vectors from numpy file"
                     )
-
-                # special process for float16 vector, the self._buffer stores bytes for
-                # float16 vector, convert the bytes to uint8 array
-                if field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
+                elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
+                    # special process for float16 vector, the self._buffer stores bytes for
+                    # float16 vector, convert the bytes to uint8 array
                     a = []
-                    for b in self._buffer[k]:
-                        a.append(np.frombuffer(b, dtype=dt).tolist())
+                    for val in v:
+                        a.append(np.frombuffer(val, dtype=dt).tolist())
                     arr = np.array(a, dtype=dt)
                 else:
-                    arr = np.array(self._buffer[k], dtype=dt)
+                    a = []
+                    for val in v:
+                        a.append(None if val is None else dt.type(val))
+                    arr = np.array(a)
+
                 np.save(str(full_file_name), arr)
             except Exception as e:
                 self._throw(f"Failed to persist file {full_file_name}, error: {e}")
@@ -226,24 +233,24 @@ class Buffer:
         file_path = Path(local_path + ".parquet")
 
         data = {}
-        for k in self._buffer:
+        for k, v in self._buffer.items():
             field_schema = self._fields[k]
             if field_schema.dtype in {DataType.JSON, DataType.SPARSE_FLOAT_VECTOR}:
                 # for JSON and SPARSE_VECTOR field, store as string array
                 str_arr = []
-                for val in self._buffer[k]:
+                for val in v:
                     str_arr.append(json.dumps(val))
                 data[k] = pd.Series(str_arr, dtype=None)
             elif field_schema.dtype in {DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR}:
                 arr = []
-                for val in self._buffer[k]:
+                for val in v:
                     arr.append(np.array(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name]))
                 data[k] = pd.Series(arr)
             elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
                 # special process for float16 vector, the self._buffer stores bytes for
                 # float16 vector, convert the bytes to uint8 array
                 arr = []
-                for val in self._buffer[k]:
+                for val in v:
                     arr.append(
                         np.frombuffer(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name])
                     )
@@ -251,15 +258,18 @@ class Buffer:
             elif field_schema.dtype == DataType.ARRAY:
                 dt = NUMPY_TYPE_CREATOR[field_schema.element_type.name]
                 arr = []
-                for val in self._buffer[k]:
-                    arr.append(np.array(val, dtype=dt))
+                for val in v:
+                    arr.append(None if val is None else np.array(val, dtype=dt))
                 data[k] = pd.Series(arr)
             elif field_schema.dtype.name in NUMPY_TYPE_CREATOR:
                 dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
-                data[k] = pd.Series(self._buffer[k], dtype=dt)
+                arr = []
+                for val in v:
+                    arr.append(None if val is None else dt.type(val))
+                data[k] = np.array(arr)
             else:
                 # dtype is null, let pandas deduce the type, might not work
-                data[k] = pd.Series(self._buffer[k])
+                data[k] = pd.Series(v)
 
         # calculate a proper row group size
         row_group_size_min = 1000
@@ -302,7 +312,7 @@ class Buffer:
             #   when arr is a list, the output is '[1.0, 2.0]'
             #   when arr is a tuple, the output is '(1.0, 2.0)'
             #   when arr is a np.array, the output is '[1.0 2.0]'
-            # we needs the output to be '[1.0, 2.0]', consistent with the array format in json
+            # we need the output to be '[1.0, 2.0]', consistent with the array format in json
             # so 1. whether make sure that arr of type
             #       (BINARY_VECTOR, FLOAT_VECTOR, FLOAT16_VECTOR, BFLOAT16_VECTOR) is a LIST,
             #    2. or convert arr into a string using json.dumps(arr) first and then add it to df
@@ -332,21 +342,24 @@ class Buffer:
                 DataType.JSON,
                 DataType.ARRAY,
             }:
+                # JSON/Array values are converted to JSON format strings
                 arr = []
                 for val in v:
-                    if val is None:
-                        arr.append(nullkey)
-                    else:
-                        arr.append(json.dumps(val))
+                    arr.append(None if val is None else json.dumps(val))
                 data[k] = pd.Series(arr, dtype=np.dtype("str"))
             elif field_schema.dtype in {DataType.BOOL}:
+                # boolean values are converted to string array
+                data[k] = pd.Series(v, dtype=np.dtype("str"))
+            else:
+                # pd.Series cannot handle None with specific np.dtype because it cannot convert
+                # None to a type value.
+                # here we use numpy.array as input, each value is converted to numpy.dtype
+                # except None values.
+                dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
                 arr = []
                 for val in v:
-                    if val is not None:
-                        arr.append("true" if val else "false")
-                data[k] = pd.Series(arr, dtype=np.dtype("str"))
-            else:
-                data[k] = pd.Series(v, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name])
+                    arr.append(None if val is None else dt.type(val))
+                data[k] = np.array(arr)
 
         file_path = Path(local_path + ".csv")
         try:
