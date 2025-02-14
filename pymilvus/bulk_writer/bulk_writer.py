@@ -125,9 +125,16 @@ class BulkWriter:
                 origin_list = validator(x, dim)
                 if dtype == DataType.FLOAT_VECTOR:
                     return origin_list, dim * 4  # for float vector, each dim occupies 4 bytes
+                if dtype in [DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR]:
+                    return (
+                        origin_list,
+                        dim * 2,
+                    )  # for float16 or bfloat16 vector, each dim occupies 2 bytes
+                if dtype == DataType.INT8_VECTOR:
+                    return origin_list, dim  # for int8 vector, each dim occupies 1 bytes
                 if dtype == DataType.BINARY_VECTOR:
                     return origin_list, dim / 8  # for binary vector, 8 dim occupies 1 byte
-                return origin_list, dim * 2  # for float16 vector, each dim occupies 2 bytes
+                self._throw(f"Illegal vector data type for vector field: '{field.name}'")
             except MilvusException as e:
                 self._throw(f"Illegal vector data for vector field: '{field.name}': {e.message}")
         else:
@@ -224,6 +231,7 @@ class BulkWriter:
                 DataType.FLOAT16_VECTOR,
                 DataType.BFLOAT16_VECTOR,
                 DataType.SPARSE_FLOAT_VECTOR,
+                DataType.INT8_VECTOR,
             }:
                 origin_list, byte_len = self._verify_vector(row[field.name], field)
                 row[field.name] = origin_list

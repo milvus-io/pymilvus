@@ -23,7 +23,7 @@ def float_vector_validator(x: object, dim: int):
             raise MilvusException(message=msg)
 
         if len(x.shape) != 1:
-            raise MilvusException(message="numpy.ndarray's shape must be one dimension")
+            raise MilvusException(message="numpy.ndarray's shape must not be one dimension")
 
         if x.shape[0] != dim:
             raise MilvusException(
@@ -94,7 +94,7 @@ def float16_vector_validator(x: object, dim: int, is_bfloat: bool):
             raise MilvusException(message=msg)
 
         if len(x.shape) != 1:
-            raise MilvusException(message="numpy.ndarray's shape must be one dimension")
+            raise MilvusException(message="numpy.ndarray's shape must not be one dimension")
 
         if x.shape[0] != dim:
             raise MilvusException(
@@ -105,6 +105,36 @@ def float16_vector_validator(x: object, dim: int, is_bfloat: bool):
 
     raise MilvusException(
         message="only accept numpy.ndarray or list[float] for FLOAT16_VECTOR/BFLOAT16_VECTOR type field"
+    )
+
+
+def int8_vector_validator(x: object, dim: int):
+    if isinstance(x, list):  # accepts list of float
+        if len(x) != dim:
+            raise MilvusException(message="array's length must be equal to vector dimension")
+
+        for k in x:
+            if not isinstance(k, int):
+                raise MilvusException(message="array's element must be int value")
+        return x
+
+    if isinstance(x, np.ndarray):  # accepts numpy array of float
+        if not issubclass(x.dtype.type, np.int8):
+            msg = 'numpy.ndarray\'s dtype must be "int8" for INT8_VECTOR type field'
+            raise MilvusException(message=msg)
+
+        if len(x.shape) != 1:
+            raise MilvusException(message="numpy.ndarray's shape must not be one dimension")
+
+        if x.shape[0] != dim:
+            raise MilvusException(
+                message="numpy.ndarray's length must be equal to vector dimension"
+            )
+
+        return x.tolist()
+
+    raise MilvusException(
+        message="only accept numpy.ndarray or list[int8] for INT8_VECTOR type field"
     )
 
 

@@ -22,6 +22,7 @@ from .validators import (
     binary_vector_validator,
     float16_vector_validator,
     float_vector_validator,
+    int8_vector_validator,
     sparse_vector_validator,
 )
 
@@ -56,6 +57,7 @@ TYPE_VALIDATOR = {
     DataType.FLOAT16_VECTOR.name: lambda x, dim: float16_vector_validator(x, dim, False),
     DataType.BFLOAT16_VECTOR.name: lambda x, dim: float16_vector_validator(x, dim, True),
     DataType.SPARSE_FLOAT_VECTOR.name: lambda x: sparse_vector_validator(x),
+    DataType.INT8_VECTOR.name: lambda x, dim: int8_vector_validator(x, dim),
     DataType.ARRAY.name: lambda x, cap: isinstance(x, list) and len(x) <= cap,
 }
 
@@ -74,6 +76,7 @@ NUMPY_TYPE_CREATOR = {
     DataType.FLOAT16_VECTOR.name: np.dtype("uint8"),
     DataType.BFLOAT16_VECTOR.name: np.dtype("uint8"),
     DataType.SPARSE_FLOAT_VECTOR: None,
+    DataType.INT8_VECTOR.name: np.dtype("int8"),
     DataType.ARRAY.name: None,
 }
 
