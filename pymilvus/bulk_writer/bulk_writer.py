@@ -161,6 +161,14 @@ class BulkWriter:
 
         return len(x)
 
+    def _verify_scalar(self, x: object, dtype: DataType, field_name: str):
+        validator = TYPE_VALIDATOR[dtype.name]
+        if not validator(x):
+            self._throw(
+                f"Illegal scalar value for field '{field_name}', value overflow or type mismatch"
+            )
+        return TYPE_SIZE[dtype.name]
+
     def _verify_array(self, x: object, field: FieldSchema):
         max_capacity = field.params["max_capacity"]
         element_type = field.element_type
@@ -173,6 +181,8 @@ class BulkWriter:
         row_size = 0
         if element_type.name in TYPE_SIZE:
             row_size = TYPE_SIZE[element_type.name] * len(x)
+            for ele in x:
+                self._verify_scalar(ele, element_type, field.name)
         elif element_type == DataType.VARCHAR:
             for ele in x:
                 row_size = row_size + self._verify_varchar(ele, field)
@@ -242,13 +252,7 @@ class BulkWriter:
                 if isinstance(row[field.name], np.generic):
                     row[field.name] = row[field.name].item()
 
-                validator = TYPE_VALIDATOR[dtype.name]
-                if not validator(row[field.name]):
-                    self._throw(
-                        f"Illegal scalar value for field '{field.name}', value overflow or type mismatch"
-                    )
-
-                row_size = row_size + TYPE_SIZE[dtype.name]
+                row_size = row_size + self._verify_scalar(row[field.name], dtype, field.name)
 
         with self._buffer_lock:
             self._buffer_size = self._buffer_size + row_size
