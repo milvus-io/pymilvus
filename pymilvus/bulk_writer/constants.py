@@ -51,7 +51,7 @@ TYPE_VALIDATOR = {
     DataType.FLOAT.name: lambda x: isinstance(x, float),
     DataType.DOUBLE.name: lambda x: isinstance(x, float),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,
-    DataType.JSON.name: lambda x: isinstance(x, dict),
+    DataType.JSON.name: lambda x: isinstance(x, (str, list, dict)),
     DataType.FLOAT_VECTOR.name: lambda x, dim: float_vector_validator(x, dim),
     DataType.BINARY_VECTOR.name: lambda x, dim: binary_vector_validator(x, dim),
     DataType.FLOAT16_VECTOR.name: lambda x, dim: float16_vector_validator(x, dim, False),
