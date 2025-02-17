@@ -31,27 +31,36 @@ import numpy as np
 #  from ml_dtypes import bfloat16
 
 
-@pytest.mark.skip("please fix me")
 class TestTypes:
-    @pytest.mark.parametrize("input_expect", [
-        ([1], DataType.FLOAT_VECTOR),
-        ([True], DataType.UNKNOWN),
-        ([1.0, 2.0], DataType.FLOAT_VECTOR),
-        (["abc"], DataType.UNKNOWN),
-        (bytes("abc", encoding='ascii'), DataType.BINARY_VECTOR),
-        (1, DataType.INT64),
-        (True, DataType.BOOL),
-        ("abc", DataType.VARCHAR),
-        (np.int8(1), DataType.INT8),
-        (np.int16(1), DataType.INT16),
-        ([np.int8(1)], DataType.FLOAT_VECTOR),
-        ([np.float16(1.0)], DataType.FLOAT16_VECTOR),
-        #  ([np.array([1, 1], dtype=bfloat16)], DataType.BFLOAT16_VECTOR),
-    ])
+    @pytest.mark.skip("please fix me")
+    @pytest.mark.parametrize(
+        "input_expect",
+        [
+            ([1], DataType.FLOAT_VECTOR),
+            ([True], DataType.UNKNOWN),
+            ([1.0, 2.0], DataType.FLOAT_VECTOR),
+            (["abc"], DataType.UNKNOWN),
+            (bytes("abc", encoding="ascii"), DataType.BINARY_VECTOR),
+            (1, DataType.INT64),
+            (True, DataType.BOOL),
+            ("abc", DataType.VARCHAR),
+            (np.int8(1), DataType.INT8),
+            (np.int16(1), DataType.INT16),
+            ([np.int8(1)], DataType.FLOAT_VECTOR),
+            ([np.float16(1.0)], DataType.FLOAT16_VECTOR),
+            #  ([np.array([1, 1], dtype=bfloat16)], DataType.BFLOAT16_VECTOR),
+        ],
+    )
     def test_infer_dtype_bydata(self, input_expect):
         data, expect = input_expect
         got = infer_dtype_bydata(data)
         assert got == expect
+
+    def test_str_of_data_type(self):
+        for v in DataType:
+            assert isinstance(v, DataType)
+            assert str(v) == str(v.value)
+            assert str(v) != v.name
 
 
 class TestConsistencyLevel:
@@ -91,6 +100,8 @@ class TestReplica:
     def test_shard_dup_nodeIDs(self):
         s = Shard("channel-1", (1, 1, 1), 1)
         assert s.channel_name == "channel-1"
-        assert s.shard_nodes == {1,}
+        assert s.shard_nodes == {
+            1,
+        }
         assert s.shard_leader == 1
         print(s)
