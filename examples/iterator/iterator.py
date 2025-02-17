@@ -1,3 +1,4 @@
+from pymilvus.client.abstract import Hits
 from pymilvus.milvus_client.milvus_client import MilvusClient
 from pymilvus import (
     FieldSchema, CollectionSchema, DataType,
@@ -42,7 +43,7 @@ def test_search_iterator(milvus_client: MilvusClient):
     while True:
         res = search_iterator.next()
         if len(res) == 0:
-            print("query iteration finished, close")
+            print("search iteration finished, close")
             search_iterator.close()
             break
         for i in range(len(res)):
@@ -50,6 +51,43 @@ def test_search_iterator(milvus_client: MilvusClient):
         page_idx += 1
         print(f"page{page_idx}-------------------------")
 
+def test_search_iterator_with_filter(milvus_client: MilvusClient):
+    vector_to_search = rng.random((1, DIM), np.float32)
+    expr = f"10 <= {AGE} <= 25"
+    valid_ids = [1, 12, 123, 1234]
+
+    def external_filter_func(hits: Hits):
+        # option 1
+        return list(filter(lambda hit: hit.id in valid_ids, hits))
+
+        # option 2
+        results = []
+        for hit in hits:
+            if hit.id in valid_ids:
+                results.append(hit)
+        return results
+
+    search_iterator = milvus_client.search_iterator(
+        collection_name=collection_name,
+        data=vector_to_search,
+        batch_size=100,
+        anns_field=PICTURE,
+        filter=expr,
+        external_filter_func=external_filter_func,
+        output_fields=[USER_ID, AGE]
+    )
+
+    page_idx = 0
+    while True:
+        res = search_iterator.next()
+        if len(res) == 0:
+            print("search iteration with external filter finished, close")
+            search_iterator.close()
+            break
+        for i in range(len(res)):
+            print(res[i])
+        page_idx += 1
+        print(f"page{page_idx}-------------------------")
 
 def main():
     milvus_client = MilvusClient("http://localhost:19530")
@@ -93,6 +131,7 @@ def main():
     milvus_client.load_collection(collection_name)
     test_query_iterator(milvus_client=milvus_client)
     test_search_iterator(milvus_client=milvus_client)
+    test_search_iterator_with_filter(milvus_client=milvus_client)
 
 
 if __name__ == '__main__':
