@@ -1,9 +1,9 @@
 import logging
 from copy import deepcopy
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 from pymilvus.client import entity_helper, utils
-from pymilvus.client.abstract import Hits
+from pymilvus.client.abstract import Hit, Hits
 from pymilvus.client.constants import (
     COLLECTION_ID,
     GUARANTEE_TIMESTAMP,
@@ -39,6 +39,7 @@ class SearchIteratorV2:
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         round_decimal: Optional[int] = -1,
+        external_filter_func: Optional[Callable[[Hits], Union[Hits, List[Hit]]]] = None,
         **kwargs,
     ):
         self._check_params(batch_size, data, kwargs)
@@ -67,6 +68,9 @@ class SearchIteratorV2:
             GUARANTEE_TIMESTAMP: 0,
             **kwargs,
         }
+        self._external_filter_func = external_filter_func
+        self._cache = []
+        self._batch_size = batch_size
         self._probe_for_compability(self._params)
 
     def _set_up_collection_id(self, collection_name: str):
@@ -89,10 +93,8 @@ class SearchIteratorV2:
         iter_info = self._conn.search(**dummy_params).get_search_iterator_v2_results_info()
         self._check_token_exists(iter_info.token)
 
-    def next(self):
-        if self._left_res_cnt is not None and self._left_res_cnt <= 0:
-            return SearchPage(None)
-
+    # internal next function, do not use this outside of this class
+    def _next(self):
         res = self._conn.search(**self._params)
         iter_info = res.get_search_iterator_v2_results_info()
         self._check_token_exists(iter_info.token)
@@ -110,11 +112,45 @@ class SearchIteratorV2:
                     "failed to set up mvccTs from milvus server, use client-side ts instead"
                 )
                 self._params[GUARANTEE_TIMESTAMP] = fall_back_to_latest_session_ts()
+        return res
 
+    def next(self):
+        if self._left_res_cnt is not None and self._left_res_cnt <= 0:
+            return None
+
+        if self._external_filter_func is None:
+            # return SearchPage for compability
+            return self._wrap_return_res(self._next()[0])
+        # the length of the results should be `batch_size` if no limit is set,
+        # otherwise it should be the number of results left if less than `batch_size`
+        target_len = (
+            self._batch_size
+            if self._left_res_cnt is None
+            else min(self._batch_size, self._left_res_cnt)
+        )
+        while True:
+            hits = self._next()[0]
+
+            # no more results from server
+            if len(hits) == 0:
+                break
+
+            # apply external filter
+            if self._external_filter_func is not None:
+                hits = self._external_filter_func(hits)
+
+            self._cache.extend(hits)
+            if len(self._cache) >= target_len:
+                break
+
+        # if the number of elements in cache is less than or equal to target_len,
+        #   return all results we could possibly return
+        # if the number of elements in cache is more than target_len,
+        #   return target_len results and keep the rest for next call
+        ret = self._cache[:target_len]
+        del self._cache[:target_len]
         # return SearchPage for compability
-        if len(res) > 0:
-            return self._wrap_return_res(res[0])
-        return SearchPage(None)
+        return self._wrap_return_res(ret)
 
     def close(self):
         pass
@@ -148,6 +184,9 @@ class SearchIteratorV2:
             raise ParamError(message="The vector data for search cannot be empty")
 
     def _wrap_return_res(self, res: Hits) -> SearchPage:
+        if len(res) == 0:
+            return SearchPage(None)
+
         if self._left_res_cnt is None:
             return SearchPage(res)
 
