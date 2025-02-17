@@ -402,24 +402,27 @@ class Connections(metaclass=SingleInstanceMetaClass):
         kwargs_copy["token"] = token
 
         def connect_milvus(**kwargs):
-            gh = GrpcHandler(**kwargs) if not _async else AsyncGrpcHandler(**kwargs)
-
             t = kwargs.get("timeout")
             timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
 
-            if not _async:
-                gh._wait_for_channel_ready(timeout=timeout)
+            gh = GrpcHandler(**kwargs) if not _async else AsyncGrpcHandler(**kwargs)
+            try:
+                if not _async:
+                    gh._wait_for_channel_ready(timeout=timeout)
 
-            if kwargs.get("keep_alive", False):
-                gh.register_state_change_callback(
-                    ReconnectHandler(self, alias, kwargs_copy).reconnect_on_idle
-                )
-            kwargs.pop("password")
-            kwargs.pop("token", None)
-            kwargs.pop("db_name", "")
+                if kwargs.get("keep_alive", False):
+                    gh.register_state_change_callback(
+                        ReconnectHandler(self, alias, kwargs_copy).reconnect_on_idle
+                    )
+                kwargs.pop("password")
+                kwargs.pop("token", None)
+                kwargs.pop("db_name", "")
 
-            self._connected_alias[alias] = gh
-            self._alias[alias] = copy.deepcopy(kwargs)
+                self._connected_alias[alias] = gh
+                self._alias[alias] = copy.deepcopy(kwargs)
+            except Exception as e:
+                gh.close()
+                raise e
 
         def with_config(config: Tuple) -> bool:
             return any(c != "" for c in config)
