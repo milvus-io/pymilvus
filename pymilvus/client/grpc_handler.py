@@ -150,16 +150,19 @@ class GrpcHandler:
             grpc.channel_ready_future(self._channel).result(timeout=timeout)
             self._setup_identifier_interceptor(self._user, timeout=timeout)
         except grpc.FutureTimeoutError as e:
+            self.close()
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
                 message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",
             ) from e
         except Exception as e:
+            self.close()
             raise e from e
 
     def close(self):
         self.deregister_state_change_callbacks()
         self._channel.close()
+        self._channel = None
 
     def reset_db_name(self, db_name: str):
         self.schema_cache.clear()
