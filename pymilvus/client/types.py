@@ -7,7 +7,7 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     InvalidConsistencyLevel,
 )
-from pymilvus.grpc_gen import common_pb2, rg_pb2
+from pymilvus.grpc_gen import common_pb2, rg_pb2, schema_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
 Status = TypeVar("Status")
@@ -84,28 +84,36 @@ class Status:
 
 
 class DataType(IntEnum):
-    NONE = 0
-    BOOL = 1
-    INT8 = 2
-    INT16 = 3
-    INT32 = 4
-    INT64 = 5
+    """
+    String of DataType is str of its value, e.g.: str(DataType.BOOL) == "1"
+    """
 
-    FLOAT = 10
-    DOUBLE = 11
+    NONE = 0  # schema_pb2.None, this is an invalid representation in python
+    BOOL = schema_pb2.Bool
+    INT8 = schema_pb2.Int8
+    INT16 = schema_pb2.Int16
+    INT32 = schema_pb2.Int32
+    INT64 = schema_pb2.Int64
 
-    STRING = 20
-    VARCHAR = 21
-    ARRAY = 22
-    JSON = 23
+    FLOAT = schema_pb2.Float
+    DOUBLE = schema_pb2.Double
 
-    BINARY_VECTOR = 100
-    FLOAT_VECTOR = 101
-    FLOAT16_VECTOR = 102
-    BFLOAT16_VECTOR = 103
-    SPARSE_FLOAT_VECTOR = 104
+    STRING = schema_pb2.String
+    VARCHAR = schema_pb2.VarChar
+    ARRAY = schema_pb2.Array
+    JSON = schema_pb2.JSON
+    GEOMETRY = schema_pb2.Geometry
+
+    BINARY_VECTOR = schema_pb2.BinaryVector
+    FLOAT_VECTOR = schema_pb2.FloatVector
+    FLOAT16_VECTOR = schema_pb2.Float16Vector
+    BFLOAT16_VECTOR = schema_pb2.BFloat16Vector
+    SPARSE_FLOAT_VECTOR = schema_pb2.SparseFloatVector
 
     UNKNOWN = 999
+
+    def __str__(self) -> str:
+        return str(self.value)
 
 
 class FunctionType(IntEnum):
