@@ -217,24 +217,54 @@ class BulkWriter:
                 else:
                     continue
 
-            if field.name not in row:
-                self._throw(f"The field '{field.name}' is missed in the row")
-
             dtype = DataType(field.dtype)
 
-            # deal with null (None)
-            if field.nullable and row[field.name] is None:
+            # deal with null (None) according to the Applicable rules in this page:
+            # https://milvus.io/docs/nullable-and-default.md#Nullable--Default
+            if field.nullable:
                 if (
                     field.default_value is not None
                     and field.default_value.WhichOneof("data") is not None
                 ):
-                    # set default value
-                    data_type = field.default_value.WhichOneof("data")
-                    row[field.name] = getattr(field.default_value, data_type)
-                else:
-                    # skip field check if the field is null
+                    # 1: nullable is true, default_value is not null, user_input is null
+                    # replace the value by default value
+                    if (field.name not in row) or (row[field.name] is None):
+                        data_type = field.default_value.WhichOneof("data")
+                        row[field.name] = getattr(field.default_value, data_type)
+                        continue
+
+                    # 2: nullable is true, default_value is not null, user_input is not null
+                    # check and set the value
+                # 3: nullable is true, default_value is null, user_input is null
+                # do nothing
+                elif (field.name not in row) or (row[field.name] is None):
+                    row[field.name] = None
                     continue
 
+                    # 4: nullable is true, default_value is null, user_input is not null
+                    # check and set the value
+            elif (
+                field.default_value is not None
+                and field.default_value.WhichOneof("data") is not None
+            ):
+                # 5: nullable is false, default_value is not null, user_input is null
+                # replace the value by default value
+                if (field.name not in row) or (row[field.name] is None):
+                    data_type = field.default_value.WhichOneof("data")
+                    row[field.name] = getattr(field.default_value, data_type)
+                    continue
+
+                # 6: nullable is false, default_value is not null, user_input is not null
+                # check and set the value
+            # 7: nullable is false, default_value is not null, user_input is null
+            # raise an exception
+            elif (field.name not in row) or (row[field.name] is None):
+                self._throw(f"The field '{field.name}' is not nullable, not allow None value")
+
+                # 8: nullable is false, default_value is null, user_input is not null
+                # check and set the value
+
+            # check and set value, calculate size of this row
             if dtype in {
                 DataType.BINARY_VECTOR,
                 DataType.FLOAT_VECTOR,
