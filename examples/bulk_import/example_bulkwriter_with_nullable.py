@@ -71,7 +71,7 @@ def create_connection():
     connections.connect(host=HOST, port=PORT)
     print(f"\nConnected")
 
-def build_schema():
+def build_nullalbe_schema():
     fields = [
         FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
         FieldSchema(name="bool", dtype=DataType.BOOL, nullable=True),
@@ -96,6 +96,24 @@ def build_schema():
     ]
 
     schema = CollectionSchema(fields=fields, enable_dynamic_field=True)
+    return schema
+
+def build_nullable_default_schema():
+    fields = [
+        FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
+        FieldSchema(name="bool", dtype=DataType.BOOL, nullable=True, default_value=False),
+        FieldSchema(name="int8", dtype=DataType.INT8, nullable=True, default_value=np.int8(8)),
+        FieldSchema(name="int16", dtype=DataType.INT16, nullable=False, default_value=np.int16(16)),
+        FieldSchema(name="int32", dtype=DataType.INT32, nullable=True, default_value=None),
+        FieldSchema(name="int64", dtype=DataType.INT64, nullable=False, default_value=np.int64(64)),
+        FieldSchema(name="float", dtype=DataType.FLOAT, nullable=True, default_value=np.float32(3.2)),
+        FieldSchema(name="double", dtype=DataType.DOUBLE, nullable=False, default_value=np.float64(6.4)),
+        FieldSchema(name="varchar", dtype=DataType.VARCHAR, max_length=512, nullable=True, default_value="this is default"),
+
+        FieldSchema(name="float_vector", dtype=DataType.FLOAT_VECTOR, dim=DIM),
+    ]
+
+    schema = CollectionSchema(fields=fields, enable_dynamic_field=False)
     return schema
 
 def build_collection(schema: CollectionSchema):
@@ -131,7 +149,7 @@ def build_collection(schema: CollectionSchema):
     return collection
 
 
-def gen_data():
+def gen_nullable_data():
     return [
         {
             "id": 1,
@@ -196,6 +214,41 @@ def gen_data():
         },
     ]
 
+
+def gen_nullable_default_data():
+    return [
+        {
+            "id": 1,
+
+            "float_vector": gen_float_vector(True),
+        },
+        {
+            "id": 2,
+            "bool": None,
+            "int8": None,
+            "int16": None,
+            "int32": None,
+            "int64": None,
+            "float": None,
+            "double": None,
+            "varchar": None,
+
+            "float_vector": gen_float_vector(True),
+        },
+        {
+            "id": 3,
+            "bool": True,
+            "int8": 33,
+            "int16":-333,
+            "int32": 33333,
+            "int64": -3333333,
+            "float": 0.33333,
+            "double": 3.333333333,
+            "varchar": "333333",
+
+            "float_vector": gen_float_vector(True),
+        },
+    ]
 
 def gen_data_files(schema: CollectionSchema, file_type: BulkFileType, rows: list)-> List[List[str]]:
     print(f"\n===================== File type:{file_type.name} ====================")
@@ -318,7 +371,6 @@ def verify_data(compare_rows: list):
             compare_values(v, result[k], k)
     print("Retrieved data is correct")
 
-
 if __name__ == '__main__':
     create_connection()
 
@@ -328,9 +380,20 @@ if __name__ == '__main__':
         BulkFileType.CSV,
     ]
 
+    # deal with nullable schema
     for file_type in file_types:
-        schema = build_schema()
-        rows = gen_data()
+        schema = build_nullalbe_schema()
+        rows = gen_nullable_data()
+        batch_files = gen_data_files(schema=schema, file_type=file_type, rows=rows)
+        if len(batch_files) > 0:
+            build_collection(schema)
+            call_bulkinsert(batch_files)
+            verify_data(rows)
+
+    # deal with nullalbe&default_value schema
+    for file_type in file_types:
+        schema = build_nullable_default_schema()
+        rows = gen_nullable_default_data()
         batch_files = gen_data_files(schema=schema, file_type=file_type, rows=rows)
         if len(batch_files) > 0:
             build_collection(schema)
