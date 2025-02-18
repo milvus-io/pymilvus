@@ -200,7 +200,7 @@ class BulkWriter:
 
     def _verify_row(self, row: dict):
         if not isinstance(row, dict):
-            self._throw("The input row must be a dict object")
+            self._throw("The input row must be a dict object.")
 
         row_size = 0
         for field in self._schema.fields:
