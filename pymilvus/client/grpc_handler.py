@@ -40,6 +40,7 @@ from .check import (
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .prepare import Prepare
 from .types import (
+    AnalyzeResult,
     BulkInsertState,
     CompactionPlans,
     CompactionState,
@@ -2258,3 +2259,20 @@ class GrpcHandler:
         )
         resp = self._stub.OperatePrivilegeGroup(req, wait_for_ready=True, timeout=timeout)
         check_status(resp)
+
+    @retry_on_rpc_failure()
+    def run_analyzer(
+        self,
+        texts: Union[str, List[str]],
+        analyzer_params: Union[str, Dict],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(timeout=timeout)
+        req = Prepare.run_analyzer(texts, analyzer_params)
+        resp = self._stub.RunAnalyzer(req, timeout=timeout)
+        check_status(resp.status)
+
+        if isinstance(texts, str):
+            return AnalyzeResult(resp.results[0])
+        return [AnalyzeResult(result) for result in resp.results]
