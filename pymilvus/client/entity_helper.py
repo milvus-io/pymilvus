@@ -390,16 +390,19 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.INT8_VECTOR:
         try:
-            i_value = field_value
             if isinstance(field_value, np.ndarray):
                 if field_value.dtype != "int8":
                     raise ParamError(
                         message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8"
                     )
-                v_bytes = field_value.view(np.int8).tobytes()
+                i_bytes = field_value.view(np.int8).tobytes()
+            else:
+                raise ParamError(
+                    message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8"
+                )
 
-            field_data.vectors.dim = len(i_value)
-            field_data.vectors.int8_vector += v_bytes
+            field_data.vectors.dim = len(i_bytes)
+            field_data.vectors.int8_vector += i_bytes
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
