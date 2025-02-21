@@ -644,7 +644,10 @@ class Function:
                 raise ParamError(
                     message=ExceptionsMessage.TextEmbeddingFunctionIncorrectInputFieldType
                 )
-            if field.name == self._output_field_names[0] and field.dtype != DataType.FLOAT_VECTOR:
+            if field.name == self._output_field_names[0] and field.dtype not in [
+                DataType.FLOAT_VECTOR,
+                DataType.INT8_VECTOR,
+            ]:
                 raise ParamError(
                     message=ExceptionsMessage.TextEmbeddingFunctionIncorrectOutputFieldType
                 )
