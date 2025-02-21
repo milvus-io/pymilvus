@@ -1662,11 +1662,9 @@ class Prepare:
         )
 
     @classmethod
-    def create_database_req(cls, db_name: str, **kwargs):
-        check_pass_param(db_name=db_name)
-
+    def create_database_req(cls, db_name: str, properties: Optional[dict] = None):
         req = milvus_types.CreateDatabaseRequest(db_name=db_name)
-        properties = kwargs.get("properties")
+
         if is_legal_collection_properties(properties):
             properties = [
                 common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()
