@@ -2211,3 +2211,27 @@ class ListImportsAuthPlaceholder(_message.Message):
     db_name: str
     collection_name: str
     def __init__(self, db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+
+class RunAnalyzerRequset(_message.Message):
+    __slots__ = ("base", "analyzer_params", "placeholder")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    ANALYZER_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    PLACEHOLDER_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    analyzer_params: str
+    placeholder: _containers.RepeatedScalarFieldContainer[bytes]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., analyzer_params: _Optional[str] = ..., placeholder: _Optional[_Iterable[bytes]] = ...) -> None: ...
+
+class AnalyzerResult(_message.Message):
+    __slots__ = ("tokens",)
+    TOKENS_FIELD_NUMBER: _ClassVar[int]
+    tokens: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, tokens: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class RunAnalyzerResponse(_message.Message):
+    __slots__ = ("status", "results")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    results: _containers.RepeatedCompositeFieldContainer[AnalyzerResult]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., results: _Optional[_Iterable[_Union[AnalyzerResult, _Mapping]]] = ...) -> None: ...

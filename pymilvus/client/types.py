@@ -1100,3 +1100,13 @@ class DatabaseInfo:
         result = {"name": self.name}
         result.update(self.properties)
         return result
+
+
+class AnalyzeResult:
+    def __init__(self, info: milvus_types.AnalyzerResult) -> None:
+        self.tokens = info.tokens
+
+    def __str__(self) -> str:
+        return f"{{tokens: {self.tokens}}}"
+
+    __reper__ = __str__
