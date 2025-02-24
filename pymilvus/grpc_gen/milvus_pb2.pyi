@@ -2219,3 +2219,47 @@ class ListImportsAuthPlaceholder(_message.Message):
     db_name: str
     collection_name: str
     def __init__(self, db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+
+class RunAnalyzerRequest(_message.Message):
+    __slots__ = ("base", "analyzer_params", "placeholder", "with_detail", "with_hash")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    ANALYZER_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    PLACEHOLDER_FIELD_NUMBER: _ClassVar[int]
+    WITH_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    WITH_HASH_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    analyzer_params: str
+    placeholder: _containers.RepeatedScalarFieldContainer[bytes]
+    with_detail: bool
+    with_hash: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., analyzer_params: _Optional[str] = ..., placeholder: _Optional[_Iterable[bytes]] = ..., with_detail: bool = ..., with_hash: bool = ...) -> None: ...
+
+class AnalyzerToken(_message.Message):
+    __slots__ = ("token", "start_offset", "end_offset", "position", "position_length", "hash")
+    TOKEN_FIELD_NUMBER: _ClassVar[int]
+    START_OFFSET_FIELD_NUMBER: _ClassVar[int]
+    END_OFFSET_FIELD_NUMBER: _ClassVar[int]
+    POSITION_FIELD_NUMBER: _ClassVar[int]
+    POSITION_LENGTH_FIELD_NUMBER: _ClassVar[int]
+    HASH_FIELD_NUMBER: _ClassVar[int]
+    token: str
+    start_offset: int
+    end_offset: int
+    position: int
+    position_length: int
+    hash: int
+    def __init__(self, token: _Optional[str] = ..., start_offset: _Optional[int] = ..., end_offset: _Optional[int] = ..., position: _Optional[int] = ..., position_length: _Optional[int] = ..., hash: _Optional[int] = ...) -> None: ...
+
+class AnalyzerResult(_message.Message):
+    __slots__ = ("tokens",)
+    TOKENS_FIELD_NUMBER: _ClassVar[int]
+    tokens: _containers.RepeatedCompositeFieldContainer[AnalyzerToken]
+    def __init__(self, tokens: _Optional[_Iterable[_Union[AnalyzerToken, _Mapping]]] = ...) -> None: ...
+
+class RunAnalyzerResponse(_message.Message):
+    __slots__ = ("status", "results")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    results: _containers.RepeatedCompositeFieldContainer[AnalyzerResult]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., results: _Optional[_Iterable[_Union[AnalyzerResult, _Mapping]]] = ...) -> None: ...
