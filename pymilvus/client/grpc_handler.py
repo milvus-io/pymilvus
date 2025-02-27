@@ -1242,8 +1242,7 @@ class GrpcHandler:
             end = time.time()
             if isinstance(timeout, int) and end - start > timeout:
                 msg = (
-                    f"collection {collection_name} create index {index_name} "
-                    f"timeout in {timeout}s"
+                    f"collection {collection_name} create index {index_name} timeout in {timeout}s"
                 )
                 raise MilvusException(message=msg)
 
@@ -1429,7 +1428,8 @@ class GrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        request = Prepare.create_database_req(db_name, properties=properties, **kwargs)
+        check_pass_param(db_name=db_name, timeout=timeout)
+        request = Prepare.create_database_req(db_name, properties=properties)
         status = self._stub.CreateDatabase(request, timeout=timeout)
         check_status(status)
 
@@ -1441,6 +1441,7 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def list_database(self, timeout: Optional[float] = None):
+        check_pass_param(timeout=timeout)
         request = Prepare.list_database_req()
         response = self._stub.ListDatabases(request, timeout=timeout)
         check_status(response.status)

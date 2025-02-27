@@ -945,7 +945,7 @@ class MilvusClient:
         # Varchar pks need double quotes around the values
         if data_type == DataType.VARCHAR:
             ids = ["'" + str(entry) + "'" for entry in pks]
-            expr = f"""{pk_field_name} in [{','.join(ids)}]"""
+            expr = f"""{pk_field_name} in [{",".join(ids)}]"""
         else:
             ids = [str(entry) for entry in pks]
             expr = f"{pk_field_name} in [{','.join(ids)}]"
@@ -1371,17 +1371,23 @@ class MilvusClient:
         conn = self._get_connection()
         conn.reset_db_name(db_name)
 
-    def create_database(self, db_name: str, properties: Optional[dict] = None, **kwargs):
+    def create_database(
+        self,
+        db_name: str,
+        properties: Optional[dict] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
         conn = self._get_connection()
-        conn.create_database(db_name, properties, **kwargs)
+        conn.create_database(db_name=db_name, properties=properties, timeout=timeout, **kwargs)
 
     def drop_database(self, db_name: str, **kwargs):
         conn = self._get_connection()
         conn.drop_database(db_name, **kwargs)
 
-    def list_databases(self, **kwargs) -> List[str]:
+    def list_databases(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
         conn = self._get_connection()
-        return conn.list_database(**kwargs)
+        return conn.list_database(timeout=timeout, **kwargs)
 
     def describe_database(self, db_name: str, **kwargs) -> dict:
         conn = self._get_connection()
