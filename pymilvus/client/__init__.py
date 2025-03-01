@@ -2,8 +2,7 @@ import logging
 import re
 import subprocess
 from contextlib import suppress
-
-from pkg_resources import DistributionNotFound, get_distribution
+from importlib.metadata import PackageNotFoundError, version
 
 log = logging.getLogger(__name__)
 
@@ -11,8 +10,8 @@ log = logging.getLogger(__name__)
 __version__ = "0.0.0.dev"
 
 
-with suppress(DistributionNotFound):
-    __version__ = get_distribution("pymilvus").version
+with suppress(PackageNotFoundError):
+    __version__ = version("pymilvus")
 
 
 def get_commit(version: str = "", short: bool = True) -> str:

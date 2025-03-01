@@ -52,21 +52,16 @@ log(
 # BM25EmbeddingFunction usage
 log(fmt.format("BM25EmbeddingFunction Usage"))
 ef_bm25 = BM25EmbeddingFunction()
-docs_bm25 = [
-    "Artificial intelligence was founded as an academic discipline in 1956.",
-    "Alan Turing was the first person to conduct substantial research in AI.",
-    "Born in Maida Vale, London, Turing was raised in southern England.",
-]
 ef_bm25.load()
 embs_bm25 = ef_bm25.encode_documents(docs)
-log(f"Embedding Shape: {embs_bm25[0].shape} Dimension: {ef_bm25.dim}")
+log(f"Embedding Shape: {embs_bm25[:, [0]].shape} Dimension: {ef_bm25.dim}")
 
 # -----------------------------------------------------------------------------
 # SpladeEmbeddingFunction usage
 log(fmt.format("SpladeEmbeddingFunction Usage"))
 ef_splade = SpladeEmbeddingFunction(device="cpu")
 embs_splade = ef_splade(["Hello world", "Hello world2"])
-log(f"Embedding Shape: {embs_splade[0].shape} Dimension: {ef_splade.dim}")
+log(f"Embedding Shape: {embs_splade[:, [0]].shape} Dimension: {ef_splade.dim}")
 
 # -----------------------------------------------------------------------------
 log(fmt.format("Demonstrations Finished"))

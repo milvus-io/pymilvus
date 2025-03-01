@@ -13,13 +13,16 @@ fp16_index_types = ["FLAT"]
 
 default_fp16_index_params = [{"nlist": 128}]
 
+# float16, little endian
+fp16_little = np.dtype('e').newbyteorder('<')
+
 def gen_fp16_vectors(num, dim):
     raw_vectors = []
     fp16_vectors = []
     for _ in range(num):
         raw_vector = [random.random() for _ in range(dim)]
         raw_vectors.append(raw_vector)
-        fp16_vector = np.array(raw_vector, dtype=np.float16)
+        fp16_vector = np.array(raw_vector, dtype=fp16_little)
         fp16_vectors.append(fp16_vector)
     return raw_vectors, fp16_vectors
 
@@ -57,8 +60,9 @@ def fp16_vector_search():
                                   index_params={"index_type": index_type, "params": index_params, "metric_type": "L2"})
         hello_milvus.load()
         print("index_type = ", index_type)
-        res = hello_milvus.search(vectors[0:10], vector_field_name, {"metric_type": "L2"}, limit=1)
-        print(res)
+        res = hello_milvus.search(vectors[0:10], vector_field_name, {"metric_type": "L2"}, limit=1, output_fields=["float16_vector"])
+        print("raw bytes: ", res[0][0].get("float16_vector"))
+        print("numpy ndarray: ", np.frombuffer(res[0][0].get("float16_vector"), dtype=fp16_little))
         hello_milvus.release()
         hello_milvus.drop_index()
 
