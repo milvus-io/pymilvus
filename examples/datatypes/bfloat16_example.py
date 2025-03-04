@@ -2,6 +2,7 @@ import time
 import random
 import numpy as np
 import tensorflow as tf
+import torch
 from pymilvus import (
      connections,
      utility,
@@ -20,6 +21,11 @@ def gen_bf16_vectors(num, dim):
     for _ in range(num):
         raw_vector = [random.random() for _ in range(dim)]
         raw_vectors.append(raw_vector)
+        # Numpy itself does not support bfloat16, use TensorFlow extension instead.
+        # PyTorch does not support converting bfloat16 vector to numpy array.
+        # See:
+        # - https://github.com/numpy/numpy/issues/19808
+        # - https://github.com/pytorch/pytorch/issues/90574
         bf16_vector = tf.cast(raw_vector, dtype=tf.bfloat16).numpy()
         bf16_vectors.append(bf16_vector)
     return raw_vectors, bf16_vectors
@@ -57,8 +63,10 @@ def bf16_vector_search():
                                   index_params={"index_type": index_type, "params": index_params, "metric_type": "L2"})
         hello_milvus.load()
         print("index_type = ", index_type)
-        res = hello_milvus.search(vectors[0:10], vector_field_name, {"metric_type": "L2"}, limit=1)
-        print(res)
+        res = hello_milvus.search(vectors[0:10], vector_field_name, {"metric_type": "L2"}, limit=1, output_fields=["bfloat16_vector"])
+        print("raw bytes: ", res[0][0].get("bfloat16_vector"))
+        print("tensorflow Tensor: ", tf.io.decode_raw(res[0][0].get("bfloat16_vector"), tf.bfloat16, little_endian=True))
+        print("pytorch Tensor: ", torch.frombuffer(res[0][0].get("bfloat16_vector"), dtype=torch.bfloat16))
         hello_milvus.release()
         hello_milvus.drop_index()
 

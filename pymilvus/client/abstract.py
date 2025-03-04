@@ -679,7 +679,7 @@ class Hits(list):
     def __init__(
         self,
         topk: int,
-        pks: Union[int, str],
+        pks: List[Union[int, str]],
         distances: List[float],
         fields: Dict[str, Tuple[List[Any], schema_pb2.FieldData]],
         output_fields: List[str],
