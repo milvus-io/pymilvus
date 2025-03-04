@@ -397,6 +397,3 @@ class TestIssues:
             mock_init.assert_called_with(
                 **{'address': 'localhost:19530', 'user': '', 'password': '', 'token': '', 'db_name': db_name}
                 ) 
-
-
-
