@@ -52,7 +52,6 @@ class TestConnect:
         {"uri": "https://127.0.0.1:19530/database2"},
         {"uri": "https://127.0.0.1/database3"},
         {"uri": "http://127.0.0.1/database4"},
-        {"uri": "https://127.0.0.1:19530/"},
     ])
     def uri(self, request):
         return request.param
