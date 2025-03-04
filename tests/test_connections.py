@@ -387,10 +387,11 @@ class TestIssues:
         
         """
         db_name = "default"
+        alias = self.test_issue_2670.__name__
 
         with mock.patch(f"{mock_prefix}.__init__", return_value=None) as mock_init, mock.patch(
             f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-            config = {"uri": "http://localhost:19530/", "db_name": db_name}
+            config = {"alias": alias, "uri": "http://localhost:19530/", "db_name": db_name}
             connections.connect(**config)
             
             mock_init.assert_called_with(
