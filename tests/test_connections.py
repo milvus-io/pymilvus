@@ -52,6 +52,7 @@ class TestConnect:
         {"uri": "https://127.0.0.1:19530/database2"},
         {"uri": "https://127.0.0.1/database3"},
         {"uri": "http://127.0.0.1/database4"},
+        {"uri": "https://127.0.0.1:19530/"},
     ])
     def uri(self, request):
         return request.param
@@ -372,3 +373,30 @@ class TestIssues:
 
                 config = connections.get_connection_addr("default")
                 assert config == {"address": 'localhost:19531', "user": 'root', "secure": True}
+
+    def test_issue_2670(selfuri):
+        """
+        Test for db_name being overwritten with empty string, when the uri
+        ends in a slash - e.g. http://localhost:19530/
+
+        See: https://github.com/milvus-io/pymilvus/issues/2670
+
+        Actual behaviour before fix: if a uri is passed ending with a slash,
+            it will overwrite the db_name with an empty string.
+        Expected and current behaviour: if db_name is passed explicitly,
+            it should be used in the initialization of the GrpcHandler.
+        
+        """
+        db_name = "default"
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None) as mock_init, mock.patch(
+            f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+            config = {"uri": "http://localhost:19530/", "db_name": db_name}
+            connections.connect(**config)
+            
+            mock_init.assert_called_with(
+                **{'address': 'localhost:19530', 'user': '', 'password': '', 'token': '', 'db_name': db_name}
+                ) 
+
+
+
