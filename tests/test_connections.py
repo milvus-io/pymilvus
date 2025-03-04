@@ -373,7 +373,7 @@ class TestIssues:
                 config = connections.get_connection_addr("default")
                 assert config == {"address": 'localhost:19531', "user": 'root', "secure": True}
 
-    def test_issue_2670(selfuri):
+    def test_issue_2670(self):
         """
         Test for db_name being overwritten with empty string, when the uri
         ends in a slash - e.g. http://localhost:19530/
