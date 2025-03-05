@@ -161,6 +161,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ManualFlush: _ClassVar[MsgType]
     FlushSegment: _ClassVar[MsgType]
     CreateSegment: _ClassVar[MsgType]
+    Import: _ClassVar[MsgType]
     Search: _ClassVar[MsgType]
     SearchResult: _ClassVar[MsgType]
     GetIndexState: _ClassVar[MsgType]
@@ -216,6 +217,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DropPrivilegeGroup: _ClassVar[MsgType]
     ListPrivilegeGroups: _ClassVar[MsgType]
     OperatePrivilegeGroup: _ClassVar[MsgType]
+    OperatePrivilegeV2: _ClassVar[MsgType]
     CreateResourceGroup: _ClassVar[MsgType]
     DropResourceGroup: _ClassVar[MsgType]
     ListResourceGroups: _ClassVar[MsgType]
@@ -228,6 +230,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ListDatabases: _ClassVar[MsgType]
     AlterDatabase: _ClassVar[MsgType]
     DescribeDatabase: _ClassVar[MsgType]
+    AddCollectionField: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -337,6 +340,7 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeGroupCollectionAdmin: _ClassVar[ObjectPrivilege]
     PrivilegeGetImportProgress: _ClassVar[ObjectPrivilege]
     PrivilegeListImport: _ClassVar[ObjectPrivilege]
+    PrivilegeAddCollectionField: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -489,6 +493,7 @@ Upsert: MsgType
 ManualFlush: MsgType
 FlushSegment: MsgType
 CreateSegment: MsgType
+Import: MsgType
 Search: MsgType
 SearchResult: MsgType
 GetIndexState: MsgType
@@ -544,6 +549,7 @@ CreatePrivilegeGroup: MsgType
 DropPrivilegeGroup: MsgType
 ListPrivilegeGroups: MsgType
 OperatePrivilegeGroup: MsgType
+OperatePrivilegeV2: MsgType
 CreateResourceGroup: MsgType
 DropResourceGroup: MsgType
 ListResourceGroups: MsgType
@@ -556,6 +562,7 @@ DropDatabase: MsgType
 ListDatabases: MsgType
 AlterDatabase: MsgType
 DescribeDatabase: MsgType
+AddCollectionField: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -647,6 +654,7 @@ PrivilegeGroupCollectionReadWrite: ObjectPrivilege
 PrivilegeGroupCollectionAdmin: ObjectPrivilege
 PrivilegeGetImportProgress: ObjectPrivilege
 PrivilegeListImport: ObjectPrivilege
+PrivilegeAddCollectionField: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

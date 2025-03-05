@@ -198,3 +198,40 @@ class ReplicateMsg(_message.Message):
     database: str
     collection: str
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., is_end: bool = ..., is_cluster: bool = ..., database: _Optional[str] = ..., collection: _Optional[str] = ...) -> None: ...
+
+class ImportFile(_message.Message):
+    __slots__ = ("id", "paths")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    id: int
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[int] = ..., paths: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ImportMsg(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "collectionID", "partitionIDs", "options", "files", "schema", "jobID")
+    class OptionsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
+    PARTITIONIDS_FIELD_NUMBER: _ClassVar[int]
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_FIELD_NUMBER: _ClassVar[int]
+    JOBID_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    collectionID: int
+    partitionIDs: _containers.RepeatedScalarFieldContainer[int]
+    options: _containers.ScalarMap[str, str]
+    files: _containers.RepeatedCompositeFieldContainer[ImportFile]
+    schema: _schema_pb2.CollectionSchema
+    jobID: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., partitionIDs: _Optional[_Iterable[int]] = ..., options: _Optional[_Mapping[str, str]] = ..., files: _Optional[_Iterable[_Union[ImportFile, _Mapping]]] = ..., schema: _Optional[_Union[_schema_pb2.CollectionSchema, _Mapping]] = ..., jobID: _Optional[int] = ...) -> None: ...
