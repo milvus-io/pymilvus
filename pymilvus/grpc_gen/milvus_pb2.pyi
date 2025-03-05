@@ -710,6 +710,20 @@ class InsertRequest(_message.Message):
     schema_timestamp: int
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ...) -> None: ...
 
+class AddCollectionFieldRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "collectionID", "schema")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    collectionID: int
+    schema: bytes
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., schema: _Optional[bytes] = ...) -> None: ...
+
 class UpsertRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp")
     BASE_FIELD_NUMBER: _ClassVar[int]
@@ -2212,21 +2226,41 @@ class ListImportsAuthPlaceholder(_message.Message):
     collection_name: str
     def __init__(self, db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
 
-class RunAnalyzerRequset(_message.Message):
-    __slots__ = ("base", "analyzer_params", "placeholder")
+class RunAnalyzerRequest(_message.Message):
+    __slots__ = ("base", "analyzer_params", "placeholder", "with_detail", "with_hash")
     BASE_FIELD_NUMBER: _ClassVar[int]
     ANALYZER_PARAMS_FIELD_NUMBER: _ClassVar[int]
     PLACEHOLDER_FIELD_NUMBER: _ClassVar[int]
+    WITH_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    WITH_HASH_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     analyzer_params: str
     placeholder: _containers.RepeatedScalarFieldContainer[bytes]
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., analyzer_params: _Optional[str] = ..., placeholder: _Optional[_Iterable[bytes]] = ...) -> None: ...
+    with_detail: bool
+    with_hash: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., analyzer_params: _Optional[str] = ..., placeholder: _Optional[_Iterable[bytes]] = ..., with_detail: bool = ..., with_hash: bool = ...) -> None: ...
+
+class AnalyzerToken(_message.Message):
+    __slots__ = ("token", "start_offset", "end_offset", "position", "position_length", "hash")
+    TOKEN_FIELD_NUMBER: _ClassVar[int]
+    START_OFFSET_FIELD_NUMBER: _ClassVar[int]
+    END_OFFSET_FIELD_NUMBER: _ClassVar[int]
+    POSITION_FIELD_NUMBER: _ClassVar[int]
+    POSITION_LENGTH_FIELD_NUMBER: _ClassVar[int]
+    HASH_FIELD_NUMBER: _ClassVar[int]
+    token: str
+    start_offset: int
+    end_offset: int
+    position: int
+    position_length: int
+    hash: int
+    def __init__(self, token: _Optional[str] = ..., start_offset: _Optional[int] = ..., end_offset: _Optional[int] = ..., position: _Optional[int] = ..., position_length: _Optional[int] = ..., hash: _Optional[int] = ...) -> None: ...
 
 class AnalyzerResult(_message.Message):
     __slots__ = ("tokens",)
     TOKENS_FIELD_NUMBER: _ClassVar[int]
-    tokens: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, tokens: _Optional[_Iterable[str]] = ...) -> None: ...
+    tokens: _containers.RepeatedCompositeFieldContainer[AnalyzerToken]
+    def __init__(self, tokens: _Optional[_Iterable[_Union[AnalyzerToken, _Mapping]]] = ...) -> None: ...
 
 class RunAnalyzerResponse(_message.Message):
     __slots__ = ("status", "results")
