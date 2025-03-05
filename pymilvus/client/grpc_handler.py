@@ -1,5 +1,4 @@
 import base64
-import copy
 import json
 import socket
 import time
@@ -45,7 +44,6 @@ from .types import (
     CompactionPlans,
     CompactionState,
     DatabaseInfo,
-    DataType,
     ExtraList,
     GrantInfo,
     Group,
