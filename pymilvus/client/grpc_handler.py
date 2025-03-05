@@ -1,5 +1,4 @@
 import base64
-import copy
 import json
 import socket
 import time
@@ -45,7 +44,6 @@ from .types import (
     CompactionPlans,
     CompactionState,
     DatabaseInfo,
-    DataType,
     ExtraList,
     GrantInfo,
     Group,
@@ -1030,27 +1028,6 @@ class GrpcHandler:
     ):
         # for historical reason, index_name contained in kwargs.
         index_name = kwargs.pop("index_name", Config.IndexName)
-        copy_kwargs = copy.deepcopy(kwargs)
-
-        collection_desc = self.describe_collection(collection_name, timeout=timeout, **copy_kwargs)
-
-        valid_field = False
-        for fields in collection_desc["fields"]:
-            if field_name != fields["name"]:
-                continue
-            valid_field = True
-            if fields["type"] not in {
-                DataType.FLOAT_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.FLOAT16_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-                DataType.SPARSE_FLOAT_VECTOR,
-                DataType.INT8_VECTOR,
-            }:
-                break
-
-        if not valid_field:
-            raise MilvusException(message=f"cannot create index on non-existed field: {field_name}")
 
         # sync flush
         _async = kwargs.get("_async", False)
