@@ -357,7 +357,10 @@ class MilvusClient:
 
         ret = []
         for hits in res:
-            ret.append([hit.to_dict() for hit in hits])
+            query_result = []
+            for hit in hits:
+                query_result.append(hit.to_dict())
+            ret.append(query_result)
 
         return ExtraList(ret, extra=construct_cost_extra(res.cost))
 
