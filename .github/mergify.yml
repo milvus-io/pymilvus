@@ -5,13 +5,13 @@ pull_request_rules:
         - base=master
         - base~=2\.\d
       - "status-success=Run Python Tests (3.8, windows-2022)"
-      - "status-success=Run Python Tests (3.12, windows-2022)"
+      - "status-success=Run Python Tests (3.13, windows-2022)"
       - "status-success=Run Python Tests (3.8, ubuntu-22.04)"
-      - "status-success=Run Python Tests (3.12, ubuntu-22.04)"
+      - "status-success=Run Python Tests (3.13, ubuntu-22.04)"
       - "status-success=Run Check Proto (3.8)"
       - "status-success=Code lint check (3.8)"
-      - "status-success=Run Check Proto (3.12)"
-      - "status-success=Code lint check (3.12)"
+      - "status-success=Run Check Proto (3.13)"
+      - "status-success=Code lint check (3.13)"
     actions:
       label:
         add:
