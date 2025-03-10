@@ -45,24 +45,25 @@ def _handle_response(url: str, res: json):
 
 
 def _post_request(
-    url: str, api_key: str, params: {}, timeout: int = 20, verify: Optional[Union[bool, str]] = True, **kwargs
+    url: str, api_key: str, params: {}, timeout: int = 20, verify: Optional[Union[bool, str]] = True, cert: Optional[Union[str, tuple]] = None, **kwargs
 ) -> requests.Response:
-    """Send a POST request with optional server certificate verification
+    """Send a POST request with 1-way / 2-way optional certificate validation
 
     Args:
         url (str): The endpoint URL
         api_key (str): API key for authentication
         params (dict): JSON parameters for the request
         timeout (int): Timeout for the request
-        verify (bool, str, optional): Either a boolean, whether to verify the server's TLS certificate
+        verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
              or a string, which must be server's certificate path. Defaults to `True`.
+        cert (str, tuple, optional): if String, path to ssl client cert file. If Tuple, ('cert', 'key') pair.
 
     Returns:
         requests.Response: Response object.
     """
     try:
         resp = requests.post(
-            url=url, headers=_http_headers(api_key), json=params, timeout=timeout, verify=verify, **kwargs
+            url=url, headers=_http_headers(api_key), json=params, timeout=timeout, verify=verify, cert=cert, **kwargs
         )
         if resp.status_code != 200:
             _throw(f"Failed to post url: {url}, status code: {resp.status_code}")
@@ -99,6 +100,7 @@ def bulk_import(
     access_key: str = "",
     secret_key: str = "",
     verify: Optional[Union[bool, str]] = True, 
+    cert: Optional[Union[str, tuple]] = None, 
     **kwargs,
 ) -> requests.Response:
     """call bulkinsert restful interface to import files
@@ -117,8 +119,9 @@ def bulk_import(
         api_key (str): API key to authenticate your requests.
         access_key (str): access key to access the object storage
         secret_key (str): secret key to access the object storage
-        verify (bool, str, optional): Either a boolean, whether to verify the server's TLS certificate
+        verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
              or a string, which must be server's certificate path. Defaults to `True`.
+        cert (str, tuple, optional): if String, path to ssl client cert file. If Tuple, ('cert', 'key') pair.
 
     Returns:
         response of the restful interface
@@ -141,7 +144,7 @@ def bulk_import(
     if isinstance(options, dict):
         params["options"] = options
 
-    resp = _post_request(url=request_url, api_key=api_key, params=params, verify=verify, **kwargs)
+    resp = _post_request(url=request_url, api_key=api_key, params=params, verify=verify, cert=cert, **kwargs)
     _handle_response(request_url, resp.json())
     return resp
 
@@ -152,6 +155,7 @@ def get_import_progress(
     cluster_id: str = "", 
     api_key: str = "",
     verify: Optional[Union[bool, str]] = True, 
+    cert: Optional[Union[str, tuple]] = None, 
     **kwargs
 ) -> requests.Response:
     """get job progress
@@ -161,8 +165,9 @@ def get_import_progress(
         job_id (str): a job id
         cluster_id (str): id of a milvus instance(for cloud)
         api_key (str): API key to authenticate your requests.
-        verify (bool, str, optional): Either a boolean, whether to verify the server's TLS certificate
+        verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
              or a string, which must be server's certificate path. Defaults to `True`.
+        cert (str, tuple, optional): if String, path to ssl client cert file. If Tuple, ('cert', 'key') pair.
 
     Returns:
         response of the restful interface
@@ -174,7 +179,7 @@ def get_import_progress(
         "clusterId": cluster_id,
     }
 
-    resp = _post_request(url=request_url, api_key=api_key, params=params, verify=verify, **kwargs)
+    resp = _post_request(url=request_url, api_key=api_key, params=params, verify=verify, cert=cert, **kwargs)
     _handle_response(request_url, resp.json())
     return resp
 
@@ -187,6 +192,7 @@ def list_import_jobs(
     page_size: int = 10,
     current_page: int = 1,
     verify: Optional[Union[bool, str]] = True,
+    cert: Optional[Union[str, tuple]] = None,
     **kwargs,
 ) -> requests.Response:
     """list jobs in a cluster
@@ -198,8 +204,9 @@ def list_import_jobs(
         api_key (str): API key to authenticate your requests.
         page_size (int): pagination size
         current_page (int): pagination
-        verify (bool, str, optional): Either a boolean, whether to verify the server's TLS certificate
+        verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
              or a string, which must be server's certificate path. Defaults to `True`.
+        cert (str, tuple, optional): if String, path to ssl client cert file. If Tuple, ('cert', 'key') pair.
 
     Returns:
         response of the restful interface
@@ -213,6 +220,6 @@ def list_import_jobs(
         "currentPage": current_page,
     }
 
-    resp = _post_request(url=request_url, api_key=api_key, params=params, verify=verify, **kwargs)
+    resp = _post_request(url=request_url, api_key=api_key, params=params, verify=verify, cert=cert, **kwargs)
     _handle_response(request_url, resp.json())
     return resp
