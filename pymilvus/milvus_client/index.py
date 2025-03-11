@@ -38,17 +38,16 @@ class IndexParam:
 
 class IndexParams:
     def __init__(self, field_name: str = "", **kwargs):
-        self._indexes = {}
+        self._indexes = []
         if field_name:
             self.add_index(field_name, **kwargs)
 
     def add_index(self, field_name: str, index_type: str = "", index_name: str = "", **kwargs):
         index_param = IndexParam(field_name, index_type, index_name, **kwargs)
-        pair_key = (field_name, index_name)
-        self._indexes[pair_key] = index_param
+        self._indexes.append(index_param)
 
     def __iter__(self):
-        for v in self._indexes.values():
+        for v in self._indexes:
             yield dict(v)
 
     def __str__(self):
