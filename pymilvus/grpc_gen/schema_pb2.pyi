@@ -23,6 +23,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Array: _ClassVar[DataType]
     JSON: _ClassVar[DataType]
     Geometry: _ClassVar[DataType]
+    Text: _ClassVar[DataType]
     BinaryVector: _ClassVar[DataType]
     FloatVector: _ClassVar[DataType]
     Float16Vector: _ClassVar[DataType]
@@ -55,6 +56,7 @@ VarChar: DataType
 Array: DataType
 JSON: DataType
 Geometry: DataType
+Text: DataType
 BinaryVector: DataType
 FloatVector: DataType
 Float16Vector: DataType
