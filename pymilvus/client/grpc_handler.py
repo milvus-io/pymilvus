@@ -9,6 +9,7 @@ from urllib import parse
 import grpc
 from grpc._cython import cygrpc
 
+from pymilvus.client.types import DataType
 from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure, upgrade_reminder
 from pymilvus.exceptions import (
     AmbiguousIndexName,
@@ -1144,6 +1145,8 @@ class GrpcHandler:
             info_dict = {kv.key: kv.value for kv in response.index_descriptions[0].params}
             info_dict["field_name"] = response.index_descriptions[0].field_name
             info_dict["index_name"] = response.index_descriptions[0].index_name
+            if info_dict.get("json_cast_type"):
+                info_dict["json_cast_type"] = DataType(int(info_dict["json_cast_type"]))
             if info_dict.get("params"):
                 info_dict["params"] = json.loads(info_dict["params"])
             info_dict["total_rows"] = response.index_descriptions[0].total_rows
