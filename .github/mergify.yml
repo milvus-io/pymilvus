@@ -4,14 +4,14 @@ pull_request_rules:
       - or:
         - base=master
         - base~=2\.\d
-      - "status-success=Run Python Tests (3.8, windows-2022)"
-      - "status-success=Run Python Tests (3.13, windows-2022)"
-      - "status-success=Run Python Tests (3.8, ubuntu-22.04)"
-      - "status-success=Run Python Tests (3.13, ubuntu-22.04)"
-      - "status-success=Run Check Proto (3.8)"
-      - "status-success=Code lint check (3.8)"
-      - "status-success=Run Check Proto (3.13)"
-      - "status-success=Code lint check (3.13)"
+      # Require that Python tests succeed on Windows (any Python version, any Windows build)
+      - "status-success~=Run Python Tests \\(\\d+\\.\\d+, windows-\\S+\\)"
+      # Require that Python tests succeed on Ubuntu (any Python version, any Ubuntu build)
+      - "status-success~=Run Python Tests \\(\\d+\\.\\d+, ubuntu-\\S+\\)"
+      # Require that proto checks pass for any Python version
+      - "status-success~=Run Check Proto \\(\\d+\\.\\d+\\)"
+      # Require that code lint checks pass for any Python version
+      - "status-success~=Code lint check \\(\\d+\\.\\d+\\)"
     actions:
       label:
         add:
