@@ -10,7 +10,7 @@ jobs:
     name: Run Python Tests
     strategy:
       matrix:
-        python-version: [3.8, 3.12]
+        python-version: [3.8, 3.13]
         os: [ubuntu-22.04, windows-2022]
     runs-on: ${{ matrix.os }}
 
