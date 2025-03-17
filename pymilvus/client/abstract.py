@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import ujson
 
@@ -351,19 +351,6 @@ class MutationResult:
         )
 
 
-class SequenceIterator:
-    def __init__(self, seq: Sequence[Any]):
-        self._seq = seq
-        self._idx = 0
-
-    def __next__(self) -> Any:
-        if self._idx < len(self._seq):
-            res = self._seq[self._idx]
-            self._idx += 1
-            return res
-        raise StopIteration
-
-
 class BaseRanker:
     def __int__(self):
         return
@@ -653,9 +640,6 @@ class SearchResult(list):
                 continue
         return field2data
 
-    def __iter__(self) -> SequenceIterator:
-        return SequenceIterator(self)
-
     def __str__(self) -> str:
         """Only print at most 10 query results"""
         reminder = f" ... and {len(self) - 10} results remaining" if len(self) > 10 else ""
@@ -734,9 +718,6 @@ class Hits(list):
             hits.append(Hit(pks[i], distances[i], curr_field, self._pk_name))
 
         super().__init__(hits)
-
-    def __iter__(self) -> SequenceIterator:
-        return SequenceIterator(self)
 
     def __str__(self) -> str:
         """Only print at most 10 query results"""
