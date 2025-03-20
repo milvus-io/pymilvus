@@ -236,6 +236,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.FlushAllRequest.SerializeToString,
                 response_deserializer=milvus__pb2.FlushAllResponse.FromString,
                 _registered_method=True)
+        self.AddCollectionField = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AddCollectionField',
+                request_serializer=milvus__pb2.AddCollectionFieldRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
         self.GetFlushState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetFlushState',
                 request_serializer=milvus__pb2.GetFlushStateRequest.SerializeToString,
@@ -508,7 +513,7 @@ class MilvusServiceStub(object):
                 _registered_method=True)
         self.RunAnalyzer = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/RunAnalyzer',
-                request_serializer=milvus__pb2.RunAnalyzerRequset.SerializeToString,
+                request_serializer=milvus__pb2.RunAnalyzerRequest.SerializeToString,
                 response_deserializer=milvus__pb2.RunAnalyzerResponse.FromString,
                 _registered_method=True)
 
@@ -753,6 +758,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def FlushAll(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AddCollectionField(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1296,6 +1307,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.FlushAllRequest.FromString,
                     response_serializer=milvus__pb2.FlushAllResponse.SerializeToString,
             ),
+            'AddCollectionField': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddCollectionField,
+                    request_deserializer=milvus__pb2.AddCollectionFieldRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
             'GetFlushState': grpc.unary_unary_rpc_method_handler(
                     servicer.GetFlushState,
                     request_deserializer=milvus__pb2.GetFlushStateRequest.FromString,
@@ -1568,7 +1584,7 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             ),
             'RunAnalyzer': grpc.unary_unary_rpc_method_handler(
                     servicer.RunAnalyzer,
-                    request_deserializer=milvus__pb2.RunAnalyzerRequset.FromString,
+                    request_deserializer=milvus__pb2.RunAnalyzerRequest.FromString,
                     response_serializer=milvus__pb2.RunAnalyzerResponse.SerializeToString,
             ),
     }
@@ -2652,6 +2668,33 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/FlushAll',
             milvus__pb2.FlushAllRequest.SerializeToString,
             milvus__pb2.FlushAllResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AddCollectionField(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/AddCollectionField',
+            milvus__pb2.AddCollectionFieldRequest.SerializeToString,
+            common__pb2.Status.FromString,
             options,
             channel_credentials,
             insecure,
@@ -4135,7 +4178,7 @@ class MilvusService(object):
             request,
             target,
             '/milvus.proto.milvus.MilvusService/RunAnalyzer',
-            milvus__pb2.RunAnalyzerRequset.SerializeToString,
+            milvus__pb2.RunAnalyzerRequest.SerializeToString,
             milvus__pb2.RunAnalyzerResponse.FromString,
             options,
             channel_credentials,

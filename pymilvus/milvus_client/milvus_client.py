@@ -1726,6 +1726,8 @@ class MilvusClient:
         self,
         texts: Union[str, List[str]],
         analyzer_params: Union[str, Dict, None] = None,
+        with_hash: bool = False,
+        with_detail: bool = False,
         timeout: Optional[float] = None,
     ):
         """Run analyzer. Return result tokens of analysis.
@@ -1739,4 +1741,6 @@ class MilvusClient:
         if analyzer_params is None:
             analyzer_params = {}
 
-        return self._get_connection().run_analyzer(texts, analyzer_params, timeout=timeout)
+        return self._get_connection().run_analyzer(
+            texts, analyzer_params, with_hash=with_hash, with_detail=with_detail, timeout=timeout
+        )
