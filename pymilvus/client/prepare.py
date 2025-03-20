@@ -1726,8 +1726,14 @@ class Prepare:
         )
 
     @classmethod
-    def run_analyzer(cls, texts: Union[str, List[str]], analyzer_params: Union[str, Dict]):
-        req = milvus_types.RunAnalyzerRequset()
+    def run_analyzer(
+        cls,
+        texts: Union[str, List[str]],
+        analyzer_params: Union[str, Dict],
+        with_hash: bool = False,
+        with_detail: bool = False,
+    ):
+        req = milvus_types.RunAnalyzerRequest(with_hash=with_hash, with_detail=with_detail)
         if isinstance(texts, str):
             req.placeholder.append(texts.encode("utf-8"))
         else:

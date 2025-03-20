@@ -1083,11 +1083,37 @@ class DatabaseInfo:
         return result
 
 
+class AnalyzeToken:
+    def __init__(
+        self, token: milvus_types.AnalyzerToken, with_hash: bool = False, with_detail: bool = False
+    ):
+        self.dict = {"token": token.token}
+        if with_detail:
+            self.dict["start_offset"] = token.start_offset
+            self.dict["end_offset"] = token.end_offset
+            self.dict["position"] = token.position
+            self.dict["position_length"] = token.position_length
+        if with_hash:
+            self.dict["hash"] = token.hash
+
+    def __str__(self):
+        return str(self.dict)
+
+    __repr__ = __str__
+
+
 class AnalyzeResult:
-    def __init__(self, info: milvus_types.AnalyzerResult) -> None:
-        self.tokens = info.tokens
+    def __init__(
+        self, info: milvus_types.AnalyzerResult, with_hash: bool = False, with_detail: bool = False
+    ) -> None:
+        if not with_detail and not with_hash:
+            self.tokens = [token.token for token in info.tokens]
+        else:
+            self.tokens = [
+                AnalyzeToken(token, with_hash, with_detail).dict for token in info.tokens
+            ]
 
     def __str__(self) -> str:
-        return f"{{tokens: {self.tokens}}}"
+        return str(self.tokens)
 
-    __reper__ = __str__
+    __repr__ = __str__
