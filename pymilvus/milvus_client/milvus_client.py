@@ -1212,9 +1212,11 @@ class MilvusClient:
         conn = self._get_connection()
         conn.create_role(role_name, timeout=timeout, **kwargs)
 
-    def drop_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
+    def drop_role(
+        self, role_name: str, force_drop: bool = False, timeout: Optional[float] = None, **kwargs
+    ):
         conn = self._get_connection()
-        conn.drop_role(role_name, timeout=timeout, **kwargs)
+        conn.drop_role(role_name, force_drop=force_drop, timeout=timeout, **kwargs)
 
     def describe_role(self, role_name: str, timeout: Optional[float] = None, **kwargs) -> Dict:
         conn = self._get_connection()
