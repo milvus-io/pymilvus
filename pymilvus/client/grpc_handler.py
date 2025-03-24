@@ -1904,8 +1904,10 @@ class GrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
-    def drop_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
-        req = Prepare.drop_role_request(role_name)
+    def drop_role(
+        self, role_name: str, force_drop: bool = False, timeout: Optional[float] = None, **kwargs
+    ):
+        req = Prepare.drop_role_request(role_name, force_drop=force_drop)
         resp = self._stub.DropRole(req, wait_for_ready=True, timeout=timeout)
         check_status(resp)
 

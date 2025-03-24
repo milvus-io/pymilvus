@@ -1481,9 +1481,9 @@ class Prepare:
         return milvus_types.CreateRoleRequest(entity=milvus_types.RoleEntity(name=role_name))
 
     @classmethod
-    def drop_role_request(cls, role_name: str):
+    def drop_role_request(cls, role_name: str, force_drop: bool = False):
         check_pass_param(role_name=role_name)
-        return milvus_types.DropRoleRequest(role_name=role_name)
+        return milvus_types.DropRoleRequest(role_name=role_name, force_drop=force_drop)
 
     @classmethod
     def operate_user_role_request(cls, username: str, role_name: str, operate_user_role_type: Any):
