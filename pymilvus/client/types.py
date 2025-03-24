@@ -1096,6 +1096,33 @@ class AnalyzeToken:
         if with_hash:
             self.dict["hash"] = token.hash
 
+    @property
+    def token(self):
+        return self.dict["token"]
+
+    @property
+    def start_offset(self):
+        return self.dict["start_offset"]
+
+    @property
+    def end_offset(self):
+        return self.dict["end_offset"]
+
+    @property
+    def position(self):
+        return self.dict["position"]
+
+    @property
+    def position_length(self):
+        return self.dict["position_length"]
+
+    @property
+    def hash(self):
+        return self.dict["hash"]
+
+    def __getitem__(self, key: str):
+        return self.dict[key]
+
     def __str__(self):
         return str(self.dict)
 
@@ -1109,9 +1136,7 @@ class AnalyzeResult:
         if not with_detail and not with_hash:
             self.tokens = [token.token for token in info.tokens]
         else:
-            self.tokens = [
-                AnalyzeToken(token, with_hash, with_detail).dict for token in info.tokens
-            ]
+            self.tokens = [AnalyzeToken(token, with_hash, with_detail) for token in info.tokens]
 
     def __str__(self) -> str:
         return str(self.tokens)
