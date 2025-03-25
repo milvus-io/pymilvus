@@ -1029,7 +1029,6 @@ class GrpcHandler:
         # for historical reason, index_name contained in kwargs.
         index_name = kwargs.pop("index_name", Config.IndexName)
 
-        # sync flush
         _async = kwargs.get("_async", False)
         kwargs["_async"] = False
 
@@ -1545,7 +1544,7 @@ class GrpcHandler:
             if not flush_ret:
                 time.sleep(0.5)
 
-    @retry_on_rpc_failure()
+    @retry_on_rpc_failure(initial_backoff=1)
     def flush(self, collection_names: list, timeout: Optional[float] = None, **kwargs):
         if collection_names in (None, []) or not isinstance(collection_names, list):
             raise ParamError(message="Collection name list can not be None or empty")
