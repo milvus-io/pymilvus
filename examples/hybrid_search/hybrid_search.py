@@ -80,7 +80,7 @@ for i in range(len(field_names)):
     req_list.append(req)
 
 print(fmt.format("rank by WightedRanker"))
-hybrid_res = hello_milvus.hybrid_search(req_list, WeightedRanker(*weights), default_limit, output_fields=["random"])
+hybrid_res = hello_milvus.hybrid_search(req_list, WeightedRanker(*weights, norm_score=True), default_limit, output_fields=["random"])
 for hits in hybrid_res:
     for hit in hits:
         print(f" hybrid search hit: {hit}")
