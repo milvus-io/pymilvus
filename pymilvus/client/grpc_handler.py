@@ -1544,7 +1544,7 @@ class GrpcHandler:
             if not flush_ret:
                 time.sleep(0.5)
 
-    @retry_on_rpc_failure(initial_backoff=1)
+    @retry_on_rpc_failure(initial_back_off=1)
     def flush(self, collection_names: list, timeout: Optional[float] = None, **kwargs):
         if collection_names in (None, []) or not isinstance(collection_names, list):
             raise ParamError(message="Collection name list can not be None or empty")
