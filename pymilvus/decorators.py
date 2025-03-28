@@ -76,9 +76,9 @@ def retry_on_rpc_failure(
                 return counter > final_retry_times
 
             to_msg = (
-                f"Retry timeout: {retry_timeout}s"
+                f"[{func.__name__}] Retry timeout: {retry_timeout}s"
                 if retry_timeout is not None
-                else f"Retry run out of {final_retry_times} retry times"
+                else f"[{func.__name__}] Retry run out of {final_retry_times} retry times"
             )
 
             while True:
