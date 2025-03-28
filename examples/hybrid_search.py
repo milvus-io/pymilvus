@@ -49,7 +49,6 @@ print(fmt.format("Start loading"))
 milvus_client.load_collection(collection_name)
 
 field_names = ["embeddings", "embeddings2"]
-field_names = ["embeddings"]
 
 req_list = []
 nq = 1

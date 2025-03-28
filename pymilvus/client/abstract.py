@@ -381,16 +381,22 @@ class RRFRanker(BaseRanker):
 
 
 class WeightedRanker(BaseRanker):
-    def __init__(self, *nums):
+    def __init__(self, *nums, norm_score: bool = True):
         self._strategy = RANKER_TYPE_WEIGHTED
         weights = []
         for num in nums:
+            # isinstance(True, int) is True, thus we need to check bool first
+            if isinstance(num, bool) or not isinstance(num, (int, float)):
+                error_msg = f"Weight must be a number, got {type(num)}"
+                raise TypeError(error_msg)
             weights.append(num)
         self._weights = weights
+        self._norm_score = norm_score
 
     def dict(self):
         params = {
             "weights": self._weights,
+            "norm_score": self._norm_score,
         }
         return {
             "strategy": self._strategy,
