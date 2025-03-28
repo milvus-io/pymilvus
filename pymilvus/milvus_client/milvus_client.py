@@ -23,6 +23,7 @@ from pymilvus.exceptions import (
     MilvusException,
     ParamError,
     PrimaryKeyException,
+    SchemaNotReadyException,
     ServerVersionIncompatibleException,
 )
 from pymilvus.orm import utility
@@ -888,12 +889,20 @@ class MilvusClient:
         conn = self._get_connection()
         if "consistency_level" not in kwargs:
             kwargs["consistency_level"] = DEFAULT_CONSISTENCY_LEVEL
-        try:
-            conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
-            logger.debug("Successfully created collection: %s", collection_name)
-        except Exception as ex:
-            logger.error("Failed to create collection: %s", collection_name)
-            raise ex from ex
+        has_collection = conn.has_collection(collection_name, timeout=timeout, **kwargs)
+        if has_collection:
+            logger.warning(f"Collection {collection_name} already exists")
+        else:
+            if schema is None:
+                raise SchemaNotReadyException(
+                    message=ExceptionsMessage.CollectionNotExistNoSchema % collection_name
+                )
+            try:
+                conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
+                logger.debug("Successfully created collection: %s", collection_name)
+            except Exception as ex:
+                logger.error("Failed to create collection: %s", collection_name)
+                raise ex from ex
 
         if index_params:
             self.create_index(collection_name, index_params, timeout=timeout)
