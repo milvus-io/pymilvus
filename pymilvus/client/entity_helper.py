@@ -494,9 +494,7 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             field_data.vectors.dim = len(entity_values[0]) // 2
             field_data.vectors.bfloat16_vector = b"".join(entity_values)
         elif entity_type == DataType.SPARSE_FLOAT_VECTOR:
-            field_data.vectors.sparse_float_vector.CopyFrom(
-                sparse_rows_to_proto(entity_values)
-            )
+            field_data.vectors.sparse_float_vector.CopyFrom(sparse_rows_to_proto(entity_values))
         elif entity_type == DataType.INT8_VECTOR:
             field_data.vectors.dim = len(entity_values)[0]
             field_data.vectors.int8_vector = b"".join(entity_values)
@@ -508,13 +506,16 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
         elif entity_type == DataType.JSON:
             field_data.scalars.json_data.data.extend(entity_to_json_arr(entity_values, field_info))
         elif entity_type == DataType.ARRAY:
-            field_data.scalars.array_data.data.extend(entity_to_array_arr(entity_values, field_info))
+            field_data.scalars.array_data.data.extend(
+                entity_to_array_arr(entity_values, field_info)
+            )
         else:
             raise ParamError(message=f"Unsupported data type: {entity_type}")
     except (TypeError, ValueError) as e:
         raise DataNotMatchException(
             message=ExceptionsMessage.FieldDataInconsistent
-            % (field_name, entity_type.name, type(entity_values[0]))) from e
+            % (field_name, entity_type.name, type(entity_values[0]))
+        ) from e
     return field_data
 
 
