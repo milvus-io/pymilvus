@@ -180,8 +180,8 @@ def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True
     return arr
 
 
-def entity_to_str_arr(entity: Any, field_info: Any, check: bool = True):
-    return convert_to_str_array(entity.get("values", []), field_info, check=check)
+def entity_to_str_arr(entity_values: Any, field_info: Any, check: bool = True):
+    return convert_to_str_array(entity_values, field_info, check=check)
 
 
 def convert_to_json(obj: object):
@@ -203,8 +203,8 @@ def convert_to_json_arr(objs: List[object], field_info: Any):
     return arr
 
 
-def entity_to_json_arr(entity: Dict, field_info: Any):
-    return convert_to_json_arr(entity.get("values", []), field_info)
+def entity_to_json_arr(entity_values: Dict, field_info: Any):
+    return convert_to_json_arr(entity_values, field_info)
 
 
 def convert_to_array_arr(objs: List[Any], field_info: Any):
@@ -237,8 +237,8 @@ def convert_to_array(obj: List[Any], field_info: Any):
     )
 
 
-def entity_to_array_arr(entity: List[Any], field_info: Any):
-    return convert_to_array_arr(entity.get("values", []), field_info)
+def entity_to_array_arr(entity_values: List[Any], field_info: Any):
+    return convert_to_array_arr(entity_values, field_info)
 
 
 def pack_field_value_to_field_data(
@@ -447,152 +447,75 @@ def pack_field_value_to_field_data(
         raise ParamError(message=f"Unsupported data type: {field_type}")
 
 
-# TODO: refactor here.
-def entity_to_field_data(entity: Any, field_info: Any, num_rows: int):
-    field_data = schema_types.FieldData()
-
+# Don't change entity inside.
+def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema_types.FieldData:
     entity_type = entity.get("type")
     field_name = entity.get("name")
-    field_data.field_name = field_name
-    field_data.type = entity_type_to_dtype(entity_type)
-    entity_value = entity.get("values")
-    valid_data = []
+    entity_values = entity.get("values")
+    field_data = schema_types.FieldData(
+        type=entity_type_to_dtype(entity_type),
+        field_name=field_name,
+    )
 
+    valid_data = []
     if field_info.get("nullable", False) or field_info.get("default_value", None):
-        if len(entity_value) == 0:
+        if len(entity_values) == 0:
             valid_data = [False] * num_rows
         else:
-            valid_data = [value is not None for value in entity_value]
-            entity_value = [value for value in entity_value if value is not None]
+            valid_data = [value is not None for value in entity_values]
+            entity_values = [value for value in entity_values if value is not None]
 
     field_data.valid_data.extend(valid_data)
-    entity["values"] = entity_value
 
-    if entity_type == DataType.BOOL:
-        try:
-            field_data.scalars.bool_data.data.extend(entity.get("values"))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "bool", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type in (DataType.INT8, DataType.INT16, DataType.INT32):
-        try:
-            field_data.scalars.int_data.data.extend(entity.get("values"))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "int", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.INT64:
-        try:
-            field_data.scalars.long_data.data.extend(entity.get("values"))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "int64", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.FLOAT:
-        try:
-            field_data.scalars.float_data.data.extend(entity.get("values"))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "float", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.DOUBLE:
-        try:
-            field_data.scalars.double_data.data.extend(entity.get("values"))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "double", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.FLOAT_VECTOR:
-        try:
-            field_data.vectors.dim = len(entity.get("values")[0])
-            all_floats = [f for vector in entity.get("values") for f in vector]
+    try:
+        if entity_type == DataType.BOOL:
+            field_data.scalars.bool_data.data.extend(entity_values)
+        elif entity_type in (DataType.INT8, DataType.INT16, DataType.INT32):
+            field_data.scalars.int_data.data.extend(entity_values)
+        elif entity_type == DataType.INT64:
+            field_data.scalars.long_data.data.extend(entity_values)
+        elif entity_type == DataType.FLOAT:
+            field_data.scalars.float_data.data.extend(entity_values)
+        elif entity_type == DataType.DOUBLE:
+            field_data.scalars.double_data.data.extend(entity_values)
+
+        elif entity_type == DataType.FLOAT_VECTOR:
+            # TODO: get dimension from field_info
+            field_data.vectors.dim = len(entity_values[0])
+            all_floats = [f for vector in entity_values for f in vector]
             field_data.vectors.float_vector.data.extend(all_floats)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "float_vector", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.BINARY_VECTOR:
-        try:
-            field_data.vectors.dim = len(entity.get("values")[0]) * 8
-            field_data.vectors.binary_vector = b"".join(entity.get("values"))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "binary_vector", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.FLOAT16_VECTOR:
-        try:
-            field_data.vectors.dim = len(entity.get("values")[0]) // 2
-            field_data.vectors.float16_vector = b"".join(entity.get("values"))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "float16_vector", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.BFLOAT16_VECTOR:
-        try:
-            field_data.vectors.dim = len(entity.get("values")[0]) // 2
-            field_data.vectors.bfloat16_vector = b"".join(entity.get("values"))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "bfloat16_vector", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.VARCHAR:
-        try:
-            field_data.scalars.string_data.data.extend(
-                entity_to_str_arr(entity, field_info, CHECK_STR_ARRAY)
-            )
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "varchar", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.JSON:
-        try:
-            field_data.scalars.json_data.data.extend(entity_to_json_arr(entity, field_info))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "json", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.ARRAY:
-        try:
-            field_data.scalars.array_data.data.extend(entity_to_array_arr(entity, field_info))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "array", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.SPARSE_FLOAT_VECTOR:
-        try:
-            field_data.vectors.sparse_float_vector.CopyFrom(
-                sparse_rows_to_proto(entity.get("values"))
-            )
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "sparse_float_vector", type(entity.get("values")[0]))
-            ) from e
-    elif entity_type == DataType.INT8_VECTOR:
-        try:
-            field_data.vectors.dim = len(entity.get("values")[0])
-            field_data.vectors.int8_vector = b"".join(entity.get("values"))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "int8_vector", type(entity.get("values")[0]))
-            ) from e
-    else:
-        raise ParamError(message=f"Unsupported data type: {entity_type}")
+        elif entity_type == DataType.BINARY_VECTOR:
+            field_data.vectors.dim = len(entity_values[0]) * 8
+            field_data.vectors.binary_vector = b"".join(entity_values)
+        elif entity_type == DataType.FLOAT16_VECTOR:
+            field_data.vectors.dim = len(entity_values[0]) // 2
+            field_data.vectors.float16_vector = b"".join(entity_values)
+        elif entity_type == DataType.BFLOAT16_VECTOR:
+            field_data.vectors.dim = len(entity_values[0]) // 2
+            field_data.vectors.bfloat16_vector = b"".join(entity_values)
+        elif entity_type == DataType.SPARSE_FLOAT_VECTOR:
+            field_data.vectors.sparse_float_vector.CopyFrom(sparse_rows_to_proto(entity_values))
+        elif entity_type == DataType.INT8_VECTOR:
+            field_data.vectors.dim = len(entity_values)[0]
+            field_data.vectors.int8_vector = b"".join(entity_values)
 
+        elif entity_type == DataType.VARCHAR:
+            field_data.scalars.string_data.data.extend(
+                entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
+            )
+        elif entity_type == DataType.JSON:
+            field_data.scalars.json_data.data.extend(entity_to_json_arr(entity_values, field_info))
+        elif entity_type == DataType.ARRAY:
+            field_data.scalars.array_data.data.extend(
+                entity_to_array_arr(entity_values, field_info)
+            )
+        else:
+            raise ParamError(message=f"Unsupported data type: {entity_type}")
+    except (TypeError, ValueError) as e:
+        raise DataNotMatchException(
+            message=ExceptionsMessage.FieldDataInconsistent
+            % (field_name, entity_type.name, type(entity_values[0]))
+        ) from e
     return field_data
 
 
