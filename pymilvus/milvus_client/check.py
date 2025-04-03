@@ -19,7 +19,9 @@ def validate_param(param_name: str, param: Any, expected_type: Union[type, Tuple
         raise ParamError(message=msg)
 
 
-def validate_noneable_param(param_name: str, param: Any, expected_type: Union[type, Tuple[type, ...]]):
+def validate_noneable_param(
+    param_name: str, param: Any, expected_type: Union[type, Tuple[type, ...]]
+):
     if param is None:
         return
 

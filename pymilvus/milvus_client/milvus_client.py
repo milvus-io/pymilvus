@@ -166,7 +166,11 @@ class MilvusClient:
             self._create_index(collection_name, index_param, timeout=timeout, **kwargs)
 
     def _create_index(
-        self, collection_name: str, index_param: IndexParam, timeout: Optional[float] = None, **kwargs
+        self,
+        collection_name: str,
+        index_param: IndexParam,
+        timeout: Optional[float] = None,
+        **kwargs,
     ):
         conn = self._get_connection()
         try:

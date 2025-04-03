@@ -78,6 +78,7 @@ class IndexParam:
 
 class IndexParams(list):
     """List of indexs of a collection"""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
