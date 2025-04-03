@@ -573,6 +573,13 @@ class AsyncMilvusClient:
         kwargs["check_fields"] = False  # do not check fields for now
         return CollectionSchema([], **kwargs)
 
+    @classmethod
+    def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
+        index_params = IndexParams()
+        if field_name and validate_param("field_name", field_name, str):
+            index_params.add_index(field_name, **kwargs)
+        return index_params
+
     async def close(self):
         await connections.async_disconnect(self._using)
 
