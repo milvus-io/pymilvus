@@ -29,7 +29,7 @@ TODO
 # GitHub
 .coverage
 htmlcov/
-debug/
+**/debug/
 .codecov.yml
 coverage.xml
 
