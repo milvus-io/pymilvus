@@ -121,6 +121,10 @@ def bulk_import(
         "secretKey": secret_key,
     }
 
+    options = kwargs.pop("options", {})
+    if isinstance(options, dict):
+        params["options"] = options
+
     resp = _post_request(url=request_url, api_key=api_key, params=params, **kwargs)
     _handle_response(request_url, resp.json())
     return resp
