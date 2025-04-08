@@ -125,7 +125,7 @@ class AsyncMilvusClient:
             raise ex from ex
 
         index_params = IndexParams()
-        index_params.add_index(vector_field_name, index_type= "AUTOINDEX", metric_type=metric_type)
+        index_params.add_index(vector_field_name, index_type="AUTOINDEX", metric_type=metric_type)
         await self.create_index(collection_name, index_params, timeout=timeout)
         await self.load_collection(collection_name, timeout=timeout)
 
