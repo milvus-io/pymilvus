@@ -874,7 +874,9 @@ class MilvusClient:
         return CollectionSchema([], **kwargs)
 
     @classmethod
-    def create_field_schema(cls, name: str, dtype: DataType, desc: str, **kwargs) -> FieldSchema:
+    def create_field_schema(
+        cls, name: str, data_type: DataType, desc: str = "", **kwargs
+    ) -> FieldSchema:
         """Create a field schema. Wrapping orm.FieldSchema.
 
         Args:
@@ -886,7 +888,7 @@ class MilvusClient:
         Returns:
             FieldSchema: the FieldSchema created.
         """
-        return FieldSchema(name, dtype, desc, **kwargs)
+        return FieldSchema(name, data_type, desc, **kwargs)
 
     @classmethod
     def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
