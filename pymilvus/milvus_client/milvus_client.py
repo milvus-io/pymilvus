@@ -1,5 +1,3 @@
-"""MilvusClient for dealing with simple workflows."""
-
 import logging
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
@@ -32,7 +30,8 @@ from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
-from .index import IndexParams
+from .check import validate_param
+from .index import IndexParam, IndexParams
 
 logger = logging.getLogger(__name__)
 
@@ -112,9 +111,8 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        if dimension is None:
-            msg = "missing requried argument: 'dimension'"
-            raise TypeError(msg)
+        validate_param("dimension", dimension, int)
+
         if "enable_dynamic_field" not in kwargs:
             kwargs["enable_dynamic_field"] = True
 
@@ -132,8 +130,7 @@ class MilvusClient:
             pk_args["max_length"] = kwargs["max_length"]
 
         schema.add_field(primary_field_name, pk_data_type, is_primary=True, **pk_args)
-        vector_type = DataType.FLOAT_VECTOR
-        schema.add_field(vector_field_name, vector_type, dim=dimension)
+        schema.add_field(vector_field_name, DataType.FLOAT_VECTOR, dim=dimension)
         schema.verify()
 
         conn = self._get_connection()
@@ -147,7 +144,7 @@ class MilvusClient:
             raise ex from ex
 
         index_params = IndexParams()
-        index_params.add_index(vector_field_name, "", "", metric_type=metric_type)
+        index_params.add_index(vector_field_name, index_type="AUTOINDEX", metric_type=metric_type)
         self.create_index(collection_name, index_params, timeout=timeout)
         self.load_collection(collection_name, timeout=timeout)
 
@@ -158,24 +155,29 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        validate_param("collection_name", collection_name, str)
+        validate_param("index_params", index_params, IndexParams)
+        if len(index_params) == 0:
+            raise ParamError(message="IndexParams is empty, no index can be created")
+
         for index_param in index_params:
             self._create_index(collection_name, index_param, timeout=timeout, **kwargs)
 
     def _create_index(
-        self, collection_name: str, index_param: Dict, timeout: Optional[float] = None, **kwargs
+        self,
+        collection_name: str,
+        index_param: IndexParam,
+        timeout: Optional[float] = None,
+        **kwargs,
     ):
         conn = self._get_connection()
         try:
-            params = index_param.pop("params", {})
-            field_name = index_param.pop("field_name", "")
-            index_name = index_param.pop("index_name", "")
-            params.update(index_param)
             conn.create_index(
                 collection_name,
-                field_name,
-                params,
+                index_param.field_name,
+                index_param.get_index_configs(),
                 timeout=timeout,
-                index_name=index_name,
+                index_name=index_param.index_name,
                 **kwargs,
             )
             logger.debug("Successfully created an index on collection: %s", collection_name)
@@ -872,8 +874,11 @@ class MilvusClient:
         return CollectionSchema([], **kwargs)
 
     @classmethod
-    def prepare_index_params(cls, field_name: str = "", **kwargs):
-        return IndexParams(field_name, **kwargs)
+    def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
+        index_params = IndexParams()
+        if field_name and validate_param("field_name", field_name, str):
+            index_params.add_index(field_name, **kwargs)
+        return index_params
 
     def _create_collection_with_schema(
         self,
