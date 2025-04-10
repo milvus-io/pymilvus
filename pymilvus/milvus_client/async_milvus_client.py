@@ -21,7 +21,8 @@ from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
 from pymilvus.orm.types import DataType
 
-from .index import IndexParams
+from .check import validate_param
+from .index import IndexParam, IndexParams
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -124,7 +125,7 @@ class AsyncMilvusClient:
             raise ex from ex
 
         index_params = IndexParams()
-        index_params.add_index(vector_field_name, "", "", metric_type=metric_type)
+        index_params.add_index(vector_field_name, index_type="AUTOINDEX", metric_type=metric_type)
         await self.create_index(collection_name, index_params, timeout=timeout)
         await self.load_collection(collection_name, timeout=timeout)
 
@@ -186,24 +187,29 @@ class AsyncMilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        validate_param("collection_name", collection_name, str)
+        validate_param("index_params", index_params, IndexParams)
+        if len(index_params) == 0:
+            raise ParamError(message="IndexParams is empty, no index can be created")
+
         for index_param in index_params:
             await self._create_index(collection_name, index_param, timeout=timeout, **kwargs)
 
     async def _create_index(
-        self, collection_name: str, index_param: Dict, timeout: Optional[float] = None, **kwargs
+        self,
+        collection_name: str,
+        index_param: IndexParam,
+        timeout: Optional[float] = None,
+        **kwargs,
     ):
         conn = self._get_connection()
         try:
-            params = index_param.pop("params", {})
-            field_name = index_param.pop("field_name", "")
-            index_name = index_param.pop("index_name", "")
-            params.update(index_param)
             await conn.create_index(
                 collection_name,
-                field_name,
-                params,
+                index_param.field_name,
+                index_param.get_index_configs(),
                 timeout=timeout,
-                index_name=index_name,
+                index_name=index_param.index_name,
                 **kwargs,
             )
             logger.debug("Successfully created an index on collection: %s", collection_name)
@@ -570,6 +576,13 @@ class AsyncMilvusClient:
     def create_schema(cls, **kwargs):
         kwargs["check_fields"] = False  # do not check fields for now
         return CollectionSchema([], **kwargs)
+
+    @classmethod
+    def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
+        index_params = IndexParams()
+        if field_name and validate_param("field_name", field_name, str):
+            index_params.add_index(field_name, **kwargs)
+        return index_params
 
     async def close(self):
         await connections.async_disconnect(self._using)

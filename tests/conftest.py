@@ -4,6 +4,8 @@ import grpc_testing
 
 # https://github.com/grpc/grpc/blob/5918f98ecbf5ace77f30fa97f7fc3e8bdac08e04/src/python/grpcio_tests/tests/testing/_client_test.py
 from grpc.framework.foundation import logging_pool
+import logging
+logging.getLogger("faker").setLevel(logging.WARNING)
 
 from pymilvus.grpc_gen import milvus_pb2
 
