@@ -9,7 +9,7 @@ from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamE
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
-from pymilvus.orm.schema import CollectionSchema
+from pymilvus.orm.schema import CollectionSchema, FieldSchema
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 
 from . import __version__, blob, check, entity_helper, ts_utils, utils
@@ -271,6 +271,18 @@ class Prepare:
     @classmethod
     def drop_collection_request(cls, collection_name: str) -> milvus_types.DropCollectionRequest:
         return milvus_types.DropCollectionRequest(collection_name=collection_name)
+
+    @classmethod
+    def add_collection_field_request(
+        cls,
+        collection_name: str,
+        field_schema: FieldSchema,
+    ) -> milvus_types.AddCollectionFieldRequest:
+        (field_schema_proto, _, _) = cls.get_field_schema(field=field_schema.to_dict())
+        return milvus_types.AddCollectionFieldRequest(
+            collection_name=collection_name,
+            schema=bytes(field_schema_proto.SerializeToString()),
+        )
 
     @classmethod
     def describe_collection_request(
