@@ -356,6 +356,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 Optional. If use tls one-way authentication, need to write the server.pem path.
             * *server_name* (``str``) --
                 Optional. If use tls, need to write the common name.
+            * *timeout* (``int/float``) --
+                Optional. The timeout for the connection. Default is 10 seconds.
+                Unit: second
 
         :raises NotImplementedError: If handler in connection parameters is not GRPC.
         :raises ParamError: If pool in connection parameters is not supported.

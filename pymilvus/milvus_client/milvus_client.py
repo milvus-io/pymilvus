@@ -62,6 +62,7 @@ class MilvusClient:
                 "https://username:password@in01-12a.aws-us-west-2.vectordb.zillizcloud.com:19538
             timeout (float, optional): What timeout to use for function calls. Defaults
                 to None.
+                Unit: second
         """
         self._using = self._create_connection(
             uri, user, password, db_name, token, timeout=timeout, **kwargs
