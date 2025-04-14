@@ -24,7 +24,7 @@ from pymilvus.exceptions import (
     ServerVersionIncompatibleException,
 )
 from pymilvus.orm import utility
-from pymilvus.orm.collection import CollectionSchema
+from pymilvus.orm.collection import CollectionSchema, FieldSchema
 from pymilvus.orm.connections import connections
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
@@ -875,6 +875,23 @@ class MilvusClient:
         return CollectionSchema([], **kwargs)
 
     @classmethod
+    def create_field_schema(
+        cls, name: str, data_type: DataType, desc: str = "", **kwargs
+    ) -> FieldSchema:
+        """Create a field schema. Wrapping orm.FieldSchema.
+
+        Args:
+            name (str): The name of the field.
+            dtype (DataType): The data type of the field.
+            desc (str): The description of the field.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            FieldSchema: the FieldSchema created.
+        """
+        return FieldSchema(name, data_type, desc, **kwargs)
+
+    @classmethod
     def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
         index_params = IndexParams()
         if field_name and validate_param("field_name", field_name, str):
@@ -1100,6 +1117,34 @@ class MilvusClient:
             collection_name,
             field_name=field_name,
             field_params=field_params,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def add_collection_field(
+        self,
+        collection_name: str,
+        field_schema: FieldSchema,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Add a new field to the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            field_schema (``FieldSchema``): The field schema to add.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.add_collection_field(
+            collection_name,
+            field_schema,
             timeout=timeout,
             **kwargs,
         )

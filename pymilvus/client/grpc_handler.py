@@ -23,7 +23,14 @@ from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils, utils
-from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, MutationResult, SearchResult
+from .abstract import (
+    AnnSearchRequest,
+    BaseRanker,
+    CollectionSchema,
+    FieldSchema,
+    MutationResult,
+    SearchResult,
+)
 from .asynch import (
     CreateIndexFuture,
     FlushFuture,
@@ -321,6 +328,20 @@ class GrpcHandler:
         request = Prepare.drop_collection_request(collection_name)
 
         rf = self._stub.DropCollection.future(request, timeout=timeout)
+        status = rf.result()
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    def add_collection_field(
+        self,
+        collection_name: str,
+        field_schema: FieldSchema,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.add_collection_field_request(collection_name, field_schema)
+        rf = self._stub.AddCollectionField.future(request, timeout=timeout)
         status = rf.result()
         check_status(status)
 

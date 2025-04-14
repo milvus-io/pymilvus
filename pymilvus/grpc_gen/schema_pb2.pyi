@@ -36,6 +36,7 @@ class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Unknown: _ClassVar[FunctionType]
     BM25: _ClassVar[FunctionType]
     TextEmbedding: _ClassVar[FunctionType]
+    Rerank: _ClassVar[FunctionType]
 
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -66,6 +67,7 @@ Int8Vector: DataType
 Unknown: FunctionType
 BM25: FunctionType
 TextEmbedding: FunctionType
+Rerank: FunctionType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
@@ -128,6 +130,14 @@ class FunctionSchema(_message.Message):
     output_field_ids: _containers.RepeatedScalarFieldContainer[int]
     params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     def __init__(self, name: _Optional[str] = ..., id: _Optional[int] = ..., description: _Optional[str] = ..., type: _Optional[_Union[FunctionType, str]] = ..., input_field_names: _Optional[_Iterable[str]] = ..., input_field_ids: _Optional[_Iterable[int]] = ..., output_field_names: _Optional[_Iterable[str]] = ..., output_field_ids: _Optional[_Iterable[int]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+
+class FunctionScore(_message.Message):
+    __slots__ = ("functions", "params")
+    FUNCTIONS_FIELD_NUMBER: _ClassVar[int]
+    PARAMS_FIELD_NUMBER: _ClassVar[int]
+    functions: _containers.RepeatedCompositeFieldContainer[FunctionSchema]
+    params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
     __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName")
