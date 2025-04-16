@@ -564,7 +564,7 @@ class Function:
         name: str,
         function_type: FunctionType,
         input_field_names: Union[str, List[str]],
-        output_field_names: Union[str, List[str]],
+        output_field_names: Optional[Union[str, List[str]]] = None,
         description: str = "",
         params: Optional[Dict] = None,
     ):
@@ -573,6 +573,8 @@ class Function:
         input_field_names = (
             [input_field_names] if isinstance(input_field_names, str) else input_field_names
         )
+        if output_field_names is None:
+            output_field_names = []
         output_field_names = (
             [output_field_names] if isinstance(output_field_names, str) else output_field_names
         )
@@ -657,6 +659,9 @@ class Function:
             self._check_bm25_function(schema)
         elif self._type == FunctionType.TEXTEMBEDDING:
             self._check_text_embedding_function(schema)
+        elif self._type == FunctionType.RANKER:
+            # We will not check the ranker function here.
+            pass
         elif self._type == FunctionType.UNKNOWN:
             raise ParamError(message=ExceptionsMessage.UnknownFunctionType)
 

@@ -121,6 +121,7 @@ class FunctionType(IntEnum):
     UNKNOWN = 0
     BM25 = 1
     TEXTEMBEDDING = 2
+    RERANK = 3
 
 
 class RangeType(IntEnum):

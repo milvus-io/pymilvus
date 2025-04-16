@@ -20,6 +20,7 @@ from pymilvus.exceptions import (
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
+from pymilvus.orm.schema import Function
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils, utils
@@ -888,6 +889,7 @@ class GrpcHandler:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         timeout: Optional[float] = None,
+        ranker: Optional[Function] = None,
         **kwargs,
     ):
         check_pass_param(
@@ -911,6 +913,7 @@ class GrpcHandler:
             partition_names,
             output_fields,
             round_decimal,
+            ranker=ranker,
             **kwargs,
         )
         return self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
@@ -920,7 +923,7 @@ class GrpcHandler:
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        rerank: BaseRanker,
+        rerank: Union[BaseRanker, Function],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -956,7 +959,7 @@ class GrpcHandler:
         hybrid_search_request = Prepare.hybrid_search_request_with_ranker(
             collection_name,
             requests,
-            rerank.dict(),
+            rerank,
             limit,
             partition_names,
             output_fields,
