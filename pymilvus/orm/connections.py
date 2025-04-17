@@ -454,8 +454,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 user = parsed_uri.username or user
                 password = parsed_uri.password or password
 
-                group = [segment for segment in parsed_uri.path.split("/") if segment]
-                db_name = group[1] if len(group) > 1 else db_name
+                db_name = parsed_uri.path.lstrip("/").split("/", 1)[0] or db_name
 
                 # Set secure=True if https scheme
                 if parsed_uri.scheme == "https":
