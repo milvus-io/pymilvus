@@ -167,8 +167,8 @@ def tracing_request():
     def wrapper(func: Callable):
         @functools.wraps(func)
         def handler(self: Callable, *args, **kwargs):
-            level = kwargs.get("log_level")
-            req_id = kwargs.get("client_request_id")
+            level = kwargs.get("log-level", kwargs.get("log_level"))
+            req_id = kwargs.get("client-request-id", kwargs.get("client_request_id"))
             if level:
                 self.set_onetime_loglevel(level)
             if req_id:
