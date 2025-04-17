@@ -199,13 +199,13 @@ class AsyncGrpcHandler:
             self._final_channel._unary_unary_interceptors.append(async_db_interceptor)
         if self._log_level:
             async_log_level_interceptor = async_header_adder_interceptor(
-                ["log_level"], [self._log_level]
+                ["log-level"], [self._log_level]
             )
             self._final_channel._unary_unary_interceptors.append(async_log_level_interceptor)
             self._log_level = None
         if self._request_id:
             async_request_id_interceptor = async_header_adder_interceptor(
-                ["client_request_id"], [self._request_id]
+                ["client-request-id"], [self._request_id]
             )
             self._final_channel._unary_unary_interceptors.append(async_request_id_interceptor)
             self._request_id = None
