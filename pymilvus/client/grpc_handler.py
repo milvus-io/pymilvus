@@ -251,7 +251,7 @@ class GrpcHandler:
             self._log_level = None
         if self._request_id:
             request_id_interceptor = interceptor.header_adder_interceptor(
-                ["client_request_id"], [self._request_id]
+                ["client-request-id"], [self._request_id]
             )
             self._final_channel = grpc.intercept_channel(
                 self._final_channel, request_id_interceptor
