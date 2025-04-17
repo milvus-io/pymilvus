@@ -373,8 +373,8 @@ class TestIssues:
                 config = connections.get_connection_addr("default")
                 assert config == {"address": 'localhost:19531', "user": 'root', "secure": True}
 
-    @pytest.mark.parametrize("uri, db_name", [("http://localhost:19530", "test_db"), ("http://localhost:19530/", "test_db"), ("http://localhost:19530/test_db", None)])
-    def test_issue_2670_2727(self, uri: str, db_name: str | None):
+    @pytest.mark.parametrize("uri, db_name", [("http://localhost:19530", "test_db"), ("http://localhost:19530/", "test_db"), ("http://localhost:19530/test_db", "")])
+    def test_issue_2670_2727(self, uri: str, db_name: str):
         """
         Issue 2670:
         
