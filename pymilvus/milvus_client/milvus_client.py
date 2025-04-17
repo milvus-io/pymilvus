@@ -414,7 +414,7 @@ class MilvusClient:
             logger.error("Failed to search collection: %s", collection_name)
             raise ex from ex
 
-        return ExtraList(res, extra=construct_cost_extra(0), recalls=[])
+        return ExtraList(res, extra=construct_cost_extra(res.cost), recalls=res.recalls)
 
     def query(
         self,
