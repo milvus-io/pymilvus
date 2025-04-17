@@ -358,11 +358,7 @@ class MilvusClient:
             logger.error("Failed to hybrid search collection: %s", collection_name)
             raise ex from ex
 
-        ret = []
-        for hits in res:
-            ret.append([hit.to_dict() for hit in hits])
-
-        return ExtraList(ret, extra=construct_cost_extra(res.cost))
+        return ExtraList(res, extra=construct_cost_extra(res.cost))
 
     def search(
         self,
@@ -418,14 +414,7 @@ class MilvusClient:
             logger.error("Failed to search collection: %s", collection_name)
             raise ex from ex
 
-        ret = []
-        for hits in res:
-            query_result = []
-            for hit in hits:
-                query_result.append(hit.to_dict())
-            ret.append(query_result)
-
-        return ExtraList(ret, extra=construct_cost_extra(res.cost), recalls=res.recalls)
+        return ExtraList(res, extra=construct_cost_extra(0), recalls=[])
 
     def query(
         self,
