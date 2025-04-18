@@ -79,7 +79,6 @@ version = { attr = "_version_helper.version"}
 line-length = 100
 target-version = ['py38']
 include = '\.pyi?$'
-extend-ignore = ["E203", "E501"]
 # 'extend-exclude' excludes files or directories in addition to the defaults
 extend-exclude = '''
 # A regex preceded with ^/ will apply only to files and directories

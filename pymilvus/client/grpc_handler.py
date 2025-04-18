@@ -29,7 +29,6 @@ from .abstract import (
     CollectionSchema,
     FieldSchema,
     MutationResult,
-    SearchResult,
 )
 from .asynch import (
     CreateIndexFuture,
@@ -45,6 +44,7 @@ from .check import (
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .prepare import Prepare
+from .search_reasult import SearchResult
 from .types import (
     AnalyzeResult,
     BulkInsertState,

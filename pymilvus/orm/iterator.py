@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 from pymilvus.client import entity_helper, utils
-from pymilvus.client.abstract import Hits, LoopBase
+from pymilvus.client.abstract import LoopBase
+from pymilvus.client.search_reasult import Hits
 from pymilvus.exceptions import (
     MilvusException,
     ParamError,
