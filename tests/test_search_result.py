@@ -1,13 +1,13 @@
 import os
-from typing import List, Tuple
-from pymilvus.client.abstract import Hit, Hits, SearchResult
-from pymilvus.client.types import DataType
-from pymilvus.grpc_gen import schema_pb2
 import random
+from typing import List, Tuple
 
 import pytest
 import ujson
 
+from pymilvus.grpc_gen import schema_pb2
+from pymilvus.client.search_reasult import Hit, Hits, SearchResult
+from pymilvus.client.types import DataType
 
 class TestHit:
     @pytest.mark.parametrize("pk_dist", [
@@ -94,8 +94,8 @@ class TestSearchResult:
 
         first_hit = first_q[0]
         print(first_hit)
-        assert first_hit.distance == 0.
-        assert first_hit.fields == {}
+        assert first_hit["distance"] == 0.
+        assert first_hit["entity"] == {}
 
     @pytest.mark.parametrize("pk", [
         schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[i for i in range(6)])),
@@ -200,14 +200,14 @@ class TestSearchResult:
         print(r[0])
         assert 2 == len(r)
         assert 3 == len(r[0]) == len(r[1])
-        assert {'0': 0, '1': 1, '2': 2} == r[0][0].normal_json_field
+        assert {'0': 0, '1': 1, '2': 2} == r[0][0].get("entity").get("normal_json_field")
         # dynamic field
-        assert 1 == r[0][1].fields.get('100')
+        assert 1 == r[0][1].get("entity").get('100')
 
-        assert 0 == r[0][0].int32_field
-        assert 1 == r[0][1].int8_field
-        assert 2 == r[0][2].int16_field
-        assert [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] == r[0][1].int64_array_field
-        assert 32 == len(r[0][0].entity.bfloat16_vector_field)
-        assert 32 == len(r[0][0].entity.float16_vector_field)
-        assert 16 == len(r[0][0].entity.int8_vector_field)
+        assert 0 == r[0][0].get("entity").get("int32_field")
+        assert 1 == r[0][1].get("entity").get("int8_field")
+        assert 2 == r[0][2].get("entity").get("int16_field")
+        assert [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] == r[0][1].get("entity").get("int64_array_field")
+        assert 32 == len(r[0][0].get("entity").get("bfloat16_vector_field"))
+        assert 32 == len(r[0][0].get("entity").get("float16_vector_field"))
+        assert 16 == len(r[0][0].get("entity").get("int8_vector_field")) 

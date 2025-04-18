@@ -11,9 +11,10 @@
 # the License.
 
 from .client import __version__
-from .client.abstract import AnnSearchRequest, Hit, Hits, RRFRanker, SearchResult, WeightedRanker
+from .client.abstract import AnnSearchRequest, RRFRanker, WeightedRanker
 from .client.asynch import SearchFuture
 from .client.prepare import Prepare
+from .client.search_reasult import Hit, Hits, SearchResult
 from .client.types import (
     BulkInsertState,
     DataType,

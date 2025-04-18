@@ -2,10 +2,9 @@ import pytest
 import numpy as np
 from unittest.mock import Mock, patch
 from pymilvus.client.search_iterator import SearchIteratorV2
-from pymilvus.client.abstract import Hits, SearchResult
+from pymilvus.client.search_reasult import Hits, SearchResult
 from pymilvus.exceptions import ParamError, ServerVersionIncompatibleException
 from pymilvus.grpc_gen import schema_pb2
-from pymilvus.orm.constants import UNLIMITED
 
 class TestSearchIteratorV2:
     @pytest.fixture
@@ -137,7 +136,7 @@ class TestSearchIteratorV2:
         mock_connection.search.return_value = self.create_mock_search_result()
         
         def filter_func(hits):
-            return [hit for hit in hits if hit.distance < 5.0]
+            return [hit for hit in hits if hit["distance"] < 5.0]
         
         iterator = SearchIteratorV2(
             connection=mock_connection,
@@ -149,21 +148,21 @@ class TestSearchIteratorV2:
         
         result = iterator.next()
         assert result is not None
-        assert all(hit.distance < 5.0 for hit in result) 
+        assert all(hit["distance"] < 5.0 for hit in result) 
     
     @patch('pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability')
     def test_filter_and_external_filter(self, mock_probe, mock_connection, search_data):
         # Create mock search result with field values
         mock_result = self.create_mock_search_result()
         for hit in mock_result[0]:
-            hit.entity.field_1 = hit.id % 2
-        mock_result[0] = list(filter(lambda x: x.entity.field_1 < 5, mock_result[0]))
+            hit["entity"]["field_1"] = hit["id"] % 2
+        mock_result[0] = list(filter(lambda x: x["entity"]["field_1"] < 5, mock_result[0]))
         mock_connection.search.return_value = mock_result
         
         expr_filter = "field_1 < 5"
         
         def filter_func(hits):
-            return [hit for hit in hits if hit.distance < 5.0]  # Only hits with distance < 5.0 should pass
+            return [hit for hit in hits if hit["distance"] < 5.0]  # Only hits with distance < 5.0 should pass
         
         iterator = SearchIteratorV2(
             connection=mock_connection,
@@ -176,4 +175,4 @@ class TestSearchIteratorV2:
         
         result = iterator.next()
         assert result is not None
-        assert all(hit.distance < 5.0 and hit.entity.field_1 < 5 for hit in result)
+        assert all(hit["distance"] < 5.0 and hit["entity"]["field_1"] < 5 for hit in result)

@@ -16,7 +16,8 @@ import pandas as pd
 import ujson
 
 from pymilvus.client import utils
-from pymilvus.client.abstract import BaseRanker, SearchResult
+from pymilvus.client.abstract import BaseRanker
+from pymilvus.client.search_reasult import SearchResult
 from pymilvus.client.types import Replica
 from pymilvus.exceptions import MilvusException
 
