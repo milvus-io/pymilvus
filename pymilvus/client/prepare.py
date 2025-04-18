@@ -9,7 +9,7 @@ from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamE
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
-from pymilvus.orm.schema import CollectionSchema, FieldSchema
+from pymilvus.orm.schema import CollectionSchema, FieldSchema, Function
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 
 from . import __version__, blob, check, entity_helper, ts_utils, utils
@@ -938,6 +938,7 @@ class Prepare:
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
+        ranker: Optional[Function] = None,
         **kwargs,
     ) -> milvus_types.SearchRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
@@ -1049,6 +1050,9 @@ class Prepare:
         if expr is not None:
             request.dsl = expr
 
+        if isinstance(ranker, Function):
+            request.function_score.CopyFrom(Prepare.ranker_to_function_score(ranker))
+
         return request
 
     @classmethod
@@ -1056,7 +1060,7 @@ class Prepare:
         cls,
         collection_name: str,
         reqs: List,
-        rerank_param: Dict,
+        rerank: Union[Dict, Function],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1064,6 +1068,9 @@ class Prepare:
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
+        rerank_param = {}
+        if isinstance(rerank, Dict):
+            rerank_param = rerank
         rerank_param["limit"] = limit
         rerank_param["round_decimal"] = round_decimal
         rerank_param["offset"] = kwargs.get("offset", 0)
@@ -1121,7 +1128,26 @@ class Prepare:
                 ]
             )
 
+        if isinstance(rerank, Function):
+            request.function_score.CopyFrom(Prepare.ranker_to_function_score(rerank))
         return request
+
+    @staticmethod
+    def ranker_to_function_score(ranker: Function) -> schema_types.FunctionScore:
+        function_score = schema_types.FunctionScore(
+            functions=[
+                schema_types.FunctionSchema(
+                    name=ranker.name,
+                    type=ranker.type,
+                    description=ranker.description,
+                    input_field_names=ranker.input_field_names,
+                )
+            ],
+        )
+        for k, v in ranker.params.items():
+            kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
+            function_score.functions[0].params.append(kv_pair)
+        return function_score
 
     @classmethod
     def create_alias_request(cls, collection_name: str, alias: str):
