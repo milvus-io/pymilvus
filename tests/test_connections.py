@@ -373,8 +373,11 @@ class TestIssues:
                 config = connections.get_connection_addr("default")
                 assert config == {"address": 'localhost:19531', "user": 'root', "secure": True}
 
-    def test_issue_2670(self):
+    @pytest.mark.parametrize("uri, db_name", [("http://localhost:19530", "test_db"), ("http://localhost:19530/", "test_db"), ("http://localhost:19530/test_db", "")])
+    def test_issue_2670_2727(self, uri: str, db_name: str):
         """
+        Issue 2670:
+        
         Test for db_name being overwritten with empty string, when the uri
         ends in a slash - e.g. http://localhost:19530/
 
@@ -384,16 +387,28 @@ class TestIssues:
             it will overwrite the db_name with an empty string.
         Expected and current behaviour: if db_name is passed explicitly,
             it should be used in the initialization of the GrpcHandler.
+
+        Issue 2727:
+        If db_name is passed as a path to the uri and not explicitly passed as an argument,
+        it is not overwritten with an empty string.
+
+        See: https://github.com/milvus-io/pymilvus/issues/2727
+
+        Actual behaviour before fix: if db_name is passed as a path to the uri,
+            it will overwrite the db_name with an empty string.
+        Expected and current behaviour: if db_name is passed as a path to the uri,
+            it should be used in the initialization of the GrpcHandler.
         
         """
-        db_name = "default"
-        alias = self.test_issue_2670.__name__
+        alias = self.test_issue_2670_2727.__name__
 
         with mock.patch(f"{mock_prefix}.__init__", return_value=None) as mock_init, mock.patch(
             f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-            config = {"alias": alias, "uri": "http://localhost:19530/", "db_name": db_name}
+            config = {"alias": alias, "uri": uri, "db_name": db_name}
             connections.connect(**config)
             
+            db_name = db_name or uri.split("/")[-1]
+
             mock_init.assert_called_with(
                 **{'address': 'localhost:19530', 'user': '', 'password': '', 'token': '', 'db_name': db_name}
                 ) 
