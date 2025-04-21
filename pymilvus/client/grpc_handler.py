@@ -23,7 +23,12 @@ from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils, utils
-from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, MutationResult, SearchResult
+from .abstract import (
+    AnnSearchRequest,
+    BaseRanker,
+    CollectionSchema,
+    MutationResult,
+)
 from .asynch import (
     CreateIndexFuture,
     FlushFuture,
@@ -38,6 +43,7 @@ from .check import (
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .prepare import Prepare
+from .search_reasult import SearchResult
 from .types import (
     BulkInsertState,
     CompactionPlans,
