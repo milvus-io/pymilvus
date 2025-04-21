@@ -383,7 +383,17 @@ class Hit(UserDict):
         self._pk_name = pk_name
 
     def __getattr__(self, item: str):
+        """Patch for orm, will be deprecated soon"""
+
+        # hit.entity return self
+        if item == "entity":
+            return self
+
         return self.__getitem__(item)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Patch for orm, will be deprecated soon"""
+        return self
 
     @property
     def id(self) -> Union[str, int]:
@@ -404,6 +414,11 @@ class Hit(UserDict):
     def score(self) -> float:
         """Alias of distance, will be deprecated soon"""
         return self.distance
+
+    @property
+    def fields(self) -> Dict[str, Any]:
+        """Patch for orm, will be deprecated soon"""
+        return self.get("entity")
 
     def __getitem__(self, key: str):
         try:
