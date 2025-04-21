@@ -78,7 +78,7 @@ def infer_dtype_by_scalar_data(data: Any):
         return DataType.DOUBLE
     if isinstance(data, np.float32):
         return DataType.FLOAT
-    if isinstance(data, (bool, np.bool)):
+    if isinstance(data, bool):
         return DataType.BOOL
     if isinstance(data, (int, np.int64)):
         return DataType.INT64
