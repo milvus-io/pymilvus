@@ -9,7 +9,9 @@ def validate_params(params: Dict[str, Any], expected_type: Union[type, Tuple[typ
         validate_param(param_name, param, expected_type)
 
 
-def validate_param(param_name: str, param: Any, expected_type: Union[type, Tuple[type, ...]]):
+def validate_param(
+    param_name: str, param: Any, expected_type: Union[type, Tuple[type, ...]]
+) -> None:
     if param is None:
         msg = f"missing required argument: [{param_name}]"
         raise ParamError(message=msg)

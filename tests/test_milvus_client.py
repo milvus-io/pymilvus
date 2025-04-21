@@ -22,3 +22,18 @@ class TestMilvusClient:
             else:
                 with pytest.raises(ParamError, match="wrong type of argument .*"):
                     client.create_index("test_collection", index_params)
+
+    def test_index_params(self):
+        index_params = MilvusClient.prepare_index_params()
+        assert len(index_params) == 0
+
+        index_params.add_index("vector", index_type="FLAT", metric_type="L2")
+        assert len(index_params) == 1
+
+        index_params.add_index("vector2", index_type="HNSW", efConstruction=100, metric_type="L2")
+
+        print(index_params)
+        assert len(index_params) == 2
+
+        for index in index_params:
+            print(index)

@@ -876,7 +876,8 @@ class MilvusClient:
     @classmethod
     def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
         index_params = IndexParams()
-        if field_name and validate_param("field_name", field_name, str):
+        if field_name:
+            validate_param("field_name", field_name, str)
             index_params.add_index(field_name, **kwargs)
         return index_params
 
