@@ -50,6 +50,7 @@ from .prepare import Prepare
 from .schema import (
     CollectionSchema,
     FieldSchema,
+    Function,
     check_insert_schema,
     check_schema,
     check_upsert_schema,
@@ -665,6 +666,7 @@ class Collection:
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         round_decimal: int = -1,
+        ranker: Optional[Function] = None,
         **kwargs,
     ):
         """Conducts a vector similarity search with an optional boolean expression as filter.
@@ -706,6 +708,7 @@ class Collection:
             timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
+            ranker (``Function``, optional): The ranker to use for the search.
             **kwargs (``dict``): Optional search params
 
                 *  *_async* (``bool``, optional)
@@ -809,6 +812,7 @@ class Collection:
             round_decimal,
             timeout=timeout,
             schema=self._schema_dict,
+            ranker=ranker,
             **kwargs,
         )
 
@@ -823,6 +827,7 @@ class Collection:
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         round_decimal: int = -1,
+        ranker: Optional[Function] = None,
         **kwargs,
     ):
         """Conducts multi vector similarity search with a rerank for rearrangement.
@@ -841,6 +846,7 @@ class Collection:
             timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
+            ranker (``Function``, optional): The ranker to use for the search.
             **kwargs (``dict``): Optional search params
 
                 *  *_async* (``bool``, optional)
@@ -951,6 +957,7 @@ class Collection:
             round_decimal,
             timeout=timeout,
             schema=self._schema_dict,
+            ranker=ranker,
             **kwargs,
         )
 

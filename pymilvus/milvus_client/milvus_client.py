@@ -22,7 +22,7 @@ from pymilvus.exceptions import (
     ServerVersionIncompatibleException,
 )
 from pymilvus.orm import utility
-from pymilvus.orm.collection import CollectionSchema, FieldSchema
+from pymilvus.orm.collection import CollectionSchema, FieldSchema, Function
 from pymilvus.orm.connections import connections
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
@@ -295,7 +295,7 @@ class MilvusClient:
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        ranker: BaseRanker,
+        ranker: Union[BaseRanker, Function],
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
@@ -307,7 +307,7 @@ class MilvusClient:
         Args:
             collection_name(``string``): The name of collection.
             reqs (``List[AnnSearchRequest]``): The vector search requests.
-            ranker (``BaseRanker``): The ranker for rearrange nummer of limit results.
+            ranker (``Union[BaseRanker, Function]``): The ranker.
             limit (``int``): The max number of returned record, also known as `topk`.
 
             partition_names (``List[str]``, optional): The names of partitions to search on.
@@ -369,6 +369,7 @@ class MilvusClient:
         timeout: Optional[float] = None,
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
+        ranker: Optional["Function"] = None,
         **kwargs,
     ) -> List[List[dict]]:
         """Search for a query vector/vectors.
@@ -383,6 +384,7 @@ class MilvusClient:
             output_fields (List[str], optional): List of which field values to return. If None
                 specified, only primary fields including distances will be returned.
             search_params (dict, optional): The search params to use for the search.
+            ranker (Function, optional): The ranker to use for the search.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
 
@@ -406,6 +408,7 @@ class MilvusClient:
                 partition_names=partition_names,
                 expr_params=kwargs.pop("filter_params", {}),
                 timeout=timeout,
+                ranker=ranker,
                 **kwargs,
             )
         except Exception as ex:
