@@ -74,10 +74,10 @@ def is_numeric_datatype(data_type: DataType):
 def infer_dtype_by_scalar_data(data: Any):
     if isinstance(data, list):
         return DataType.ARRAY
-    if isinstance(data, (float, np.float64, np.double)) or is_float(data):
-        return DataType.DOUBLE
     if isinstance(data, np.float32):
         return DataType.FLOAT
+    if isinstance(data, (float, np.float64, np.double)) or is_float(data):
+        return DataType.DOUBLE
     if isinstance(data, bool):
         return DataType.BOOL
     if isinstance(data, (int, np.int64)):
