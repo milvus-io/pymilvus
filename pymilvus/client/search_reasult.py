@@ -35,6 +35,7 @@ class SearchResult(list):
         recalls(List[float], optional): The recalls of the search result, one for each query.
         extra(Dict, optional): The extra information of the search result.
     """
+
     def __init__(
         self,
         res: schema_pb2.SearchResultData,
