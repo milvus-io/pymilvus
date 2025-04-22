@@ -19,7 +19,8 @@ class TestHit:
         h = Hit(pk_dist, pk_name="id")
         assert h.id == h["id"] == h.get("id") == pk_dist["id"]
         assert h.score == h.distance == h["distance"] == h.get("distance") == pk_dist["distance"]
-        assert h.entity == h["entity"] == h.get("entity") == {}
+        assert h.entity == h
+        assert h["entity"] == h.get("entity") == {}
 
     @pytest.mark.parametrize("pk_dist_fields", [
         {"id": 1, "distance": 0.1, "entity": {"vector": [1., 2., 3., 4.],  "description": "This is a test", 'd_a': "dynamic a"}},
@@ -35,7 +36,8 @@ class TestHit:
         assert h.score == pk_dist_fields["distance"]
         assert h.distance == h.score
         assert h.distance == h.get("distance") == h["distance"]
-        assert h.entity == pk_dist_fields["entity"] == h.get("entity")==h["entity"]
+        assert h.entity == pk_dist_fields
+        assert pk_dist_fields["entity"] == h.get("entity")==h["entity"]
 
         # dynamic attributes
         assert h.description == pk_dist_fields["entity"].get("description")
