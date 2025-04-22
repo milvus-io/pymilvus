@@ -1,51 +1,47 @@
 import os
-from typing import List, Tuple
-from pymilvus.client.abstract import Hit, Hits, SearchResult
-from pymilvus.client.types import DataType
-from pymilvus.grpc_gen import schema_pb2
 import random
+from typing import List, Tuple, Dict
 
 import pytest
 import ujson
 
+from pymilvus.grpc_gen import schema_pb2
+from pymilvus.client.search_reasult import Hit, Hits, SearchResult
+from pymilvus.client.types import DataType
 
 class TestHit:
     @pytest.mark.parametrize("pk_dist", [
-        (1, 0.1),
-        (2,  0.3),
-        ("a", 0.4),
+        {"id": 1, "distance": 0.1, "entity":{}},
+        {"id": 2, "distance": 0.3, "entity":{}},
+        {"id": "a", "distance": 0.4, "entity":{}},
     ])
-    def test_hit_no_fields(self, pk_dist: List[Tuple]):
-        pk, dist = pk_dist
-        h = Hit(pk, dist, {}, "id")
-        assert h.id == pk
-        assert h.score == dist
-        assert h.distance == dist
-        assert h.fields == {}
-
-        assert h.to_dict() == {
-            "id": pk,
-            "distance": dist,
-            "entity": {},
-        }
+    def test_hit_no_fields(self, pk_dist: Dict):
+        h = Hit(pk_dist, pk_name="id")
+        assert h.id == h["id"] == h.get("id") == pk_dist["id"]
+        assert h.score == h.distance == h["distance"] == h.get("distance") == pk_dist["distance"]
+        assert h.entity == h
+        assert h["entity"] == h.get("entity") == {}
 
     @pytest.mark.parametrize("pk_dist_fields", [
-        (1, 0.1, {"vector": [1., 2., 3., 4.],  "description": "This is a test", 'd_a': "dynamic a"}, "id"),
-        (2,  0.3, {"vector": [3., 4., 5., 6.], "description": "This is a test too", 'd_b': "dynamic b"}, "id"),
-        ("a", 0.4, {"vector": [4., 4., 4., 4.], "description": "This is a third test", 'd_a': "dynamic a twice"}, "id"),
+        {"id": 1, "distance": 0.1, "entity": {"vector": [1., 2., 3., 4.],  "description": "This is a test", 'd_a': "dynamic a"}},
+        {"id": 2,  "distance": 0.3, "entity": {"vector": [3., 4., 5., 6.], "description": "This is a test too", 'd_b': "dynamic b"}},
+        {"id": "a","distance": 0.4, "entity": {"vector": [4., 4., 4., 4.], "description": "This is a third test", 'd_a': "dynamic a twice"}},
     ])
-    def test_hit_with_fields(self, pk_dist_fields: List[Tuple]):
-        h = Hit(*pk_dist_fields)
+    def test_hit_with_fields(self, pk_dist_fields: Dict):
+        h = Hit(pk_dist_fields, pk_name="id")
 
         # fixed attributes
-        assert h.id == pk_dist_fields[0]
-        assert h.score == pk_dist_fields[1]
+        assert h.id == pk_dist_fields["id"]
+        assert h.id == h.get("id") == h["id"]
+        assert h.score == pk_dist_fields["distance"]
         assert h.distance == h.score
-        assert h.fields == pk_dist_fields[2]
+        assert h.distance == h.get("distance") == h["distance"]
+        assert h.entity == pk_dist_fields
+        assert pk_dist_fields["entity"] == h.get("entity")==h["entity"]
 
         # dynamic attributes
-        assert h.description == pk_dist_fields[2].get("description")
-        assert h.vector == pk_dist_fields[2].get("vector")
+        assert h.description == pk_dist_fields["entity"].get("description")
+        assert h.vector == pk_dist_fields["entity"].get("vector")
 
         with pytest.raises(Exception):
             h.field_not_exits
@@ -94,8 +90,8 @@ class TestSearchResult:
 
         first_hit = first_q[0]
         print(first_hit)
-        assert first_hit.distance == 0.
-        assert first_hit.fields == {}
+        assert first_hit["distance"] == 0.
+        assert first_hit["entity"] == {}
 
     @pytest.mark.parametrize("pk", [
         schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[i for i in range(6)])),
@@ -194,13 +190,13 @@ class TestSearchResult:
         print(r[0])
         assert 2 == len(r)
         assert 3 == len(r[0]) == len(r[1])
-        assert {'0': 0, '1': 1, '2': 2} == r[0][0].normal_json_field
+        assert {'0': 0, '1': 1, '2': 2} == r[0][0].get("entity").get("normal_json_field")
         # dynamic field
-        assert 1 == r[0][1].fields.get('100')
+        assert 1 == r[0][1].get("entity").get('100')
 
-        assert 0 == r[0][0].int32_field
-        assert 1 == r[0][1].int8_field
-        assert 2 == r[0][2].int16_field
-        assert [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] == r[0][1].int64_array_field
-        assert 32 == len(r[0][0].entity.bfloat16_vector_field)
-        assert 32 == len(r[0][0].entity.float16_vector_field)
+        assert 0 == r[0][0].get("entity").get("int32_field")
+        assert 1 == r[0][1].get("entity").get("int8_field")
+        assert 2 == r[0][2].get("entity").get("int16_field")
+        assert [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] == r[0][1].get("entity").get("int64_array_field")
+        assert 32 == len(r[0][0].get("entity").get("bfloat16_vector_field"))
+        assert 32 == len(r[0][0].get("entity").get("float16_vector_field"))

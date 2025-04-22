@@ -3,7 +3,6 @@ from copy import deepcopy
 from typing import Callable, Dict, List, Optional, Union
 
 from pymilvus.client import entity_helper, utils
-from pymilvus.client.abstract import Hit, Hits
 from pymilvus.client.constants import (
     COLLECTION_ID,
     GUARANTEE_TIMESTAMP,
@@ -13,6 +12,7 @@ from pymilvus.client.constants import (
     ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
 )
+from pymilvus.client.search_reasult import Hit, Hits
 from pymilvus.exceptions import ExceptionsMessage, ParamError, ServerVersionIncompatibleException
 from pymilvus.orm.connections import Connections
 from pymilvus.orm.constants import MAX_BATCH_SIZE, OFFSET, UNLIMITED

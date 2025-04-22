@@ -7,12 +7,10 @@ from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
     ExceptionsMessage,
-    ExtraList,
     LoadState,
     OmitZeroDict,
     ReplicaInfo,
     ResourceGroupConfig,
-    construct_cost_extra,
 )
 from pymilvus.client.utils import get_params, is_vector_type
 from pymilvus.exceptions import (
@@ -357,11 +355,7 @@ class MilvusClient:
             logger.error("Failed to hybrid search collection: %s", collection_name)
             raise ex from ex
 
-        ret = []
-        for hits in res:
-            ret.append([hit.to_dict() for hit in hits])
-
-        return ExtraList(ret, extra=construct_cost_extra(res.cost))
+        return res
 
     def search(
         self,
@@ -417,14 +411,7 @@ class MilvusClient:
             logger.error("Failed to search collection: %s", collection_name)
             raise ex from ex
 
-        ret = []
-        for hits in res:
-            query_result = []
-            for hit in hits:
-                query_result.append(hit.to_dict())
-            ret.append(query_result)
-
-        return ExtraList(ret, extra=construct_cost_extra(res.cost), recalls=res.recalls)
+        return res
 
     def query(
         self,

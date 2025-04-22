@@ -23,7 +23,7 @@ from pymilvus.grpc_gen import milvus_pb2_grpc
 from pymilvus.settings import Config
 
 from . import entity_helper, ts_utils, utils
-from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, MutationResult, SearchResult
+from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, MutationResult
 from .async_interceptor import async_header_adder_interceptor
 from .check import (
     check_pass_param,
@@ -32,6 +32,7 @@ from .check import (
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .prepare import Prepare
+from .search_reasult import SearchResult
 from .types import (
     DataType,
     ExtraList,
