@@ -65,7 +65,9 @@ class IndexParam:
         }
 
     def __str__(self):
-        return str(dict(self))
+        return str(self.to_dict())
+
+    __repr__ = __str__
 
     def __eq__(self, other: None):
         if isinstance(other, self.__class__):
@@ -85,6 +87,3 @@ class IndexParams(list):
     def add_index(self, field_name: str, index_type: str = "", index_name: str = "", **kwargs):
         index_param = IndexParam(field_name, index_type, index_name, **kwargs)
         super().append(index_param)
-
-    def __str__(self):
-        return str(list(self))
