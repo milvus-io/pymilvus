@@ -35,10 +35,6 @@ class SearchResult(list):
         recalls(List[float], optional): The recalls of the search result, one for each query.
         extra(Dict, optional): The extra information of the search result.
     """
-
-    recalls: Optional[List[float]] = None
-    extra: Optional[Dict] = None
-
     def __init__(
         self,
         res: schema_pb2.SearchResultData,
@@ -51,10 +47,10 @@ class SearchResult(list):
         super().__init__(_data)
 
         # set recalls
-        if len(res.recalls) > 0:
-            self.recalls = res.recalls
+        self.recalls = res.recalls if len(res.recalls) > 0 else None
 
         # set extra info
+        self.extra = {}
         if status and status.extra_info and "report_value" in status.extra_info:
             self.extra = {"cost": int(status.extra_info["report_value"])}
 
