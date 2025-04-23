@@ -50,10 +50,11 @@ class IndexParam:
                 "efConstruction": 100,
             }
         """
-        return {
-            "index_type": self.index_type,
-            **self._configs,
-        }
+        configs =  self._configs
+        # Omit index_type if it's empty
+        if self.index_type:
+            configs["index_type"] = self.index_type
+        return configs
 
     def to_dict(self) -> Dict:
         """All params"""
