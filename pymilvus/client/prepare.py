@@ -1140,8 +1140,9 @@ class Prepare:
             for tk, tv in params.items():
                 if tk == "dim" and (not tv or not isinstance(tv, int)):
                     raise ParamError(message="dim must be of int!")
-                kv_pair = common_types.KeyValuePair(key=str(tk), value=utils.dumps(tv))
-                index_params.extra_params.append(kv_pair)
+                if tv:
+                    kv_pair = common_types.KeyValuePair(key=str(tk), value=utils.dumps(tv))
+                    index_params.extra_params.append(kv_pair)
 
         return index_params
 
