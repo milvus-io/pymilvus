@@ -451,7 +451,7 @@ class FieldSchema:
                         if self._kwargs[k].lower() == "false":
                             self._type_params[k] = False
                             continue
-                        if k == "analyzer_params":
+                        if k in ("analyzer_params", "multi_analyzer_params"):
                             # TODO: a more complicate json may be reordered which
                             # can still cause server_schema == schema to be False.
                             # need a better approach.

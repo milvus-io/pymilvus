@@ -17,6 +17,7 @@ COMMON_TYPE_PARAMS = (
     "enable_match",
     "enable_analyzer",
     "analyzer_params",
+    "multi_analyzer_params",
 )
 
 CALC_DIST_IDS = "ids"
