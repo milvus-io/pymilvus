@@ -1716,3 +1716,26 @@ class MilvusClient:
         """
         conn = self._get_connection()
         return conn.describe_replica(collection_name, timeout=timeout, **kwargs)
+
+    def run_analyzer(
+        self,
+        texts: Union[str, List[str]],
+        analyzer_params: Union[str, Dict, None] = None,
+        with_hash: bool = False,
+        with_detail: bool = False,
+        timeout: Optional[float] = None,
+    ):
+        """Run analyzer. Return result tokens of analysis.
+        Args:
+            text(``str``,``List[str]``): The input text (string or string list).
+            analyzer_params(``str``,``Dict``,``None``): The parameters of analyzer.
+            timeout(``float``, optional): The timeout value in seconds. Defaults to None.
+        Returns:
+                (``List[str]``,``List[List[str]]``): The result tokens of analysis.
+        """
+        if analyzer_params is None:
+            analyzer_params = {}
+
+        return self._get_connection().run_analyzer(
+            texts, analyzer_params, with_hash=with_hash, with_detail=with_detail, timeout=timeout
+        )
