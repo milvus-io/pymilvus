@@ -1007,6 +1007,9 @@ class Prepare:
         if param.get(HINTS) is not None:
             search_params[HINTS] = param[HINTS]
 
+        if param.get("analyzer_name") is not None:
+            search_params["analyzer_name"] = param["analyzer_name"]
+
         search_params["params"] = get_params(param)
 
         req_params = [
