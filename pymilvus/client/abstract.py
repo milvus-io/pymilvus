@@ -6,6 +6,10 @@ from pymilvus.settings import Config
 
 from . import utils
 from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
+
+# ruff: noqa: F401
+# TODO: This is a patch for older version
+from .search_result import Hit, Hits, SearchResult
 from .types import DataType, FunctionType
 
 
