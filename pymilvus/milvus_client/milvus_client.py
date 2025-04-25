@@ -930,7 +930,7 @@ class MilvusClient:
     ) -> str:
         """Create the connection to the Milvus server."""
         # TODO: Implement reuse with new uri style
-        using = uuid4().hex
+        using = kwargs.pop("alias", None) or uuid4().hex
         try:
             connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
         except Exception as ex:
