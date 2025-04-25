@@ -1053,6 +1053,8 @@ class Prepare:
         if expr is not None:
             request.dsl = expr
 
+        if ranker is not None and not isinstance(ranker, Function):
+            raise ParamError(message="The search ranker must be a Function.")
         if isinstance(ranker, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(ranker))
 
@@ -1071,6 +1073,8 @@ class Prepare:
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
+        if rerank is not None and not isinstance(rerank, (Function, Dict)):
+            raise ParamError(message="The hybrid search rerank must be a Function or a dictionary.")
         rerank_param = {}
         if isinstance(rerank, Dict):
             rerank_param = rerank

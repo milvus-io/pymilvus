@@ -568,6 +568,14 @@ class Function:
         description: str = "",
         params: Optional[Dict] = None,
     ):
+        if not isinstance(name, str):
+            raise ParamError(message="The name of the function should be a string.")
+        if not isinstance(description, str):
+            raise ParamError(message="The description of the function should be a string.")
+        if not isinstance(input_field_names, (str, list)):
+            raise ParamError(
+                message="The input field names of the function should be a string or a list of strings."
+            )
         self._name = name
         self._description = description
         input_field_names = (
@@ -575,6 +583,10 @@ class Function:
         )
         if output_field_names is None:
             output_field_names = []
+        if not isinstance(output_field_names, (str, list)):
+            raise ParamError(
+                message="The output field names of the function should be a string or a list of strings."
+            )
         output_field_names = (
             [output_field_names] if isinstance(output_field_names, str) else output_field_names
         )
@@ -597,6 +609,8 @@ class Function:
         self._input_field_names = input_field_names
         self._output_field_names = output_field_names
         self._params = params if params is not None else {}
+        if not isinstance(self._params, dict):
+            raise ParamError(message="The parameters of the function should be a dictionary.")
 
     @property
     def name(self):
