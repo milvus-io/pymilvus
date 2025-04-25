@@ -3,6 +3,7 @@ import pytest
 
 # For tests
 from pymilvus import *
+from pymilvus.client.abstract import Hit, Hits, SearchResult
 
 from pymilvus import MilvusException
 from pymilvus.client.check import (
