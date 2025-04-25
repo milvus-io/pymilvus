@@ -12,7 +12,7 @@ from pymilvus.client.constants import (
     ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
 )
-from pymilvus.client.search_reasult import Hit, Hits
+from pymilvus.client.search_result import Hit, Hits
 from pymilvus.exceptions import ExceptionsMessage, ParamError, ServerVersionIncompatibleException
 from pymilvus.orm.connections import Connections
 from pymilvus.orm.constants import MAX_BATCH_SIZE, OFFSET, UNLIMITED

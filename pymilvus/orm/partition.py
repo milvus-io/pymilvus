@@ -17,7 +17,7 @@ import ujson
 
 from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker
-from pymilvus.client.search_reasult import SearchResult
+from pymilvus.client.search_result import SearchResult
 from pymilvus.client.types import Replica
 from pymilvus.exceptions import MilvusException
 

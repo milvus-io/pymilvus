@@ -32,7 +32,7 @@ from .check import (
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .prepare import Prepare
-from .search_reasult import SearchResult
+from .search_result import SearchResult
 from .types import (
     DataType,
     ExtraList,
