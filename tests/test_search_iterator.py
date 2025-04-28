@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from unittest.mock import Mock, patch
 from pymilvus.client.search_iterator import SearchIteratorV2
-from pymilvus.client.search_reasult import Hits, SearchResult
+from pymilvus.client.search_result import Hits, SearchResult
 from pymilvus.exceptions import ParamError, ServerVersionIncompatibleException
 from pymilvus.grpc_gen import schema_pb2
 

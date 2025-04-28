@@ -12,7 +12,7 @@
 
 from typing import Any
 
-from pymilvus.client.search_reasult import SearchResult
+from pymilvus.client.search_result import SearchResult
 from pymilvus.grpc_gen import schema_pb2
 
 from .mutation import MutationResult

@@ -6,7 +6,7 @@ import pytest
 import ujson
 
 from pymilvus.grpc_gen import schema_pb2
-from pymilvus.client.search_reasult import Hit, Hits, SearchResult
+from pymilvus.client.search_result import Hit, Hits, SearchResult
 from pymilvus.client.types import DataType
 
 class TestHit:

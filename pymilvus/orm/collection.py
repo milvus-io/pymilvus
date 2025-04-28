@@ -19,7 +19,7 @@ import pandas as pd
 from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
-from pymilvus.client.search_reasult import SearchResult
+from pymilvus.client.search_result import SearchResult
 from pymilvus.client.types import (
     CompactionPlans,
     CompactionState,
