@@ -13,6 +13,7 @@ from pymilvus.orm.schema import CollectionSchema, FieldSchema, Function
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 
 from . import __version__, blob, check, entity_helper, ts_utils, utils
+from .abstract import BaseRanker
 from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
     COLLECTION_ID,
@@ -1065,7 +1066,7 @@ class Prepare:
         cls,
         collection_name: str,
         reqs: List,
-        rerank: Union[Dict, Function],
+        rerank: Union[BaseRanker, Function],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1073,11 +1074,11 @@ class Prepare:
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
-        if rerank is not None and not isinstance(rerank, (Function, Dict)):
-            raise ParamError(message="The hybrid search rerank must be a Function or a dictionary.")
+        if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
+            raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
         rerank_param = {}
-        if isinstance(rerank, Dict):
-            rerank_param = rerank
+        if isinstance(rerank, BaseRanker):
+            rerank_param = rerank.dict()
         rerank_param["limit"] = limit
         rerank_param["round_decimal"] = round_decimal
         rerank_param["offset"] = kwargs.get("offset", 0)

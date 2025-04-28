@@ -637,6 +637,7 @@ class AsyncGrpcHandler:
                 req.expr,
                 partition_names=partition_names,
                 round_decimal=round_decimal,
+                expr_params=req.expr_params,
                 **kwargs,
             )
             requests.append(search_request)
@@ -644,7 +645,7 @@ class AsyncGrpcHandler:
         hybrid_search_request = Prepare.hybrid_search_request_with_ranker(
             collection_name,
             requests,
-            rerank.dict(),
+            rerank,
             limit,
             partition_names,
             output_fields,
