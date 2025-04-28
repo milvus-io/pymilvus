@@ -219,6 +219,7 @@ class Prepare:
             is_partition_key=field.get("is_partition_key", False),
             is_clustering_key=field.get("is_clustering_key", False),
             nullable=nullable,
+            default_value=field.get("default_value"),
         )
 
         type_params = field.get("params", {})
