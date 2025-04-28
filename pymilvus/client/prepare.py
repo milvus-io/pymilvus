@@ -171,9 +171,9 @@ class Prepare:
     @staticmethod
     def get_field_schema(
         field: Dict,
-        primary_field: Any,
-        auto_id_field: Any,
-    ) -> (schema_types.FieldSchema, Any, Any):
+        primary_field: Optional[str] = None,
+        auto_id_field: Optional[str] = None,
+    ) -> (schema_types.FieldSchema, Optional[str], Optional[str]):
         field_name = field.get("name")
         if field_name is None:
             raise ParamError(message="You should specify the name of field!")
@@ -218,6 +218,7 @@ class Prepare:
             autoID=auto_id,
             is_partition_key=field.get("is_partition_key", False),
             is_clustering_key=field.get("is_clustering_key", False),
+            nullable=nullable,
         )
 
         type_params = field.get("params", {})
