@@ -171,9 +171,9 @@ class Prepare:
     @staticmethod
     def get_field_schema(
         field: Dict,
-        primary_field: Any,
-        auto_id_field: Any,
-    ) -> (schema_types.FieldSchema, Any, Any):
+        primary_field: Optional[str] = None,
+        auto_id_field: Optional[str] = None,
+    ) -> (schema_types.FieldSchema, Optional[str], Optional[str]):
         field_name = field.get("name")
         if field_name is None:
             raise ParamError(message="You should specify the name of field!")
@@ -280,9 +280,7 @@ class Prepare:
         collection_name: str,
         field_schema: FieldSchema,
     ) -> milvus_types.AddCollectionFieldRequest:
-        (field_schema_proto, _, _) = cls.get_field_schema(
-            field=field_schema.to_dict(), primary_field=None, auto_id_field=None
-        )
+        (field_schema_proto, _, _) = cls.get_field_schema(field=field_schema.to_dict())
         return milvus_types.AddCollectionFieldRequest(
             collection_name=collection_name,
             schema=bytes(field_schema_proto.SerializeToString()),
