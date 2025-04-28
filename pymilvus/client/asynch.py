@@ -6,7 +6,7 @@ from pymilvus.exceptions import MilvusException
 from pymilvus.grpc_gen import milvus_pb2
 
 from .abstract import MutationResult
-from .search_reasult import SearchResult
+from .search_result import SearchResult
 from .types import Status
 from .utils import check_status
 
