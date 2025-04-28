@@ -280,7 +280,9 @@ class Prepare:
         collection_name: str,
         field_schema: FieldSchema,
     ) -> milvus_types.AddCollectionFieldRequest:
-        (field_schema_proto, _, _) = cls.get_field_schema(field=field_schema.to_dict(), primary_field=None, auto_id_field=None)
+        (field_schema_proto, _, _) = cls.get_field_schema(
+            field=field_schema.to_dict(), primary_field=None, auto_id_field=None
+        )
         return milvus_types.AddCollectionFieldRequest(
             collection_name=collection_name,
             schema=bytes(field_schema_proto.SerializeToString()),
