@@ -32,6 +32,7 @@ from .check import (
     is_legal_port,
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
+from .interceptor import _api_level_md
 from .prepare import Prepare
 from .search_reasult import SearchResult
 from .types import (
@@ -65,7 +66,6 @@ class AsyncGrpcHandler:
         addr = kwargs.get("address")
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
         self._log_level = None
-        self._request_id = None
         self._user = kwargs.get("user")
         self._set_authorization(**kwargs)
         self._setup_db_name(kwargs.get("db_name"))
@@ -205,12 +205,6 @@ class AsyncGrpcHandler:
             )
             self._final_channel._unary_unary_interceptors.append(async_log_level_interceptor)
             self._log_level = None
-        if self._request_id:
-            async_request_id_interceptor = async_header_adder_interceptor(
-                ["client-request-id"], [self._request_id]
-            )
-            self._final_channel._unary_unary_interceptors.append(async_request_id_interceptor)
-            self._request_id = None
         self._async_stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
 
     @property
@@ -252,15 +246,21 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
-        response = await self._async_stub.CreateCollection(request, timeout=timeout)
+        response = await self._async_stub.CreateCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response)
 
     @retry_on_rpc_failure()
-    async def drop_collection(self, collection_name: str, timeout: Optional[float] = None):
+    async def drop_collection(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ):
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_collection_request(collection_name)
-        response = await self._async_stub.DropCollection(request, timeout=timeout)
+        response = await self._async_stub.DropCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -291,14 +291,22 @@ class AsyncGrpcHandler:
             load_fields,
             skip_load_dynamic_field,
         )
-        response = await self._async_stub.LoadCollection(request, timeout=timeout)
+        response = await self._async_stub.LoadCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response)
 
-        await self.wait_for_loading_collection(collection_name, timeout, is_refresh=refresh)
+        await self.wait_for_loading_collection(
+            collection_name, timeout, is_refresh=refresh, **kwargs
+        )
 
     @retry_on_rpc_failure()
     async def wait_for_loading_collection(
-        self, collection_name: str, timeout: Optional[float] = None, is_refresh: bool = False
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        is_refresh: bool = False,
+        **kwargs,
     ):
         start = time.time()
 
@@ -307,7 +315,7 @@ class AsyncGrpcHandler:
 
         while can_loop(time.time()):
             progress = await self.get_loading_progress(
-                collection_name, timeout=timeout, is_refresh=is_refresh
+                collection_name, timeout=timeout, is_refresh=is_refresh, **kwargs
             )
             if progress >= 100:
                 return
@@ -323,9 +331,12 @@ class AsyncGrpcHandler:
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         is_refresh: bool = False,
+        **kwargs,
     ):
         request = Prepare.get_loading_progress(collection_name, partition_names)
-        response = await self._async_stub.GetLoadingProgress(request, timeout=timeout)
+        response = await self._async_stub.GetLoadingProgress(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response.status)
         if is_refresh:
             return response.refresh_progress
@@ -338,7 +349,9 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
-        response = await self._async_stub.DescribeCollection(request, timeout=timeout)
+        response = await self._async_stub.DescribeCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         status = response.status
 
         if is_successful(status):
@@ -349,7 +362,7 @@ class AsyncGrpcHandler:
     async def _get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         schema = kwargs.get("schema")
         if not schema:
-            schema = await self.describe_collection(collection_name, timeout=timeout)
+            schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
         fields_info = schema.get("fields")
         enable_dynamic = schema.get("enable_dynamic_field", False)
@@ -363,7 +376,9 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.release_collection("", collection_name)
-        response = await self._async_stub.ReleaseCollection(request, timeout=timeout)
+        response = await self._async_stub.ReleaseCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -380,7 +395,9 @@ class AsyncGrpcHandler:
         request = await self._prepare_row_insert_request(
             collection_name, entities, partition_name, schema, timeout, **kwargs
         )
-        resp = await self._async_stub.Insert(request=request, timeout=timeout)
+        resp = await self._async_stub.Insert(
+            request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(resp.status)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
         return MutationResult(resp)
@@ -398,7 +415,7 @@ class AsyncGrpcHandler:
             entity_rows = [entity_rows]
 
         if not isinstance(schema, dict):
-            schema = await self.describe_collection(collection_name, timeout=timeout)
+            schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
         fields_info = schema.get("fields")
         enable_dynamic = schema.get("enable_dynamic_field", False)
@@ -431,7 +448,9 @@ class AsyncGrpcHandler:
                 **kwargs,
             )
 
-            response = await self._async_stub.Delete(req, timeout=timeout)
+            response = await self._async_stub.Delete(
+                req, timeout=timeout, metadata=_api_level_md(**kwargs)
+            )
 
             m = MutationResult(response)
             ts_utils.update_collection_ts(collection_name, m.timestamp)
@@ -479,18 +498,16 @@ class AsyncGrpcHandler:
         if not check_invalid_binary_vector(entities):
             raise ParamError(message="Invalid binary vector data exists")
 
-        try:
-            request = await self._prepare_batch_upsert_request(
-                collection_name, entities, partition_name, timeout, **kwargs
-            )
-            response = await self._async_stub.Upsert(request, timeout=timeout)
-            check_status(response.status)
-            m = MutationResult(response)
-            ts_utils.update_collection_ts(collection_name, m.timestamp)
-        except Exception as err:
-            raise err from err
-        else:
-            return m
+        request = await self._prepare_batch_upsert_request(
+            collection_name, entities, partition_name, timeout, **kwargs
+        )
+        response = await self._async_stub.Upsert(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        m = MutationResult(response)
+        ts_utils.update_collection_ts(collection_name, m.timestamp)
+        return m
 
     async def _prepare_row_upsert_request(
         self,
@@ -527,7 +544,9 @@ class AsyncGrpcHandler:
         request = await self._prepare_row_upsert_request(
             collection_name, entities, partition_name, timeout, **kwargs
         )
-        response = await self._async_stub.Upsert(request, timeout=timeout)
+        response = await self._async_stub.Upsert(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response.status)
         m = MutationResult(response)
         ts_utils.update_collection_ts(collection_name, m.timestamp)
@@ -536,30 +555,27 @@ class AsyncGrpcHandler:
     async def _execute_search(
         self, request: milvus_types.SearchRequest, timeout: Optional[float] = None, **kwargs
     ):
-        try:
-            response = await self._async_stub.Search(request, timeout=timeout)
-            check_status(response.status)
-            round_decimal = kwargs.get("round_decimal", -1)
-            return SearchResult(
-                response.results,
-                round_decimal,
-                status=response.status,
-                session_ts=response.session_ts,
-            )
-        except Exception as e:
-            raise e from e
+        response = await self._async_stub.Search(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        round_decimal = kwargs.get("round_decimal", -1)
+        return SearchResult(
+            response.results,
+            round_decimal,
+            status=response.status,
+            session_ts=response.session_ts,
+        )
 
     async def _execute_hybrid_search(
         self, request: milvus_types.HybridSearchRequest, timeout: Optional[float] = None, **kwargs
     ):
-        try:
-            response = await self._async_stub.HybridSearch(request, timeout=timeout)
-            check_status(response.status)
-            round_decimal = kwargs.get("round_decimal", -1)
-            return SearchResult(response.results, round_decimal, status=response.status)
-
-        except Exception as e:
-            raise e from e
+        response = await self._async_stub.HybridSearch(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        round_decimal = kwargs.get("round_decimal", -1)
+        return SearchResult(response.results, round_decimal, status=response.status)
 
     @retry_on_rpc_failure()
     async def search(
@@ -693,7 +709,9 @@ class AsyncGrpcHandler:
             collection_name, field_name, params, index_name=index_name
         )
 
-        status = await self._async_stub.CreateIndex(index_param, timeout=timeout)
+        status = await self._async_stub.CreateIndex(
+            index_param, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(status)
 
         index_success, fail_reason = await self.wait_for_creating_index(
@@ -701,6 +719,7 @@ class AsyncGrpcHandler:
             index_name=index_name,
             timeout=timeout,
             field_name=field_name,
+            **kwargs,
         )
 
         if not index_success:
@@ -741,7 +760,9 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         request = Prepare.describe_index_request(collection_name, index_name, timestamp)
-        response = await self._async_stub.DescribeIndex(request, timeout=timeout)
+        response = await self._async_stub.DescribeIndex(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         status = response.status
         check_status(status)
 
@@ -769,7 +790,9 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_index_request(collection_name, field_name, index_name)
-        response = await self._async_stub.DropIndex(request, timeout=timeout)
+        response = await self._async_stub.DropIndex(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -781,7 +804,9 @@ class AsyncGrpcHandler:
             collection_name=collection_name, partition_name=partition_name, timeout=timeout
         )
         request = Prepare.create_partition_request(collection_name, partition_name)
-        response = await self._async_stub.CreatePartition(request, timeout=timeout)
+        response = await self._async_stub.CreatePartition(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -794,7 +819,9 @@ class AsyncGrpcHandler:
         )
         request = Prepare.drop_partition_request(collection_name, partition_name)
 
-        response = await self._async_stub.DropPartition(request, timeout=timeout)
+        response = await self._async_stub.DropPartition(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -830,10 +857,14 @@ class AsyncGrpcHandler:
             load_fields,
             skip_load_dynamic_field,
         )
-        response = await self._async_stub.LoadPartitions(request, timeout=timeout)
+        response = await self._async_stub.LoadPartitions(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response)
 
-        await self.wait_for_loading_partitions(collection_name, partition_names, is_refresh=refresh)
+        await self.wait_for_loading_partitions(
+            collection_name, partition_names, is_refresh=refresh, **kwargs
+        )
 
     @retry_on_rpc_failure()
     async def wait_for_loading_partitions(
@@ -842,6 +873,7 @@ class AsyncGrpcHandler:
         partition_names: List[str],
         timeout: Optional[float] = None,
         is_refresh: bool = False,
+        **kwargs,
     ):
         start = time.time()
 
@@ -850,7 +882,7 @@ class AsyncGrpcHandler:
 
         while can_loop(time.time()):
             progress = await self.get_loading_progress(
-                collection_name, partition_names, timeout=timeout, is_refresh=is_refresh
+                collection_name, partition_names, timeout=timeout, is_refresh=is_refresh, **kwargs
             )
             if progress >= 100:
                 return
@@ -872,7 +904,9 @@ class AsyncGrpcHandler:
             collection_name=collection_name, partition_name_array=partition_names, timeout=timeout
         )
         request = Prepare.release_partitions("", collection_name, partition_names)
-        response = await self._async_stub.ReleasePartitions(request, timeout=timeout)
+        response = await self._async_stub.ReleasePartitions(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -883,11 +917,14 @@ class AsyncGrpcHandler:
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
+        **kwargs,
     ):
         # TODO: some check
         await self.ensure_channel_ready()
         request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
-        return await self._async_stub.Retrieve.get(request, timeout=timeout)
+        return await self._async_stub.Retrieve.get(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
 
     @retry_on_rpc_failure()
     async def query(
@@ -905,7 +942,9 @@ class AsyncGrpcHandler:
         request = Prepare.query_request(
             collection_name, expr, output_fields, partition_names, **kwargs
         )
-        response = await self._async_stub.Query(request, timeout=timeout)
+        response = await self._async_stub.Query(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response.status)
 
         num_fields = len(response.fields_data)
@@ -934,8 +973,10 @@ class AsyncGrpcHandler:
 
     @retry_on_rpc_failure()
     @ignore_unimplemented(0)
-    async def alloc_timestamp(self, timeout: Optional[float] = None) -> int:
+    async def alloc_timestamp(self, timeout: Optional[float] = None, **kwargs) -> int:
         request = milvus_types.AllocTimestampRequest()
-        response = await self._async_stub.AllocTimestamp(request, timeout=timeout)
+        response = await self._async_stub.AllocTimestamp(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
         check_status(response.status)
         return response.timestamp
