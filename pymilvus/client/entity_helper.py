@@ -496,7 +496,7 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
         elif entity_type == DataType.SPARSE_FLOAT_VECTOR:
             field_data.vectors.sparse_float_vector.CopyFrom(sparse_rows_to_proto(entity_values))
         elif entity_type == DataType.INT8_VECTOR:
-            field_data.vectors.dim = len(entity_values)[0]
+            field_data.vectors.dim = len(entity_values[0])
             field_data.vectors.int8_vector = b"".join(entity_values)
 
         elif entity_type == DataType.VARCHAR:
