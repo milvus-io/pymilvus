@@ -569,12 +569,16 @@ class Function:
         params: Optional[Dict] = None,
     ):
         if not isinstance(name, str):
-            raise ParamError(message="The name of the function should be a string.")
+            raise ParamError(
+                message=f"The name of the function should be a string, but got {type(name)}"
+            )
         if not isinstance(description, str):
-            raise ParamError(message="The description of the function should be a string.")
+            raise ParamError(
+                message=f"The description of the function should be a string, but got {type(description)}"
+            )
         if not isinstance(input_field_names, (str, list)):
             raise ParamError(
-                message="The input field names of the function should be a string or a list of strings."
+                message=f"The input field names of the function should be a string or a list of strings, but got {type(input_field_names)}"
             )
         self._name = name
         self._description = description
@@ -585,7 +589,7 @@ class Function:
             output_field_names = []
         if not isinstance(output_field_names, (str, list)):
             raise ParamError(
-                message="The output field names of the function should be a string or a list of strings."
+                message=f"The output field names of the function should be a string or a list of strings, but got {type(output_field_names)}"
             )
         output_field_names = (
             [output_field_names] if isinstance(output_field_names, str) else output_field_names
@@ -684,8 +688,8 @@ class Function:
         return Function(
             raw["name"],
             raw["type"],
-            raw["input_field_names"],
-            raw["output_field_names"],
+            list(raw["input_field_names"]),
+            list(raw["output_field_names"]),
             raw["description"],
             raw["params"],
         )
