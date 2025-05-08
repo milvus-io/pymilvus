@@ -71,16 +71,7 @@ class AsyncGrpcHandler:
         self._setup_db_name(kwargs.get("db_name"))
         self._setup_grpc_channel(**kwargs)
         self._is_channel_ready = False
-        self.callbacks = []
-
-    def register_state_change_callback(self, callback: Callable):
-        self.callbacks.append(callback)
-        self._async_channel.subscribe(callback, try_to_connect=True)
-
-    def deregister_state_change_callbacks(self):
-        for callback in self.callbacks:
-            self._async_channel.unsubscribe(callback)
-        self.callbacks = []
+        self.callbacks = [] # Do nothing
 
     def __get_address(self, uri: str, host: str, port: str) -> str:
         if host != "" and port != "" and is_legal_host(host) and is_legal_port(port):
