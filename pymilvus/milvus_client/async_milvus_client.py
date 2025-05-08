@@ -2,6 +2,7 @@ import logging
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
+from pymilvus._utils.validator import validate_params
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
@@ -19,7 +20,6 @@ from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
 from pymilvus.orm.types import DataType
 
-from .check import validate_param
 from .index import IndexParam, IndexParams
 
 logger = logging.getLogger(__name__)
@@ -185,8 +185,10 @@ class AsyncMilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        validate_param("collection_name", collection_name, str)
-        validate_param("index_params", index_params, IndexParams)
+        validate_params(
+            collection_name=(collection_name, str),
+            index_params=(index_params, IndexParams),
+        )
         if len(index_params) == 0:
             raise ParamError(message="IndexParams is empty, no index can be created")
 
@@ -566,7 +568,7 @@ class AsyncMilvusClient:
     def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
         index_params = IndexParams()
         if field_name:
-            validate_param("field_name", field_name, str)
+            validate_params(field_name=(field_name, str))
             index_params.add_index(field_name, **kwargs)
         return index_params
 
