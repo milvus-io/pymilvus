@@ -413,7 +413,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             if not _async:
                 gh._wait_for_channel_ready(timeout=timeout)
 
-            if kwargs.get("keep_alive", False):
+            if kwargs.get("keep_alive", True):
                 gh.register_state_change_callback(
                     ReconnectHandler(self, alias, kwargs_copy).reconnect_on_idle
                 )
