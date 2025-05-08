@@ -34,7 +34,6 @@ from .abstract import (
 from .asynch import (
     CreateIndexFuture,
     FlushFuture,
-    LoadPartitionsFuture,
     MutationFuture,
     SearchFuture,
 )
@@ -1282,43 +1281,36 @@ class GrpcHandler:
     def load_collection(
         self,
         collection_name: str,
-        replica_number: int = 1,
+        replica_number: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_pass_param(
-            collection_name=collection_name, replica_number=replica_number, timeout=timeout
-        )
-        # leading _ is misused for keywork escape for `async`
-        # other params now support prefix _ or not
-        # params without leading "_" have higher priority
-        refresh = kwargs.get("refresh", kwargs.get("_refresh", False))
-        resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
-        load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
-        skip_load_dynamic_field = kwargs.get(
-            "skip_load_dynamic_field", kwargs.get("_skip_load_dynamic_field", False)
-        )
+        check_pass_param(timeout=timeout)
 
-        request = Prepare.load_collection(
-            "",
-            collection_name,
-            replica_number,
-            refresh,
-            resource_groups,
-            load_fields,
-            skip_load_dynamic_field,
-        )
+        request = Prepare.load_collection(collection_name, replica_number, **kwargs)
         response = self._stub.LoadCollection(
-            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+            request,
+            timeout=timeout,
+            metadata=_api_level_md(**kwargs),
         )
         check_status(response)
-        _async = kwargs.get("_async", False)
-        if not _async:
-            self.wait_for_loading_collection(collection_name, timeout, is_refresh=refresh, **kwargs)
+
+        if kwargs.get("_async", False):
+            return
+
+        self.wait_for_loading_collection(
+            collection_name=collection_name,
+            is_refresh=request.refresh,
+            timeout=timeout,
+            **kwargs,
+        )
 
     @retry_on_rpc_failure()
     def load_collection_progress(
-        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
     ):
         """Return loading progress of collection"""
         progress = self.get_loading_progress(collection_name, timeout=timeout)
@@ -1341,7 +1333,10 @@ class GrpcHandler:
 
         while can_loop(time.time()):
             progress = self.get_loading_progress(
-                collection_name, timeout=timeout, is_refresh=is_refresh, **kwargs
+                collection_name,
+                is_refresh=is_refresh,
+                timeout=timeout,
+                **kwargs,
             )
             if progress >= 100:
                 return
@@ -1364,66 +1359,30 @@ class GrpcHandler:
         self,
         collection_name: str,
         partition_names: List[str],
-        replica_number: int = 1,
+        replica_number: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        check_pass_param(
-            collection_name=collection_name,
-            partition_name_array=partition_names,
-            replica_number=replica_number,
-            timeout=timeout,
-        )
-        # leading _ is misused for keywork escape for `async`
-        # other params now support prefix _ or not
-        # params without leading "_" have higher priority
-        refresh = kwargs.get("refresh", kwargs.get("_refresh", False))
-        resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
-        load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
-        skip_load_dynamic_field = kwargs.get(
-            "skip_load_dynamic_field", kwargs.get("_skip_load_dynamic_field", False)
-        )
+        check_pass_param(timeout=timeout)
 
         request = Prepare.load_partitions(
-            "",
-            collection_name,
-            partition_names,
-            replica_number,
-            refresh,
-            resource_groups,
-            load_fields,
-            skip_load_dynamic_field,
+            collection_name=collection_name,
+            partition_names=partition_names,
+            replica_number=replica_number,
         )
-        future = self._stub.LoadPartitions.future(
+        response = self._stub.LoadPartitions(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
-
-        if kwargs.get("_async", False):
-
-            def _check():
-                if kwargs.get("sync", True):
-                    self.wait_for_loading_partitions(
-                        collection_name, partition_names, is_refresh=refresh, **kwargs
-                    )
-
-            load_partitions_future = LoadPartitionsFuture(future)
-            load_partitions_future.add_callback(_check)
-
-            user_cb = kwargs.get("_callback")
-            if user_cb:
-                load_partitions_future.add_callback(user_cb)
-
-            return load_partitions_future
-
-        response = future.result()
         check_status(response)
-        sync = kwargs.get("sync", True)
-        if sync:
+
+        if kwargs.get("sync", True) or not kwargs.get("_async", False):
             self.wait_for_loading_partitions(
-                collection_name, partition_names, is_refresh=refresh, **kwargs
+                collection_name=collection_name,
+                partition_names=partition_names,
+                is_refresh=request.refresh,
+                timeout=timeout,
+                **kwargs,
             )
-            return None
-        return None
 
     @retry_on_rpc_failure()
     def wait_for_loading_partitions(
@@ -1441,7 +1400,11 @@ class GrpcHandler:
 
         while can_loop(time.time()):
             progress = self.get_loading_progress(
-                collection_name, partition_names, timeout=timeout, is_refresh=is_refresh, **kwargs
+                collection_name=collection_name,
+                partition_names=partition_names,
+                timeout=timeout,
+                is_refresh=is_refresh,
+                **kwargs,
             )
             if progress >= 100:
                 return

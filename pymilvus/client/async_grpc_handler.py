@@ -267,37 +267,24 @@ class AsyncGrpcHandler:
     async def load_collection(
         self,
         collection_name: str,
-        replica_number: int = 1,
+        replica_number: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
         await self.ensure_channel_ready()
-        check_pass_param(
-            collection_name=collection_name, replica_number=replica_number, timeout=timeout
-        )
-        refresh = kwargs.get("refresh", kwargs.get("_refresh", False))
-        resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
-        load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
-        skip_load_dynamic_field = kwargs.get(
-            "skip_load_dynamic_field", kwargs.get("_skip_load_dynamic_field", False)
-        )
 
-        request = Prepare.load_collection(
-            "",
-            collection_name,
-            replica_number,
-            refresh,
-            resource_groups,
-            load_fields,
-            skip_load_dynamic_field,
-        )
+        check_pass_param(timeout=timeout)
+        request = Prepare.load_collection(collection_name, replica_number, **kwargs)
         response = await self._async_stub.LoadCollection(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(response)
 
         await self.wait_for_loading_collection(
-            collection_name, timeout, is_refresh=refresh, **kwargs
+            collection_name=collection_name,
+            is_refresh=request.refresh,
+            timeout=timeout,
+            **kwargs,
         )
 
     @retry_on_rpc_failure()
@@ -315,7 +302,10 @@ class AsyncGrpcHandler:
 
         while can_loop(time.time()):
             progress = await self.get_loading_progress(
-                collection_name, timeout=timeout, is_refresh=is_refresh, **kwargs
+                collection_name=collection_name,
+                is_refresh=is_refresh,
+                timeout=timeout,
+                **kwargs,
             )
             if progress >= 100:
                 return
@@ -829,34 +819,19 @@ class AsyncGrpcHandler:
     async def load_partitions(
         self,
         collection_name: str,
-        partition_names: List[str],
-        replica_number: int = 1,
+        partition_names: Union[str, List[str]],
+        replica_number: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
         await self.ensure_channel_ready()
-        check_pass_param(
-            collection_name=collection_name,
-            partition_name_array=partition_names,
-            replica_number=replica_number,
-            timeout=timeout,
-        )
-        refresh = kwargs.get("refresh", kwargs.get("_refresh", False))
-        resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
-        load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
-        skip_load_dynamic_field = kwargs.get(
-            "skip_load_dynamic_field", kwargs.get("_skip_load_dynamic_field", False)
-        )
+        check_pass_param(timeout=timeout)
 
         request = Prepare.load_partitions(
-            "",
-            collection_name,
-            partition_names,
-            replica_number,
-            refresh,
-            resource_groups,
-            load_fields,
-            skip_load_dynamic_field,
+            collection_name=collection_name,
+            partition_names=partition_names,
+            replica_number=replica_number,
+            **kwargs,
         )
         response = await self._async_stub.LoadPartitions(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -864,7 +839,11 @@ class AsyncGrpcHandler:
         check_status(response)
 
         await self.wait_for_loading_partitions(
-            collection_name, partition_names, is_refresh=refresh, **kwargs
+            collection_name=collection_name,
+            partition_names=partition_names,
+            is_refresh=request.is_refresh,
+            timeout=timeout,
+            **kwargs,
         )
 
     @retry_on_rpc_failure()
