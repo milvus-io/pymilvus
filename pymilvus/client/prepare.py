@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 import numpy as np
 import ujson
 
+from pymilvus._utils.validator import validate_params
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
@@ -13,7 +14,7 @@ from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.orm.schema import CollectionSchema, FieldSchema, Function
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 
-from . import __version__, blob, check, entity_helper, ts_utils, utils
+from . import __version__, blob, entity_helper, ts_utils, utils
 from .abstract import BaseRanker
 from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
@@ -329,13 +330,10 @@ class Prepare:
 
     @classmethod
     def show_collections_request(cls, collection_names: Optional[List[str]] = None):
+        validate_params(collection_names=(collection_names, List[str], True))
+
         req = milvus_types.ShowCollectionsRequest()
         if collection_names:
-            if not isinstance(collection_names, (list,)):
-                msg = f"collection_names must be a list of strings, but got: {collection_names}"
-                raise ParamError(message=msg)
-            for collection_name in collection_names:
-                check_pass_param(collection_name=collection_name)
             req.collection_names.extend(collection_names)
             req.type = milvus_types.ShowType.InMemory
         return req
@@ -377,18 +375,18 @@ class Prepare:
         partition_names: Optional[List[str]] = None,
         type_in_memory: bool = False,
     ):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
-        req = milvus_types.ShowPartitionsRequest(collection_name=collection_name)
+        validate_params(
+            collection_name=(collection_name, str),
+            partition_names=(partition_names, List[str], True),
+            type_in_memory=(type_in_memory, bool),
+        )
+        req = milvus_types.ShowPartitionsRequest(
+            collection_name=collection_name,
+            type=milvus_types.ShowType.All,
+        )
         if partition_names:
-            if not isinstance(partition_names, (list,)):
-                msg = f"partition_names must be a list of strings, but got: {partition_names}"
-                raise ParamError(message=msg)
-            for partition_name in partition_names:
-                check_pass_param(partition_name=partition_name)
             req.partition_names.extend(partition_names)
-        if type_in_memory is False:
-            req.type = milvus_types.ShowType.All
-        else:
+        if type_in_memory:
             req.type = milvus_types.ShowType.InMemory
         return req
 
@@ -801,11 +799,11 @@ class Prepare:
         consistency_level: Optional[Union[int, str]] = None,
         **kwargs,
     ):
-        check.validate_strs(
-            collection_name=collection_name,
-            filter=filter,
+        validate_params(
+            collection_name=(collection_name, str),
+            filter=(filter, str),
+            partition_name=(partition_name, str, True),
         )
-        check.validate_nullable_strs(partition_name=partition_name)
 
         return milvus_types.DeleteRequest(
             collection_name=collection_name,

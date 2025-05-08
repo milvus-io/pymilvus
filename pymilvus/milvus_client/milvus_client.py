@@ -4,6 +4,7 @@ from types import TracebackType
 from typing import Dict, List, Optional, Type, Union
 from uuid import uuid4
 
+from pymilvus._utils.validator import validate_params
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.search_iterator import SearchIteratorV2
@@ -30,7 +31,6 @@ from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
-from .check import validate_param
 from .index import IndexParam, IndexParams
 
 logger = logging.getLogger(__name__)
@@ -132,7 +132,7 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        validate_param("dimension", dimension, int)
+        validate_params(dimension=(dimension, int))
 
         if "enable_dynamic_field" not in kwargs:
             kwargs["enable_dynamic_field"] = True
@@ -176,8 +176,11 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        validate_param("collection_name", collection_name, str)
-        validate_param("index_params", index_params, IndexParams)
+        validate_params(
+            collection_name=(collection_name, str),
+            index_params=(index_params, IndexParams),
+        )
+
         if len(index_params) == 0:
             raise ParamError(message="IndexParams is empty, no index can be created")
 
@@ -907,7 +910,7 @@ class MilvusClient:
     def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
         index_params = IndexParams()
         if field_name:
-            validate_param("field_name", field_name, str)
+            validate_params(field_name=(field_name, str))
             index_params.add_index(field_name, **kwargs)
         return index_params
 
@@ -1218,9 +1221,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        if isinstance(partition_names, str):
-            partition_names = [partition_names]
-
         conn = self._get_connection()
         conn.load_partitions(collection_name, partition_names, timeout=timeout, **kwargs)
 
