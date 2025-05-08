@@ -819,7 +819,7 @@ class AsyncGrpcHandler:
     async def load_partitions(
         self,
         collection_name: str,
-        partition_names: Union[str, List[str]],
+        partition_names: List[str],
         replica_number: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
