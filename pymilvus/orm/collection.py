@@ -373,7 +373,7 @@ class Collection:
     def load(
         self,
         partition_names: Optional[list] = None,
-        replica_number: int = 0,
+        replica_number: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -381,7 +381,7 @@ class Collection:
 
         Args:
             partition_names (``List[str]``): The specified partitions to load.
-            replica_number (``int``, optional): The replica number to load, defaults to 1.
+            replica_number (``int``, optional): The replica number to load, defaults to None.
             timeout (float, optional): an optional duration of time in seconds to allow
                 for the RPCs. If timeout is not set, the client keeps waiting until the
                 server responds or an error occurs.
