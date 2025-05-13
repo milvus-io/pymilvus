@@ -11,10 +11,10 @@
 # the License.
 
 import copy
-import json
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
+import ujson
 from pandas.api.types import is_list_like, is_scalar
 
 from pymilvus.client.types import FunctionType
@@ -456,7 +456,7 @@ class FieldSchema:
                             # TODO: a more complicate json may be reordered which
                             # can still cause server_schema == schema to be False.
                             # need a better approach.
-                            self._type_params[k] = json.loads(self._kwargs[k])
+                            self._type_params[k] = ujson.dumps(self._kwargs[k])
                             continue
                     self._type_params[k] = self._kwargs[k]
 
