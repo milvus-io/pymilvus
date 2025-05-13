@@ -259,3 +259,9 @@ class TestAlterCollectionRequest:
     def test_alter_collection_request(self):
         schema = Prepare.alter_collection_request('foo', {'collection.ttl.seconds': 1800})
 
+
+class TestLoadCollectionRequest:
+    def test_load_collection_request(self):
+        kwargs = {'load_fields': ['pk', 'float_vector', 'string_load', 'int64_load']} 
+        req = Prepare.load_collection('foo', **kwargs)
+        assert req.load_fields == ['pk', 'float_vector', 'string_load', 'int64_load']
