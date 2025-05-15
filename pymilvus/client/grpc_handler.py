@@ -1369,6 +1369,7 @@ class GrpcHandler:
             collection_name=collection_name,
             partition_names=partition_names,
             replica_number=replica_number,
+            **kwargs,
         )
         response = self._stub.LoadPartitions(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
