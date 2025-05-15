@@ -381,6 +381,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        # TODO impl schema change cache policy here
         await self.ensure_channel_ready()
         request = await self._prepare_row_insert_request(
             collection_name, entities, partition_name, schema, timeout, **kwargs
@@ -528,6 +529,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        # TODO impl schema change cache policy here
         await self.ensure_channel_ready()
         if isinstance(entities, dict):
             entities = [entities]

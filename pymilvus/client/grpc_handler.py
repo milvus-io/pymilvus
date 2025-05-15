@@ -12,6 +12,7 @@ from grpc._cython import cygrpc
 from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure, upgrade_reminder
 from pymilvus.exceptions import (
     AmbiguousIndexName,
+    DataNotMatchException,
     DescribeCollectionException,
     ErrorCode,
     ExceptionsMessage,
@@ -556,9 +557,19 @@ class GrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        request = self._prepare_row_insert_request(
-            collection_name, entities, partition_name, schema, timeout, **kwargs
-        )
+        try:
+            request = self._prepare_row_insert_request(
+                collection_name, entities, partition_name, schema, timeout, **kwargs
+            )
+        except DataNotMatchException:
+            # try to update schema and retry
+            schema = self.update_schema(collection_name, timeout, **kwargs)
+            request = self._prepare_row_insert_request(
+                collection_name, entities, partition_name, schema, timeout, **kwargs
+            )
+        except Exception as ex:
+            raise ex from ex
+
         resp = self._stub.Insert(request=request, timeout=timeout, metadata=_api_level_md(**kwargs))
         if resp.status.error_code == common_pb2.SchemaMismatch:
             schema = self.update_schema(collection_name, timeout, **kwargs)
@@ -835,9 +846,20 @@ class GrpcHandler:
     ):
         if isinstance(entities, dict):
             entities = [entities]
-        request = self._prepare_row_upsert_request(
-            collection_name, entities, partition_name, timeout, **kwargs
-        )
+
+        try:
+            request = self._prepare_row_upsert_request(
+                collection_name, entities, partition_name, timeout, **kwargs
+            )
+        except DataNotMatchException:
+            # try to update schema and retry
+            schema = self.update_schema(collection_name, timeout, **kwargs)
+            request = self._prepare_row_upsert_request(
+                collection_name, entities, partition_name, timeout, **kwargs
+            )
+        except Exception as ex:
+            raise ex from ex
+
         response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(**kwargs))
         if response.status.error_code == common_pb2.SchemaMismatch:
             schema = self.update_schema(collection_name, timeout)
