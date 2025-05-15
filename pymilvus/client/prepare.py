@@ -1311,7 +1311,7 @@ class Prepare:
 
         if "load_fields" in kwargs or "_load_fields" in kwargs:
             load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
-            req.load_fields = load_fields
+            req.load_fields.extend(load_fields)
 
         if "skip_load_dynamic_field" in kwargs or "_skip_load_dynamic_field" in kwargs:
             skip_load_dynamic_field = kwargs.get(
