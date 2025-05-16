@@ -1,5 +1,6 @@
 import base64
 import datetime
+import json
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
@@ -1155,7 +1156,10 @@ class Prepare:
             ],
         )
         for k, v in ranker.params.items():
-            kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
+            if isinstance(v, (dict, list)):
+                kv_pair = common_types.KeyValuePair(key=str(k), value=json.dumps(v))
+            else:
+                kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
             function_score.functions[0].params.append(kv_pair)
         return function_score
 
