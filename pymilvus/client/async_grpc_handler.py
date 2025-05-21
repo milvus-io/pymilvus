@@ -4,7 +4,7 @@ import copy
 import socket
 import time
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 from urllib import parse
 
 import grpc
@@ -71,7 +71,7 @@ class AsyncGrpcHandler:
         self._setup_db_name(kwargs.get("db_name"))
         self._setup_grpc_channel(**kwargs)
         self._is_channel_ready = False
-        self.callbacks = [] # Do nothing
+        self.callbacks = []  # Do nothing
 
     def __get_address(self, uri: str, host: str, port: str) -> str:
         if host != "" and port != "" and is_legal_host(host) and is_legal_port(port):
