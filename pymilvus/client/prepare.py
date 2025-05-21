@@ -1211,7 +1211,7 @@ class Prepare:
 
         if "resource_groups" in kwargs or "_resource_groups" in kwargs:
             resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
-            req.resource_groups = resource_groups
+            req.resource_groups.extend(resource_groups)
 
         if "load_fields" in kwargs or "_load_fields" in kwargs:
             load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
@@ -1259,7 +1259,7 @@ class Prepare:
 
         if "resource_groups" in kwargs or "_resource_groups" in kwargs:
             resource_groups = kwargs.get("resource_groups", kwargs.get("_resource_groups"))
-            req.resource_groups = resource_groups
+            req.resource_groups.extend(resource_groups)
 
         if "load_fields" in kwargs or "_load_fields" in kwargs:
             load_fields = kwargs.get("load_fields", kwargs.get("_load_fields"))
