@@ -1115,7 +1115,10 @@ class MilvusClient:
     def add_collection_field(
         self,
         collection_name: str,
-        field_schema: FieldSchema,
+        field_name: str,
+        data_type: DataType,
+        desc: str = "",
+        # field_schema: FieldSchema,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -1132,6 +1135,7 @@ class MilvusClient:
         Raises:
             MilvusException: If anything goes wrong
         """
+        field_schema = self.create_field_schema(field_name, data_type, desc, **kwargs)
         conn = self._get_connection()
         conn.add_collection_field(
             collection_name,
