@@ -1126,11 +1126,15 @@ class MilvusClient:
 
         Args:
             collection_name(``string``): The name of collection.
-            field_schema (``FieldSchema``): The field schema to add.
+            name (str): The name of the field.
+            dtype (DataType): The data type of the field.
+            desc (str): The description of the field.
             timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
             **kwargs (``dict``): Optional field params
+                nullable: bool, indicates field is nullable or not, shall be ``True`` for now
+                default_value: default val for added field
 
         Raises:
             MilvusException: If anything goes wrong
