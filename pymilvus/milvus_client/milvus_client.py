@@ -1115,7 +1115,9 @@ class MilvusClient:
     def add_collection_field(
         self,
         collection_name: str,
-        field_schema: FieldSchema,
+        field_name: str,
+        data_type: DataType,
+        desc: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -1123,15 +1125,20 @@ class MilvusClient:
 
         Args:
             collection_name(``string``): The name of collection.
-            field_schema (``FieldSchema``): The field schema to add.
+            name (str): The name of the field.
+            dtype (DataType): The data type of the field.
+            desc (str): The description of the field.
             timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
             **kwargs (``dict``): Optional field params
+                nullable: bool, indicates field is nullable or not, shall be ``True`` for now
+                default_value: default val for added field
 
         Raises:
             MilvusException: If anything goes wrong
         """
+        field_schema = self.create_field_schema(field_name, data_type, desc, **kwargs)
         conn = self._get_connection()
         conn.add_collection_field(
             collection_name,
