@@ -1118,7 +1118,6 @@ class MilvusClient:
         field_name: str,
         data_type: DataType,
         desc: str = "",
-        # field_schema: FieldSchema,
         timeout: Optional[float] = None,
         **kwargs,
     ):
