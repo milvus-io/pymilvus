@@ -67,7 +67,7 @@ class TestConnect:
 
         with mock.patch(f"{mock_prefix}.__init__", return_value=None):
             with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                connections.connect()
+                connections.connect(keep_alive=False)
 
         assert connections.has_connection(alias) is True
 
@@ -94,14 +94,14 @@ class TestConnect:
         with mock.patch(f"{mock_prefix}.__init__", return_value=None):
             with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 # use env
-                connections.connect()
+                connections.connect(keep_alive=False)
 
         assert env_result[1] == connections.get_connection_addr(DefaultConfig.MILVUS_CONN_ALIAS)
 
         with mock.patch(f"{mock_prefix}.__init__", return_value=None):
             with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 # use param
-                connections.connect(DefaultConfig.MILVUS_CONN_ALIAS, host="test_host", port="19999")
+                connections.connect(DefaultConfig.MILVUS_CONN_ALIAS, host="test_host", port="19999", keep_alive=False)
 
         curr_addr = connections.get_connection_addr(DefaultConfig.MILVUS_CONN_ALIAS)
         assert env_result[1] != curr_addr
@@ -120,7 +120,7 @@ class TestConnect:
 
         with mock.patch(f"{mock_prefix}.__init__", return_value=None):
             with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                connections.connect(alias, **addr)
+                connections.connect(alias, **addr, keep_alive=False)
 
         assert connections.has_connection(alias) is True
 
@@ -140,7 +140,7 @@ class TestConnect:
 
         with mock.patch(f"{mock_prefix}.__init__", return_value=None):
             with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                connections.connect(alias, **no_host_or_port)
+                connections.connect(alias, **no_host_or_port, keep_alive=False)
 
         assert connections.has_connection(alias) is True
         assert connections.get_connection_addr(alias) == {"address": "localhost:19530", "user": ""}
@@ -156,7 +156,7 @@ class TestConnect:
         assert a == {}
 
         with pytest.raises(MilvusException) as excinfo:
-            connections.connect(alias)
+            connections.connect(alias, keep_alive=False)
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "You need to pass in the configuration" in excinfo.value.message
@@ -167,7 +167,7 @@ class TestConnect:
 
         with mock.patch(f"{mock_prefix}._setup_grpc_channel", return_value=None):
             with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                connections.connect(alias, **uri)
+                connections.connect(alias, **uri, keep_alive=False)
 
         addr = connections.get_connection_addr(alias)
         LOGGER.debug(addr)
@@ -186,7 +186,7 @@ class TestConnect:
 
         with mock.patch(f"{mock_prefix}._setup_grpc_channel", return_value=None):
             with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                connections.connect(alias)
+                connections.connect(alias, keep_alive=False)
 
         addr2 = connections.get_connection_addr(alias)
         LOGGER.debug(f"addr2: {addr2}")
@@ -360,7 +360,7 @@ class TestIssues:
         with mock.patch(f"{mock_prefix}.__init__", return_value=None):
             with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 config = {"alias": alias, "host": "localhost", "port": "19531", "user": "root", "password": 12345, "secure": True}
-                connections.connect(**config)
+                connections.connect(**config, keep_alive=False)
                 config = connections.get_connection_addr(alias)
                 assert config == {"address": 'localhost:19531', "user": 'root', "secure": True}
 
@@ -368,13 +368,18 @@ class TestIssues:
                 config = connections.get_connection_addr("default")
                 assert config == {"address": 'localhost:19531', "user": ""}
 
-                connections.connect("default", user="root", password="12345", secure=True)
+                connections.connect("default", user="root", password="12345", secure=True, keep_alive=False)
 
                 config = connections.get_connection_addr("default")
                 assert config == {"address": 'localhost:19531', "user": 'root', "secure": True}
 
-    def test_issue_2670(self):
+    @pytest.mark.parametrize("uri, db_name", [
+        ("http://localhost:19530", "test_db"),
+        ("http://localhost:19530/", "test_db"),
+        ("http://localhost:19530/test_db", "")])
+    def test_issue_2670(self, uri: str, db_name: str):
         """
+        Issue 2670:
         Test for db_name being overwritten with empty string, when the uri
         ends in a slash - e.g. http://localhost:19530/
 
@@ -384,16 +389,22 @@ class TestIssues:
             it will overwrite the db_name with an empty string.
         Expected and current behaviour: if db_name is passed explicitly,
             it should be used in the initialization of the GrpcHandler.
-        
+
         """
         db_name = "default"
         alias = self.test_issue_2670.__name__
 
         with mock.patch(f"{mock_prefix}.__init__", return_value=None) as mock_init, mock.patch(
             f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-            config = {"alias": alias, "uri": "http://localhost:19530/", "db_name": db_name}
-            connections.connect(**config)
-            
+            config = {"alias": alias, "uri": uri, "db_name": db_name}
+            connections.connect(**config, keep_alive=False)
+
+            db_name = db_name or uri.split("/")[-1]
             mock_init.assert_called_with(
-                **{'address': 'localhost:19530', 'user': '', 'password': '', 'token': '', 'db_name': db_name}
-                ) 
+                address="localhost:19530",
+                user="",
+                password="",
+                token="",
+                db_name=db_name,
+                keep_alive=False,
+            )

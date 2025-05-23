@@ -21,6 +21,9 @@ class TestHit:
         assert h.score == h.distance == h["distance"] == h.get("distance") == pk_dist["distance"]
         assert h.entity == h
         assert h["entity"] == h.get("entity") == {}
+        assert hasattr(h, "id") is True
+        assert hasattr(h, "distance") is True
+        assert hasattr(h, "a_random_attribute") is False
 
     @pytest.mark.parametrize("pk_dist_fields", [
         {"id": 1, "distance": 0.1, "entity": {"vector": [1., 2., 3., 4.],  "description": "This is a test", 'd_a': "dynamic a"}},
@@ -38,10 +41,16 @@ class TestHit:
         assert h.distance == h.get("distance") == h["distance"]
         assert h.entity == pk_dist_fields
         assert pk_dist_fields["entity"] == h.get("entity")==h["entity"]
+        assert hasattr(h, "id") is True
+        assert hasattr(h, "distance") is True
 
         # dynamic attributes
         assert h.description == pk_dist_fields["entity"].get("description")
         assert h.vector == pk_dist_fields["entity"].get("vector")
+        assert hasattr(h, "description") is True
+        assert hasattr(h, "vector") is True
+
+        assert hasattr(h, "a_random_attribute") is False
 
         with pytest.raises(Exception):
             h.field_not_exits

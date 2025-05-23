@@ -37,7 +37,7 @@ class TestCollections:
         collection_schema = CollectionSchema(fields, primary_field="int64")
         with mock.patch(f"{prefix}.__init__", return_value=None):
             with mock.patch(f"{prefix}._wait_for_channel_ready", return_value=None):
-                connections.connect()
+                connections.connect(keep_alive=False)
 
         with mock.patch(f"{prefix}.create_collection", return_value=None):
             with mock.patch(f"{prefix}.has_collection", return_value=False):
