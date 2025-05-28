@@ -292,6 +292,10 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if alias in self._connected_alias:
             await self._connected_alias.pop(alias).close()
 
+    async def async_remove_connection(self, alias: str):
+        self.async_disconnect(alias)
+        self._alias.pop(alias, None)
+
     def remove_connection(self, alias: str):
         """Removes connection from the registry.
 

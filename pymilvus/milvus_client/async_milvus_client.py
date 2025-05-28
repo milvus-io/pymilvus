@@ -571,7 +571,7 @@ class AsyncMilvusClient:
         return index_params
 
     async def close(self):
-        await connections.async_disconnect(self._using)
+        await connections.async_remove_connection(self._using)
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
