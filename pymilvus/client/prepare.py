@@ -1818,9 +1818,12 @@ class Prepare:
     def run_analyzer(
         cls,
         texts: Union[str, List[str]],
-        analyzer_params: Union[str, Dict],
+        analyzer_params: Optional[Union[str, Dict]] = None,
         with_hash: bool = False,
         with_detail: bool = False,
+        collection_name: Optional[str] = None,
+        field_name: Optional[str] = None,
+        analyzer_names: Optional[Union[str, List[str]]] = None,
     ):
         req = milvus_types.RunAnalyzerRequest(with_hash=with_hash, with_detail=with_detail)
         if isinstance(texts, str):
@@ -1828,9 +1831,21 @@ class Prepare:
         else:
             req.placeholder.extend([text.encode("utf-8") for text in texts])
 
-        if isinstance(analyzer_params, dict):
-            req.analyzer_params = ujson.dumps(analyzer_params)
-        else:
-            req.analyzer_params = analyzer_params
+        if analyzer_params is not None:
+            if isinstance(analyzer_params, dict):
+                req.analyzer_params = ujson.dumps(analyzer_params)
+            else:
+                req.analyzer_params = analyzer_params
 
+        if collection_name is not None:
+            req.collection_name = collection_name
+
+        if field_name is not None:
+            req.field_name = field_name
+
+        if analyzer_names is not None:
+            if isinstance(analyzer_names, str):
+                req.analyzer_names.extend([analyzer_names])
+            else:
+                req.analyzer_names.extend(analyzer_names)
         return req

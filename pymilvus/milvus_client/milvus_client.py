@@ -1776,9 +1776,12 @@ class MilvusClient:
     def run_analyzer(
         self,
         texts: Union[str, List[str]],
-        analyzer_params: Union[str, Dict, None] = None,
+        analyzer_params: Optional[Union[str, Dict]] = None,
         with_hash: bool = False,
         with_detail: bool = False,
+        collection_name: Optional[str] = None,
+        field_name: Optional[str] = None,
+        analyzer_names: Optional[Union[str, List[str]]] = None,
         timeout: Optional[float] = None,
     ):
         """Run analyzer. Return result tokens of analysis.
@@ -1789,9 +1792,14 @@ class MilvusClient:
         Returns:
                 (``List[str]``,``List[List[str]]``): The result tokens of analysis.
         """
-        if analyzer_params is None:
-            analyzer_params = {}
 
         return self._get_connection().run_analyzer(
-            texts, analyzer_params, with_hash=with_hash, with_detail=with_detail, timeout=timeout
+            texts,
+            analyzer_params=analyzer_params,
+            with_hash=with_hash,
+            with_detail=with_detail,
+            collection_name=collection_name,
+            field_name=field_name,
+            analyzer_names=analyzer_names,
+            timeout=timeout,
         )
