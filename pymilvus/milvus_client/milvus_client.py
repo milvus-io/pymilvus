@@ -276,7 +276,6 @@ class MilvusClient:
             return {"upsert_count": 0}
 
         conn = self._get_connection()
-        schema_dict = conn.describe_collection(collection_name, with_cache=True, timeout=timeout)
         # Upsert into the collection.
         try:
             res = conn.upsert_rows(
