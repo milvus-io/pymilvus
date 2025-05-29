@@ -853,7 +853,7 @@ class GrpcHandler:
             )
         except DataNotMatchException:
             # try to update schema and retry
-            schema = self.update_schema(collection_name, timeout, **kwargs)
+            self.update_schema(collection_name, timeout, **kwargs)
             request = self._prepare_row_upsert_request(
                 collection_name, entities, partition_name, timeout, **kwargs
             )
@@ -862,9 +862,9 @@ class GrpcHandler:
 
         response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(**kwargs))
         if response.status.error_code == common_pb2.SchemaMismatch:
-            schema = self.update_schema(collection_name, timeout)
+            self.update_schema(collection_name, timeout)
             request = self._prepare_row_upsert_request(
-                collection_name, entities, partition_name, schema, timeout, **kwargs
+                collection_name, entities, partition_name, timeout, **kwargs
             )
             response = self._stub.Upsert(
                 request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
