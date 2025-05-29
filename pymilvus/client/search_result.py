@@ -386,7 +386,10 @@ class Hit(UserDict):
         if item == "entity":
             return self
 
-        return self.__getitem__(item)
+        try:
+            return self.__getitem__(item)
+        except KeyError as exc:
+            raise AttributeError from exc
 
     def to_dict(self) -> Dict[str, Any]:
         """Patch for orm, will be deprecated soon"""
