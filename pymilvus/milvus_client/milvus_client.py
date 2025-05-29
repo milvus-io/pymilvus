@@ -893,7 +893,7 @@ class MilvusClient:
             self.load_collection(collection_name, timeout=timeout)
 
     def close(self):
-        connections.disconnect(self._using)
+        connections.remove_connection(self._using)
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
