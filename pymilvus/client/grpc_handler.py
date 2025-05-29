@@ -410,8 +410,32 @@ class GrpcHandler:
         raise MilvusException(reply.status.code, reply.status.reason, reply.status.error_code)
 
     @retry_on_rpc_failure()
-    def describe_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+    def describe_collection(
+        self,
+        collection_name: str,
+        with_cache: bool = True,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Describe collection with caching mechanism.
+
+        Args:
+            collection_name (str): Name of the collection to describe
+            with_cache (bool): Whether to use cached schema if available.
+            timeout (float, optional): An optional duration of time in seconds to allow for the RPC
+            **kwargs: Additional arguments
+
+        Returns:
+            dict: Collection schema information
+        """
         check_pass_param(collection_name=collection_name, timeout=timeout)
+
+        # Check cache first if caching is enabled
+        if with_cache and collection_name in self.schema_cache:
+            return self.schema_cache[collection_name]["schema"]
+
+        # Fetch from server
         request = Prepare.describe_collection_request(collection_name)
         response = self._stub.DescribeCollection(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -419,7 +443,14 @@ class GrpcHandler:
         status = response.status
 
         if is_successful(status):
-            return CollectionSchema(raw=response).dict()
+            schema = CollectionSchema(raw=response).dict()
+            schema_timestamp = schema.get("update_timestamp", 0)
+
+            self.schema_cache[collection_name] = {
+                "schema": schema,
+                "schema_timestamp": schema_timestamp,
+            }
+            return schema
 
         raise DescribeCollectionException(status.code, status.reason, status.error_code)
 
@@ -563,7 +594,9 @@ class GrpcHandler:
             )
         except DataNotMatchException:
             # try to update schema and retry
-            schema = self.update_schema(collection_name, timeout, **kwargs)
+            schema = self.describe_collection(
+                collection_name, with_cache=False, timeout=timeout, metadata=_api_level_md(**kwargs)
+            )
             request = self._prepare_row_insert_request(
                 collection_name, entities, partition_name, schema, timeout, **kwargs
             )
@@ -572,7 +605,9 @@ class GrpcHandler:
 
         resp = self._stub.Insert(request=request, timeout=timeout, metadata=_api_level_md(**kwargs))
         if resp.status.error_code == common_pb2.SchemaMismatch:
-            schema = self.update_schema(collection_name, timeout, **kwargs)
+            schema = self.describe_collection(
+                collection_name, with_cache=False, timeout=timeout, metadata=_api_level_md(**kwargs)
+            )
             request = self._prepare_row_insert_request(
                 collection_name, entities, partition_name, schema, timeout, **kwargs
             )
@@ -582,20 +617,6 @@ class GrpcHandler:
         check_status(resp.status)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
         return MutationResult(resp)
-
-    def update_schema(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        self.schema_cache.pop(collection_name, None)
-        schema = self.describe_collection(
-            collection_name, timeout=timeout, metadata=_api_level_md(**kwargs)
-        )
-        schema_timestamp = schema.get("update_timestamp", 0)
-
-        self.schema_cache[collection_name] = {
-            "schema": schema,
-            "schema_timestamp": schema_timestamp,
-        }
-
-        return schema
 
     def _prepare_row_insert_request(
         self,
@@ -609,9 +630,10 @@ class GrpcHandler:
         if isinstance(entity_rows, dict):
             entity_rows = [entity_rows]
 
-        schema, schema_timestamp = self._get_schema_from_cache_or_remote(
-            collection_name, schema, timeout
-        )
+        # Get schema from describe_collection
+        if not isinstance(schema, dict):
+            schema = self.describe_collection(collection_name, with_cache=True, timeout=timeout)
+        schema_timestamp = schema.get("update_timestamp", 0)
         fields_info = schema.get("fields")
         enable_dynamic = schema.get("enable_dynamic_field", False)
 
@@ -623,30 +645,6 @@ class GrpcHandler:
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
         )
-
-    def _get_schema_from_cache_or_remote(
-        self, collection_name: str, schema: Optional[dict] = None, timeout: Optional[float] = None
-    ):
-        """
-        checks the cache for the schema. If not found, it fetches it remotely and updates the cache
-        """
-        if collection_name in self.schema_cache:
-            # Use the cached schema and timestamp
-            schema = self.schema_cache[collection_name]["schema"]
-            schema_timestamp = self.schema_cache[collection_name]["schema_timestamp"]
-        else:
-            # Fetch the schema remotely if not in cache
-            if not isinstance(schema, dict):
-                schema = self.describe_collection(collection_name, timeout=timeout)
-            schema_timestamp = schema.get("update_timestamp", 0)
-
-            # Cache the fetched schema and timestamp
-            self.schema_cache[collection_name] = {
-                "schema": schema,
-                "schema_timestamp": schema_timestamp,
-            }
-
-        return schema, schema_timestamp
 
     def _prepare_batch_insert_request(
         self,
@@ -821,9 +819,8 @@ class GrpcHandler:
         if not isinstance(rows, list):
             raise ParamError(message="'rows' must be a list, please provide valid row data.")
 
-        schema, schema_timestamp = self._get_schema_from_cache_or_remote(
-            collection_name, timeout=timeout
-        )
+        schema = self.describe_collection(collection_name, timeout=timeout)
+        schema_timestamp = schema.get("update_timestamp", 0)
         fields_info = schema.get("fields")
         enable_dynamic = schema.get("enable_dynamic_field", False)
         return Prepare.row_upsert_param(
@@ -853,7 +850,9 @@ class GrpcHandler:
             )
         except DataNotMatchException:
             # try to update schema and retry
-            self.update_schema(collection_name, timeout, **kwargs)
+            self.describe_collection(
+                collection_name, with_cache=False, timeout=timeout, metadata=_api_level_md(**kwargs)
+            )
             request = self._prepare_row_upsert_request(
                 collection_name, entities, partition_name, timeout, **kwargs
             )
@@ -862,7 +861,9 @@ class GrpcHandler:
 
         response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(**kwargs))
         if response.status.error_code == common_pb2.SchemaMismatch:
-            self.update_schema(collection_name, timeout)
+            self.describe_collection(
+                collection_name, with_cache=False, timeout=timeout, metadata=_api_level_md(**kwargs)
+            )
             request = self._prepare_row_upsert_request(
                 collection_name, entities, partition_name, timeout, **kwargs
             )
