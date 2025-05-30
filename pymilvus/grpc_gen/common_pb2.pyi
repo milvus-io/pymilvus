@@ -180,6 +180,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     UnsubDmChannel: _ClassVar[MsgType]
     GetDistribution: _ClassVar[MsgType]
     SyncDistribution: _ClassVar[MsgType]
+    RunAnalyzer: _ClassVar[MsgType]
     SegmentInfo: _ClassVar[MsgType]
     SystemInfo: _ClassVar[MsgType]
     GetRecoveryInfo: _ClassVar[MsgType]
@@ -351,6 +352,11 @@ class LoadState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     LoadStateNotLoad: _ClassVar[LoadState]
     LoadStateLoading: _ClassVar[LoadState]
     LoadStateLoaded: _ClassVar[LoadState]
+
+class LoadPriority(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    HIGH: _ClassVar[LoadPriority]
+    LOW: _ClassVar[LoadPriority]
 Success: ErrorCode
 UnexpectedError: ErrorCode
 ConnectFailed: ErrorCode
@@ -507,6 +513,7 @@ GetReplicas: MsgType
 UnsubDmChannel: MsgType
 GetDistribution: MsgType
 SyncDistribution: MsgType
+RunAnalyzer: MsgType
 SegmentInfo: MsgType
 SystemInfo: MsgType
 GetRecoveryInfo: MsgType
@@ -654,6 +661,8 @@ LoadStateNotExist: LoadState
 LoadStateNotLoad: LoadState
 LoadStateLoading: LoadState
 LoadStateLoaded: LoadState
+HIGH: LoadPriority
+LOW: LoadPriority
 PRIVILEGE_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 privilege_ext_obj: _descriptor.FieldDescriptor
 
