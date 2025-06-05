@@ -1276,6 +1276,10 @@ class Prepare:
             )
             req.skip_load_dynamic_field = skip_load_dynamic_field
 
+        if "priority" in kwargs:
+            priority = kwargs.get("priority")
+            req.load_params["load_priority"] = priority
+
         return req
 
     @classmethod
@@ -1323,6 +1327,10 @@ class Prepare:
                 "skip_load_dynamic_field", kwargs.get("_skip_load_dynamic_field", False)
             )
             req.skip_load_dynamic_field = skip_load_dynamic_field
+
+        if "priority" in kwargs:
+            priority = kwargs.get("priority")
+            req.load_params["load_priority"] = priority
         return req
 
     @classmethod
