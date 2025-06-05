@@ -2,6 +2,9 @@ import time
 from enum import IntEnum
 from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
 
+import numpy as np
+import ujson
+
 from pymilvus.exceptions import (
     AutoIDException,
     ExceptionsMessage,
@@ -9,6 +12,8 @@ from pymilvus.exceptions import (
 )
 from pymilvus.grpc_gen import common_pb2, rg_pb2, schema_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
+
+from . import utils
 
 Status = TypeVar("Status")
 ConsistencyLevel = common_pb2.ConsistencyLevel
@@ -1016,6 +1021,132 @@ Represents the transfer config of a resource group.
 Attributes:
     resource_group (str): The name of the resource group that can be transferred to or from.
 """
+
+
+class HybridExtraList(list):
+    """
+    A list that holds partially eager and partially lazy row data.
+
+    - Primitive fields are extracted at initialization.
+    - Variable-length fields (array/string/json) are extracted lazily on access.
+
+    Attributes:
+        extra (dict): Extra metadata associated with the result set.
+    """
+
+    def __init__(
+        self,
+        lazy_field_data: List[Any],  # lazy extract fields
+        *args,
+        extra: Optional[Dict] = None,
+        dynamic_fields: Optional[List] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self._lazy_field_data = lazy_field_data
+        self._dynamic_fields = dynamic_fields
+        self.extra = OmitZeroDict(extra or {})
+        self._float_vector_np_array = {}
+        self._has_materialized_float_vector = False
+
+    def _extract_lazy_fields(self, index: int, field_data: Any, row_data: Dict) -> Any:
+        if field_data.type == DataType.JSON:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                row_data[field_data.field_name] = None
+                return
+            json_dict = ujson.loads(field_data.scalars.json_data.data[index])
+
+            if not field_data.is_dynamic:
+                row_data[field_data.field_name] = json_dict
+                return
+
+            if not self._dynamic_fields:
+                row_data.update(json_dict)
+                return
+            row_data.update({k: v for k, v in json_dict.items() if k in self._dynamic_fields})
+        elif field_data.type == DataType.FLOAT_VECTOR:
+            dim = field_data.vectors.dim
+            start_pos = index * dim
+            end_pos = start_pos + dim
+            if len(field_data.vectors.float_vector.data) >= start_pos:
+                # Here we use numpy.array to convert the float64 values to numpy.float32 values,
+                # and return a list of numpy.float32 to users
+                # By using numpy.array, performance improved by 60% for topk=16384 dim=1536 case.
+                row_data[field_data.field_name] = self._float_vector_np_array[
+                    field_data.field_name
+                ][start_pos:end_pos]
+        elif field_data.type == DataType.BINARY_VECTOR:
+            dim = field_data.vectors.dim
+            bytes_per_vector = dim // 8
+            start_pos = index * bytes_per_vector
+            end_pos = start_pos + bytes_per_vector
+            if len(field_data.vectors.binary_vector) >= start_pos:
+                row_data[field_data.field_name] = [
+                    field_data.vectors.binary_vector[start_pos:end_pos]
+                ]
+        elif field_data.type == DataType.BFLOAT16_VECTOR:
+            dim = field_data.vectors.dim
+            bytes_per_vector = dim * 2
+            start_pos = index * bytes_per_vector
+            end_pos = start_pos + bytes_per_vector
+            if len(field_data.vectors.bfloat16_vector) >= start_pos:
+                row_data[field_data.field_name] = [
+                    field_data.vectors.bfloat16_vector[start_pos:end_pos]
+                ]
+        elif field_data.type == DataType.FLOAT16_VECTOR:
+            dim = field_data.vectors.dim
+            bytes_per_vector = dim * 2
+            start_pos = index * bytes_per_vector
+            end_pos = start_pos + bytes_per_vector
+            if len(field_data.vectors.float16_vector) >= start_pos:
+                row_data[field_data.field_name] = [
+                    field_data.vectors.float16_vector[start_pos:end_pos]
+                ]
+        elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
+            row_data[field_data.field_name] = utils.sparse_parse_single_row(
+                field_data.vectors.sparse_float_vector.contents[index]
+            )
+
+    def __getitem__(self, index: Union[int, slice]):
+        if isinstance(index, slice):
+            results = []
+            for i in range(*index.indices(len(self))):
+                row = self[i]
+                results.append(row)
+            return results
+        self._pre_materialize_float_vector()
+        row = super().__getitem__(index)
+        for field_data in self._lazy_field_data:
+            if row.get(field_data.field_name) is None:
+                self._extract_lazy_fields(index, field_data, row)
+        return row
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+    def __str__(self) -> str:
+        preview = [str(self[i]) for i in range(min(10, len(self)))]
+        return f"data: {preview}{' ...' if len(self) > 10 else ''}, extra_info: {self.extra}"
+
+    def _pre_materialize_float_vector(self):
+        if self._has_materialized_float_vector:
+            return
+        for field_data in self._lazy_field_data:
+            if field_data.type == DataType.FLOAT_VECTOR:
+                self._float_vector_np_array[field_data.field_name] = np.array(
+                    field_data.vectors.float_vector.data, dtype=np.float32
+                )
+        self._has_materialized_float_vector = True
+
+    def materialize(self):
+        self._pre_materialize_float_vector()
+        for field_data in self._lazy_field_data:
+            for index in range(len(self)):
+                self._extract_lazy_fields(index, field_data, self[index])
+        return self
+
+    __repr__ = __str__
 
 
 class ExtraList(list):

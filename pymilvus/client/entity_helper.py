@@ -15,7 +15,12 @@ from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 
 from .types import DataType
-from .utils import SciPyHelper, SparseMatrixInputType, SparseRowOutputType
+from .utils import (
+    SciPyHelper,
+    SparseMatrixInputType,
+    SparseRowOutputType,
+    sparse_parse_single_row,
+)
 
 CHECK_STR_ARRAY = True
 
@@ -56,17 +61,6 @@ def entity_is_sparse_matrix(entity: Any):
     except Exception:
         return False
     return True
-
-
-# parses plain bytes to a sparse float vector(SparseRowOutputType)
-def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
-    if len(data) % 8 != 0:
-        raise ParamError(message=f"The length of data must be a multiple of 8, got {len(data)}")
-
-    return {
-        struct.unpack("I", data[i : i + 4])[0]: struct.unpack("f", data[i + 4 : i + 8])[0]
-        for i in range(0, len(data), 8)
-    }
 
 
 # converts supported sparse matrix to schemapb.SparseFloatArray proto
@@ -515,35 +509,182 @@ def extract_dynamic_field_from_result(raw: Any):
     return dynamic_field_name, dynamic_fields
 
 
+def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
+    field_name = field_data.field_name
+    data = field_data.scalars.array_data.data
+    element_type = field_data.scalars.array_data.element_type
+    if element_type == DataType.INT64:
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].long_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type == DataType.BOOL:
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].bool_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type in (
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+    ):
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].int_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type == DataType.FLOAT:
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].float_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type == DataType.DOUBLE:
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].double_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type in (
+        DataType.STRING,
+        DataType.VARCHAR,
+    ):
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].string_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    else:
+        raise MilvusException(message=f"Unsupported data type: {element_type}")
+
+
+def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
+    field_name = field_data.field_name
+    data = field_data.scalars.array_data.data
+    element_type = field_data.scalars.array_data.element_type
+    if element_type == DataType.INT64:
+        [entity_rows[i].__setitem__(field_name, data[i].long_data.data) for i in range(row_count)]
+    elif element_type == DataType.BOOL:
+        [entity_rows[i].__setitem__(field_name, data[i].bool_data.data) for i in range(row_count)]
+    elif element_type in (
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+    ):
+        [entity_rows[i].__setitem__(field_name, data[i].int_data.data) for i in range(row_count)]
+    elif element_type == DataType.FLOAT:
+        [entity_rows[i].__setitem__(field_name, data[i].float_data.data) for i in range(row_count)]
+    elif element_type == DataType.DOUBLE:
+        [entity_rows[i].__setitem__(field_name, data[i].double_data.data) for i in range(row_count)]
+    elif element_type in (
+        DataType.STRING,
+        DataType.VARCHAR,
+    ):
+        [entity_rows[i].__setitem__(field_name, data[i].string_data.data) for i in range(row_count)]
+    else:
+        raise MilvusException(message=f"Unsupported data type: {element_type}")
+
+
 def extract_array_row_data(field_data: Any, index: int):
     array = field_data.scalars.array_data.data[index]
-    row = []
     if field_data.scalars.array_data.element_type == DataType.INT64:
-        row.extend(array.long_data.data)
-        return row
+        return array.long_data.data
     if field_data.scalars.array_data.element_type == DataType.BOOL:
-        row.extend(array.bool_data.data)
-        return row
+        return array.bool_data.data
     if field_data.scalars.array_data.element_type in (
         DataType.INT8,
         DataType.INT16,
         DataType.INT32,
     ):
-        row.extend(array.int_data.data)
-        return row
+        return array.int_data.data
     if field_data.scalars.array_data.element_type == DataType.FLOAT:
-        row.extend(array.float_data.data)
-        return row
+        return array.float_data.data
     if field_data.scalars.array_data.element_type == DataType.DOUBLE:
-        row.extend(array.double_data.data)
-        return row
+        return array.double_data.data
     if field_data.scalars.array_data.element_type in (
         DataType.STRING,
         DataType.VARCHAR,
     ):
-        row.extend(array.string_data.data)
-        return row
-    return row
+        return array.string_data.data
+    return None
+
+
+def extract_row_data_from_fields_data_v2(
+    field_data: Any,
+    entity_rows: List[Dict],
+) -> bool:
+    row_count = len(entity_rows)
+    has_valid = len(field_data.valid_data) > 0
+    field_name = field_data.field_name
+    valid_data = field_data.valid_data
+
+    def assign_scalar(data: List[Any]) -> None:
+        if has_valid:
+            [
+                entity_rows[i].__setitem__(field_name, None if not valid_data[i] else data[i])
+                for i in range(row_count)
+            ]
+        else:
+            [entity_rows[i].__setitem__(field_name, data[i]) for i in range(row_count)]
+
+    if field_data.type == DataType.BOOL:
+        data = field_data.scalars.bool_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
+        data = field_data.scalars.int_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.INT64:
+        data = field_data.scalars.long_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.FLOAT:
+        data = field_data.scalars.float_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.DOUBLE:
+        data = field_data.scalars.double_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.VARCHAR:
+        data = field_data.scalars.string_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.JSON:
+        return True
+
+    if field_data.type == DataType.ARRAY:
+        if has_valid:
+            extract_array_row_data_with_validity(field_data, entity_rows, row_count)
+        else:
+            extract_array_row_data_no_validity(field_data, entity_rows, row_count)
+        return False
+    if field_data.type in (
+        DataType.FLOAT_VECTOR,
+        DataType.FLOAT16_VECTOR,
+        DataType.BFLOAT16_VECTOR,
+        DataType.BINARY_VECTOR,
+        DataType.SPARSE_FLOAT_VECTOR,
+    ):
+        return True
+    if field_data.type == DataType.STRING:
+        raise MilvusException(message="Not support string yet")
+    return False
 
 
 # pylint: disable=R1702 (too-many-nested-blocks)

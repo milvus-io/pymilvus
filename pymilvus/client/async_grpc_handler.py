@@ -36,7 +36,7 @@ from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
     DataType,
-    ExtraList,
+    HybridExtraList,
     IndexState,
     Status,
     get_cost_extra,
@@ -925,17 +925,20 @@ class AsyncGrpcHandler:
             raise MilvusException(message="The length of fields data is inconsistent")
 
         _, dynamic_fields = entity_helper.extract_dynamic_field_from_result(response)
-
-        results = []
-        for index in range(num_entities):
-            entity_row_data = entity_helper.extract_row_data_from_fields_data(
-                response.fields_data, index, dynamic_fields
-            )
-            results.append(entity_row_data)
+        keys = [field_data.field_name for field_data in response.fields_data]
+        filtered_keys = [k for k in keys if k != "$meta"]
+        results = [dict.fromkeys(filtered_keys) for _ in range(num_entities)]
+        lazy_field_data = []
+        for field_data in response.fields_data:
+            lazy_extracted = entity_helper.extract_row_data_from_fields_data_v2(field_data, results)
+            if lazy_extracted:
+                lazy_field_data.append(field_data)
 
         extra_dict = get_cost_extra(response.status)
         extra_dict[ITERATOR_SESSION_TS_FIELD] = response.session_ts
-        return ExtraList(results, extra=extra_dict)
+        return HybridExtraList(
+            lazy_field_data, results, extra=extra_dict, dynamic_fields=dynamic_fields
+        )
 
     @retry_on_rpc_failure()
     @ignore_unimplemented(0)
