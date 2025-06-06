@@ -414,6 +414,11 @@ class FieldSchema:
         self.element_type = kwargs.get("element_type")
         if "mmap_enabled" in kwargs:
             self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
+        # use `skip_load` to follow other kwargs format
+        if "skip_load" in kwargs:
+            self._type_params["field.skipLoad"] = kwargs[
+                "skip_load"
+            ]  # set `field.skipLoad` since it's the actual key
         self._parse_type_params()
         self.is_function_output = False
 
