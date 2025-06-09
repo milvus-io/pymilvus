@@ -414,6 +414,11 @@ class FieldSchema:
         self.element_type = kwargs.get("element_type")
         if "mmap_enabled" in kwargs:
             self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
+
+        for key in ["analyzer_params", "multi_analyzer_params"]:
+            if key in self._kwargs and isinstance(self._kwargs[key], dict):
+                self._kwargs[key] = ujson.dumps(self._kwargs[key])
+
         self._parse_type_params()
         self.is_function_output = False
 
@@ -450,12 +455,6 @@ class FieldSchema:
                             continue
                         if self._kwargs[k].lower() == "false":
                             self._type_params[k] = False
-                            continue
-                        if k in ("analyzer_params", "multi_analyzer_params"):
-                            # TODO: a more complicate json may be reordered which
-                            # can still cause server_schema == schema to be False.
-                            # need a better approach.
-                            self._type_params[k] = ujson.dumps(self._kwargs[k])
                             continue
                     self._type_params[k] = self._kwargs[k]
 
