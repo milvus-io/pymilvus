@@ -148,7 +148,8 @@ class Prepare:
             )
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(
-                    key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=ujson.dumps(v)
+                    key=str(k) if k != "mmap_enabled" else "mmap.enabled",
+                    value=ujson.dumps(v) if not isinstance(v, str) else str(v),
                 )
                 field_schema.type_params.append(kv_pair)
 
@@ -229,7 +230,8 @@ class Prepare:
             raise ParamError(message="params should be dictionary type")
         kvs = [
             common_types.KeyValuePair(
-                key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=ujson.dumps(v)
+                key=str(k) if k != "mmap_enabled" else "mmap.enabled",
+                value=str(v),
             )
             for k, v in type_params.items()
         ]
@@ -269,7 +271,6 @@ class Prepare:
             (field_schema, primary_field, auto_id_field) = cls.get_field_schema(
                 field, primary_field, auto_id_field
             )
-
             schema.fields.append(field_schema)
         return schema
 
