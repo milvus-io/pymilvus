@@ -1,30 +1,33 @@
 import asyncio
 import base64
 import copy
+import json
 import socket
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 from urllib import parse
 
 import grpc
 from grpc._cython import cygrpc
 
+from pymilvus.client.types import ResourceGroupConfig
 from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure
 from pymilvus.exceptions import (
     AmbiguousIndexName,
     DescribeCollectionException,
+    ErrorCode,
     ExceptionsMessage,
     MilvusException,
     ParamError,
 )
+from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-from pymilvus.grpc_gen import milvus_pb2_grpc
 from pymilvus.orm.schema import Function
 from pymilvus.settings import Config
 
 from . import entity_helper, ts_utils, utils
-from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, MutationResult
+from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, FieldSchema, MutationResult
 from .async_interceptor import async_header_adder_interceptor
 from .check import (
     check_pass_param,
@@ -36,9 +39,13 @@ from .interceptor import _api_level_md
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
+    DatabaseInfo,
     DataType,
     ExtraList,
     IndexState,
+    LoadState,
+    ReplicaInfo,
+    Shard,
     Status,
     get_cost_extra,
 )
@@ -105,6 +112,15 @@ class AsyncGrpcHandler:
     async def close(self):
         await self._async_channel.close()
         self._async_channel = None
+
+    def register_state_change_callback(self, callback: Callable):
+        self.callbacks.append(callback)
+        self._async_channel.subscribe(callback, try_to_connect=True)
+
+    def deregister_state_change_callbacks(self):
+        for callback in self.callbacks:
+            self._async_channel.unsubscribe(callback)
+        self.callbacks = []
 
     def _setup_authorization_interceptor(self, user: str, password: str, token: str):
         keys = []
@@ -339,6 +355,163 @@ class AsyncGrpcHandler:
             return CollectionSchema(raw=response).dict()
 
         raise DescribeCollectionException(status.code, status.reason, status.error_code)
+
+    @retry_on_rpc_failure()
+    async def has_collection(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> bool:
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.describe_collection_request(collection_name)
+        reply = await self._async_stub.DescribeCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+
+        if (
+            reply.status.error_code == common_pb2.UnexpectedError
+            and "can't find collection" in reply.status.reason
+        ):
+            return False
+
+        if reply.status.error_code == common_pb2.CollectionNotExists:
+            return False
+
+        if is_successful(reply.status):
+            return True
+
+        if reply.status.code == ErrorCode.COLLECTION_NOT_FOUND:
+            return False
+
+        raise MilvusException(reply.status.code, reply.status.reason, reply.status.error_code)
+
+    @retry_on_rpc_failure()
+    async def list_collections(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
+        await self.ensure_channel_ready()
+        request = Prepare.show_collections_request()
+        response = await self._async_stub.ShowCollections(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        status = response.status
+        check_status(status)
+        return list(response.collection_names)
+
+    @retry_on_rpc_failure()
+    async def get_collection_stats(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        index_param = Prepare.get_collection_stats_request(collection_name)
+        response = await self._async_stub.GetCollectionStatistics(
+            index_param, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        status = response.status
+        check_status(status)
+        return response.stats
+
+    @retry_on_rpc_failure()
+    async def get_partition_stats(
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        req = Prepare.get_partition_stats_request(collection_name, partition_name)
+        response = await self._async_stub.GetPartitionStatistics(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        status = response.status
+        check_status(status)
+        return response.stats
+
+    @retry_on_rpc_failure()
+    async def get_load_state(
+        self,
+        collection_name: str,
+        partition_names: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        request = Prepare.get_load_state(collection_name, partition_names)
+        response = await self._async_stub.GetLoadState(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        return LoadState(response.state)
+
+    @retry_on_rpc_failure()
+    async def refresh_load(
+        self,
+        collection_name: str,
+        partition_names: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        request = Prepare.get_loading_progress(collection_name, partition_names)
+        response = await self._async_stub.GetLoadingProgress(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        return response.refresh_progress
+
+    @retry_on_rpc_failure()
+    async def get_server_version(self, timeout: Optional[float] = None, **kwargs) -> str:
+        await self.ensure_channel_ready()
+        req = Prepare.get_server_version()
+        resp = await self._async_stub.GetVersion(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(resp.status)
+        return resp.version
+
+    @retry_on_rpc_failure()
+    async def describe_replica(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[ReplicaInfo]:
+        await self.ensure_channel_ready()
+        collection_id = (await self.describe_collection(collection_name, timeout, **kwargs))[
+            "collection_id"
+        ]
+
+        req = Prepare.get_replicas(collection_id)
+        response = await self._async_stub.GetReplicas(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(response.status)
+
+        groups = []
+        for replica in response.replicas:
+            shards = [
+                Shard(s.dm_channel_name, s.node_ids, s.leaderID) for s in replica.shard_replicas
+            ]
+            groups.append(
+                ReplicaInfo(
+                    replica.replicaID,
+                    shards,
+                    replica.node_ids,
+                    replica.resource_group_name,
+                    replica.num_outbound_node,
+                )
+            )
+
+        return groups
+
+    @retry_on_rpc_failure()
+    async def rename_collection(
+        self,
+        old_name: str,
+        new_name: str,
+        new_db_name: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=new_name, timeout=timeout)
+        check_pass_param(collection_name=old_name)
+        if new_db_name:
+            check_pass_param(db_name=new_db_name)
+        request = Prepare.rename_collections_request(old_name, new_name, new_db_name)
+        status = await self._async_stub.RenameCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
 
     async def _get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         schema = kwargs.get("schema")
@@ -753,7 +926,6 @@ class AsyncGrpcHandler:
         if len(response.index_descriptions) == 1:
             index_desc = response.index_descriptions[0]
             return index_desc.state, index_desc.index_state_fail_reason
-        # just for create_index.
         field_name = kwargs.pop("field_name", "")
         if field_name != "":
             for index_desc in response.index_descriptions:
@@ -883,6 +1055,34 @@ class AsyncGrpcHandler:
         check_status(response)
 
     @retry_on_rpc_failure()
+    async def has_partition(
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> bool:
+        await self.ensure_channel_ready()
+        check_pass_param(
+            collection_name=collection_name, partition_name=partition_name, timeout=timeout
+        )
+        request = Prepare.has_partition_request(collection_name, partition_name)
+        response = await self._async_stub.HasPartition(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        return response.value
+
+    @retry_on_rpc_failure()
+    async def list_partitions(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[str]:
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.show_partitions_request(collection_name)
+        response = await self._async_stub.ShowPartitions(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        return list(response.partition_names)
+
+    @retry_on_rpc_failure()
     async def get(
         self,
         collection_name: str,
@@ -947,9 +1147,706 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     @ignore_unimplemented(0)
     async def alloc_timestamp(self, timeout: Optional[float] = None, **kwargs) -> int:
+        await self.ensure_channel_ready()
         request = milvus_types.AllocTimestampRequest()
         response = await self._async_stub.AllocTimestamp(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(response.status)
         return response.timestamp
+
+    @retry_on_rpc_failure()
+    async def alter_collection_properties(
+        self, collection_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, properties=properties, timeout=timeout)
+        request = Prepare.alter_collection_request(collection_name, properties=properties)
+        status = await self._async_stub.AlterCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    async def drop_collection_properties(
+        self,
+        collection_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_collection_request(collection_name, delete_keys=property_keys)
+        status = await self._async_stub.AlterCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    async def alter_collection_field(
+        self,
+        collection_name: str,
+        field_name: str,
+        field_params: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, properties=field_params, timeout=timeout)
+        request = Prepare.alter_collection_field_request(
+            collection_name=collection_name, field_name=field_name, field_param=field_params
+        )
+        status = await self._async_stub.AlterCollectionField(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    async def add_collection_field(
+        self,
+        collection_name: str,
+        field_schema: FieldSchema,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.add_collection_field_request(collection_name, field_schema)
+        status = await self._async_stub.AddCollectionField(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    async def list_indexes(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.describe_index_request(collection_name, "")
+
+        response = await self._async_stub.DescribeIndex(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        status = response.status
+        if is_successful(status):
+            return response.index_descriptions
+        if status.code == ErrorCode.INDEX_NOT_FOUND or status.error_code == Status.INDEX_NOT_EXIST:
+            return []
+        raise MilvusException(status.code, status.reason, status.error_code)
+
+    @retry_on_rpc_failure()
+    async def describe_index(
+        self,
+        collection_name: str,
+        index_name: str,
+        timeout: Optional[float] = None,
+        timestamp: Optional[int] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
+        request = Prepare.describe_index_request(collection_name, index_name, timestamp=timestamp)
+
+        response = await self._async_stub.DescribeIndex(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        status = response.status
+        if status.code == ErrorCode.INDEX_NOT_FOUND or status.error_code == Status.INDEX_NOT_EXIST:
+            return None
+        check_status(status)
+        if len(response.index_descriptions) == 1:
+            info_dict = {kv.key: kv.value for kv in response.index_descriptions[0].params}
+            info_dict["field_name"] = response.index_descriptions[0].field_name
+            info_dict["index_name"] = response.index_descriptions[0].index_name
+            if info_dict.get("params"):
+                info_dict["params"] = json.loads(info_dict["params"])
+            info_dict["total_rows"] = response.index_descriptions[0].total_rows
+            info_dict["indexed_rows"] = response.index_descriptions[0].indexed_rows
+            info_dict["pending_index_rows"] = response.index_descriptions[0].pending_index_rows
+            info_dict["state"] = common_pb2.IndexState.Name(response.index_descriptions[0].state)
+            return info_dict
+
+        raise AmbiguousIndexName(message=ExceptionsMessage.AmbiguousIndexName)
+
+    @retry_on_rpc_failure()
+    async def alter_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        properties: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
+        if properties is None:
+            raise ParamError(message="properties should not be None")
+
+        request = Prepare.alter_index_properties_request(collection_name, index_name, properties)
+        response = await self._async_stub.AlterIndex(request, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    async def drop_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
+        request = Prepare.drop_index_properties_request(
+            collection_name, index_name, delete_keys=property_keys
+        )
+        response = await self._async_stub.AlterIndex(request, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    async def create_alias(
+        self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.create_alias_request(collection_name, alias)
+        response = await self._async_stub.CreateAlias(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    async def drop_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        request = Prepare.drop_alias_request(alias)
+        response = await self._async_stub.DropAlias(request, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    async def alter_alias(
+        self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_alias_request(collection_name, alias)
+        response = await self._async_stub.AlterAlias(request, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(response)
+
+    @retry_on_rpc_failure()
+    async def describe_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        check_pass_param(alias=alias, timeout=timeout)
+        request = Prepare.describe_alias_request(alias)
+        response = await self._async_stub.DescribeAlias(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        ret = {
+            "alias": alias,
+        }
+        if response.collection:
+            ret["collection_name"] = response.collection
+        if response.db_name:
+            ret["db_name"] = response.db_name
+        return ret
+
+    @retry_on_rpc_failure()
+    async def list_aliases(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.list_aliases_request(collection_name)
+        response = await self._async_stub.ListAliases(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        return response.aliases
+
+    def reset_db_name(self, db_name: str):
+        self._setup_db_name(db_name)
+        self._setup_grpc_channel()
+
+    @retry_on_rpc_failure()
+    async def create_database(
+        self,
+        db_name: str,
+        properties: Optional[dict] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(db_name=db_name, timeout=timeout)
+        request = Prepare.create_database_req(db_name, properties=properties)
+        status = await self._async_stub.CreateDatabase(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    async def drop_database(self, db_name: str, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        request = Prepare.drop_database_req(db_name)
+        status = await self._async_stub.DropDatabase(request, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    async def list_database(self, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        check_pass_param(timeout=timeout)
+        request = Prepare.list_database_req()
+        response = await self._async_stub.ListDatabases(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        return list(response.db_names)
+
+    @retry_on_rpc_failure()
+    async def alter_database(
+        self, db_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        request = Prepare.alter_database_properties_req(db_name, properties)
+        status = await self._async_stub.AlterDatabase(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    async def drop_database_properties(
+        self, db_name: str, property_keys: List[str], timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        request = Prepare.drop_database_properties_req(db_name, property_keys)
+        status = await self._async_stub.AlterDatabase(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    async def describe_database(self, db_name: str, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        request = Prepare.describe_database_req(db_name=db_name)
+        resp = await self._async_stub.DescribeDatabase(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp.status)
+        return DatabaseInfo(resp).to_dict()
+
+    @retry_on_rpc_failure()
+    async def create_privilege_group(
+        self, privilege_group: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.create_privilege_group_req(privilege_group)
+        resp = await self._async_stub.CreatePrivilegeGroup(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def drop_privilege_group(
+        self, privilege_group: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.drop_privilege_group_req(privilege_group)
+        resp = await self._async_stub.DropPrivilegeGroup(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def list_privilege_groups(self, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        req = Prepare.list_privilege_groups_req()
+        resp = await self._async_stub.ListPrivilegeGroups(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp.status)
+        return resp.privilege_groups
+
+    @retry_on_rpc_failure()
+    async def add_privileges_to_group(
+        self, privilege_group: str, privileges: List[str], timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.operate_privilege_group_req(
+            privilege_group, privileges, milvus_types.OperatePrivilegeGroupType.AddPrivilegesToGroup
+        )
+        resp = await self._async_stub.OperatePrivilegeGroup(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def remove_privileges_from_group(
+        self, privilege_group: str, privileges: List[str], timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.operate_privilege_group_req(
+            privilege_group,
+            privileges,
+            milvus_types.OperatePrivilegeGroupType.RemovePrivilegesFromGroup,
+        )
+        resp = await self._async_stub.OperatePrivilegeGroup(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def create_user(self, user: str, password: str, timeout: Optional[float] = None, **kwargs):
+        check_pass_param(user=user, password=password, timeout=timeout)
+        req = Prepare.create_user_request(user, password)
+        resp = await self._async_stub.CreateCredential(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def drop_user(self, user: str, timeout: Optional[float] = None, **kwargs):
+        req = Prepare.delete_user_request(user)
+        resp = await self._async_stub.DeleteCredential(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def update_password(
+        self,
+        user: str,
+        old_password: str,
+        new_password: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        req = Prepare.update_password_request(user, old_password, new_password)
+        resp = await self._async_stub.UpdateCredential(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def list_users(self, timeout: Optional[float] = None, **kwargs):
+        req = Prepare.list_usernames_request()
+        resp = await self._async_stub.ListCredUsers(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(resp.status)
+        return resp.usernames
+
+    @retry_on_rpc_failure()
+    async def describe_user(
+        self, username: str, include_role_info: bool, timeout: Optional[float] = None, **kwargs
+    ):
+        req = Prepare.select_user_request(username, include_role_info)
+        resp = await self._async_stub.SelectUser(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp.status)
+        return resp
+
+    @retry_on_rpc_failure()
+    async def create_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        req = Prepare.create_role_request(role_name)
+        resp = await self._async_stub.CreateRole(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def drop_role(
+        self, role_name: str, force_drop: bool = False, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.drop_role_request(role_name, force_drop=force_drop)
+        resp = await self._async_stub.DropRole(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def grant_role(
+        self, username: str, role_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.operate_user_role_request(
+            username, role_name, milvus_types.OperateUserRoleType.AddUserToRole
+        )
+        resp = await self._async_stub.OperateUserRole(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def revoke_role(
+        self, username: str, role_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.operate_user_role_request(
+            username, role_name, milvus_types.OperateUserRoleType.RemoveUserFromRole
+        )
+        resp = await self._async_stub.OperateUserRole(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def describe_role(
+        self, role_name: str, include_user_info: bool, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.select_role_request(role_name, include_user_info)
+        resp = await self._async_stub.SelectRole(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp.status)
+        return resp.results
+
+    @retry_on_rpc_failure()
+    async def list_roles(self, include_user_info: bool, timeout: Optional[float] = None, **kwargs):
+        await self.ensure_channel_ready()
+        req = Prepare.select_role_request(None, include_user_info)
+        resp = await self._async_stub.SelectRole(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp.status)
+        return resp.results
+
+    @retry_on_rpc_failure()
+    async def select_grant_for_one_role(
+        self, role_name: str, db_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.select_grant_request(role_name, None, None, db_name)
+        resp = await self._async_stub.SelectGrant(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp.status)
+        from pymilvus.client.types import GrantInfo
+        return GrantInfo(resp.entities)
+
+    @retry_on_rpc_failure()
+    async def grant_privilege(
+        self,
+        role_name: str,
+        object: str,
+        object_name: str,
+        privilege: str,
+        db_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.operate_privilege_request(
+            role_name,
+            object,
+            object_name,
+            privilege,
+            db_name,
+            milvus_types.OperatePrivilegeType.Grant,
+        )
+        resp = await self._async_stub.OperatePrivilege(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def revoke_privilege(
+        self,
+        role_name: str,
+        object: str,
+        object_name: str,
+        privilege: str,
+        db_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.operate_privilege_request(
+            role_name,
+            object,
+            object_name,
+            privilege,
+            db_name,
+            milvus_types.OperatePrivilegeType.Revoke,
+        )
+        resp = await self._async_stub.OperatePrivilege(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def grant_privilege_v2(
+        self,
+        role_name: str,
+        privilege: str,
+        collection_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.operate_privilege_v2_request(
+            role_name,
+            privilege,
+            milvus_types.OperatePrivilegeType.Grant,
+            db_name,
+            collection_name,
+        )
+        resp = await self._async_stub.OperatePrivilegeV2(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def revoke_privilege_v2(
+        self,
+        role_name: str,
+        privilege: str,
+        collection_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.operate_privilege_v2_request(
+            role_name,
+            privilege,
+            milvus_types.OperatePrivilegeType.Revoke,
+            db_name,
+            collection_name,
+        )
+        resp = await self._async_stub.OperatePrivilegeV2(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def create_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
+        req = Prepare.create_resource_group(name, **kwargs)
+        resp = await self._async_stub.CreateResourceGroup(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def drop_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
+        req = Prepare.drop_resource_group(name)
+        resp = await self._async_stub.DropResourceGroup(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def update_resource_groups(
+        self, configs: Dict[str, ResourceGroupConfig], timeout: Optional[float] = None, **kwargs
+    ):
+        req = Prepare.update_resource_groups(configs)
+        resp = await self._async_stub.UpdateResourceGroups(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def describe_resource_group(
+        self, name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        req = Prepare.describe_resource_group(name)
+        resp = await self._async_stub.DescribeResourceGroup(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp.status)
+        return resp.resource_group
+
+    @retry_on_rpc_failure()
+    async def list_resource_groups(self, timeout: Optional[float] = None, **kwargs):
+        req = Prepare.list_resource_groups()
+        resp = await self._async_stub.ListResourceGroups(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp.status)
+        return list(resp.resource_groups)
+
+    @retry_on_rpc_failure()
+    async def transfer_replica(
+        self,
+        source: str,
+        target: str,
+        collection_name: str,
+        num_replica: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        req = Prepare.transfer_replica(source, target, collection_name, num_replica)
+        resp = await self._async_stub.TransferReplica(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def flush(
+        self, collection_names: List[str], timeout: Optional[float] = None, **kwargs
+    ):
+        req = Prepare.flush_param(collection_names)
+        response = await self._async_stub.Flush(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(response.status)
+        return response
+
+    @retry_on_rpc_failure()
+    async def compact(
+        self,
+        collection_name: str,
+        is_clustering: Optional[bool] = False,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> int:
+        meta = _api_level_md(**kwargs)
+        request = Prepare.describe_collection_request(collection_name)
+        response = await self._async_stub.DescribeCollection(request, timeout=timeout, metadata=meta)
+        check_status(response.status)
+
+        req = Prepare.manual_compaction(response.collectionID, collection_name, is_clustering)
+        response = await self._async_stub.ManualCompaction(req, timeout=timeout, metadata=meta)
+        check_status(response.status)
+
+        return response.compactionID
+
+    @retry_on_rpc_failure()
+    async def get_compaction_state(
+        self, compaction_id: int, timeout: Optional[float] = None, **kwargs
+    ):
+        req = Prepare.get_compaction_state(compaction_id)
+        response = await self._async_stub.GetCompactionState(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+
+        from .types import CompactionState, State
+        return CompactionState(
+            compaction_id,
+            State.new(response.state),
+            response.executingPlanNo,
+            response.timeoutPlanNo,
+            response.completedPlanNo,
+        )
+
+    @retry_on_rpc_failure()
+    async def run_analyzer(
+        self,
+        texts: Union[str, List[str]],
+        analyzer_params: Optional[Union[str, Dict]] = None,
+        with_hash: bool = False,
+        with_detail: bool = False,
+        collection_name: Optional[str] = None,
+        field_name: Optional[str] = None,
+        analyzer_names: Optional[Union[str, List[str]]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        req = Prepare.run_analyzer(
+            texts,
+            analyzer_params=analyzer_params,
+            with_hash=with_hash,
+            with_detail=with_detail,
+            collection_name=collection_name,
+            field_name=field_name,
+            analyzer_names=analyzer_names,
+        )
+        resp = await self._async_stub.RunAnalyzer(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(resp.status)
+
+        from .types import AnalyzeResult
+        if isinstance(texts, str):
+            return AnalyzeResult(resp.results[0], with_hash, with_detail)
+        return [AnalyzeResult(result, with_hash, with_detail) for result in resp.results]
