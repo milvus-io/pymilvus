@@ -1770,15 +1770,18 @@ class GrpcHandler:
         **kwargs,
     ) -> int:
         meta = _api_level_md(**kwargs)
-        # should be removed, but to be compatible with old milvus server, keep it for now.
-        request = Prepare.describe_collection_request(collection_name)
-        response = self._stub.DescribeCollection(request, timeout=timeout, metadata=meta)
-        check_status(response.status)
-
-        req = Prepare.manual_compaction(response.collectionID, collection_name, is_clustering)
+        # try with only collection_name
+        req = Prepare.manual_compaction(None, collection_name, is_clustering)
         response = self._stub.ManualCompaction(req, timeout=timeout, metadata=meta)
-        check_status(response.status)
+        if response.status.error_code == common_pb2.CollectionNameNotFound:
+            # should be removed, but to be compatible with old milvus server, keep it for now.
+            request = Prepare.describe_collection_request(collection_name)
+            response = self._stub.DescribeCollection(request, timeout=timeout, metadata=meta)
+            check_status(response.status)
 
+            req = Prepare.manual_compaction(response.collectionID, collection_name, is_clustering)
+            response = self._stub.ManualCompaction(req, timeout=timeout, metadata=meta)
+        check_status(response.status)
         return response.compactionID
 
     @retry_on_rpc_failure()
