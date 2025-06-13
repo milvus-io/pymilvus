@@ -1053,7 +1053,6 @@ class HybridExtraList(list):
         self._has_materialized_float_vector = False
 
     def _extract_lazy_fields(self, index: int, field_data: Any, row_data: Dict) -> Any:
-
         if field_data.type == DataType.JSON:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
                 row_data[field_data.field_name] = None
@@ -1129,7 +1128,8 @@ class HybridExtraList(list):
         self._pre_materialize_float_vector()
         row = super().__getitem__(index)
         for field_data in self._lazy_field_data:
-            self._extract_lazy_fields(index, field_data, row)
+            if row.get(field_data.field_name) is None:
+                self._extract_lazy_fields(index, field_data, row)
         return row
 
     def __iter__(self):
