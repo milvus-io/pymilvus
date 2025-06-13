@@ -1,5 +1,6 @@
 import datetime
 import importlib.util
+import struct
 from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -417,3 +418,14 @@ def is_binary_vector_type(data_type: DataType):
 
 def is_vector_type(data_type: DataType):
     return is_float_vector_type(data_type) or is_binary_vector_type(data_type)
+
+
+# parses plain bytes to a sparse float vector(SparseRowOutputType)
+def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
+    if len(data) % 8 != 0:
+        raise ParamError(message=f"The length of data must be a multiple of 8, got {len(data)}")
+
+    return {
+        struct.unpack("I", data[i : i + 4])[0]: struct.unpack("f", data[i + 4 : i + 8])[0]
+        for i in range(0, len(data), 8)
+    }

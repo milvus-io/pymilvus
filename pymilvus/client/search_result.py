@@ -3,9 +3,163 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import ujson
 
 from pymilvus.client.types import DataType
+from pymilvus.exceptions import MilvusException
 from pymilvus.grpc_gen import common_pb2, schema_pb2
+from pymilvus.grpc_gen.schema_pb2 import FieldData
 
 from . import entity_helper
+
+
+class HybridHits(list):
+    ids: List[Union[str, int]]
+    distances: List[float]
+    lazy_field_data: List[schema_pb2.FieldData]
+    has_materialized: bool
+    dynamic_fields: List[str]
+    start: int
+
+    def __init__(
+        self,
+        start: int,
+        end: int,
+        all_pks: List[Union[str, int]],
+        all_scores: List[float],
+        fields_data: List[schema_pb2.FieldData],
+        output_fields: List[str],
+        pk_name: str,
+    ):
+        self.ids = all_pks[start:end]
+        self.distances = all_scores[start:end]
+        self.dynamic_fields = set(output_fields) - {
+            field_data.field_name for field_data in fields_data
+        }
+        self.lazy_field_data = []
+        self.has_materialized = False
+        self.start = start
+        top_k_res = [
+            Hit({pk_name: all_pks[i], "distance": all_scores[i], "entity": {}}, pk_name=pk_name)
+            for i in range(start, end)
+        ]
+        for field_data in fields_data:
+            data = get_field_data(field_data)
+            has_valid = len(field_data.valid_data) > 0
+            if field_data.type in [
+                DataType.BOOL,
+                DataType.INT8,
+                DataType.INT16,
+                DataType.INT32,
+                DataType.INT64,
+                DataType.FLOAT,
+                DataType.DOUBLE,
+                DataType.VARCHAR,
+            ]:
+                if has_valid:
+                    [
+                        hit["entity"].__setitem__(
+                            field_data.field_name,
+                            data[i + start] if field_data.valid_data[i + start] else None,
+                        )
+                        for i, hit in enumerate(top_k_res)
+                    ]
+                else:
+                    [
+                        hit["entity"].__setitem__(field_data.field_name, data[i + start])
+                        for i, hit in enumerate(top_k_res)
+                    ]
+            elif field_data.type == DataType.ARRAY:
+                element_type = field_data.scalars.array_data.element_type
+                for i, hit in enumerate(top_k_res):
+                    array_data = field_data.scalars.array_data.data[i + start]
+                    extracted_array_row_data = extract_array_row_data([array_data], element_type)
+                    hit["entity"].__setitem__(field_data.field_name, extracted_array_row_data[0])
+            elif field_data.type in [
+                DataType.FLOAT_VECTOR,
+                DataType.BINARY_VECTOR,
+                DataType.BFLOAT16_VECTOR,
+                DataType.FLOAT16_VECTOR,
+                DataType.SPARSE_FLOAT_VECTOR,
+                DataType.JSON,
+            ]:
+                self.lazy_field_data.append(field_data)
+            else:
+                msg = f"Unsupported field type: {field_data.type}"
+                raise MilvusException(msg)
+        super().__init__(top_k_res)
+
+    def __str__(self) -> str:
+        """Only print at most 10 query results"""
+        reminder = f" ... and {len(self) - 10} entities remaining" if len(self) > 10 else ""
+        return f"{self[:10]}{reminder}"
+
+    def __getitem__(self, key: int):
+        self.materialize()
+        return super().__getitem__(key)
+
+    def get_raw_item(self, idx: int):
+        """Get the item at index without triggering materialization"""
+        return list.__getitem__(self, idx)
+
+    def materialize(self):
+        if not self.has_materialized:
+            for field_data in self.lazy_field_data:
+                field_name = field_data.field_name
+
+                if field_data.type in [
+                    DataType.FLOAT_VECTOR,
+                    DataType.BINARY_VECTOR,
+                    DataType.BFLOAT16_VECTOR,
+                    DataType.FLOAT16_VECTOR,
+                ]:
+                    data = get_field_data(field_data)
+                    dim = field_data.vectors.dim
+                    if field_data.type in [DataType.BINARY_VECTOR]:
+                        dim = dim // 8
+                    elif field_data.type in [DataType.BFLOAT16_VECTOR, DataType.FLOAT16_VECTOR]:
+                        dim = dim * 2
+                    idx = self.start * dim
+                    for i in range(len(self)):
+                        item = self.get_raw_item(i)
+                        item["entity"][field_name] = data[idx : idx + dim]
+                        idx += dim
+                elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
+                    idx = self.start
+                    for i in range(len(self)):
+                        item = self.get_raw_item(i)
+                        item["entity"][field_name] = entity_helper.sparse_proto_to_rows(
+                            field_data.vectors.sparse_float_vector, idx, idx + 1
+                        )
+                        idx += 1
+                elif field_data.type == DataType.JSON:
+                    idx = self.start
+                    for i in range(len(self)):
+                        item = self.get_raw_item(i)
+                        if field_data.valid_data and not field_data.valid_data[idx]:
+                            item["entity"][field_name] = None
+                        else:
+                            json_data = field_data.scalars.json_data.data[idx]
+                            json_dict_list = (
+                                ujson.loads(json_data) if json_data is not None else None
+                            )
+                            if not field_data.is_dynamic:
+                                item["entity"][field_data.field_name] = json_dict_list
+                            elif not self.dynamic_fields:
+                                item["entity"].update(json_dict_list)
+                            else:
+                                item["entity"].update(
+                                    {
+                                        k: v
+                                        for k, v in json_dict_list.items()
+                                        if k in self.dynamic_fields
+                                    }
+                                )
+                        idx += 1
+                else:
+                    msg = f"Unsupported field type: {field_data.type}"
+                    raise MilvusException(msg)
+
+        self.has_materialized = True
+
+    __repr__ = __str__
 
 
 class SearchResult(list):
@@ -72,6 +226,10 @@ class SearchResult(list):
 
     __repr__ = __str__
 
+    def materialize(self):
+        for i in range(len(self)):
+            self[i].materialize()
+
     def _parse_search_result_data(
         self,
         res: schema_pb2.SearchResultData,
@@ -93,15 +251,16 @@ class SearchResult(list):
 
         data = []
         nq_thres = 0
+
         for topk in res.topks:
             start, end = nq_thres, nq_thres + topk
-            nq_th_fields = self._get_fields_by_range(start, end, res.fields_data)
             data.append(
-                Hits(
-                    topk,
-                    all_pks[start:end],
-                    all_scores[start:end],
-                    nq_th_fields,
+                HybridHits(
+                    start,
+                    end,
+                    all_pks,
+                    all_scores,
+                    res.fields_data,
                     res.output_fields,
                     _pk_name,
                 )
@@ -249,6 +408,37 @@ class SearchResult(list):
         """Iterator related inner method"""
         # TODO(Goose): Change it into properties
         return self._search_iterator_v2_results
+
+
+def get_field_data(field_data: FieldData):
+    if field_data.type == DataType.BOOL:
+        return field_data.scalars.bool_data.data
+    if field_data.type in {DataType.INT8, DataType.INT16, DataType.INT32}:
+        return field_data.scalars.int_data.data
+    if field_data.type == DataType.INT64:
+        return field_data.scalars.long_data.data
+    if field_data.type == DataType.FLOAT:
+        return field_data.scalars.float_data.data
+    if field_data.type == DataType.DOUBLE:
+        return field_data.scalars.double_data.data
+    if field_data.type == DataType.VARCHAR:
+        return field_data.scalars.string_data.data
+    if field_data.type == DataType.JSON:
+        return field_data.scalars.json_data.data
+    if field_data.type == DataType.ARRAY:
+        return field_data.scalars.array_data.data
+    if field_data.type == DataType.FLOAT_VECTOR:
+        return field_data.vectors.float_vector.data
+    if field_data.type == DataType.BINARY_VECTOR:
+        return field_data.vectors.binary_vector
+    if field_data.type == DataType.BFLOAT16_VECTOR:
+        return field_data.vectors.bfloat16_vector
+    if field_data.type == DataType.FLOAT16_VECTOR:
+        return field_data.vectors.float16_vector
+    if field_data.type == DataType.SPARSE_FLOAT_VECTOR:
+        return field_data.vectors.sparse_float_vector
+    msg = f"Unsupported field type: {field_data.type}"
+    raise MilvusException(msg)
 
 
 class Hits(list):
