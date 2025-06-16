@@ -1404,12 +1404,15 @@ class Prepare:
         )
 
     @classmethod
-    def manual_compaction(cls, collection_id: int, collection_name: str, is_clustering: bool):
+    def manual_compaction(
+        cls, collection_name: str, is_clustering: bool, collection_id: Optional[int] = None
+    ):
         if is_clustering is None or not isinstance(is_clustering, bool):
             raise ParamError(message=f"is_clustering value {is_clustering} is illegal")
 
         request = milvus_types.ManualCompactionRequest()
-        request.collectionID = collection_id
+        if collection_id is not None:
+            request.collectionID = collection_id
         request.collection_name = collection_name
         request.majorCompaction = is_clustering
 
