@@ -113,15 +113,6 @@ class AsyncGrpcHandler:
         await self._async_channel.close()
         self._async_channel = None
 
-    def register_state_change_callback(self, callback: Callable):
-        self.callbacks.append(callback)
-        self._async_channel.subscribe(callback, try_to_connect=True)
-
-    def deregister_state_change_callbacks(self):
-        for callback in self.callbacks:
-            self._async_channel.unsubscribe(callback)
-        self.callbacks = []
-
     def _setup_authorization_interceptor(self, user: str, password: str, token: str):
         keys = []
         values = []
