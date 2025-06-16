@@ -1405,9 +1405,6 @@ class Prepare:
 
     @classmethod
     def manual_compaction(cls, collection_id: int, collection_name: str, is_clustering: bool):
-        if collection_id is None or not isinstance(collection_id, int):
-            raise ParamError(message=f"collection_id value {collection_id} is illegal")
-
         if is_clustering is None or not isinstance(is_clustering, bool):
             raise ParamError(message=f"is_clustering value {is_clustering} is illegal")
 
