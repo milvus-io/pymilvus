@@ -1195,7 +1195,9 @@ class AsyncMilvusClient:
         conn = self._get_connection()
         await conn.drop_resource_group(name, timeout=timeout, **kwargs)
 
-    async def update_resource_groups(self, configs: Dict[str, ResourceGroupConfig], timeout: Optional[float] = None, **kwargs):
+    async def update_resource_groups(
+        self, configs: Dict[str, ResourceGroupConfig], timeout: Optional[float] = None, **kwargs
+    ):
         conn = self._get_connection()
         await conn.update_resource_groups(configs, timeout=timeout, **kwargs)
 
