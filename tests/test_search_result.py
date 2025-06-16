@@ -6,7 +6,7 @@ import pytest
 import ujson
 
 from pymilvus.grpc_gen import schema_pb2
-from pymilvus.client.search_result import Hit, Hits, SearchResult
+from pymilvus.client.search_result import Hit, Hits, SearchResult, HybridHits
 from pymilvus.client.types import DataType
 
 class TestHit:
@@ -81,7 +81,7 @@ class TestSearchResult:
         # Iterable
         assert 2 == len(r)
         for hits in r:
-            assert isinstance(hits, Hits)
+            assert isinstance(hits, Hits) or isinstance(hits, HybridHits)
             assert len(hits.ids) == 3
             assert len(hits.distances) == 3
 
