@@ -1060,15 +1060,21 @@ class HybridExtraList(list):
                 row_data[field_data.field_name] = None
                 return
             json_dict = ujson.loads(field_data.scalars.json_data.data[index])
-
             if not field_data.is_dynamic:
                 row_data[field_data.field_name] = json_dict
                 return
-
             if not self._dynamic_fields:
-                row_data.update(json_dict)
+                # Only update keys that don't exist in row_data
+                row_data.update({k: v for k, v in json_dict.items() if k not in row_data})
                 return
-            row_data.update({k: v for k, v in json_dict.items() if k in self._dynamic_fields})
+            # Only update keys that don't exist in row_data and are in dynamic_fields
+            row_data.update(
+                {
+                    k: v
+                    for k, v in json_dict.items()
+                    if k in self._dynamic_fields and k not in row_data
+                }
+            )
         elif field_data.type == DataType.FLOAT_VECTOR:
             dim = field_data.vectors.dim
             start_pos = index * dim
