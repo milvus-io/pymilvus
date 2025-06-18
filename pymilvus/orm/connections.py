@@ -554,6 +554,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
         self, alias: str = Config.MILVUS_CONN_ALIAS
     ) -> Union[GrpcHandler, AsyncGrpcHandler]:
         """Retrieves a GrpcHandler by alias."""
+        if alias is None:
+            raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
+
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
