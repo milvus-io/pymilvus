@@ -6,7 +6,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import ujson
-from scipy.sparse import issparse, isspmatrix
 
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen.common_pb2 import Status
@@ -338,6 +337,10 @@ class SciPyHelper:
         cls._init()
         if not cls._matrix_available:
             return False
+
+        # ruff: noqa: PLC0415
+        from scipy.sparse import isspmatrix
+
         return isspmatrix(data)
 
     @classmethod
@@ -345,6 +348,9 @@ class SciPyHelper:
         cls._init()
         if not cls._array_available:
             return False
+
+        # ruff: noqa: PLC0415
+        from scipy.sparse import issparse, isspmatrix
 
         return issparse(data) and not isspmatrix(data)
 
