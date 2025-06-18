@@ -1,5 +1,7 @@
+import contextlib
 import logging
-from typing import Dict, List, Optional, Union
+from types import TracebackType
+from typing import Dict, List, Optional, Type, Union
 from uuid import uuid4
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -62,10 +64,30 @@ class MilvusClient:
                 to None.
                 Unit: second
         """
-        self._using = self._create_connection(
-            uri, user, password, db_name, token, timeout=timeout, **kwargs
-        )
-        self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
+        self._uri = uri
+        self._user = user
+        self._password = password
+        self._db_name = db_name
+        self._token = token
+        self._timeout = timeout
+        self._kwargs = kwargs
+        self._using = None
+        self._inited = False
+        self._init()
+
+    def _init(self):
+        if not self._inited:
+            self._using = self._create_connection(
+                self._uri,
+                self._user,
+                self._password,
+                self._db_name,
+                self._token,
+                timeout=self._timeout,
+                **self._kwargs,
+            )
+            self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
+            self._inited = True
 
     def create_collection(
         self,
@@ -913,8 +935,26 @@ class MilvusClient:
             self.create_index(collection_name, index_params, timeout=timeout)
             self.load_collection(collection_name, timeout=timeout)
 
+    def __enter__(self) -> "MilvusClient":
+        self._init()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
+        self.close()
+
+    def __del__(self):
+        self.close()
+
     def close(self):
-        connections.remove_connection(self._using)
+        if self._using is not None:
+            with contextlib.suppress(MilvusException):
+                connections.remove_connection(self._using)
+            self._using = None
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
