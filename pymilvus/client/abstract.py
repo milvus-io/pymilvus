@@ -1,6 +1,8 @@
 import abc
 from typing import Any, Dict, List, Optional, Union
 
+import ujson
+
 from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage
 from pymilvus.settings import Config
 
@@ -54,9 +56,8 @@ class FieldSchema:
 
         for type_param in raw.type_params:
             if type_param.key == "params":
-                import json
 
-                self.params[type_param.key] = json.loads(type_param.value)
+                self.params[type_param.key] = ujson.loads(type_param.value)
             else:
                 if type_param.key in ["mmap.enabled"]:
                     self.params["mmap_enabled"] = (
@@ -79,9 +80,7 @@ class FieldSchema:
         index_dict = {}
         for index_param in raw.index_params:
             if index_param.key == "params":
-                import json
-
-                index_dict[index_param.key] = json.loads(index_param.value)
+                index_dict[index_param.key] = ujson.loads(index_param.value)
             else:
                 index_dict[index_param.key] = index_param.value
 

@@ -337,6 +337,8 @@ class SciPyHelper:
         cls._init()
         if not cls._matrix_available:
             return False
+
+        # ruff: noqa: PLC0415
         from scipy.sparse import isspmatrix
 
         return isspmatrix(data)
@@ -346,6 +348,8 @@ class SciPyHelper:
         cls._init()
         if not cls._array_available:
             return False
+
+        # ruff: noqa: PLC0415
         from scipy.sparse import issparse, isspmatrix
 
         return issparse(data) and not isspmatrix(data)

@@ -11,7 +11,7 @@ from urllib import parse
 import grpc
 from grpc._cython import cygrpc
 
-from pymilvus.client.types import ResourceGroupConfig
+from pymilvus.client.types import GrantInfo, ResourceGroupConfig
 from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure
 from pymilvus.exceptions import (
     AmbiguousIndexName,
@@ -39,6 +39,8 @@ from .interceptor import _api_level_md
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
+    AnalyzeResult,
+    CompactionState,
     DatabaseInfo,
     DataType,
     HybridExtraList,
@@ -46,6 +48,7 @@ from .types import (
     LoadState,
     ReplicaInfo,
     Shard,
+    State,
     Status,
     get_cost_extra,
 )
@@ -1631,7 +1634,6 @@ class AsyncGrpcHandler:
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(resp.status)
-        from pymilvus.client.types import GrantInfo
 
         return GrantInfo(resp.entities)
 
@@ -1831,8 +1833,6 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
 
-        from .types import CompactionState, State
-
         return CompactionState(
             compaction_id,
             State.new(response.state),
@@ -1867,8 +1867,6 @@ class AsyncGrpcHandler:
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(resp.status)
-
-        from .types import AnalyzeResult
 
         if isinstance(texts, str):
             return AnalyzeResult(resp.results[0], with_hash, with_detail)
