@@ -4,7 +4,13 @@ from uuid import uuid4
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
-from pymilvus.client.types import ExceptionsMessage, OmitZeroDict, ResourceGroupConfig
+from pymilvus.client.types import (
+    ExceptionsMessage,
+    OmitZeroDict,
+    ResourceGroupConfig,
+    RoleInfo,
+    UserInfo,
+)
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     MilvusException,
@@ -1002,7 +1008,6 @@ class AsyncMilvusClient:
             logger.error("Failed to describe user: %s", user_name)
             raise ex from ex
         if hasattr(res, "results") and res.results:
-            from pymilvus.client.types import UserInfo
 
             user_info = UserInfo(res.results)
             if user_info.groups:
@@ -1177,8 +1182,6 @@ class AsyncMilvusClient:
     async def list_roles(self, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         try:
-            from pymilvus.client.types import RoleInfo
-
             res = await conn.list_roles(False, timeout=timeout, **kwargs)
         except Exception as ex:
             logger.error("Failed to list roles")
