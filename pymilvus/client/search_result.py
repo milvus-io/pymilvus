@@ -100,6 +100,10 @@ class HybridHits(list):
         """Get the item at index without triggering materialization"""
         return list.__getitem__(self, idx)
 
+    def __iter__(self):
+        self.materialize()
+        return super().__iter__()
+
     def materialize(self):
         if not self.has_materialized:
             for field_data in self.lazy_field_data:
