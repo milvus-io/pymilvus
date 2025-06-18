@@ -126,6 +126,7 @@ lint.ignore = [
     "C901", # TODO
     "PYI041", # TODO
     "E402",
+    "PLW1641", # TODO Object does not implement `__hash__` method
 ]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
