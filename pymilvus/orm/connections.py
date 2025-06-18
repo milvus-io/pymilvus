@@ -392,6 +392,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                     message=f"Open local milvus failed, dir: {parent_path} not exists"
                 )
 
+            # ruff: noqa: PLC0415
             from milvus_lite.server_manager import (
                 server_manager_instance,
             )

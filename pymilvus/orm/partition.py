@@ -35,6 +35,7 @@ class Partition:
         description: str = "",
         **kwargs,
     ) -> Partition:
+        # ruff: noqa: PLC0415
         from .collection import Collection
 
         if isinstance(collection, Collection):
