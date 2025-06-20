@@ -1050,6 +1050,7 @@ class HybridExtraList(list):
         self._float_vector_np_array = {}
         self._has_materialized_float_vector = False
         self._strict_float32 = strict_float32
+        self._materialized_bitmap = [False] * len(self)
 
     def _extract_lazy_fields(self, index: int, field_data: Any, row_data: Dict) -> Any:
         if field_data.type == DataType.JSON:
@@ -1127,11 +1128,16 @@ class HybridExtraList(list):
                 row = self[i]
                 results.append(row)
             return results
+
+        if self._materialized_bitmap[index]:
+            return super().__getitem__(index)
+
         self._pre_materialize_float_vector()
         row = super().__getitem__(index)
         for field_data in self._lazy_field_data:
-            if row.get(field_data.field_name) is None:
-                self._extract_lazy_fields(index, field_data, row)
+            self._extract_lazy_fields(index, field_data, row)
+
+        self._materialized_bitmap[index] = True
         return row
 
     def __iter__(self):
@@ -1153,10 +1159,11 @@ class HybridExtraList(list):
         self._has_materialized_float_vector = True
 
     def materialize(self):
-        self._pre_materialize_float_vector()
-        for field_data in self._lazy_field_data:
-            for index in range(len(self)):
-                self._extract_lazy_fields(index, field_data, self[index])
+        """Materializes all lazy-loaded fields for all rows."""
+        for i in range(len(self)):
+            # By simply accessing the item, __getitem__ will trigger
+            # the one-time materialization logic if it hasn't been done yet.
+            _ = self[i]
         return self
 
     __repr__ = __str__
