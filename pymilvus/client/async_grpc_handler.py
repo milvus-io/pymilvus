@@ -900,6 +900,7 @@ class AsyncGrpcHandler:
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
+        strict_float32: bool = False,
         **kwargs,
     ):
         await self.ensure_channel_ready()
@@ -937,7 +938,11 @@ class AsyncGrpcHandler:
         extra_dict = get_cost_extra(response.status)
         extra_dict[ITERATOR_SESSION_TS_FIELD] = response.session_ts
         return HybridExtraList(
-            lazy_field_data, results, extra=extra_dict, dynamic_fields=dynamic_fields
+            lazy_field_data,
+            results,
+            extra=extra_dict,
+            dynamic_fields=dynamic_fields,
+            strict_float32=strict_float32,
         )
 
     @retry_on_rpc_failure()
