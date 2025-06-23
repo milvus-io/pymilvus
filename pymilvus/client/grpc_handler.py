@@ -573,11 +573,14 @@ class GrpcHandler:
         resp = self._stub.Insert(request=request, timeout=timeout, metadata=_api_level_md(**kwargs))
         if resp.status.error_code == common_pb2.SchemaMismatch:
             schema = self.update_schema(collection_name, timeout, **kwargs)
-            request = self._prepare_row_insert_request(
-                collection_name, entities, partition_name, schema, timeout, **kwargs
-            )
-            resp = self._stub.Insert(
-                request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
+            # recursively calling `insert_rows` handling another schema change happens during retry
+            return self.insert_rows(
+                collection_name=collection_name,
+                entities=entities,
+                partition_name=partition_name,
+                schema=schema,
+                timeout=timeout,
+                **kwargs,
             )
         check_status(resp.status)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
@@ -863,11 +866,13 @@ class GrpcHandler:
         response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(**kwargs))
         if response.status.error_code == common_pb2.SchemaMismatch:
             self.update_schema(collection_name, timeout)
-            request = self._prepare_row_upsert_request(
-                collection_name, entities, partition_name, timeout, **kwargs
-            )
-            response = self._stub.Upsert(
-                request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
+            # recursively calling `upsert_rows` handling another schema change happens during retry
+            return self.upsert_rows(
+                collection_name=collection_name,
+                entities=entities,
+                partition_name=partition_name,
+                timeout=timeout,
+                **kwargs,
             )
         check_status(response.status)
         m = MutationResult(response)
