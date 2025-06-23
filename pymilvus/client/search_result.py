@@ -131,7 +131,7 @@ class HybridHits(list):
                         item = self.get_raw_item(i)
                         item["entity"][field_name] = entity_helper.sparse_proto_to_rows(
                             field_data.vectors.sparse_float_vector, idx, idx + 1
-                        )
+                        )[0]
                         idx += 1
                 elif field_data.type == DataType.JSON:
                     idx = self.start
