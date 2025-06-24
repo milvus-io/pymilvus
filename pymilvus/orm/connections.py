@@ -321,7 +321,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
         """
         Constructs a milvus connection and register it under given alias.
 
-        :param alias: The name of milvus connection
+        :param alias: The name of milvus connection. For each alias, there will be one and only one
+        connection created.
         :type  alias: str
 
         :param kwargs:
