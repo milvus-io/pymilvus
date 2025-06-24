@@ -310,7 +310,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
     def connect(
         self,
-        alias: str = "",
+        alias: str = Config.MILVUS_CONN_ALIAS,
         user: str = "",
         password: str = "",
         db_name: str = "default",
@@ -321,8 +321,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         """
         Constructs a milvus connection and register it under given alias.
 
-        :param alias: The name of milvus connection. If not provided, it will be generated
-        unique to the uri and user. For each alias, there will be one and only one
+        :param alias: The name of milvus connection. For each alias, there will be one and only one
         connection created.
         :type  alias: str
 
