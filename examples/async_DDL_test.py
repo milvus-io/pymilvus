@@ -1,4 +1,5 @@
 import asyncio
+import time
 import numpy as np
 from pymilvus import AsyncMilvusClient, DataType
 
@@ -11,6 +12,8 @@ test_alias = "test_alias"
 test_db = "test_database"
 partition_name = "test_partition"
 group_name = "test_privilege_group"
+rg1_name = "test_resource_group"
+rg2_name = "test_resource_group"
 
 async def create_resources(client):
     print(fmt.format("Creating Resources"))
@@ -52,6 +55,12 @@ async def create_resources(client):
     print("Creating alias...")
     await client.create_alias(collection_name, test_alias)
     print(f"Alias {test_alias} created")
+
+    print("Creating resource groups...")
+    await client.create_resource_group(rg1_name)
+    print(f"Resource group {rg1_name} created")
+    await client.create_resource_group(rg2_name)
+    print(f"Resource group {rg2_name} created")
     
     print("Loading collection...")
     await client.load_collection(collection_name)
@@ -181,6 +190,36 @@ async def test_functionality(client):
     await client.remove_privileges_from_group(group_name, ["Delete"])
     print("Privilege group operations completed")
 
+    print(fmt.format("Testing create_field_schema"))
+    field1 = client.create_field_schema("test_id", DataType.INT64, desc="test int64 field", is_primary=True, auto_id=True)
+    print(f"Field1: {field1}")
+    field2 = client.create_field_schema("test_vector", DataType.FLOAT_VECTOR, desc="test vector field", dim=dim)
+    print(f"Field2: {field2}")
+    field3 = client.create_field_schema("test_text", DataType.VARCHAR, desc="test varchar field", max_length=256)
+    print(f"Field3: {field3}")
+    del field1
+    del field2
+    del field3
+    print("create_field_schema test completed")
+
+    print(fmt.format("Testing Resource Group Operations"))
+
+    # List resource groups
+    print("\nListing resource groups...")
+    rgs = await client.list_resource_groups()
+    print(f"Resource groups: {rgs}")
+    assert rg1_name in rgs
+    assert rg2_name in rgs
+
+    # Describe resource groups
+    print(f"\nDescribing resource group {rg1_name}...")
+    rg1_info = await client.describe_resource_group(rg1_name)
+    print(f"Resource group {rg1_name} info: {rg1_info}")
+    
+    print(f"\nDescribing resource group {rg2_name}...")
+    rg2_info = await client.describe_resource_group(rg2_name)
+    print(f"Resource group {rg2_name} info: {rg2_info}")
+
 async def cleanup_resources(client):
     print(fmt.format("Cleaning Up Resources"))
 
@@ -201,11 +240,25 @@ async def cleanup_resources(client):
     await client.drop_privilege_group(group_name)
     print(f"Privilege group {group_name} dropped")
 
+    print("Dropping database...")
+    await client.drop_database(test_db)
+    print(f"Database {test_db} dropped")
+
+    print("\nDropping resource groups...")
+    if rg1_name in await client.list_resource_groups():
+        await client.drop_resource_group(rg1_name)
+        print(f"Resource group {rg1_name} dropped")
+    if rg2_name in await client.list_resource_groups():
+        await client.drop_resource_group(rg2_name)
+        print(f"Resource group {rg2_name} dropped")
+
 async def main():
     client = AsyncMilvusClient("http://localhost:19530")
     await create_resources(client)
     await test_functionality(client)
+    time.sleep(10)
     await cleanup_resources(client)
+    time.sleep(10)
     await client.close()
     print(fmt.format("Test Completed"))
 
