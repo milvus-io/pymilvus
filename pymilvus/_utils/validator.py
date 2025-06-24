@@ -19,10 +19,10 @@ def validate_params(**params: Tuple[Any, Any, Optional[bool]]) -> None:
         ParamError: If any spec tuple is invalid or any parameter fails validation.
 
     Examples:
-        validate_params(
-            ids=([1, 2, 3], List[int]),
-            score=(score_value, float, True),
-        )
+        >>> validate_params(
+        >>>     ids=([1, 2, 3], List[int]),
+        >>>     score=(score_value, float, True),
+        >>> )
     """
     for name, spec in params.items():
         if not (2 <= len(spec) <= 3):

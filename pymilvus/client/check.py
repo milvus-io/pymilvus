@@ -4,7 +4,6 @@ from typing import Any, Callable, Union
 
 import numpy as np
 
-from pymilvus._utils.validator import validate_params
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 

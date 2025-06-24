@@ -527,7 +527,9 @@ class GrpcHandler:
     def get_partition_stats(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        check_pass_param(collection_name=collection_name, timeout=timeout)
+        check_pass_param(
+            collection_name=collection_name, partition_name=partition_name, timeout=timeout
+        )
         req = Prepare.get_partition_stats_request(collection_name, partition_name)
         response = self._stub.GetPartitionStatistics(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
