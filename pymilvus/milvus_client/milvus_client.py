@@ -2,7 +2,6 @@ import contextlib
 import logging
 from types import TracebackType
 from typing import Dict, List, Optional, Type, Union
-from uuid import uuid4
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
