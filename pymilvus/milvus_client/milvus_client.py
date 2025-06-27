@@ -929,7 +929,7 @@ class MilvusClient:
     ) -> str:
         """Create the connection to the Milvus server."""
         using = kwargs.pop("alias", None)
-        if using is None or using == "":
+        if not using or using == "":
             using = f"{uri}{user}"
         try:
             connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)

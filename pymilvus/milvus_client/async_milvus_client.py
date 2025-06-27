@@ -826,8 +826,9 @@ class AsyncMilvusClient:
         **kwargs,
     ) -> str:
         """Create the connection to the Milvus server."""
-        # TODO: Implement reuse with new uri style
-        using = uuid4().hex
+        using = kwargs.pop("alias", None)
+        if not using or using == "":
+            using = f"async-{uri}{user}"
         try:
             connections.connect(
                 using, user, password, db_name, token, uri=uri, _async=True, **kwargs
