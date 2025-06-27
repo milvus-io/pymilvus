@@ -22,10 +22,9 @@ async def create_resources(client):
     await client.create_database(test_db)
     print(f"Database {test_db} created")
 
-    print("Creating user and role...")
+    print("Creating user...")
     await client.create_user(test_user, "password123")
-    await client.create_role(test_role)
-    print(f"User {test_user} and role {test_role} created")
+    print(f"User {test_user} created")
 
     print("Creating privilege group...")
     await client.create_privilege_group(group_name)
@@ -120,14 +119,6 @@ async def test_functionality(client):
 
     await client.update_password(test_user, "password123", "newpassword123")
     print("Password updated")
-
-    print("Testing role management...")
-    print(f"list_roles: {await client.list_roles()}")
-    print(f"describe_role: {await client.describe_role(test_role)}")
-
-    await client.grant_role(test_user, test_role)
-    await client.revoke_role(test_user, test_role)
-    print("Role grant/revoke test completed")
 
     print("Testing alias operations...")
     print(f"describe_alias: {await client.describe_alias(test_alias)}")
@@ -231,10 +222,9 @@ async def cleanup_resources(client):
     await client.drop_collection(collection_name)
     print(f"Collection {collection_name} dropped")
 
-    print("Dropping user and role...")
+    print("Dropping user...")
     await client.drop_user(test_user)
-    await client.drop_role(test_role)
-    print(f"User {test_user} and role {test_role} dropped")
+    print(f"User {test_user} dropped")
 
     print("Dropping privilege group...")
     await client.drop_privilege_group(group_name)

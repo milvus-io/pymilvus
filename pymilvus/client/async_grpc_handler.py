@@ -1822,7 +1822,7 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
 
-        req = Prepare.manual_compaction(response.collectionID, collection_name, is_clustering)
+        req = Prepare.manual_compaction(collection_name, is_clustering, response.collectionID)
         response = await self._async_stub.ManualCompaction(req, timeout=timeout, metadata=meta)
         check_status(response.status)
 
