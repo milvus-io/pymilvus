@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List, Optional, Union
 
+from pymilvus._utils.validator import validate_params
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.search_iterator import SearchIteratorV2
@@ -13,7 +14,6 @@ from pymilvus.client.types import (
 )
 from pymilvus.client.utils import get_params, is_vector_type
 from pymilvus.exceptions import (
-    DataTypeNotMatchException,
     ErrorCode,
     MilvusException,
     ParamError,
@@ -27,7 +27,6 @@ from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
-from .check import validate_param
 from .index import IndexParam, IndexParams
 
 logger = logging.getLogger(__name__)
@@ -109,7 +108,7 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        validate_param("dimension", dimension, int)
+        validate_params(dimension=(dimension, int))
 
         if "enable_dynamic_field" not in kwargs:
             kwargs["enable_dynamic_field"] = True
@@ -153,8 +152,11 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        validate_param("collection_name", collection_name, str)
-        validate_param("index_params", index_params, IndexParams)
+        validate_params(
+            collection_name=(collection_name, str),
+            index_params=(index_params, IndexParams),
+        )
+
         if len(index_params) == 0:
             raise ParamError(message="IndexParams is empty, no index can be created")
 
@@ -209,16 +211,11 @@ class MilvusClient:
         Returns:
             Dict: Number of rows that were inserted and the inserted primary key list.
         """
-        # If no data provided, we cannot input anything
         if isinstance(data, Dict):
             data = [data]
+        validate_params(insert_data=(data, List))
 
-        msg = "wrong type of argument 'data',"
-        msg += f"expected 'Dict' or list of 'Dict', got '{type(data).__name__}'"
-
-        if not isinstance(data, List):
-            raise TypeError(msg)
-
+        # If no data provided, we cannot input anything
         if len(data) == 0:
             return {"insert_count": 0, "ids": []}
 
@@ -261,21 +258,16 @@ class MilvusClient:
         Returns:
             Dict: Number of rows that were upserted.
         """
-        # If no data provided, we cannot input anything
         if isinstance(data, Dict):
             data = [data]
 
-        msg = "wrong type of argument 'data',"
-        msg += f"expected 'Dict' or list of 'Dict', got '{type(data).__name__}'"
+        validate_params(upsert_data=(data, List))
 
-        if not isinstance(data, List):
-            raise TypeError(msg)
-
+        # If no data provided, we cannot input anything
         if len(data) == 0:
             return {"upsert_count": 0}
 
         conn = self._get_connection()
-        # Upsert into the collection.
         try:
             res = conn.upsert_rows(
                 collection_name, data, partition_name=partition_name, timeout=timeout, **kwargs
@@ -442,17 +434,15 @@ class MilvusClient:
         Returns:
             List[dict]: A list of result dicts, vectors are not included.
         """
-        if filter and not isinstance(filter, str):
-            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+        validate_params(filter=(filter, str, True))
 
-        if filter and ids is not None:
+        if filter and ids:
             raise ParamError(message=ExceptionsMessage.AmbiguousQueryFilterParam)
 
         if isinstance(ids, (int, str)):
             ids = [ids]
 
         conn = self._get_connection()
-
         if ids:
             try:
                 schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
@@ -491,8 +481,7 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        if filter is not None and not isinstance(filter, str):
-            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+        validate_params(filter=(filter, str, True))
 
         conn = self._get_connection()
         # set up schema for iterator
@@ -598,8 +587,7 @@ class MilvusClient:
             raise ex from ex
 
         # following is the old code for search_iterator V1
-        if filter is not None and not isinstance(filter, str):
-            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+        validate_params(filter=(filter, str, True))
 
         # set up schema for iterator
         try:
@@ -729,7 +717,7 @@ class MilvusClient:
     def delete(
         self,
         collection_name: str,
-        ids: Optional[Union[list, str, int]] = None,
+        ids: Optional[Union[List, str, int]] = None,
         timeout: Optional[float] = None,
         filter: Optional[str] = None,
         partition_name: Optional[str] = None,
@@ -759,28 +747,20 @@ class MilvusClient:
             Dict: with key 'deleted_count' and value number of rows that were deleted.
         """
         pks = kwargs.get("pks", [])
+        validate_params(pks=(pks, int, str, List[int|str]))
         if isinstance(pks, (int, str)):
             pks = [pks]
 
-        for pk in pks:
-            if not isinstance(pk, (int, str)):
-                msg = f"wrong type of argument pks, expect list, int or str, got '{type(pk).__name__}'"
-                raise TypeError(msg)
-
-        if ids is not None:
+        validate_params(ids=(ids, int, str, List[int|str], True))
+        if ids:
             if isinstance(ids, (int, str)):
                 pks.append(ids)
-            elif isinstance(ids, list):
-                for id in ids:
-                    if not isinstance(id, (int, str)):
-                        msg = f"wrong type of argument ids, expect list, int or str, got '{type(id).__name__}'"
-                        raise TypeError(msg)
+            elif isinstance(ids, List):
+                validate_params(ids=(ids, List[int|str]))
                 pks.extend(ids)
-            else:
-                msg = f"wrong type of argument ids, expect list, int or str, got '{type(ids).__name__}'"
-                raise TypeError(msg)
 
         # validate ambiguous delete filter param before describe collection rpc
+        validate_params(filter=(filter, str, True))
         if filter and len(pks) > 0:
             raise ParamError(message=ExceptionsMessage.AmbiguousDeleteFilterParam)
 
@@ -796,8 +776,6 @@ class MilvusClient:
                 raise ex from ex
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
-            if not isinstance(filter, str):
-                raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
             expr = filter
 
         ret_pks = []
@@ -884,7 +862,7 @@ class MilvusClient:
     def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
         index_params = IndexParams()
         if field_name:
-            validate_param("field_name", field_name, str)
+            validate_params(field_name=(field_name, str))
             index_params.add_index(field_name, **kwargs)
         return index_params
 
@@ -1178,9 +1156,6 @@ class MilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        if isinstance(partition_names, str):
-            partition_names = [partition_names]
-
         conn = self._get_connection()
         conn.load_partitions(collection_name, partition_names, timeout=timeout, **kwargs)
 
@@ -1200,9 +1175,6 @@ class MilvusClient:
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ) -> Dict:
         conn = self._get_connection()
-        if not isinstance(partition_name, str):
-            msg = f"wrong type of argument 'partition_name', str expected, got '{type(partition_name).__name__}'"
-            raise TypeError(msg)
         ret = conn.get_partition_stats(collection_name, partition_name, timeout=timeout, **kwargs)
         result = {stat.key: stat.value for stat in ret}
         if "row_count" in result:

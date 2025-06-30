@@ -11,22 +11,6 @@ from . import entity_helper
 from .singleton_utils import Singleton
 
 
-def validate_strs(**kwargs):
-    """validate if all values are legal non-emtpy str"""
-    invalid_pair = {k: v for k, v in kwargs.items() if not validate_str(v)}
-    if invalid_pair:
-        msg = f"Illegal str variables: {invalid_pair}, expect non-empty str"
-        raise ParamError(message=msg)
-
-
-def validate_nullable_strs(**kwargs):
-    """validate if all values are either None or legal non-empty str"""
-    invalid_pair = {k: v for k, v in kwargs.items() if v is not None and not validate_str(v)}
-    if invalid_pair:
-        msg = f"Illegal nullable str variables: {invalid_pair}, expect None or non-empty str"
-        raise ParamError(message=msg)
-
-
 def validate_str(var: Any) -> bool:
     """check if a variable is legal non-empty str"""
     return var and isinstance(var, str)
@@ -56,13 +40,6 @@ def is_legal_port(port: Any) -> bool:
         else:
             return True
     return False
-
-
-def int_or_str(item: Union[int, str]) -> str:
-    if isinstance(item, int):
-        return str(item)
-
-    return item
 
 
 def is_correct_date_str(param: str) -> bool:
@@ -377,7 +354,7 @@ def _get_param_checker():
     return ParamChecker()
 
 
-def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too-many-statements
+def check_pass_param(*_args: Any, **kwargs: Any) -> None:
     if kwargs is None:
         raise ParamError(message="Param should not be None")
     checker = _get_param_checker()
