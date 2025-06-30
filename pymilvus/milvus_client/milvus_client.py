@@ -1,7 +1,5 @@
-import contextlib
 import logging
-from types import TracebackType
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
@@ -63,30 +61,10 @@ class MilvusClient:
                 to None.
                 Unit: second
         """
-        self._uri = uri
-        self._user = user
-        self._password = password
-        self._db_name = db_name
-        self._token = token
-        self._timeout = timeout
-        self._kwargs = kwargs
-        self._using = None
-        self._inited = False
-        self._init()
-
-    def _init(self):
-        if not self._inited:
-            self._using = self._create_connection(
-                self._uri,
-                self._user,
-                self._password,
-                self._db_name,
-                self._token,
-                timeout=self._timeout,
-                **self._kwargs,
-            )
-            self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
-            self._inited = True
+        self._using = self._create_connection(
+            uri, user, password, db_name, token, timeout=timeout, **kwargs
+        )
+        self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
 
     def create_collection(
         self,
@@ -934,26 +912,8 @@ class MilvusClient:
             self.create_index(collection_name, index_params, timeout=timeout)
             self.load_collection(collection_name, timeout=timeout)
 
-    def __enter__(self) -> "MilvusClient":
-        self._init()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -> Optional[bool]:
-        self.close()
-
-    def __del__(self):
-        self.close()
-
     def close(self):
-        if self._using is not None:
-            with contextlib.suppress(MilvusException):
-                connections.remove_connection(self._using)
-            self._using = None
+        connections.remove_connection(self._using)
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
@@ -969,7 +929,7 @@ class MilvusClient:
     ) -> str:
         """Create the connection to the Milvus server."""
         using = kwargs.pop("alias", None)
-        if using is None or using == "":
+        if not using or using == "":
             using = f"{uri}{user}"
         try:
             connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
