@@ -109,7 +109,7 @@ def float16_vector_validator(x: object, dim: int, is_bfloat: bool):
 
 
 def int8_vector_validator(x: object, dim: int):
-    if isinstance(x, list):  # accepts list of float
+    if isinstance(x, list):  # accepts list of int
         if len(x) != dim:
             raise MilvusException(message="array's length must be equal to vector dimension")
 
@@ -118,7 +118,7 @@ def int8_vector_validator(x: object, dim: int):
                 raise MilvusException(message="array's element must be int value")
         return x
 
-    if isinstance(x, np.ndarray):  # accepts numpy array of float
+    if isinstance(x, np.ndarray):  # accepts numpy array of int
         if not issubclass(x.dtype.type, np.int8):
             msg = 'numpy.ndarray\'s dtype must be "int8" for INT8_VECTOR type field'
             raise MilvusException(message=msg)

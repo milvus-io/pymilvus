@@ -440,9 +440,10 @@ def retrieve_imported_data():
     ids = [100, 15000]
     print(f"Load collection and query items {ids}")
     collection.load()
+    collection.load(refresh=True)
     expr = f"id in {ids}"
     print(expr)
-    results = collection.query(expr=expr, output_fields=["*", "vector"])
+    results = collection.query(expr=expr, output_fields=["*"])
     print("Query results:")
     for item in results:
         print(item)
