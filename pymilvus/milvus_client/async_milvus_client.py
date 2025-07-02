@@ -586,7 +586,7 @@ class AsyncMilvusClient:
     ) -> str:
         """Create the connection to the Milvus server."""
         using = kwargs.pop("alias", None)
-        if not using or using == "":
+        if not using:
             using = f"async-{uri}{user}"
         try:
             connections.connect(
