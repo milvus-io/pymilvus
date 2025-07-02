@@ -1,6 +1,5 @@
 import logging
 from typing import Dict, List, Optional, Union
-from uuid import uuid4
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
@@ -908,8 +907,9 @@ class MilvusClient:
         **kwargs,
     ) -> str:
         """Create the connection to the Milvus server."""
-        # TODO: Implement reuse with new uri style
-        using = kwargs.pop("alias", None) or uuid4().hex
+        using = kwargs.pop("alias", None)
+        if not using:
+            using = f"{uri}{user}"
         try:
             connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
         except Exception as ex:
