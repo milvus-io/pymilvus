@@ -154,7 +154,11 @@ class Buffer:
                     for val in v:
                         a.append(json.dumps(val))
                     arr = np.array(a, dtype=dt)
-                elif field_schema.dtype in {DataType.FLOAT_VECTOR, DataType.BINARY_VECTOR}:
+                elif field_schema.dtype in {
+                    DataType.FLOAT_VECTOR,
+                    DataType.BINARY_VECTOR,
+                    DataType.INT8_VECTOR,
+                }:
                     a = []
                     for val in v:
                         a.append(np.array(val, dtype=dt))
@@ -241,7 +245,11 @@ class Buffer:
                 for val in v:
                     str_arr.append(json.dumps(val))
                 data[k] = pd.Series(str_arr, dtype=None)
-            elif field_schema.dtype in {DataType.BINARY_VECTOR, DataType.FLOAT_VECTOR}:
+            elif field_schema.dtype in {
+                DataType.BINARY_VECTOR,
+                DataType.FLOAT_VECTOR,
+                DataType.INT8_VECTOR,
+            }:
                 arr = []
                 for val in v:
                     arr.append(np.array(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name]))
@@ -314,13 +322,15 @@ class Buffer:
             #   when arr is a np.array, the output is '[1.0 2.0]'
             # we need the output to be '[1.0, 2.0]', consistent with the array format in json
             # so 1. whether make sure that arr of type
-            #       (BINARY_VECTOR, FLOAT_VECTOR, FLOAT16_VECTOR, BFLOAT16_VECTOR) is a LIST,
+            #       (BINARY_VECTOR, FLOAT_VECTOR, INT8_VECTOR,
+            #        FLOAT16_VECTOR, BFLOAT16_VECTOR) is a LIST,
             #    2. or convert arr into a string using json.dumps(arr) first and then add it to df
             # I choose method 2 here
             if field_schema.dtype in {
                 DataType.SPARSE_FLOAT_VECTOR,
                 DataType.BINARY_VECTOR,
                 DataType.FLOAT_VECTOR,
+                DataType.INT8_VECTOR,
             }:
                 arr = []
                 for val in v:
