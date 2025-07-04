@@ -28,11 +28,12 @@ from .constants import (
     ITER_SEARCH_LAST_BOUND_KEY,
     ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
-    JSON_CAST_TYPE,
     JSON_PATH,
+    JSON_TYPE,
     PAGE_RETAIN_ORDER_FIELD,
     RANK_GROUP_SCORER,
     REDUCE_STOP_FOR_BEST,
+    STRICT_CAST,
     STRICT_GROUP_SIZE,
 )
 from .types import (
@@ -1067,22 +1068,26 @@ class Prepare:
         if json_path is not None:
             search_params[JSON_PATH] = json_path
 
-        json_cast_type = kwargs.get(JSON_CAST_TYPE)
-        if json_cast_type is not None:
-            if json_cast_type == DataType.INT8:
-                search_params[JSON_CAST_TYPE] = "Int8"
-            elif json_cast_type == DataType.INT16:
-                search_params[JSON_CAST_TYPE] = "Int16"
-            elif json_cast_type == DataType.INT32:
-                search_params[JSON_CAST_TYPE] = "Int32"
-            elif json_cast_type == DataType.INT64:
-                search_params[JSON_CAST_TYPE] = "Int64"
-            elif json_cast_type == DataType.BOOL:
-                search_params[JSON_CAST_TYPE] = "Bool"
-            elif json_cast_type in (DataType.VARCHAR, DataType.STRING):
-                search_params[JSON_CAST_TYPE] = "VarChar"
+        json_type = kwargs.get(JSON_TYPE)
+        if json_type is not None:
+            if json_type == DataType.INT8:
+                search_params[JSON_TYPE] = "Int8"
+            elif json_type == DataType.INT16:
+                search_params[JSON_TYPE] = "Int16"
+            elif json_type == DataType.INT32:
+                search_params[JSON_TYPE] = "Int32"
+            elif json_type == DataType.INT64:
+                search_params[JSON_TYPE] = "Int64"
+            elif json_type == DataType.BOOL:
+                search_params[JSON_TYPE] = "Bool"
+            elif json_type in (DataType.VARCHAR, DataType.STRING):
+                search_params[JSON_TYPE] = "VarChar"
             else:
-                raise ParamError(message=f"Unsupported json cast type: {json_cast_type}")
+                raise ParamError(message=f"Unsupported json cast type: {json_type}")
+
+        strict_cast = kwargs.get(STRICT_CAST)
+        if strict_cast is not None:
+            search_params[STRICT_CAST] = strict_cast
 
         if param.get("metric_type") is not None:
             search_params["metric_type"] = param["metric_type"]
