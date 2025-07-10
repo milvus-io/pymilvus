@@ -1,3 +1,4 @@
+import logging
 import time
 from enum import IntEnum
 from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
@@ -17,6 +18,8 @@ from . import utils
 
 Status = TypeVar("Status")
 ConsistencyLevel = common_pb2.ConsistencyLevel
+
+logger = logging.getLogger(__name__)
 
 
 # OmitZeroDict: ignore the key-value pairs with value as 0 when printing
@@ -1060,7 +1063,13 @@ class HybridExtraList(list):
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
                 row_data[field_data.field_name] = None
                 return
-            json_dict = ujson.loads(field_data.scalars.json_data.data[index])
+            try:
+                json_dict = ujson.loads(field_data.scalars.json_data.data[index])
+            except Exception as e:
+                logger.error(
+                    f"HybridExtraList::_extract_lazy_fields::Failed to load JSON data: {e}, original data: {field_data.scalars.json_data.data[index]}"
+                )
+                raise
             if not field_data.is_dynamic:
                 row_data[field_data.field_name] = json_dict
                 return
