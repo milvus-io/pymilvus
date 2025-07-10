@@ -631,6 +631,7 @@ class AsyncGrpcHandler:
                 req.expr,
                 partition_names=partition_names,
                 round_decimal=round_decimal,
+                expr_params=req.expr_params,
                 **kwargs,
             )
             requests.append(search_request)
