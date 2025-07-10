@@ -201,7 +201,6 @@ class SearchResult(list):
         status: Optional[common_pb2.Status] = None,
         session_ts: Optional[int] = 0,
     ):
-
         _data = self._parse_search_result_data(res, round_decimal)
         super().__init__(_data)
 
