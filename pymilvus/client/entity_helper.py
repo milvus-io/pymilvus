@@ -1,3 +1,4 @@
+import logging
 import math
 import struct
 from typing import Any, Dict, Iterable, List, Optional
@@ -21,6 +22,8 @@ from .utils import (
     SparseRowOutputType,
     sparse_parse_single_row,
 )
+
+logger = logging.getLogger(__name__)
 
 CHECK_STR_ARRAY = True
 
@@ -782,7 +785,13 @@ def extract_row_data_from_fields_data(
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
                 entity_row_data[field_data.field_name] = None
                 return
-            json_dict = ujson.loads(field_data.scalars.json_data.data[index])
+            try:
+                json_dict = ujson.loads(field_data.scalars.json_data.data[index])
+            except Exception as e:
+                logger.error(
+                    f"extract_row_data_from_fields_data::Failed to load JSON data: {e}, original data: {field_data.scalars.json_data.data[index]}"
+                )
+                raise
 
             if not field_data.is_dynamic:
                 entity_row_data[field_data.field_name] = json_dict

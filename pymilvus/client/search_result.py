@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import ujson
@@ -8,6 +9,8 @@ from pymilvus.grpc_gen import common_pb2, schema_pb2
 from pymilvus.grpc_gen.schema_pb2 import FieldData
 
 from . import entity_helper
+
+logger = logging.getLogger(__name__)
 
 
 class HybridHits(list):
@@ -143,9 +146,15 @@ class HybridHits(list):
                             item["entity"][field_name] = None
                         else:
                             json_data = field_data.scalars.json_data.data[idx]
-                            json_dict_list = (
-                                ujson.loads(json_data) if json_data is not None else None
-                            )
+                            try:
+                                json_dict_list = (
+                                    ujson.loads(json_data) if json_data is not None else None
+                                )
+                            except Exception as e:
+                                logger.error(
+                                    f"HybridHits::materialize::Failed to load JSON data: {e}, original data: {json_data}"
+                                )
+                                raise
                             if not field_data.is_dynamic:
                                 item["entity"][field_data.field_name] = json_dict_list
                             elif not self.dynamic_fields:
@@ -344,7 +353,18 @@ class SearchResult(list):
                 res = apply_valid_data(
                     scalars.json_data.data[start:end], field.valid_data, start, end
                 )
-                json_dict_list = [ujson.loads(item) if item is not None else item for item in res]
+                json_dict_list = []
+                for item in res:
+                    if item is not None:
+                        try:
+                            json_dict_list.append(ujson.loads(item))
+                        except Exception as e:
+                            logger.error(
+                                f"SearchResult::_get_fields_by_range::Failed to load JSON item: {e}, original item: {item}"
+                            )
+                            raise
+                    else:
+                        json_dict_list.append(item)
                 field2data[name] = json_dict_list, field_meta
                 continue
 

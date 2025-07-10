@@ -1,4 +1,5 @@
 import abc
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 import ujson
@@ -13,6 +14,8 @@ from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_W
 # TODO: This is a patch for older version
 from .search_result import Hit, Hits, SearchResult
 from .types import DataType, FunctionType
+
+logger = logging.getLogger(__name__)
 
 
 class FieldSchema:
@@ -56,8 +59,13 @@ class FieldSchema:
 
         for type_param in raw.type_params:
             if type_param.key == "params":
-
-                self.params[type_param.key] = ujson.loads(type_param.value)
+                try:
+                    self.params[type_param.key] = ujson.loads(type_param.value)
+                except Exception as e:
+                    logger.error(
+                        f"FieldSchema::__pack::65::Failed to load JSON type_param.value: {e}, original data: {type_param.value}"
+                    )
+                    raise
             else:
                 if type_param.key in ["mmap.enabled"]:
                     self.params["mmap_enabled"] = (
@@ -80,7 +88,13 @@ class FieldSchema:
         index_dict = {}
         for index_param in raw.index_params:
             if index_param.key == "params":
-                index_dict[index_param.key] = ujson.loads(index_param.value)
+                try:
+                    index_dict[index_param.key] = ujson.loads(index_param.value)
+                except Exception as e:
+                    logger.error(
+                        f"FieldSchema::__pack::92::Failed to load JSON index_param.value: {e}, original data: {index_param.value}"
+                    )
+                    raise
             else:
                 index_dict[index_param.key] = index_param.value
 
