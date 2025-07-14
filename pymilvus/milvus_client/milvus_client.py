@@ -936,8 +936,9 @@ class MilvusClient:
                 using = f"{uri}-{user}"
             elif token:
                 # make md5 of token
-                alias_token = hashlib.md5(token.encode(), usedforsecurity=False).hexdigest()
-                using = f"{uri}-{alias_token}"
+                md5 = hashlib.new('md5', usedforsecurity=False)
+                md5.update(token.encode())
+                using = f"{uri}-{md5.hexdigest()}"
             else:
                 using = f"{uri}"
         try:
