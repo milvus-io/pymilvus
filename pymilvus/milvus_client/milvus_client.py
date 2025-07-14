@@ -945,15 +945,14 @@ class MilvusClient:
 
         if connections.has_connection(using):
             return using
+        try:
+            connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to create new connection using: %s", using)
+            raise ex from ex
         else:
-            try:
-                connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
-            except Exception as ex:
-                logger.error("Failed to create new connection using: %s", using)
-                raise ex from ex
-            else:
-                logger.debug("Created new connection using: %s", using)
-                return using
+            logger.debug("Created new connection using: %s", using)
+            return using
 
     def _extract_primary_field(self, schema_dict: Dict) -> dict:
         fields = schema_dict.get("fields", [])
