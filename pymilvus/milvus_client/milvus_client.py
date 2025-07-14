@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from typing import Dict, List, Optional, Union
 
@@ -930,7 +931,15 @@ class MilvusClient:
         """Create the connection to the Milvus server."""
         using = kwargs.pop("alias", None)
         if not using or using == "":
-            using = f"{uri}{user}"
+            # different user cannot share the same connection
+            if user:
+                using = f"{uri}-{user}"
+            elif token:
+                # make md5 of token
+                alias_token = hashlib.md5(token.encode()).hexdigest()
+                using = f"{uri}-{alias_token}"
+            else:
+                using = f"{uri}"
         try:
             connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
         except Exception as ex:
