@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from typing import Dict, List, Optional, Union
 
@@ -930,7 +931,20 @@ class MilvusClient:
         """Create the connection to the Milvus server."""
         using = kwargs.pop("alias", None)
         if not using or using == "":
-            using = f"{uri}{user}"
+            base_using = f"{uri}-{db_name}"
+            # different user cannot share the same connection
+            if user:
+                using = f"{base_using}-{user}"
+            elif token:
+                # make md5 of token
+                md5 = hashlib.new("md5", usedforsecurity=False)
+                md5.update(token.encode())
+                using = f"{base_using}-{md5.hexdigest()}"
+            else:
+                using = f"{base_using}"
+
+        if connections.has_connection(using):
+            return using
         try:
             connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
         except Exception as ex:
@@ -1415,8 +1429,7 @@ class MilvusClient:
 
     # deprecated same to use_database
     def using_database(self, db_name: str, **kwargs):
-        conn = self._get_connection()
-        conn.reset_db_name(db_name)
+        self.use_database(db_name, **kwargs)
 
     def use_database(self, db_name: str, **kwargs):
         conn = self._get_connection()

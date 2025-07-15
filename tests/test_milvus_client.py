@@ -37,3 +37,12 @@ class TestMilvusClient:
 
         for index in index_params:
             print(index)
+
+    def test_connection_reuse(self):
+        with patch("pymilvus.orm.utility.get_server_type", return_value="milvus"), patch("pymilvus.orm.connections.Connections.connect", return_value=None):
+            client = MilvusClient()
+            assert client._using == "http://localhost:19530-"
+            client = MilvusClient(user="test", password="foobar")
+            assert client._using == "http://localhost:19530--test"
+            client = MilvusClient(token="foobar")
+            assert client._using == "http://localhost:19530--3858f62230ac3c915f300c664312c63f"
