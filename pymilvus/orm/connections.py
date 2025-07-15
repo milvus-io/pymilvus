@@ -425,7 +425,6 @@ class Connections(metaclass=SingleInstanceMetaClass):
                     )
             kwargs.pop("password")
             kwargs.pop("token", None)
-            kwargs.pop("db_name", "")
 
             self._connected_alias[alias] = gh
             self._alias[alias] = copy.deepcopy(kwargs)
