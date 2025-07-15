@@ -10,7 +10,8 @@ from pymilvus.milvus_client.milvus_client import MilvusClient
 class TestMilvusClient:
     @pytest.mark.parametrize("index_params", [None, {}, "str", MilvusClient.prepare_index_params()])
     def test_create_index_invalid_params(self, index_params):
-        with patch("pymilvus.orm.utility.get_server_type", return_value="milvus"), patch('pymilvus.milvus_client.milvus_client.MilvusClient._create_connection', return_value="test"):
+        with patch('pymilvus.milvus_client.milvus_client.create_connection', return_value="test"), \
+             patch('pymilvus.orm.utility.get_server_type', return_value="milvus"):
             client = MilvusClient()
 
             if isinstance(index_params, IndexParams):
@@ -37,3 +38,12 @@ class TestMilvusClient:
 
         for index in index_params:
             print(index)
+
+    def test_connection_reuse(self):
+        with patch("pymilvus.orm.utility.get_server_type", return_value="milvus"), patch("pymilvus.orm.connections.Connections.connect", return_value=None):
+            client = MilvusClient()
+            assert client._using == "http://localhost:19530"
+            client = MilvusClient(user="test", password="foobar")
+            assert client._using == "http://localhost:19530-test"
+            client = MilvusClient(token="foobar")
+            assert client._using == "http://localhost:19530-3858f62230ac3c915f300c664312c63f"

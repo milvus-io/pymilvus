@@ -18,6 +18,7 @@ from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
 from pymilvus.orm.types import DataType
 
+from ._utils import create_connection
 from .check import validate_param
 from .index import IndexParam, IndexParams
 
@@ -39,8 +40,15 @@ class AsyncMilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
-        self._using = self._create_connection(
-            uri, user, password, db_name, token, timeout=timeout, **kwargs
+        self._using = create_connection(
+            uri,
+            token,
+            db_name,
+            use_async=True,
+            user=user,
+            password=password,
+            timeout=timeout,
+            **kwargs,
         )
         self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
 
@@ -574,30 +582,6 @@ class AsyncMilvusClient:
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
-
-    def _create_connection(
-        self,
-        uri: str,
-        user: str = "",
-        password: str = "",
-        db_name: str = "",
-        token: str = "",
-        **kwargs,
-    ) -> str:
-        """Create the connection to the Milvus server."""
-        using = kwargs.pop("alias", None)
-        if not using:
-            using = f"async-{uri}{user}"
-        try:
-            connections.connect(
-                using, user, password, db_name, token, uri=uri, _async=True, **kwargs
-            )
-        except Exception as ex:
-            logger.error("Failed to create new connection using: %s", using)
-            raise ex from ex
-        else:
-            logger.debug("Created new connection using: %s", using)
-            return using
 
     def _extract_primary_field(self, schema_dict: Dict) -> dict:
         fields = schema_dict.get("fields", [])
