@@ -1,4 +1,3 @@
-import hashlib
 import logging
 from typing import Dict, List, Optional, Union
 
@@ -28,6 +27,7 @@ from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
+from ._utils import create_connection
 from .check import validate_param
 from .index import IndexParam, IndexParams
 
@@ -62,8 +62,8 @@ class MilvusClient:
                 to None.
                 Unit: second
         """
-        self._using = self._create_connection(
-            uri, user, password, db_name, token, timeout=timeout, **kwargs
+        self._using = create_connection(
+            uri, token, db_name, user=user, password=password, timeout=timeout, **kwargs
         )
         self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
 
@@ -918,41 +918,6 @@ class MilvusClient:
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
-
-    def _create_connection(
-        self,
-        uri: str,
-        user: str = "",
-        password: str = "",
-        db_name: str = "",
-        token: str = "",
-        **kwargs,
-    ) -> str:
-        """Create the connection to the Milvus server."""
-        using = kwargs.pop("alias", None)
-        if not using or using == "":
-            base_using = f"{uri}-{db_name}"
-            # different user cannot share the same connection
-            if user:
-                using = f"{base_using}-{user}"
-            elif token:
-                # make md5 of token
-                md5 = hashlib.new("md5", usedforsecurity=False)
-                md5.update(token.encode())
-                using = f"{base_using}-{md5.hexdigest()}"
-            else:
-                using = f"{base_using}"
-
-        if connections.has_connection(using):
-            return using
-        try:
-            connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
-        except Exception as ex:
-            logger.error("Failed to create new connection using: %s", using)
-            raise ex from ex
-        else:
-            logger.debug("Created new connection using: %s", using)
-            return using
 
     def _extract_primary_field(self, schema_dict: Dict) -> dict:
         fields = schema_dict.get("fields", [])
