@@ -51,6 +51,12 @@ bulk_writer = [
     "azure-storage-blob",
 ]
 
+stage = [
+    "requests",
+    "minio>=7.0.0",
+    "urllib3",
+]
+
 model = [
     "pymilvus.model>=0.3.0",
 ]

@@ -56,7 +56,6 @@ class FieldSchema:
 
         for type_param in raw.type_params:
             if type_param.key == "params":
-
                 self.params[type_param.key] = ujson.loads(type_param.value)
             else:
                 if type_param.key in ["mmap.enabled"]:
