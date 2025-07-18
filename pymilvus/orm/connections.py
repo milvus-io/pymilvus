@@ -417,7 +417,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                         )
                 except Exception as e:
                     self.remove_connection(alias)
-                    raise e
+                    raise e from e
 
         def with_config(config: Tuple) -> bool:
             return any(c != "" for c in config)
