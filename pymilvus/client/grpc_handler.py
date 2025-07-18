@@ -166,8 +166,9 @@ class GrpcHandler:
 
     def close(self):
         self.deregister_state_change_callbacks()
-        self._channel.close()
-        self._channel = None
+        if self._channel:
+            self._channel.close()
+            self._channel = None
 
     def reset_db_name(self, db_name: str):
         self.schema_cache.clear()
