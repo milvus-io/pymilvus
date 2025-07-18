@@ -14,7 +14,6 @@ from .utils import check_status
 
 # TODO: remove this to a common util
 def _parameter_is_empty(func: Callable):
-
     sig = inspect.signature(func)
     # todo: add more check to parameter, such as `default parameter`,
     #  `positional-only`, `positional-or-keyword`, `keyword-only`, `var-positional`, `var-keyword`

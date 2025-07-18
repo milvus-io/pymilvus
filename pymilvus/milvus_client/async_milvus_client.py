@@ -992,7 +992,6 @@ class AsyncMilvusClient:
             logger.error("Failed to describe user: %s", user_name)
             raise ex from ex
         if hasattr(res, "results") and res.results:
-
             user_info = UserInfo(res.results)
             if user_info.groups:
                 item = user_info.groups[0]
