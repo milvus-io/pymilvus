@@ -408,12 +408,16 @@ class Connections(metaclass=SingleInstanceMetaClass):
             timeout = t if isinstance(t, (int, float)) else Config.MILVUS_CONN_TIMEOUT
 
             if not _async:
-                gh._wait_for_channel_ready(timeout=timeout)
+                try:
+                    gh._wait_for_channel_ready(timeout=timeout)
 
-                if kwargs.pop("keep_alive", False):
-                    gh.register_state_change_callback(
-                        ReconnectHandler(self, alias, kwargs_copy).reconnect_on_idle
-                    )
+                    if kwargs.pop("keep_alive", False):
+                        gh.register_state_change_callback(
+                            ReconnectHandler(self, alias, kwargs_copy).reconnect_on_idle
+                        )
+                except Exception as e:
+                    self.remove_connection(alias)
+                    raise e from e
 
         def with_config(config: Tuple) -> bool:
             return any(c != "" for c in config)
