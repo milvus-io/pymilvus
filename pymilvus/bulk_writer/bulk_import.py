@@ -112,6 +112,8 @@ def bulk_import(
     api_key: str = "",
     access_key: str = "",
     secret_key: str = "",
+    stage_name: str = "",
+    data_paths: [List[List[str]]] = None,
     verify: Optional[Union[bool, str]] = True,
     cert: Optional[Union[str, tuple]] = None,
     **kwargs,
@@ -132,6 +134,8 @@ def bulk_import(
         api_key (str): API key to authenticate your requests.
         access_key (str): access key to access the object storage
         secret_key (str): secret key to access the object storage
+        stage_name (str): name of the stage to import
+        data_paths (list of list of str): The paths of files that contain the data to import.
         verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
              or a string, which must be server's certificate path. Defaults to `True`.
         cert (str, tuple, optional): if String, path to ssl client cert file.
@@ -152,6 +156,8 @@ def bulk_import(
         "clusterId": cluster_id,
         "accessKey": access_key,
         "secretKey": secret_key,
+        "stageName": stage_name,
+        "dataPaths": data_paths,
     }
 
     options = kwargs.pop("options", {})
