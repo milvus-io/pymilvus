@@ -89,6 +89,11 @@ def init_log(log_level: str):
                 "level": "INFO",
                 "propagate": False,
             },
+            "pymilvus.stage": {
+                "handlers": ["no_color_console"],
+                "level": "INFO",
+                "propagate": False,
+            },
         },
     }
     logging.config.dictConfig(logging_config)
