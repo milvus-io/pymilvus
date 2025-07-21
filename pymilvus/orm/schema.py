@@ -100,15 +100,14 @@ class CollectionSchema:
         self._partition_key_field = None
         self._clustering_key_field = None
 
-        if functions is None:
-            functions = []
-
-        if not isinstance(functions, list):
-            raise FunctionsTypeException(message=ExceptionsMessage.FunctionsType)
-        for function in functions:
-            if not isinstance(function, Function):
-                raise SchemaNotReadyException(message=ExceptionsMessage.FunctionIncorrectType)
-        self._functions = [copy.deepcopy(function) for function in functions]
+        self._functions = []
+        if functions:
+            if not isinstance(functions, list):
+                raise FunctionsTypeException(message=ExceptionsMessage.FunctionsType)
+            for function in functions:
+                if not isinstance(function, Function):
+                    raise SchemaNotReadyException(message=ExceptionsMessage.FunctionIncorrectType)
+            self._functions = functions
 
         if not isinstance(fields, list):
             raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
@@ -118,7 +117,6 @@ class CollectionSchema:
         self._fields = [copy.deepcopy(field) for field in fields]
 
         self._mark_output_fields()
-
         self._check_kwargs()
         if kwargs.get("check_fields", True):
             self._check_fields()

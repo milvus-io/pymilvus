@@ -1,42 +1,41 @@
 import numpy
 import pytest
 
-from pymilvus import CollectionSchema, FieldSchema, DataType, MilvusException
+from pymilvus import CollectionSchema, FieldSchema, DataType
 from utils import *
 from pymilvus.orm import schema as s
 
 
+from pymilvus.orm.schema import Function, FunctionType
+
 class TestCollectionSchema:
     @pytest.fixture(scope="function")
     def raw_dict(self):
-        _dict = {}
-        _dict["description"] = "TestCollectionSchema_description"
-        fields = [
-            {
-                "name": "vec1",
-                "description": "desc1",
-                "type": DataType.FLOAT_VECTOR,
-                "params": {"dim": 128},
-            },
-
-            {
-                "name": "vec2",
-                "description": "desc2",
-                "type": DataType.BINARY_VECTOR,
-                "params": {"dim": 128},
-            },
-            {
-                "name": "ID",
-                "description": "ID",
-                "type": DataType.INT64,
-                "is_primary": True,
-                "auto_id": False
-            },
-        ]
-        _dict["fields"] = fields
-        _dict["enable_dynamic_field"] = True
-
-        return _dict
+        return {
+            "description": "TestCollectionSchema_description",
+            "enable_dynamic_field": True,
+            "fields": [
+                {
+                    "name": "vec1",
+                    "description": "desc1",
+                    "type": DataType.FLOAT_VECTOR,
+                    "params": {"dim": 128},
+                },
+                {
+                    "name": "vec2",
+                    "description": "desc2",
+                    "type": DataType.BINARY_VECTOR,
+                    "params": {"dim": 128},
+                },
+                {
+                    "name": "ID",
+                    "description": "ID",
+                    "type": DataType.INT64,
+                    "is_primary": True,
+                    "auto_id": False
+                },
+            ]
+        }
 
     def test_constructor_from_dict(self, raw_dict):
         schema = CollectionSchema.construct_from_dict(raw_dict)
@@ -53,6 +52,14 @@ class TestCollectionSchema:
         target.pop("auto_id", None)
         assert target == raw_dict
         assert target is not raw_dict
+
+    def test_init_with_functions(self, raw_dict):
+        functions = [
+            Function("func1", FunctionType.BM25, ["field1"], ["field2"])
+        ]
+        schema = CollectionSchema.construct_from_dict(raw_dict)
+        schema_with_func = CollectionSchema(schema.fields, schema.description, functions=functions)
+        assert schema_with_func.functions == functions
 
 
 class TestFieldSchema:
