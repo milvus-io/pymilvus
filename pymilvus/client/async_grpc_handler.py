@@ -1,6 +1,6 @@
 import asyncio
 import base64
-import copy
+import json
 import socket
 import time
 from pathlib import Path
@@ -14,12 +14,13 @@ from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure
 from pymilvus.exceptions import (
     AmbiguousIndexName,
     DescribeCollectionException,
+    ErrorCode,
     ExceptionsMessage,
     MilvusException,
     ParamError,
 )
+from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-from pymilvus.grpc_gen import milvus_pb2_grpc
 from pymilvus.settings import Config
 
 from . import entity_helper, ts_utils, utils
@@ -35,9 +36,14 @@ from .interceptor import _api_level_md
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
-    DataType,
+    AnalyzeResult,
+    CompactionState,
+    DatabaseInfo,
+    GrantInfo,
     HybridExtraList,
     IndexState,
+    ResourceGroupConfig,
+    State,
     Status,
     get_cost_extra,
 )
@@ -659,29 +665,9 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        # for historical reason, index_name contained in kwargs.
         index_name = kwargs.pop("index_name", Config.IndexName)
-        copy_kwargs = copy.deepcopy(kwargs)
-
-        collection_desc = await self.describe_collection(
-            collection_name, timeout=timeout, **copy_kwargs
-        )
         await self.ensure_channel_ready()
-        valid_field = False
-        for fields in collection_desc["fields"]:
-            if field_name != fields["name"]:
-                continue
-            valid_field = True
-            if fields["type"] not in {
-                DataType.FLOAT_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.FLOAT16_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-                DataType.SPARSE_FLOAT_VECTOR,
-            }:
-                break
-
-        if not valid_field:
-            raise MilvusException(message=f"cannot create index on non-existed field: {field_name}")
 
         index_param = Prepare.create_index_request(
             collection_name, field_name, params, index_name=index_name
