@@ -1315,6 +1315,9 @@ class GrpcHandler:
     ):
         check_pass_param(timeout=timeout)
 
+        # Get all partition names before LoadCollection call to avoid race conditions
+        partition_names = self.list_partitions(collection_name, timeout=timeout, **kwargs)
+
         request = Prepare.load_collection(collection_name, replica_number, **kwargs)
         response = self._stub.LoadCollection(
             request,
@@ -1328,6 +1331,7 @@ class GrpcHandler:
 
         self.wait_for_loading_collection(
             collection_name=collection_name,
+            partition_names=partition_names,
             is_refresh=request.refresh,
             timeout=timeout,
             **kwargs,
@@ -1350,6 +1354,7 @@ class GrpcHandler:
     def wait_for_loading_collection(
         self,
         collection_name: str,
+        partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         is_refresh: bool = False,
         **kwargs,
@@ -1367,7 +1372,26 @@ class GrpcHandler:
                 **kwargs,
             )
             if progress >= 100:
-                return
+                # When collection progress is 100%, also verify all partitions are loaded
+                if partition_names:
+                    all_partitions_loaded = True
+                    for partition_name in partition_names:
+                        load_state = self.get_load_state(
+                            collection_name,
+                            partition_names=[partition_name],
+                            timeout=timeout,
+                            **kwargs,
+                        )
+                        if load_state != LoadState.Loaded:
+                            all_partitions_loaded = False
+                            break
+
+                    if all_partitions_loaded:
+                        return
+                    # If not all partitions are loaded, continue waiting
+                else:
+                    # If no partition_names provided, use original behavior
+                    return
             time.sleep(Config.WaitTimeDurationWhenLoad)
         raise MilvusException(
             message=f"wait for loading collection timeout, collection: {collection_name}"
