@@ -105,7 +105,7 @@ def _get_request(
 def bulk_import(
     url: str,
     collection_name: str,
-    db_name: str = "default",
+    db_name: str = "",
     files: Optional[List[List[str]]] = None,
     object_url: str = "",
     cluster_id: str = "",
