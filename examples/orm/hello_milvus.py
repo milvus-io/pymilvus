@@ -49,6 +49,7 @@ print(f"Does collection hello_milvus exist in Milvus: {has}")
 # +-+------------+------------+------------------+------------------------------+
 fields = [
     FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=100),
+    FieldSchema(name="id", dtype=DataType.VARCHAR, max_length=100, nullable=True),
     FieldSchema(name="random", dtype=DataType.DOUBLE),
     FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=dim)
 ]
@@ -72,6 +73,7 @@ rng = np.random.default_rng(seed=19530)
 entities = [
     # provide the pk field because `auto_id` is set to False
     [str(i) for i in range(num_entities)],
+    [str(i) + "idxxxxx" for i in range(num_entities)],
     rng.random(num_entities).tolist(),  # field random, only supports list
     rng.random((num_entities, dim), np.float32),    # field embeddings, supports numpy.ndarray and list
 ]
@@ -111,7 +113,7 @@ hello_milvus.create_index("embeddings", index)
 
 # Before conducting a search or a query, you need to load the data in `hello_milvus` into memory.
 print(fmt.format("Start loading"))
-#hello_milvus.load()
+hello_milvus.load()
 
 # -----------------------------------------------------------------------------
 # search based on vector similarity
@@ -183,5 +185,5 @@ print(fmt.format("Start loading"))
 ###############################################################################
 # 7. drop collection
 # Finally, drop the hello_milvus collection
-print(fmt.format("Drop collection `hello_milvus`"))
-utility.drop_collection("hello_milvus")
+#print(fmt.format("Drop collection `hello_milvus`"))
+#utility.drop_collection("hello_milvus")

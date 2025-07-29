@@ -1,5 +1,5 @@
 #herer
-MILVUS_HOST = "10.104.6.16"
+MILVUS_HOST = "10.104.27.167"
 MILVUS_PORT = 19530
 
 import numpy as np
@@ -58,7 +58,7 @@ def test_hybrid_search_weighted_ranker():
     connections.connect("default", host=MILVUS_HOST, port=MILVUS_PORT)
     
     # 获取collection
-    collection_name = "fouram_HrJwJuGg"
+    collection_name = "fouram_9X8IMn66"
     if not utility.has_collection(collection_name):
         print(f"Collection {collection_name} 不存在")
         return
