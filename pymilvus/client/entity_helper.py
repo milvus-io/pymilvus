@@ -446,6 +446,27 @@ def pack_field_value_to_field_data(
                 % (field_name, "varchar", type(field_value))
                 + f" Detail: {e!s}"
             ) from e
+    elif field_type == DataType.GEOMETRY:
+        try:
+            if field_value is None:
+                field_data.scalars.geometry_data.data.extend([])
+            else:
+                # Geometry data should be encoded as bytes
+                if isinstance(field_value, str):
+                    # If it's a string (like WKT format), encode to bytes
+                    geometry_bytes = field_value.encode('utf-8')
+                elif isinstance(field_value, bytes):
+                    # If it's already bytes, use directly
+                    geometry_bytes = field_value
+                else:
+                    # Try to convert to string first, then encode
+                    geometry_bytes = str(field_value).encode('utf-8')
+                field_data.scalars.geometry_data.data.append(geometry_bytes)
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                % (field_name, "geometry", type(field_value))
+            ) from e
     elif field_type == DataType.JSON:
         try:
             if field_value is None:
@@ -536,6 +557,20 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             field_data.scalars.array_data.data.extend(
                 entity_to_array_arr(entity_values, field_info)
             )
+        elif entity_type == DataType.GEOMETRY:
+            # Convert geometry values to bytes format
+            geometry_bytes_list = []
+            for value in entity_values:
+                if isinstance(value, str):
+                    # If it's a string (like WKT format), encode to bytes
+                    geometry_bytes_list.append(value.encode('utf-8'))
+                elif isinstance(value, bytes):
+                    # If it's already bytes, use directly
+                    geometry_bytes_list.append(value)
+                else:
+                    # Try to convert to string first, then encode
+                    geometry_bytes_list.append(str(value).encode('utf-8'))
+            field_data.scalars.geometry_data.data.extend(geometry_bytes_list)
         else:
             raise ParamError(message=f"Unsupported data type: {entity_type}")
     except (TypeError, ValueError) as e:
@@ -722,6 +757,19 @@ def extract_row_data_from_fields_data_v2(
         assign_scalar(data)
         return False
 
+    if field_data.type == DataType.GEOMETRY:
+        # Geometry data is stored as bytes, decode it back to string if needed
+        geometry_data = []
+        for geometry_bytes in field_data.scalars.geometry_data.data:
+            try:
+                # Try to decode as UTF-8 string first
+                geometry_data.append(geometry_bytes.decode('utf-8'))
+            except UnicodeDecodeError:
+                # If decoding fails, return as bytes
+                geometry_data.append(geometry_bytes)
+        assign_scalar(geometry_data)
+        return False
+
     if field_data.type == DataType.JSON:
         return True
 
@@ -810,6 +858,22 @@ def extract_row_data_from_fields_data(
                 entity_row_data[field_data.field_name] = None
                 return
             entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
+            return
+
+        if (
+            field_data.type == DataType.GEOMETRY
+            and len(field_data.scalars.geometry_data.data) >= index
+        ):
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
+            geometry_bytes = field_data.scalars.geometry_data.data[index]
+            try:
+                # Try to decode as UTF-8 string first
+                entity_row_data[field_data.field_name] = geometry_bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                # If decoding fails, return as bytes
+                entity_row_data[field_data.field_name] = geometry_bytes
             return
 
         if field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
