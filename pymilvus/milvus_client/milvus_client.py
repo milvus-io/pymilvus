@@ -287,6 +287,9 @@ class MilvusClient:
             {
                 "upsert_count": res.upsert_count,
                 "cost": res.cost,
+                # milvus server supports upsert on autoid=ture from v2.4.15
+                # upsert on autoid=ture will return new ids for user
+                "primary_keys": res.primary_keys,
             }
         )
 
