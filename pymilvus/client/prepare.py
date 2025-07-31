@@ -28,6 +28,8 @@ from .constants import (
     ITER_SEARCH_LAST_BOUND_KEY,
     ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
+    JSON_PATH,
+    JSON_CAST_TYPE,
     PAGE_RETAIN_ORDER_FIELD,
     RANK_GROUP_SCORER,
     REDUCE_STOP_FOR_BEST,
@@ -1020,6 +1022,28 @@ class Prepare:
         if strict_group_size is not None:
             search_params[STRICT_GROUP_SIZE] = strict_group_size
 
+        json_path = kwargs.get(JSON_PATH)
+        if json_path is not None:
+            search_params[JSON_PATH] = json_path
+
+        json_cast_type = kwargs.get(JSON_CAST_TYPE)
+        if json_cast_type is not None:
+            match json_cast_type:
+                case DataType.INT8:
+                    search_params[JSON_CAST_TYPE] = "Int8"
+                case DataType.INT16:
+                    search_params[JSON_CAST_TYPE] = "Int16"
+                case DataType.INT32:
+                    search_params[JSON_CAST_TYPE] = "Int32"
+                case DataType.INT64:
+                    search_params[JSON_CAST_TYPE] = "Int64"
+                case DataType.BOOL:
+                    search_params[JSON_CAST_TYPE] = "Bool"
+                case DataType.VARCHAR | DataType.STRING:
+                    search_params[JSON_CAST_TYPE] = "VarChar"    
+                case _:
+                    raise ParamError(message=f"Unsupported json cast type: {json_cast_type}")
+        
         if param.get("metric_type") is not None:
             search_params["metric_type"] = param["metric_type"]
 
