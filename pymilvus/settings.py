@@ -89,7 +89,7 @@ def init_log(log_level: str):
                 "level": "INFO",
                 "propagate": False,
             },
-            "pymilvus.stage": {
+            "pymilvus.bulk_writer": {
                 "handlers": ["no_color_console"],
                 "level": "INFO",
                 "propagate": False,
