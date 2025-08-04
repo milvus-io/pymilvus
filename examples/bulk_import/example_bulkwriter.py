@@ -10,18 +10,15 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-import os
 import json
-import random
+import logging
 import threading
 import time
-import pandas as pd
-import numpy as np
-import tensorflow as tf
-
-import logging
-
 from typing import List
+import numpy as np
+import pandas as pd
+
+from examples.bulk_import.data_gengerator import *
 
 logging.basicConfig(level=logging.INFO)
 
@@ -30,7 +27,6 @@ from pymilvus import (
     FieldSchema, CollectionSchema, DataType,
     Collection,
     utility,
-    BulkInsertState,
 )
 
 from pymilvus.bulk_writer import (
@@ -54,65 +50,6 @@ PORT = '19530'
 SIMPLE_COLLECTION_NAME = "for_bulkwriter"
 ALL_TYPES_COLLECTION_NAME = "all_types_for_bulkwriter"
 DIM = 512
-
-# optional input for binary vector:
-# 1. list of int such as [1, 0, 1, 1, 0, 0, 1, 0]
-# 2. numpy array of uint8
-def gen_binary_vector(to_numpy_arr):
-    raw_vector = [random.randint(0, 1) for i in range(DIM)]
-    if to_numpy_arr:
-        return np.packbits(raw_vector, axis=-1)
-    return raw_vector
-
-# optional input for float vector:
-# 1. list of float such as [0.56, 1.859, 6.55, 9.45]
-# 2. numpy array of float32
-def gen_float_vector(to_numpy_arr):
-    raw_vector = [random.random() for _ in range(DIM)]
-    if to_numpy_arr:
-        return np.array(raw_vector, dtype="float32")
-    return raw_vector
-
-# optional input for bfloat16 vector:
-# 1. list of float such as [0.56, 1.859, 6.55, 9.45]
-# 2. numpy array of bfloat16
-def gen_bf16_vector(to_numpy_arr):
-    raw_vector = [random.random() for _ in range(DIM)]
-    if to_numpy_arr:
-        return tf.cast(raw_vector, dtype=tf.bfloat16).numpy()
-    return raw_vector
-
-# optional input for float16 vector:
-# 1. list of float such as [0.56, 1.859, 6.55, 9.45]
-# 2. numpy array of float16
-def gen_fp16_vector(to_numpy_arr):
-    raw_vector = [random.random() for _ in range(DIM)]
-    if to_numpy_arr:
-        return np.array(raw_vector, dtype=np.float16)
-    return raw_vector
-
-# optional input for int8 vector:
-# 1. list of int8 such as [-6, 18, 65, -94]
-# 2. numpy array of int8
-def gen_int8_vector(to_numpy_arr):
-    raw_vector = [random.randint(-128, 127) for _ in range(DIM)]
-    if to_numpy_arr:
-        return np.array(raw_vector, dtype=np.int8)
-    return raw_vector
-
-# optional input for sparse vector:
-# only accepts dict like {2: 13.23, 45: 0.54} or {"indices": [1, 2], "values": [0.1, 0.2]}
-# note: no need to sort the keys
-def gen_sparse_vector(pair_dict: bool):
-    raw_vector = {}
-    dim = random.randint(2, 20)
-    if pair_dict:
-        raw_vector["indices"] = [i for i in range(dim)]
-        raw_vector["values"] = [random.random() for _ in range(dim)]
-    else:
-        for i in range(dim):
-            raw_vector[i] = random.random()
-    return raw_vector
 
 def create_connection():
     print(f"\nCreate connection...")
@@ -193,7 +130,7 @@ def local_writer_simple(schema: CollectionSchema, file_type: BulkFileType):
 
         # append rows
         for i in range(100000):
-            local_writer.append_row({"path": f"path_{i}", "vector": gen_float_vector(i%2==0), "label": f"label_{i}"})
+            local_writer.append_row({"path": f"path_{i}", "vector": gen_float_vector(i%2==0, DIM), "label": f"label_{i}"})
 
         print(f"{local_writer.total_row_count} rows appends")
         print(f"{local_writer.buffer_row_count} rows in buffer not flushed")
@@ -222,7 +159,7 @@ def remote_writer_simple(schema: CollectionSchema, file_type: BulkFileType):
 
         # append rows
         for i in range(10000):
-            remote_writer.append_row({"path": f"path_{i}", "vector": gen_float_vector(i%2==0), "label": f"label_{i}"})
+            remote_writer.append_row({"path": f"path_{i}", "vector": gen_float_vector(i%2==0, DIM), "label": f"label_{i}"})
 
         print(f"{remote_writer.total_row_count} rows appends")
         print(f"{remote_writer.buffer_row_count} rows in buffer not flushed")
@@ -236,7 +173,7 @@ def parallel_append(schema: CollectionSchema):
     def _append_row(writer: LocalBulkWriter, begin: int, end: int):
         try:
             for i in range(begin, end):
-                writer.append_row({"path": f"path_{i}", "vector": gen_float_vector(False), "label": f"label_{i}"})
+                writer.append_row({"path": f"path_{i}", "vector": gen_float_vector(False, DIM), "label": f"label_{i}"})
                 if i%100 == 0:
                     print(f"{threading.current_thread().name} inserted {i-begin} items")
         except Exception as e:
@@ -314,10 +251,10 @@ def all_types_writer(schema: CollectionSchema, file_type: BulkFileType)-> List[L
                 "varchar": f"varchar_{i}",
                 "json": {"dummy": i, "ok": f"name_{i}"},
                 # "float_vector": gen_float_vector(False),
-                "binary_vector": gen_binary_vector(False),
-                "float16_vector": gen_fp16_vector(False),
+                "binary_vector": gen_binary_vector(False, DIM),
+                "float16_vector": gen_fp16_vector(False, DIM),
                 # "bfloat16_vector": gen_bf16_vector(False),
-                "int8_vector": gen_int8_vector(False),
+                "int8_vector": gen_int8_vector(False, DIM),
                 f"dynamic_{i}": i,
                 # bulkinsert doesn't support import npy with array field and sparse vector,
                 # if file_type is numpy, the below values will be stored into dynamic field
@@ -342,10 +279,10 @@ def all_types_writer(schema: CollectionSchema, file_type: BulkFileType)-> List[L
                 "varchar": f"varchar_{id}",
                 "json": json.dumps({"dummy": id, "ok": f"name_{id}"}),
                 # "float_vector": gen_float_vector(True),
-                "binary_vector": gen_binary_vector(True),
-                "float16_vector": gen_fp16_vector(True),
+                "binary_vector": gen_binary_vector(True, DIM),
+                "float16_vector": gen_fp16_vector(True, DIM),
                 # "bfloat16_vector": gen_bf16_vector(True),
-                "int8_vector": gen_int8_vector(True),
+                "int8_vector": gen_int8_vector(True, DIM),
                 f"dynamic_{id}": id,
                 # bulkinsert doesn't support import npy with array field and sparse vector,
                 # if file_type is numpy, the below values will be stored into dynamic field
@@ -382,8 +319,8 @@ def call_bulkinsert(schema: CollectionSchema, batch_files: List[List[str]]):
     print(f"Create a bulkinsert job, job id: {job_id}")
 
     while True:
-        print("Wait 1 second to check bulkinsert job state...")
-        time.sleep(1)
+        print("Wait 5 second to check bulkinsert job state...")
+        time.sleep(5)
 
         print(f"\n===================== get import job progress ====================")
         resp = get_import_progress(
