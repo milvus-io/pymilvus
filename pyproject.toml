@@ -19,8 +19,8 @@ readme = "README.md"
 dependencies=[
     "setuptools>69",
     "setuptools<70.1;python_version<='3.8'",
-    "grpcio>=1.49.1,<=1.67.1", #issue https://github.com/milvus-io/pymilvus/issues/2358
     "protobuf>=3.20.0",
+    "grpcio>=1.49.1,!=1.68.0,!=1.68.1,!=1.69.0,!=1.70.0,!=1.70.1,!=1.71.0,!=1.72.1,!=1.73.0",
     "python-dotenv>=1.0.1, <2.0.0",
     "ujson>=2.0.0",
     "pandas>=1.2.4",
@@ -35,6 +35,7 @@ classifiers=[
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: Apache Software License",
 ]
 
