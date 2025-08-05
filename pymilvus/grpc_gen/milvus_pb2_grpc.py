@@ -516,6 +516,41 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.RunAnalyzerRequest.SerializeToString,
                 response_deserializer=milvus__pb2.RunAnalyzerResponse.FromString,
                 _registered_method=True)
+        self.AddUserTags = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AddUserTags',
+                request_serializer=milvus__pb2.AddUserTagsRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.DeleteUserTags = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DeleteUserTags',
+                request_serializer=milvus__pb2.DeleteUserTagsRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.GetUserTags = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetUserTags',
+                request_serializer=milvus__pb2.GetUserTagsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetUserTagsResponse.FromString,
+                _registered_method=True)
+        self.ListUsersWithTag = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListUsersWithTag',
+                request_serializer=milvus__pb2.ListUsersWithTagRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListUsersWithTagResponse.FromString,
+                _registered_method=True)
+        self.CreateRowPolicy = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CreateRowPolicy',
+                request_serializer=milvus__pb2.CreateRowPolicyRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.DropRowPolicy = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DropRowPolicy',
+                request_serializer=milvus__pb2.DropRowPolicyRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.ListRowPolicies = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListRowPolicies',
+                request_serializer=milvus__pb2.ListRowPoliciesRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListRowPoliciesResponse.FromString,
+                _registered_method=True)
 
 
 class MilvusServiceServicer(object):
@@ -1104,6 +1139,49 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def AddUserTags(self, request, context):
+        """Row Level Security (RLS) APIs
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteUserTags(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetUserTags(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListUsersWithTag(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateRowPolicy(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropRowPolicy(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListRowPolicies(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -1586,6 +1664,41 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.RunAnalyzer,
                     request_deserializer=milvus__pb2.RunAnalyzerRequest.FromString,
                     response_serializer=milvus__pb2.RunAnalyzerResponse.SerializeToString,
+            ),
+            'AddUserTags': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddUserTags,
+                    request_deserializer=milvus__pb2.AddUserTagsRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DeleteUserTags': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteUserTags,
+                    request_deserializer=milvus__pb2.DeleteUserTagsRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'GetUserTags': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetUserTags,
+                    request_deserializer=milvus__pb2.GetUserTagsRequest.FromString,
+                    response_serializer=milvus__pb2.GetUserTagsResponse.SerializeToString,
+            ),
+            'ListUsersWithTag': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListUsersWithTag,
+                    request_deserializer=milvus__pb2.ListUsersWithTagRequest.FromString,
+                    response_serializer=milvus__pb2.ListUsersWithTagResponse.SerializeToString,
+            ),
+            'CreateRowPolicy': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateRowPolicy,
+                    request_deserializer=milvus__pb2.CreateRowPolicyRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DropRowPolicy': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropRowPolicy,
+                    request_deserializer=milvus__pb2.DropRowPolicyRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'ListRowPolicies': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListRowPolicies,
+                    request_deserializer=milvus__pb2.ListRowPoliciesRequest.FromString,
+                    response_serializer=milvus__pb2.ListRowPoliciesResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -4180,6 +4293,195 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/RunAnalyzer',
             milvus__pb2.RunAnalyzerRequest.SerializeToString,
             milvus__pb2.RunAnalyzerResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AddUserTags(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/AddUserTags',
+            milvus__pb2.AddUserTagsRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteUserTags(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DeleteUserTags',
+            milvus__pb2.DeleteUserTagsRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetUserTags(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/GetUserTags',
+            milvus__pb2.GetUserTagsRequest.SerializeToString,
+            milvus__pb2.GetUserTagsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListUsersWithTag(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ListUsersWithTag',
+            milvus__pb2.ListUsersWithTagRequest.SerializeToString,
+            milvus__pb2.ListUsersWithTagResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateRowPolicy(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/CreateRowPolicy',
+            milvus__pb2.CreateRowPolicyRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DropRowPolicy(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DropRowPolicy',
+            milvus__pb2.DropRowPolicyRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListRowPolicies(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ListRowPolicies',
+            milvus__pb2.ListRowPoliciesRequest.SerializeToString,
+            milvus__pb2.ListRowPoliciesResponse.FromString,
             options,
             channel_credentials,
             insecure,

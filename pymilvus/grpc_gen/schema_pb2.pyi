@@ -30,6 +30,8 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BFloat16Vector: _ClassVar[DataType]
     SparseFloatVector: _ClassVar[DataType]
     Int8Vector: _ClassVar[DataType]
+    ArrayOfVector: _ClassVar[DataType]
+    ArrayOfStruct: _ClassVar[DataType]
 
 class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -64,6 +66,8 @@ Float16Vector: DataType
 BFloat16Vector: DataType
 SparseFloatVector: DataType
 Int8Vector: DataType
+ArrayOfVector: DataType
+ArrayOfStruct: DataType
 Unknown: FunctionType
 BM25: FunctionType
 TextEmbedding: FunctionType
@@ -140,7 +144,7 @@ class FunctionScore(_message.Message):
     def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
@@ -149,6 +153,7 @@ class CollectionSchema(_message.Message):
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     FUNCTIONS_FIELD_NUMBER: _ClassVar[int]
     DBNAME_FIELD_NUMBER: _ClassVar[int]
+    STRUCT_ARRAY_FIELDS_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     autoID: bool
@@ -157,7 +162,20 @@ class CollectionSchema(_message.Message):
     properties: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     functions: _containers.RepeatedCompositeFieldContainer[FunctionSchema]
     dbName: str
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ...) -> None: ...
+    struct_array_fields: _containers.RepeatedCompositeFieldContainer[StructArrayFieldSchema]
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ...) -> None: ...
+
+class StructArrayFieldSchema(_message.Message):
+    __slots__ = ("fieldID", "name", "description", "fields")
+    FIELDID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    fieldID: int
+    name: str
+    description: str
+    fields: _containers.RepeatedCompositeFieldContainer[FieldSchema]
+    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ...) -> None: ...
 
 class BoolArray(_message.Message):
     __slots__ = ("data",)
@@ -272,7 +290,7 @@ class SparseFloatArray(_message.Message):
     def __init__(self, contents: _Optional[_Iterable[bytes]] = ..., dim: _Optional[int] = ...) -> None: ...
 
 class VectorField(_message.Message):
-    __slots__ = ("dim", "float_vector", "binary_vector", "float16_vector", "bfloat16_vector", "sparse_float_vector", "int8_vector")
+    __slots__ = ("dim", "float_vector", "binary_vector", "float16_vector", "bfloat16_vector", "sparse_float_vector", "int8_vector", "vector_array")
     DIM_FIELD_NUMBER: _ClassVar[int]
     FLOAT_VECTOR_FIELD_NUMBER: _ClassVar[int]
     BINARY_VECTOR_FIELD_NUMBER: _ClassVar[int]
@@ -280,6 +298,7 @@ class VectorField(_message.Message):
     BFLOAT16_VECTOR_FIELD_NUMBER: _ClassVar[int]
     SPARSE_FLOAT_VECTOR_FIELD_NUMBER: _ClassVar[int]
     INT8_VECTOR_FIELD_NUMBER: _ClassVar[int]
+    VECTOR_ARRAY_FIELD_NUMBER: _ClassVar[int]
     dim: int
     float_vector: FloatArray
     binary_vector: bytes
@@ -287,14 +306,32 @@ class VectorField(_message.Message):
     bfloat16_vector: bytes
     sparse_float_vector: SparseFloatArray
     int8_vector: bytes
-    def __init__(self, dim: _Optional[int] = ..., float_vector: _Optional[_Union[FloatArray, _Mapping]] = ..., binary_vector: _Optional[bytes] = ..., float16_vector: _Optional[bytes] = ..., bfloat16_vector: _Optional[bytes] = ..., sparse_float_vector: _Optional[_Union[SparseFloatArray, _Mapping]] = ..., int8_vector: _Optional[bytes] = ...) -> None: ...
+    vector_array: VectorArray
+    def __init__(self, dim: _Optional[int] = ..., float_vector: _Optional[_Union[FloatArray, _Mapping]] = ..., binary_vector: _Optional[bytes] = ..., float16_vector: _Optional[bytes] = ..., bfloat16_vector: _Optional[bytes] = ..., sparse_float_vector: _Optional[_Union[SparseFloatArray, _Mapping]] = ..., int8_vector: _Optional[bytes] = ..., vector_array: _Optional[_Union[VectorArray, _Mapping]] = ...) -> None: ...
+
+class VectorArray(_message.Message):
+    __slots__ = ("dim", "data", "element_type")
+    DIM_FIELD_NUMBER: _ClassVar[int]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    dim: int
+    data: _containers.RepeatedCompositeFieldContainer[VectorField]
+    element_type: DataType
+    def __init__(self, dim: _Optional[int] = ..., data: _Optional[_Iterable[_Union[VectorField, _Mapping]]] = ..., element_type: _Optional[_Union[DataType, str]] = ...) -> None: ...
+
+class StructArrayField(_message.Message):
+    __slots__ = ("fields",)
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    fields: _containers.RepeatedCompositeFieldContainer[FieldData]
+    def __init__(self, fields: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ...) -> None: ...
 
 class FieldData(_message.Message):
-    __slots__ = ("type", "field_name", "scalars", "vectors", "field_id", "is_dynamic", "valid_data")
+    __slots__ = ("type", "field_name", "scalars", "vectors", "struct_arrays", "field_id", "is_dynamic", "valid_data")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     SCALARS_FIELD_NUMBER: _ClassVar[int]
     VECTORS_FIELD_NUMBER: _ClassVar[int]
+    STRUCT_ARRAYS_FIELD_NUMBER: _ClassVar[int]
     FIELD_ID_FIELD_NUMBER: _ClassVar[int]
     IS_DYNAMIC_FIELD_NUMBER: _ClassVar[int]
     VALID_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -302,10 +339,11 @@ class FieldData(_message.Message):
     field_name: str
     scalars: ScalarField
     vectors: VectorField
+    struct_arrays: StructArrayField
     field_id: int
     is_dynamic: bool
     valid_data: _containers.RepeatedScalarFieldContainer[bool]
-    def __init__(self, type: _Optional[_Union[DataType, str]] = ..., field_name: _Optional[str] = ..., scalars: _Optional[_Union[ScalarField, _Mapping]] = ..., vectors: _Optional[_Union[VectorField, _Mapping]] = ..., field_id: _Optional[int] = ..., is_dynamic: bool = ..., valid_data: _Optional[_Iterable[bool]] = ...) -> None: ...
+    def __init__(self, type: _Optional[_Union[DataType, str]] = ..., field_name: _Optional[str] = ..., scalars: _Optional[_Union[ScalarField, _Mapping]] = ..., vectors: _Optional[_Union[VectorField, _Mapping]] = ..., struct_arrays: _Optional[_Union[StructArrayField, _Mapping]] = ..., field_id: _Optional[int] = ..., is_dynamic: bool = ..., valid_data: _Optional[_Iterable[bool]] = ...) -> None: ...
 
 class IDs(_message.Message):
     __slots__ = ("int_id", "str_id")
