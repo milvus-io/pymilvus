@@ -112,6 +112,12 @@ class PlaceholderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Int8Vector: _ClassVar[PlaceholderType]
     Int64: _ClassVar[PlaceholderType]
     VarChar: _ClassVar[PlaceholderType]
+    EmbListBinaryVector: _ClassVar[PlaceholderType]
+    EmbListFloatVector: _ClassVar[PlaceholderType]
+    EmbListFloat16Vector: _ClassVar[PlaceholderType]
+    EmbListBFloat16Vector: _ClassVar[PlaceholderType]
+    EmbListSparseFloatVector: _ClassVar[PlaceholderType]
+    EmbListInt8Vector: _ClassVar[PlaceholderType]
 
 class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -453,6 +459,12 @@ SparseFloatVector: PlaceholderType
 Int8Vector: PlaceholderType
 Int64: PlaceholderType
 VarChar: PlaceholderType
+EmbListBinaryVector: PlaceholderType
+EmbListFloatVector: PlaceholderType
+EmbListFloat16Vector: PlaceholderType
+EmbListBFloat16Vector: PlaceholderType
+EmbListSparseFloatVector: PlaceholderType
+EmbListInt8Vector: PlaceholderType
 Undefined: MsgType
 CreateCollection: MsgType
 DropCollection: MsgType
