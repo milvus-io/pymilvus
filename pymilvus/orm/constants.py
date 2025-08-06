@@ -18,6 +18,7 @@ COMMON_TYPE_PARAMS = (
     "enable_analyzer",
     "analyzer_params",
     "multi_analyzer_params",
+    "enable_ngram_index"
 )
 
 CALC_DIST_IDS = "ids"
