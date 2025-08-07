@@ -3,7 +3,7 @@ name: Code checker on pull request
 on:
   pull_request:
     branches:
-      - master
+      - 2.6
 
 jobs:
   code-lint:
