@@ -38,3 +38,6 @@ coverage.xml
 
 # uv
 uv.lock
+
+# AI rules
+WARP.md
