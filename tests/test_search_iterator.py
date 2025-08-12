@@ -30,11 +30,11 @@ class TestSearchIteratorV2:
             ids=mock_ids,
             topks=[num_results],
         )
-        
+
         # Create mock iterator info
         result.search_iterator_v2_results.token = "test_token"
         result.search_iterator_v2_results.last_bound = 0.5
-        
+
         return SearchResult(result)
 
     def test_init_basic(self, mock_connection, search_data):
@@ -44,7 +44,7 @@ class TestSearchIteratorV2:
             data=search_data,
             batch_size=100
         )
-        
+
         assert iterator._batch_size == 100
         assert iterator._left_res_cnt is None
         assert iterator._collection_id == "test_id"
@@ -57,7 +57,7 @@ class TestSearchIteratorV2:
             batch_size=100,
             limit=50
         )
-        
+
         assert iterator._left_res_cnt == 50
 
     def test_invalid_batch_size(self, mock_connection, search_data):
@@ -97,7 +97,7 @@ class TestSearchIteratorV2:
             data=search_data,
             batch_size=100
         )
-        
+
         result = iterator.next()
         assert result is not None
         assert len(result) == 10  # Number of results from mock
@@ -112,7 +112,7 @@ class TestSearchIteratorV2:
             batch_size=100,
             limit=5
         )
-        
+
         result = iterator.next()
         assert result is not None
         assert len(result) == 5  # Limited to 5 results
@@ -122,7 +122,7 @@ class TestSearchIteratorV2:
         mock_result = self.create_mock_search_result()
         mock_result._search_iterator_v2_results.token = ""
         mock_connection.search.return_value = mock_result
-        
+
         with pytest.raises(ServerVersionIncompatibleException):
             SearchIteratorV2(
                 connection=mock_connection,
@@ -134,10 +134,10 @@ class TestSearchIteratorV2:
     @patch('pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability')
     def test_external_filter(self, mock_probe, mock_connection, search_data):
         mock_connection.search.return_value = self.create_mock_search_result()
-        
+
         def filter_func(hits):
             return [hit for hit in hits if hit["distance"] < 5.0]
-        
+
         iterator = SearchIteratorV2(
             connection=mock_connection,
             collection_name="test_collection",
@@ -145,11 +145,11 @@ class TestSearchIteratorV2:
             batch_size=100,
             external_filter_func=filter_func
         )
-        
+
         result = iterator.next()
         assert result is not None
-        assert all(hit["distance"] < 5.0 for hit in result) 
-    
+        assert all(hit["distance"] < 5.0 for hit in result)
+
     @patch('pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability')
     def test_filter_and_external_filter(self, mock_probe, mock_connection, search_data):
         # Create mock search result with field values
@@ -158,12 +158,12 @@ class TestSearchIteratorV2:
             hit["entity"]["field_1"] = hit["id"] % 2
         mock_result[0] = list(filter(lambda x: x["entity"]["field_1"] < 5, mock_result[0]))
         mock_connection.search.return_value = mock_result
-        
+
         expr_filter = "field_1 < 5"
-        
+
         def filter_func(hits):
             return [hit for hit in hits if hit["distance"] < 5.0]  # Only hits with distance < 5.0 should pass
-        
+
         iterator = SearchIteratorV2(
             connection=mock_connection,
             collection_name="test_collection",
@@ -172,7 +172,7 @@ class TestSearchIteratorV2:
             filter=expr_filter,
             external_filter_func=filter_func
         )
-        
+
         result = iterator.next()
         assert result is not None
         assert all(hit["distance"] < 5.0 and hit["entity"]["field_1"] < 5 for hit in result)
