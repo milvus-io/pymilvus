@@ -286,7 +286,9 @@ class Buffer:
         buffer_size = 1
         buffer_row_count = 1
         if "buffer_size" in kwargs and "buffer_row_count" in kwargs:
-            row_group_bytes = kwargs.get("row_group_bytes", 32 * MB) # 32MB is an experience value that avoid high memory usage of parquet reader on server-side
+            row_group_bytes = kwargs.get(
+                "row_group_bytes", 32 * MB
+            )  # 32MB is an experience value that avoid high memory usage of parquet reader on server-side
             buffer_size = kwargs.get("buffer_size", 1)
             buffer_row_count = kwargs.get("buffer_row_count", 1)
             size_per_row = int(buffer_size / buffer_row_count) + 1
