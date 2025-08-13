@@ -108,10 +108,12 @@ def bulk_import(
     db_name: str = "",
     files: Optional[List[List[str]]] = None,
     object_url: str = "",
+    object_urls: Optional[List[List[str]]] = None,
     cluster_id: str = "",
     api_key: str = "",
     access_key: str = "",
     secret_key: str = "",
+    token: str = "",
     stage_name: str = "",
     data_paths: [List[List[str]]] = None,
     verify: Optional[Union[bool, str]] = True,
@@ -127,15 +129,19 @@ def bulk_import(
         partition_name (str): name of the target partition
         files (list of list of str): The files that contain the data to import.
              A sub-list contains a single JSON or Parquet file, or a set of Numpy files.
-        object_url (str): The URL of the object to import.
-             This URL should be accessible to the S3-compatible
-             object storage service, such as AWS S3, GCS, Azure blob storage.
-        cluster_id (str): id of a milvus instance(for cloud)
-        api_key (str): API key to authenticate your requests.
-        access_key (str): access key to access the object storage
-        secret_key (str): secret key to access the object storage
-        stage_name (str): name of the stage to import
-        data_paths (list of list of str): The paths of files that contain the data to import.
+
+        api_key (str): API key to authenticate your requests(cloud)
+        cluster_id (str): id of a milvus instance(cloud)
+
+        object_url (str): The object URL of the object to import(cloud), use `object_urls` instead.
+        object_urls (list of list of str): The object urls that contain the data to import.
+             A sub-list contains a single object url
+        access_key (str): access key to access the object storage(cloud)
+        secret_key (str): secret key to access the object storage(cloud)
+        token (str): access token to access the object storage(cloud)
+
+        stage_name (str): name of the stage to import(cloud)
+        data_paths (list of list of str): The paths of files that contain the data to import(cloud)
         verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
              or a string, which must be server's certificate path. Defaults to `True`.
         cert (str, tuple, optional): if String, path to ssl client cert file.
@@ -143,6 +149,52 @@ def bulk_import(
 
     Returns:
         response of the restful interface
+
+    Examples:
+        >>> # 1. Import multiple files into an open-source Milvus instance
+        >>> bulk_import(
+        ...    url="http://127.0.0.1:19530",
+        ...    db_name="",
+        ...    collection_name="my_collection",
+        ...    partition_name="", # If Collection not enable partitionKey, can be specified.
+        ...    files=[
+        ...        ["parquet-folder/1.parquet"],
+        ...        ["parquet-folder-2/1.parquet"]
+        ...    ]
+        ... )
+
+        >>> # 2. Import multiple files or folders from object storage into a Zilliz Cloud instance
+        >>> bulk_import(
+        ...    url="https://api.cloud.zilliz.com", # If regions in China, it is: https://api.cloud.zilliz.com.cn
+        ...    api_key="YOUR_API_KEY",
+        ...    cluster_id="in0x-xxx",
+        ...    db_name="", # Only For Dedicated deployments: this parameter can be specified.
+        ...    collection_name="my_collection",
+        ...    partition_name="", # If Collection not enable partitionKey, can be specified.
+        ...    object_urls=[
+        ...        ["s3://bucket-name/parquet-folder-1/1.parquet"],
+        ...        ["s3://bucket-name/parquet-folder-2/1.parquet"],
+        ...        ["s3://bucket-name/parquet-folder-3/"]
+        ...    ],
+        ...    access_key="your-access-key",
+        ...    secret_key="your-secret-key",
+        ...    token="your-token" # for short-term credentials, also include `token`
+        ... )
+
+        >>> # 3. Import multiple files or folders from a Zilliz Stage into a Zilliz Cloud instance
+        >>> bulk_import(
+        ...     url="https://api.cloud.zilliz.com", # If regions in China, it is: https://api.cloud.zilliz.com.cn
+        ...     api_key="YOUR_API_KEY",
+        ...     cluster_id="in0x-xxx",
+        ...     db_name="", # Only For Dedicated deployments: this parameter can be specified.
+        ...     collection_name="my_collection",
+        ...     partition_name="", # If Collection not enable partitionKey, can be specified.
+        ...     stage_name="my_stage",
+        ...     data_paths=[
+        ...         ["parquet-folder/1.parquet"],
+        ...         ["parquet-folder-2/"]
+        ...     ]
+        ... )
     """
     request_url = url + "/v2/vectordb/jobs/import/create"
 
@@ -153,9 +205,11 @@ def bulk_import(
         "partitionName": partition_name,
         "files": files,
         "objectUrl": object_url,
+        "objectUrls": object_urls,
         "clusterId": cluster_id,
         "accessKey": access_key,
         "secretKey": secret_key,
+        "token": token,
         "stageName": stage_name,
         "dataPaths": data_paths,
     }
