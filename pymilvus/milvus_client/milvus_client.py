@@ -459,7 +459,9 @@ class MilvusClient:
 
         if ids:
             try:
-                schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+                schema_dict, _ = conn._get_schema_from_cache_or_remote(
+                    collection_name, timeout=timeout
+                )
             except Exception as ex:
                 logger.error("Failed to describe collection: %s", collection_name)
                 raise ex from ex
