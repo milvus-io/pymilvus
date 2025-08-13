@@ -94,7 +94,7 @@ class LocalBulkWriter(BulkWriter):
         # in anync mode, the flush thread is asynchronously, other threads can
         # continue to append if the new buffer size is less than target size
         with self._working_thread_lock:
-            if super().buffer_size > super().chunk_size:
+            if self.buffer_size > self.chunk_size:
                 self.commit(_async=True)
 
     def commit(self, **kwargs):
@@ -106,7 +106,7 @@ class LocalBulkWriter(BulkWriter):
             time.sleep(1.0)
 
         logger.info(
-            f"Prepare to flush buffer, row_count: {super().buffer_row_count}, size: {super().buffer_size}"
+            f"Prepare to flush buffer, row_count: {self.buffer_row_count}, size: {self.buffer_size}"
         )
         _async = kwargs.get("_async", False)
         call_back = kwargs.get("call_back")
