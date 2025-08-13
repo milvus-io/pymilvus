@@ -1,12 +1,123 @@
 import json
 import logging
-from typing import Optional, Union
 
 import requests
 
 from pymilvus.exceptions import MilvusException
 
 logger = logging.getLogger(__name__)
+
+
+def list_stages(
+    url: str,
+    api_key: str,
+    project_id: str,
+    current_page: int = 1,
+    page_size: int = 10,
+    **kwargs,
+) -> requests.Response:
+    """call listStages restful interface to list stages of project
+
+    Args:
+        url (str): url of the server
+        api_key (str): API key to authenticate your requests.
+        project_id (str): the id of project
+        current_page (int): the current page
+        page_size (int): the size of each page
+
+    Returns:
+        response of the restful interface
+    """
+    request_url = url + "/v2/stages"
+
+    params = {"projectId": project_id, "currentPage": current_page, "pageSize": page_size}
+
+    resp = _get_request(url=request_url, api_key=api_key, params=params, **kwargs)
+    _handle_response(request_url, resp.json())
+    return resp
+
+
+def create_stage(
+    url: str,
+    api_key: str,
+    project_id: str,
+    region_id: str,
+    stage_name: str,
+    **kwargs,
+) -> requests.Response:
+    """call createStage restful interface to create new stage
+
+    Args:
+        url (str): url of the server
+        api_key (str): API key to authenticate your requests.
+        project_id (str): id of the project
+        region_id (str): id of the region
+        stage_name (str): name of the stage
+
+    Returns:
+        response of the restful interface
+    """
+    request_url = url + "/v2/stages/create"
+
+    params = {
+        "projectId": project_id,
+        "regionId": region_id,
+        "stageName": stage_name,
+    }
+
+    resp = _post_request(url=request_url, api_key=api_key, params=params, **kwargs)
+    _handle_response(request_url, resp.json())
+    return resp
+
+
+def delete_stage(
+    url: str,
+    api_key: str,
+    stage_name: str,
+    **kwargs,
+) -> requests.Response:
+    """call deleteStage restful interface to create stage
+
+    Args:
+        url (str): url of the server
+        api_key (str): API key to authenticate your requests.
+        stage_name (str): name of the stage
+
+    Returns:
+        response of the restful interface
+    """
+    request_url = url + "/v2/stages/" + stage_name
+
+    resp = _delete_request(url=request_url, api_key=api_key, **kwargs)
+    _handle_response(request_url, resp.json())
+    return resp
+
+
+def apply_stage(
+    url: str,
+    api_key: str,
+    stage_name: str,
+    path: str,
+    **kwargs,
+) -> requests.Response:
+    """call applyStage restful interface to apply cred of stage
+
+    Args:
+        url (str): url of the server
+        api_key (str): API key to authenticate your requests.
+        stage_name (str): name of the stage
+        path(str): path of the stage
+
+    Returns:
+        response of the restful interface
+    """
+    request_url = url + "/v2/stages/apply"
+
+    params = {"stageName": stage_name, "path": path}
+
+    resp = _post_request(url=request_url, api_key=api_key, params=params, **kwargs)
+    _handle_response(request_url, resp.json())
+    return resp
 
 
 def _http_headers(api_key: str):
@@ -32,26 +143,54 @@ def _handle_response(url: str, res: json):
         _throw(f"Failed to request url: {url}, code: {inner_code}, message: {inner_message}")
 
 
-def _post_request(
+def _get_request(
     url: str,
     api_key: str,
     params: {},
-    timeout: int = 20,
-    verify: Optional[Union[bool, str]] = True,
-    cert: Optional[Union[str, tuple]] = None,
+    timeout: int = 60,
     **kwargs,
 ) -> requests.Response:
-    """Send a POST request with 1-way / 2-way optional certificate validation
+    """Send a GET request
 
     Args:
         url (str): The endpoint URL
         api_key (str): API key for authentication
         params (dict): JSON parameters for the request
         timeout (int): Timeout for the request
-        verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
-             or a string, which must be server's certificate path. Defaults to `True`.
-        cert (str, tuple, optional): if String, path to ssl client cert file.
-                                     if Tuple, ('cert', 'key') pair.
+
+    Returns:
+        requests.Response: Response object.
+    """
+    try:
+        resp = requests.get(
+            url=url,
+            headers=_http_headers(api_key),
+            params=params,
+            timeout=timeout,
+            **kwargs,
+        )
+        if resp.status_code != 200:
+            _throw(f"Failed to get url: {url}, status code: {resp.status_code}")
+        else:
+            return resp
+    except Exception as err:
+        _throw(f"Failed to get url: {url}, error: {err}")
+
+
+def _post_request(
+    url: str,
+    api_key: str,
+    params: {},
+    timeout: int = 60,
+    **kwargs,
+) -> requests.Response:
+    """Send a POST request
+
+    Args:
+        url (str): The endpoint URL
+        api_key (str): API key for authentication
+        params (dict): JSON parameters for the request
+        timeout (int): Timeout for the request
 
     Returns:
         requests.Response: Response object.
@@ -62,8 +201,6 @@ def _post_request(
             headers=_http_headers(api_key),
             json=params,
             timeout=timeout,
-            verify=verify,
-            cert=cert,
             **kwargs,
         )
         if resp.status_code != 200:
@@ -74,44 +211,32 @@ def _post_request(
         _throw(f"Failed to post url: {url}, error: {err}")
 
 
-## bulkinsert RESTful api wrapper
-def apply_stage(
+def _delete_request(
     url: str,
-    stage_name: str,
-    path: str,
-    api_key: str = "",
-    verify: Optional[Union[bool, str]] = True,
-    cert: Optional[Union[str, tuple]] = None,
+    api_key: str,
+    timeout: int = 60,
     **kwargs,
 ) -> requests.Response:
-    """call bulkinsert restful interface to import files
+    """Send a DELETE request
 
     Args:
-        url (str): url of the server
-        stage_name (str): name of the stage
-        path (str): the path of the stage
-        api_key (str): API key to authenticate your requests.
-        verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
-             or a string, which must be server's certificate path. Defaults to `True`.
-        cert (str, tuple, optional): if String, path to ssl client cert file.
-                                     if Tuple, ('cert', 'key') pair.
+        url (str): The endpoint URL
+        api_key (str): API key for authentication
+        timeout (int): Timeout for the request
 
     Returns:
-        response of the restful interface
+        requests.Response: Response object.
     """
-    request_url = url + "/v2/stages/apply"
-
-    params = {
-        "stageName": stage_name,
-        "path": path,
-    }
-
-    options = kwargs.pop("options", {})
-    if isinstance(options, dict):
-        params["options"] = options
-
-    resp = _post_request(
-        url=request_url, api_key=api_key, params=params, verify=verify, cert=cert, **kwargs
-    )
-    _handle_response(request_url, resp.json())
-    return resp
+    try:
+        resp = requests.delete(
+            url=url,
+            headers=_http_headers(api_key),
+            timeout=timeout,
+            **kwargs,
+        )
+        if resp.status_code != 200:
+            _throw(f"Failed to delete url: {url}, status code: {resp.status_code}")
+        else:
+            return resp
+    except Exception as err:
+        _throw(f"Failed to delete url: {url}, error: {err}")
