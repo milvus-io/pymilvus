@@ -467,7 +467,7 @@ def cloud_bulkinsert():
         url=url,
         collection_name=collection_name,
         partition_name=partition_name,
-        object_url=object_url,
+        object_urls=[[object_url]],
         cluster_id=cluster_id,
         api_key=api_key,
         access_key=object_url_access_key,
