@@ -82,6 +82,7 @@ dev = [
     "azure-storage-blob",
     # develop stage
     "urllib3",
+    "scipy",
 ]
 
 [tool.setuptools.dynamic]
