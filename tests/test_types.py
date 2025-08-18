@@ -67,7 +67,7 @@ class TestConsistencyLevel:
             assert v == get_consistency_level(v)
 
     def test_consistency_level_str(self):
-        for k in ConsistencyLevel:
+        for k in ConsistencyLevel.keys():
             assert ConsistencyLevel.Value(k) == get_consistency_level(k)
 
     @pytest.mark.parametrize("invalid", [6, 100, "not supported", "中文", 1.0])
