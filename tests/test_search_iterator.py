@@ -1,10 +1,12 @@
-import pytest
-import numpy as np
 from unittest.mock import Mock, patch
+
+import numpy as np
+import pytest
 from pymilvus.client.search_iterator import SearchIteratorV2
-from pymilvus.client.search_result import Hits, SearchResult
+from pymilvus.client.search_result import SearchResult
 from pymilvus.exceptions import ParamError, ServerVersionIncompatibleException
 from pymilvus.grpc_gen import schema_pb2
+
 
 class TestSearchIteratorV2:
     @pytest.fixture
@@ -21,7 +23,7 @@ class TestSearchIteratorV2:
     def create_mock_search_result(self, num_results=10):
         # Create mock search results
         mock_ids = schema_pb2.IDs(
-            int_id=schema_pb2.LongArray(data=[i for i in range(num_results)])
+            int_id=schema_pb2.LongArray(data=list(range(num_results)))
         )
         result = schema_pb2.SearchResultData(
             num_queries=1,
@@ -76,7 +78,7 @@ class TestSearchIteratorV2:
                 collection_name="test_collection",
                 data=search_data,
                 batch_size=100,
-                **{"offset": 10}
+                offset=10
             )
 
     def test_multiple_vectors_error(self, mock_connection):

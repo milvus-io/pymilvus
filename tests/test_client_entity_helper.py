@@ -1,12 +1,12 @@
-import numpy as np
 import json
 import struct
-import pytest
-from scipy.sparse import csr_matrix
 
+import numpy as np
+import pytest
 from pymilvus.client import entity_helper
 from pymilvus.client.types import DataType
 from pymilvus.grpc_gen import schema_pb2
+from scipy.sparse import csr_matrix
 
 
 class TestEntityHelperSparse:

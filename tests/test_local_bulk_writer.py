@@ -1,15 +1,14 @@
-import pytest
-import threading
-import tempfile
 import shutil
-import os
-from unittest.mock import Mock, patch, MagicMock, PropertyMock
+import tempfile
+import threading
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
+import pytest
+from pymilvus.bulk_writer.constants import MB, BulkFileType
 from pymilvus.bulk_writer.local_bulk_writer import LocalBulkWriter
-from pymilvus.bulk_writer.constants import BulkFileType, MB
-from pymilvus.orm.schema import CollectionSchema, FieldSchema
 from pymilvus.client.types import DataType
+from pymilvus.orm.schema import CollectionSchema, FieldSchema
 
 
 class TestLocalBulkWriter:
@@ -20,8 +19,7 @@ class TestLocalBulkWriter:
             FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=128),
             FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=512),
         ]
-        schema = CollectionSchema(fields=fields)
-        return schema
+        return CollectionSchema(fields=fields)
 
     @pytest.fixture
     def temp_dir(self):

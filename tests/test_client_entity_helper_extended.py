@@ -1,30 +1,27 @@
-import pytest
-import numpy as np
-import struct
-from unittest.mock import patch
-import json
 from typing import List
-import scipy.sparse as sp
+from unittest.mock import patch
 
+import numpy as np
+import pytest
 from pymilvus.client.entity_helper import (
-    sparse_rows_to_proto,
-    sparse_proto_to_rows,
-    entity_type_to_dtype,
-    get_max_len_of_var_char,
     convert_to_str_array,
-    entity_to_str_arr,
-    pack_field_value_to_field_data,
-    entity_to_field_data,
-    extract_array_row_data,
     entity_to_array_arr,
+    entity_to_field_data,
+    entity_to_str_arr,
+    entity_type_to_dtype,
+    extract_array_row_data,
     extract_dynamic_field_from_result,
-    extract_row_data_from_fields_data_v2 as convert_to_entity
+    get_max_len_of_var_char,
+    pack_field_value_to_field_data,
+    sparse_proto_to_rows,
+    sparse_rows_to_proto,
 )
+from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2 as convert_to_entity
+from pymilvus.client.types import DataType
+from pymilvus.exceptions import ParamError
 
 # Import additional functions for testing
 from pymilvus.grpc_gen import schema_pb2 as schema_types
-from pymilvus.exceptions import ParamError
-from pymilvus.client.types import DataType
 from pymilvus.settings import Config
 
 

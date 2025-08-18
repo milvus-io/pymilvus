@@ -1,25 +1,21 @@
-import pytest
-import datetime
-from unittest.mock import Mock, patch, MagicMock, call
-from pathlib import Path
+import re
+from unittest.mock import Mock, patch
 
-from pymilvus.orm.iterator import (
-    fall_back_to_latest_session_ts,
-    assert_info,
-    io_operation,
-    extend_batch_size,
-    check_set_flag,
-    QueryIterator,
-    SearchIterator
-)
-from pymilvus.orm.constants import (
-    BATCH_SIZE,
-    EF,
-    PARAMS,
-    MAX_BATCH_SIZE,
-    DEFAULT_SEARCH_EXTENSION_RATE
-)
+import pytest
 from pymilvus.exceptions import MilvusException
+from pymilvus.orm.constants import (
+    DEFAULT_SEARCH_EXTENSION_RATE,
+    EF,
+    MAX_BATCH_SIZE,
+    PARAMS,
+)
+from pymilvus.orm.iterator import (
+    assert_info,
+    check_set_flag,
+    extend_batch_size,
+    fall_back_to_latest_session_ts,
+    io_operation,
+)
 
 
 class TestIteratorHelpers:
@@ -29,9 +25,9 @@ class TestIteratorHelpers:
         mock_now = Mock()
         mock_datetime.datetime.now.return_value = mock_now
         mock_mkts.return_value = 123456789
-        
+
         result = fall_back_to_latest_session_ts()
-        
+
         mock_datetime.datetime.now.assert_called_once()
         mock_mkts.assert_called_once_with(mock_now, milliseconds=1000.0)
         assert result == 123456789
@@ -58,11 +54,11 @@ class TestIteratorHelpers:
     def test_extend_batch_size_without_ef(self):
         batch_size = 100
         next_param = {PARAMS: {}}
-        
+
         # Without extension
         result = extend_batch_size(batch_size, next_param, False)
         assert result == 100
-        
+
         # With extension
         result = extend_batch_size(batch_size, next_param, True)
         expected = min(MAX_BATCH_SIZE, batch_size * DEFAULT_SEARCH_EXTENSION_RATE)
@@ -71,11 +67,11 @@ class TestIteratorHelpers:
     def test_extend_batch_size_with_ef(self):
         batch_size = 100
         next_param = {PARAMS: {EF: 50}}
-        
+
         # Should be limited by EF value
         result = extend_batch_size(batch_size, next_param, False)
         assert result == 50
-        
+
         # With extension, still limited by EF
         result = extend_batch_size(batch_size, next_param, True)
         assert result == 50
@@ -83,11 +79,11 @@ class TestIteratorHelpers:
     def test_extend_batch_size_max_limit(self):
         batch_size = MAX_BATCH_SIZE * 2
         next_param = {PARAMS: {}}
-        
+
         # Should be limited by MAX_BATCH_SIZE
         result = extend_batch_size(batch_size, next_param, False)
         assert result == MAX_BATCH_SIZE
-        
+
         # With extension, still limited by MAX_BATCH_SIZE
         result = extend_batch_size(batch_size, next_param, True)
         assert result == MAX_BATCH_SIZE
@@ -99,20 +95,20 @@ class TestIteratorHelpers:
             "another_key": "value",
             "false_key": False
         }
-        
+
         check_set_flag(obj, "flag_name", kwargs, "test_key")
         assert obj.flag_name is True
-        
+
         check_set_flag(obj, "another_flag", kwargs, "false_key")
         assert obj.another_flag is False
-        
+
         check_set_flag(obj, "missing_flag", kwargs, "non_existent_key")
         assert obj.missing_flag is False
 
 
 class TestQueryIteratorInit:
     """Test QueryIterator initialization and basic methods"""
-    
+
     @pytest.fixture
     def mock_connection(self):
         conn = Mock()
@@ -132,11 +128,11 @@ class TestQueryIteratorInit:
     @patch('pymilvus.orm.iterator.Connections')
     def test_query_iterator_basic_init(self, mock_connections, mock_connection, mock_schema):
         mock_connections.get_connection.return_value = mock_connection
-        
+
         # Note: We can't fully instantiate QueryIterator without implementing all abstract methods
         # This test would need a concrete implementation or more extensive mocking
         # For now, we test the helper functions that would be used
-        
+
         # Test that connection retrieval works
         conn = mock_connections.get_connection("default")
         assert conn == mock_connection
@@ -144,13 +140,13 @@ class TestQueryIteratorInit:
 
 class TestSearchIteratorHelpers:
     """Test SearchIterator helper methods"""
-    
+
     def test_search_iterator_batch_extension(self):
         """Test batch size extension logic for search iterator"""
         # This tests the logic that would be used in SearchIterator
         batch_size = 100
         next_param = {PARAMS: {"ef": 200}}
-        
+
         # Test with ef parameter
         result = extend_batch_size(batch_size, next_param, True)
         expected = min(200, batch_size * DEFAULT_SEARCH_EXTENSION_RATE)
@@ -162,31 +158,31 @@ class TestSearchIteratorHelpers:
         mock_file = Mock()
         mock_path.return_value.open.return_value.__enter__.return_value = mock_file
         mock_path.return_value.exists.return_value = True
-        
+
         # Test checkpoint save operation
         def save_checkpoint():
             with mock_path.return_value.open('w') as f:
                 f.write('checkpoint_data')
-        
+
         io_operation(save_checkpoint, "Failed to save checkpoint")
-        
-        # Test checkpoint load operation  
+
+        # Test checkpoint load operation
         def load_checkpoint():
             with mock_path.return_value.open('r') as f:
                 return f.read()
-        
+
         io_operation(load_checkpoint, "Failed to load checkpoint")
 
     def test_iterator_state_assertions(self):
         """Test state validation assertions used in iterators"""
-        
+
         # Test valid state
         assert_info(True, "Iterator is in valid state")
-        
+
         # Test invalid state
         with pytest.raises(MilvusException, match="Iterator exhausted"):
             assert_info(False, "Iterator exhausted")
-        
+
         # Test collection mismatch
         with pytest.raises(MilvusException, match="Collection mismatch"):
             assert_info(False, "Collection mismatch")
@@ -194,7 +190,7 @@ class TestSearchIteratorHelpers:
 
 class TestIteratorConstants:
     """Test iterator-related constants and their usage"""
-    
+
     def test_batch_size_limits(self):
         """Test batch size calculation respects limits"""
         # Test minimum batch size
@@ -202,7 +198,7 @@ class TestIteratorConstants:
         next_param = {PARAMS: {}}
         result = extend_batch_size(batch_size, next_param, False)
         assert result >= 1
-        
+
         # Test maximum batch size
         batch_size = MAX_BATCH_SIZE * 10
         result = extend_batch_size(batch_size, next_param, False)
@@ -212,16 +208,16 @@ class TestIteratorConstants:
         """Test search extension rate is applied correctly"""
         batch_size = 100
         next_param = {PARAMS: {}}
-        
+
         # Without extension
         result_no_ext = extend_batch_size(batch_size, next_param, False)
-        
+
         # With extension
         result_with_ext = extend_batch_size(batch_size, next_param, True)
-        
+
         # Extension should increase batch size
         assert result_with_ext >= result_no_ext
-        
+
         # Extension should be by DEFAULT_SEARCH_EXTENSION_RATE
         if result_with_ext < MAX_BATCH_SIZE:
             assert result_with_ext == batch_size * DEFAULT_SEARCH_EXTENSION_RATE
@@ -229,25 +225,24 @@ class TestIteratorConstants:
 
 class TestIteratorErrorHandling:
     """Test error handling in iterator operations"""
-    
+
     def test_io_operation_error_propagation(self):
         """Test that IO errors are properly wrapped"""
-        
+
         # Test with OSError
         with pytest.raises(MilvusException, match="Custom IO error"):
             io_operation(lambda: (_ for _ in ()).throw(OSError("OS level error")), "Custom IO error")
-        
+
         # Test with PermissionError (subclass of OSError)
         with pytest.raises(MilvusException, match="Permission denied"):
             io_operation(lambda: (_ for _ in ()).throw(PermissionError("No access")), "Permission denied")
-        
+
         # Test with FileNotFoundError (subclass of OSError)
         with pytest.raises(MilvusException, match="File not found"):
             io_operation(lambda: (_ for _ in ()).throw(FileNotFoundError("Missing file")), "File not found")
 
     def test_assert_info_with_different_messages(self):
         """Test assert_info with various error messages"""
-        import re
 
         test_cases = [
             "Simple error",
@@ -266,31 +261,31 @@ class TestIteratorErrorHandling:
 
 class TestIteratorFlags:
     """Test flag setting functionality for iterators"""
-    
+
     def test_check_set_flag_various_types(self):
         """Test setting flags with various value types"""
         obj = Mock()
-        
+
         # Boolean values
         kwargs = {"bool_flag": True}
         check_set_flag(obj, "test_bool", kwargs, "bool_flag")
         assert obj.test_bool is True
-        
+
         # String values (should be truthy/falsy)
         kwargs = {"string_flag": "enabled"}
         check_set_flag(obj, "test_string", kwargs, "string_flag")
         assert obj.test_string == "enabled"
-        
+
         # None values
         kwargs = {"none_flag": None}
         check_set_flag(obj, "test_none", kwargs, "none_flag")
         assert obj.test_none is None
-        
+
         # Numeric values
         kwargs = {"num_flag": 42}
         check_set_flag(obj, "test_num", kwargs, "num_flag")
         assert obj.test_num == 42
-        
+
         # Missing key (should default to False)
         kwargs = {}
         check_set_flag(obj, "test_missing", kwargs, "missing_key")
@@ -300,7 +295,7 @@ class TestIteratorFlags:
         """Test that check_set_flag overwrites existing attributes"""
         obj = Mock()
         obj.existing_flag = "old_value"
-        
+
         kwargs = {"new_value": "updated"}
         check_set_flag(obj, "existing_flag", kwargs, "new_value")
         assert obj.existing_flag == "updated"

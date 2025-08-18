@@ -1,19 +1,19 @@
-import os
+import pathlib
 import sys
 from tempfile import TemporaryDirectory
+
 import numpy as np
 import pytest
-
-from pymilvus.milvus_client import MilvusClient
 from pymilvus.exceptions import ConnectionConfigException
+from pymilvus.milvus_client import MilvusClient
 
 
 @pytest.mark.skipif(sys.platform.startswith('win'), reason="Milvus Lite is not supported on Windows")
 class TestMilvusLite:
     def test_milvus_lite(self):
         with TemporaryDirectory(dir='./') as root:
-            db_file = os.path.join(root, 'test.db')
-            client = MilvusClient(db_file)
+            db_file = pathlib.Path(root).joinpath("test.db")
+            client = MilvusClient(db_file.as_posix())
             client.create_collection(
                 collection_name="demo_collection",
                 dimension=3
@@ -59,8 +59,7 @@ class TestMilvusLite:
             assert len(res) == 3
 
     def test_illegal_name(self):
-        try:
+        with pytest.raises(ConnectionConfigException) as e:
             MilvusClient("localhost")
-            assert False
-        except ConnectionConfigException as e:
-            assert e.message == "uri: localhost is illegal, needs start with [unix, http, https, tcp] or a local file endswith [.db]"
+        # check the raised exception contained
+        assert e.value.message == "uri: localhost is illegal, needs start with [unix, http, https, tcp] or a local file endswith [.db]"
