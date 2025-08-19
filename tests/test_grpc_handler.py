@@ -1,15 +1,15 @@
-import pytest
 import grpc
-from pymilvus import MilvusException, MilvusUnavailableException
+import pytest
+from pymilvus import MilvusException
 from pymilvus.client.grpc_handler import GrpcHandler
-from pymilvus.grpc_gen import milvus_pb2, common_pb2
+from pymilvus.grpc_gen import common_pb2, milvus_pb2
 
 descriptor = milvus_pb2.DESCRIPTOR.services_by_name["MilvusService"]
 
 
 class TestGrpcHandler:
-    @pytest.mark.parametrize("ifHas", [True, False])
-    def test_has_collection_no_error(self, channel, client_thread, ifHas):
+    @pytest.mark.parametrize("has", [True, False])
+    def test_has_collection_no_error(self, channel, client_thread, has):
         handler = GrpcHandler(channel=channel)
 
         has_collection_future = client_thread.submit(handler.has_collection, "fake")
@@ -19,8 +19,8 @@ class TestGrpcHandler:
         )
         rpc.send_initial_metadata(())
 
-        reason = "" if ifHas else "can't find collection"
-        code = 0 if ifHas else 100
+        reason = "" if has else "can't find collection"
+        code = 0 if has else 100
 
         expected_result = milvus_pb2.DescribeCollectionResponse(
             status=common_pb2.Status(code=code, reason=reason),
@@ -28,7 +28,7 @@ class TestGrpcHandler:
         rpc.terminate(expected_result, (), grpc.StatusCode.OK, "")
 
         got_result = has_collection_future.result()
-        assert got_result is ifHas
+        assert got_result is has
 
     def test_has_collection_error(self, channel, client_thread):
         handler = GrpcHandler(channel=channel)

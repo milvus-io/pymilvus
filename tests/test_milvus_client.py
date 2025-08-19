@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-
 from pymilvus.exceptions import ParamError
 from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient

@@ -1,13 +1,10 @@
 import logging
 import os
-
-import pytest
-import pymilvus
-from pymilvus import *
 from unittest import mock
 
-from pymilvus import connections
-from pymilvus import DefaultConfig, MilvusException
+import pytest
+from pymilvus import *
+from pymilvus import DefaultConfig, MilvusException, connections
 from pymilvus.exceptions import ErrorCode
 
 LOGGER = logging.getLogger(__name__)
@@ -91,21 +88,19 @@ class TestConnect:
         os.environ[DefaultConfig.MILVUS_URI] = env_result[0]
         assert env_result[1] == connections._read_default_config_from_os_env()
 
-        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
-            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                # use env
+        # use env
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 connections.connect(keep_alive=False)
 
         assert env_result[1] == connections.get_connection_addr(DefaultConfig.MILVUS_CONN_ALIAS)
 
-        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
-            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-                # use param
+        # use param
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 connections.connect(DefaultConfig.MILVUS_CONN_ALIAS, host="test_host", port="19999", keep_alive=False)
 
         curr_addr = connections.get_connection_addr(DefaultConfig.MILVUS_CONN_ALIAS)
         assert env_result[1] != curr_addr
-        assert {"address":"test_host:19999", "user": ""} == curr_addr
+        assert curr_addr == {"address":"test_host:19999", "user": ""}
 
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.remove_connection(DefaultConfig.MILVUS_CONN_ALIAS)
@@ -118,8 +113,7 @@ class TestConnect:
         a = connections.get_connection_addr(alias)
         assert a == {}
 
-        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
-            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 connections.connect(alias, **addr, keep_alive=False)
 
         assert connections.has_connection(alias) is True
@@ -138,8 +132,7 @@ class TestConnect:
         a = connections.get_connection_addr(alias)
         assert a == {}
 
-        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
-            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 connections.connect(alias, **no_host_or_port, keep_alive=False)
 
         assert connections.has_connection(alias) is True
@@ -160,13 +153,12 @@ class TestConnect:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "You need to pass in the configuration" in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert excinfo.value.code == ErrorCode.UNEXPECTED_ERROR
 
     def test_connect_with_uri(self, uri):
         alias = self.test_connect_with_uri.__name__
 
-        with mock.patch(f"{mock_prefix}._setup_grpc_channel", return_value=None):
-            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+        with mock.patch(f"{mock_prefix}._setup_grpc_channel", return_value=None), mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 connections.connect(alias, **uri, keep_alive=False)
 
         addr = connections.get_connection_addr(alias)
@@ -184,8 +176,7 @@ class TestConnect:
         addr1 = connections.get_connection_addr(alias)
         LOGGER.debug(f"addr1: {addr1}")
 
-        with mock.patch(f"{mock_prefix}._setup_grpc_channel", return_value=None):
-            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+        with mock.patch(f"{mock_prefix}._setup_grpc_channel", return_value=None), mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 connections.connect(alias, keep_alive=False)
 
         addr2 = connections.get_connection_addr(alias)
@@ -257,7 +248,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Type of 'host' must be str." in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert excinfo.value.code == ErrorCode.UNEXPECTED_ERROR
 
     def test_add_connection_raise_PortType(self, invalid_port):
         add_connection = connections.add_connection
@@ -267,7 +258,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Type of 'port' must be str" in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert excinfo.value.code == ErrorCode.UNEXPECTED_ERROR
 
     @pytest.mark.parametrize("valid_addr", [
         {"address": "127.0.0.1:19530"},
@@ -298,7 +289,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Illegal address" in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert excinfo.value.code == ErrorCode.UNEXPECTED_ERROR
 
     @pytest.mark.parametrize("valid_uri", [
         {"uri": "http://127.0.0.1:19530"},
@@ -317,7 +308,7 @@ class TestAddConnection:
         host, port = addr["address"].split(':')
         assert host in valid_uri['uri'] or host in DefaultConfig.DEFAULT_HOST
         assert port in valid_uri['uri'] or port in DefaultConfig.DEFAULT_PORT
-        print(addr)
+        LOGGER.info(f"host: {host}, port: {port}")
 
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.remove_connection(alias)
@@ -336,7 +327,7 @@ class TestAddConnection:
 
         LOGGER.info(f"Exception info: {excinfo.value}")
         assert "Illegal uri" in excinfo.value.message
-        assert ErrorCode.UNEXPECTED_ERROR == excinfo.value.code
+        assert excinfo.value.code == ErrorCode.UNEXPECTED_ERROR
 
 
 class TestIssues:
@@ -410,5 +401,5 @@ class TestIssues:
 
             db_name = db_name or uri.split("/")[-1]
             mock_init.assert_called_with(
-                **{'address': 'localhost:19530', 'user': '', 'password': '', 'token': '', 'db_name': db_name, "keep_alive": False}
+                address='localhost:19530', user='', password='', token='', db_name=db_name, keep_alive=False
             )
