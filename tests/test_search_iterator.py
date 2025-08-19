@@ -17,8 +17,8 @@ class TestSearchIteratorV2:
 
     @pytest.fixture
     def search_data(self):
-        np.random.seed(42)
-        return np.random.random((1, 8)).tolist()
+        rng = np.random.default_rng(seed=19530)
+        return rng.random((1, 8)).tolist()
 
     def create_mock_search_result(self, num_results=10):
         # Create mock search results

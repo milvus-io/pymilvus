@@ -62,8 +62,7 @@ class TestConnect:
 
         assert addr == default_addr
 
-        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
-            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 connections.connect(keep_alive=False)
 
         assert connections.has_connection(alias) is True
@@ -348,8 +347,7 @@ class TestIssues:
 
         alias = self.test_issue_1196.__name__
 
-        with mock.patch(f"{mock_prefix}.__init__", return_value=None):
-            with mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(f"{mock_prefix}._wait_for_channel_ready", return_value=None):
                 config = {"alias": alias, "host": "localhost", "port": "19531", "user": "root", "password": 12345, "secure": True}
                 connections.connect(**config, keep_alive=False)
                 config = connections.get_connection_addr(alias)

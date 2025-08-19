@@ -26,7 +26,8 @@ class TestMilvusLite:
                 "Born in Maida Vale, London, Turing was raised in southern England.",
             ]
 
-            vectors = [[np.random.uniform(-1, 1) for _ in range(3) ] for _ in range(len(docs))]
+            rng = np.random.default_rng(seed=19530)
+            vectors = [[rng.uniform(-1, 1) for _ in range(3) ] for _ in range(len(docs))]
             data = [{"id": i, "vector": vectors[i], "text": docs[i], "subject": "history"} for i in range(len(vectors))]
             res = client.insert(
                 collection_name="demo_collection",

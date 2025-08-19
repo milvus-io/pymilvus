@@ -2,21 +2,9 @@ import time
 
 import grpc
 import pytest
-
-from pymilvus.decorators import retry_on_rpc_failure, error_handler, IGNORE_RETRY_CODES
-from pymilvus.exceptions import ErrorCode, MilvusUnavailableException, MilvusException
+from pymilvus.decorators import IGNORE_RETRY_CODES, retry_on_rpc_failure
+from pymilvus.exceptions import ErrorCode, MilvusException
 from pymilvus.grpc_gen import common_pb2
-
-
-class MockUnRetriableError(grpc.RpcError):
-    def __init__(self, code: grpc.StatusCode):
-        self._code = code
-
-    def code(self):
-        return self._code
-
-    def details(self):
-        return "details of unretriable error"
 
 
 class TestDecorators:
@@ -24,16 +12,16 @@ class TestDecorators:
         if code in IGNORE_RETRY_CODES:
             raise MockUnRetriableError(code)
         if code == MockUnavailableError().code():
-            raise MockUnavailableError()
+            raise MockUnavailableError
         if code == MockDeadlineExceededError().code():
-            raise MockDeadlineExceededError()
+            raise MockDeadlineExceededError
 
     def mock_milvus_exception(self, code: ErrorCode):
         if code == ErrorCode.FORCE_DENY:
-            raise MockForceDenyError()
+            raise MockForceDenyError
         if code == ErrorCode.RATE_LIMIT:
-            raise MockRateLimitError()
-        raise MilvusException(ErrorCode.UNEXPECTED_ERROR, str("unexpected error"))
+            raise MockRateLimitError
+        raise MilvusException(ErrorCode.UNEXPECTED_ERROR, "unexpected error")
 
     @pytest.mark.parametrize("times", [0, 1, 2, 3])
     def test_retry_decorators_unavailable(self, times):
@@ -44,30 +32,11 @@ class TestDecorators:
             self.count_test_retry_decorators_Unavailable += 1
             self.mock_failure(code)
 
-        with pytest.raises(MilvusUnavailableException) as e:
+        with pytest.raises(MilvusException, match="unavailable"):
             test_api(self, grpc.StatusCode.UNAVAILABLE)
-            assert "unavailable" in e.reason()
-            print(e)
 
         # the first execute + retry times
         assert self.count_test_retry_decorators_Unavailable == times + 1
-
-    @pytest.mark.parametrize("times", [0, 1, 2, 3])
-    def test_retry_decorators_unavailable(self, times):
-        self.count_test_retry_decorators_unavailable = 0
-
-        @retry_on_rpc_failure(retry_times=times)
-        def test_api(self, code):
-            self.count_test_retry_decorators_unavailable += 1
-            self.mock_failure(code)
-
-        with pytest.raises(MilvusException) as e:
-            test_api(self, grpc.StatusCode.UNAVAILABLE)
-            assert "deadline exceeded" in e.reason()
-            print(e)
-
-        # the first execute + retry times
-        assert self.count_test_retry_decorators_unavailable == times + 1
 
     def test_retry_decorators_timeout(self):
         self.count_test_retry_decorators_timeout = 0
@@ -78,9 +47,8 @@ class TestDecorators:
             time.sleep(1)
             self.mock_failure(code)
 
-        with pytest.raises(MilvusException) as e:
+        with pytest.raises(MilvusException):
             test_api(self, grpc.StatusCode.UNAVAILABLE, timeout=1)
-            print(e)
 
         assert self.count_test_retry_decorators_timeout == 1
 
@@ -93,9 +61,8 @@ class TestDecorators:
             self.test_retry_decorators_default_retry_times += 1
             self.mock_failure(code)
 
-        with pytest.raises(MilvusException) as e:
+        with pytest.raises(MilvusException):
             test_api(self, grpc.StatusCode.UNAVAILABLE)
-            print(e)
 
         assert self.test_retry_decorators_default_retry_times == 7 + 1
 
@@ -107,10 +74,8 @@ class TestDecorators:
             self.execute_times += 1
             self.mock_milvus_exception(code)
 
-        with pytest.raises(MilvusException) as e:
+        with pytest.raises(MilvusException, match="force deny"):
             test_api(self, ErrorCode.FORCE_DENY)
-        print(e)
-        assert "force deny" in e.value.message
 
         # the first execute + 0 retry times
         assert self.execute_times == 1
@@ -123,7 +88,7 @@ class TestDecorators:
             self.count_retry_times += 1
             self.mock_milvus_exception(code)
 
-        with pytest.raises(MilvusException) as e:
+        with pytest.raises(MilvusException):
             test_api(self, ErrorCode.RATE_LIMIT, retry_on_rate_limit=True, retry_times=3)
 
         # the first execute + 0 retry times
@@ -138,10 +103,8 @@ class TestDecorators:
             self.count_test_retry_decorators_force_deny += 1
             self.mock_milvus_exception(code)
 
-        with pytest.raises(MilvusException) as e:
+        with pytest.raises(MilvusException, match="rate limit"):
             test_api(self, ErrorCode.RATE_LIMIT, retry_on_rate_limit=False)
-        print(e)
-        assert "rate limit" in e.value.message
 
         # the first execute + 0 retry times
         assert self.count_test_retry_decorators_force_deny == 1
@@ -155,10 +118,8 @@ class TestDecorators:
             self.count_test_retry_decorators_force_deny += 1
             self.mock_milvus_exception(code)
 
-        with pytest.raises(MilvusException) as e:
+        with pytest.raises(MilvusException, match="rate limit"):
             test_api(self, ErrorCode.RATE_LIMIT, retry_on_rate_limit=True)
-        print(e)
-        assert "rate limit" in e.value.message
 
         # the first execute + retry times
         assert self.count_test_retry_decorators_force_deny == times + 1
@@ -172,10 +133,8 @@ class TestDecorators:
             self.count_test_donot_retry += 1
             self.mock_failure(code)
 
-        with pytest.raises(grpc.RpcError) as e:
+        with pytest.raises(grpc.RpcError):
             test_api(self, code)
-        print(e)
-        assert "unretriable" in e.value.details()
 
         # no retry
         assert self.count_test_donot_retry == 1
@@ -235,3 +194,13 @@ class MockRateLimitError(MilvusException):
     @property
     def compatible_code(self):
         return self._compatible_code
+
+class MockUnRetriableError(grpc.RpcError):
+    def __init__(self, code: grpc.StatusCode, message="unretriable error"):
+        self._code = code
+
+    def code(self):
+        return self._code
+
+    def details(self):
+        return "details of unretriable error"

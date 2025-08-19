@@ -1,4 +1,5 @@
 import datetime
+import logging
 import re
 
 import numpy as np
@@ -19,6 +20,8 @@ from pymilvus.client.utils import (
     mkts_from_hybridts,
     mkts_from_unixtime,
 )
+
+log = logging.getLogger(__name__)
 
 
 class TestChecks:
@@ -150,5 +153,5 @@ class TestGetCommit:
             if rv is not None:
                 assert rv.group() == v
 
-                print(f"group {rv.group()}")
-                print(f"group {rv.groups()}")
+                log.info(f"group {rv.group()}")
+                log.info(f"group {rv.groups()}")

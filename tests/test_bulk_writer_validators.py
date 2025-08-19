@@ -1,9 +1,9 @@
-import pytest
 import numpy as np
+import pytest
 from pymilvus.bulk_writer.validators import (
-    float_vector_validator,
     binary_vector_validator,
     float16_vector_validator,
+    float_vector_validator,
     int8_vector_validator,
     sparse_vector_validator,
 )
