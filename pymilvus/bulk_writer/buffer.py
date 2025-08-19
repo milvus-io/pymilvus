@@ -283,6 +283,8 @@ class Buffer:
         row_group_size_min = 1000
         row_group_size = 10000
         row_group_size_max = 1000000
+        buffer_size = 1
+        buffer_row_count = 1
         if "buffer_size" in kwargs and "buffer_row_count" in kwargs:
             row_group_bytes = kwargs.get(
                 "row_group_bytes", 32 * MB

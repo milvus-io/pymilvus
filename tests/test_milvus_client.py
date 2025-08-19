@@ -1,10 +1,12 @@
+import logging
 from unittest.mock import patch
 
 import pytest
-
 from pymilvus.exceptions import ParamError
 from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient
+
+log = logging.getLogger(__name__)
 
 
 class TestMilvusClient:
@@ -33,11 +35,11 @@ class TestMilvusClient:
 
         index_params.add_index("vector2", index_type="HNSW", efConstruction=100, metric_type="L2")
 
-        print(index_params)
+        log.info(index_params)
         assert len(index_params) == 2
 
         for index in index_params:
-            print(index)
+            log.info(index)
 
     def test_connection_reuse(self):
         with patch("pymilvus.orm.utility.get_server_type", return_value="milvus"), patch("pymilvus.orm.connections.Connections.connect", return_value=None):
