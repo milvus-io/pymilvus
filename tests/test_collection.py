@@ -3,16 +3,12 @@ from unittest import mock
 
 from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, connections
 
-from utils import (
-    gen_collection_name,
-)
-
 LOGGER = logging.getLogger(__name__)
 
 
 class TestCollections:
     def test_collection_by_DataFrame(self):
-        coll_name = gen_collection_name()
+        coll_name = "ut_collection_test_collection_by_DataFrame"
         fields = [
             FieldSchema("int64", DataType.INT64),
             FieldSchema("float", DataType.FLOAT),

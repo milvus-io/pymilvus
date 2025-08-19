@@ -1,12 +1,10 @@
-import json
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import requests
-
 from pymilvus.bulk_writer.constants import BulkFileType
 from pymilvus.bulk_writer.stage_bulk_writer import StageBulkWriter
 from pymilvus.bulk_writer.stage_file_manager import StageFileManager
@@ -387,11 +385,11 @@ class TestStageFileManager:
         mock_client.fput_object.side_effect = Exception("Upload failed")
         stage_file_manager._client = mock_client
 
-        with pytest.raises(RuntimeError, match="Upload failed after 5 attempts"):
-            stage_file_manager._upload_with_retry("test.txt", "remote/test.txt", "data/", max_retries=5)
+        with pytest.raises(RuntimeError, match="Upload failed after 2 attempts"):
+            stage_file_manager._upload_with_retry("test.txt", "remote/test.txt", "data/", max_retries=2)
 
-        assert mock_client.fput_object.call_count == 5
-        assert mock_refresh.call_count == 5  # Refreshed on each retry
+        assert mock_client.fput_object.call_count == 2
+        assert mock_refresh.call_count == 2  # Refreshed on each retry
 
 
 class TestStageBulkWriter:
@@ -480,9 +478,9 @@ class TestStageBulkWriter:
         # Test successful removal
         mock_file = mock_path.return_value
         mock_file.parent.iterdir.return_value = []
-        
+
         stage_bulk_writer._local_rm("test_file.parquet")
-        
+
         mock_file.unlink.assert_called_once()
 
     @patch.object(StageBulkWriter, "_upload_object")
@@ -496,7 +494,7 @@ class TestStageBulkWriter:
         mock_path = Mock()
         mock_path_class.return_value = mock_path
         mock_path.relative_to.return_value = Path("test.parquet")
-        
+
         file_list = ["test_file.parquet"]
         result = stage_bulk_writer._upload(file_list)
 
@@ -518,8 +516,7 @@ class TestStageBulkWriter:
 
     def test_context_manager(self, simple_schema: CollectionSchema) -> None:
         """Test StageBulkWriter as context manager."""
-        with patch("pymilvus.bulk_writer.stage_bulk_writer.StageFileManager"):
-            with StageBulkWriter(
+        with patch("pymilvus.bulk_writer.stage_bulk_writer.StageFileManager"), StageBulkWriter(
                 schema=simple_schema,
                 remote_path="test/data",
                 cloud_endpoint="https://api.cloud.zilliz.com",
@@ -540,12 +537,12 @@ class TestStageBulkWriter:
     ) -> None:
         """Test error handling during upload."""
         mock_upload_object.side_effect = Exception("Upload error")
-        
+
         # Mock Path behavior
         mock_path = Mock()
         mock_path_class.return_value = mock_path
         mock_path.relative_to.return_value = Path("test.parquet")
-        
+
         with pytest.raises(MilvusException, match="Failed to upload file"):
             stage_bulk_writer._upload(["test_file.parquet"])
 

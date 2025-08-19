@@ -14,7 +14,6 @@ from os.path import abspath, dirname
 
 from pymilvus.grpc_gen import milvus_pb2
 
-#  sys.path.append(dirname(dirname(abspath(__file__))))
 sys.path.append(Path(__file__).absolute().parent.parent)
 
 

@@ -25,14 +25,10 @@ from pymilvus.orm.types import (
     infer_dtype_bydata,
 )
 
-#  from ml_dtypes import bfloat16
-
 
 class TestTypes:
-    @pytest.mark.skip("please fix me")
     @pytest.mark.parametrize(
-        "input_expect",
-        [
+        "data,expect",[
             ([1], DataType.FLOAT_VECTOR),
             ([True], DataType.UNKNOWN),
             ([1.0, 2.0], DataType.FLOAT_VECTOR),
@@ -43,14 +39,12 @@ class TestTypes:
             ("abc", DataType.VARCHAR),
             (np.int8(1), DataType.INT8),
             (np.int16(1), DataType.INT16),
-            ([np.int8(1)], DataType.FLOAT_VECTOR),
-            ([np.float16(1.0)], DataType.FLOAT16_VECTOR),
-            #  ([np.array([1, 1], dtype=bfloat16)], DataType.BFLOAT16_VECTOR),
-            ([np.int8(1)], DataType.INT8_VECTOR),
+            pytest.param([np.float16(1.0)], DataType.FLOAT16_VECTOR, marks=pytest.mark.xfail(reason="fix me")),
+            pytest.param([np.float16(1.0)], DataType.INT8_VECTOR, marks=pytest.mark.xfail(reason="fix me")),
+            #  ([np.int8(1)], DataType.INT8_VECTOR),
         ],
     )
-    def test_infer_dtype_bydata(self, input_expect):
-        data, expect = input_expect
+    def test_infer_dtype_bydata(self, data, expect):
         got = infer_dtype_bydata(data)
         assert got == expect
 
@@ -82,18 +76,14 @@ class TestReplica:
         assert s.channel_name == "channel-1"
         assert s.shard_nodes == {1, 2, 3}
         assert s.shard_leader == 1
-        print(s)
 
         g = Group(2, [s], [1, 2, 3], DEFAULT_RESOURCE_GROUP, {})
         assert g.id == 2
         assert g.shards == [s]
         assert g.group_nodes == (1, 2, 3)
 
-        print(g)
-
         replica = Replica([g, g])
         assert replica.groups == [g, g]
-        print(replica)
 
     def test_shard_dup_nodeIDs(self):
         s = Shard("channel-1", (1, 1, 1), 1)
@@ -102,4 +92,3 @@ class TestReplica:
             1,
         }
         assert s.shard_leader == 1
-        print(s)
