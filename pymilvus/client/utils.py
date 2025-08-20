@@ -2,6 +2,7 @@ import datetime
 import importlib.util
 import struct
 from copy import deepcopy
+from dateutil.parser import isoparse
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -461,3 +462,12 @@ def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
         struct.unpack("I", data[i : i + 4])[0]: struct.unpack("f", data[i + 4 : i + 8])[0]
         for i in range(0, len(data), 8)
     }
+
+
+def validate_iso_timestamp(s: str) -> bool:
+    try:
+        isoparse(s)
+    except (ValueError, TypeError):
+        return False
+    else:
+        return True

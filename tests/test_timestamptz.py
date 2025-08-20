@@ -1,6 +1,6 @@
 from pymilvus import MilvusClient, DataType
 
-milvus_host = "http://192.168.82.8:19530"
+milvus_host = "http://localhost:19530"
 def test_createcollection():
     milvus_client = MilvusClient(uri=milvus_host)
     collection_name = "test_timestamptz_collection"

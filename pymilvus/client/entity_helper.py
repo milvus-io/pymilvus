@@ -21,6 +21,7 @@ from .utils import (
     SparseMatrixInputType,
     SparseRowOutputType,
     sparse_parse_single_row,
+    validate_iso_timestamp,
 )
 
 logger = logging.getLogger(__name__)
@@ -323,13 +324,13 @@ def pack_field_value_to_field_data(
     elif field_type == DataType.TIMESTAMPTZ:
         try:
             if field_value is None:
-                field_data.scalars.timestamptz_data.data.extend([])
+                field_data.scalars.string_data.data.extend([]) # Timestamptz is passed as String
             else:
-                field_data.scalars.timestamptz_data.data.append(field_value)
+                field_data.scalars.string_data.data.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "timestamptz", type(field_value))
+                % (field_name, "string", type(field_value))
             ) from e
     elif field_type == DataType.FLOAT_VECTOR:
         try:
@@ -746,7 +747,7 @@ def extract_row_data_from_fields_data_v2(
         return False
 
     if field_data.type == DataType.TIMESTAMPTZ:
-        data = field_data.scalars.timestamptz_data.data
+        data = field_data.scalars.string_data.data
         assign_scalar(data)
         return False
 

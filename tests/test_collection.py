@@ -17,7 +17,7 @@ class TestCollections:
             FieldSchema("float16_vector", DataType.FLOAT16_VECTOR, dim=128),
             FieldSchema("bfloat16_vector", DataType.BFLOAT16_VECTOR, dim=128),
             FieldSchema("int8_vector", DataType.INT8_VECTOR, dim=128),
-            FieldSchema("timestamptz", DataType.Timestamptz),
+            FieldSchema("timestamptz", DataType.TIMESTAMPTZ),
         ]
 
         prefix = "pymilvus.client.grpc_handler.GrpcHandler"
