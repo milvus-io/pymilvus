@@ -35,6 +35,8 @@ class HybridHits(list):
         }
         self.lazy_field_data = []
         self.has_materialized = False
+        print("hc==self.has_materialized", self.has_materialized)
+        print("hc==fields_data_length", len(fields_data))
         self.start = start
         top_k_res = [
             Hit({pk_name: all_pks[i], "distance": all_scores[i], "entity": {}}, pk_name=pk_name)
@@ -85,6 +87,8 @@ class HybridHits(list):
             else:
                 msg = f"Unsupported field type: {field_data.type}"
                 raise MilvusException(msg)
+            
+        print("hc==lazy_field_data_length", len(self.lazy_field_data))
         super().__init__(top_k_res)
 
     def __str__(self) -> str:
@@ -105,10 +109,12 @@ class HybridHits(list):
         return super().__iter__()
 
     def materialize(self):
+        #print("hc==before doing materialize", self.has_materialized)
         if not self.has_materialized:
+            #print("hc==start doing materialize", self.has_materialized, len(self.lazy_field_data))
             for field_data in self.lazy_field_data:
                 field_name = field_data.field_name
-
+                print("hc==field_name", field_name)
                 if field_data.type in [
                     DataType.FLOAT_VECTOR,
                     DataType.BINARY_VECTOR,
@@ -116,6 +122,7 @@ class HybridHits(list):
                     DataType.FLOAT16_VECTOR,
                     DataType.INT8_VECTOR,
                 ]:
+                    print("hc==start doing materialize for field", field_data.field_name)
                     data = get_field_data(field_data)
                     dim = field_data.vectors.dim
                     if field_data.type in [DataType.BINARY_VECTOR]:

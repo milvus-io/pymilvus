@@ -1,5 +1,6 @@
 #herer
-MILVUS_HOST = "10.104.27.167"
+#MILVUS_HOST = "10.104.17.119"
+MILVUS_HOST = "localhost"
 MILVUS_PORT = 19530
 
 import numpy as np
@@ -58,7 +59,7 @@ def test_hybrid_search_weighted_ranker():
     connections.connect("default", host=MILVUS_HOST, port=MILVUS_PORT)
     
     # 获取collection
-    collection_name = "fouram_9X8IMn66"
+    collection_name = "fouram_uRAi5NhA"
     if not utility.has_collection(collection_name):
         print(f"Collection {collection_name} 不存在")
         return
@@ -98,7 +99,7 @@ def test_hybrid_search_weighted_ranker():
         "anns_field": "binary_vector",
         "param": {"nprobe": 32, "metric_type": "JACCARD"},  # 二进制向量使用HAMMING距离
         "limit": 10,
-        "expr": "int32_1 > 3000000"
+        "expr": "int32_1 > 3000000000"
     }
     req = AnnSearchRequest(**search_param)
     req_list.append(req)

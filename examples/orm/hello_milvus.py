@@ -29,7 +29,7 @@ num_entities, dim = 3000, 8
 #
 # Note: the `using` parameter of the following methods is default to "default".
 print(fmt.format("start connecting to Milvus"))
-connections.connect("default", host="localhost", port="19530")
+connections.connect("default", host="10.15.5.24", port="19530")
 
 has = utility.has_collection("hello_milvus")
 print(f"Does collection hello_milvus exist in Milvus: {has}")
@@ -116,22 +116,22 @@ print(fmt.format("Start loading"))
 hello_milvus.load()
 
 # -----------------------------------------------------------------------------
-# search based on vector similarity
-# print(fmt.format("Start searching based on vector similarity"))
-# vectors_to_search = entities[-1][-2:]
-# search_params = {
-#     "metric_type": "L2",
-#     "params": {"nprobe": 10},
-# }
+#search based on vector similarity
+print(fmt.format("Start searching based on vector similarity"))
+vectors_to_search = entities[-1][-2:]
+search_params = {
+    "metric_type": "L2",
+    "params": {"nprobe": 10},
+}
 
-# start_time = time.time()
-# result = hello_milvus.search(vectors_to_search, "embeddings", search_params, limit=3, output_fields=["random"])
-# end_time = time.time()
+start_time = time.time()
+result = hello_milvus.search(vectors_to_search, "embeddings", search_params, limit=3, output_fields=["random"])
+end_time = time.time()
 
-# for hits in result:
-#     for hit in hits:
-#         print(f"hit: {hit}, random field: {hit.entity.get('random')}")
-# print(search_latency_fmt.format(end_time - start_time))
+for hits in result:
+    for hit in hits:
+        print(f"hit: {hit}, random field: {hit.entity.get('random')}")
+print(search_latency_fmt.format(end_time - start_time))
 
 # # -----------------------------------------------------------------------------
 # # query based on scalar filtering(boolean, int, etc.)

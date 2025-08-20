@@ -965,11 +965,11 @@ class MilvusClient:
             expr = f"{pk_field_name} in [{','.join(ids)}]"
         return expr
 
-    def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+    def load_collection(self, collection_name: str, timeout: Optional[float] = None, replica_number: Optional[int] = None, **kwargs):
         """Loads the collection."""
         conn = self._get_connection()
         try:
-            conn.load_collection(collection_name, timeout=timeout, **kwargs)
+            conn.load_collection(collection_name, replica_number=replica_number, timeout=timeout, **kwargs)
         except MilvusException as ex:
             logger.error("Failed to load collection: %s", collection_name)
             raise ex from ex
