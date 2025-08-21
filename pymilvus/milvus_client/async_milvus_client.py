@@ -350,6 +350,28 @@ class AsyncMilvusClient:
         partition_name: Optional[str] = "",
         **kwargs,
     ) -> Dict:
+        """Upsert data into the collection asynchronously.
+
+        Args:
+            collection_name (str): Name of the collection to upsert into.
+            data (List[Dict[str, any]]): A list of dicts to pass in. If list not provided, will
+                cast to list.
+            timeout (float, optional): The timeout to use, will override init timeout. Defaults
+                to None.
+            partition_name (str, optional): Name of the partition to upsert into.
+            **kwargs (dict): Extra keyword arguments.
+
+                * *partial_update* (bool, optional): Whether this is a partial update operation.
+                    If True, only the specified fields will be updated while others remain unchanged
+                    Default is False.
+
+        Raises:
+            DataNotMatchException: If the data has missing fields an exception will be thrown.
+            MilvusException: General Milvus error on upsert.
+
+        Returns:
+            Dict: Number of rows that were upserted.
+        """
         # If no data provided, we cannot input anything
         if isinstance(data, Dict):
             data = [data]

@@ -348,6 +348,9 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeGetImportProgress: _ClassVar[ObjectPrivilege]
     PrivilegeListImport: _ClassVar[ObjectPrivilege]
     PrivilegeAddCollectionField: _ClassVar[ObjectPrivilege]
+    PrivilegeAddFileResource: _ClassVar[ObjectPrivilege]
+    PrivilegeRemoveFileResource: _ClassVar[ObjectPrivilege]
+    PrivilegeListFileResources: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -368,6 +371,10 @@ class LoadPriority(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     HIGH: _ClassVar[LoadPriority]
     LOW: _ClassVar[LoadPriority]
+
+class FileResourceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ANALYZER_DICTIONARY: _ClassVar[FileResourceType]
 Success: ErrorCode
 UnexpectedError: ErrorCode
 ConnectFailed: ErrorCode
@@ -674,6 +681,9 @@ PrivilegeGroupCollectionAdmin: ObjectPrivilege
 PrivilegeGetImportProgress: ObjectPrivilege
 PrivilegeListImport: ObjectPrivilege
 PrivilegeAddCollectionField: ObjectPrivilege
+PrivilegeAddFileResource: ObjectPrivilege
+PrivilegeRemoveFileResource: ObjectPrivilege
+PrivilegeListFileResources: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -685,6 +695,7 @@ LoadStateLoading: LoadState
 LoadStateLoaded: LoadState
 HIGH: LoadPriority
 LOW: LoadPriority
+ANALYZER_DICTIONARY: FileResourceType
 PRIVILEGE_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 privilege_ext_obj: _descriptor.FieldDescriptor
 

@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import pytest
 from pymilvus import CollectionSchema, DataType, DefaultConfig, FieldSchema, MilvusException
+from pymilvus.exceptions import ParamError
 from pymilvus.client.constants import PAGE_RETAIN_ORDER_FIELD
 from pymilvus.client.prepare import Prepare
 
@@ -247,6 +248,131 @@ class TestCreateCollectionRequest:
         ]
 
         Prepare.row_upsert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
+
+    def test_row_upsert_param_with_partial_update_true(self):
+        rng = np.random.default_rng(seed=19530)
+        dim = 8
+        schema = CollectionSchema([
+            FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("float", DataType.DOUBLE)
+        ])
+        rows = [
+            {"pk_field": 1, "float": 1.0, "float_vector": rng.random((1, dim))[0], "a": 1},
+            {"pk_field": 2, "float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
+        ]
+
+        request = Prepare.row_upsert_param("test_collection", rows, "", 
+                                         fields_info=schema.to_dict()["fields"], 
+                                         enable_dynamic=True, 
+                                         partial_update=True)
+        
+        # Check that partial_update is set correctly
+        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert request.partial_update is True, "partial_update should be True when explicitly set to True"
+
+    def test_row_upsert_param_partial_update_default(self):
+        rng = np.random.default_rng(seed=19530)
+        dim = 8
+        schema = CollectionSchema([
+            FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("float", DataType.DOUBLE)
+        ])
+        rows = [
+            {"pk_field": 1, "float": 1.0, "float_vector": rng.random((1, dim))[0], "a": 1},
+            {"pk_field": 2, "float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
+        ]
+
+        request = Prepare.row_upsert_param("test_collection", rows, "", 
+                                         fields_info=schema.to_dict()["fields"], 
+                                         enable_dynamic=True)
+        
+        # Check that partial_update defaults to False
+        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert request.partial_update is False, "partial_update should default to False"
+
+    def test_batch_upsert_param_with_partial_update_true(self):
+        entities = [
+            {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
+            {"name": "name", "type": DataType.VARCHAR, "values": ["a", "b", "c"]},
+            {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "values": [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]}
+        ]
+        
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True},
+            {"name": "name", "type": DataType.VARCHAR},
+            {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "dim": 2}
+        ]
+
+        request = Prepare.batch_upsert_param("test_collection", entities, "", 
+                                           fields_info, partial_update=True)
+        
+        # Check that partial_update is set correctly
+        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert request.partial_update is True, "partial_update should be True when explicitly set to True"
+
+    def test_batch_upsert_param_partial_update_default(self):
+        entities = [
+            {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
+            {"name": "name", "type": DataType.VARCHAR, "values": ["a", "b", "c"]},
+            {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "values": [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]}
+        ]
+        
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True},
+            {"name": "name", "type": DataType.VARCHAR},
+            {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "dim": 2}
+        ]
+
+        request = Prepare.batch_upsert_param("test_collection", entities, "", fields_info)
+        
+        # Check that partial_update defaults to False
+        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert request.partial_update is False, "partial_update should default to False"
+
+    def test_batch_upsert_param_partial_fields_with_partial_update_true(self):
+        # Test partial update with only some fields provided
+        entities = [
+            {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
+            {"name": "name", "type": DataType.VARCHAR, "values": ["updated_a", "updated_b", "updated_c"]}
+            # Note: float_vector field is intentionally omitted
+        ]
+        
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True},
+            {"name": "name", "type": DataType.VARCHAR},
+            {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "dim": 2},
+            {"name": "optional_field", "type": DataType.VARCHAR}
+        ]
+
+        # This should succeed with partial_update=True
+        request = Prepare.batch_upsert_param("test_collection", entities, "", 
+                                           fields_info, partial_update=True)
+        
+        # Check that partial_update is set correctly
+        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert request.partial_update is True, "partial_update should be True when explicitly set to True"
+        assert len(request.fields_data) == 2, "Should only contain data for provided fields"
+
+    def test_batch_upsert_param_partial_fields_with_partial_update_false_should_fail(self):
+        # Test that partial fields fail when partial_update=False
+        entities = [
+            {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
+            {"name": "name", "type": DataType.VARCHAR, "values": ["updated_a", "updated_b", "updated_c"]}
+            # Note: float_vector field is intentionally omitted
+        ]
+        
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True},
+            {"name": "name", "type": DataType.VARCHAR},
+            {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "dim": 2}
+        ]
+
+        # This should fail with partial_update=False due to field count mismatch
+        with pytest.raises(ParamError, match="expected number of fields"):
+            Prepare.batch_upsert_param("test_collection", entities, "", 
+                                     fields_info, partial_update=False)
 
 class TestAlterCollectionRequest:
     def test_alter_collection_request(self):

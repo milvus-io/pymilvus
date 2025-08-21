@@ -752,6 +752,9 @@ class GrpcHandler:
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
+        # Extract partial_update parameter from kwargs
+        partial_update = kwargs.get("partial_update", False)
+
         schema = kwargs.get("schema")
         if not schema:
             schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
@@ -761,7 +764,13 @@ class GrpcHandler:
         return (
             param
             if param
-            else Prepare.batch_upsert_param(collection_name, entities, partition_name, fields_info)
+            else Prepare.batch_upsert_param(
+                collection_name,
+                entities,
+                partition_name,
+                fields_info,
+                partial_update=partial_update,
+            )
         )
 
     @retry_on_rpc_failure()
@@ -811,6 +820,9 @@ class GrpcHandler:
         if not isinstance(rows, list):
             raise ParamError(message="'rows' must be a list, please provide valid row data.")
 
+        # Extract partial_update parameter from kwargs
+        partial_update = kwargs.get("partial_update", False)
+
         schema, schema_timestamp = self._get_schema_from_cache_or_remote(
             collection_name, timeout=timeout
         )
@@ -823,6 +835,7 @@ class GrpcHandler:
             fields_info,
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
+            partial_update=partial_update,
         )
 
     @retry_on_rpc_failure()

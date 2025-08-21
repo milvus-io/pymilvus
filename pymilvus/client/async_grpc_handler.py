@@ -626,6 +626,9 @@ class AsyncGrpcHandler:
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
+        # Extract partial_update parameter from kwargs
+        partial_update = kwargs.get("partial_update", False)
+
         schema = kwargs.get("schema")
         if not schema:
             schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
@@ -635,7 +638,13 @@ class AsyncGrpcHandler:
         return (
             param
             if param
-            else Prepare.batch_upsert_param(collection_name, entities, partition_name, fields_info)
+            else Prepare.batch_upsert_param(
+                collection_name,
+                entities,
+                partition_name,
+                fields_info,
+                partial_update=partial_update,
+            )
         )
 
     @retry_on_rpc_failure()
@@ -673,6 +682,9 @@ class AsyncGrpcHandler:
         if not isinstance(rows, list):
             raise ParamError(message="'rows' must be a list, please provide valid row data.")
 
+        # Extract partial_update parameter from kwargs
+        partial_update = kwargs.get("partial_update", False)
+
         fields_info, enable_dynamic = await self._get_info(collection_name, timeout, **kwargs)
         return Prepare.row_upsert_param(
             collection_name,
@@ -680,6 +692,7 @@ class AsyncGrpcHandler:
             partition_name,
             fields_info,
             enable_dynamic=enable_dynamic,
+            partial_update=partial_update,
         )
 
     @retry_on_rpc_failure()
