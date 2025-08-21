@@ -516,6 +516,21 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.RunAnalyzerRequest.SerializeToString,
                 response_deserializer=milvus__pb2.RunAnalyzerResponse.FromString,
                 _registered_method=True)
+        self.AddFileResource = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AddFileResource',
+                request_serializer=milvus__pb2.AddFileResourceRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.RemoveFileResource = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/RemoveFileResource',
+                request_serializer=milvus__pb2.RemoveFileResourceRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.ListFileResources = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListFileResources',
+                request_serializer=milvus__pb2.ListFileResourcesRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListFileResourcesResponse.FromString,
+                _registered_method=True)
         self.AddUserTags = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AddUserTags',
                 request_serializer=milvus__pb2.AddUserTagsRequest.SerializeToString,
@@ -1139,6 +1154,24 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def AddFileResource(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RemoveFileResource(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListFileResources(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def AddUserTags(self, request, context):
         """Row Level Security (RLS) APIs
         """
@@ -1664,6 +1697,21 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.RunAnalyzer,
                     request_deserializer=milvus__pb2.RunAnalyzerRequest.FromString,
                     response_serializer=milvus__pb2.RunAnalyzerResponse.SerializeToString,
+            ),
+            'AddFileResource': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddFileResource,
+                    request_deserializer=milvus__pb2.AddFileResourceRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'RemoveFileResource': grpc.unary_unary_rpc_method_handler(
+                    servicer.RemoveFileResource,
+                    request_deserializer=milvus__pb2.RemoveFileResourceRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'ListFileResources': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListFileResources,
+                    request_deserializer=milvus__pb2.ListFileResourcesRequest.FromString,
+                    response_serializer=milvus__pb2.ListFileResourcesResponse.SerializeToString,
             ),
             'AddUserTags': grpc.unary_unary_rpc_method_handler(
                     servicer.AddUserTags,
@@ -4293,6 +4341,87 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/RunAnalyzer',
             milvus__pb2.RunAnalyzerRequest.SerializeToString,
             milvus__pb2.RunAnalyzerResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AddFileResource(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/AddFileResource',
+            milvus__pb2.AddFileResourceRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RemoveFileResource(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/RemoveFileResource',
+            milvus__pb2.RemoveFileResourceRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListFileResources(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ListFileResources',
+            milvus__pb2.ListFileResourcesRequest.SerializeToString,
+            milvus__pb2.ListFileResourcesResponse.FromString,
             options,
             channel_credentials,
             insecure,
