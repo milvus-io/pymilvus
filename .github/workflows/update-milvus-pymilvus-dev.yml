@@ -15,7 +15,8 @@ jobs:
     strategy:
       fail-fast: false  # Continue with other branches even if one fails
       matrix:
-        branch: [master, '2.5', '2.6']
+        # branch: [master, '2.5', '2.6'] # wait for milvus valid 2.6 branch
+        branch: [master, '2.5']
     steps:
     - name: Checkout pymilvus (repo root for workflow)
       uses: actions/checkout@v4
@@ -25,7 +26,6 @@ jobs:
       run: |
         git fetch --prune --unshallow
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-        pip install setuptools_scm
 
     - name: Checkout Milvus (upstream)
       uses: actions/checkout@v4
@@ -43,6 +43,7 @@ jobs:
     - name: Determine latest dev version
       id: version
       run: |
+        python -m pip install setuptools_scm --user
         VERSION=$(python -c "import _version_helper; print(_version_helper.get_version())")
         echo "latest=$VERSION" >> $GITHUB_OUTPUT
         echo "Detected version: $VERSION"
