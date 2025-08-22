@@ -106,7 +106,7 @@ jobs:
       run: |
         set -euo pipefail
         cd milvus-upstream
-        remote="https://${TOKEN}@github.com/${{ vars.REPO_FORK }}.git"
+        remote="https://${{ vars.GIT_AUTHOR_NAME }}:${TOKEN}@github.com/${{ vars.REPO_FORK }}.git"
         git remote add fork "$remote"
         git push -u fork "$BRANCH"
 
