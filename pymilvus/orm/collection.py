@@ -601,6 +601,12 @@ class Collection:
             timeout (float, optional): an optional duration of time in seconds to allow
                 for the RPCs. If timeout is not set, the client keeps waiting until the
                 server responds or an error occurs.
+            **kwargs (``dict``): Optional upsert params
+
+                * *partial_update* (``bool``, optional): Whether this is a partial update operation.
+                    If True, only the specified fields will be updated while others remain unchanged
+                    Default is False.
+
         Returns:
             MutationResult: contains 2 properties `upsert_count`, and, `primary_keys`
                 `upsert_count`: how may entites have been upserted at Milvus,
