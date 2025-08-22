@@ -11,20 +11,16 @@ import logging
 from typing import Callable
 
 from setuptools import build_meta as build_meta  # noqa
-
+from setuptools_scm import Configuration, get_version, git, hg
 from setuptools_scm import _types as _t
-from setuptools_scm import Configuration
-from setuptools_scm import get_version
-from setuptools_scm import git
-from setuptools_scm import hg
 from setuptools_scm.fallbacks import parse_pkginfo
 from setuptools_scm.version import (
-    get_no_local_node,
-    _parse_version_tag,
-    guess_next_simple_semver,
     SEMVER_MINOR,
-    guess_next_version,
     ScmVersion,
+    _parse_version_tag,
+    get_no_local_node,
+    guess_next_simple_semver,
+    guess_next_version,
 )
 
 log = logging.getLogger("setuptools_scm")
@@ -43,7 +39,7 @@ def parse(root: str, config: Configuration) -> ScmVersion | None:
         try:
             parsed = maybe_parse(root, config)
         except OSError as e:
-            log.warning("parse with %s failed with: %s", maybe_parse, e)
+            log.info("parse with %s failed with: %s", maybe_parse, e)
         else:
             if parsed is not None:
                 return parsed
