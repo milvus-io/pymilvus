@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -102,12 +102,11 @@ jobs:
     - name: Push to fork
       if: steps.current.outputs.current != steps.version.outputs.latest
       env:
-        TOKEN: ${{ secrets.MILVUS_UPDATE_TOKEN }}
       run: |
         set -euo pipefail
         cd milvus-upstream
-        remote="https://${{ vars.GIT_AUTHOR_NAME }}:${TOKEN}@github.com/${{ vars.REPO_FORK }}.git"
-        git remote add fork "$remote"
+        remote="https://x-access-token:${{ secrets.MILVUS_UPDATE_TOKEN }}@github.com/${{ vars.REPO_FORK }}.git"
+        git remote add fork "$remote" || git remote set-url fork "$remote"
         git push -u fork "$BRANCH"
 
     - name: Open PR to milvus-io/milvus
