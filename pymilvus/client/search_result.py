@@ -52,6 +52,7 @@ class HybridHits(list):
                 DataType.FLOAT,
                 DataType.DOUBLE,
                 DataType.VARCHAR,
+                DataType.GEOMETRY,
             ]:
                 if has_valid:
                     [
@@ -338,6 +339,15 @@ class SearchResult(list):
                 )
                 continue
 
+            if dtype == DataType.GEOMETRY:
+                field2data[name] = (
+                    apply_valid_data(
+                        scalars.geometry_wkt_data.data[start:end], field.valid_data, start, end
+                    ),
+                    field_meta,
+                )
+                continue
+
             if dtype == DataType.JSON:
                 res = apply_valid_data(
                     scalars.json_data.data[start:end], field.valid_data, start, end
@@ -426,6 +436,8 @@ def get_field_data(field_data: FieldData):
         return field_data.scalars.double_data.data
     if field_data.type == DataType.VARCHAR:
         return field_data.scalars.string_data.data
+    if field_data.type == DataType.GEOMETRY:
+        return field_data.scalars.geometry_wkt_data.data
     if field_data.type == DataType.JSON:
         return field_data.scalars.json_data.data
     if field_data.type == DataType.ARRAY:
