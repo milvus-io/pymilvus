@@ -46,11 +46,6 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.DescribeCollectionRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeCollectionResponse.FromString,
                 )
-        self.BatchDescribeCollection = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/BatchDescribeCollection',
-                request_serializer=milvus__pb2.BatchDescribeCollectionRequest.SerializeToString,
-                response_deserializer=milvus__pb2.BatchDescribeCollectionResponse.FromString,
-                )
         self.GetCollectionStatistics = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetCollectionStatistics',
                 request_serializer=milvus__pb2.GetCollectionStatisticsRequest.SerializeToString,
@@ -220,11 +215,6 @@ class MilvusServiceStub(object):
                 '/milvus.proto.milvus.MilvusService/FlushAll',
                 request_serializer=milvus__pb2.FlushAllRequest.SerializeToString,
                 response_deserializer=milvus__pb2.FlushAllResponse.FromString,
-                )
-        self.AddCollectionField = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/AddCollectionField',
-                request_serializer=milvus__pb2.AddCollectionFieldRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
                 )
         self.GetFlushState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetFlushState',
@@ -501,56 +491,6 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.RunAnalyzerRequest.SerializeToString,
                 response_deserializer=milvus__pb2.RunAnalyzerResponse.FromString,
                 )
-        self.AddFileResource = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/AddFileResource',
-                request_serializer=milvus__pb2.AddFileResourceRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
-                )
-        self.RemoveFileResource = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/RemoveFileResource',
-                request_serializer=milvus__pb2.RemoveFileResourceRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
-                )
-        self.ListFileResources = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/ListFileResources',
-                request_serializer=milvus__pb2.ListFileResourcesRequest.SerializeToString,
-                response_deserializer=milvus__pb2.ListFileResourcesResponse.FromString,
-                )
-        self.AddUserTags = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/AddUserTags',
-                request_serializer=milvus__pb2.AddUserTagsRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
-                )
-        self.DeleteUserTags = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/DeleteUserTags',
-                request_serializer=milvus__pb2.DeleteUserTagsRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
-                )
-        self.GetUserTags = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/GetUserTags',
-                request_serializer=milvus__pb2.GetUserTagsRequest.SerializeToString,
-                response_deserializer=milvus__pb2.GetUserTagsResponse.FromString,
-                )
-        self.ListUsersWithTag = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/ListUsersWithTag',
-                request_serializer=milvus__pb2.ListUsersWithTagRequest.SerializeToString,
-                response_deserializer=milvus__pb2.ListUsersWithTagResponse.FromString,
-                )
-        self.CreateRowPolicy = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/CreateRowPolicy',
-                request_serializer=milvus__pb2.CreateRowPolicyRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
-                )
-        self.DropRowPolicy = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/DropRowPolicy',
-                request_serializer=milvus__pb2.DropRowPolicyRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
-                )
-        self.ListRowPolicies = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/ListRowPolicies',
-                request_serializer=milvus__pb2.ListRowPoliciesRequest.SerializeToString,
-                response_deserializer=milvus__pb2.ListRowPoliciesResponse.FromString,
-                )
 
 
 class MilvusServiceServicer(object):
@@ -587,12 +527,6 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DescribeCollection(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def BatchDescribeCollection(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -799,12 +733,6 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def FlushAll(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def AddCollectionField(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1145,67 +1073,6 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def AddFileResource(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def RemoveFileResource(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ListFileResources(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def AddUserTags(self, request, context):
-        """Row Level Security (RLS) APIs
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def DeleteUserTags(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GetUserTags(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ListUsersWithTag(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def CreateRowPolicy(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def DropRowPolicy(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ListRowPolicies(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -1238,11 +1105,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.DescribeCollection,
                     request_deserializer=milvus__pb2.DescribeCollectionRequest.FromString,
                     response_serializer=milvus__pb2.DescribeCollectionResponse.SerializeToString,
-            ),
-            'BatchDescribeCollection': grpc.unary_unary_rpc_method_handler(
-                    servicer.BatchDescribeCollection,
-                    request_deserializer=milvus__pb2.BatchDescribeCollectionRequest.FromString,
-                    response_serializer=milvus__pb2.BatchDescribeCollectionResponse.SerializeToString,
             ),
             'GetCollectionStatistics': grpc.unary_unary_rpc_method_handler(
                     servicer.GetCollectionStatistics,
@@ -1413,11 +1275,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.FlushAll,
                     request_deserializer=milvus__pb2.FlushAllRequest.FromString,
                     response_serializer=milvus__pb2.FlushAllResponse.SerializeToString,
-            ),
-            'AddCollectionField': grpc.unary_unary_rpc_method_handler(
-                    servicer.AddCollectionField,
-                    request_deserializer=milvus__pb2.AddCollectionFieldRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
             ),
             'GetFlushState': grpc.unary_unary_rpc_method_handler(
                     servicer.GetFlushState,
@@ -1694,56 +1551,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.RunAnalyzerRequest.FromString,
                     response_serializer=milvus__pb2.RunAnalyzerResponse.SerializeToString,
             ),
-            'AddFileResource': grpc.unary_unary_rpc_method_handler(
-                    servicer.AddFileResource,
-                    request_deserializer=milvus__pb2.AddFileResourceRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
-            ),
-            'RemoveFileResource': grpc.unary_unary_rpc_method_handler(
-                    servicer.RemoveFileResource,
-                    request_deserializer=milvus__pb2.RemoveFileResourceRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
-            ),
-            'ListFileResources': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListFileResources,
-                    request_deserializer=milvus__pb2.ListFileResourcesRequest.FromString,
-                    response_serializer=milvus__pb2.ListFileResourcesResponse.SerializeToString,
-            ),
-            'AddUserTags': grpc.unary_unary_rpc_method_handler(
-                    servicer.AddUserTags,
-                    request_deserializer=milvus__pb2.AddUserTagsRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
-            ),
-            'DeleteUserTags': grpc.unary_unary_rpc_method_handler(
-                    servicer.DeleteUserTags,
-                    request_deserializer=milvus__pb2.DeleteUserTagsRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
-            ),
-            'GetUserTags': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetUserTags,
-                    request_deserializer=milvus__pb2.GetUserTagsRequest.FromString,
-                    response_serializer=milvus__pb2.GetUserTagsResponse.SerializeToString,
-            ),
-            'ListUsersWithTag': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListUsersWithTag,
-                    request_deserializer=milvus__pb2.ListUsersWithTagRequest.FromString,
-                    response_serializer=milvus__pb2.ListUsersWithTagResponse.SerializeToString,
-            ),
-            'CreateRowPolicy': grpc.unary_unary_rpc_method_handler(
-                    servicer.CreateRowPolicy,
-                    request_deserializer=milvus__pb2.CreateRowPolicyRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
-            ),
-            'DropRowPolicy': grpc.unary_unary_rpc_method_handler(
-                    servicer.DropRowPolicy,
-                    request_deserializer=milvus__pb2.DropRowPolicyRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
-            ),
-            'ListRowPolicies': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListRowPolicies,
-                    request_deserializer=milvus__pb2.ListRowPoliciesRequest.FromString,
-                    response_serializer=milvus__pb2.ListRowPoliciesResponse.SerializeToString,
-            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'milvus.proto.milvus.MilvusService', rpc_method_handlers)
@@ -1853,23 +1660,6 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DescribeCollection',
             milvus__pb2.DescribeCollectionRequest.SerializeToString,
             milvus__pb2.DescribeCollectionResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def BatchDescribeCollection(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/BatchDescribeCollection',
-            milvus__pb2.BatchDescribeCollectionRequest.SerializeToString,
-            milvus__pb2.BatchDescribeCollectionResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -2448,23 +2238,6 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/FlushAll',
             milvus__pb2.FlushAllRequest.SerializeToString,
             milvus__pb2.FlushAllResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def AddCollectionField(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AddCollectionField',
-            milvus__pb2.AddCollectionFieldRequest.SerializeToString,
-            common__pb2.Status.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -3400,176 +3173,6 @@ class MilvusService(object):
         return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/RunAnalyzer',
             milvus__pb2.RunAnalyzerRequest.SerializeToString,
             milvus__pb2.RunAnalyzerResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def AddFileResource(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AddFileResource',
-            milvus__pb2.AddFileResourceRequest.SerializeToString,
-            common__pb2.Status.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def RemoveFileResource(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/RemoveFileResource',
-            milvus__pb2.RemoveFileResourceRequest.SerializeToString,
-            common__pb2.Status.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def ListFileResources(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListFileResources',
-            milvus__pb2.ListFileResourcesRequest.SerializeToString,
-            milvus__pb2.ListFileResourcesResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def AddUserTags(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/AddUserTags',
-            milvus__pb2.AddUserTagsRequest.SerializeToString,
-            common__pb2.Status.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def DeleteUserTags(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DeleteUserTags',
-            milvus__pb2.DeleteUserTagsRequest.SerializeToString,
-            common__pb2.Status.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def GetUserTags(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/GetUserTags',
-            milvus__pb2.GetUserTagsRequest.SerializeToString,
-            milvus__pb2.GetUserTagsResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def ListUsersWithTag(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListUsersWithTag',
-            milvus__pb2.ListUsersWithTagRequest.SerializeToString,
-            milvus__pb2.ListUsersWithTagResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def CreateRowPolicy(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/CreateRowPolicy',
-            milvus__pb2.CreateRowPolicyRequest.SerializeToString,
-            common__pb2.Status.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def DropRowPolicy(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/DropRowPolicy',
-            milvus__pb2.DropRowPolicyRequest.SerializeToString,
-            common__pb2.Status.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def ListRowPolicies(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/milvus.proto.milvus.MilvusService/ListRowPolicies',
-            milvus__pb2.ListRowPoliciesRequest.SerializeToString,
-            milvus__pb2.ListRowPoliciesResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

@@ -813,7 +813,9 @@ def extract_row_data_from_fields_data(
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
                 entity_row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.geometry_wkt_data.data[index]
+            entity_row_data[field_data.field_name] = field_data.scalars.geometry_wkt_data.data[
+                index
+            ]
             return
 
         if field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
