@@ -446,6 +446,19 @@ def pack_field_value_to_field_data(
                 % (field_name, "varchar", type(field_value))
                 + f" Detail: {e!s}"
             ) from e
+    elif field_type == DataType.GEOMETRY:
+        try:
+            if field_value is None:
+                field_data.scalars.geometry_wkt_data.data.extend([])
+            else:
+                field_data.scalars.geometry_wkt_data.data.append(
+                    convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
+                )
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                % (field_name, "geometry", type(field_value))
+            ) from e
     elif field_type == DataType.JSON:
         try:
             if field_value is None:
@@ -535,6 +548,10 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
         elif entity_type == DataType.ARRAY:
             field_data.scalars.array_data.data.extend(
                 entity_to_array_arr(entity_values, field_info)
+            )
+        elif entity_type == DataType.GEOMETRY:
+            field_data.scalars.geometry_wkt_data.data.extend(
+                entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
             )
         else:
             raise ParamError(message=f"Unsupported data type: {entity_type}")
@@ -722,6 +739,11 @@ def extract_row_data_from_fields_data_v2(
         assign_scalar(data)
         return False
 
+    if field_data.type == DataType.GEOMETRY:
+        data = field_data.scalars.geometry_wkt_data.data
+        assign_scalar(data)
+        return False
+
     if field_data.type == DataType.JSON:
         return True
 
@@ -810,6 +832,18 @@ def extract_row_data_from_fields_data(
                 entity_row_data[field_data.field_name] = None
                 return
             entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
+            return
+
+        if (
+            field_data.type == DataType.GEOMETRY
+            and len(field_data.scalars.geometry_wkt_data.data) >= index
+        ):
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
+            entity_row_data[field_data.field_name] = field_data.scalars.geometry_wkt_data.data[
+                index
+            ]
             return
 
         if field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:

@@ -303,6 +303,24 @@ class DescribeCollectionResponse(_message.Message):
     update_timestamp_str: str
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., schema: _Optional[_Union[_schema_pb2.CollectionSchema, _Mapping]] = ..., collectionID: _Optional[int] = ..., virtual_channel_names: _Optional[_Iterable[str]] = ..., physical_channel_names: _Optional[_Iterable[str]] = ..., created_timestamp: _Optional[int] = ..., created_utc_timestamp: _Optional[int] = ..., shards_num: _Optional[int] = ..., aliases: _Optional[_Iterable[str]] = ..., start_positions: _Optional[_Iterable[_Union[_common_pb2.KeyDataPair, _Mapping]]] = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., collection_name: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., db_name: _Optional[str] = ..., num_partitions: _Optional[int] = ..., db_id: _Optional[int] = ..., request_time: _Optional[int] = ..., update_timestamp: _Optional[int] = ..., update_timestamp_str: _Optional[str] = ...) -> None: ...
 
+class BatchDescribeCollectionRequest(_message.Message):
+    __slots__ = ("db_name", "collection_name", "collectionID")
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
+    db_name: str
+    collection_name: _containers.RepeatedScalarFieldContainer[str]
+    collectionID: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, db_name: _Optional[str] = ..., collection_name: _Optional[_Iterable[str]] = ..., collectionID: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class BatchDescribeCollectionResponse(_message.Message):
+    __slots__ = ("status", "responses")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESPONSES_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    responses: _containers.RepeatedCompositeFieldContainer[DescribeCollectionResponse]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., responses: _Optional[_Iterable[_Union[DescribeCollectionResponse, _Mapping]]] = ...) -> None: ...
+
 class LoadCollectionRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "replica_number", "resource_groups", "refresh", "load_fields", "skip_load_dynamic_field", "load_params")
     class LoadParamsEntry(_message.Message):
@@ -397,7 +415,7 @@ class ShowCollectionsRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., time_stamp: _Optional[int] = ..., type: _Optional[_Union[ShowType, str]] = ..., collection_names: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ShowCollectionsResponse(_message.Message):
-    __slots__ = ("status", "collection_names", "collection_ids", "created_timestamps", "created_utc_timestamps", "inMemory_percentages", "query_service_available")
+    __slots__ = ("status", "collection_names", "collection_ids", "created_timestamps", "created_utc_timestamps", "inMemory_percentages", "query_service_available", "shards_num")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAMES_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_IDS_FIELD_NUMBER: _ClassVar[int]
@@ -405,6 +423,7 @@ class ShowCollectionsResponse(_message.Message):
     CREATED_UTC_TIMESTAMPS_FIELD_NUMBER: _ClassVar[int]
     INMEMORY_PERCENTAGES_FIELD_NUMBER: _ClassVar[int]
     QUERY_SERVICE_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    SHARDS_NUM_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     collection_names: _containers.RepeatedScalarFieldContainer[str]
     collection_ids: _containers.RepeatedScalarFieldContainer[int]
@@ -412,7 +431,8 @@ class ShowCollectionsResponse(_message.Message):
     created_utc_timestamps: _containers.RepeatedScalarFieldContainer[int]
     inMemory_percentages: _containers.RepeatedScalarFieldContainer[int]
     query_service_available: _containers.RepeatedScalarFieldContainer[bool]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., collection_names: _Optional[_Iterable[str]] = ..., collection_ids: _Optional[_Iterable[int]] = ..., created_timestamps: _Optional[_Iterable[int]] = ..., created_utc_timestamps: _Optional[_Iterable[int]] = ..., inMemory_percentages: _Optional[_Iterable[int]] = ..., query_service_available: _Optional[_Iterable[bool]] = ...) -> None: ...
+    shards_num: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., collection_names: _Optional[_Iterable[str]] = ..., collection_ids: _Optional[_Iterable[int]] = ..., created_timestamps: _Optional[_Iterable[int]] = ..., created_utc_timestamps: _Optional[_Iterable[int]] = ..., inMemory_percentages: _Optional[_Iterable[int]] = ..., query_service_available: _Optional[_Iterable[bool]] = ..., shards_num: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class CreatePartitionRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "partition_name")
