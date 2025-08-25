@@ -18,6 +18,19 @@ jobs:
         # branch: [master, '2.5', '2.6'] # wait for milvus valid 2.6 branch
         branch: [master, '2.5']
     steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Configure Git Identity
+      run: |
+        echo "Configuring git identity"
+        echo "Author name: ${{ secrets.GIT_AUTHOR_NAME }}"
+        echo "Author email: ${{ secrets.GIT_AUTHOR_EMAIL }}"
+        git config --global user.name "${{ secrets.GIT_AUTHOR_NAME }}"
+        git config --global user.email "${{ secrets.GIT_AUTHOR_EMAIL }}"
+
     - name: Checkout pymilvus (repo root for workflow)
       uses: actions/checkout@v4
       with:
@@ -34,11 +47,6 @@ jobs:
         ref: ${{ matrix.branch }}
         path: milvus-upstream
         fetch-depth: 0
-
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
 
     - name: Determine latest dev version
       id: version
@@ -71,8 +79,6 @@ jobs:
       run: |
         set -euo pipefail
         cd milvus-upstream
-        git config user.name "${{ vars.GIT_AUTHOR_NAME }}"
-        git config user.email "${{ vars.GIT_AUTHOR_EMAIL }}"
         # Create unique branch name with target branch reference
         TARGET_BRANCH="$(echo '${{ matrix.branch }}' | sed 's/\./-/g')"
         BR="bot/pymilvus-update-for-${TARGET_BRANCH}-${{ steps.version.outputs.latest }}-$(date -u +%Y%m%d%H%M%S)"
@@ -99,14 +105,22 @@ jobs:
         git add tests/python_client/requirements.txt
         git commit -m "test: Increase PyMilvus version to ${{ steps.version.outputs.latest }}"
 
+    - name: Setup tmate session
+      if: github.event_name == 'workflow_dispatch' && github.repository == 'milvus-io/pymilvus'
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
+
     - name: Push to fork
       if: steps.current.outputs.current != steps.version.outputs.latest
       run: |
         set -euo pipefail
         cd milvus-upstream
+        echo "BRANCH=${{ env.BRANCH }}"
+        echo "REPO_FORK=${{ vars.REPO_FORK }}"
         remote="https://x-access-token:${{ secrets.MILVUS_UPDATE_TOKEN }}@github.com/${{ vars.REPO_FORK }}.git"
         git remote add fork "$remote" || git remote set-url fork "$remote"
-        git push -u fork "$BRANCH"
+        GIT_CURL_VERBOSE=1 GIT_TRACE=1 git push -u fork "$BRANCH"
 
     - name: Open PR to milvus-io/milvus
       if: steps.current.outputs.current != steps.version.outputs.latest
