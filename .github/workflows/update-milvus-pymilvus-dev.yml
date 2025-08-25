@@ -101,7 +101,6 @@ jobs:
 
     - name: Push to fork
       if: steps.current.outputs.current != steps.version.outputs.latest
-      env:
       run: |
         set -euo pipefail
         cd milvus-upstream
