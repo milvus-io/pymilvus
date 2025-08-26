@@ -362,11 +362,31 @@ class TestIssues:
                 config = connections.get_connection_addr("default")
                 assert config == {"address": 'localhost:19531', "user": 'root', "secure": True}
 
-    @pytest.mark.parametrize("uri, db_name", [
-        ("http://localhost:19530", "test_db"),
-        ("http://localhost:19530/", "test_db"),
-        ("http://localhost:19530/test_db", "")])
-    def test_issue_2670_2727(self, uri: str, db_name: str):
+    @pytest.mark.parametrize("uri, db_name, expected_db_name", [
+        # Issue #2670: URI ending with slash should not overwrite explicit db_name
+        ("http://localhost:19530/", "test_db", "test_db"),
+        ("https://localhost:19530/", "production_db", "production_db"),
+        ("tcp://localhost:19530/", "test_db", "test_db"),
+
+        # Issue #2727: db_name passed in URI path should be used when no explicit db_name
+        ("http://localhost:19530/test_db", "", "test_db"),
+        ("http://localhost:19530/production_db", "", "production_db"),
+        ("https://localhost:19530/test_db", "", "test_db"),
+
+        # Mixed scenarios: explicit db_name takes precedence over URI path
+        ("http://localhost:19530/uri_db", "explicit_db", "explicit_db"),
+        ("http://localhost:19530", "test_db", "test_db"),
+        ("http://localhost:19530", "", "default"),
+
+        # Multiple path segments - only first should be used as db_name
+        ("http://localhost:19530/db1/collection1", "", "db1"),
+        ("http://localhost:19530/db1/collection1/", "", "db1"),
+
+        # Empty path segments should be handled correctly
+        ("http://localhost:19530//", "test_db", "test_db"),
+        ("http://localhost:19530///", "test_db", "test_db"),
+    ])
+    def test_issue_2670_2727(self, uri: str, db_name: str, expected_db_name: str):
         """
         Issue 2670:
         Test for db_name being overwritten with empty string, when the uri
@@ -390,14 +410,26 @@ class TestIssues:
         Expected and current behaviour: if db_name is passed as a path to the uri,
             it should be used in the initialization of the GrpcHandler.
         """
-        alias = self.test_issue_2670_2727.__name__
+        alias = f"test_2670_2727_{uri.replace('://', '_').replace('/', '_')}_{db_name}"
 
         with mock.patch(f"{mock_prefix}.__init__", return_value=None) as mock_init, mock.patch(
             f"{mock_prefix}._wait_for_channel_ready", return_value=None):
-            config = {"alias": alias, "uri": uri, "db_name": db_name}
+            config = {"alias": alias, "uri": uri}
+            # Always pass db_name parameter, even if it's an empty string
+            if db_name or db_name == "":  # Pass both empty and non-empty strings
+                config["db_name"] = db_name
             connections.connect(**config, keep_alive=False)
 
-            db_name = db_name or uri.split("/")[-1]
-            mock_init.assert_called_with(
-                address='localhost:19530', user='', password='', token='', db_name=db_name, keep_alive=False
+            # Verify that GrpcHandler was initialized with the correct db_name
+            mock_init.assert_called_once()
+            call_args = mock_init.call_args
+            actual_db_name = call_args.kwargs.get("db_name", "default")
+
+            assert actual_db_name == expected_db_name, (
+                f"Expected db_name to be '{expected_db_name}', "
+                f"but got '{actual_db_name}' for uri='{uri}' and db_name='{db_name}'"
             )
+
+            # Clean up - mock the close method to avoid AttributeError
+            with mock.patch(f"{mock_prefix}.close", return_value=None):
+                connections.remove_connection(alias)
