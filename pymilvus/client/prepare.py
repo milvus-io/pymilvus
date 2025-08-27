@@ -553,10 +553,17 @@ class Prepare:
             field_len[DYNAMIC_FIELD_NAME] = 0
 
         try:
+            fields_num = 0
             for entity in entities:
                 if not isinstance(entity, Dict):
                     msg = f"expected Dict, got '{type(entity).__name__}'"
                     raise TypeError(msg)
+                if partial_update and fields_num != 0 and fields_num != len(entity):
+                    raise DataNotMatchException(
+                        message=ExceptionsMessage.InsertFieldsLenInconsistent
+                        % (len(fields_data), fields_num)
+                    )
+                fields_num = len(entity)
                 for k, v in entity.items():
                     if k not in fields_data:
                         if k in function_output_field_names:
@@ -582,15 +589,17 @@ class Prepare:
                     if key in entity:
                         continue
 
+                    # Skip missing field validation for partial updates
+                    # Also skip set null value or default value for partial updates,
+                    # in case of field is updated to null
+                    if partial_update:
+                        continue
                     field_info, field_data = field_info_map[key], fields_data[key]
                     if field_info.get("nullable", False) or field_info.get("default_value", None):
                         field_data.valid_data.append(False)
                         field_len[key] += 1
                         entity_helper.pack_field_value_to_field_data(None, field_data, field_info)
                     else:
-                        # Skip missing field validation for partial updates
-                        if partial_update:
-                            continue
                         raise DataNotMatchException(
                             message=ExceptionsMessage.InsertMissedField % key
                         )
