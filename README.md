@@ -73,30 +73,38 @@ A3.
 $ make install
 ```
 
-Q4. How to check coding styles?
+Q4. How to check and auto-fix the coding styles?
 
 A4.
 ```shell
 make lint
-```
-
-Q5. How to fix the coding styles?
-
-A5
-```shell
 make format
 ```
 
-Q6. How to run unittests?
+Q5. How to set up pre-commit hooks to automatically check and fix the coding styles?
 
-A6
+Once installed, the hooks will automatically run `make format` and `make lint` before each commit. If the checks fail, the commit will be aborted, and you'll need to fix the issues before committing again.
+
+A5. Pre-commit hooks help ensure code quality by automatically running linting and formatting checks before each commit.
+```shell
+# Install pre-commit (if not already installed)
+$ pip install pre-commit
+
+# Install the git hook scripts
+$ pre-commit install
+```
+
+Q7. How to run unittests?
+
+A7
 ```shell
 $ pip install ".[dev]"
 $ make unittest
 ```
-Q7. `zsh: no matches found: pymilvus[model]`, how do I solve this?
 
-A7
+Q8. `zsh: no matches found: pymilvus[model]`, how do I solve this?
+
+A8
 ```shell
 $ pip install "pymilvus[model]"
 ```
