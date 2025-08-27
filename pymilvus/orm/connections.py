@@ -443,14 +443,21 @@ class Connections(metaclass=SingleInstanceMetaClass):
             if self.has_connection(alias) and self._alias_config[alias].get("address") != addr:
                 raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
 
-            # uri might take extra info
             if parsed_uri is not None:
-                # get db_name from uri
+                # Extract user and password from uri
                 user = parsed_uri.username or user
                 password = parsed_uri.password or password
 
-                group = [segment for segment in parsed_uri.path.split("/") if segment]
-                db_name = group[0] if group else db_name
+                # Extract db_name from URI path only if appropriate
+                # Priority:
+                # 1. If db_name is explicitly provided and not empty -> use it
+                # 2. If db_name is empty string and URI has path -> use URI path
+                # 3. If db_name is empty string and URI has no path -> use "default"
+                if db_name == "":
+                    group = [segment for segment in parsed_uri.path.split("/") if segment]
+                    # Use first path segment if group exists and fall back to "default" if empty
+                    db_name = group[0] if group else "default"
+                # If db_name is not empty (including "default", "test_db", etc.), keep it as-is
 
                 # Set secure=True if https scheme
                 if parsed_uri.scheme == "https":
