@@ -48,7 +48,7 @@ def parse(root: str, config: Configuration) -> ScmVersion | None:
             if parsed is not None:
                 return parsed
 
-fmt = "{guessed}.rc{distance}"
+fmt = "{guessed}rc{distance}" # align with PEP440 public version that has no dot before rc
 
 def custom_version(version: ScmVersion) -> str:
     if version.exact:
