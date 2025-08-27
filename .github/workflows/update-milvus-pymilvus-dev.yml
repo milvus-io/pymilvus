@@ -106,7 +106,7 @@ jobs:
         set -euo pipefail
         cd milvus-upstream
         git add tests/python_client/requirements.txt
-        git commit -m "test: Increase PyMilvus version to ${{ steps.version.outputs.latest }}"
+        git commit -sm "test: Increase PyMilvus version to ${{ steps.version.outputs.latest }}"
 
 
     - name: Push to fork
@@ -130,6 +130,10 @@ jobs:
         set -euo pipefail
         title="test: Increase PyMilvus version to ${{ steps.version.outputs.latest }} for ${{ matrix.branch }} branch"
         body="Automated daily bump from pymilvus ${{ matrix.branch }} branch. Updates tests/python_client/requirements.txt."
-        head="$(echo ${{ vars.REPO_FORK }} | cut -d'/' -f2):${BRANCH}"
+        head="$(echo ${{ vars.REPO_FORK }} | cut -d'/' -f1):${BRANCH}"
         base="${{ matrix.branch }}"
+        echo "title=$title"
+        echo "body=$body"
+        echo "head=$head"
+        echo "base=$base"
         gh pr create --repo milvus-io/milvus --title "$title" --body "$body" --head "$head" --base "$base"
