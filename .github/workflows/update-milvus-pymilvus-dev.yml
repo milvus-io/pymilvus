@@ -35,6 +35,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         ref: ${{ matrix.branch }}
+        persist-credentials: false
+
     - name: Get history and tags for SCM versioning
       run: |
         git fetch --prune --unshallow
@@ -47,6 +49,7 @@ jobs:
         ref: ${{ matrix.branch }}
         path: milvus-upstream
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Determine latest dev version
       id: version
@@ -105,17 +108,14 @@ jobs:
         git add tests/python_client/requirements.txt
         git commit -m "test: Increase PyMilvus version to ${{ steps.version.outputs.latest }}"
 
-    - name: Setup tmate session
-      if: github.event_name == 'workflow_dispatch' && github.repository == 'milvus-io/pymilvus'
-      uses: mxschmitt/action-tmate@v3
-      with:
-        limit-access-to-actor: true
 
     - name: Push to fork
       if: steps.current.outputs.current != steps.version.outputs.latest
       run: |
         set -euo pipefail
         cd milvus-upstream
+        cat ~/.git-credentials || echo "no cached creds"
+        git remote -v
         echo "BRANCH=${{ env.BRANCH }}"
         echo "REPO_FORK=${{ vars.REPO_FORK }}"
         remote="https://x-access-token:${{ secrets.MILVUS_UPDATE_TOKEN }}@github.com/${{ vars.REPO_FORK }}.git"
