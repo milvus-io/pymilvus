@@ -66,6 +66,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.DescribeCollectionRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeCollectionResponse.FromString,
                 _registered_method=True)
+        self.BatchDescribeCollection = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/BatchDescribeCollection',
+                request_serializer=milvus__pb2.BatchDescribeCollectionRequest.SerializeToString,
+                response_deserializer=milvus__pb2.BatchDescribeCollectionResponse.FromString,
+                _registered_method=True)
         self.GetCollectionStatistics = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetCollectionStatistics',
                 request_serializer=milvus__pb2.GetCollectionStatisticsRequest.SerializeToString,
@@ -602,6 +607,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DescribeCollection(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def BatchDescribeCollection(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1247,6 +1258,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.DescribeCollection,
                     request_deserializer=milvus__pb2.DescribeCollectionRequest.FromString,
                     response_serializer=milvus__pb2.DescribeCollectionResponse.SerializeToString,
+            ),
+            'BatchDescribeCollection': grpc.unary_unary_rpc_method_handler(
+                    servicer.BatchDescribeCollection,
+                    request_deserializer=milvus__pb2.BatchDescribeCollectionRequest.FromString,
+                    response_serializer=milvus__pb2.BatchDescribeCollectionResponse.SerializeToString,
             ),
             'GetCollectionStatistics': grpc.unary_unary_rpc_method_handler(
                     servicer.GetCollectionStatistics,
@@ -1911,6 +1927,33 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/DescribeCollection',
             milvus__pb2.DescribeCollectionRequest.SerializeToString,
             milvus__pb2.DescribeCollectionResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def BatchDescribeCollection(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/BatchDescribeCollection',
+            milvus__pb2.BatchDescribeCollectionRequest.SerializeToString,
+            milvus__pb2.BatchDescribeCollectionResponse.FromString,
             options,
             channel_credentials,
             insecure,
