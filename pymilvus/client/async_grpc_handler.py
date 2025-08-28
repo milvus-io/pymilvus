@@ -814,7 +814,7 @@ class AsyncGrpcHandler:
         await self.wait_for_loading_partitions(
             collection_name=collection_name,
             partition_names=partition_names,
-            is_refresh=request.is_refresh,
+            is_refresh=request.refresh,
             timeout=timeout,
             **kwargs,
         )
