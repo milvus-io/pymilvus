@@ -1,3 +1,4 @@
+import pytest
 import json
 import logging
 
@@ -372,6 +373,105 @@ class TestCreateCollectionRequest:
         with pytest.raises(MilvusException, match="expected number of fields"):
             Prepare.batch_upsert_param("test_collection", entities, "",
                                      fields_info, partial_update=False)
+
+    def test_row_upsert_param_missing_fields_partial_update_true(self):
+        """Test that missing non-nullable fields are handled correctly with partial_update=True"""
+        rng = np.random.default_rng(seed=19530)
+        dim = 8
+        schema = CollectionSchema([
+            FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("required_field", DataType.DOUBLE),  # Non-nullable, no default
+            FieldSchema("nullable_field", DataType.VARCHAR, nullable=True)
+        ])
+        
+        # Entities missing the required_field - should work with partial_update=True
+        rows = [
+            {"pk_field": 1, "float_vector": rng.random((1, dim))[0]},  # Missing required_field
+            {"pk_field": 2, "nullable_field": "test"}  # Missing both required_field and float_vector
+        ]
+
+        # This should work because partial_update=True skips missing field validation
+        request = Prepare.row_upsert_param("test_collection", rows, "", 
+                                         fields_info=schema.to_dict()["fields"], 
+                                         enable_dynamic=False, 
+                                         partial_update=True)
+        
+        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert request.partial_update is True, "partial_update should be True"
+
+    def test_row_upsert_param_missing_fields_partial_update_false_should_fail(self):
+        """Test that missing non-nullable fields fail with partial_update=False"""
+        from pymilvus.exceptions import DataNotMatchException
+        rng = np.random.default_rng(seed=19530)
+        dim = 8
+        schema = CollectionSchema([
+            FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("required_field", DataType.DOUBLE),  # Non-nullable, no default
+        ])
+        
+        # Entity missing the required_field - should fail with partial_update=False
+        rows = [
+            {"pk_field": 1, "float_vector": rng.random((1, dim))[0]}  # Missing required_field
+        ]
+
+        # This should fail because required_field is missing and not nullable
+        with pytest.raises(DataNotMatchException, match="Insert missed an field"):
+            Prepare.row_upsert_param("test_collection", rows, "", 
+                                   fields_info=schema.to_dict()["fields"], 
+                                   enable_dynamic=False, 
+                                   partial_update=False)
+
+    def test_row_upsert_param_field_length_inconsistency_error(self):
+        """Test error when entities have inconsistent field lengths (validation in line 559-562)"""
+        from pymilvus.exceptions import DataNotMatchException
+        rng = np.random.default_rng(seed=19530)
+        dim = 8
+        schema = CollectionSchema([
+            FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
+            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("float", DataType.DOUBLE)
+        ])
+        
+        # Create entities where the entity field count changes between entries
+        # This tests the specific logic at lines 559-562 in prepare.py
+        rows = [
+            {"pk_field": 1, "float": 1.0, "float_vector": rng.random((1, dim))[0]},  # 3 fields
+            {"pk_field": 2, "float": 2.0}  # Only 2 fields - this should trigger the error
+        ]
+
+        # This should raise DataNotMatchException due to field length inconsistency
+        # This validation happens regardless of partial_update value
+        with pytest.raises(DataNotMatchException, match="The data fields length is inconsistent"):
+            Prepare.row_upsert_param("test_collection", rows, "", 
+                                   fields_info=schema.to_dict()["fields"], 
+                                   enable_dynamic=False, 
+                                   partial_update=True)
+
+    def test_batch_upsert_param_partial_update_field_count_validation_skip(self):
+        """Test that field count validation is skipped with partial_update=True for batch operations"""
+        # This tests the logic at lines 632-635 in prepare.py
+        entities = [
+            {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
+            {"name": "name", "type": DataType.VARCHAR, "values": ["a", "b", "c"]}
+            # Intentionally omitting other fields to test partial update
+        ]
+        
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True},
+            {"name": "name", "type": DataType.VARCHAR},
+            {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "dim": 2},
+            {"name": "optional_field", "type": DataType.VARCHAR, "nullable": True}
+        ]
+
+        # This should work with partial_update=True even though not all fields are provided
+        request = Prepare.batch_upsert_param("test_collection", entities, "", 
+                                           fields_info, partial_update=True)
+        
+        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert request.partial_update is True, "partial_update should be True"
+        assert len(request.fields_data) == 2, "Should only contain data for provided fields"
 
 class TestAlterCollectionRequest:
     def test_alter_collection_request(self):
