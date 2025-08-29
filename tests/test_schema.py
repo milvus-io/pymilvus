@@ -1,12 +1,11 @@
-import numpy
+import copy
+
+import numpy as np
+import pandas as pd
 import pytest
-
-from pymilvus import CollectionSchema, FieldSchema, DataType
-from utils import *
-from pymilvus.orm import schema as s
-
-
+from pymilvus import CollectionSchema, DataType, FieldSchema
 from pymilvus.orm.schema import Function, FunctionType
+
 
 class TestCollectionSchema:
     @pytest.fixture(scope="function")
@@ -65,67 +64,65 @@ class TestCollectionSchema:
 class TestFieldSchema:
     @pytest.fixture(scope="function")
     def raw_dict_float_vector(self):
-        _dict = dict()
-        _dict["name"] = "TestFieldSchema_name_floatvector"
-        _dict["description"] = "TestFieldSchema_description_floatvector"
-        _dict["type"] = DataType.FLOAT_VECTOR
-        _dict["params"] = {"dim": 128}
-        return _dict
+        return  {
+            "name": "TestFieldSchema_name_floatvector",
+            "description": "TestFieldSchema_description_floatvector",
+            "type": DataType.FLOAT_VECTOR,
+            "params": {"dim": 128},
+        }
 
     @pytest.fixture(scope="function")
     def raw_dict_binary_vector(self):
-        _dict = dict()
-        _dict["name"] = "TestFieldSchema_name_binary_vector"
-        _dict["description"] = "TestFieldSchema_description_binary_vector"
-        _dict["type"] = DataType.BINARY_VECTOR
-        _dict["params"] = {"dim": 128}
-        return _dict
+        return {
+            "name": "TestFieldSchema_name_binary_vector",
+            "description": "TestFieldSchema_description_binary_vector",
+            "type": DataType.BINARY_VECTOR,
+            "params": {"dim": 128},
+        }
 
     @pytest.fixture(scope="function")
     def raw_dict_float16_vector(self):
-        _dict = dict()
-        _dict["name"] = "TestFieldSchema_name_float16_vector"
-        _dict["description"] = "TestFieldSchema_description_float16_vector"
-        _dict["type"] = DataType.FLOAT16_VECTOR
-        _dict["params"] = {"dim": 128}
-        return _dict
-    
+        return {
+            "name": "TestFieldSchema_name_float16_vector",
+            "description": "TestFieldSchema_description_float16_vector",
+            "type": DataType.FLOAT16_VECTOR,
+            "params": {"dim": 128},
+        }
+
     @pytest.fixture(scope="function")
     def raw_dict_bfloat16_vector(self):
-        _dict = dict()
-        _dict["name"] = "TestFieldSchema_name_bfloat16_vector"
-        _dict["description"] = "TestFieldSchema_description_bfloat16_vector"
-        _dict["type"] = DataType.BFLOAT16_VECTOR
-        _dict["params"] = {"dim": 128}
-        return _dict
+        return {
+            "name": "TestFieldSchema_name_bfloat16_vector",
+            "description": "TestFieldSchema_description_bfloat16_vector",
+            "type": DataType.BFLOAT16_VECTOR,
+            "params": {"dim": 128},
+        }
 
     @pytest.fixture(scope="function")
     def raw_dict_int8_vector(self):
-        _dict = dict()
-        _dict["name"] = "TestFieldSchema_name_int8_vector"
-        _dict["description"] = "TestFieldSchema_description_int8_vector"
-        _dict["type"] = DataType.INT8_VECTOR
-        _dict["params"] = {"dim": 128}
-        return _dict
+        return {
+            "name": "TestFieldSchema_name_int8_vector",
+            "description": "TestFieldSchema_description_int8_vector",
+            "type": DataType.INT8_VECTOR,
+            "params": {"dim": 128},
+        }
 
     @pytest.fixture(scope="function")
     def raw_dict_norm(self):
-        _dict = dict()
-        _dict["name"] = "TestFieldSchema_name_norm"
-        _dict["description"] = "TestFieldSchema_description_norm"
-        _dict["type"] = DataType.INT64
-        return _dict
+        return {
+            "name": "TestFieldSchema_name_norm",
+            "description": "TestFieldSchema_description_norm",
+            "type": DataType.INT64,
+        }
 
     @pytest.fixture(scope="function")
     def dataframe1(self):
-        import pandas
         data = {
             'float': [1.0],
             'int32': [2],
-            'float_vec': [numpy.array([3, 4.0], numpy.float32)]
+            'float_vec': [np.array([3, 4.0], np.float32)]
         }
-        df1 = pandas.DataFrame(data)
-        return df1
+        return pd.DataFrame(data)
 
     def test_constructor_from_float_dict(self, raw_dict_float_vector):
         field = FieldSchema.construct_from_dict(raw_dict_float_vector)
@@ -177,7 +174,6 @@ class TestFieldSchema:
         assert field.dummy is None
 
     def test_cmp(self, raw_dict_binary_vector):
-        import copy
         field1 = FieldSchema.construct_from_dict(raw_dict_binary_vector)
         field2 = FieldSchema.construct_from_dict(raw_dict_binary_vector)
         assert field1 == field2

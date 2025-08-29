@@ -1,13 +1,16 @@
+import logging
 import os
 import random
-from typing import List, Tuple, Dict
+from typing import Dict
 
 import pytest
 import ujson
-
-from pymilvus.grpc_gen import schema_pb2
-from pymilvus.client.search_result import Hit, Hits, SearchResult, HybridHits
+from pymilvus.client.search_result import Hit, Hits, HybridHits, SearchResult
 from pymilvus.client.types import DataType
+from pymilvus.grpc_gen import schema_pb2
+
+LOGGER = logging.getLogger(__name__)
+
 
 class TestHit:
     @pytest.mark.parametrize("pk_dist", [
@@ -52,15 +55,15 @@ class TestHit:
 
         assert hasattr(h, "a_random_attribute") is False
 
-        with pytest.raises(Exception):
-            h.field_not_exits
+        with pytest.raises(AttributeError):
+            _ = h.field_not_exits
 
-        print(h)
+        LOGGER.info(h)
 
 
 class TestSearchResult:
     @pytest.mark.parametrize("pk", [
-        schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[i for i in range(6)])),
+        schema_pb2.IDs(int_id=schema_pb2.LongArray(data=list(range(6)))),
         schema_pb2.IDs(str_id=schema_pb2.StringArray(data=[str(i*10) for i in range(6)]))
     ])
     @pytest.mark.parametrize("round_decimal", [
@@ -79,31 +82,31 @@ class TestSearchResult:
         r = SearchResult(result, round_decimal)
 
         # Iterable
-        assert 2 == len(r)
+        assert len(r) == 2
         for hits in r:
-            assert isinstance(hits, Hits) or isinstance(hits, HybridHits)
+            assert isinstance(hits, (Hits, HybridHits))
             assert len(hits.ids) == 3
             assert len(hits.distances) == 3
 
         # slicable
-        assert 1 == len(r[1:])
-        first_q, second_q = r[0], r[1]
-        assert 3 == len(first_q)
-        assert 3 == len(first_q[:])
-        assert 2 == len(first_q[1:])
-        assert 1 == len(first_q[2:])
-        assert 0 == len(first_q[3:])
-        print(first_q[:])
-        print(first_q[1:])
-        print(first_q[2:])
+        assert len(r[1:]) == 1
+        first_q, _ = r[0], r[1]
+        assert len(first_q) == 3
+        assert len(first_q[:]) == 3
+        assert len(first_q[1:]) == 2
+        assert len(first_q[2:]) == 1
+        assert len(first_q[3:]) == 0
+        LOGGER.info(first_q[:])
+        LOGGER.info(first_q[1:])
+        LOGGER.info(first_q[2:])
 
         first_hit = first_q[0]
-        print(first_hit)
+        LOGGER.info(first_hit)
         assert first_hit["distance"] == 0.
         assert first_hit["entity"] == {}
 
     @pytest.mark.parametrize("pk", [
-        schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[i for i in range(6)])),
+        schema_pb2.IDs(int_id=schema_pb2.LongArray(data=list(range(6)))),
         schema_pb2.IDs(str_id=schema_pb2.StringArray(data=[str(i*10) for i in range(6)]))
     ])
     def test_search_result_with_fields_data(self, pk):
@@ -111,13 +114,13 @@ class TestSearchResult:
             schema_pb2.FieldData(type=DataType.BOOL, field_name="bool_field", field_id=100,
                                  scalars=schema_pb2.ScalarField(bool_data=schema_pb2.BoolArray(data=[True for i in range(6)]))),
             schema_pb2.FieldData(type=DataType.INT8, field_name="int8_field", field_id=101,
-                                 scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[i for i in range(6)]))),
+                                 scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=list(range(6))))),
             schema_pb2.FieldData(type=DataType.INT16, field_name="int16_field", field_id=102,
-                                 scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[i for i in range(6)]))),
+                                 scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=list(range(6))))),
             schema_pb2.FieldData(type=DataType.INT32, field_name="int32_field", field_id=103,
-                                 scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[i for i in range(6)]))),
+                                 scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=list(range(6))))),
             schema_pb2.FieldData(type=DataType.INT64, field_name="int64_field", field_id=104,
-                                 scalars=schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=[i for i in range(6)]))),
+                                 scalars=schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=list(range(6))))),
             schema_pb2.FieldData(type=DataType.FLOAT, field_name="float_field", field_id=105,
                                  scalars=schema_pb2.ScalarField(float_data=schema_pb2.FloatArray(data=[i*1. for i in range(6)]))),
             schema_pb2.FieldData(type=DataType.DOUBLE, field_name="double_field", field_id=106,
@@ -127,14 +130,14 @@ class TestSearchResult:
             schema_pb2.FieldData(type=DataType.ARRAY, field_name="int16_array_field", field_id=108,
                                  scalars=schema_pb2.ScalarField(
                                      array_data=schema_pb2.ArrayArray(
-                                         data=[schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[j for j in range(10)])) for i in range(6)],
+                                         data=[schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=list(range(10)))) for i in range(6)],
                                          element_type=DataType.INT16,
                                      ),
                                  )),
             schema_pb2.FieldData(type=DataType.ARRAY, field_name="int64_array_field", field_id=109,
                                  scalars=schema_pb2.ScalarField(
                                      array_data=schema_pb2.ArrayArray(
-                                         data=[schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=[j for j in range(10)])) for i in range(6)],
+                                         data=[schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=list(range(10)))) for i in range(6)],
                                          element_type=DataType.INT64,
                                      ),
                                  )),
@@ -202,17 +205,17 @@ class TestSearchResult:
             output_fields=['$meta']
         )
         r = SearchResult(result)
-        print(r[0])
-        assert 2 == len(r)
+        LOGGER.info(r[0])
+        assert len(r) == 2
         assert 3 == len(r[0]) == len(r[1])
-        assert {'0': 0, '1': 1, '2': 2} == r[0][0].get("entity").get("normal_json_field")
+        assert r[0][0].get("entity").get("normal_json_field") == {'0': 0, '1': 1, '2': 2}
         # dynamic field
-        assert 1 == r[0][1].get("entity").get('100')
+        assert r[0][1].get("entity").get('100') == 1
 
-        assert 0 == r[0][0].get("entity").get("int32_field")
-        assert 1 == r[0][1].get("entity").get("int8_field")
-        assert 2 == r[0][2].get("entity").get("int16_field")
-        assert [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] == r[0][1].get("entity").get("int64_array_field")
-        assert 32 == len(r[0][0].get("entity").get("bfloat16_vector_field"))
-        assert 32 == len(r[0][0].get("entity").get("float16_vector_field"))
-        assert 16 == len(r[0][0].get("entity").get("int8_vector_field"))
+        assert r[0][0].get("entity").get("int32_field") == 0
+        assert r[0][1].get("entity").get("int8_field") == 1
+        assert r[0][2].get("entity").get("int16_field") == 2
+        assert r[0][1].get("entity").get("int64_array_field") == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        assert len(r[0][0].get("entity").get("bfloat16_vector_field")) == 32
+        assert len(r[0][0].get("entity").get("float16_vector_field")) == 32
+        assert len(r[0][0].get("entity").get("int8_vector_field")) == 16
