@@ -326,7 +326,9 @@ class Prepare:
         )
 
     @classmethod
-    def collection_stats_request(cls, collection_name: str) -> milvus_types.GetCollectionStatisticsRequest:
+    def collection_stats_request(
+        cls, collection_name: str
+    ) -> milvus_types.GetCollectionStatisticsRequest:
         return milvus_types.GetCollectionStatisticsRequest(collection_name=collection_name)
 
     @classmethod
